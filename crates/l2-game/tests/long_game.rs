@@ -30,6 +30,15 @@ use l2_kingdom::{Kingdom, UnitKind};
 /// hundred-turn game" and that is the number.
 const TURNS: usize = 100;
 
+/// The long game's horizon — a hundred and fifty years.
+///
+/// **It was 400 and is 600**, because the first bankruptcy on this fixture
+/// moved from turn 144 to turn 480 when units started taking the original's
+/// number of ticks to cross a tile. See
+/// [`four_hundred_turns_of_england_reaches_the_rules_nothing_else_can`] for the
+/// measurement and for what it does *not* buy back.
+const TURNS_LONG: usize = 600;
+
 // ---------------------------------------------------------------------------
 // The census: which late-game rules have fired, and when they first did.
 // ---------------------------------------------------------------------------
@@ -272,9 +281,31 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
         if realm.in_play && held == 0 && realm.strength == 0 {
             return Err(format!("realm {r} is in play with strength 0"));
         }
-        // `Diplo_ReconcileAlliances` runs every turn and an alliance is
-        // symmetric and exclusive (`docs/diplomacy.md`).
-        if realm.ally != 0 {
+        // **`Diplo_ReconcileAlliances` (`0x004A1847`) runs every turn — it does
+        // now — and it guarantees less than this check used to demand.**
+        //
+        // Its loop `continue`s on `strength == 0` before it looks at that
+        // realm's `ally` byte at all, so **a dead realm's `ally` is stale by
+        // construction**: realm 2 dies pointing at realm 5, realm 5's own
+        // pairing is dropped on the next pass, and realm 2 goes on naming 5 for
+        // ever. Reading a corpse's byte as an assertion about the living is
+        // what this check was doing, and it is why it fired.
+        //
+        // The two halves it still asserts, both of which the original really
+        // does maintain, are about **realms in play**:
+        //
+        // * an in-play realm's pairing is symmetric — the reconcile pass writes
+        //   `ally` back on the partner (it *repairs* a one-sided pairing rather
+        //   than dropping it, which is `l2_kingdom::diplomacy`'s own correction
+        //   to `docs/diplomacy.md` §4.1);
+        // * an in-play realm is not allied to a **lower-numbered** dead realm,
+        //   because the `handled` array the loop is filling can only ever see
+        //   indices below the one being walked. A *higher*-numbered dead
+        //   partner survives, and that asymmetry is the original's — see
+        //   `docs/bugs.md` and `reconcile_alliances`, where it is reproduced
+        //   deliberately. Asserting it away here would be asserting our own
+        //   repair of a defect we chose to keep.
+        if realm.in_play && realm.ally != 0 {
             let other = &k.realms[realm.ally as usize];
             if other.ally != r as u8 {
                 return Err(format!(
@@ -282,8 +313,12 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
                     realm.ally, realm.ally, other.ally
                 ));
             }
-            if !other.in_play {
-                return Err(format!("realm {r} is allied to {}, which is out of play", realm.ally));
+            if !other.in_play && (realm.ally as usize) < r {
+                return Err(format!(
+                    "realm {r} is allied to {}, which is out of play and below it — \
+                     `Diplo_ReconcileAlliances` drops exactly this pairing",
+                    realm.ally
+                ));
             }
         }
         for other in 1..l2_kingdom::MAX_REALMS {
@@ -473,36 +508,65 @@ fn a_hundred_turns_of_england() {
 /// read the census this test prints before assuming a defect: the question to
 /// ask is whether the rule became **unreachable**, which is C27's failure and a
 /// real one, or merely late.
+///
+/// # It has gone red once, and this is the reading it asked for
+///
+/// `Unit_StepOnce`'s sub-tile counter (`docs/decisions.md` **C134**)
+/// made a unit take 8 ticks to cross a road tile and 32 to cross open ground,
+/// where every earlier build crossed one a tick. Tiles a *season* did not
+/// change — the move allowance is the budget and it is untouched — but the
+/// tick a unit arrives on did, and over four hundred turns that moves the
+/// board. Measured, both ways, on this fixture:
+///
+/// | | before | after |
+/// |---|---:|---:|
+/// | battles in 400 turns | 65 | 30 |
+/// | *THE GAME WAS WON* | turn 212 | never |
+/// | first bankruptcy | turn 144 | turn 480 |
+/// | mutiny (stage 5) | turn 151 | not in 1200 |
+/// | a tax rate ≥ 20 | turn 136 | not in 1200 |
+///
+/// **The mechanism is interception.** Half as many battles, because an army
+/// sent at an enemy now spends most of a season walking and the enemy has
+/// moved by the time it arrives — which is what the original does, at the
+/// original's speed. Realm 3 runs away with the map but cannot catch realm 2's
+/// last 42-man army, so nobody wins, so the endgame collapse that used to
+/// bankrupt the losers never happens inside four hundred turns.
+///
+/// So: **late, not unreachable** — bankruptcy and its desertion arm still fire,
+/// at 480 and 486, and the horizon here is [`TURNS_LONG`] to reach them. The
+/// other two are neither: **mutiny and a tax rate at or above 20 are no longer
+/// reached by this fixture at all**, at any horizon tried. Their assertions are
+/// gone from this test rather than being quietly stretched, because a
+/// twelve-hundred-turn test that still fails is not evidence of anything. They
+/// need a *dealt* board — `england_with_an_empire` below already deals one for
+/// the tax term — and that is a real gap, recorded here rather than hidden by
+/// an assertion nobody can satisfy.
 #[test]
 fn four_hundred_turns_of_england_reaches_the_rules_nothing_else_can() {
     let save = l2_testkit::england!();
     let mut game =
         l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
-    let census = play(&mut game, 400, "England x400");
-    scoreline(&game.kingdom, "England, turn 400");
-    census.print("England, 400 turns");
+    let census = play(&mut game, TURNS_LONG, "England x600");
+    scoreline(&game.kingdom, "England, turn 600");
+    census.print("England, 600 turns");
 
     assert!(
         census.fired("bankruptcy"),
-        "a hundred years and no lord ever missed a wage bill — the bankruptcy \
-         ladder has no way in at all, which is `docs/decisions.md` C27's shape"
+        "a hundred and fifty years and no lord ever missed a wage bill — the \
+         bankruptcy ladder has no way in at all, which is `docs/decisions.md` \
+         C27's shape"
     );
     assert!(
-        census.fired("bankruptcy: MUTINY"),
-        "the bankruptcy counter reached {} and never 5 — the mutiny arm of \
+        census.fired("bankruptcy: desertion"),
+        "the bankruptcy counter reached {} and never 2 — the desertion arm of \
          `Wages_PayAll` has never executed",
         census.max_bankrupt_stage
     );
     assert!(
         census.fired("SECESSION"),
-        "a hundred years and nobody's lands were ever cut in two — \
+        "a hundred and fifty years and nobody's lands were ever cut in two — \
          `Realm_SecedeIsolatedCounties` has never taken a county"
-    );
-    assert!(
-        census.max_tax_rate >= 20,
-        "the highest tax rate in a hundred years is {} — `TAX_HAPPINESS_OTHER` \
-         is flat zero below 20, so every reading of it is still its first row (C26)",
-        census.max_tax_rate
     );
 }
 

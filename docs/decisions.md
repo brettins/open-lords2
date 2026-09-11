@@ -5478,8 +5478,9 @@ test whose subject is a documented claim inherits the claim's errors, and the te
 available: **the value it asserted on was one nothing in the game produces.** A ladder test
 that walks unreachable rungs is testing the document, not the game.
 
-**C125 — the same omission on the panel next door, and the
-first fix did not generalise because nobody asked whether it should.**
+**C125 — the correction that identifies a class must enumerate the
+class. Naming a category and fixing one member of it is the most expensive kind of
+half-finished work, because the name makes it look finished.**
 
 An hour after *"rations slider moves but is inoperable"*, the same player: *"'People pay 0
 crowns' on the tax thing always says 0 crowns. And the happiness bonus/minus on the tax screen
@@ -5503,11 +5504,24 @@ Panel_Tax (0x0041152F)             draws exactly those three, plus the realm's e
 
 Ours wrote `tax_rate` and returned. `tax_shown` had **one writer in the whole tree**,
 `tax::collect`, which runs in the season pass — so it is zero until the first collection and
-afterwards describes last season's rate. Both happiness terms had `tax::recompute_preview`,
-whose own doc comment says it runs *"inside County_MakeIndependent, County_SetOwner and every
-tax control"* — and **no tax control called it.** The documentation of the wiring was correct
-and the wiring was absent, which is the same shape as `Unit::mission` and `County::farm_style`
-and is now the third instance on a *function* rather than a field.
+afterwards describes last season's rate.
+
+**And the other half is a new species of the documented-and-absent bug.** Both happiness terms
+had `tax::recompute_preview`, whose own doc comment says it runs *"inside
+`County_MakeIndependent`, `County_SetOwner` and every tax control"* — and **no tax control
+called it.** `Unit::mission` and `County::farm_style` were the first two instances and both
+were *fields nothing wrote*; this is the first on a **function nothing calls**, and the two are
+not equally survivable:
+
+> **A field nothing writes is invisible. A function nothing calls has a comment claiming
+> otherwise** — and the comment is what carries it through review, because a reader who opens
+> `recompute_preview` finds an accurate account of when it runs and no reason to check.
+
+The remedy is the same one this project keeps arriving at from different directions: the claim
+*"this runs from every tax control"* is a **second artefact**, and it agreed with nothing.
+Grepping the callers of a function whose comment names its callers takes ten seconds and is
+now the habit — it is the same act as reading a decompilation against a claim rather than for
+it.
 
 **The generalisation is the finding.** The ration correction identified a category — *a
 control in this game recomputes and repaints; a setter that only sets is not the control* —
@@ -5523,12 +5537,23 @@ control for it:
 |---|---|---|---|
 | `set_ration_split` | `Ration_SetSplit` | food pass, search, allocate ×2, repaint | fixed |
 | `set_tax_rate` | `Tax_IncreaseCounty` | `Tax_RecomputePreview`, repaint | fixed here |
-| `set_ration` | `Ration_SetWanted` | **not yet read** | open |
+| `set_ration` | `Ration_IncreaseCounty` (`0x0043A23F`) | `Ration_Apply`, `County_RefreshEstimates`, repaint — **once each, not twice** | fixed, and found by this table |
 | `set_industry_share` | `FUN_00439122` | allocate ×2 — already done | correct |
 | `toggle_industry` | `Industry_ToggleFromMap` | allocate ×2 — already done | correct |
 
-`set_ration` is the one left and it is the third control on the same panel. It is *open*
-rather than *believed fine*, which is the distinction this entry exists to make.
+**`set_ration` was the row that paid for the table.** It was filed *open* rather than
+*believed fine* — an unread member of an enumerated class is a known unknown, and this project
+has repeatedly been bitten by the other kind — and reading it the next morning took ten
+minutes and found the same defect a third time. Nobody reported it; there is no player
+sentence for this one, because the enumeration got there first. That is the whole argument for
+enumerating: **the third instance was the cheapest to find and would have been the most
+expensive to have shipped**, since by then the pattern would have looked like a fact about our
+architecture rather than three copies of one omission.
+
+Its one asymmetry is kept: the level change runs `Ration_Apply` and
+`County_RefreshEstimates` **once each**, where `Ration_SetSplit` runs them twice. That is the
+original's, and the reason is legible — the split's search can leave the county's labour
+describing a split it walked away from, and a level change cannot.
 
 **One half of the report is not a defect and is now asserted so.** `taxHapOther` is
 `g_taxHappinessOther[rate]` and that table is **flat zero from 0 to 19**. Over the range a
@@ -5555,7 +5580,6 @@ the store — and reaching for the wrong one would have had a drag eat the count
 hundred times. The tax path has no such pair: `recompute_preview` computes and `collect`
 banks, the names say which, and only `collect` credits a realm. Recorded because *looking and
 finding nothing* is the half of a check that usually goes unwritten.
-
 
 **C126 — The narrator is 84 % of the game's audio, and one trigger reaches all of him.**
 
@@ -5784,6 +5808,61 @@ for stone, wood, iron and weapons read `industry[2]`, `industry[4]`, `industry[1
 one in all four or `docs/records.json`'s `Industry` base is wrong; nothing settles it. Four
 confidently wrong numbers on screen would be worse than four blanks, so they stay blank and the
 record layout is the prerequisite.
+
+**C133 — we read these panels' numbers out of the binary and wrote their
+words ourselves, and the words are where the game explains itself.**
+
+A player: *"Also sorely missing: 'All your people are fed by dairy.'"*
+
+**That string does not exist.** Every one of `L2.eng`'s 317 groups was searched for *dairy*,
+*fed by* and *all your people*: the hits are group 8's *"Dairy maid"*, three event texts, one
+tip, and **group 62** — *"No dairy produce"*, *"Dairy produce feeds"*, *"RATIONS MET."* —
+which is the ration screen `docs/rules.md` already records as **cut**, with a food-priority
+mechanic the shipped game does not have. So this is the third remembered detail from him
+tonight that does not survive checking, and the third time checking was cheap. He is right
+about the *behaviour* every time and the discipline holds: **a memory that fits is not
+evidence.**
+
+**But the report was still right about the panel**, which is why this entry exists rather than
+a one-line reply. `Panel_Ration` (`0x00411B72`) is the **only consumer of group 87 in the whole
+binary** — enumerated, not assumed — and it draws seven of that group's twelve strings. Our
+panel drew **none of them**. Its whole vocabulary was hard-coded in our own words:
+
+```rust
+mod g87 { pub const TITLE: &str = "RATION"; pub const WANTED: &str = "WANTED:"; … }
+```
+
+and so is the tax panel's, the population panel's and the happiness panel's. **The numbers
+were treated as the mechanism and the text as a skin over it**, and that is exactly backwards
+for a game whose panels explain their own rules in words. It is a habit rather than an
+oversight, and it is the honest answer to the player's standing question *"have we compared
+our functionality to the binary?"*: for these panels, we compared the arithmetic and not the
+sentences.
+
+> **A screen's strings are part of its specification, not a skin over it.** A group with one
+> consumer *is* that screen's vocabulary, and reading the painter without reading the group is
+> reading half the function.
+
+**The count, the way the draw audits give it.** `Panel_Ration` makes **26** content draws — 24
+unconditional and 2 more when *Armies eat* is on. Before this branch we made **12** of them.
+Now **18**, and the six added are the `Misc_cty` frames that say what each column is; without
+them the Fed and Eaten rows are unlabelled numbers, which is most of what *"no information
+about feeding peasants is available"* actually meant. **Still missing: the two *Armies eat*
+draws** (`+0x19C + +0x198` and 87/8, *"men foraging in the county."*), which need a field pair
+we do not carry.
+
+**And five of group 87's twelve strings are drawn by nothing at all** — 6 and 7, both
+*"Feeds"*, and 9, 10, 11: *"growing"*, *"harvested"*, *"planted"*. Same shape as
+`docs/bugs.md` B82 and B83, established the same way, and filed there.
+
+**What this does not change.** `docs/rules.md`'s caveat — that a player cannot tell his county
+is fed entirely on dairy except by reading the Fed row — **stands**, because the panel says it
+with a *number* and not a sentence. That number is the Fed row's third figure,
+`herd × dairyPerHead`, which C120 added an hour earlier: when it equals the
+population, all your people are fed by dairy. So the player was asking for a readout that does
+exist, in the form the game actually uses, and which we had just started drawing. The two
+findings are one condition with two readouts — and wiring them together is what makes the
+panel able to answer the question that started this whole thread.
 
 ## Open questions
 
@@ -6045,3 +6124,143 @@ gone*, because any future selection paint fails it. The two counties it compares
 derived rather than named, because the field markers under `brush` are drawn for the
 selected county when the player owns it and are the visible half of a *different*
 invention that is deliberately kept.
+
+**C134 — Half of `Unit_StepOnce` was missing, and the tests that
+noticed were read as fixtures.**
+
+A player, on build `3F9C11E`: *"The merchants don't move right when you click End Turn, and
+then… move insanely fast."* Both halves are one number. Measured through the real screen
+machine on the England fixture, one `Machine::update` a frame: the turn was **47 frames**,
+merchants stood still for 34 of them and then entered a tile on every one of frames 35…45.
+
+**The driver was never at fault.** Exactly one `Turn_Tick` runs per frame at every point of
+a turn; there is no accumulator, no deferral and no flush anywhere between `winit` and
+`advance`, and `tests/pacing.rs`'s `a_frame_of_a_turn_is_exactly_one_turn_tick` passes both
+before and after the fix. The deferred-then-flushed theory was ruled out by measurement
+rather than by argument.
+
+What was missing is the other arm of `Unit_StepOnce` (`0x0046634D`). It has two, picked by a
+latch at `+0x14B` bit 0, and we had only the one that enters a tile:
+
+```c
+cVar1 = onRoad ? 0 : 3;
+if (cVar1 < ++field_0x14a) {
+    field_0x14a = 0;
+    field_0x149 += (g_multiplayer == 0) ? 2 : 4;
+    if (field_0x149 >= 0x10) { field_0x14b |= 1; field_0x149 = 0; return 2; }
+}
+return 1;                       /* still crossing: no tile is entered */
+```
+
+Sixteen in twos is eight admissions a tile; a road admits every tick and open ground one in
+four. **8 ticks a road tile, 32 an open one**, single player. Ours entered one a tick — 6×
+and 24× too fast. `[V]`
+
+**The tick rate was never the problem, and it is worth writing down because the obvious fix
+was to change it.** The frame loop at `0x004B99C0` runs `Turn_Tick(); Units_Tick();`
+`local_c` times, and `local_c` comes from `FUN_004BB978`, `Map_ScrollThrottle`'s twin: one
+tick when elapsed >= `((100 - g_optGameSpeed) / 10) * 10 + 2` ms against a `timeGetTime`
+stamp, remainder discarded. The shipped default is `g_optGameSpeed = 90` (`0x004AE310`
+writes `0x5A`), so **12 ms** against our 16. Ours sits just inside it. Only the
+ticks-per-tile were wrong.
+
+### The half of the fix that was missing, and the tests that said so
+
+The branch that found all of the above left **22 tests red** and reported *"8 in
+`military.rs`, and nothing else"*. Two separate things had gone wrong, and they are the
+reason this entry is here rather than in a commit message.
+
+**One: `cargo test --workspace` fail-fasts.** `long_game.rs` and `turn.rs` sort before
+`military.rs` and never ran; the whole of `l2-kingdom` is a crate later and never ran
+either. That is `docs/agents.md`'s *how to ablate wrongly*, item four — **read which tests
+went red, not how many** — arriving in a handoff rather than in an ablation, where nothing
+in the tree can catch it.
+
+**Two, and the substantive one: `Unit_Spawn` (`0x0046E1B0`) ends `field_0x14b |= 1`.**
+`Army_Split` (`0x00437FD7`) sets it again on the half it makes. **Every unit the original
+creates starts at a tile edge**, so the first admitted tick of its life commits a tile
+immediately and only the tiles after it cost the full crossing. `Unit::new` had
+`at_tile_edge: false`, which parks every unit in the game for its first eight — or
+thirty-two — ticks.
+
+`Unit_Step` (`0x00465D28`) is where that is legible: its `while` loop does the budget test,
+the waypoint advance and the tile entry **only** inside the latched arm, so a unit that
+stopped for want of moves is standing on a tile edge by construction. That is also why
+`l2-scenario`'s default for the three bytes it cannot yet import is the latch **set**.
+
+**Fourteen of the twenty-two red tests were that one line.** All nine in `military.rs` — the
+file the handoff said needed fixtures — and five of the driver's own unit tests, every one
+of which ticks once and reads the result, which is exactly what the original does. The
+`march()` helper the previous agent wrote, and reverted rather than half-apply, was the
+right instinct applied to the wrong file: **`castles.rs` genuinely needed it and
+`military.rs` never did.**
+
+> **A fix that is half-implemented and a fixture that is staged wrong produce the same
+> red.** The difference is visible only from the binary, and the handoff had already
+> narrated it as the second.
+
+### The three that were really about the tests, and the one asserting the defect
+
+* **`a_unit_enters_one_tile_a_tick` asserted the defect** — in its name, its doc comment
+  (*"fifteen points on a road is fifteen tiles, and it takes fifteen ticks"*) and its
+  `assert_eq!`. It is now `a_unit_enters_one_tile_every_eight_ticks_on_a_road` and asserts
+  the arrival **ticks** as well as the tiles: 1, 9, 17 … 113. The 8 is typed rather than
+  computed from `SUBTILE_SPAN / SUBTILE_STEP_SOLO`, so ablating either constant cannot move
+  the probe with it.
+* **`the_wait_follows_the_units` was staged wrong** — `for _ in 0..10` against a three-tile
+  march that now takes 17 ticks. A bigger fixed number would have been the same mistake
+  again; it is a run-until with `assert_eq!(ticks, 17)`.
+* **`an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended` was both**, and
+  correcting it turned up a rule nobody had written down. `Units_ResetMoves` (`0x004651B9`)
+  is phase 7 and its loop is unconditional — `moving = 0; movesUsed = 0` over all 150 slots
+  — so **an unfinished march is dropped at the season boundary, not carried across it.**
+  `[V]`. A fifteen-tile road march is 113 ticks and the phases are shorter than that, so
+  the army stops part-way and the order is gone. That is not a defect: phase 4 has no clock
+  but the turn timer, and the player watches his army walk and *then* presses End Turn.
+  **It is the reason `march()`-before-`end_turn` is the correct fixture rather than a
+  convenience** — a test that presses End Turn in the same breath as the order is a
+  different scenario, not a shortcut.
+
+### And a function that was implemented and never called
+
+`tests/long_game.rs`'s twenty-turn invariant sweep went red on *"realm 5 is allied to 2,
+which is out of play"* — on a trajectory the slower world produced and the faster one never
+had. `Diplo_ReconcileAlliances` (`0x004A1847`) is what takes such a pairing down, it is
+called from `Turn_Tick`'s phase 7 as the last work before `Turn_AdvancePhase`, and
+`l2_kingdom::diplomacy::reconcile_alliances` **had no caller anywhere in the workspace.**
+`Kingdom::reconcile_alliances` wrapped it and nothing called that either. It is now
+`Pass::ReconcileAlliances`, appended to `SEASON_PIPELINE` — appended, so every existing pass
+index is unmoved and `l2_game::save`, which writes a pass as its position in that array, is
+unaffected.
+
+That is *a producer that is complete and a consumer that is absent* with the missing
+consumer being **the game itself**, and nothing in the tree could see it: the function has
+unit tests, they pass, and they call it directly.
+
+**The invariant was also stronger than the original.** `Diplo_ReconcileAlliances` `continue`s
+on `strength == 0` before it looks at that realm's `ally` byte, so **a dead realm's `ally` is
+stale by construction** — realm 2 dies pointing at realm 5, realm 5's own pairing is dropped
+on the next pass, and realm 2 goes on naming 5 for ever. And the dead-partner test reads a
+`handled` array the same ascending loop is filling, so it can only see indices *below* the
+one being walked: an in-play realm allied to a **higher**-numbered dead realm keeps the
+alliance. Both are the original's, both are reproduced, and the check now asserts what the
+binary maintains rather than what an alliance ought to be.
+
+### What is still open
+
+* **`SUBTILE_STEP_NET`** — the multiplayer `+4` that makes a network game's units walk at
+  twice the speed. Named in `tables.rs` rather than dropped. Nothing below `l2-game` knows
+  whether the session is networked, and putting `g_multiplayer` into `Kingdom` would put a
+  session property into the lockstep digest. Both peers take the same arm, so the value
+  agrees where it matters; what is missing is a way to *select* it.
+* **`l2-formats` does not read `+0x149 … +0x14B`** out of the original's save, so
+  `l2-scenario` defaults them. Bounded and stated at the call site: the original writes its
+  save from phase 7, after `Units_ResetMoves`, so nothing in a saved position is walking.
+  `docs/agents.md` reserves that crate for the lead session.
+* **The late-game evidence was gathered in a faster world than the game has.**
+  `long_game.rs` now sees 30 battles instead of 65, no winner instead of a win on turn 212,
+  and a first bankruptcy on turn 480 instead of 144 — the mechanism is interception, because
+  an army sent at an enemy now spends most of a season walking and the enemy has moved.
+  Mutiny and a tax rate >= 20 are reached at no horizon tried up to 1,200 turns; those two
+  assertions were **removed, not stretched**, with the measurement written down where they
+  were. They need a dealt board, not a longer run.

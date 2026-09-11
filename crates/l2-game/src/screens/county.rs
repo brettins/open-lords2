@@ -721,7 +721,20 @@ mod g86 {
     pub const OTHER_COUNTIES: Line = line(GROUP, 4, "OTHER COUNTIES");
 }
 
-/// `L2.eng` group 87 — the ration panel, `Panel_Ration`.
+/// `L2.eng` group 87 — the ration panel, `Panel_Ration`, and these strings are
+/// the **fallback** now: the panel draws the player's own file through [`eng`]
+/// and falls back to these only where the install has nothing.
+///
+/// That is not a cosmetic difference, and the reason is countable rather than
+/// stylistic: `Panel_Ration` (`0x00411B72`) is the **only consumer of group 87
+/// in the whole binary** — enumerated, not assumed — and it draws seven of the
+/// group's twelve strings. **A group with one consumer *is* that screen's
+/// vocabulary**, so reading the painter without reading the group is reading
+/// half the function; this panel had its *numbers* read out of the
+/// decompilation and its *words* written by us.
+///
+/// These constants stay because an install with no `L2.eng` still has to draw
+/// something, and because they say what each index *is* without a lookup.
 mod g87 {
     use super::{line, Line};
     pub const GROUP: usize = 87;
@@ -1365,7 +1378,36 @@ pub fn county_name(ctx: &Ctx, id: u8) -> String {
     }
 }
 
-/// One `L2.eng` string with a fallback, for the two the strip needs by name.
+/// **One `L2.eng` string with a fallback — the panels' vocabulary, not just the
+/// strip's two.**
+///
+/// All four county panels hard-coded their words — `"RATION"`, `"WANTED:"`,
+/// `"PEOPLE PAY"` — where the original draws `Eng_DrawString(group, index)`.
+///
+/// **The ration panel is wired through here. The other three are not, and this
+/// is the list**, so that "recorded" does not become "left":
+///
+/// | panel | `g_screenId` | group | painter | state |
+/// |---|---|---|---|---|
+/// | ration | `0x19` | 87 | `Panel_Ration` (`0x00411B72`) | wired |
+/// | tax | `0x15` | 86 | `Panel_Tax` (`0x0041152F`) | **hard-coded** |
+/// | population | `0x14` | 73 | | **hard-coded** |
+/// | happiness | `0x16` | 85 | | **hard-coded** |
+///
+/// The ration panel's own numbers say what the other three are likely to cost:
+/// wiring it went from **12 of `Panel_Ration`'s 26 content draws to 18**, and
+/// six of the six added were *labels* — the frames that turn three unlabelled
+/// numbers into a Fed row. `CLAUDE.md` rule 6.
+///
+/// The honest account of how that happened, because it is a habit and not an
+/// oversight: **we read these panels' numbers out of the binary and wrote their
+/// words ourselves**, treating the numbers as the mechanism and the text as a
+/// skin over it. `Panel_Ration` is the *only* consumer of group 87 in the whole
+/// binary and draws seven of its twelve strings, so the group **is** the
+/// panel's specification. A screen's strings are part of what it does.
+///
+/// No case handling here: [`l2_view::text::glyph`] upper-cases, so a lower-case
+/// string out of `L2.eng` draws the same as our shouted fallback.
 fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
     let s = ctx.assets.shell.text(group, index);
     if s.is_empty() {
@@ -2000,6 +2042,14 @@ impl CountyScreen {
                 // slaughtered, so a county with more dairy than mouths eats
                 // nothing at all and its slider has nothing to divide. That
                 // number is what says so.
+                //
+                // **It is the same condition as the slider's inertness, read a
+                // second way**, and the two were found an hour apart as separate
+                // complaints — *"the slider is inoperable"* and *"sorely
+                // missing: 'All your people are fed by dairy'"*. There is no
+                // such sentence in `L2.eng`; this figure reaching the county's
+                // population **is** the game saying it, and it is why the two
+                // reports have one fix. `docs/rules.md` §4.
                 //
                 // Drawn through [`Pen`] rather than the 5 x 7 font, and centred
                 // rather than right-aligned: `Ui_DrawNumberRight` **centres**

@@ -1376,6 +1376,135 @@ And the sharper version, for a `Readme.txt` line especially: **the words "after"
 "each", "total" and "remaining" are where the mechanics live.** Those are the words a reader
 skims when they are looking for a number.
 
+## A test that asserts the defect is not an accidental pass — it is worse
+
+This document catalogues thirteen checks that passed for the wrong reason. Every one of them
+was a check that **could not fail**: a pixel count measuring the artwork, a marker rule
+agreeing with today's data, a geometry check comparing two of our own constants. The remedy
+was always to make the check capable of failing.
+
+This one is different in kind and needs saying separately, because the remedy does not apply:
+
+> **A test that asserts the defect is a check that would have failed on the *correct* code.**
+> It does not pass for the wrong reason. It passes for exactly the right reason, against the
+> wrong claim.
+
+The case. `Game::set_ration` wrote `ration_wanted` and returned, where
+`Ration_IncreaseCounty` (`0x0043A23F`) calls `Ration_Apply` and repaints — so in the original
+the *achieved* level moves the instant you press the arrow. And
+`orders_are_clamped_to_the_ranges_the_rules_have` contained:
+
+```rust
+let achieved = g.kingdom.counties[1].ration_achieved;
+g.set_ration(1, -3);
+assert_eq!(
+    g.kingdom.counties[1].ration_achieved, achieved,
+    "what the player asks for (+0x15E) is not what the county managed to feed (+0x15D)"
+);
+```
+
+The *sentence* is true — the two fields are genuinely different things. The *assertion* is
+false, and it was derived from the code rather than from the binary: someone observed that our
+setter left `ration_achieved` alone, recognised a real distinction that explains it, and wrote
+the observation down as a requirement. Fixing the code turned the test red, which is how it
+was found.
+
+**Nothing in this file would have caught it.** Ablation cannot: deleting the line the assertion
+is about makes it fail, correctly, because the assertion *is* about live code. Two artefacts
+that must agree cannot: the code and the test agreed perfectly. The only thing that finds it is
+the thing that found it — implementing what the binary does and watching a test object.
+
+### What it means for practice
+
+**A test written by reading our own code is a description, not a specification.** It records
+what we do. That is worth something — it catches regressions — but it must not be written in
+the voice of a rule, because the next reader cannot tell the two apart, and a red test is
+normally evidence that the *change* is wrong.
+
+So, when a fix turns an old test red:
+
+1. **Read what the old test claimed, against the binary, before assuming the fix is wrong.**
+   Here the rule cited in the message (`+0x15E` is not `+0x15D`) was true and the assertion
+   built on it was not — a correct premise carried into a wrong requirement, which is the
+   shape that survives review.
+2. **If the old assertion was a description, replace it with the claim it was reaching for**
+   rather than deleting it. The distinction it named is real, so the new test asserts it a way
+   that does not depend on the bug: ask for triple rations with an empty larder and require
+   `wanted == 5, achieved == 0`.
+
+### And the vacuous pass caught in the act, in the same test
+
+That replacement failed on its first run for an unrelated reason worth recording: `two_counties()`
+builds a county with **no population**, and a county with nobody in it is fed at *Triple*
+trivially, because the requirement is zero. The assertion `achieved == 0` read `5`.
+
+Had the numbers happened to line up, it would have passed while measuring nothing — the same
+family as the sweep test three functions away whose first draft never fired its search because
+the county's herd was not being eaten. **Both were caught by running the test and reading the
+number rather than the verdict**, which is the cheapest habit in this document and the one that
+keeps paying: a test that passes on the first attempt against a state you did not deliberately
+construct deserves thirty seconds of *why*.
+
+## The correction that identifies a class must enumerate the class
+
+Nearly everything above is about a check that fails to fire. This one is about a *fix* that
+fires exactly once and looks complete.
+
+> **Naming a category and fixing one member of it is the most expensive kind of half-finished
+> work, because the name makes it look finished.**
+
+The case. A player reported the ration panel's slider as *"moves but is inoperable"*. Reading
+the binary produced a good correction and a genuine category: **a control in this game
+recomputes and repaints — `Ration_SetSplit` runs the food pass on the spot, searches,
+reallocates the county twice and calls `Panel_Ration()` — so a setter that only sets is not
+the control.** The slider was fixed, the category was written down, and the work read as done.
+
+An hour later the same player reported the **tax** panel, three feet away, with two symptoms
+in one sentence. Same widget-table shape, same missing call, same panel group.
+`Tax_IncreaseCounty` is `taxRate++`, `Tax_RecomputePreview`, `Panel_Tax()`, and ours wrote the
+field and returned.
+
+**The correction named the class and fixed one member.** Nothing in it was wrong; what was
+missing is the step after — *now list the others*. Five setters, four lines of grep:
+
+| ours | the original | state when the table was written |
+|---|---|---|
+| `set_ration_split` | `Ration_SetSplit` | fixed |
+| `set_tax_rate` | `Tax_IncreaseCounty` | broken, reported by a player |
+| `set_ration` | `Ration_IncreaseCounty` | **not read** |
+| `set_industry_share` | `FUN_00439122` | already correct |
+| `toggle_industry` | `Industry_ToggleFromMap` | already correct |
+
+The third row was filed **`open`, not "probably fine"**, and reading it the next morning took
+ten minutes and found the same defect a third time — on the same panel as the first. **Nobody
+reported that one.** There is no player sentence for it, because the enumeration got there
+first, and that is the entire argument: the third instance was the cheapest of the three to
+find and would have been the most expensive to ship, since by then three copies of one
+omission would have looked like a fact about our architecture.
+
+### Two habits this leaves
+
+**File the unread members `open`.** An unread member of an enumerated class is a *known*
+unknown, and every expensive thing in this document is the other kind. `open` costs a row in a
+table and buys the difference between "we checked" and "nobody has looked", which is the only
+thing the next reader actually needs from you.
+
+**Write down the members you looked at and cleared.** The ration path has `ration::preview`
+and `ration::apply` — the same name as the original's single `Ration_Apply`, opposite
+behaviour on the store, and reaching for the wrong one would have had a drag eat the county's
+herd a hundred times over. The tax path was checked for the same trap and has none. *Looking
+and finding nothing is the half of a check that normally goes unwritten*, and an empty result
+recorded is worth almost as much as a finding, because it stops the next agent spending the
+same twenty minutes.
+
+### Where the boundary is
+
+This is not an instruction to chase every neighbour of every fix. The trigger is narrow and
+mechanical: **if your correction contains a sentence of the form "X in this game always does
+Y", then before you finish, list the Xs.** A class small enough to name is nearly always small
+enough to enumerate — there were five — and if it is not, saying so in the correction is
+itself the finding.
+
 ## Prior art first
 
 Before commissioning a reverse-engineering task, spend five minutes searching for existing

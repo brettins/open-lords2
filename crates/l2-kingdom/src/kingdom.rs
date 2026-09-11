@@ -539,6 +539,7 @@ impl Kingdom {
             Pass::RefreshEstimates => self.refresh_estimates_all(),
             Pass::MercenaryAdvance => self.mercenary_advance(),
             Pass::UnitsResetMoves => self.units_reset_moves(),
+            Pass::ReconcileAlliances => self.reconcile_alliances(),
         }
     }
 
@@ -1218,6 +1219,56 @@ impl Kingdom {
             self.refresh_estimates(county);
         }
         true
+    }
+
+    /// **The wanted ration level — the third control on the ration panel, and
+    /// the third with the same omission.** `Ration_IncreaseCounty`
+    /// (`0x0043A23F`) and its twin:
+    ///
+    /// ```c
+    /// if (rationWanted < 5) rationWanted++;      /* the cap is the table's length */
+    /// Ration_Apply(county, g_season);            /* ONCE, not twice */
+    /// County_RefreshEstimates(county, g_seasonNext);
+    /// Panel_Ration();
+    /// ```
+    ///
+    /// **One pass each, where `Ration_SetSplit` runs two. Do not tidy this into
+    /// symmetry.** It is the original's asymmetry, it is deliberate, and the
+    /// reason is legible: the split's search walks the value up to a hundred
+    /// times and can leave the county's labour describing a split it then
+    /// walked away from, so that control re-runs the pair to settle it. A level
+    /// change moves once and has nothing to settle.
+    ///
+    /// Written here rather than only in the correction because the next reader
+    /// of these two functions will see `for _ in 0..2` beside a bare call and
+    /// reach for the loop.
+    ///
+    /// The recompute is unconditional — the guard is only on the increment — so
+    /// a click at the cap still re-applies and repaints. Ours wrote
+    /// `ration_wanted` and returned, exactly like the other two, and this one
+    /// was found by *enumerating the class* rather than by a player reporting
+    /// it: `docs/agents.md`, **the correction that identifies a class must
+    /// enumerate the class**.
+    ///
+    /// It writes `rationWanted` (`+0x15E`) and never `rationAchieved`
+    /// (`+0x15D`): what the player asks for and what the stores could actually
+    /// feed are different fields, and only the pass decides the second.
+    ///
+    /// Returns whether the level moved.
+    pub fn set_ration_wanted(&mut self, county: usize, level: i32) -> bool {
+        if county == 0 || county > self.county_count {
+            return false;
+        }
+        let level = level.clamp(0, crate::tables::RATION_LEVEL_COUNT as i32 - 1);
+        let moved = self.counties[county].ration_wanted != level;
+        self.counties[county].ration_wanted = level;
+        let armies_eat = self.options.armies_eat;
+        // `Ration_Apply` computes and records; it does not spend. The spending
+        // twin is `crate::ration::apply`, whose name matches the original's and
+        // whose behaviour does not — see `set_ration_split`.
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+        self.refresh_estimates(county);
+        moved
     }
 
     /// **The tax rate, and it is not a setter either.**
@@ -1995,6 +2046,89 @@ mod tests {
     }
 
     // --- the ration split ---------------------------------------------------
+
+
+    /// **The third control on the ration panel, found by enumerating the class
+    /// rather than by a player.** `Ration_IncreaseCounty` (`0x0043A23F`) is
+    /// `rationWanted++`, `Ration_Apply`, `County_RefreshEstimates`,
+    /// `Panel_Ration` — so asking for more food changes what the county is
+    /// recorded as eating, on the spot.
+    ///
+    /// Ours wrote `ration_wanted` and returned, like the split slider and like
+    /// the tax arrows before it.
+    #[test]
+    fn asking_for_more_food_changes_what_the_county_eats_at_once() {
+        let mut k = Kingdom::new(31);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        {
+            let c = &mut k.counties[1];
+            c.owner = 1;
+            c.population = 2000;
+            c.pop_band = 80;
+            c.herd = 100;
+            c.grain = 2000;
+            c.ration_split = 0; // all grain, so the level alone moves the number
+            c.ration_wanted = 1;
+        }
+        k.set_ration_wanted(1, 1);
+        let (level, sacks) = (k.counties[1].ration_achieved, k.counties[1].grain_eaten);
+
+        k.set_ration_wanted(1, 5);
+        assert!(k.counties[1].ration_achieved > level, "the county can afford more and takes it");
+        assert!(
+            k.counties[1].grain_eaten > sacks,
+            "and the Eaten row moves with it: {} was {sacks}",
+            k.counties[1].grain_eaten,
+        );
+        // Ablation: drop the `ration::preview` call from `set_ration_wanted`
+        // and both comparisons collapse to equality.
+    }
+
+    /// The cap is the table's length and the recompute is **outside** the
+    /// guard: a click at the top still re-applies, exactly as
+    /// `if (rationWanted < 5) rationWanted++;` followed by an unconditional
+    /// `Ration_Apply` says.
+    #[test]
+    fn a_click_at_the_top_of_the_ration_scale_still_recomputes() {
+        let mut k = Kingdom::new(32);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        {
+            let c = &mut k.counties[1];
+            c.owner = 1;
+            c.population = 500;
+            c.grain = 500;
+            c.ration_wanted = 5;
+        }
+        // A sentinel no pass would ever leave, so the assertion is about the
+        // pass having run rather than about the field defaulting to anything.
+        k.counties[1].ration_achieved = -7;
+        assert!(!k.set_ration_wanted(1, 9), "the level did not move");
+        assert_eq!(k.counties[1].ration_wanted, 5, "and is clamped to the table");
+        assert_ne!(
+            k.counties[1].ration_achieved, -7,
+            "but the pass ran anyway, because the guard is only on the increment",
+        );
+    }
+
+    /// It writes what the player asked for and never what the county managed.
+    #[test]
+    fn the_ration_control_writes_wanted_and_the_pass_writes_achieved() {
+        let mut k = Kingdom::new(33);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        {
+            let c = &mut k.counties[1];
+            c.owner = 1;
+            c.population = 1000;
+            c.herd = 0;
+            c.grain = 0; // nothing in store at all
+        }
+        k.set_ration_wanted(1, 5);
+        assert_eq!(k.counties[1].ration_wanted, 5, "he asked for triple");
+        assert_eq!(k.counties[1].ration_achieved, 0, "and the county feeds nobody");
+    }
 
     /// A county that eats some of its herd and some of its grain, which is the
     /// only state in which the slider's search does anything at all.

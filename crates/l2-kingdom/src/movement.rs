@@ -668,6 +668,14 @@ pub fn step(
         }
         (u.path[0], u.kind, u.owner, u.owner_is_human)
     };
+    // `Unit_StepOnce`'s commit arm opens by clearing both halves of the
+    // sub-tile counter, **after** `Unit_Step` has already made the budget test
+    // above. A unit that has run out of moves therefore keeps whatever it had
+    // crossed, which is why the reset is here and not at the top.
+    if let Some(u) = units.get_mut(id) {
+        u.sub_tile = 0;
+        u.sub_frame = 0;
+    }
     let (nx, ny) = next;
     let entry = pass_through(map, units, kind, try_enter(map, units, nx, ny), nx, ny);
     let tile_county = map.county_at(nx, ny);
@@ -754,6 +762,13 @@ pub fn step(
     }
 
     let u = units.get_mut(id)?;
+    // The tile is being entered, so the latch goes down and the counter starts
+    // again — at **1**, not 0, which is `Unit_StepOnce`'s literal. It costs
+    // nothing (eight admissions either way: 1 + 2×8 ≥ 16 and 0 + 2×8 ≥ 16) and
+    // it is written as the original writes it so that a future change to
+    // `SUBTILE_STEP_*` behaves the way the original's would.
+    u.at_tile_edge = false;
+    u.sub_tile = 1;
     u.on_road = entry == Entry::Road;
     let base = if u.on_road {
         crate::tables::STEP_COST_ROAD

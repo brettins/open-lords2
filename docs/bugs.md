@@ -1601,3 +1601,30 @@ no observable difference to preserve: the defect's entire effect is a value in a
 emptiness test does not consult, in a slot the next write replaces wholesale. Recorded
 because the *next* reader of that function will see the mismatched indices and have to work
 out whether it matters, and this is the answer.
+
+### B96 — five of the ration panel's twelve strings are drawn by nothing
+
+`L2.eng` group 87 is the ration panel's vocabulary and has **exactly one consumer in the whole
+binary**: `Panel_Ration` (`0x00411B72`). Every access was enumerated — seven `Eng_DrawString`
+and `Ui_DrawCentred` calls, indices 0, 1, 2, 3, 4, 5 and 8 — and **five indices are never
+passed to anything**:
+
+| index | string |
+|---:|---|
+| 6 | *"Feeds"* |
+| 7 | *"Feeds"* |
+| 9 | *"growing"* |
+| 10 | *"harvested"* |
+| 11 | *"planted"* |
+
+6 and 7 are the same word twice, which is the shape the file uses for a singular/plural pair
+(`Ui_DrawUnitNoun` picks between two adjacent indices on the count) — so they look like the
+label for the Fed row's numbers, *"n Feeds"*, that the panel ends up not drawing. 9, 10 and 11
+are field states and belong to a crop readout this panel does not have; the three words appear
+nowhere else in the group and the group has nowhere else to be.
+
+**Third and fourth of this shape**, after B82 (`37/1` *"Before"*) and B83 (`70/1` *"Arms"*),
+and the first where the dead strings outnumber a whole row of the panel rather than one label.
+
+Not reproduced *as a fix*: we draw what the painter draws. `screens/county.rs`'s `mod g87`
+names all twelve indices so the next reader does not go hunting for the draw call.

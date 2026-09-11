@@ -67,6 +67,45 @@ input.** That was found twice in one afternoon behind a green test suite.
 **A save is worth more than any amount of our own reasoning**, because two of our own
 implementations agreeing proves only that we ported the same misunderstanding twice.
 
+## Ask for observations too, and know which kind to act on
+
+A save is not the only thing a person with the game running can give us, and it is not the
+cheapest. **An observation costs thirty seconds and can settle what an hour of reading leaves
+at `[D]`.** *"When I click 'mining off' and then right-click the mine it says it is not
+operational — but if I add people back in, it says it's operational"* confirmed, from a
+direction no decompiler reaches, a claim that had been settled at the byte an hour earlier and
+was still one reading. Two independent sources agreeing is the standard `CLAUDE.md` sets and
+the one we can rarely meet; this is a way to meet it for a pound.
+
+So the list below asks for saves, and this section asks for **observations** — *what does it
+do*, *what does it say*, *what happens if you*. Both are welcome and the second is nearly free.
+
+**And a distinction that has now been measured over one long evening, because it says which
+reports to act on and which to check first:**
+
+> **Reports of what the game *did* have been reliable without exception. Recollections of
+> specific *strings and numbers* were reversed three times, each cheaply.**
+
+The behaviour reports were all right: the ration slider was inert, the tax panel was frozen,
+the peasants did read as idle, the mine did have a real off state. Every one was a genuine
+defect or a genuine mechanic, and every one repaid immediate work.
+
+The recollections were not, and the pattern is not carelessness — twice the correction was
+*more* confident than the original and *wronger*, because a correction sounds like the end of
+a process:
+
+| recalled | what the binary says |
+|---|---|
+| *"it does let you drop peasants off in a turned-off industry, IIRC"* | right — but he then corrected himself to *"it boots those people and reassigns them"*, which is wrong; the drop is accepted and **switches the industry on** |
+| *"'All your people are fed by dairy.'"* | no such string in any of `L2.eng`'s 317 groups; the nearest is group 62, a **cut** ration screen |
+| the tower and ram costs | reversed, and the arithmetic closed either way |
+
+The practical rule, and it costs nothing: **act on the behaviour, check the string.** A
+sentence he remembers is a *lead to the mechanic*, which is what it was all three times —
+every one of those recollections pointed at something real that we had got wrong. It is the
+quotation that must not be implemented. **A memory that fits is not evidence, and a
+calculation that closes confirms the formula rather than the labels on its inputs.**
+
 ## How to save one
 
 1. When the list says *save*, quit to the menu and **Save Game** under a name from the list

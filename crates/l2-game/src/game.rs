@@ -20,7 +20,7 @@ use l2_formats::maps::{MapSet, MapSlot};
 use l2_formats::Palette;
 use l2_kingdom::county::{LABOUR_CEILING_IGNORED, MAX_COUNTIES};
 use l2_kingdom::realm::MAX_REALMS;
-use l2_kingdom::tables::{JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT};
+use l2_kingdom::tables::JOB_IDLE_TOWNSFOLK;
 use l2_kingdom::{Kingdom, SeasonReport};
 use l2_mods::vfs::Vfs;
 use l2_view::campaign::{self, MapAssets};
@@ -1077,15 +1077,25 @@ impl Game {
     ///
     /// It writes `rationWanted` (`+0x15E`), never `rationAchieved` (`+0x15D`):
     /// what the player asks for and what the county's stores could actually
-    /// feed are different fields, and only the season pipeline decides the
-    /// second one.
+    /// feed are different fields, and only the **food pass** decides the second
+    /// one. That pass is not the season's alone — this control runs it too, and
+    /// the sentence used to say *"only the season pipeline"*, which is what made
+    /// the test below assert the defect.
+    ///
+    /// **`Ration_IncreaseCounty` (`0x0043A23F`)**, whose second statement is the
+    /// food pass and whose fourth is a repaint — see
+    /// [`l2_kingdom::Kingdom::set_ration_wanted`].
+    ///
+    /// The third of the three controls on this panel to be found writing its
+    /// field and returning, and the only one of the three **not** reported by a
+    /// player: it was found by enumerating the class the other two belong to.
+    /// An unread member of an enumerated class is a known unknown, and this one
+    /// was filed `open` for a day rather than assumed fine.
     pub fn set_ration(&mut self, id: u8, level: i32) -> bool {
         if !self.is_players(id) {
             return false;
         }
-        self.kingdom.counties[id as usize].ration_wanted =
-            level.clamp(0, RATION_LEVEL_COUNT as i32 - 1);
-        true
+        self.kingdom.set_ration_wanted(id as usize, level)
     }
 
     /// Set a county's grain-to-livestock split (`+0x15F`), clamped 0 … 100.
@@ -1234,6 +1244,9 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // The clamp lives in `Kingdom::set_ration_wanted` now, so the lib no longer
+    // names this constant — only the test that pins the cap does.
+    use l2_kingdom::tables::RATION_LEVEL_COUNT;
 
     fn two_counties() -> Game {
         let mut g = Game::new(7);
@@ -1263,14 +1276,33 @@ mod tests {
         g.set_tax_rate(1, 10_000);
         assert_eq!(g.kingdom.counties[1].tax_rate, MAX_TAX_RATE);
 
-        let achieved = g.kingdom.counties[1].ration_achieved;
         g.set_ration(1, 99);
         assert_eq!(g.kingdom.counties[1].ration_wanted, RATION_LEVEL_COUNT as i32 - 1);
         g.set_ration(1, -3);
         assert_eq!(g.kingdom.counties[1].ration_wanted, 0);
+
+        // **What the player asks for (`+0x15E`) is not what the county managed
+        // to feed (`+0x15D`)**, and the way to show that is a county that
+        // cannot afford what is asked — *not* by requiring the control to leave
+        // `ration_achieved` alone.
+        //
+        // This assertion used to be `ration_achieved == achieved`, and it was
+        // asserting the defect: `Ration_IncreaseCounty` (`0x0043A23F`) calls
+        // `Ration_Apply` before it repaints, so in the original the achieved
+        // level moves the instant you press the arrow. Our setter wrote the
+        // field and returned, the test agreed with it, and both were wrong
+        // together. `docs/decisions.md` C125.
+        // People, and nothing to feed them with. A county with **no** people is
+        // fed at triple rations trivially — the requirement is zero — which is
+        // what the first draft of this assertion tripped over.
+        g.kingdom.counties[1].population = 400;
+        g.kingdom.counties[1].herd = 0;
+        g.kingdom.counties[1].grain = 0;
+        g.set_ration(1, RATION_LEVEL_COUNT as i32 - 1);
+        assert_eq!(g.kingdom.counties[1].ration_wanted, RATION_LEVEL_COUNT as i32 - 1);
         assert_eq!(
-            g.kingdom.counties[1].ration_achieved, achieved,
-            "what the player asks for (+0x15E) is not what the county managed to feed (+0x15D)"
+            g.kingdom.counties[1].ration_achieved, 0,
+            "an empty larder feeds nobody, whatever the player asked for",
         );
     }
 

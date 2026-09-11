@@ -109,6 +109,17 @@ It is worth knowing that this half of the mechanic is effectively **human-only**
 rate an AI lord sets in a hundred turns of our own long game is 12, so nothing an AI does ever
 leaves the flat part of the table.
 
+**And the tax panel can lie to you, in one specific way.** *"People pay N crowns"* is what the
+county's population at that rate and that castle **would** hand over. It is **not** what
+reaches your treasury, and the two come apart when a county's tax is *suppressed* — the
+collection zeroes the take, and the panel goes on showing the same number as before. So a
+county in that state reads as a healthy earner on its own panel while contributing nothing,
+and the place to catch it is the treasury rather than the panel.
+
+That is the game's own arrangement rather than a defect: the figure is computed by the panel's
+refresh, which has no suppression test in it, and the take is computed by the collection,
+which does.
+
 Two things worth knowing because they surprise people:
 
 - **Taxing at 19% costs your other counties nothing at all.** The empire-wide penalty is
@@ -148,9 +159,15 @@ not, in the original exactly as here.
 
 England, turn one, county 8 is that county: 435 people and 101 head, so 505 mouths' worth of
 dairy against 435 mouths. A player moved the slider there, saw nothing change, and reported it
-as broken. It is not — but you cannot tell that from the panel unless you read the **Fed** row,
-whose third number is *people fed by the standing herd*, and which will be showing the whole
-population.
+as broken. It is not.
+
+**The panel does tell you, and it tells you with a number rather than a sentence.** The
+**Fed** row's third figure is *people fed by the standing herd*; when it is at or above the
+county's population, the herd is feeding everybody, nothing is being eaten, and the dial has
+nothing to divide. There is no line of text that says so — the game has no such string, and
+the words that sound like it (*"Dairy produce feeds"*, *"RATIONS MET."*) belong to `L2.eng`
+group 62, the ration screen that was cut. So the Fed row is the whole of the explanation, and
+it is the first thing to look at when the slider seems dead.
 
 The slider also **refuses to sit on a value that changes nothing**, which is the other half of
 why it feels odd. If the county *is* eating its herd, moving the dial re-runs the food pass on

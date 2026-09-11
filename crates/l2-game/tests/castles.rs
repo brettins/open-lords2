@@ -87,6 +87,21 @@ fn run_until(
     panic!("{what} never happened");
 }
 
+/// **Let every order on the map finish walking**, which is what a player does
+/// between giving one and pressing End Turn.
+///
+/// `Units_Tick` runs on ordinary frames as well as inside a turn
+/// (`turn::tick_units_only`, `docs/decisions.md` C115), and since
+/// `Unit_StepOnce`'s sub-tile counter landed a unit takes 8 ticks to cross a
+/// road tile and 32 to cross anything else. Nothing in the turn machine waits
+/// on the human's armies, so a test that presses End Turn on the same frame as
+/// the order is asserting a race rather than a rule.
+fn march(m: &mut Machine, g: &mut Game, a: &Assets) {
+    run_until(m, g, a, "the march", |_, g| {
+        !g.kingdom.campaign.units.iter().any(|(_, u)| u.moving)
+    });
+}
+
 fn end_turn(m: &mut Machine, g: &mut Game, a: &Assets) {
     let before = g.kingdom.turn_count;
     press(m, g, a, 'e');
@@ -423,6 +438,15 @@ fn marching_an_army_onto_your_own_castle_puts_it_inside() {
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
     assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.moving), "ordered from the map");
 
+    // **The march is watched, not ended.** A unit crosses an open tile in
+    // thirty-two ticks — `Unit_StepOnce`'s sub-tile counter
+    // (`l2_kingdom::units_tick`) — and **nothing in the seven phases waits on
+    // the human's armies**: phase 2 is sieges, phase 4 is the AI's. Pressing
+    // End Turn in the same breath as the order therefore raced the march, and
+    // it is not what a player does either: `turn::tick_units_only` walks the
+    // army on ordinary frames while he watches it go. So let it arrive, then
+    // end the turn.
+    march(&mut m, &mut g, &a);
     end_turn(&mut m, &mut g, &a);
 
     assert_eq!(g.kingdom.counties[1].garrison_unit, id, "the county holds the link");
@@ -513,17 +537,25 @@ fn an_army_that_marches_onto_an_enemy_castle_besieges_it_and_the_turn_settles_th
     click(&mut m, &mut g, &a, pixel(keep.0, keep.1).unwrap());
     assert!(g.kingdom.campaign.units.get(besieger).is_some_and(|u| u.moving), "ordered");
 
-    // Ending the turn walks it up, lays the siege, and phase 2 storms the
-    // palisade — which stops and asks, because the besieger is the human's.
-    press(&mut m, &mut g, &a, 'e');
-    run_until(&mut m, &mut g, &a, "the assault prompt", |m, _| {
-        m.top_id() == Some(ScreenId::BattlePrompt)
-    });
+    // **The march happens while he watches it, and it is the march that lays
+    // the siege** — `Unit_ReachCastleBuilding`, on the frame the army reaches
+    // the keep. Phase 2 is what *storms* the palisade, and it runs at the top
+    // of the turn: an army still walking when End Turn is pressed has missed
+    // it. See [`march`], and `docs/decisions.md` C115 for why the order walks
+    // on ordinary frames at all.
+    march(&mut m, &mut g, &a);
     assert_eq!(
         g.kingdom.campaign.units.get(besieger).map(|u| u.besieging_county),
         Some(2),
         "the march laid the siege",
     );
+
+    // And now the turn: phase 2 storms the palisade, which stops and asks,
+    // because the besieger is the human's.
+    press(&mut m, &mut g, &a, 'e');
+    run_until(&mut m, &mut g, &a, "the assault prompt", |m, _| {
+        m.top_id() == Some(ScreenId::BattlePrompt)
+    });
 
     // Decline: the autocalc settles it. 800 men against 40 behind a palisade.
     click(
