@@ -500,6 +500,10 @@ fn furnish_campaign(k: &mut Kingdom) {
         k.campaign.routes.set_row(route, row);
     }
     k.campaign.mob_cursor = 7;
+    // The seen plane: two realms' squares, overlapping, so a byte carrying two
+    // bits is in the file as well as bytes carrying one.
+    k.campaign.explored.reveal_square(1, 12, 40, 6);
+    k.campaign.explored.reveal_square(4, 16, 44, 3);
 
     // The diplomatic state that is not inside a realm record — the five-slot
     // inbox, the outstanding pay-for-help price, and the dice. One letter of
@@ -663,7 +667,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // `County_RecountMerchants` writes all three and `Ai_BuyGood` reads the
     // first two as the gate and the price in front of every purchase an AI or
     // an unowned county makes.
-    assert_eq!(c.finish().len, 58_474, "the state encoding changed - bump VERSION?");
+    //
+    // +4,096 at version 20 for the fog of war's seen plane,
+    // `Campaign::explored` — one byte a tile, bit `r` for realm `r`.
+    assert_eq!(c.finish().len, 62_570, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,
@@ -748,6 +755,21 @@ fn no_record_slot_is_silenced() {
             });
         }
     }
+    // The seen plane, every realm bit at the two corners and the middle — a
+    // plane walked for fewer tiles or fewer realms than it holds fails here.
+    for tile in [0usize, l2_kingdom::MAP_TILES / 2, l2_kingdom::MAP_TILES - 1] {
+        for realm in 1..MAX_REALMS as u8 {
+            check(format!("seen tile {tile} realm {realm}"), &move |k: &mut Kingdom| {
+                let mut e = l2_kingdom::explore::Explored::new();
+                e.copy_from_bytes(k.campaign.explored.as_bytes());
+                if e.is_seen(realm, tile) {
+                    e.clear();
+                }
+                e.set_seen(realm, tile);
+                k.campaign.explored = e;
+            });
+        }
+    }
     // The history ring's 400 seasons are not perturbed here — `History`'s
     // entries are `pub(crate)` and a test cannot write one. They are covered
     // instead by the fixture, which records a *different* line every season, so
@@ -796,6 +818,7 @@ const FURNISHED_BY_CALL: &[(&str, &str, &str)] = &[
     ("County", "neighbour_count", "add_neighbour("),
     ("County", "neighbours", "add_neighbour("),
     ("Unit", "kind", "Unit::new(kind,"),
+    ("Explored", "seen", "explored.reveal_square("),
 ];
 
 /// **Every field of the state is furnished, and the list of fields is read out

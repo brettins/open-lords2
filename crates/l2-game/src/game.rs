@@ -904,6 +904,27 @@ impl Game {
         self.kingdom.campaign.units.get(unit).is_some_and(|u| u.owner == self.player)
     }
 
+    /// **Is this tile in the dark for the person at the screen?** — the test
+    /// every one of the original's fog-honouring painters makes, and nothing
+    /// else makes:
+    ///
+    /// ```c
+    /// if (g_optExploration == 1 && (g_tiles[tile].bank & 0x20) == 0)
+    /// ```
+    ///
+    /// `Map_DrawTile`, `Map_DrawTileApex`, `Sprite_TopIt` and `Map_DrawArmies`
+    /// test it on the tile they are about to draw. **No input arm tests it** —
+    /// a click on a dark tile resolves exactly as on a lit one — so this is for
+    /// painters. `l2_kingdom::explore` has the readers and the writers.
+    pub fn hides_tile(&self, tile: usize) -> bool {
+        l2_kingdom::explore::hides(
+            self.kingdom.options.exploration,
+            &self.kingdom.campaign.explored,
+            self.player,
+            tile,
+        )
+    }
+
     /// `Unit_OrderMove` (`0x004A7EEC`) — **the player's move order**, and the
     /// way anything on the campaign map is set walking from outside the turn
     /// machine.
@@ -1009,6 +1030,7 @@ impl Game {
             &mut k.campaign.names,
             basket,
             muster,
+            &mut k.campaign.explored,
         )?;
         // `Mercenary_Hire` runs from **inside** `Army_Create`, after the men
         // and the troop counts are written and before the wage recount. Ours

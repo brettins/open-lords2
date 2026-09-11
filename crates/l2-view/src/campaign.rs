@@ -1360,6 +1360,15 @@ pub fn industry_period_ms(output: i32) -> u32 {
     }
 }
 
+/// **The fog of war, as the terrain pass sees it** — `Some` when
+/// `g_optExploration` is on, holding the viewer's test *"is tile `(x, y)`
+/// unseen?"*, and `None` when the option is off.
+///
+/// A closure rather than a plane because this crate does not know where the
+/// seen bits live, and should not: `l2_kingdom::explore::hides` is the test and
+/// the campaign screen hands it in.
+pub type Fog<'a> = Option<&'a dyn Fn(usize, usize) -> bool>;
+
 /// Paint the viewport, stamping county ids into `tags`. Returns tiles drawn.
 ///
 /// The traversal is `Map_RenderIso`'s: `rows + 1` lattice rows starting at
@@ -1367,6 +1376,33 @@ pub fn industry_period_ms(output: i32) -> u32 {
 /// than by a special blitter. An aligned row draws `cols` cells; an offset row
 /// draws `cols + 1`, because shifting left by half a pitch exposes one more
 /// column on the right.
+///
+/// # The fog
+///
+/// `fog` is the one input the five terrain painters of the original read that
+/// is not the map, and it changes two things, each **`[V]`** out of the
+/// decompilation:
+///
+/// **Frame 0 of the `base` bank is two different pictures**, measured over all
+/// four seasons of the player's own files (`crates/l2-game/tests/screens.rs`,
+/// `a_dark_tile_…`). At the near zoom it is blank — every pixel palette index
+/// 0, which every blitter skips — so both arms below paint nothing and the dark
+/// is the black ground the map is drawn on, *"blacked out"* literally. At the
+/// far zoom it is a filled 10 × 6 diamond of green, so zoomed out the dark is
+/// plain grass.
+///
+/// * **An unseen tile is the `base` bank's frame 0 and nothing above it.**
+///   `Map_DrawTile` (`0x004063C1`):
+///   `if (g_optExploration == 1 && (bank & 0x20) == 0) { bank = 0; frame = 0; }`,
+///   and `Map_DrawTileApex` (`0x00406673`) draws its overhang only under the
+///   opposite test — so a mountain, a town or a castle in the dark is flat.
+///   The county id still reaches `tags`: `Map_DrawTile` loads the tile's county
+///   byte before the test, and a click still resolves the county under it.
+/// * **The whole off-map surround is frame 0 while the option is on**, seen or
+///   not. `Map_RenderIso` (`0x0040526E`), `Map_RenderAlignedRow` (`0x00405AE9`)
+///   and `Map_RenderOffsetRow` (`0x00405C2F`), all six surround arms:
+///   `frame = g_optExploration == 1 ? 0 : cell - 0x0FFF0000;`. The sea round a
+///   fogged map is never the sea.
 #[allow(clippy::too_many_arguments)]
 pub fn draw(
     canvas: &mut Canvas,
@@ -1378,6 +1414,7 @@ pub fn draw(
     tags: &mut Tags,
     overrides: &Overrides,
     season: u8,
+    fog: Fog,
 ) -> usize {
     let clip = zoom.clip();
     let mut drawn = 0;
@@ -1390,6 +1427,16 @@ pub fn draw(
             let col = view.col + dc;
             let (sx, sy) = cell_to_screen(view, zoom, row, col);
             match lattice.tile(row, col) {
+                Some((x, y)) if fog.is_some_and(|hidden| hidden(x, y)) => {
+                    // `Map_DrawTile`'s fog arm: base bank, frame 0. And
+                    // `Map_DrawTileApex` draws nothing, so the frame is clipped
+                    // to the diamond's own rows — nothing above `sy`.
+                    let flat = Clip { y0: clip.y0.max(sy), ..clip };
+                    let county = map.county_at(x, y);
+                    if blit_cell(canvas, assets, zoom, season, 0, 0, sx, sy, flat, tags, county) {
+                        drawn += 1;
+                    }
+                }
                 Some((x, y)) => {
                     let (bank_byte, frame) = overrides
                         .get(x, y)
@@ -1420,7 +1467,13 @@ pub fn draw(
                     // (`maps-layers.md` §4.1). We draw what is stored, so the
                     // sea and the off-map grass repeat where the original
                     // varies them.
-                    let frame = lattice.surround(row, col) as usize;
+                    //
+                    // **And frame 0, whatever the lattice says, while the fog
+                    // option is on** — the six surround arms of the three row
+                    // walkers, `frame = g_optExploration == 1 ? 0 : cell -
+                    // 0x0FFF0000`. See the heading.
+                    let frame =
+                        if fog.is_some() { 0 } else { lattice.surround(row, col) as usize };
                     blit_cell(canvas, assets, zoom, season, 0, frame, sx, sy, clip, tags, 0);
                 }
             }

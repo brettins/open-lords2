@@ -518,7 +518,8 @@ pub struct MapScreen {
     /// other**, which is the argument for it being a tuple rather than a
     /// hand-written comparison: a missed component is a stale picture, and a
     /// stale picture is the hardest defect on this screen to attribute.
-    built: Option<(usize, u8, Viewport, u32, u8, u64, u64, u64)>,
+    /// The last `u64` is the fog — [`MapScreen::fog_key`].
+    built: Option<(usize, u8, Viewport, u32, u8, u64, u64, u64, u64)>,
     /// **Every industry site on the map, and the frame its wheel is on** —
     /// `Sprite_TopIt` arm 5b's `g_tiles[].frame`, which the original steps in
     /// the tile record itself.
@@ -1225,6 +1226,11 @@ impl MapScreen {
             // invalidated it, which is precisely the shape of *"industry map
             // things are still not animated when active."*
             self.industry_key(),
+            // **And the fog**, which a march lifts without a turn ending and
+            // the options page drops or raises in the middle of one. The
+            // seventh painter-side input, and the only one that is a viewer's
+            // rather than the world's.
+            Self::fog_key(ctx),
         );
         if self.built == Some(key) {
             return;
@@ -1247,6 +1253,14 @@ impl MapScreen {
         self.add_industry_graphics(&mut overrides);
         self.base.clear(ctx.assets.ink.background);
         self.tags.clear();
+        // `Map_DrawTile`'s and the row walkers' `g_optExploration == 1` test,
+        // with the viewer's seen bits behind it. `campaign::draw` has the
+        // arithmetic; `Game::hides_tile` has the test.
+        let hidden = |x: usize, y: usize| {
+            ctx.game.hides_tile(l2_kingdom::map::index(x as u8, y as u8))
+        };
+        let fog: campaign::Fog =
+            if ctx.game.kingdom.options.exploration { Some(&hidden) } else { None };
         campaign::draw(
             &mut self.base,
             &slot,
@@ -1257,8 +1271,25 @@ impl MapScreen {
             &mut self.tags,
             &overrides,
             ctx.game.kingdom.season,
+            fog,
         );
         self.built = Some(key);
+    }
+
+    /// The fog, folded for the cache key: zero with the option off, and
+    /// otherwise a fold of the viewer's seen bits over the 4,096 tiles in index
+    /// order — `docs/netcode.md` §3's rule even though this never leaves the
+    /// screen, because a hash of an unordered walk is how a cache comes to
+    /// disagree with itself.
+    fn fog_key(ctx: &Ctx) -> u64 {
+        if !ctx.game.kingdom.options.exploration {
+            return 0;
+        }
+        let mut n: u64 = 1;
+        for tile in 0..l2_kingdom::MAP_TILES {
+            n = n.wrapping_mul(0x100_0000_01B3).wrapping_add(ctx.game.hides_tile(tile) as u64 + 1);
+        }
+        n
     }
 
     /// Everything the game rewrites over the map file: the towns, and the
@@ -1453,6 +1484,12 @@ impl MapScreen {
                     site.frame = rest;
                     moved = true;
                 }
+                continue;
+            }
+            // **Arm 5b is inside `Sprite_TopIt`, and so behind its fog test**: a
+            // mine in the dark does not turn. The rest-frame pin above is
+            // `Industry_UpdateSiteTile`'s and is not gated.
+            if ctx.game.hides_tile(site.tile) {
                 continue;
             }
             // `total - totalSnapshot`, which this crate keeps as
@@ -3095,6 +3132,13 @@ impl Screen for MapScreen {
         // castle tile; we have not placed those yet.
         for id in k.county_ids() {
             let (ax, ay) = (game.anchor_x[id] as usize, game.anchor_y[id] as usize);
+            // **In the dark, not at all.** This marker is ours, standing in for
+            // the owner's banner `Sprite_TopIt` flies — and that banner is
+            // behind the fog test, so an owner colour here would tell the
+            // player what the original hides.
+            if game.hides_tile(l2_kingdom::map::index(ax as u8, ay as u8)) {
+                continue;
+            }
             let Some((cx, cy)) = campaign::tile_centre(self.view, &self.zoom, ax, ay) else {
                 continue;
             };
@@ -3135,6 +3179,12 @@ impl Screen for MapScreen {
         // the original does instead and why we do not.
         if game.is_players(game.selected) {
             for (tile, kind) in k.field_tiles(game.selected as usize) {
+                // Ours, and kept out of the dark with everything else a tile
+                // carries. A county of the player's is seen from the moment it
+                // is his, so this skips nothing a player can reach.
+                if game.hides_tile(tile) {
+                    continue;
+                }
                 let (tx, ty) = l2_kingdom::map::coords(tile);
                 let Some((cx, cy)) =
                     campaign::tile_centre(self.view, &self.zoom, tx as usize, ty as usize)
@@ -3258,6 +3308,14 @@ fn unit_marker_half(zoom: &Zoom, unit: &l2_kingdom::Unit) -> i32 {
 fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
     for (id, unit) in ctx.game.kingdom.campaign.units.iter() {
+        // **`Map_DrawArmies`' whole body is inside the fog test**:
+        // `if (g_optExploration != 1 || (tile.bank & 0x20) != 0) { ...every unit
+        // on the tile... }`. A unit in the dark is not drawn — not its figure,
+        // not its banner — and so neither are the marks this function adds of
+        // its own. Its *click* is not gated: no arm reads the bit.
+        if ctx.game.hides_tile(l2_kingdom::map::index(unit.x, unit.y)) {
+            continue;
+        }
         let Some((cx, cy)) =
             campaign::tile_centre(screen.view, &screen.zoom, unit.x as usize, unit.y as usize)
         else {
@@ -3363,14 +3421,21 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
             clip,
         );
     }
+    // **`Sprite_TopIt`'s first statement is the fog test**, before it looks at
+    // a single flag bit: `if (g_optExploration == 1 && (tile.bank & 0x20) == 0)
+    // return 0;`. Every arm below is behind it, on the tile it would draw on,
+    // so a town in the dark flies nothing, advertises no band and shows no
+    // garrison — and its owner is not given away by the banner.
+    let lit = |tile: &usize| !ctx.game.hides_tile(*tile);
     for id in k.county_ids() {
         let county = &k.counties[id];
         // The town's 2 x 2 block. Plane-3 quadrant 0 is its north-west tile —
         // the lowest tile index, and the top of the diamond.
         let shield = k.realms.get(county.owner as usize).map_or(0, |r| r.shield_index);
-        if let (Some(nw), Some(frame)) =
-            (MapScreen::town_quadrant(ctx, id as u8, 0), campaign::flag_frame(shield, phase))
-        {
+        if let (Some(nw), Some(frame)) = (
+            MapScreen::town_quadrant(ctx, id as u8, 0).filter(lit),
+            campaign::flag_frame(shield, phase),
+        ) {
             flag(screen, canvas, ctx, clip, nw, frame);
         }
         // **`county.mercenaryOffer != 0` puts frame `0x81` on quadrant 2**, the
@@ -3384,7 +3449,7 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
         // `(+0x1A, −0x1C)`. Sharing [`campaign::draw_flag`] is how it came to be
         // ten pixels out.
         if county.mercenary_offer != 0 {
-            if let Some(tile) = MapScreen::town_quadrant(ctx, id as u8, 2) {
+            if let Some(tile) = MapScreen::town_quadrant(ctx, id as u8, 2).filter(lit) {
                 let (x, y) = l2_kingdom::map::coords(tile);
                 campaign::draw_mercenary_marker(
                     canvas,
@@ -3407,7 +3472,7 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
             .into_iter()
             .find(|&t| industry::map_toggle_for_graphic(k.campaign.map.terrain[t])
                 == Some(industry::MapToggle::Castle));
-        if let Some(tile) = castle {
+        if let Some(tile) = castle.filter(lit) {
             flag(screen, canvas, ctx, clip, tile, frame);
         }
     }
@@ -3434,6 +3499,10 @@ fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let map = &ctx.game.kingdom.campaign.map;
     for tile in 0..map.terrain.len() {
         if map.flags[tile] & l2_kingdom::map::flags::FARMLAND == 0 {
+            continue;
+        }
+        // `Sprite_TopIt`'s fog test, ahead of the farm arm like every other.
+        if ctx.game.hides_tile(tile) {
             continue;
         }
         let (x, y) = l2_kingdom::map::coords(tile);

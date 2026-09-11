@@ -1419,8 +1419,9 @@ They are `g_optAdvancedFarming`, `g_optArmiesEat`, `g_optExploration` and
 
 So **an options page that changes simulation rules is idiomatic to this game**, not an
 imposition on it. That is the strongest argument for the group, and it is evidence rather than
-taste. (Exploration is currently imported from the save, drawn on the setup screen, and
-implemented nowhere — a 🕳 gap in [`mechanics.md`](mechanics.md), not a bug here.)
+taste. (Exploration was for a long time imported from the save, drawn on the setup screen,
+and implemented nowhere. It is built now — `l2_kingdom::explore`, and
+[`mechanics.md`](mechanics.md) says what it hides and what lifts it.)
 
 **The shape.** One group, on the advanced-options page beside the original's own three, with a
 single control that sets all of them and per-entry overrides underneath:
@@ -1504,8 +1505,9 @@ switchable, and mixing them in would destroy the only distinction this document 
 and C33 appear above as **citations for evidence**, not as entries.
 
 **Missing features.** A rule we have not implemented is a 🕳 in
-[`mechanics.md`](mechanics.md), not a bug here. Exploration is the current example: the game
-reads the setting, shows the player the switch, and our engine ignores it.
+[`mechanics.md`](mechanics.md), not a bug here. Exploration was the example for a long
+time — the game read the setting, showed the player the switch, and our engine ignored it —
+until it was built.
 
 **Third-party bugs.** The `smacker` crate's failure on `Pill_brn.smk` is a bug in a
 dependency, not in `Lords2.exe`.

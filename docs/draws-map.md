@@ -340,20 +340,40 @@ labels them only with the button icons and the badge, and `L2.eng` has no string
 `0x1C`; bits `0x01`, `0x20`, `0x40`, `0x80` set at run time"* and says what three of them
 are. **`0x20` is `explored`:**
 
-* `FUN_0046E067(x, y, w, h)` sets it over a rectangle, called from `Army_Create`,
-  `Unit_Step` and `FUN_0046DFD5`; `FUN_00469370` sets it on a county's field tiles when the
-  county is the local player's.
-* `g_optExploration` is a real, toggleable advanced option — `Opt_ToggleExploration`
-  (`FUN_00447E0B` arm 3), reachable from `Screen_AdvancedOptions`, defaulted by
-  `Options_SetDefaults`, committed by `Setup_CommitOptions` and carried in the save.
-* Six draw functions test the pair: `Map_DrawTile` (draws **base bank frame 0** instead),
-  `Map_DrawTileApex` (draws **nothing**, so an unexplored tile is flat), `Map_RenderIso`,
-  `Map_RenderAlignedRow` and `Map_RenderOffsetRow` (the off-map surround becomes frame 0
-  too), `Map_DrawArmies` (a unit in the dark is not drawn) and `Sprite_TopIt`.
+> **Corrected and extended, and now built** (`docs/decisions.md` CNEW-fog). The bullets
+> below said *"six draw functions"* and named seven, called the toggle *"`FUN_00447E0B` arm
+> 3"* — that is `NetAct_SetGameOptions`, the network action; the toggle is
+> `Opt_ToggleExploration` (`0x00434693`) — and gave `FUN_0046E067` a width and a height it
+> does not take. `l2_kingdom::explore` carries the full table of writers.
 
-`l2_kingdom::Options::exploration` is stored and honoured by nothing, which
-`docs/mechanics.md` already carries as a gap. What is new is that **the whole of its
-behaviour is drawing**, and it is five call sites plus one bit.
+* `FUN_0046E067(x, y, r)` (`0x0046E067`) sets it over the `(2r+1)²` square round a tile,
+  clipped to the map. `Unit_Step` (`0x00465D28`, at every tile centre, army and local player
+  only) and `Army_Create` (`0x004A9A9A`, local player only) pass **6**; `FUN_0046DFD5`
+  (`0x0046DFD5`) passes **1** for every tile of a county, and is called by
+  `County_ChangeOwner` (`0x004A72FE`, new owner the local player) and as the last statement
+  of `Game_SetupRealmsAndCounties` (`0x0049BD99`, the local player's start county).
+  `FUN_0046DF51` (`0x0046DF51`) **clears** it everywhere, from `Map_InitScenario`, and is
+  the only clearer. `FUN_00469370` re-sets it on a county's field tiles after a network
+  snapshot overwrote their bank bytes. **None of them tests the option.**
+* `g_optExploration` is a real, toggleable advanced option — `Opt_ToggleExploration`
+  (`0x00434693`), reachable from `Screen_AdvancedOptions`, defaulted by
+  `Options_SetDefaults`, committed by `Setup_CommitOptions`, applied to every peer by
+  `NetAct_SetGameOptions` (`0x00447E0B`) and carried in the save.
+* **Seven live painters** test the pair — `Map_DrawTile` (`0x004063C1`, draws **base bank
+  frame 0** instead), `Map_DrawTileApex` (`0x00406673`, draws **nothing**, so an unexplored
+  tile is flat), `Map_RenderIso` (`0x0040526E`), `Map_RenderAlignedRow` (`0x00405AE9`) and
+  `Map_RenderOffsetRow` (`0x00405C2F`) (the off-map surround is frame 0 whenever the option is
+  on, seen or not), `Map_DrawArmies` (`0x00408438`, a unit in the dark is not drawn) and
+  `Sprite_TopIt` (`0x004071A0`, no overlay at all) — **plus the dead `FUN_00406BBA`**, §5.9.
+  The only other reader is `Screen_AdvancedOptions`' Yes/No. No input arm, AI step or rule
+  reads the option or the bit, and the minimap does not.
+
+**What we draw now.** `campaign::draw` takes the fog (`Map_DrawTile`, `Map_DrawTileApex`
+and the surround arms); `draw_units`, `draw_flags` (banner, mercenary marker, garrison
+banner), `draw_herds` and the industry wheel each test `Game::hides_tile` on their own tile,
+and so does our owner marker, which stands in for the banner. The whole of its behaviour
+*is* drawing, as this section said — but it needed the plane first, and the plane needed
+four writers in the simulation.
 
 ### 5.3 Every army carries a banner, and every peasant mob carries a different one
 

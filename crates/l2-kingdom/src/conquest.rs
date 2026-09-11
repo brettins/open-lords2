@@ -165,6 +165,7 @@ pub fn attack_county(
     county: u8,
     difficulty: u8,
     year: i32,
+    explored: &mut crate::explore::Explored,
 ) -> Attack {
     let Some(u) = units.get(attacker) else { return Attack::Refused(Refusal::NotAnArmy) };
     if u.kind != UnitKind::Army {
@@ -201,6 +202,7 @@ pub fn attack_county(
                 [(difficulty as usize).min(levy::MILITIA_PERCENT_BY_DIFFICULTY.len() - 1)];
             levy::raise_defence(
                 t, map, counties, realms, units, names, county, percent, Defence::Militia, year,
+                explored,
             )
         }
     } else {
@@ -219,6 +221,7 @@ pub fn attack_county(
                 let mode = if owner_is_human { Defence::HumanCounty } else { Defence::AiCounty };
                 levy::raise_defence(
                     t, map, counties, realms, units, names, county, levy::DEFENCE_PERCENT, mode, year,
+                    explored,
                 )
             }
         }
@@ -226,7 +229,7 @@ pub fn attack_county(
 
     match defender {
         None => {
-            change_owner(counties, realms, units, owner, county, difficulty);
+            change_owner(counties, realms, units, owner, county, difficulty, map, explored);
             Attack::Captured
         }
         Some(defender) => {
@@ -298,6 +301,7 @@ pub fn march_and_fight(
             county,
             difficulty,
             year,
+            &mut campaign.explored,
         )
     });
     (steps, outcome)
@@ -407,6 +411,13 @@ pub fn find_defender(units: &Units, counties: &[County; MAX_COUNTIES], county: u
 /// left to the caller.
 ///
 /// Returns the happiness the county lost.
+///
+/// **Its first statement is the fog of war's**:
+/// `if (newOwner == g_localPlayer) FUN_0046DFD5(county);` — the county taken is
+/// seen, with a one-tile border, by the realm that took it. Before any of the
+/// bookkeeping and whatever the option says; `crate::explore` has the table of
+/// writers and why the realm stands in for the local player.
+#[allow(clippy::too_many_arguments)]
 pub fn change_owner(
     counties: &mut [County; MAX_COUNTIES],
     realms: &mut [Realm; MAX_REALMS],
@@ -414,7 +425,10 @@ pub fn change_owner(
     new_owner: u8,
     county: u8,
     difficulty: u8,
+    map: &CampaignMap,
+    explored: &mut crate::explore::Explored,
 ) -> i32 {
+    explored.reveal_county(new_owner, map, county);
     let is_human = realms.get(new_owner as usize).is_some_and(|r| r.is_human);
     let Some(c) = counties.get_mut(county as usize) else { return 0 };
 
@@ -630,6 +644,7 @@ pub fn garrison_apply(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::explore::Explored;
     use crate::map::{CampaignMap, MAP_DIM, MAP_TILES};
     use crate::unit::Unit;
 
@@ -715,7 +730,7 @@ mod tests {
         counties[1].castle_type = 4;
         counties[1].garrison_unit = g;
 
-        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 1, 0, 1268);
+        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 1, 0, 1268, &mut Explored::new());
         assert_eq!(out, Attack::Refused(Refusal::Garrisoned));
         assert_eq!(counties[1].owner, 1, "and nothing changed hands");
         assert_eq!(units.get(a).unwrap().moves_used, 0, "not even the eight moves");
@@ -732,7 +747,7 @@ mod tests {
         let mut names = ArmyNames::new();
         let a = attacker(&mut units, 1, 2);
 
-        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268);
+        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268, &mut Explored::new());
         assert_eq!(out, Attack::Captured);
         assert_eq!(counties[2].owner, 1);
         assert_eq!(units.get(a).unwrap().moves_used, ATTACK_MOVE_COST);
@@ -742,7 +757,7 @@ mod tests {
         counties[2].happiness = SURRENDER_HAPPINESS;
         let mut units = Units::new();
         let a = attacker(&mut units, 1, 2);
-        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268);
+        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268, &mut Explored::new());
         assert!(matches!(out, Attack::Battle { .. }), "got {out:?}");
         assert_eq!(counties[2].owner, 0, "the county is not taken by walking in");
     }
@@ -757,7 +772,7 @@ mod tests {
         let mut names = ArmyNames::new();
         let a = attacker(&mut units, 1, 2);
 
-        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268);
+        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268, &mut Explored::new());
         let Attack::Battle { attacker: att, defender } = out else { panic!("got {out:?}") };
         assert_eq!(att, a);
         let d = units.get(defender).unwrap();
@@ -777,7 +792,7 @@ mod tests {
         let mut names = ArmyNames::new();
         let a = attacker(&mut units, 1, 2);
         assert_eq!(
-            attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268),
+            attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268, &mut Explored::new()),
             Attack::Captured
         );
         assert_eq!(counties[2].owner, 1);
@@ -799,7 +814,7 @@ mod tests {
         standing.county = 2;
         let existing = units.spawn(standing).unwrap();
 
-        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268);
+        let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268, &mut Explored::new());
         assert_eq!(out, Attack::Battle { attacker: a, defender: existing });
         assert_eq!(units.len(), 2, "nothing new was levied");
         assert_eq!(counties[2].population, 500, "and nobody was called up");
@@ -933,7 +948,7 @@ mod tests {
         let mut names = ArmyNames::new();
         let a = attacker(&mut units, 1, 1);
         assert_eq!(
-            attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 1, 0, 1268),
+            attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 1, 0, 1268, &mut Explored::new()),
             Attack::Refused(Refusal::AlreadyYours)
         );
     }
@@ -946,7 +961,7 @@ mod tests {
         let mut names = ArmyNames::new();
         let trader = units.spawn(Unit::new(UnitKind::Merchant, 1, 40, 10)).unwrap();
         assert_eq!(
-            attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, trader, 2, 0, 1268),
+            attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, trader, 2, 0, 1268, &mut Explored::new()),
             Attack::Refused(Refusal::NotAnArmy)
         );
     }
@@ -960,7 +975,7 @@ mod tests {
         let (mut counties, mut realms) = world();
         let units = Units::new();
         counties[2].happiness = 77;
-        let lost = change_owner(&mut counties, &mut realms, &units, 1, 2, 0);
+        let lost = change_owner(&mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new());
         assert_eq!(lost, 10, "a human at difficulty 0");
         assert_eq!(counties[2].happiness, 67);
         assert_eq!(counties[2].shown_events, -10);
@@ -984,7 +999,7 @@ mod tests {
         let (mut counties, mut realms) = world();
         let units = Units::new();
         counties[2].happiness = 4;
-        assert_eq!(change_owner(&mut counties, &mut realms, &units, 1, 2, 2), 50);
+        assert_eq!(change_owner(&mut counties, &mut realms, &units, 1, 2, 2, &CampaignMap::empty(), &mut Explored::new()), 50);
         assert_eq!(counties[2].happiness, 0);
         assert_eq!(counties[2].shown_events, -4, "what was taken, not the fifty");
     }
@@ -997,7 +1012,7 @@ mod tests {
         recount_realm_counties(&counties, &mut realms);
         assert_eq!((realms[1].county_count, realms[2].county_count), (1, 1));
 
-        change_owner(&mut counties, &mut realms, &units, 1, 2, 0);
+        change_owner(&mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new());
         assert_eq!((realms[1].county_count, realms[2].county_count), (2, 0));
     }
 
@@ -1033,6 +1048,7 @@ mod tests {
         let army = levy::create_army(
             T, &map, &mut counties, &mut realms, &mut units, &mut names, &basket,
             Muster { realm: 1, county: 1, happiness_cost: levy.happiness_cost, year: 1268 },
+            &mut Explored::new(),
         )
         .expect("county 1 has room");
         assert_eq!(counties[1].population, 400);
@@ -1073,7 +1089,7 @@ mod tests {
         let g = units.spawn(Unit::new(UnitKind::Army, 2, 0, 0)).unwrap();
         counties[2].owner = 2;
         counties[2].garrison_unit = g;
-        change_owner(&mut counties, &mut realms, &units, 1, 2, 0);
+        change_owner(&mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new());
         assert_eq!(counties[2].garrison_unit, 0);
     }
 }

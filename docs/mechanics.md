@@ -325,25 +325,37 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   for themselves, and therefore do not eat from county stores. When foraging is on, building
   large castles and keeping your army inside is an effective way of avoiding starvation
   problems."* The garrison exemption is modelled — `l2_kingdom::unit`, `l2_kingdom::ration`.
-- 🕳 **Exploration — wired end to end, and the fog itself is not built.** The game states the
-  rule itself, in `L2.eng` group 218 index 3: *"When Exploration is turned on, the world
-  outside your county is blacked out. It is gradually revealed as your armies move through
-  and conquer new counties."* That is the specification.
+- ✅ **Exploration — the fog of war.** The game states the rule itself, in `L2.eng` group 218
+  index 3: *"When Exploration is turned on, the world outside your county is blacked out. It
+  is gradually revealed as your armies move through and conquer new counties."* For a long
+  time the switch reached `Options::exploration` and the save and **nothing read it** — it
+  looked like it worked and did not. `docs/decisions.md` CNEW-fog.
 
-  **The switch now reaches the engine.** `l2_kingdom::kingdom::Options::exploration` exists,
-  the setup screen sets it, `l2-scenario` imports it from a save and `l2_kingdom::save`
-  version 12 stores it — so the setting is carried, and a game that was started with fog on
-  says so. **The behaviour is not implemented**: no rule and no painter reads the flag, and
-  the setup page prints `NOT IMPLEMENTED: EXPLORATION` under its grid while it is on
-  (`docs/decisions.md` C21). The switch is honest rather than finished.
+  **What a player sees, `[V]` from the decompilation.** An unseen tile is drawn as the
+  `base` bank's first frame with nothing standing up out of it; while the option is on, the
+  whole sea round the map is that frame too, seen or not. **What that frame looks like
+  depends on the zoom**, measured on the player's files in all four seasons: at the near zoom
+  it is blank — every pixel palette index 0 — so the dark is simply black; at the far zoom it
+  is a filled green diamond, so zoomed out the dark is plain grass. Nothing on an unseen tile is drawn —
+  no army or merchant, no town banner, no mercenary band, no cattle, no garrison flag, and a
+  mine there does not turn. **What it does not hide:** the minimap (no reader), the right-hand
+  panel, the path balls of an order, and *clicks* — no input arm tests the bit, so a click on
+  a dark tile resolves exactly as on a lit one. **The AI lords see everything:** no AI step,
+  no rule and no simulation pass reads the option or the bit.
 
-  **What building it would take is now known and is smaller than it looks.** The original's
-  seen bit is **`Tile.bank` bit `0x20`** (`docs/records.json`) — a run-time bit the map file
-  never carries, *"tested only when `g_optExploration` is 1"*. So the state is one bit per
-  tile on a plane that already exists, and the work is (a) setting it as units move and
-  counties change hands, and (b) the campaign renderer honouring it. (a) belongs with
-  `l2_kingdom::movement` and is simulation state that the lockstep digest must cover; (b) is
-  `l2-view`'s. Neither is written.
+  **What lifts it, `[V]`.** A new game shows the start county with a one-tile border round
+  it; an army sees thirteen tiles square round every tile centre it stops on, and round the
+  tile it is raised on; taking a county shows it and its border. Merchants, transports and
+  peasant mobs see nothing. **Nothing ever darkens a tile again** — a county lost stays seen —
+  and **the bits are written whether the option is on or off**, so turning it on mid-game
+  blacks out only what the armies have not walked. The England turn-one fixture, saved with
+  the option off, carries exactly its player's county and border
+  (`crates/l2-scenario/tests/explored.rs`).
+
+  **Built:** `l2_kingdom::explore` (the plane and its writers), the reveals in `levy`,
+  `units_tick` and `conquest`, the import from a `.sav`, the new-game reveal, save version 20,
+  and every painter above honouring it. Its one divergence is representation: the original's
+  plane is the local player's, ours holds a bit per realm so lockstep peers agree.
 
 - ✅ **The setup screen's twelve options start the game they show.** This used to read *"no
   option on the setup screen starts a game with the setting it shows"* — all twelve were

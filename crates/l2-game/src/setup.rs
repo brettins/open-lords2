@@ -495,11 +495,10 @@ impl Settings {
     /// grid. Empty is the goal and it is not empty yet.
     pub fn unhonoured(&self) -> Vec<usize> {
         let mut v = Vec::new();
-        if self.exploration {
-            // The switch reaches `Options::exploration` and the save; the fog
-            // itself does not exist. `docs/mechanics.md`.
-            v.push(option::EXPLORATION);
-        }
+        // **Exploration used to be first in this list** — the switch reached
+        // `Options::exploration` and the save, and the fog did not exist. It
+        // does: `l2_kingdom::explore` keeps the seen bits and the campaign map
+        // honours them. `docs/decisions.md` CNEW-fog.
         if self.garrison.iter().any(|&n| n != 0) {
             // `Army_Create` at setup — see `apply_to`.
             v.push(option::ARMY_SIZE);

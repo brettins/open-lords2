@@ -58,6 +58,7 @@ pub mod newgame;
 
 use l2_formats::save::{Save, SaveError, COUNTY_BASE, COUNTY_STRIDE, REALM_BASE, REALM_STRIDE};
 use l2_kingdom::county::{County, MAX_COUNTY_ID, MAX_FIELDS};
+use l2_kingdom::explore::Explored;
 use l2_kingdom::map::MAP_TILES;
 use l2_kingdom::merchant::{MerchantRoutes, ROUTES, ROUTE_SLOTS};
 use l2_kingdom::realm::MAX_REALMS;
@@ -265,6 +266,27 @@ fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
     }
     Ok(CampaignMap::from_planes(&terrain, &flags, &county)
         .expect("three planes of MAP_TILES bytes each"))
+}
+
+/// `g_tiles[t].bank` (record `+2`) bit `0x20` — **the fog of war's seen bit**,
+/// and whose it is.
+///
+/// Every one of the bit's writers tests `g_localPlayer` (`l2_kingdom::explore`
+/// has the table), so the file says what the local player has seen and nothing
+/// about anybody else. It is kept whatever `g_optExploration` says, which the
+/// England fixture shows: saved with the option off, and the local player's
+/// county carries the bit — `crates/l2-scenario/tests/explored.rs`.
+const TILE_BANK: u32 = 2;
+const BANK_SEEN: u8 = 0x20;
+
+fn read_explored(save: &Save, local_player: u8) -> Result<Explored, SaveError> {
+    let mut explored = Explored::new();
+    for tile in 0..MAP_TILES {
+        if save.u8_at(TILES + tile as u32 * TILE_STRIDE + TILE_BANK)? & BANK_SEEN != 0 {
+            explored.set_seen(local_player, tile);
+        }
+    }
+    Ok(explored)
 }
 
 /// One signed byte out of a county record, by offset.
@@ -797,6 +819,14 @@ pub struct Scenario {
     /// against 4,096 blank tiles. The planes are in the save — `g_tiles` is
     /// block 0 — and they are read here.
     pub map: CampaignMap,
+    /// **What the local player has seen** — `g_tiles[t].bank & 0x20`, the fog
+    /// of war's seen bit, read out of the same block as [`Scenario::map`].
+    ///
+    /// Every writer of the bit is guarded on `g_localPlayer`, so a `.sav`
+    /// answers the question for that realm alone and every other realm's bits
+    /// arrive clear. Nothing reads another realm's bits; `l2_kingdom::explore`
+    /// has the whole table. A new game fills it from the seating instead.
+    pub explored: l2_kingdom::explore::Explored,
     /// `g_units` — **armies, revolting peasants, merchants and transports**, as
     /// `(slot, unit)` pairs in ascending slot order.
     ///
@@ -1291,6 +1321,7 @@ impl Scenario {
             counties,
             realms,
             map: read_map(save)?,
+            explored: read_explored(save, local_player)?,
             units: {
                 let mut units = Vec::new();
                 for u in save.units()?.iter().filter(|u| u.is_live()) {
@@ -1718,6 +1749,7 @@ impl Scenario {
     fn skeleton(&self, seed: u64, tables: Tables) -> Kingdom {
         let mut k = Kingdom::with_tables(seed, tables);
         k.campaign.map = self.map.clone();
+        k.campaign.explored = self.explored.clone();
         k.campaign.routes = self.routes.clone();
         // **Slots, not order.** `Units::put` writes the slot the save recorded;
         // `Units::spawn` would take the lowest free one and quietly renumber

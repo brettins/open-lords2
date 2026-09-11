@@ -341,6 +341,30 @@ impl Kingdom {
             if !cross_sub_tile(&mut self.campaign.units, id) {
                 continue;
             }
+            // **`Unit_Step` (`0x00465D28`)'s first statement inside its loop**,
+            // and the fog of war's commonest writer:
+            //
+            // ```c
+            // if (unit.field_0x14b & 1) {                       /* on a tile centre */
+            //     if (unit.kind == 1 && unit.owner == g_localPlayer) {
+            //         FUN_0046E067(unit.x, unit.y, 6);  Gfx_MarkAllDirty();
+            //     }
+            //     ...the stop tests, then Unit_StepOnce...
+            // ```
+            //
+            // `at_tile_edge` is that latch, and it is set here and nowhere
+            // else in this loop — on the tile a unit is spawned on, and on each
+            // tile it finishes crossing into — so this is every tile centre the
+            // original's loop reaches, before the budget test that may stop the
+            // unit on it. An army only: a mob, a merchant and a transport walk
+            // blind. `crate::explore` has why the realm stands in for
+            // `g_localPlayer`.
+            if let Some(u) = self.campaign.units.get(id) {
+                if u.kind == crate::UnitKind::Army {
+                    let (owner, x, y) = (u.owner, u.x as i32, u.y as i32);
+                    self.campaign.explored.reveal_square(owner, x, y, crate::explore::ARMY_SIGHT);
+                }
+            }
             self.step_one(id, &mut out);
             if out.battle().is_some() {
                 break;
@@ -372,6 +396,22 @@ impl Kingdom {
 
         if step.moved {
             out.stepped += 1;
+            // **The last tile's sight.** The original's walker does not stop
+            // on the commit that empties the path: it crosses into the last
+            // tile, reaches its centre, reveals round it at the top of
+            // `Unit_Step`'s loop, and only then finds `field_0x1c == 0` and
+            // writes `moving = 0`. [`movement::step`] writes `moving = false`
+            // on the commit itself, so the reveal above never runs on the
+            // destination — and an army would stop one column short of the
+            // square the original gives it. The tiles seen are the original's;
+            // the tick they are seen on is the commit's, which is the tick this
+            // crate already calls the arrival.
+            if let Some(u) = self.campaign.units.get(id) {
+                if u.kind == crate::UnitKind::Army && !u.moving {
+                    let (owner, x, y) = (u.owner, u.x as i32, u.y as i32);
+                    self.campaign.explored.reveal_square(owner, x, y, crate::explore::ARMY_SIGHT);
+                }
+            }
         }
         if let Some(o) = step.offence {
             // `Unit_CrossField` (`0x0046673C`) and `Unit_BurnDwelling`
@@ -424,6 +464,7 @@ impl Kingdom {
                 county,
                 self.options.difficulty,
                 self.year,
+                &mut self.campaign.explored,
             );
             out.contacts.push(Contact::Castle { unit: id, county, outcome });
             return;

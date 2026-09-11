@@ -968,6 +968,7 @@ fn the_rewritten_town_actually_changes_what_is_drawn() {
             &mut tags,
             o,
             game.kingdom.season,
+            None,
         );
         canvas
     };
@@ -3704,6 +3705,7 @@ fn a_towns_overridden_graphic_survives_every_season() {
             &mut tags,
             o,
             season,
+            None,
         );
         canvas
     };
@@ -3826,6 +3828,7 @@ fn a_fields_picture_follows_its_crop_state() {
             &mut tags,
             &overrides,
             game.kingdom.season,
+            None,
         );
         // Just the tile, so a neighbouring field's state cannot carry the test.
         let mut patch = Vec::new();
@@ -4760,6 +4763,7 @@ fn the_pastures_have_cattle_in_them_and_the_herd_chooses_which() {
             &mut tags,
             &overrides,
             game.kingdom.season,
+            None,
         );
     }
     assert_ne!(
@@ -5917,4 +5921,257 @@ fn the_turn_timers_screen_table_and_suffix_are_the_images_own() {
     assert_eq!(bytes_at(0x004D_2E80, 0x46), l2_game::turn_clock::SCREENS.to_vec(), "DAT_004D2E80");
     assert_eq!(bytes_at(0x004D_41D0, 2), b" \0".to_vec(), "&DAT_004D41D0 is one space");
     assert_eq!(l2_game::turn_clock::SUFFIX, " ");
+}
+
+// --- the fog of war ----------------------------------------------------------
+//
+// `l2_kingdom::explore` has every reader and writer of the original's seen bit.
+// These are the painters' half, and each assertion is about a *tile*: what is
+// drawn on one the person has not seen, and what is drawn once he has.
+//
+// **Ablations, run on this branch** — each line deleted, and the test named:
+//
+// | deleted | red |
+// |---|---|
+// | the fog arm of `campaign::draw` (`Map_DrawTile`) | `a_dark_tile_…` |
+// | `if fog.is_some() { 0 }` on the surround | `with_the_fog_on_the_sea_…` |
+// | the `hides_tile` test in `draw_units` (`Map_DrawArmies`) | `a_county_in_the_dark_…` |
+// | `.filter(lit)` on the town banner (`Sprite_TopIt` arm 1) | `a_county_in_the_dark_…` |
+// | `.filter(lit)` on the mercenary marker (arm 2) | `a_county_in_the_dark_…` |
+// | the `hides_tile` test in `draw_herds` (arm 4) | `a_county_in_the_dark_…` |
+// | the `hides_tile` test on our owner marker | `a_county_in_the_dark_…` |
+// | `exploration &&` in `l2_kingdom::explore::hides` | `a_county_in_the_dark_…` (the control) |
+//
+// **Not covered, and said so:** the castle's garrison banner (England at turn
+// one has no garrison), the industry wheel's pause in the dark (a clock drives
+// it, and no test here ticks the map), and our field markers (drawn only for
+// the person's own county, which is never dark).
+
+/// A fresh map screen opened on the person, then centred on `(x, y)` and drawn.
+/// Fresh, so the painted-terrain cache cannot answer for the painter.
+fn paint_at(game: &mut Game, assets: &Assets, x: u8, y: u8) -> (MapScreen, Canvas) {
+    let mut screen = MapScreen::new();
+    draw(&mut screen, game, assets);
+    screen.centre_on_tile(x as usize, y as usize);
+    let canvas = draw(&mut screen, game, assets);
+    (screen, canvas)
+}
+
+/// How many pixels inside the map viewport differ.
+fn map_pixels_differ(a: &Canvas, b: &Canvas, clip: l2_view::Clip) -> usize {
+    a.pixels
+        .iter()
+        .zip(b.pixels.iter())
+        .enumerate()
+        .filter(|&(i, (p, q))| {
+            let (x, y) = ((i % a.width) as i32, (i / a.width) as i32);
+            p != q && clip.contains(x, y)
+        })
+        .count()
+}
+
+/// **`Map_DrawTile` (`0x004063C1`): `if (g_optExploration == 1 && (bank & 0x20)
+/// == 0) { bank = 0; frame = 0; }`**, and `Map_DrawTileApex` draws nothing.
+///
+/// The check is idempotence rather than an effect (`docs/agents.md`): blit the
+/// `base` bank's frame 0 over the drawn tile again, and a tile that was already
+/// that picture does not change by a pixel. A tile drawn as its own terrain
+/// does. The tile is chosen with its own picture *not* frame 0, every tile
+/// within two of it dark, and no unit within three — so nothing but the
+/// terrain pass can have put a pixel there.
+#[test]
+fn a_dark_tile_draws_the_base_banks_first_frame_until_it_is_seen_or_the_fog_is_off() {
+    use l2_formats::maps::Plane;
+    use l2_kingdom::map::{coords, index, MAP_TILES};
+
+    let (mut game, assets) = world!();
+    game.kingdom.options.exploration = true;
+    let slot = assets.slot(game.map_slot).expect("the map slot");
+    let map = game.kingdom.campaign.map.clone();
+    let tile = (0..MAP_TILES)
+        .find(|&t| {
+            let (x, y) = coords(t);
+            // Well inside the map, so the centred near view is not clamped
+            // against an edge and the tile really is in the middle of it.
+            if !(16..48).contains(&x) || !(16..48).contains(&y) || map.county[t] == 0 {
+                return false;
+            }
+            let own = (
+                slot.at(Plane::GfxBank, x as usize, y as usize) & 0x1C,
+                slot.at(Plane::GfxIndex, x as usize, y as usize),
+            );
+            own != (0, 0)
+                && (-2..=2).all(|dy: i32| {
+                    (-2..=2).all(|dx: i32| {
+                        game.hides_tile(index((x as i32 + dx) as u8, (y as i32 + dy) as u8))
+                    })
+                })
+                && game.kingdom.campaign.units.iter().all(|(_, u)| {
+                    (u.x as i32 - x as i32).abs() > 3 || (u.y as i32 - y as i32).abs() > 3
+                })
+        })
+        .expect("England at turn one is dark almost everywhere");
+    let (x, y) = coords(tile);
+
+    // **What "base frame 0" is, measured rather than assumed — and it is two
+    // different pictures.** Over the player's own files, all four seasons:
+    //
+    // * **near zoom, 58 × 30: not one opaque pixel.** Every byte is palette
+    //   index 0, which every blitter skips, so the fog arm paints nothing and a
+    //   dark tile is the black ground the map is drawn on — the game's own
+    //   *"blacked out"*;
+    // * **far zoom, 10 × 6: a filled 36-pixel diamond** of ten green indices,
+    //   the same in every season. Zoomed out, the dark is plain grass.
+    //
+    // The first version of this test asserted "blank at both zooms" and was
+    // wrong at the far one; it was measured after that. It is also why the
+    // check below is not `docs/agents.md`'s re-blit idempotence: re-blitting a
+    // blank frame changes nothing over *any* tile, and that version passed on a
+    // lit tile until its own option-off control caught it.
+    for season in 1..=4u8 {
+        let near = assets.map.bank(&campaign::NEAR, season, 0).and_then(|s| s.frame(0));
+        let near = near.expect("the near base bank has a frame 0");
+        assert_eq!((near.width, near.height), (58, 30), "season {season}");
+        assert_eq!(near.opaque.iter().filter(|&&o| o).count(), 0, "season {season}: near, blank");
+        let far = assets.map.bank(&campaign::FAR, season, 0).and_then(|s| s.frame(0));
+        let far = far.expect("the far base bank has a frame 0");
+        assert_eq!((far.width, far.height), (10, 6), "season {season}");
+        assert_eq!(far.opaque.iter().filter(|&&o| o).count(), 36, "season {season}: far, a diamond");
+    }
+    // The ink behind a dark tile, then: how many pixels of the tile's middle are
+    // something else. The middle only — a 13 × 7 patch round the centre, well
+    // inside the diamond, which no neighbour's diamond reaches.
+    let background = assets.ink.background;
+    let lit_pixels = |screen: &MapScreen, canvas: &Canvas| {
+        let (cx, cy) = campaign::tile_centre(screen.viewport(), screen.zoom(), x as usize, y as usize)
+            .expect("the tile is in view");
+        let mut n = 0;
+        for py in cy - 3..=cy + 3 {
+            for px in cx - 6..=cx + 6 {
+                if canvas.pixels[py as usize * canvas.width + px as usize] != background {
+                    n += 1;
+                }
+            }
+        }
+        n
+    };
+
+    let (screen, dark) = paint_at(&mut game, &assets, x, y);
+    let centre = campaign::tile_centre(screen.viewport(), screen.zoom(), x as usize, y as usize)
+        .expect("the tile is in the view it was centred on");
+    assert!(screen.map_clip().contains(centre.0, centre.1), "({x}, {y}) is inside the map viewport");
+    assert_eq!(
+        lit_pixels(&screen, &dark),
+        0,
+        "({x}, {y}) is unseen and must be drawn as base frame 0"
+    );
+
+    // The option off, nothing more seen: the tile is its own terrain, and the
+    // plane stops mattering at all — every tile seen draws the same canvas.
+    let mut off = game.clone();
+    off.kingdom.options.exploration = false;
+    let (screen, off_canvas) = paint_at(&mut off, &assets, x, y);
+    assert!(lit_pixels(&screen, &off_canvas) > 0, "the fog off shows ({x}, {y})");
+    let mut off_all_seen = off.clone();
+    off_all_seen.kingdom.campaign.explored.reveal_square(off.player, 32, 32, 64);
+    let (_, off_all) = paint_at(&mut off_all_seen, &assets, x, y);
+    assert_eq!(off_canvas.diff_count(&off_all), 0, "with the option off, what was seen draws nothing different");
+
+    // Seen, with the fog still on: the county's reveal lights the tile.
+    let county = map.county[tile];
+    game.kingdom.campaign.explored.reveal_county(game.player, &map, county);
+    let (screen, lit) = paint_at(&mut game, &assets, x, y);
+    assert!(lit_pixels(&screen, &lit) > 0, "seen, ({x}, {y}) is its own terrain");
+}
+
+/// **The six surround arms of `Map_RenderIso`, `Map_RenderAlignedRow` and
+/// `Map_RenderOffsetRow`**: `frame = g_optExploration == 1 ? 0 : cell -
+/// 0x0FFF0000`. Everything seen, the corner of the map in view: turning the
+/// option on changes the picture, and it changes only because of the surround —
+/// there is no unseen tile left for anything else to hide.
+#[test]
+fn with_the_fog_on_the_sea_round_the_map_is_the_base_banks_first_frame() {
+    let (mut game, assets) = world!();
+    game.kingdom.campaign.explored.reveal_square(game.player, 32, 32, 64);
+    game.kingdom.options.exploration = false;
+    let (screen, off) = paint_at(&mut game, &assets, 0, 0);
+    game.kingdom.options.exploration = true;
+    let (_, on) = paint_at(&mut game, &assets, 0, 0);
+    assert!(
+        map_pixels_differ(&off, &on, screen.map_clip()) > 0,
+        "the off-map surround is drawn from the lattice with the option off and as frame 0 with it on"
+    );
+}
+
+/// **A county in the dark gives nothing away on the map.** Everything the
+/// original draws *over* a tile is behind the fog test on that tile —
+/// `Sprite_TopIt`'s first statement and `Map_DrawArmies`' whole body — so the
+/// county's owner, its banner, a mercenary band in its square, the cattle in
+/// its pastures and an army standing in it are all invisible.
+///
+/// Stated as an equality: change every one of them and the map viewport does
+/// not move by a pixel. **And the control that stops the equality being
+/// vacuous**: the same changes with the fog off move it.
+#[test]
+fn a_county_in_the_dark_gives_nothing_away_on_the_map() {
+    use l2_kingdom::map::{flags, MAP_TILES};
+
+    let (mut game, assets) = world!();
+    game.kingdom.options.exploration = true;
+    let county = game
+        .kingdom
+        .county_ids()
+        .map(|id| id as u8)
+        .find(|&id| {
+            let c = &game.kingdom.counties[id as usize];
+            c.owner != 0
+                && c.owner != game.player
+                && (0..MAP_TILES)
+                    .all(|t| game.kingdom.campaign.map.county[t] != id || game.hides_tile(t))
+        })
+        .expect("an AI county the person has not seen");
+    let town = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        *MapScreen::town(&ctx, county).first().expect("the county has a town")
+    };
+    let (tx, ty) = l2_kingdom::map::coords(town);
+    let pasture = (0..MAP_TILES).find(|&t| {
+        game.kingdom.campaign.map.county[t] == county
+            && game.kingdom.campaign.map.flags[t] & flags::FARMLAND != 0
+    });
+
+    let give_away = |g: &mut Game| {
+        let owner = g.kingdom.counties[county as usize].owner as usize;
+        g.kingdom.realms[owner].shield_index = 0; // arm 1: the banner goes
+        g.kingdom.counties[county as usize].owner = 0; // our owner marker's colour
+        g.kingdom.counties[county as usize].mercenary_offer = 1; // arm 2: a band appears
+        if let Some(t) = pasture {
+            g.kingdom.campaign.map.terrain[t] = 0x16; // arm 4: a crowded herd
+        }
+        g.kingdom
+            .campaign
+            .units
+            .spawn(l2_kingdom::Unit::new(l2_kingdom::UnitKind::Army, 2, tx, ty))
+            .expect("a free unit slot");
+    };
+
+    let mut lit = game.clone();
+    lit.kingdom.options.exploration = false;
+
+    let (screen, before) = paint_at(&mut game, &assets, tx, ty);
+    give_away(&mut game);
+    let (_, after) = paint_at(&mut game, &assets, tx, ty);
+    assert_eq!(
+        map_pixels_differ(&before, &after, screen.map_clip()),
+        0,
+        "county {county} is unseen, and something of it was drawn on the map"
+    );
+
+    let (screen, before) = paint_at(&mut lit, &assets, tx, ty);
+    give_away(&mut lit);
+    let (_, after) = paint_at(&mut lit, &assets, tx, ty);
+    assert!(
+        map_pixels_differ(&before, &after, screen.map_clip()) > 0,
+        "the control: with the fog off the same changes are on the map"
+    );
 }
