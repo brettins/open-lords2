@@ -1007,11 +1007,63 @@ impl Machine {
         0
     }
 
-    /// The `.256` the top screen runs under, or `None` for the campaign
-    /// palette. The presenter is the only caller: it is the one place that
-    /// turns indices into colour.
+    /// The `.256` the stack runs under, or `None` for the campaign palette. The
+    /// presenter is the only caller: it is the one place that turns indices
+    /// into colour.
+    ///
+    /// **The nearest screen that names one, looking down through overlays.**
+    /// The original has one display palette and only a *painter* writes it —
+    /// `Screen_Armoury` ends with `Palette_Set(armoury.256)`, `Battle_LoadAssets`
+    /// sets `T32_bat1.256` — and nothing that draws over a page touches it.
+    /// `Tip_Show` (`0x00476DA9`) saves `g_screenId`, writes `0x27` and posts a
+    /// message; `FUN_00476E21` puts the byte back; `Msg_DrawWindow`
+    /// (`0x0047309E`) has no `Palette_Set` anywhere in its 10,915 bytes. So a
+    /// window over the armoury is in the armoury's colours. `[V]`
+    ///
+    /// This used to ask the top screen alone, and an overlay that names no
+    /// palette — the tip host, the message scroll, the menu bar, the options
+    /// pages — handed the page beneath it the campaign palette. A player saw the
+    /// raise-army and castle screens *"color reversed"* behind their first tip
+    /// until he dismissed it. `docs/decisions.md` C178.
+    ///
+    /// A page that names none *is* the campaign palette and ends the search,
+    /// which is the same boundary [`Machine::draw`] stops at for pixels.
     pub fn palette_name(&self) -> Option<&'static str> {
-        self.stack.last().and_then(|s| s.palette())
+        for screen in self.stack.iter().rev() {
+            if let Some(name) = screen.palette() {
+                return Some(name);
+            }
+            if !screen.is_overlay() {
+                return None;
+            }
+        }
+        None
+    }
+
+    /// **The frame as colour** — `canvas` through a playing film's palette or
+    /// else [`Machine::palette_name`]'s, and through the end-of-turn fade when
+    /// the top screen is fading.
+    ///
+    /// `main.rs`'s presenter is this and a window. It lives here so that the
+    /// colours a player is shown can be asserted without one: a canvas is a
+    /// plane of indices, and every defect of the *"right picture, wrong
+    /// colours"* kind is invisible to a test that stops at the canvas.
+    pub fn present(&self, assets: &crate::game::Assets, canvas: &Canvas, rgba: &mut [u8]) {
+        // A film's palette is not a file and changes as it plays; while one is
+        // up it is the whole screen's (`Smk_ApplyPalette`), so it outranks
+        // every `.256` on the stack. See [`Machine::live_palette`].
+        let live = self.live_palette();
+        let palette = live.as_ref().unwrap_or_else(|| {
+            self.palette_name()
+                .and_then(|n| assets.shell.palette(n))
+                .unwrap_or(&assets.palette)
+        });
+        // **The end-of-turn fade, and it is the whole of the effect.**
+        // `FUN_004B0CB4` never touches the framebuffer — it rewrites the display
+        // palette and lets the unchanged plane of indices resolve darker. See
+        // `l2_view::fade` and [`Screen::fade`].
+        let faded = self.fade().map(|phase| l2_view::fade::at(palette, phase));
+        canvas.to_rgba(faded.as_ref().unwrap_or(palette), rgba);
     }
 
     /// The top screen's [`Screen::live_palette`], which outranks

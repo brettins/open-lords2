@@ -9242,3 +9242,76 @@ Sixteen ablations went red at the box they name. **Two stayed green and are
 findings:** the iron popup reading the wood record passes, because every save
 here produces equal wood and iron at the same 80%; and reclamation's `'@'` lead
 as `' '` changes no pixel, both being glyph-less.
+
+---
+
+**C178 — A window over a page is in the page's colours, and we asked the
+window.**
+
+A player, twice: behind the first tip on the raise-army screen and on castle building, *"the
+screen behind it is color reversed. Immediately fixes after dismissing the tutorial screen and
+doesn't return"*; and on a battlefield, *"it's all reverse color ...or..something. It's blue
+grainy madness."*
+
+**The original has one display palette and only a painter writes it.** `Screen_Armoury` ends
+with `Palette_Set(armoury.256)`; `Battle_LoadAssets` sets `T32_bat1.256`. Nothing drawn over a
+page touches it: `Tip_Show` (`0x00476DA9`) saves `g_screenId`, writes `0x27` and posts a
+message; `FUN_00476E21` puts the byte back; `Msg_DrawWindow` (`0x0047309E`) calls no
+`Palette_Set` in its 10,915 bytes. There is no dim, shade or remap table on this path at all.
+`[V]`
+
+`Machine::palette_name` asked the **top** screen, and the tip host and the message scroll —
+like the menu bar, the options pages and save/load — name no palette. So any overlay turned the
+page beneath it to the campaign palette. The tip made it look like a first-open defect only
+because a tip shows once a game. It now takes the nearest screen that names a palette, looking
+down through overlays and stopping at the first page, which is where `Machine::draw` stops.
+
+**The battle report is a different defect, found while testing this one and not fixed here.**
+`BattlefieldScreen::palette` names `T32_bat1.256`, and that file is read into
+`Assets::battle` (`l2_view::scene::BattleAssets::palette`) and never into the shell's palette
+map, which is the only place the presenter looks. The name resolves to nothing and
+`.unwrap_or(&assets.palette)` quietly presents **every battlefield frame** through the campaign
+palette, window or no window — since `75f08b8`, which is in the player's build. Nothing on the
+battlefield path remaps indices, so the fallback is not harmless. This correction's own fix is
+only that a window over the battlefield now *asks* for the battlefield's palette, asserted by
+name in `tests/overlay_palette.rs`. A silent fallback on a lookup by name is what hid it: the
+next palette a screen names and nobody registers will be hidden the same way.
+
+**The test could not have been a canvas test**, which is the reusable part: every index on the
+canvas was right, and the defect lived entirely between the canvas and the glass. The presenter
+was in `main.rs`, where nothing can call it; it is `Machine::present` now, and
+`crates/l2-game/tests/overlay_palette.rs` asserts presented colour at fixed pixels.
+
+**A lead, not taken:** `main.rs` draws on the tick and presents on `RedrawRequested`, and the
+palette is read at present time. An event that changes the stack between the two would present
+the old canvas through the new stack's palette for one frame. `[I]` — winit's ordering was not
+driven.
+
+---
+
+**C179 — `Tick_Pulses` resets its stamp, and the armoury carried the remainder.**
+
+Three reports about the raise-army and armoury screens, read against the binary.
+
+**The walker ran 1.6 times the original's speed.** `Tick_Pulses` (`0x004BBC80`) fires when
+`0x13 < timeGetTime() - stamp` and then sets `stamp = now`, not `stamp += 20`. On a 16 ms tick
+the pulse is every second tick, 32 ms. `Anim::tick` subtracted twenty and kept the rest — the
+one reading under which the walk is exactly 200 pixels a second on every machine, which the
+original reaches only on a frame of exactly 20 ms. That is the same reading `crate::press` makes
+of `FUN_004B20ED`, the 30 ms gate beside it. `[V]` for the gate; *our tick is the frame* is
+`[I]`, as it is in `press.rs`. **Every other `Tick_Pulses` consumer in the tree was written the
+other way** — `industry.rs`'s `EVERY is PULSE_MS in 16 ms ticks`, the village — and is not
+changed here.
+
+**The walk is started by picking a rack, never by the `+`.** `FUN_004AABD8` has one call site,
+`Armoury_ClickRack`'s first statement, with the type being *left*. `Levy_Seed` (`0x004AA90A`)
+zeroes that type and the walk flag on every door into the armoury, so the first pick after a
+door never walks: *"he did… after I picked something else?"* is the original. Two divergences
+were ours: re-picking the open rack was refused (the `0x0D` arm tests no selected type), and a
+re-seed left a walk on the floor. No tip can swallow the pick — `Tip_Update` has no `0x0A` or
+`0x0D` arm.
+
+**The levy slider was a click.** `Levy_SliderClick` (`0x00435CEF`) reads the arrows on
+`pressed || doubleClick` and the track on the **level** `g_mouseLeftDown`, every frame; and
+`WM_LBUTTONDBLCLK` sets no down bit. It had no `docs/arms.json` record, which is why the
+inventory said nothing was missing.

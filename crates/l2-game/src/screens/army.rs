@@ -442,11 +442,26 @@ pub struct RaiseArmyScreen {
     county: u8,
     /// One line of feedback. **Ours.**
     status: String,
+    /// **`g_mouseLeftDown`, as this screen has heard it** — set by a press,
+    /// cleared by a release.
+    ///
+    /// It is a *level*, and `Levy_SliderClick`'s track reads nothing else, so
+    /// the knob follows the pointer for as long as the button is down.
+    ///
+    /// **A double click does not set it.** The window procedure's
+    /// `WM_LBUTTONDBLCLK` arm (`0x203`) sets only `DAT_004EADA1`, the
+    /// double-click flag; the down bit in `DAT_004EABC2` is set by
+    /// `WM_LBUTTONDOWN` alone, and the first click's `WM_LBUTTONUP` has already
+    /// cleared it. `[V]`, `0x004B29BE`.
+    ///
+    /// What ours cannot see: a button that went down on the screen that opened
+    /// this one. The original's flag is global; ours starts clear.
+    left_down: bool,
 }
 
 impl RaiseArmyScreen {
     pub fn new(county: u8) -> RaiseArmyScreen {
-        RaiseArmyScreen { county, status: "DRAG THE SLIDER, THEN CONTINUE".into() }
+        RaiseArmyScreen { county, status: "DRAG THE SLIDER, THEN CONTINUE".into(), left_down: false }
     }
 
     pub fn county(&self) -> u8 {
@@ -464,7 +479,32 @@ impl RaiseArmyScreen {
     }
 
     /// `Levy_SliderClick` (`0x00435CEF`) — the three zones, on the original's
-    /// numbers. Returns whether the click was the slider's.
+    /// numbers. Returns whether the slider took the input, which is the
+    /// function's own return: `Screen_FrameInput`'s `0x17` arm reads the right
+    /// release and the corner picture **only when this answers 0**.
+    ///
+    /// **The three zones read three different things**, and that is the whole
+    /// of the gesture:
+    ///
+    /// ```c
+    /// if (x < 0xC4)       { if (!pressed && !doubleClick) return 0;  percent--; }
+    /// else if (x < 0x129) { if (!g_mouseLeftDown)         return 0;  percent = x - 0xC4; }
+    /// else                { if (!pressed && !doubleClick) return 0;  percent++; }
+    /// clamp 0..100;  Levy_SetPercent(sel, percent);  g_redrawRequest = 2;  return 1;
+    /// ```
+    ///
+    /// The arrows step once on a press or a double click and **do not repeat**:
+    /// they are not a widget record, so `Widget_Test`'s kind-4 ramp never sees
+    /// them. The track reads the **level** of the button, not an edge and not
+    /// `g_mouseInputChanged`, so it answers on every frame the button is down
+    /// inside the band — which is a drag, and a drag that also starts from a
+    /// press anywhere and slides in. Off the track the level does nothing: a
+    /// drag carried past either end leaves the knob where the track last put
+    /// it, and only an arrow's own press reaches the clamp. `[V]`
+    ///
+    /// Ours was reachable from `Event::Click` alone, so the knob jumped to the
+    /// press and then ignored the pointer: *"Slider bar in army recruitment
+    /// cant be dragged."* `pressed` is the edge, `down` the level.
     ///
     /// **It calls `Levy_SetPercent` and nothing else.** An earlier revision of
     /// this module said the slider also ran `FUN_004AA90A` and that *"re-seeding
@@ -473,7 +513,7 @@ impl RaiseArmyScreen {
     /// equipment does get thrown away, but by the *door into the armoury*,
     /// which re-seeds on every entry — so the visible effect survives the
     /// correction and the mechanism does not.
-    fn slider_click(&mut self, ctx: &mut Ctx, x: i32, y: i32) -> bool {
+    fn slider_click(&mut self, ctx: &mut Ctx, x: i32, y: i32, pressed: bool, down: bool) -> bool {
         let b = base(self.offer(&Ctx { game: ctx.game, assets: ctx.assets }) != 0);
         if !(SLIDER_HIT_X.0..SLIDER_HIT_X.1).contains(&x)
             || !((b + SLIDER_HIT_DY.0)..(b + SLIDER_HIT_DY.1)).contains(&y)
@@ -481,10 +521,19 @@ impl RaiseArmyScreen {
             return false;
         }
         let percent = if x < SLIDER_X {
+            if !pressed {
+                return false;
+            }
             ctx.game.levy.percent - 1
         } else if x < SLIDER_RIGHT {
+            if !down {
+                return false;
+            }
             x - SLIDER_X
         } else {
+            if !pressed {
+                return false;
+            }
             ctx.game.levy.percent + 1
         };
         ctx.game.set_levy_percent(percent);
@@ -578,7 +627,35 @@ impl Screen for RaiseArmyScreen {
             // gold is spent until *Create* on the armoury.
             // arm: 0x0042FF10/levy-right-commits right-release
             Event::KeyDown(Key::Escape) => Transition::Pop,
-            Event::RightClick { .. } | Event::KeyDown(Key::Enter) => self.open_armoury(ctx),
+            // `if (!Levy_SliderClick()) { … rightReleased … }` — the slider is
+            // asked first, so on a frame the left button is still down on the
+            // track it answers 1 and the right release is never read.
+            Event::RightClick { x, y } => {
+                if self.left_down && self.slider_click(ctx, x, y, false, true) {
+                    return Transition::Stay;
+                }
+                self.open_armoury(ctx)
+            }
+            Event::KeyDown(Key::Enter) => self.open_armoury(ctx),
+            // **The track follows the button's level.** See
+            // [`RaiseArmyScreen::slider_click`]: nothing but `g_mouseLeftDown`
+            // is read there, so every pointer position while the button is down
+            // is a new percentage, and a release ends it.
+            // arm: 0x00435CEF/levy-slider-track drag
+            Event::Pointer { x, y } if self.left_down => {
+                self.slider_click(ctx, x, y, false, true);
+                Transition::Stay
+            }
+            Event::Release { .. } => {
+                self.left_down = false;
+                Transition::Stay
+            }
+            // `WM_LBUTTONDBLCLK` sets `g_mouseLeftDoubleClick` and not the down
+            // bit, so a double click steps an arrow and leaves the track alone.
+            Event::DoubleClick { x, y } => {
+                self.slider_click(ctx, x, y, true, false);
+                Transition::Stay
+            }
             Event::KeyDown(Key::Left) => {
                 let p = ctx.game.levy.percent - 1;
                 ctx.game.set_levy_percent(p);
@@ -595,8 +672,12 @@ impl Screen for RaiseArmyScreen {
                 }
                 Transition::Stay
             }
+            // The arrows: one step on the press, no repeat. The press also puts
+            // the button down, which is what the track reads.
+            // arm: 0x00435CEF/levy-slider-step left-press
             Event::Click { x, y } => {
-                if self.slider_click(ctx, x, y) {
+                self.left_down = true;
+                if self.slider_click(ctx, x, y, true, true) {
                     return Transition::Stay;
                 }
                 if OK.contains(x, y) {

@@ -836,11 +836,19 @@ impl Game {
     /// throws away everything the player equipped — the original's behaviour,
     /// and the reason a slider move appears to strip the army even though the
     /// slider itself never touches the basket.
+    ///
+    /// **Its last three statements are the armoury's**, not the basket's:
+    /// `g_armourySelectedType = 0; DAT_005679D0 = 0; _DAT_0057C8E4 = 0;`. The
+    /// first is why the first rack a player opens after any door never sends a
+    /// soldier — `FUN_004AABD8` is handed type 0 and its `0 < type` guard
+    /// refuses — and the second ends a walk that was still on the floor.
+    /// `[V]`, `0x004AA90A`. See [`crate::screens::armoury::Walker`].
     pub fn seed_levy_basket(&mut self) {
         let realm = self.player as usize;
         let Some(realm) = self.kingdom.realms.get(realm) else { return };
         self.levy.basket = l2_kingdom::LevyBasket::seed(realm, self.levy.men);
         self.levy.rack = 0;
+        self.levy.anim.walker.active = false;
     }
 
     /// Whether this game has ended, and how. `DAT_0053F0C4`.
