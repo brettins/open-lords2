@@ -369,6 +369,12 @@ fn a_breach_is_nine_cells_wide_and_a_collapse_is_one() {
 /// the three different ways in are all live.
 #[test]
 fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
+    // `Missile_Step`'s counting arm against a wall plays `FUN_004262CF(0xF)`,
+    // `cathit.wav`, so a listener must be told each time a catapult's shot is
+    // counted. Summed over the five levels because which way in a level takes
+    // differs. Ablation: delete `self.sim.cues.wall_struck()` in
+    // `BattleRunner::strike_wall_with_shot`.
+    let mut walls_struck = 0;
     for level in 0..=4u8 {
         let mut r = storming_party(level);
         assert_eq!(r.men_of_side(SIDE_B), 848, "the besieger, level {level}");
@@ -416,7 +422,13 @@ fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
             r.siege.wall_damage,
             r.siege.moat_filled,
         );
+        assert!(
+            r.sim.cues.loosed(l2_sim::WeaponClass::Catapult) > 0,
+            "level {level}: the storming party's catapults never fired"
+        );
+        walls_struck += r.sim.cues.walls_struck();
     }
+    assert!(walls_struck > 0, "no catapult shot was ever counted against a wall");
 }
 
 /// And the other direction, because a besieger that always wins is not a siege
@@ -552,6 +564,11 @@ fn a_player_rams_the_gate_open_and_charges_through_the_breach() {
     };
 
     assert!(r.siege.gate_breached, "two rams open a gate");
+    // **`Wall_Smash` is heard.** `FUN_0049694F` opens with
+    // `Sound_PlayFile("bathit2.wav", 0, 0)`, so the record a listener reads has
+    // to say a wall came down. Ablation: delete `self.sim.cues.wall_smashed()`
+    // in `BattleRunner::strike_castle`.
+    assert!(r.sim.cues.walls_smashed() > 0, "the breach went uncued: {:?}", r.sim.cues);
     let opened = wall_before - r.field.cells.iter().filter(|c| c.flags & FLAG_WALL != 0).count();
     assert!(
         opened >= 5,

@@ -8574,3 +8574,66 @@ exe, and never reads the `Kind` the code declares — the marker is text. What w
 `Opt_ToggleAnimations` are each kind 5 in their panel and kind 4 in the orphaned table, so
 their address alone is ambiguous; a record whose prose names one record base calling that
 handler is now judged by that record. Coverage 37 → 54 by handler, 12 → 31 by prose.
+
+---
+
+**C166 — battles were nearly silent because the simulation kept no record of a
+swing, a hit, a loose or a death, and "a limit of the design" did not follow from anything.**
+
+The battlefield's per-man sound sites had been filed `blocked` on *"per-man events"*, and
+`docs/audio-triggers.md` called that *"a limit of the design"*. **The gap was the event stream, not
+the sounds.** `l2-sim` resolved figure and unit state and recorded nothing a listener could hear,
+so there was nothing for a sound to answer. Nothing in the design required that; it was a record
+nobody had written.
+
+**The record.** `crates/l2-sim/src/cue.rs` holds monotone counts of the occasions the original's
+per-man code sounds on:
+* a man falling, by the striker's troop;
+* a figure's last man, by side;
+* a missile loosed, hitting, felling and killing, by weapon;
+* a wall shot, and a wall smashed.
+
+The battle writes these counters and **never reads them**, and they are **excluded from the
+lockstep checksum on purpose**.
+
+**Why counters are exact rather than an approximation.** Every battlefield sound site goes through
+`Sound_PlaySlot`, its thunk `FUN_004262cf`, or `Sound_PlayFile`. All three **drop a request while
+their buffer is still playing** `[V]`, and that drop is the original's only throttle. So *"did
+this happen since the last tick"* is all the original could ever make audible, and a count answers
+exactly that question. We add no throttle of our own.
+
+**22 of the 31 battlefield sites are now wired**, including all six troop-cry sites. The nine left
+are each blocked on a mechanic `l2-sim` lacks — fire, boiling oil, tower docking, state 17's
+loose, the high-rampart catapult miss, a realm eliminated mid-battle — and `docs/audio.json` names
+each one.
+
+**Troop cries use no random number at all.** `Sound_PlayTroopCry` is a round robin per
+(troop, order type) over `g_troopSounds` (`0x004DB0D0`), an 11 × 4 × 4 table transcribed and
+asserted against the executable. The index is stepped before it is read and never reset between
+battles, and the take is spent even when the cry is dropped by the busy buffer. With no RNG, there
+is nothing to keep away from the battle's own `Pcg32`.
+
+**Determinism, proven rather than argued** `[V]`:
+* A battle with a sound `Director` listening and one without are **identical every tick for 4,000
+  ticks**, and **byte-identical when saved**. That holds with silent audio and with real decoded
+  audio.
+* A battle whose cue record is **wiped every tick** equals the untouched one. Nothing reads the
+  record back into the simulation.
+
+Each of those tests was ablated and seen red.
+
+**Counts** (from `docs/audio.json` on the branch's base): sound triggers reproduced went from 51 to
+73 of 143, and reachable files from 560 to 639 of 771. `docs/bugs.md` D34 is corrected: nine
+unreachable cry names ship in neither install, not seven.
+
+**The lesson is C140's and C139's.** A blocker's stated reason was a claim, and nobody had checked
+it. *"A limit of the design"* read as a finding and stopped the work for as long as it stood. The
+design asked only for a record the simulation never reads, which is the cheapest kind of state
+lockstep has.
+
+**At merge, with the tip screens already on `main`:** 75 of 143 reproduced and 674 of 771 files
+reachable, from the merged `docs/audio.json` and the tests. Both branches had added a record of
+the one-shot buffer, `DAT_00522AEC`: the tips' `last_speech` for `Sound_OneShotBusy` and this
+branch's `one_shot` for `Sound_PlayFile`'s drop. The original has one buffer and both ask it,
+so they are one field, set by `play_speech` and `play_file` and read by both checks. A troop
+cry now keeps the tips' chained takes waiting, as it would in the original.

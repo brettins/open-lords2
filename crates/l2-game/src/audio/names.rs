@@ -147,6 +147,98 @@ pub const BATTLE_BANK: [&str; 17] = [
     "siegedoc.wav", // 16
 ];
 
+/// **`g_troopSounds` (`0x004DB0D0`)** — `char[11][4][4][16]`, the troop cries,
+/// indexed `[troop][class][take]`. `[V]`: transcribed from the executable's
+/// bytes, with the binary's own casing (`knig_M1.wav`), and asserted against
+/// them by `tests/audio_battle.rs`.
+///
+/// `Sound_PlayTroopCry(class)` (`0x00499CB1`) indexes it as
+/// `unit * 0x100 + class * 0x40 + take * 0x10`, so the stride is troop, then
+/// event class, then take. The four classes are the four things a player tells
+/// his men, and each is named by the letter its files carry:
+///
+/// | class | files | asked for by |
+/// |---:|---|---|
+/// | 0 | `_U` | a selection committed — `Battle_DragSelect`, both arms |
+/// | 1 | `_P` | an order to go somewhere, and `H`/`V` |
+/// | 2 | `_E` | an order onto an enemy |
+/// | 3 | `_M` | an order onto surface 2, the moat |
+///
+/// **Class 3 is always take 0**, which is `docs/bugs.md` D34: the other three
+/// cells of every `_M` row can never be chosen, and that is where the seven
+/// `_F1` names sit — none of which ships — and `Swor_U3.wav` and `Arch_U3.wav`,
+/// which do not ship either. Two `_M` rows borrow another troop's voice:
+/// crossbowmen and swordsmen say `Pike_M1`, macemen and archers `Peas_M1`.
+///
+/// The four siege engines have one row each, class 1 — the engine being told
+/// to move — and `null.wav` everywhere else.
+pub const TROOP_CRIES: [[[&str; 4]; 4]; 11] = [
+    [
+        ["Peas_U1.wav", "Peas_U2.wav", "Peas_U3.wav", "Peas_U4.wav"],
+        ["Peas_P1.wav", "Peas_P2.wav", "Peas_P3.wav", "Peas_P4.wav"],
+        ["Peas_E2.wav", "Peas_E1.wav", "Peas_E2.wav", "Peas_E3.wav"],
+        ["Peas_M1.wav", "Peas_U5.wav", "Peas_E1.wav", "Peas_F1.wav"],
+    ],
+    [
+        ["Cros_U1.wav", "Cros_U2.wav", "Cros_U1.wav", "Cros_U2.wav"],
+        ["Cros_P1.wav", "Cros_P2.wav", "Cros_P3.wav", "Cros_P2.wav"],
+        ["Cros_E1.wav", "Cros_E3.wav", "Cros_E2.wav", "Cros_E3.wav"],
+        ["Pike_M1.wav", "Cros_E3.wav", "Cros_U2.wav", "Cros_F1.wav"],
+    ],
+    [
+        ["Mace_U1.wav", "Mace_U2.wav", "Mace_U1.wav", "Mace_U2.wav"],
+        ["Mace_P1.wav", "Mace_P2.wav", "Mace_P1.wav", "Mace_P3.wav"],
+        ["Mace_E1.wav", "Mace_E2.wav", "Mace_E1.wav", "Mace_E2.wav"],
+        ["Peas_M1.wav", "Mace_E2.wav", "Mace_U1.wav", "Mace_F1.wav"],
+    ],
+    [
+        ["Swor_U1.wav", "Swor_U2.wav", "Swor_U1.wav", "Swor_U2.wav"],
+        ["Swor_P1.wav", "Swor_P2.wav", "Swor_P1.wav", "Swor_P3.wav"],
+        ["Swor_E1.wav", "Swor_E2.wav", "Swor_E3.wav", "Swor_E4.wav"],
+        ["Pike_M1.wav", "Swor_E2.wav", "Swor_U3.wav", "Swor_F1.wav"],
+    ],
+    [
+        ["Pike_U1.wav", "Pike_U2.wav", "Pike_U3.wav", "Pike_U4.wav"],
+        ["Pike_P1.wav", "Pike_P3.wav", "Pike_P2.wav", "Pike_P3.wav"],
+        ["Pike_E1.wav", "Pike_E2.wav", "Pike_E1.wav", "Pike_E2.wav"],
+        ["Pike_M2.wav", "Pike_E2.wav", "Pike_U1.wav", "Pike_F1.wav"],
+    ],
+    [
+        ["Arch_U1.wav", "Arch_U2.wav", "Arch_U1.wav", "Arch_U2.wav"],
+        ["Arch_P1.wav", "Arch_P2.wav", "Arch_P1.wav", "Arch_P2.wav"],
+        ["Arch_E1.wav", "Arch_E2.wav", "Arch_E3.wav", "Arch_E4.wav"],
+        ["Peas_M1.wav", "Arch_E2.wav", "Arch_U3.wav", "Arch_F1.wav"],
+    ],
+    [
+        ["Knig_U1.wav", "Knig_U2.wav", "Knig_U1.wav", "Knig_U2.wav"],
+        ["Knig_P1.wav", "Knig_P2.wav", "Knig_P1.wav", "Knig_P2.wav"],
+        ["Knig_E1.wav", "Knig_E2.wav", "Knig_E1.wav", "Knig_E2.wav"],
+        ["knig_M1.wav", "Knig_E2.wav", "Knig_U2.wav", "Knig_F1.wav"],
+    ],
+    [["null.wav"; 4], ["movcat.wav"; 4], ["null.wav"; 4], ["null.wav"; 4]],
+    [["null.wav"; 4], ["movsiege.wav"; 4], ["null.wav"; 4], ["null.wav"; 4]],
+    [["null.wav"; 4], ["movbat.wav"; 4], ["null.wav"; 4], ["null.wav"; 4]],
+    [["null.wav"; 4], ["movoil.wav"; 4], ["null.wav"; 4], ["null.wav"; 4]],
+];
+
+/// The cry a troop, class and take name, or `None` for a cell holding
+/// `null.wav` and for anything out of the table's range. Which take is asked
+/// for is `super::TroopCries`'s business, not this table's.
+pub fn troop_cry(troop: usize, class: usize, take: usize) -> Option<&'static str> {
+    match *TROOP_CRIES.get(troop)?.get(class)?.get(take)? {
+        "null.wav" => None,
+        name => Some(name),
+    }
+}
+
+/// Files the battlefield plays **by name** rather than out of the bank.
+pub mod battle {
+    /// `FUN_0049694F` — `Wall_Smash` — opens with
+    /// `Sound_PlayFile("bathit2.wav", 0, 0)`: the effects flag, the one-shot
+    /// buffer. `[V]`
+    pub const WALL_SMASH: &str = "bathit2.wav";
+}
+
 /// Which bank a slot number is being read against — the two are not
 /// interchangeable and a bare number does not say.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

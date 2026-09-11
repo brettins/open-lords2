@@ -1,10 +1,10 @@
 # Every place the original asks for a sound
 
-**143 trigger sites across 70 functions. We fire 53 of them, and they carry 595
+**143 trigger sites across 70 functions. We fire 75 of them, and they carry 674
 of the install's 771 sounds**, because the classes are wildly unequal in weight.
-(The last two sites are the tip screens' first line and chained takes: forty files
+(Two of the sites are the tip screens' first line and chained takes: forty files
 by name, thirty-five that anything can ask for — see *What `blocked` is blocked
-on*.)
+on*. Twenty-two are the battlefield's, from its event stream.)
 **Three are dead in the shipped game**, and they are named below.
 
     node tools/oracle/sounds.js            # the table, by primitive
@@ -88,12 +88,12 @@ second instance. `sounds.js --check` is the version a machine enforces.
 
 | primitive | addr | class | sites | ours | what it is |
 |---|---|---|---:|---:|---|
-| `Sound_PlaySlot` | `0x00426120` | bank | 14 | 4 | **drops** the request if that buffer is still playing |
-| `FUN_004262cf` | `0x004262CF` | bank | 13 | 0 | a 28-byte thunk onto `Sound_PlaySlot` |
+| `Sound_PlaySlot` | `0x00426120` | bank | 14 | 11 | **drops** the request if that buffer is still playing |
+| `FUN_004262cf` | `0x004262CF` | bank | 13 | 8 | a 28-byte thunk onto `Sound_PlaySlot` |
 | `Sound_RestartSlot` | `0x00426216` | bank | 22 | 8 | rewinds and plays regardless — and the pointer click is two of these |
-| `Sound_PlayFile` | `0x00427990` | file | 49 | 15 | one-shot by name; arg 2 picks the speech or effects flag |
+| `Sound_PlayFile` | `0x00427990` | file | 49 | 16 | one-shot by name; arg 2 picks the speech or effects flag; **drops** the request while its one buffer is busy |
 | `Msg_PlayVoice` | `0x004B35C1` | voice | 16 | 14 | an `L2.eng` group to a filename, then `Sound_PlayFile` |
-| `Sound_PlayTroopCry` | `0x00499CB1` | cry | 6 | 0 | 11 × 4 × 4, then `Sound_PlayFile` |
+| `Sound_PlayTroopCry` | `0x00499CB1` | cry | 6 | 6 | 11 × 4 × 4 by a round robin, then `Sound_PlayFile` |
 | `Music_StartCampaign` | `0x00499ACA` | music | 10 | 5 | the progress-bar ladder |
 | `Music_StartBattle` | `0x00477B2F` | music | 4 | 4 | the alternating pair |
 | `Music_Play` | `0x004263AD` | music | 9 | 2 | a named track, looped or not — the front end is all of these |
@@ -109,9 +109,9 @@ the verdicts a reader wants:
 
 | status | sites | means |
 |---|---:|---|
-| `reproduced` | **51** | we fire it; a `// sfx:` marker is on the line |
-| `blocked` | **52** | the mechanic behind it is not built, and `note` **names** it |
-| `missing` | **37** | reachable and unwired — no excuse, just not done |
+| `reproduced` | **73** | we fire it; a `// sfx:` marker is on the line |
+| `blocked` | **36** | the mechanic behind it is not built, and `note` **names** it |
+| `missing` | **31** | reachable and unwired — no excuse, just not done |
 | `dead` | **3** | the shipped game cannot reach it; `note` is the evidence and `docs/bugs.md` has the entry |
 
 **Three are dead, and this section used to say none were.** `tests/sfx.rs` asserted
@@ -135,15 +135,19 @@ with no path.
 
 | mechanic | sites | files it would add |
 |---|---:|---:|
-| the battlefield's per-man state machine | 25 | ≤17 — 15 battle-bank slots, `dest_ind`, `bathit2` `[I]` |
 | Smacker playback | 8 | ≈0 — every one restarts a bed or a voice already reachable |
 | the sibling voice tables' callers | 8 | ≈48 — `S010` 13, `S020` 5, `S035` 8, `S071` 6, the mercenary's `S016` 12, the lord sting's `S246` 4 `[I]` on the callers' index ranges |
 | a channel from a click to the audio layer (the field brush) | 5 | 3 |
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
 | the two delegated message painters (categories `0x0C`, `0x14`) | 2 | 0 — both `ff_msg.wav` |
+| battlefield fire — `BattleMan_BurnTick` ×2, the bridge fire `FUN_0048551D` | 3 | 1 — `dest_ind.wav`; the two death cries already sound |
+| state 17's own loose — `BattleMan_StateCloseToAttack` ×2 | 2 | 0 — the bow and crossbow already sound from state 5 |
+| boiling oil — `FUN_0047A814` | 1 | 1 — `pouroil.wav` |
+| a siege tower docking — `FUN_00491492` | 1 | 1 — `siegedoc.wav` |
+| a catapult shot on a rampart four high — `Missile_Step#2` | 1 | 1 — `catmiss.wav` |
+| a realm eliminated mid-battle — `FUN_0047FE0B` | 1 | 0 — `deadguy4.wav` already sounds |
 
-**Read the second column before the first.** The **66 troop-cry files are not here
-at all**: the six `Sound_PlayTroopCry` sites are `missing`, not `blocked`.
+**Read the second column before the first.**
 
 **The tip screens left this table**, and they were the row a player would have heard
 most of: two sites and forty files by name — 13 first lines and 27 chained takes, the
@@ -153,12 +157,88 @@ and 215 are guarded on `g_screenId == 0` during a battle, which no path was foun
 hold, so `S212_01`, `S212_02`, `S214_01`, `S214_02` and `S214_03` ship silent in the
 original as well as here. `[I]` on *"no path"*.
 
-**The battlefield's 25 is a limit of the design and not a to-do.**
-`docs/netcode.md` D-3 says a sound may never affect the simulation, which is
-enforced by shape: `Director::listen` takes `&Game` and derives what should be
-audible from the world *after* the tick. A sword swing is an **event inside** a
-tick — the state afterwards says where a man is, not that he struck. Everything
-else in this table is work; this one needs a decision about the seam.
+## The battlefield: the gap was the event stream, not the sounds
+
+**This section replaces a paragraph that called the battlefield's 25 sites *"a
+limit of the design and not a to-do"*.** Its premise was right — `Director::listen`
+takes `&Game` and derives sound from the world after the tick, and a sword swing
+is an event *inside* one — and its conclusion did not follow. The world simply
+kept no record of the event: `l2-sim` resolved figure and unit state and wrote
+nothing a listener could hear. That was the gap, and it was ours rather than the
+design's.
+
+`l2_sim::cue` is the record: monotone counts of the occasions the original's per-man
+code sounds on — a man falling, keyed by the troop that struck him; a figure's last
+man, keyed by its side; a missile loosed, hitting, felling and killing, keyed by
+weapon; a wall shot and a wall smashed. The battle writes them and nothing in the
+battle reads them.
+
+**Counters are exact, not an approximation, because of the throttle.** Every one of
+these calls is `Sound_PlaySlot`, its thunk `FUN_004262CF`, or `Sound_PlayFile`, and
+**all three drop the request while their buffer is sounding** — `GetStatus` against
+`DSBSTATUS_PLAYING` for a bank slot, `Sound_OneShotBusy` for the one-shot buffer. `[V]`
+from the three bodies. Ten men falling to swords in one frame is one `sword2.wav` and
+nine dropped requests. So what a tick can make audible is *whether each kind of event
+happened*, and a count that moved since the last listen is exactly that. **The
+original has no throttle beyond those drops** — no per-frame cap, no distance test,
+no rate limit — and we add none.
+
+| site | occasion | slot / file |
+|---|---|---|
+| `Melee_Tick#1`…`#4` | a man falls, by the striker: maceman / swordsman / knight / anyone else | 4 `sword5` · 5 `sword2` · 5 `sword2` · 6 `sword3` |
+| `Melee_Tick#5`, `#6` | a figure's last man, side 0 / side 4 | `0xB` `deadguy2` · `0xC` `deadguy3` |
+| `Missile_Step#3`, `#4` | a bolt / an arrow strikes a man | 10 `cros_hit` · 8 `bow_hit` |
+| `Missile_Step#5`, `#6` | …and crosses the casualty threshold — the same slot, always dropped | 10 · 8 |
+| `Missile_Step#7` | …and it was the last man | `0xD` `deadguy4` |
+| `Missile_Step#1` | a catapult shot counted against a wall | `0xF` `cathit` |
+| `BattleMan_FireMissile#1`, `#2` | a crossbow / a bow looses | 9 `crossbow` · 7 `bowmen1` |
+| `BattleMan_StateEngineFire#1` | a catapult fires | `0xE` `catfire` |
+| `FUN_0049694f#1` | `Wall_Smash` | `bathit2.wav`, the one-shot buffer |
+
+Every slot is `[V]` from the call's constant, and every one lands on a file whose
+name says what the occasion is — `bowmen1` on the loose and `bow_hit` on the hit — which
+is the third independent confirmation that bank slots are 1-based.
+
+**Why it cannot feed back.** The record is outside the lockstep checksum on purpose,
+the listener holds `&Game`, and two tests hold both halves: `l2-sim`'s
+`a_battle_whose_cues_are_wiped_every_tick_is_the_same_battle` zeroes one copy's record
+every tick and requires every other field to agree, and `tests/audio_battle.rs`'s
+`sound_does_not_change_the_battle` plays one battle with a director listening and one
+without and compares the whole `LiveBattle` at every tick.
+
+## The troop cries: a round robin, and no random number anywhere
+
+`Sound_PlayTroopCry(class)` (`0x00499CB1`), `[V]`:
+
+```c
+counter[unit][class] += 1;  if (3 < counter[unit][class]) counter[unit][class] = 0;
+take = (class == 3) ? 0 : counter[unit][class];
+Sound_PlayFile(g_troopSounds + class*0x40 + take*0x10 + unit*0x100, 1, 0);
+```
+
+* **`unit` is `DAT_0055408C`**, the troop type most of the local player's picked
+  figures belong to — `Battle_CountMenByType` keeps the first strictly larger count,
+  so a tie goes to the lower troop index and nothing picked is peasants. `Battle_Frame`
+  reruns that census every frame.
+* **The take is a round robin per (troop, class)**, stepped before it is read, so the
+  first cry of each pair is take 1. `g_troopCryCounter` (`0x0053EF60`) is in `.bss` and
+  this function is its only writer, so it starts at zero with the process and is never
+  reset between battles.
+* **The class is the order**: 0 `_U` a selection committed, 1 `_P` an order or the `H`/`V`
+  keys, 2 `_E` an order onto an enemy, 3 `_M` an order onto surface 2. Class 3 is always
+  take 0 — `docs/bugs.md` D34.
+* **The throttle is `Sound_PlayFile`'s one buffer.** A cry asked for while any file is
+  sounding — another cry, the narrator, a wall coming down — is not played, and **the take
+  it would have played is spent**, because the counter stepped first.
+
+So the determinism question — *which generator does a cry draw from?* — has the answer
+**none**, and there is nothing to keep away from the battle's `Pcg32`. Presentation
+randomness, if a future site needs any, belongs to a generator on the audio side and
+never to the simulation's.
+
+The table is `names::TROOP_CRIES`, asserted cell for cell against the executable. **66
+files are reachable** and all ship; nine unreachable names do not, two more than D34
+said.
 
 ## A player's three reports, and where each landed
 

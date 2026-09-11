@@ -282,6 +282,42 @@ pub enum DragKind {
 /// click rather than a drag.
 pub const DRAG_SLOP: i32 = 0x19;
 
+/// **One `Sound_PlayTroopCry(class)`** (`0x00499CB1`) — a player's men
+/// answering a selection or an order.
+///
+/// The original plays it from inside the arm; ours cannot, because a screen
+/// cannot reach the audio layer (`docs/netcode.md` D-3). So the arm appends one
+/// of these to [`LiveBattle::cries`] and `audio::Director` plays them after
+/// the tick. What is recorded is exactly the two numbers the original's call
+/// reads: the argument, and `DAT_0055408C` at that moment.
+///
+/// Nothing in the simulation reads it — it lives here, on the interface's half
+/// of the battle, and not in `l2-sim`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Cry {
+    /// `DAT_0055408C` — see [`LiveBattle::cry_troop`].
+    pub troop: u8,
+    /// The argument: one of [`cry`]'s four.
+    pub class: u8,
+}
+
+/// The four arguments `Sound_PlayTroopCry` is called with, named by the letter
+/// their files carry in `audio::names::TROOP_CRIES`.
+pub mod cry {
+    /// `_U` — a selection committed. `Battle_DragSelect`, both arms.
+    pub const SELECTED: u8 = 0;
+    /// `_P` — an order to go somewhere, and the `H` and `V` keys.
+    pub const ORDERED: u8 = 1;
+    /// `_E` — an order with an enemy under the pointer (`g_battleHoverEnemy`).
+    pub const ATTACK: u8 = 2;
+    /// `_M` — an order onto `g_battleHoverSurface == 2`. `[V]` for the test;
+    /// `[I]` that the letter means *moat*, from surface 2 being the moat
+    /// (`docs/battle.md` §3.2).
+    pub const MOAT: u8 = 3;
+    /// The surface the [`MOAT`] arm tests.
+    pub const MOAT_SURFACE: u8 = 2;
+}
+
 /// The nine numbered control groups, `DAT_00553400`, stride `0x18`, zeroed by
 /// `Battle_Start`.
 ///
@@ -341,6 +377,10 @@ pub struct LiveBattle {
     pub scroll_speed: i32,
     pub scroll_wait: u32,
     pub redraw: bool,
+    /// **Every troop cry this battle has asked for, in order.** Appended to by
+    /// the six cry arms and read by `audio::Director`, which remembers how far
+    /// it has got. Never read by anything that decides the battle. See [`Cry`].
+    pub cries: Vec<Cry>,
 }
 
 impl LiveBattle {
@@ -382,7 +422,41 @@ impl LiveBattle {
             scroll_speed: DEFAULT_SCROLL_SPEED,
             scroll_wait: 0,
             redraw: true,
+            cries: Vec::new(),
         }
+    }
+
+    /// **`DAT_0055408C`** — the troop type most of the local player's picked
+    /// figures belong to, which is the `unit` `Sound_PlayTroopCry` indexes by.
+    ///
+    /// `Battle_CountMenByType` (`0x00481B9A`) zeroes eleven counts, adds one per
+    /// figure whose `selected == g_localPlayer`, and keeps the first troop whose
+    /// count is **strictly** greater than the best so far — so a tie goes to the
+    /// lower troop index and nobody picked is 0, peasants. `[V]`. It is rerun by
+    /// `Battle_Frame` every frame and by the commit, so the value a cry reads is
+    /// the current selection's.
+    ///
+    /// One difference, `[D]`: the census counts every figure with a non-zero
+    /// owner, which includes a dead one still lying on the field, and ours
+    /// counts the living.
+    pub fn cry_troop(&self) -> u8 {
+        let mut count = [0usize; 11];
+        for f in self.runner.selected_fighters(self.owner) {
+            count[self.runner.fighters[f].troop.index()] += 1;
+        }
+        let mut best = 0;
+        for (t, &n) in count.iter().enumerate() {
+            if count[best] < n {
+                best = t;
+            }
+        }
+        best as u8
+    }
+
+    /// Append one [`Cry`] for the current selection.
+    fn cry(&mut self, class: u8) {
+        let troop = self.cry_troop();
+        self.cries.push(Cry { troop, class });
     }
 
     /// `g_screenId` as the original would hold it.
@@ -811,10 +885,11 @@ impl LiveBattle {
         let Some(d) = self.drag.take() else { return false };
         self.mode = Mode::Field;
         self.redraw = true;
-        match self.drag_kind(d, x, y) {
+        let picked = match self.drag_kind(d, x, y) {
             DragKind::Box => {
                 let (lo, hi) = self.box_corners(d.anchor_px, (x, y));
                 self.runner.pick_box(self.owner, lo, hi, true);
+                false
             }
             DragKind::Pick => {
                 // `DAT_0057A0F4 -= 8; DAT_0057A0E8 -= 8; g_mouseX += 8;
@@ -823,11 +898,23 @@ impl LiveBattle {
                 let b = (x + 8, y + 8);
                 let (lo, hi) = self.box_corners(a, b);
                 self.runner.pick_box(self.owner, lo, hi, true);
+                true
             }
             // Declined, so the order arm behind this one gets the release.
             DragKind::Nothing => return false,
-        }
+        };
         self.current_unit = self.runner.regroup_selection(self.owner);
+        // **The men answer.** Both committing arms call `Sound_PlayTroopCry(0)`
+        // after the commit, so the troop is the new selection's. The box arm
+        // guards it on `DAT_00553078 != 0` — something is held — and the pick
+        // arm does not guard it at all. `[V]`
+        if picked {
+            // sfx: Battle_DragSelect#2
+            self.cry(cry::SELECTED);
+        } else if self.runner.selected_count(self.owner) != 0 {
+            // sfx: Battle_DragSelect#1
+            self.cry(cry::SELECTED);
+        }
         true
     }
 
@@ -868,6 +955,19 @@ impl LiveBattle {
         }
         if self.runner.selected_count(self.owner) == 0 || self.paused {
             return false;
+        }
+        // **`FUN_0043C634` cries before it orders**, from the hover it was
+        // handed: an enemy under the pointer first, then surface 2, then
+        // anything else. `[V]`
+        if self.hover.enemy.is_some() {
+            // sfx: Battle_OrderSelection#3
+            self.cry(cry::ATTACK);
+        } else if self.hover.surface == cry::MOAT_SURFACE {
+            // sfx: Battle_OrderSelection#1
+            self.cry(cry::MOAT);
+        } else {
+            // sfx: Battle_OrderSelection#2
+            self.cry(cry::ORDERED);
         }
         let cell = self.cell_at(x, y);
         let target = self.hover.enemy;
@@ -1002,6 +1102,14 @@ impl LiveBattle {
     ///
     /// // arm: 0x0043C77A/formation key
     pub fn key_formation(&mut self, formation: Formation) -> bool {
+        // **The cry comes before either of our guards.** `FUN_0043C77A` tests
+        // only `DAT_00553C6C == 0 && g_appPhase == 3` and then calls
+        // `Sound_PlayTroopCry(1)` unconditionally — with no unit to turn, and
+        // while paused. `[V]`. The pause guard below is ours and predates this;
+        // the original orders while paused too, which is an arm's question and
+        // not a sound's.
+        // sfx: Battle_FormationKey#1
+        self.cry(cry::ORDERED);
         if self.paused || self.current_unit == 0 {
             return false;
         }

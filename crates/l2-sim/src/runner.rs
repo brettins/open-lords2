@@ -1603,6 +1603,12 @@ impl BattleRunner {
             // All hundred are in the air. The original drops the shot silently.
             return;
         };
+        // **The shot leaves.** `BattleMan_FireMissile` plays slot 9 for a
+        // crossbow and 7 for a bow after the spawn and its launch steps, and
+        // `BattleMan_StateEngineFire` slot `0xE` for a catapult — whatever the
+        // launch steps then hit. Recorded before the steps because a shot that
+        // strikes inside them has still been loosed. See [`crate::cue`].
+        self.sim.cues.loose(class);
         for _ in 0..missile::LAUNCH_STEPS {
             if !self.step_missile(slot) {
                 return;
@@ -1793,7 +1799,18 @@ impl BattleRunner {
             f.was_hit = true;
             f.hit_by = Some(shooter);
         }
-        missile::apply_hit(&mut self.sim.figures[vsim], resolved);
+        // **`Missile_Step`'s three sounding arms.** Slot 10 or 8 on the hit
+        // itself, the same slot again when it crosses the casualty threshold —
+        // dropped, always, because that buffer started a statement earlier — and
+        // `FUN_004262CF(0xD)` when it was the last man. `[V]`.
+        self.sim.cues.missile_hit(weapon);
+        let killed = missile::apply_hit(&mut self.sim.figures[vsim], resolved);
+        if killed > 0 {
+            self.sim.cues.missile_casualty(weapon);
+        }
+        if !self.sim.figures[vsim].is_alive() {
+            self.sim.cues.missile_death();
+        }
         self.missiles.get_mut(slot).ttl = missile::HIT_TTL;
         true
     }
@@ -1812,6 +1829,11 @@ impl BattleRunner {
     /// Either way the missile becomes class 4 debris: it stops testing for
     /// anything and simply counts down.
     fn strike_wall_with_shot(&mut self, slot: usize, cell: usize) {
+        // `Missile_Step`'s counting arm plays `FUN_004262CF(0xF)`. Its other arm —
+        // the rampart at elevation 4 or more, which does **not** count the hit
+        // and plays `Sound_PlaySlot(0x10)` instead — has no equivalent here:
+        // every wall cell this crate knows counts. See [`crate::cue`].
+        self.sim.cues.wall_struck();
         self.wall_hits[cell] = self.wall_hits[cell].saturating_add(1);
         if self.wall_hits[cell] >= missile::WALL_HITS_PER_COLLAPSE {
             self.wall_hits[cell] = 0;
@@ -2286,6 +2308,11 @@ impl BattleRunner {
             // > the whole of *"848 men could not reach two figures through an
             // > open gate"*. `docs/decisions.md` `C100`.
             let (ax, ay) = (self.fighters[i].x as i32, self.fighters[i].y as i32);
+            // `Wall_Smash` opens with `Sound_PlayFile("bathit2.wav", 0, 0)`, at both
+            // of its thresholds. See [`crate::cue`].
+            if blow != crate::siege::WallBlow::Absorbed {
+                self.sim.cues.wall_smashed();
+            }
             match blow {
                 crate::siege::WallBlow::RampartBreached => {
                     crate::siege::smash_walls(
@@ -3753,6 +3780,107 @@ mod tests {
         let mut r = firing_line(Troop::Catapults, Troop::Peasants, 10);
         r.run(1_000);
         assert_eq!(r.men_of_side(SIDE_B), 4, "a catapult is a wall-breaker only");
+    }
+
+    // --- cues ---------------------------------------------------------------
+
+    /// **An arrow is cued as it leaves, as it lands and as it kills** — the
+    /// three occasions `BattleMan_FireMissile` and `Missile_Step` sound on.
+    ///
+    /// Every tick is checked, not only the end: a loose must move the loose
+    /// count on exactly the tick a missile appears, and a man lost to an arrow
+    /// must move the hit and casualty counts on that tick. Ablation: delete
+    /// `self.sim.cues.loose(class)` and the first assertion names the tick.
+    #[test]
+    fn an_arrow_is_cued_when_it_leaves_when_it_lands_and_when_it_kills() {
+        for (troop, class) in [(Troop::Archers, WeaponClass::Bow), (Troop::Crossbowmen, WeaponClass::Crossbow)] {
+            let mut r = firing_line(troop, Troop::Peasants, 6);
+            let target = r.fighters[1].sim;
+            let mut deaths = 0;
+            for _ in 0..3_000 {
+                let (was, men, live) = (r.sim.cues, r.sim.figures[target].men, r.missiles.live());
+                r.step();
+                let now = r.sim.cues;
+                if r.missiles.live() > live {
+                    assert_eq!(now.loosed(class), was.loosed(class) + 1, "{troop:?} loosed at {} uncued", r.tick);
+                }
+                if r.sim.figures[target].men < men {
+                    assert!(now.missile_hits(class) > was.missile_hits(class), "a man fell to no hit at {}", r.tick);
+                    assert!(now.missile_casualties(class) > was.missile_casualties(class));
+                }
+                if men > 0 && r.sim.figures[target].men == 0 {
+                    assert_eq!(now.missile_deaths(), was.missile_deaths() + 1);
+                    deaths += 1;
+                }
+                // And nothing is cued for the other weapon.
+                let other = if class == WeaponClass::Bow { WeaponClass::Crossbow } else { WeaponClass::Bow };
+                assert_eq!(now.loosed(other), 0);
+                assert_eq!(now.missile_hits(other), 0);
+            }
+            assert_eq!(deaths, 1, "{troop:?} should have killed the peasants in 3,000 ticks");
+            // An arrow's 50 takes two hits a peasant and a bolt's 200 takes two
+            // peasants a hit, so four men are at least eight arrows or two bolts.
+            let least = if class == WeaponClass::Bow { 8 } else { 2 };
+            assert!(r.sim.cues.missile_hits(class) >= least, "four men need at least {least} hits");
+            assert_eq!(r.sim.cues.melee_casualties(troop), 0, "nobody came to blows");
+        }
+    }
+
+    /// A catapult's shot is cued as loosed and never as a hit on a man.
+    #[test]
+    fn a_catapult_is_cued_as_it_fires_and_never_as_hitting_a_man() {
+        let mut r = firing_line(Troop::Catapults, Troop::Peasants, 10);
+        r.run(1_000);
+        assert!(r.sim.cues.loosed(WeaponClass::Catapult) > 0, "the catapult fired");
+        assert_eq!(r.sim.cues.missile_deaths(), 0);
+        assert_eq!(r.sim.cues.loosed(WeaponClass::Bow), 0);
+    }
+
+    /// **The simulation never reads its cues.** Two copies of one battle with
+    /// arrows and swords in it; one has its record wiped before every tick.
+    /// Every other part of the runner must agree at every tick.
+    ///
+    /// This is the property `docs/netcode.md` D-3 needs from an event stream a
+    /// listener reads — nothing it records may reach a decision — and it is
+    /// checked on the running battle rather than by reading the source for
+    /// uses. Ablation, by insertion because there is no reader to delete: make
+    /// [`BattleRunner::step`] skip its missile sweep while
+    /// `self.sim.cues.missile_hits(WeaponClass::Bow) > 0` and this goes red on
+    /// the tick after the first hit.
+    #[test]
+    fn a_battle_whose_cues_are_wiped_every_tick_is_the_same_battle() {
+        let build = || {
+            BattleRunner::deploy(
+                blank_field(),
+                &[(Troop::Archers, 6), (Troop::Swordsmen, 4)],
+                &[(Troop::Crossbowmen, 6), (Troop::Macemen, 4)],
+            )
+        };
+        let (mut heard, mut wiped) = (build(), build());
+        for t in 0..6_000u32 {
+            // The same two orders to both copies, so the armies meet: a battle
+            // that only stands and shoots never exercises the melee record.
+            if t % 300 == 0 {
+                for r in [&mut heard, &mut wiped] {
+                    r.order_side(SIDE_A, 40, 40);
+                    r.order_side(SIDE_B, 40, 40);
+                }
+            }
+            wiped.sim.cues = crate::cue::Cues::default();
+            heard.step();
+            wiped.step();
+            let mut same = wiped.clone();
+            same.sim.cues = heard.sim.cues;
+            assert_eq!(heard, same, "the cues changed the battle at tick {}", heard.tick);
+        }
+        // The comparison above is only worth something if the record it wiped
+        // had something in it.
+        let c = heard.sim.cues;
+        let shots = c.loosed(WeaponClass::Bow) + c.loosed(WeaponClass::Crossbow);
+        let hits = c.missile_hits(WeaponClass::Bow) + c.missile_hits(WeaponClass::Crossbow);
+        let melee: u32 = crate::ALL_TROOPS.iter().map(|&t| c.melee_casualties(t)).sum();
+        assert!(shots > 0 && hits > 0, "the battle must actually shoot and hit: {c:?}");
+        assert!(melee > 0, "and come to blows: {c:?}");
     }
 
     /// A weakened figure shoots for less — the strength band, which until now

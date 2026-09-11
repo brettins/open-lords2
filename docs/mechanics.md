@@ -628,28 +628,28 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   `Audio` is not in `Ctx`, so no screen can reach it, and the event loop derives what
   should be audible from what already happened.
 
-  **The number that keeps this row honest is 595 of 771.** 560 of them are measured
-  rather than typed — `crates/l2-game/tests/audio_wiring.rs` drives the real paths and
-  reads back what was actually opened — and the other **35 are the tip screens**, of
-  which `crates/l2-game/tests/tips.rs` drives one tip's three clips end to end and the
-  rest are counted from the take table and the install's listing, not driven. **565 of
-  those 595 are the narrator** — 448 lord takes, 93 system clips and 24 tip takes —
-  because 646 of the install's 771 files, **84 %**, are somebody speaking. A player:
-  *"that guy's voice acting is half the personality of the game."* By file count he
-  understates it.
+  **The number that keeps this row honest is 674 of 771.** 639 of them are measured
+  rather than typed — `crates/l2-game/tests/audio_wiring.rs` and `tests/audio_battle.rs`
+  drive the real paths and read back what was actually opened — and the other **35 are
+  the tip screens**, of which `crates/l2-game/tests/tips.rs` drives one tip's three clips
+  end to end and the rest are counted from the take table and the install's listing, not
+  driven. **565 of those 674 are the narrator** — 448 lord takes, 93 system clips and 24
+  tip takes — because 646 of the install's 771 files, **84 %**, are somebody speaking;
+  66 more are the troop cries and 13 the fighting. A player: *"that guy's voice acting is
+  half the personality of the game."* By file count he understates it.
 
   It was **0 of 771** from the day the layer landed until a player said he heard
   nothing — `audio::scene` derived the music from the *bottom* of the screen stack, and
   the front end is pushed under the campaign rather than replaced by it, so it answered
   *"front end"* forever (`docs/decisions.md` C116) — then 11, then 555 when the message
   window arrived and the voice class came with it, then 572 when the screens that speak
-  as they open were wired, then 573 with the pointer click — and then **560**, when thirteen tip clips
+  as they open were wired, then 573 with the pointer click — then **560**, when thirteen tip clips
   turned out to be counted because their names resolved, not because anything in the
-  game could ask for them — and then **595**, when the tip screens were built
-  (`crates/l2-game/src/tip.rs`) and 35 of their 40 files could be asked for. Everything
-  below this paragraph is about the original and was never in doubt; what was in doubt
-  was whether anything called it, which is the question this row now answers with a
-  fraction instead of a tick.
+  game could ask for them — then **595**, when the tip screens were built
+  (`crates/l2-game/src/tip.rs`) and 35 of their 40 files could be asked for — and then
+  **674**, when the battlefield got an event stream. Everything below this paragraph is
+  about the original and was never in doubt; what was in doubt was whether anything
+  called it, which is the question this row now answers with a fraction instead of a tick.
 
   Two things the fraction hides. **`Battle5` is unreachable**: it ships, it decodes, and
   the counter that selects it is `DAT_0057A0F0`, the unidentified third battle mode, so
@@ -662,11 +662,11 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   blamed for `S010_13.wav`; the cursor is two globals and a table, and `S010_13.wav` is
   not in the chain at all.
 
-  **And the count that says what to do next is 53 of 143**, in `docs/audio.json` — the
+  **And the count that says what to do next is 75 of 143**, in `docs/audio.json` — the
   audio equivalent of the input-arm audit, and it now has the same two checks behind it
   that `docs/arms.json` has: `node tools/oracle/sounds.js --check` compares it with the
   decompilation, and `crates/l2-game/tests/sfx.rs` compares it with the `// sfx:` markers
-  in `crates/`. Every site is `reproduced` (53), `blocked` (50), `missing` (37) or `dead` (3), and a
+  in `crates/`. Every site is `reproduced` (75), `blocked` (34), `missing` (31) or `dead` (3), and a
   `blocked` record is required by the test to **name the mechanic** it is waiting for.
 
   **The denominator moved from 134 to 143 and that is the interesting part.** The audit
@@ -677,11 +677,20 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   sound was missing. `docs/decisions.md` C143.
 
   **The two counts disagree by a factor of twenty and both are right**: 13 of the fired
-  sites carry 530 of the 560 reachable files, because `Msg_PlayVoice` is a table lookup
-  and the other primitives are mostly constants. A site count weights every trigger equally and a player
-  does not. The largest thing still missing is the **battlefield**, 25 sites — and it is a
-  limit of the design rather than a to-do: a sword swing is an event inside a tick, and
-  the director derives sound from the world after the tick.
+  sites carry 530 of the 639 reachable files, because `Msg_PlayVoice` is a table lookup
+  and the other primitives are mostly constants — and six more, the troop cries, carry 66.
+  A site count weights every trigger equally and a player does not.
+
+  **The battlefield sounds**, 22 of its 31 sites. This row used to call its 25 per-man
+  sites *"a limit of the design rather than a to-do"*: a sword swing is an event inside a
+  tick and the director derives sound from the world after it. The world kept no record of
+  the event, and that was the whole gap — `l2_sim::cue` records it, the battle never reads
+  it, and because every battlefield call drops while its buffer is sounding, a count that
+  moved since the last tick is exactly what the original could have made audible. The
+  troop cries are a round robin per troop and order, **not random**, so they draw on no
+  generator at all. `docs/audio-triggers.md` has both. The nine left each wait on a
+  mechanic `l2-sim` does not model: fire, boiling oil, a tower docking, state 17's loose,
+  the high-rampart catapult miss, and a realm eliminated mid-battle.
 
   **The pointer click is fired**, and it was two sites rather than four. `click3.wav`
   is `Sound_RestartSlot(1)` inside `Widget_Test` (`0x0040DA1E`), at its kind-4 and kind-5
