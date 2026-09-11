@@ -780,6 +780,16 @@ Four details worth carrying into any reimplementation:
   formats from buffer index 1, leaving index 0 for the caller to fill with `'+'`, `'-'`,
   `' '` or `'@'`. `'@'` has an empty glyph, so a zero still occupies the sign column and a
   column of numbers stays aligned.
+* **The `suffix` is part of the measured string, and `Panel_Ration`'s is empty.** `[V]`
+  `FUN_004014F0` charges four pixels for a space at any position and trims nothing, so
+  `FUN_004025D7` centres `lead + digits + suffix` — a suffix invented by a reimplementation
+  moves the digits half its width. Across `Ui_DrawNumberRight`'s twenty call sites, **fifteen
+  pass a one-space suffix and the five in `Panel_Ration` pass the empty string**
+  (`&DAT_004D3E04`, `…08`, `…0C`, `…10`, `…14`, every one of them a NUL in the run of zero
+  bytes ending at `"villani1.pl8"`); the panel's sixth number, the `Armies Eat` foraging
+  line, is `Ui_DrawNumber(men, ' ', "", 0x88, 0x150)` and empty too. We drew all six with a
+  space and were two pixels left on five of them. `docs/decisions.md`
+  C140.
 * **Plurals come out of `L2.eng` group 8**, singular at even index and plural at odd:
   `Ui_DrawCount(n, i)` uses index `i` when `|n| == 1` and `i + 1` otherwise. Job worker
   counts pass `job*2 + 30`, which is *"Farmer / Farmers"* for grain, *"Dairy maid"* for

@@ -49,12 +49,16 @@ crates/l2-game/src/screens/battlefield.rs	C21	16e47176d6c1	f7bf296341ff
 crates/l2-game/src/screens/castle.rs	C27	e6bab7a842a1	1db64332cb22
 crates/l2-game/src/screens/county.rs	C112	f88ab6b616c3	0dbcd00423ed
 crates/l2-game/src/screens/county.rs	C135	a8a8cbf37bb0	39859e3b9368
+crates/l2-game/src/screens/county.rs	C140	28a7c3149e23	e3a1ede42a95
+crates/l2-game/src/screens/county.rs	C140	7c7867767dcf	e3a1ede42a95
+crates/l2-game/src/screens/county.rs	C140	f900658b08e7	e3a1ede42a95
 crates/l2-game/src/screens/county.rs	C22	11557e27ba54	0364b53a921d
 crates/l2-game/src/screens/county.rs	C22	f88818d7df89	0364b53a921d
 crates/l2-game/src/screens/county.rs	C42	8b7388d80e13	a2ac3547bb32
 crates/l2-game/src/screens/county.rs	C59	d92177ac30ca	37ab8ac1a2fc
 crates/l2-game/src/screens/county.rs	C61	888250e26eed	60611046b40d
 crates/l2-game/src/screens/court.rs	C110	4001eefdd973	a4ab43902f60
+crates/l2-game/src/screens/court.rs	C140	0f96dbb1757f	e3a1ede42a95
 crates/l2-game/src/screens/diplomacy.rs	C26	d7d30139b2b8	e8179d1f76a8
 crates/l2-game/src/screens/diplomacy.rs	C61	5aa0f88f789e	60611046b40d
 crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
@@ -81,6 +85,7 @@ crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28	37ab8ac1a2fc
 crates/l2-game/src/screens/options.rs	C62	65a8bf182816	ebb6a7ec3711
+crates/l2-game/src/screens/ratings.rs	C140	86ed189821f1	e3a1ede42a95
 crates/l2-game/src/screens/ratings.rs	C61	4f4b84817209	60611046b40d
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2	f7bf296341ff
 crates/l2-game/src/screens/setup.rs	C117	831195fc9117	b20f3a227f0f
@@ -95,6 +100,7 @@ crates/l2-game/src/screens/village.rs	C22	81b65db0836a	0364b53a921d
 crates/l2-game/src/screens/village.rs	C76	cddc3e0e2856	53e207ae069e
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857	f7bf296341ff
 crates/l2-game/src/setup.rs	C62	a935365ea2c1	ebb6a7ec3711
+crates/l2-game/src/shell/mod.rs	C140	ac3b5990aa16	e3a1ede42a95
 crates/l2-game/src/shell/mod.rs	C61	4852635e7bff	60611046b40d
 crates/l2-game/src/shell/mod.rs	C61	bf7c15012e16	60611046b40d
 crates/l2-game/src/turn.rs	C115	42714a7de34c	085c9b771281
@@ -148,6 +154,8 @@ crates/l2-game/tests/screens.rs	C118	3de9b4c34a46	cd0e7b0adc57
 crates/l2-game/tests/screens.rs	C125	7451a8225f45	6084e87aec70
 crates/l2-game/tests/screens.rs	C132	bcc7335581ba	84bc50c0ddbe
 crates/l2-game/tests/screens.rs	C138	800999466b29	7724e6665b90
+crates/l2-game/tests/screens.rs	C140	227badb0235c	e3a1ede42a95
+crates/l2-game/tests/screens.rs	C140	e626e6be922d	e3a1ede42a95
 crates/l2-game/tests/screens.rs	C21	1523306009a2	f7bf296341ff
 crates/l2-game/tests/screens.rs	C22	1d39d618c245	0364b53a921d
 crates/l2-game/tests/screens.rs	C42	34537294a71e	a2ac3547bb32
@@ -426,6 +434,9 @@ docs/decisions.md	C10	ff432eaffe58	68e4eb2d2a1f
 docs/decisions.md	C107	3efb7eed35ff	eb231bef7ee5
 docs/decisions.md	C118	7cc36ed680a5	cd0e7b0adc57
 docs/decisions.md	C118	c29564560940	cd0e7b0adc57
+docs/decisions.md	C119	122e4ab11ef5	306c4c740506
+docs/decisions.md	C119	a513b578b18d	306c4c740506
+docs/decisions.md	C119	b878d200974c	306c4c740506
 docs/decisions.md	C12	2fd0874b7e4b	bb0dd488f9d2
 docs/decisions.md	C12	4134e4bde263	bb0dd488f9d2
 docs/decisions.md	C12	439c2f1bab58	bb0dd488f9d2
@@ -433,6 +444,9 @@ docs/decisions.md	C12	729dde396cc4	bb0dd488f9d2
 docs/decisions.md	C12	a388b50da6e9	bb0dd488f9d2
 docs/decisions.md	C120	7c9b703bcdc3	e96a6897511c
 docs/decisions.md	C123	1262cc0f058c	3a5cc2fec37d
+docs/decisions.md	C126	36dae66e2b1a	1b2c97c7731a
+docs/decisions.md	C127	5569248811af	537ace9eca06
+docs/decisions.md	C127	ce490bc6caac	537ace9eca06
 docs/decisions.md	C13	09c4dae65b2c	006e7d0b71a7
 docs/decisions.md	C13	6ecd926bb63e	006e7d0b71a7
 docs/decisions.md	C13	7868cb038a6c	006e7d0b71a7
@@ -442,10 +456,12 @@ docs/decisions.md	C132	8e8a7046fb5f	84bc50c0ddbe
 docs/decisions.md	C132	9d42d57dfe34	84bc50c0ddbe
 docs/decisions.md	C132	a16103029f0c	84bc50c0ddbe
 docs/decisions.md	C132	c3d762cf2b9c	84bc50c0ddbe
+docs/decisions.md	C137	08301a5d821f	eaaf586c5da0
 docs/decisions.md	C14	19873f4c7f74	687f69afd1c6
 docs/decisions.md	C14	9228b35094b8	687f69afd1c6
 docs/decisions.md	C14	c38454e0c7d3	687f69afd1c6
 docs/decisions.md	C14	c6f19ebec36f	687f69afd1c6
+docs/decisions.md	C140	911585df7be9	e3a1ede42a95
 docs/decisions.md	C15	e567688e5a9b	2a3830f6d22a
 docs/decisions.md	C16	78633c7375ce	2e6270fa32a9
 docs/decisions.md	C16	97dfcbde7cc9	2e6270fa32a9
@@ -674,6 +690,9 @@ docs/netcode.md	C62	aa279b8b0e57	ebb6a7ec3711
 docs/netcode.md	C8	7d0d61b3a9f8	bf400476a6df
 docs/oracle-requests.md	C26	0e5b3c2b1cc0	e8179d1f76a8
 docs/plan.md	C11	42457d7739ce	07dfad15821c
+docs/plan.md	C119	a097b9411449	306c4c740506
+docs/plan.md	C127	364a99615bcb	537ace9eca06
+docs/plan.md	C140	08a5878fcc32	e3a1ede42a95
 docs/plan.md	C21	e07a03ef7613	f7bf296341ff
 docs/plan.md	C22	e96ddb30aaa7	0364b53a921d
 docs/plan.md	C25	dadfcab27aec	5d466f0cb89c
@@ -701,6 +720,7 @@ docs/records.json	C54	b50a471f4705	0ffe2b0bd9ab
 docs/rules.md	C130	062c5dacb8d8	055c6c022450
 docs/rules.md	C26	ed34d4cfa431	e8179d1f76a8
 docs/screens-county.md	C112	55f12c7e2104	0dbcd00423ed
+docs/screens-county.md	C140	d76c4d24e8da	e3a1ede42a95
 docs/screens-county.md	C22	5291dc6a63dc	0364b53a921d
 docs/screens-county.md	C22	a40f71f868e3	0364b53a921d
 docs/screens-county.md	C22	c5ec69650b74	0364b53a921d
@@ -882,6 +902,7 @@ tools/decisions/corrections.js	C61	04db2805f32f	60611046b40d
 tools/decisions/corrections.js	C61	9bd71bb6b68f	60611046b40d
 tools/decisions/corrections.js	C61	f16464fda75d	60611046b40d
 tools/decisions/corrections.js	C63	bd5b8598a027	34cab2e30849
+tools/draws/screendraws.js	C141	50900f3e613b	1325997b4aaa
 tools/draws/screens.json	C21	1b3896f6390a	f7bf296341ff
 tools/draws/screens.json	C21	82b3cfecbdee	f7bf296341ff
 tools/oracle/anchor.js	C3	64f970433d76	35bf3a86555f

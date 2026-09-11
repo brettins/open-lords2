@@ -338,12 +338,20 @@ impl Screen for CourtScreen {
             // `(width - textWidth) / 2`, the same helper `Ui_DrawCentred` uses.
             // `docs/symbols.json` calls it right-aligned and that is wrong for
             // every caller in the binary, not just this one.
+            //
+            // The lead is `' '` and the suffix is `&DAT_004D3F98`, which holds
+            // one space — checked in the image rather than assumed, because the
+            // five sites on `Panel_Ration` pass an *empty* suffix and the
+            // difference is two pixels of centring.
+            // `docs/decisions.md` C140. **[V]**
             pen.number_centred(
                 canvas,
                 WEAPON_NUM_X0 + x,
                 WEAPON_NUM_Y,
                 WEAPON_NUM_W,
                 n,
+                ' ',
+                " ",
                 font::TEXT,
             );
         }

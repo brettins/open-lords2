@@ -923,6 +923,26 @@ impl<'a> Pen<'a> {
     /// *"Ui_DrawNumber, right-aligned inside width"* and that is wrong for
     /// every caller in the binary. The name is kept here because it is the
     /// name in the database; the behaviour is the code's. **[V]**
+    ///
+    /// # `lead` and `suffix` are the call site's, and they move the digits
+    ///
+    /// The string the original centres is `lead + digits + suffix`, built in
+    /// `g_numberBuffer`, and `FUN_004025D7` measures **that whole string**:
+    /// `FUN_004014F0` charges [`font::SPACE_ADVANCE`] for a space, charges
+    /// `frameWidth + 1` for every other glyph, and trims nothing at either end.
+    /// So a suffix we invent widens the measure by four and moves the digits
+    /// **two pixels left** of where the original puts them — the same defect as
+    /// the anchoring one it replaced, at a quarter of the size.
+    ///
+    /// This method used to build `" {value} "` for every caller. Measured over
+    /// the twenty `Ui_DrawNumberRight` call sites in the image: **every one
+    /// passes `' '` as the lead, fifteen pass a one-space suffix, and the five
+    /// on `Panel_Ration` pass the empty string** — `&DAT_004D3E04`,
+    /// `…08`, `…0C`, `…10`, `…14`, five addresses in a run of zero bytes ending
+    /// where `"villani1.pl8"` begins, so each is a NUL and each suffix is empty.
+    /// Our ration panel drew all five two pixels left.
+    /// `docs/decisions.md` C140. **[V]**
+    #[allow(clippy::too_many_arguments)]
     pub fn number_centred(
         &self,
         canvas: &mut Canvas,
@@ -930,9 +950,11 @@ impl<'a> Pen<'a> {
         y: i32,
         width: i32,
         value: i32,
+        lead: char,
+        suffix: &str,
         colour: u8,
     ) {
-        self.body_centred(canvas, x, y, width, &format!(" {value} "), colour);
+        self.body_centred(canvas, x, y, width, &format!("{lead}{value}{suffix}"), colour);
     }
 
     /// `Pl8_DrawFrame(g_miscCtySheet, frame, x, y)` — the county sheet, which

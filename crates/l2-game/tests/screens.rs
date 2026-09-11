@@ -4888,3 +4888,155 @@ fn the_end_turn_label_disappears_while_the_turn_runs() {
         "the label did not come back the way it went",
     );
 }
+
+/// How wide a string draws in whichever font [`find_body`] would have found it
+/// in — the install's `Fntl2_14.pl8` where there is one, our own 5 × 7 fallback
+/// where there is not. Both `Pen::body_centred` arms measure this way, so an
+/// expectation built on it is the same expectation in both worlds.
+fn body_width(assets: &Assets, s: &str) -> i32 {
+    match assets.shell.body.as_ref() {
+        Some(f) => f.width(s),
+        None => text::width(s),
+    }
+}
+
+/// A rectangle of `canvas`, lifted out so a search cannot match something
+/// elsewhere on the screen. A one-digit column is otherwise unfindable: `"0"`
+/// appears in half a dozen places on a county panel.
+fn crop(canvas: &Canvas, x: i32, y: i32, w: i32, h: i32) -> Canvas {
+    let mut out = Canvas::new(w as usize, h as usize);
+    for row in 0..h {
+        for col in 0..w {
+            let (sx, sy) = (x + col, y + row);
+            if sx < 0 || sy < 0 || sx >= canvas.width as i32 || sy >= canvas.height as i32 {
+                continue;
+            }
+            out.set(col as usize, row as usize, canvas.at(sx as usize, sy as usize));
+        }
+    }
+    out
+}
+
+/// **`Panel_Ration`'s five centred numbers, at the x its own arithmetic gives.**
+///
+/// The painter is `Ui_DrawNumberRight(value, ' ', "", x, y, 0x40, body, 0x3F)`
+/// five times, and that function ends in `FUN_004025D7`:
+///
+/// ```c
+/// local_c = (width - FUN_004014F0(buffer, font)) / 2;
+/// if (local_c < 0) local_c = 0;
+/// Ui_DrawText(buffer, local_c + x, y, font, colour);
+/// ```
+///
+/// So the **whole buffer** — `lead + digits + suffix` — is centred in the
+/// 64-pixel column, and the digits then begin one space-advance further right
+/// because the lead is a space. `FUN_004014F0` charges four pixels for a space
+/// wherever it sits and trims nothing, so the suffix is inside the measure.
+///
+/// # The suffix is what is under test, and the expectation does not mention it
+///
+/// `Panel_Ration`'s five suffix arguments are `&DAT_004D3E04`, `…08`, `…0C`,
+/// `…10` and `…14` — five addresses inside a run of zero bytes in `.data` that
+/// ends where `"villani1.pl8"` begins, so **every one of them is the empty
+/// string**. Fifteen of the image's other `Ui_DrawNumberRight` sites pass a
+/// single space instead, and [`Pen::number_centred`] used to build `" {v} "`
+/// for all twenty.
+///
+/// The expectation below is `format!(" {value}")` — the **lead**, a different
+/// literal from the one being ablated — so restoring the trailing space moves
+/// the picture two pixels left and leaves this assertion exactly where it is.
+/// That is the trap `docs/agents.md` calls *compute the probe from the constant
+/// you are ablating*, avoided by building the probe from the argument that is
+/// not in question. Measured on the England fixture: 505 in column 2 lands at
+/// **343** with the empty suffix and at **341** with a one-space suffix.
+/// `docs/decisions.md` C140.
+#[test]
+fn the_ration_panels_five_numbers_centre_where_panel_ration_centres_them() {
+    let (mut game, assets) = world!();
+    let c = &game.kingdom.counties[8];
+    let (by_grain, by_meat, by_dairy) =
+        l2_kingdom::ration::people_fed(&game.kingdom.tables, c);
+    let (grain_eaten, herd_eaten) = (c.grain_eaten, c.herd_eaten);
+    // The fixture's own numbers, so a changed fixture fails here and not in the
+    // geometry below. County 8's herd feeds 505 and the county eats nothing.
+    assert_eq!((by_grain, by_meat, by_dairy), (0, 0, 505));
+    assert_eq!((grain_eaten, herd_eaten), (0, 0));
+
+    let mut screen = CountyScreen::new(8, Panel::Ration);
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    // `Ui_DrawNumberRight(…, x, y, 0x40, …)`: the five (x, y, value) triples
+    // transcribed from `Panel_Ration` at `0x00411B72`, in its own order.
+    let sites = [
+        (0xD0, 0x134, grain_eaten),
+        (0xD0, 0x11E, by_grain),
+        (0x10A, 0x134, herd_eaten),
+        (0x10A, 0x11E, by_meat),
+        (0x144, 0x11E, by_dairy),
+    ];
+    const WIDTH: i32 = 0x40;
+    let lead_advance = body_width(&assets, " ");
+    for (x, y, value) in sites {
+        let string = format!(" {value}");
+        let offset = ((WIDTH - body_width(&assets, &string)) / 2).max(0);
+        let digits = format!("{value}");
+        // Search only inside the column, because "0" is drawn in several other
+        // places on this panel and a whole-canvas search would find one of them.
+        let box_h = 20;
+        let window = crop(&canvas, x, y, WIDTH + 8, box_h);
+        assert_eq!(
+            find_body(&window, &assets, &digits, font::TEXT),
+            Some((offset + lead_advance, 0)),
+            "Ui_DrawNumberRight({value}, ' ', \"\", {x:#X}, {y:#X}, 0x40): the buffer is \
+             {string:?}, centred in 64, and the digits start one space into it"
+        );
+    }
+
+    // And the whole-canvas position of the one number that is unambiguous, as a
+    // hard integer rather than an expression — 0x144 + (0x40 - 34) / 2 + 4.
+    assert_eq!(
+        find_body(&canvas, &assets, "505", font::TEXT),
+        Some((343, 286)),
+        "the dairy column, at the x Panel_Ration's arithmetic produces"
+    );
+}
+
+/// **The foraging line's label, which `Ui_DrawText`'s own trailing gap places.**
+///
+/// `Panel_Ration`'s `Armies Eat` tail is three statements:
+///
+/// ```c
+/// g_penAdvance = 0;
+/// Ui_DrawNumber(county+0x19C + county+0x198, ' ', "", 0x88, 0x150, body, 0x3F);
+/// Eng_DrawString(87, 8, g_penAdvance + 0x88, 0x150, body, 0x3F);
+/// ```
+///
+/// `Ui_DrawText` ends with `g_penAdvance += 4`, which is
+/// [`l2_game::shell::TRAILING`] and which `Pen::body` already adds to its
+/// return. The `" {men} "` this used to build therefore charged the gap twice
+/// and put *"are foraging"* four pixels right of where `Eng_DrawString` lands
+/// it. The transcription in the comment above the line had the suffix right —
+/// `' ', ""` — and the line below it did not use it, which is
+/// `docs/agents.md`'s *a correct explanation sitting directly above the
+/// omission it describes*. `docs/decisions.md` C140.
+#[test]
+fn the_foraging_label_starts_one_trailing_gap_after_its_number() {
+    let (mut game, assets) = world!();
+    game.kingdom.options.armies_eat = true;
+    let c = &game.kingdom.counties[8];
+    let men = c.friendly_troops + c.enemy_troops;
+
+    let mut screen = CountyScreen::new(8, Panel::Ration);
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    let label = assets.shell.text(87, 8).to_string();
+    assert!(!label.is_empty(), "L2.eng 87/8 is the foraging caption");
+    // `Ui_DrawNumber(men, ' ', "", 0x88, 0x150)` then the label at
+    // `g_penAdvance + 0x88`, and `g_penAdvance` is the buffer's width plus four.
+    let expected = 0x88 + body_width(&assets, &format!(" {men}")) + l2_game::shell::TRAILING;
+    assert_eq!(
+        find_body(&canvas, &assets, &label, font::TEXT),
+        Some((expected, 0x150)),
+        "87/8 belongs at g_penAdvance + 0x88 for a buffer of \" {men}\", not \" {men} \""
+    );
+}

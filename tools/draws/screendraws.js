@@ -26,6 +26,13 @@
 // and takes its subject as an argument. A call to another *painter* is a
 // recursion and is followed rather than counted.
 //
+// **And that rule has an asymmetry: the original's source cannot be refactored
+// and ours can.** Five call sites replaced by one closure called five times drops
+// our count by four with no pixel changed — it happened, on the ration panel, and
+// moved `draws-ours` 418 to 414. So this figure is a coverage estimate with a
+// known style term in it, not a measurement, and a fall in it is a question
+// ("was anything lost?") rather than a regression. `docs/decisions.md` C141.
+//
 // A call inside a loop counts **once**. A call inside a branch nothing can
 // reach counts **once**, because the audit's job is to compare two pieces of
 // source and a reachability claim is a separate finding — see `dead` in the
