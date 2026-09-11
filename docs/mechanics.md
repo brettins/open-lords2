@@ -808,7 +808,15 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   three readers ask `(flag < 1) || (2 < flag)`, which cannot be true. So **81% of this game's
   audio exists to satisfy a test whose answer is already fixed.** The flag is persisted in
   saves, so one could in principle carry a failing value; nothing writes one.
-- ❓ Video: 45 `.smk` files, no decoder, blocked on a licence decision (D5a)
+- ✅ **Video.** All 45 `.smk` files decode (`crates/l2-smk`, MIT, written from the format
+  description; every frame's pixels, palette and samples match an independent decoder), and
+  the game plays them where the original does: the intro, the Impressions logo and the
+  credits at start-up, the *Lords of Magic?* trailer, a castle going up, a lord falling
+  (cart, pillory, jail, gallows or axe, by how long the game has run) and the end of a
+  battle the player fought — each with its own sound track, over the music bed it stops.
+  Two gaps: **a captured county's film is built and never plays**, because nothing posts
+  the capture letters `County_ChangeOwner` raises; and the CD's fast-media ending layout is
+  not. `crate::movie` has the table of all seven `Smk_Play` callers.
 
 ---
 

@@ -73,14 +73,17 @@
 //! the two pictures are `g_confirmWidgets`' frames 29 and 31 rather than the
 //! close corner and its neighbour.
 //!
-//! # The outcome banner, and the half of it that is not built
+//! # The outcome banner, both arms, and the film
 //!
-//! `Screen_BattleOutcome` (`0x00423241`) has two arms and only the short one is
-//! reproduced. The animated arm is gated on `g_optAnimations`, draws a taller
-//! window with a 402 × 194 recess at (39, 72) for a Smacker clip and moves its
-//! text down 168 pixels; this engine has neither the flag nor the clip. The
-//! third arm — `g_battleChoiceOwner == 0`, a battle between two other realms —
-//! is the neutral pair 12/13, which [`outcome_pair`] already selects.
+//! `Screen_BattleOutcome` (`0x00423241`) has three arms. The short window is
+//! the one with animations off. The animated arm — `g_optAnimations` set and
+//! the local player one of the two sides — dims the field, draws a taller
+//! window with a 402 × 194 recess at (39, 72) and moves its text down 168
+//! pixels, and `Battle_CheckOutcome` then plays one of
+//! [`crate::movie::BATTLE_FILMS`] in the recess; when the film ends the banner
+//! goes with it. The third arm — `g_battleChoiceOwner == 0`, a battle between
+//! two other realms — is the neutral pair 12/13. Which pair is
+//! `Battle_SelectOutcomeBanner`'s four-way siege reading, [`outcome_banner`].
 
 use l2_sim::runner::Formation;
 use l2_view::{text, Canvas};

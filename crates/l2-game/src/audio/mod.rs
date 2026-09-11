@@ -81,14 +81,14 @@
 //! here at all — the previous version of this table was prose, was hand-marked,
 //! and was wrong in both directions.
 //!
-//! **51 of 143, and 3 of the 143 are dead in the shipped game.** The
+//! **56 of 143, and 3 of the 143 are dead in the shipped game.** The
 //! denominator moved because the enumeration was one primitive short: see
 //! [`track::Music::Setup`].
 //!
 //! | class | the original's call site | sites | ours |
 //! |---|---|---:|---:|
-//! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **13** — [`voice_tick`]; two need video and one needs the tip screens |
-//! | **Music** | `Music_StartCampaign`, `Music_StartBattle`, `Music_Play` | 23 | **11** — [`scene`]; the twelve left restart a bed a film stopped |
+//! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **14** — [`voice_tick`], and the ending film's voice in [`Director::listen`]; the capture film's needs a capture letter and one needs the tip screens |
+//! | **Music** | `Music_StartCampaign`, `Music_StartBattle`, `Music_Play` | 23 | **15** — [`scene`], four of them the bed restarting after a film ([`Scene::Film`]) |
 //! | **By name** | `Sound_PlayFile` | 49 | **15** — [`names::speech`] and the fanfares |
 //! | **The two sample banks** | `Sound_PlaySlot`, `Sound_RestartSlot`, `FUN_004262CF` | 49 | **12** — the march, the sites, the village's work, the click |
 //! | **Troop cries** | `Sound_PlayTroopCry` `0x00499CB1` | 6 | 0 — needs the cry table and the battlefield's selection |

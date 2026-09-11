@@ -968,12 +968,14 @@ impl SetupScreen {
     /// The page graph, read out of `FUN_00432B05` (page 1) and `FUN_00432CC8`
     /// (page 2).
     ///
-    /// **[D], and one thing in it is unresolved.** Those handlers branch on
-    /// `g_uiHotspotId`, and the ids do not run in the order the painter draws
-    /// the items: on page 1 id 3 sets the quit flag and id 4 plays `lom.smk`,
-    /// while the painter draws *"Lords of Magic?"* third and *"Exit game"*
-    /// fourth. Either the widget table is not in drawing order or one of the
-    /// two readings is wrong, and nothing in the decompilation settles it. The
+    /// **[D], and the one thing that was unresolved is settled.** Those
+    /// handlers branch on `g_uiHotspotId`, and the ids do not run in the order
+    /// the painter draws the items: on page 1 id 3 sets the quit flag and id 4
+    /// plays `lom.smk`, while the painter draws *"Lords of Magic?"* third and
+    /// *"Exit game"* fourth. **The table says why** — `node
+    /// tools/oracle/widgets.js widgets 4dcb48 4` gives its third record hotspot
+    /// id 4 and its fourth id 3, so the records are in drawing order and the
+    /// ids are not, and both readings were right. The
     /// destinations below are keyed to the **captions**, which are [V], not to
     /// the ids.
     fn act(&mut self, action: Action, ctx: &mut Ctx) -> Transition {

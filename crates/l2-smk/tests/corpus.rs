@@ -20,10 +20,13 @@
 //!    a number this decoder was allowed to produce. `docs/formats/smk.md`
 //!    records the run.
 //!
-//! **Ablate it.** Swap the two `Full` codes of a row in `decode_video`, or make
-//! `expand6` a shift: [`every_film_matches_an_independent_decoder`] names the
-//! first film that differs. Make `Tree16::decode` skip the cache update and the
-//! padding test fails first, which is the point of having it.
+//! **Ablated, and what went red.** Swapping the two `Full` codes of a row in
+//! `decode_video` leaves every bitstream consumed exactly as before — the
+//! padding test stays green, correctly, because a column swap reads the same
+//! bits — and [`every_film_matches_an_independent_decoder`] fails on the first
+//! film, `AXMEN.SMK`, at frame 10's pixels. Skipping `Tree16::decode`'s cache
+//! update desynchronises the very first film so badly that it overruns a
+//! chunk, so every test in this file fails together on the shared decode.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;

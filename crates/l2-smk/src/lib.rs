@@ -22,12 +22,13 @@
 //!
 //! 1. **The container invariant** — `104 + n·4 + n + trees + Σ sizes` is the
 //!    file length exactly, for all 45 shipped films ([`Smk::slack`]).
-//! 2. **Every bitstream is consumed to its last byte and no further.** A
-//!    Huffman tree read one bit wrong desynchronises every code after it, and
-//!    the decoder then either runs off the end of the chunk or stops more than
-//!    a byte short of it. [`Decoder::video_bits`] and [`AudioChunk`] report both
-//!    numbers so the corpus test can demand the tail be padding
-//!    (`crates/l2-smk/tests/corpus.rs`).
+//! 2. **Every bitstream is consumed to its padding and no further.** Chunks
+//!    are padded to a four-byte boundary, and in all 7,652 video frames and
+//!    7,108 audio chunks of the corpus the decoder leaves between 0 and 31 bits
+//!    unread. A Huffman tree read one bit wrong desynchronises every code after
+//!    it and the decoder runs off the end of its chunk instead.
+//!    [`Decoder::video_bits`] and [`AudioChunk`] report both numbers so the
+//!    corpus test can demand it (`crates/l2-smk/tests/corpus.rs`).
 //! 3. **An independent decoder agrees, pixel for pixel.** That comparison was
 //!    run once, outside the tree, against a black-box build of the LGPL crate —
 //!    its output compared, its source never opened — and its numbers are pinned
@@ -654,7 +655,7 @@ impl Decoder {
     }
 
     /// **(bits read, bits available)** in the last frame's video bitstream.
-    /// A correct decode reads all but the final byte's padding.
+    /// A correct decode leaves fewer than 32 unread: the chunk's padding.
     pub fn video_bits(&self) -> (usize, usize) {
         self.video_bits
     }
