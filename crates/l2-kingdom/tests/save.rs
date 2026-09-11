@@ -305,6 +305,8 @@ fn furnished(seed: u64) -> Kingdom {
         c.castle_wood_total = n * 11 + 9;
 
         c.event_population_pct = 33 + n;
+        // The letter's figure, VERSION 20.
+        c.event_population_swing = 44 + n;
         c.event_grain_pct = 34 + n;
         c.event_herd_pct = 35 + n;
 
@@ -663,7 +665,11 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // `County_RecountMerchants` writes all three and `Ai_BuyGood` reads the
     // first two as the gate and the price in front of every purchase an AI or
     // an unowned county makes.
-    assert_eq!(c.finish().len, 58_474, "the state encoding changed - bump VERSION?");
+    //
+    // +68 at version 20 for `County::event_population_swing`, county `+0x2F8`:
+    // four bytes over 17 county slots. `Population_UpdateAll` writes it and
+    // *Plague* and *Wedding fever*'s letters print it.
+    assert_eq!(c.finish().len, 58_542, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

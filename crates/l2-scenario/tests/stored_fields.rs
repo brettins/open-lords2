@@ -584,6 +584,7 @@ fn accessors() -> Vec<(&'static str, Get)> {
         }),
         at("County+0x2A8", |k, i, e| k.counties[i].industry[e].next_season as i64),
         at("County+0x2F4", |k, i, _| k.counties[i].levy_surcharge as i64),
+        at("County+0x2F8", |k, i, _| k.counties[i].event_population_swing as i64),
         at("County+0x2FC", |k, i, _| k.counties[i].grain_grown_expected as i64),
         at("Realm+0x000", |k, i, _| k.realms[i].ai_step as i64),
         at("Realm+0x004", |k, i, _| k.realms[i].strength as i64),

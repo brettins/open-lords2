@@ -805,7 +805,12 @@ if (births == 0 && birthRate != 0) births = 1;
 if (deaths == 0 && death     != 0) deaths = 1;
 if (healthBand == 0)        deaths += 2;                    /* Diseased */
 if (birthRate < death)      deaths += 1; else births += 1;
-/* random-event modifier, capped at 20 % of the population */
+/* random-event swing, county +0x2F8: of the deaths or births, not of the county */
+swing   = 0;
+if (eventPct < 0) swing = Pct(deaths, -eventPct) + 10;
+else if (eventPct > 0) swing = Pct(births, eventPct) + 10;
+if (cap < swing) swing = cap;
+if (eventPct < 0) deaths += swing; else if (eventPct > 0) births += swing;
 pop += births - deaths;
 if (pop < 1) { births = 0; deaths = pop; pop = 0; }
 pop -= emigrants; pop += immigrants;
@@ -1826,11 +1831,11 @@ document mentioned.
 | `0x87` | 135 | Rats!! | grain ≥ 50 | grain % by season: Sp −30, Su −25, Au **−45**, Wi −40 |
 | `0x88` | 136 | Mad Cows !! | herd ≥ 40 | herd −20 % |
 | `0x89` | 137 | Wolves. | herd ≥ 40 | herd −40 % |
-| `0x8A` | 138 | Plague. | pop ≥ 100 | pop % by season: Sp −30, Su −20, Au −30, Wi **−40**; **and** health meter −20, then clamped to at most 25 |
+| `0x8A` | 138 | Plague. | pop ≥ 100 | **% of the season's deaths**, by season: Sp −30, Su −20, Au −30, Wi **−40**, then +10 and capped at 20 % of pop (§5); **and** health meter −20, then clamped to at most 25 |
 | `0x8B` | 139 | Grain found. | grain ≥ 50 | grain % by season: Sp **+40**, Su +35, Au +25, Wi +15 |
 | `0x8C` | 140 | Bad cattle stock | herd ≥ 40 | herd −10 % |
 | `0x8D` | 141 | Cow bonanza!! | herd ≥ 40 | herd +25 % |
-| `0x8E` | 142 | Wedding fever. | pop ≥ 100 **and** happiness ≥ 30 | pop % by season: Sp **+60**, Su +50, Au +40, Wi +30 |
+| `0x8E` | 142 | Wedding fever. | pop ≥ 100 **and** happiness ≥ 30 | **% of the season's births**, by season: Sp **+60**, Su +50, Au +40, Wi +30, then +10 and capped at 20 % of pop (§5) |
 | `0x12E` | 302 | Healthy eating. | health meter < 81 | health meter +20 |
 | `0x12F` | 303 | Mother nature. | a barren field tile exists | one barren field becomes fallow |
 | `0x130` | 304 | Weapons found. | none | realm weapons `[(countyId & 3) + 1]` **+25** |
@@ -1863,7 +1868,14 @@ to the death of your prize bull. Deaths, however, occur normally."*
 > embezzled, a weapon that has nothing to do with what its blacksmith makes, and the
 > crossbow (type 0) can never be found or stolen at all. **[D]**
 
-The population modifier is capped at 20 % of the county. **[V]** on the guard that matters
+**The population modifier is a percentage of the season's deaths or births, not of the
+county.** `Population_UpdateAll` takes `Pct(deaths, −pct)` for a plague or `Pct(births, pct)`
+for a wedding, adds 10, caps the result at 20 % of the county, and stores it at county
+`+0x2F8` — the number the letter prints before `L2.eng` group 77's *"extra deaths."* /
+*"extra births."* **[V]**: `0x00449EF3` and `Msg_DrawWindow` are the only two functions that
+touch `+0x2F8`. This table and §5 said *"pop %"* and *"capped at 20 % of the population"*,
+and the code built from them took the percentage of the county — `docs/decisions.md`
+CNEW-plague-swing. **[V]** on the guard that matters
 most: **the AI never draws random events** — the test is on the *owner realm's* `isHuman`
 byte.
 

@@ -183,7 +183,7 @@
     {"id": "County+0x2A4", "name": "industry[].totalSnapshot", "type": "i32", "count": 4, "stride": 24, "status": "imported"},
     {"id": "County+0x2A8", "name": "industry[].nextSeason", "type": "i32", "count": 4, "stride": 24, "status": "imported"},
     {"id": "County+0x2F4", "name": "levySurcharge", "type": "i32", "status": "imported"},
-    {"id": "County+0x2F8", "name": "popScratch2F8", "type": "i32", "status": "excluded", "why": "written and read by Population_UpdateAll and read by Msg_DrawWindow; not a field of County"},
+    {"id": "County+0x2F8", "name": "eventPopulationSwing", "type": "i32", "status": "imported"},
     {"id": "County+0x2FC", "name": "grainGrownExpected", "type": "i32", "status": "imported"},
     {"id": "Realm+0x000", "name": "aiStep", "type": "i32", "status": "imported"},
     {"id": "Realm+0x004", "name": "strength", "type": "u8", "status": "imported"},

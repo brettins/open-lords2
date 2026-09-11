@@ -8277,3 +8277,82 @@ own implausible number.
 **Not moved into `l2-formats`.** The brief allowed it; the check does not need it,
 because it decodes raw offsets itself, so `l2_formats::save::{County, Realm}` are
 unchanged and the new reads sit in `l2-scenario` beside the ones C142 and C149 added.
+
+---
+
+**CNEW-plague-swing — A plague took its percentage of the county; the original takes it of
+the season's deaths, adds ten, and prints the result.**
+
+Found by the stored-fields classification, not by a player: county `+0x2F8` was excluded
+because *our rule could not have produced it*, which is a rule difference wearing a data
+field's clothes. `Population_UpdateAll` (`0x00449EF3`), after the `+1` that goes to whichever
+of births and deaths the rates favour:
+
+```c
+county.+0x2F8 = 0;
+if ((char)eventPct < 0)      county.+0x2F8 = Pct(deaths, -eventPct) + 10;
+else if ((char)eventPct > 0) county.+0x2F8 = Pct(births,  eventPct) + 10;
+if (Pct(pop, 20) < county.+0x2F8) county.+0x2F8 = Pct(pop, 20);
+if (eventPct < 0) deaths += county.+0x2F8; else if (eventPct > 0) births += county.+0x2F8;
+```
+
+Ours was `clamp(Pct(population, pct), -Pct(population, 20), Pct(population, 20))`. **[V]**, and
+closed three ways:
+
+* **Every event through that code.** The corpus writes `+0x1FB` ten times: two clears
+  (`Event_RollAll`, `Event_ClearCountyModifiers`), four season-picked writes in `FUN_00448F6F`
+  — *Plague*, Winter −40, Spring −30, Summer −20, Autumn −30 — and four in `FUN_004491F0` —
+  *Wedding fever*, Winter +30, Spring +60, Summer +50, Autumn +40. `Population_UpdateAll` is
+  its only reader — `node tools/oracle/fields.js` agrees on the reader, and its table prints
+  only the first three writers. Those percentages match `EventKind::effect` already; only the
+  application was wrong. No other event moves people.
+* **Every reader of the result.** `+0x2F8` is touched by exactly two functions:
+  `Population_UpdateAll`, and `Msg_DrawWindow`, which draws it with
+  `Ui_DrawNumber(+0x2F8, '@', " ", …)` for event `0x8A` before `L2.eng` group 77 index 29,
+  *"extra deaths."*, and for `0x8E` before index 30, *"extra births."* The game's own label says
+  the figure is an addition to the season's deaths or births, which is what the formula makes
+  it. (`FUN_0045337B`'s `+0x2F8` is a sprite blitter's offset, not a county's.)
+* **The base is the adjusted figure** — deaths after the `+2` for Diseased and the `+1`, births
+  after their `+1` — because the swing is computed below those lines.
+
+**How big the difference was.** A Winter plague on 1,000 people in health band 2 at happiness
+50: ours killed **200** extra, the original **74** (`Pct(161, 40) + 10`). A Summer plague on a
+Perfect-health county, which was going to lose nobody: ours 200, the original **10**. The cap
+still bites on a small county — a Spring wedding on 100 people asks 46 and gets 20.
+
+**Where it came from, which is the part worth keeping.** `docs/kingdom.md` §5's `[V]`
+pseudocode carried the line as a comment — `/* random-event modifier, capped at 20 % of the
+population */` — and §8.1's handler table said *"pop % by season"*. Both are true sentences
+about the byte; both read as a percentage of the population; and the code built from them took
+one. The CLAUDE.md warning about `[V]` documents producing defects, a fourth time.
+
+**Not the original's bug in this reading.** The percentage-of-births reading is what group 142
+says (*"a jump in the number of children born"*), and a cap that only bites below a few hundred
+people is odd rather than broken. `docs/bugs.md` §4.2, **[I]** on "intended".
+
+**What the fixtures could and could not settle.** No save on this machine carries a live
+figure: `+0x2F8` is **zero in every county of all 18 saves**. They are not silent about
+events — county 3 holds Wedding fever's id `0x8E` in `siege-safeturn`, `siege-old_turn`,
+`siege-lastturn` and `siege-sieging` — but that id is **stale**: `Event_RollAll` clears the three
+swing bytes and `+0x1A8` every season and never `eventId` or `eventFired` (only a failed guard
+and `FUN_00448D7E`'s enqueue clear those), and the saved births reproduce with no swing in them.
+So the rule is pinned by hand-worked numbers, and the import by
+`crates/l2-scenario/tests/import.rs`'s `the_plague_letters_figure_survives_a_load`, which
+patches the figure into a real save's bytes — **ablated: deleting the importer's assignment
+turns it red and leaves `tests/stored_fields.rs` green**, because a row that is zero in every
+save is compared with zero.
+
+**Changed.** `l2_kingdom::population::update_one` is the code above, writing
+`County::event_population_swing`; `+0x2F8` is imported (`docs/stored-fields.json`, `excluded` →
+`imported`, renamed `eventPopulationSwing`); our save format carries it at `VERSION` 20.
+**`crates/l2-game/tests/differential.rs` did not move** — 932 compared, 900 agree, 279 moved,
+258 of those agree. No pair's original season ran a population event — `+0x2F8` is zero in all
+four after-saves — and **[I]** neither did ours: the old and new rules disagree on every county
+an event reaches, so an event in our run would have moved a births or deaths row.
+
+**Two leads, not fixed.** *Ours clears `event_fired` and `event_id` every season*
+(`l2_kingdom::event::roll_all`), and the original does not, so an unshown letter survives a
+season there and not here. *Our message screen draws no figure*: `screens/message.rs` sends
+category `0x0F` to `draw_notice`, and `Msg_DrawWindow`'s event arms draw a number under the body
+for eight of the twenty-four — `+0x278` for *Rats* and *Grain found*, `+0x274` for the four herd
+events, `+0x2F8` for these two — each followed by its group 77 words. A rule-6 gap.

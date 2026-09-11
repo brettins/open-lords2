@@ -238,7 +238,7 @@ crates/l2-kingdom/src/ration.rs	C3	316be8511779	35bf3a86555f
 crates/l2-kingdom/src/save.rs	C123	763bc3ea2e6d	3a5cc2fec37d
 crates/l2-kingdom/src/save.rs	C134	8c3c2ccdc448	d12cd2f96f79
 crates/l2-kingdom/src/save.rs	C136	78341762a0c9	724c11b1e475
-crates/l2-kingdom/src/save.rs	C149	9883292be64c	138117948441
+crates/l2-kingdom/src/save.rs	C149	4abb879cf9d7	138117948441
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8	ed7ea7df1f23
@@ -585,11 +585,11 @@ docs/decisions.md	C142	0800e9b335b3	d13324698105
 docs/decisions.md	C142	0ff030d3046f	d13324698105
 docs/decisions.md	C142	19b387060801	d13324698105
 docs/decisions.md	C142	4120732c0bc4	d13324698105
-docs/decisions.md	C142	7c300e789504	d13324698105
 docs/decisions.md	C142	82f683a0d3e1	d13324698105
+docs/decisions.md	C142	ef742741eda4	d13324698105
 docs/decisions.md	C146	e83c475249f2	97ed604f7efd
 docs/decisions.md	C147	cb863e5fc623	02e99ae849d5
-docs/decisions.md	C149	f244fbfc5e7e	138117948441
+docs/decisions.md	C149	a9ab67e1238c	138117948441
 docs/decisions.md	C15	e567688e5a9b	2a3830f6d22a
 docs/decisions.md	C152	c3db7544bcee	582988651236
 docs/decisions.md	C153	9cf14b8ea09c	c724d7afe0dd

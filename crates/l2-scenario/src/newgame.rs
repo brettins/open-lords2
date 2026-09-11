@@ -1285,6 +1285,7 @@ fn county_reset(id: usize) -> CountyState {
         event_fired: false,
         event_id: 0,
         event_population_pct: 0,
+        event_population_swing: 0,
         event_grain_pct: 0,
         event_herd_pct: 0,
         tax_suppressed: false,

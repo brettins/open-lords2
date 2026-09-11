@@ -15,7 +15,9 @@
 //! if (deaths == 0 && death != 0) deaths = 1;
 //! if (healthBand == 0)   deaths += 2;
 //! if (base < death)      deaths += 1; else births += 1;
-//! /* random-event modifier, capped at 20% of the population */
+//! swing   = pct < 0 ? Pct(deaths, -pct) + 10 : pct > 0 ? Pct(births, pct) + 10 : 0;
+//! if (swing > cap) swing = cap;               /* county +0x2F8, the letter's figure */
+//! if (pct < 0) deaths += swing; else if (pct > 0) births += swing;
 //! pop += births - deaths;
 //! if (pop < 1) { births = 0; deaths = pop; pop = 0; }
 //! pop -= emigrants; pop += immigrants;
@@ -27,13 +29,24 @@
 //! marked **`[V]`**.
 
 use crate::county::{ChangeReason, County, CHANGE_REASON_MIN_PCT, MAX_INFLOW_SOURCES};
-use crate::math::{clamp, pct};
+use crate::math::pct;
 use crate::tables::{Season, Tables};
 use l2_net::{Quirk, Quirks};
 
 /// Migration is capped at this many people per county per season, before the
 /// unowned halving. `docs/kingdom.md` §5.3.
 pub const MIGRATION_CAP: i32 = 100;
+
+/// The flat number of people a population event adds on top of its percentage:
+/// `Pct(deaths or births, |pct|) + 10`. `[V]` — `Population_UpdateAll`
+/// (`0x00449EF3`) adds the literal `10` in both arms, and nowhere else. So a
+/// plague always costs at least ten, and a county under fifty people, whose
+/// 20% cap is below ten, loses the whole cap instead.
+///
+/// A `const` rather than a ruleset key: `kingdom.event` has two keys today
+/// (`docs/modding.md`) and this is the first number the swing needed beyond the
+/// cap.
+pub const EVENT_SWING_FLOOR: i32 = 10;
 
 /// How many people would leave a county for a happier neighbour.
 ///
@@ -179,18 +192,43 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
         births += 1;
     }
 
-    // The random-event modifier. docs/kingdom.md §8.1: most event handlers
-    // write a percentage into +0x1FB, which this pass applies to births and
-    // deaths, capped at 20% of the county.
-    if county.event_population_pct != 0 {
-        let swing = clamp(pct(county.population, county.event_population_pct), -cap, cap);
-        if swing >= 0 {
-            births += swing;
-        } else {
-            deaths += -swing;
-        }
-        county.event_population_pct = 0;
+    // The random-event swing — `Population_UpdateAll` (`0x00449EF3`), the
+    // eighteen lines after the `+1` above. Only two handlers write `+0x1FB`:
+    // *Plague* (`FUN_00448F6F`, −20 … −40) and *Wedding fever* (`FUN_004491F0`,
+    // +30 … +60). `[V]` — every write to the byte in the binary is one of those
+    // eight or one of the two clears.
+    //
+    // **A percentage of the deaths or the births, not of the county.** This
+    // read `Pct(population, pct)` until CNEW-plague-swing, which made a Winter
+    // plague on 1,000 people in health band 2 at happiness 50 kill 200 extra
+    // rather than the original's 74 (`Pct(161, 40) + 10`).
+    //
+    // ```c
+    // county.+0x2F8 = 0;
+    // if (pct < 0)      county.+0x2F8 = Pct(deaths, -pct) + 10;
+    // else if (pct > 0) county.+0x2F8 = Pct(births,  pct) + 10;
+    // if (cap < county.+0x2F8) county.+0x2F8 = cap;
+    // if (pct < 0) deaths += county.+0x2F8; else if (pct > 0) births += county.+0x2F8;
+    // ```
+    //
+    // The base is the natural figure **after** the `+1`/`+2` adjustments, and
+    // the stored value is what the letter prints (`County::event_population_swing`).
+    let p = county.event_population_pct;
+    county.event_population_swing = 0;
+    if p < 0 {
+        county.event_population_swing = pct(deaths, -p) + EVENT_SWING_FLOOR;
+    } else if p > 0 {
+        county.event_population_swing = pct(births, p) + EVENT_SWING_FLOOR;
     }
+    if cap < county.event_population_swing {
+        county.event_population_swing = cap;
+    }
+    if p < 0 {
+        deaths += county.event_population_swing;
+    } else if p > 0 {
+        births += county.event_population_swing;
+    }
+    county.event_population_pct = 0;
 
     county.population += births - deaths;
     if county.population < 1 {
@@ -418,26 +456,124 @@ mod tests {
         assert!(grow(2500) < 0, "a large one cannot keep up with winter");
     }
 
-    #[test]
-    fn the_event_modifier_is_capped_at_a_fifth_of_the_county() {
-        let mut c = County::new();
-        c.population = 1000;
-        c.happiness = 50;
-        c.health_band = 4;
-        c.event_population_pct = 90; // a 90% baby boom, capped to 20%
-        update_one(T, &mut c, Season::Summer, Q);
-        // Pct(1000, Pct(12, 50)) = 60 natural births, +1, +200 from the capped
-        // event - not the 900 the event asked for.
-        assert_eq!(c.births, 60 + 1 + 200, "capped at Pct(1000, 20)");
-        assert_eq!(c.event_population_pct, 0, "and consumed");
+    // --- the random-event swing, CNEW-plague-swing ------------------------
+    //
+    // Every expected number below is worked by hand from `Population_UpdateAll`
+    // (`0x00449EF3`) — `Pct(deaths or births, |pct|) + 10`, capped at
+    // `Pct(population, 20)` — and typed, so no expression here mentions the rule
+    // under test. The tables it reads: death by health band 35/20/8/3/0, by
+    // season Spring 4, Summer 0, Autumn 2, Winter 8.
+    //
+    // The first two tests use a county of 1,000 at happiness 100: a factored
+    // birth rate of `Pct(12, 120) = 14`, so 140 births before the `+1`.
 
+    /// **A plague, in all four seasons, through the handler that deals it.**
+    /// `FUN_00448F6F` pins the health meter at 25 as well, which is band 1 and a
+    /// 20% death rate before the season's — so the deaths are
+    /// `Pct(1000, 20 + season) + 1`, and the plague takes its percentage of
+    /// *those*.
+    ///
+    /// The old rule took it of the county and capped it: 200 extra deaths in
+    /// every one of these seasons.
+    #[test]
+    fn a_plague_adds_a_percentage_of_the_deaths_plus_ten() {
+        // (season, natural deaths, the swing, deaths after)
+        let cases = [
+            (Season::Spring, 241, 82, 323),  // Pct(241, 30) = 72
+            (Season::Summer, 201, 50, 251),  // Pct(201, 20) = 40
+            (Season::Autumn, 221, 76, 297),  // Pct(221, 30) = 66
+            (Season::Winter, 281, 122, 403), // Pct(281, 40) = 112
+        ];
+        for (season, natural, swing, after) in cases {
+            let mut c = County::new();
+            c.owner = 1;
+            c.population = 1000;
+            c.happiness = 100;
+            c.health_meter = 60;
+            c.health_band = 2;
+            let mut purse = crate::event::RealmPurse::default();
+            let plague = crate::event::EventKind::Plague;
+            assert!(crate::event::fire(&mut c, 1, &mut purse, plague, season, Q));
+            assert_eq!(c.health_band, 1, "the handler clamps the meter to 25");
+
+            update_one(T, &mut c, season, Q);
+            assert_eq!(c.event_population_swing, swing, "{season:?}: the letter's figure");
+            assert_eq!(c.deaths, after, "{season:?}: {natural} natural, plus the swing");
+            assert_eq!(c.births, 140, "{season:?}: a plague moves no births");
+        }
+    }
+
+    /// **Wedding fever, in all four seasons, through the handler that deals
+    /// it.** Band 2 keeps the deaths below the factored birth rate except in
+    /// Winter, so the `+1` lands on the births three times and on the deaths
+    /// once — and the wedding takes its percentage of the births *after* it.
+    #[test]
+    fn a_wedding_adds_a_percentage_of_the_births_plus_ten() {
+        // (season, natural births, the swing, births after, deaths)
+        let cases = [
+            (Season::Spring, 141, 94, 235, 120), // Pct(141, 60) = 84
+            (Season::Summer, 141, 80, 221, 80),  // Pct(141, 50) = 70
+            (Season::Autumn, 141, 66, 207, 100), // Pct(141, 40) = 56
+            (Season::Winter, 140, 52, 192, 161), // Pct(140, 30) = 42
+        ];
+        for (season, natural, swing, after, deaths) in cases {
+            let mut c = County::new();
+            c.owner = 1;
+            c.population = 1000;
+            c.happiness = 100;
+            c.health_band = 2;
+            let mut purse = crate::event::RealmPurse::default();
+            let wedding = crate::event::EventKind::WeddingFever;
+            assert!(crate::event::fire(&mut c, 1, &mut purse, wedding, season, Q));
+
+            update_one(T, &mut c, season, Q);
+            assert_eq!(c.event_population_swing, swing, "{season:?}: the letter's figure");
+            assert_eq!(c.births, after, "{season:?}: {natural} natural, plus the swing");
+            assert_eq!(c.deaths, deaths, "{season:?}: a wedding moves no deaths");
+        }
+    }
+
+    /// The two ends of the rule: the 20% cap still bites on a small county, and
+    /// the flat ten is the whole of a plague in a county that was going to lose
+    /// nobody.
+    #[test]
+    fn the_swing_is_capped_at_a_fifth_of_the_county_and_is_never_less_than_ten() {
+        // A hundred people at happiness 100, band 4, Spring: Pct(50, 120) = 60
+        // births + 1 = 61, and a Spring wedding asks Pct(61, 60) + 10 = 46.
+        let mut c = County::new();
+        c.population = 100;
+        c.happiness = 100;
+        c.health_band = 4;
+        c.event_population_pct = 60;
+        update_one(T, &mut c, Season::Spring, Q);
+        assert_eq!(c.event_population_swing, 20, "capped at Pct(100, 20), not 46");
+        assert_eq!(c.births, 61 + 20);
+
+        // Band 4 in Summer dies of nothing — a rate of 0 earns no `+1` — so a
+        // Summer plague's 20% is of zero deaths.
         let mut c = County::new();
         c.population = 1000;
         c.happiness = 50;
         c.health_band = 4;
-        c.event_population_pct = -90;
+        c.event_population_pct = -20;
         update_one(T, &mut c, Season::Summer, Q);
-        assert_eq!(c.deaths, 200, "a plague is capped the same way");
+        assert_eq!(c.event_population_swing, 10, "Pct(0, 20) + 10");
+        assert_eq!(c.deaths, 10);
+        assert_eq!(c.event_population_pct, 0, "and consumed");
+    }
+
+    /// `Population_UpdateAll` zeroes `+0x2F8` in every county before it looks
+    /// at the event byte, so a season without an event clears last season's
+    /// figure rather than leaving the letter's number standing.
+    #[test]
+    fn a_season_without_an_event_writes_the_figure_back_to_zero() {
+        let mut c = County::new();
+        c.population = 1000;
+        c.happiness = 50;
+        c.health_band = 2;
+        c.event_population_swing = 74; // last season's Winter plague
+        update_one(T, &mut c, Season::Spring, Q);
+        assert_eq!(c.event_population_swing, 0);
     }
 
     #[test]
