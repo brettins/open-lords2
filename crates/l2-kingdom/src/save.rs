@@ -448,7 +448,31 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   until the *end* of that turn. A defaulted stall is a season of unowned
 ///   counties that cannot shop, which is exactly the defect being fixed.
 ///   `docs/decisions.md` C149.
-pub const VERSION: u32 = 19;
+/// * 20 — **realm `+0xF4` and `+0xF8`**, [`crate::realm::Realm::tax_ledger`]:
+///   `Tax_CollectAll`'s (`0x0044B59B`) third accumulator pair, credited with
+///   every owned county's take beside the treasury. Eight bytes a realm over six
+///   slots: **+48**. No rule in the original reads either — the realm block is
+///   stored by `Save_Write` and compared by `Sync_CompareState`, and that is
+///   the whole of their use — so they are carried for entry 13's reason about
+///   the trade pair: state the original keeps is state two peers must agree on.
+///
+///   **And a pass index moved under the same number.**
+///   [`crate::phase::Pass::AiManageFarms`] is `Season_Advance`'s first call and
+///   went in at position 0 of `SEASON_PIPELINE`, which shifts every index
+///   `l2_game::save` writes a season report's pass list as. `l2_game::save`
+///   decodes this body **before** its own prefix, so a version 19 game file is
+///   refused by this check before a shifted index is ever read.
+///
+///   **Refusal rather than default**: a version 19 save was written by a build
+///   that never credited the pair, so its zeros are a state that build produced
+///   and this one cannot — any realm that has collected a season's tax holds a
+///   non-zero ledger here.
+///
+///   *Written as 20 with `VERSION` at 19 on `main`, and with another queued
+///   branch known to be taking 20. Per the standing hazard above, assume the
+///   number has moved: a merge that finds 20 taken renumbers this entry and the
+///   constant together.*
+pub const VERSION: u32 = 20;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1413,6 +1437,9 @@ impl Encode for Realm {
         out.i32(self.trade_spent_b);
         out.i32(self.trade_received_a);
         out.i32(self.trade_received_b);
+        for v in &self.tax_ledger {
+            out.i32(*v);
+        }
         out.i32(self.weapon_rota);
         out.i32(self.population_total);
         out.i32(self.population_last);
@@ -1517,6 +1544,9 @@ impl Decode for Realm {
         r.trade_spent_b = input.i32()?;
         r.trade_received_a = input.i32()?;
         r.trade_received_b = input.i32()?;
+        for slot in 0..r.tax_ledger.len() {
+            r.tax_ledger[slot] = input.i32()?;
+        }
         r.weapon_rota = input.i32()?;
         r.population_total = input.i32()?;
         r.population_last = input.i32()?;

@@ -229,6 +229,38 @@ pub struct Realm {
     pub trade_received_a: i32,
     pub trade_received_b: i32,
 
+    /// `+0xF4` and `+0xF8` — **crowns banked from tax**, the same shape as the
+    /// four trade accumulators above and one pair further down the record.
+    ///
+    /// `Tax_CollectAll` (`0x0044B59B`) adds each owned county's take to both,
+    /// straight after it adds it to [`Realm::gold`]; an unowned county's take
+    /// goes to its own purse and touches neither. **Nothing reads either.**
+    /// `[V]`, two ways that share no step: the decompilation names
+    /// `field_0xf4`/`field_0xf8` of `g_realms` in exactly two functions —
+    /// `Tax_CollectAll` and `Game_SetupRealmsAndCounties` (`0x0049BD99`), which
+    /// zeroes them at new game — and a scan of `Lords2.exe` for the absolute
+    /// addresses `0x0057BFF4` / `0x0057BFF8` finds two instructions each, at
+    /// `0x0044B7BD`/`0x0044B7DE` inside the first and
+    /// `0x0049C364`/`0x0049C37C` inside the second. The same scan finds the
+    /// trade pair's `+0x10C` in `Merchant_Trade` and the setup clear and
+    /// nowhere else, and `+0x50` (the score) in fourteen places, so it sees
+    /// readers where there are readers.
+    ///
+    /// What the scan cannot see, said beside it: an access through a pointer
+    /// to the record plus a small displacement. The only whole-record consumers
+    /// found are `Save_Write`, which stores the realm block, and
+    /// `Sync_CompareState`, which compares every realm byte from `+0x06` — so
+    /// in the original these are **stored, desync-checked, and read by no
+    /// rule**. They are carried for exactly the reason the trade pair is: they
+    /// are simulation state the original keeps, a save that dropped them would
+    /// load a different record, and two lockstep peers must agree on them.
+    ///
+    /// Index 0 is `+0xF4`, index 1 is `+0xF8`. Named `a`/`b` by position for
+    /// the trade pair's reason: both always take the same number and nothing
+    /// distinguishes them, so a more specific name would be a claim about a
+    /// mechanic the shipped game does not have.
+    pub tax_ledger: [i32; 2],
+
     // --- the totals AI step 14 rebuilds (`FUN_0049D1E0`) --------------------
     /// `+0x10` — the realm's total population, summed over its counties.
     /// Score input, weighted `/10`.
@@ -406,6 +438,7 @@ impl Realm {
             trade_spent_b: 0,
             trade_received_a: 0,
             trade_received_b: 0,
+            tax_ledger: [0; 2],
             population_total: 0,
             population_last: 0,
             population_mean: 0,

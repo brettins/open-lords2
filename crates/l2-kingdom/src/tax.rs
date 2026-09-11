@@ -205,19 +205,23 @@ pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
 ///     g_counties[c].purse += g_counties[c].taxCollected;
 /// } else {
 ///     g_realms[realm].gold += take;
-///     g_realms[realm].f0xF4 += take;      /* NOT PORTED — see below */
+///     g_realms[realm].f0xF4 += take;
 ///     g_realms[realm].f0xF8 += take;
 /// }
 /// ```
 ///
-/// **`+0xF4` and `+0xF8` are not ported, and they are not the trade pair.**
-/// [`Realm::trade_received_a`] and `_b` are `+0x10C` and `+0x110`, which
-/// `Merchant_Trade` writes; these are a third pair at a different offset that
-/// this crate has no field for. They read exactly like the tax half of a
-/// revenue ledger — a `{value, value-as-of-the-snapshot}` interleave of the
-/// kind `Realm_SnapshotLedger` builds across `+0x118 … +0x13C` — but nothing
-/// has been found that reads either, so they are named here rather than
-/// invented. `CLAUDE.md` rule 5.
+/// **`+0xF4` and `+0xF8` are [`Realm::tax_ledger`], and they are not the trade
+/// pair.** [`Realm::trade_received_a`] and `_b` are `+0x10C` and `+0x110`,
+/// which `Merchant_Trade` writes; these are a third accumulator pair that only
+/// this branch writes. They used to be named here and not ported, on the
+/// reading that *"nothing has been found that reads either"* — which is still
+/// true, and is now established rather than merely not found: no function in
+/// the decompilation names them except this one and the new-game clear, and no
+/// instruction in `Lords2.exe` carries either absolute address except those
+/// two functions' four. See [`Realm::tax_ledger`] for the scan and what it
+/// cannot see. **Unread is not unstored**: the realm block is in the save and
+/// `Sync_CompareState` compares it, so the pair is carried — credited here,
+/// saved, and imported from a `.sav` — exactly as the trade pair is.
 ///
 /// **`[V]`**, read out of `0x0044B59B` at the moment of writing. `docs/symbols.md`
 /// said only *"credited to the owner realm's gold"* and that sentence is why an
@@ -241,7 +245,10 @@ pub fn bank(county: &mut County, realms: &mut [Realm], take: i32) {
     if owner == 0 {
         county.purse += take;
     } else if let Some(realm) = realms.get_mut(owner) {
+        // `0x0044B59B`'s order: the treasury, then `+0xF4`, then `+0xF8`.
         realm.gold += take;
+        realm.tax_ledger[0] += take;
+        realm.tax_ledger[1] += take;
     }
 }
 
@@ -530,11 +537,18 @@ mod tests {
             bank(&mut c, &mut realms, take);
             assert_eq!(c.purse, then, "{pop} people at rate 6 bank {take} into {was}");
             assert_eq!(realms[0].gold, 0, "realm 0 is not a treasury and must not be credited");
+            assert_eq!(realms[0].tax_ledger, [0, 0], "nor is its +0xF4/+0xF8 pair");
         }
     }
 
     /// And an owned one still banks into its realm, which is the other limb of
-    /// the same branch.
+    /// the same branch — **three writes, not one**: the treasury, then
+    /// `+0xF4`, then `+0xF8` (`0x0044B59B`). A second county's take lands on
+    /// all three again, so the pair is an accumulator and not a copy of the
+    /// last take.
+    ///
+    /// *Ablation*: delete either `tax_ledger` line in [`bank`] and the matching
+    /// slot's assertion goes red while the gold one stays green.
     #[test]
     fn an_owned_county_banks_its_tax_in_its_realms_gold() {
         let mut realms = vec![Realm::new(); crate::realm::MAX_REALMS];
@@ -545,6 +559,13 @@ mod tests {
         bank(&mut c, &mut realms, take);
         assert_eq!(take, 320);
         assert_eq!(realms[2].gold, 320);
+        assert_eq!(realms[2].tax_ledger, [320, 320], "+0xF4 and +0xF8 take the same number");
         assert_eq!(c.purse, 500, "the county's own purse is untouched when it has a lord");
+
+        let mut d = county_with(500, 10, 0);
+        d.owner = 2;
+        let second = collect(T, &mut d, 0);
+        bank(&mut d, &mut realms, second);
+        assert_eq!(realms[2].tax_ledger, [320 + second, 320 + second], "and they accumulate");
     }
 }

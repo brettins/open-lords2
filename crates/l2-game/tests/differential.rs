@@ -673,12 +673,35 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 /// and from the unrest warning latch — all of which a loaded game used to start
 /// at `County::new()`'s values. Which import removed which divergence was not
 /// ablated one at a time; the attribution is inferred from what each pass reads.
+///
+/// **Moved up again by the AI's second farming pass, from the numbers the test
+/// printed**: `AGREE_TOTAL` 900 → 906 and `MOVED_AGREE_TOTAL` 258 → 264. Six
+/// divergences went, all on realm 2 (the one AI realm in play) and none
+/// arrived: battle 3->4's `realm.wood` (+31), `realm.iron` (+5) and
+/// `realm.weapons.4` (−2), and siege 12->13's `realm.iron` (+35),
+/// `realm.wood` (+35) and `realm.weapons.1` (−6). All three are fields
+/// `Industry_ProduceAll` writes from the county's labour split and industry
+/// share, which `Ai_ManageFarmsAll` (`0x0049A990`) resets at the head of the
+/// season.
+///
+/// **Attributed by ablation, not by reading.** That branch made three changes:
+/// the season-head pass, the owned-county arm of the stall (AI step 5 and the
+/// season head both shop now), and realm `+0xF4`/`+0xF8`. Emptying the
+/// `Pass::AiManageFarms` arm alone — the other two still in — put this test back
+/// to exactly 900 and 258 with all six rows returned. So on these four pairs
+/// **the season-head pass moved all six and the other two moved nothing**; the
+/// stall bought nothing for realm 2 here, which is also what its unchanged
+/// `realm.gold` rows say.
+///
+/// **What did not move**, and is not chased here: realm 2's `realm.gold` (+5,
+/// then **+2,005** on siege 13->14), `realm.wages` (−5) and `realm.score`. The
+/// original's realm 2 goes 2,015 → 394 on siege 13->14 while its
+/// `realm.weapons.1` goes 26 → 126 — a hundred maces bought — which is the shape
+/// of `Ai_TradeForCounty` (`0x0049E39B`), the weapon purchase every realm
+/// farming style runs before `Ai_BuyGood` and which is not implemented. `[I]`.
 #[rustfmt::skip]
 const BASELINE: &[(&str, &str, usize)] = &[
     ("battle 3->4", "global.ai_lords", 1),
-    ("battle 3->4", "realm.iron", 1),
-    ("battle 3->4", "realm.weapons.4", 1),
-    ("battle 3->4", "realm.wood", 1),
     ("battle 4->5", "global.ai_lords", 1),
     ("siege 12->13", "county.births", 1),
     ("siege 12->13", "county.deaths", 1),
@@ -686,12 +709,9 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 12->13", "county.population", 1),
     ("siege 12->13", "global.ai_lords", 1),
     ("siege 12->13", "realm.gold", 2),
-    ("siege 12->13", "realm.iron", 1),
     ("siege 12->13", "realm.score", 2),
     ("siege 12->13", "realm.strength", 1),
     ("siege 12->13", "realm.wages", 2),
-    ("siege 12->13", "realm.weapons.1", 1),
-    ("siege 12->13", "realm.wood", 1),
     ("siege 13->14", "county.births", 1),
     ("siege 13->14", "county.deaths", 1),
     ("siege 13->14", "county.population", 1),
@@ -714,14 +734,14 @@ const COMPARED_TOTAL: usize = 932;
 /// one**: most of a county record is inert across a season, so a field neither
 /// side touched agrees for free and this number is mostly a measure of how much
 /// of the record the import carried unchanged.
-const AGREE_TOTAL: usize = 900;
+const AGREE_TOTAL: usize = 906;
 
 /// How many comparisons are of a field **the original's own End Turn moved**.
 const MOVED_TOTAL: usize = 279;
 
 /// How many of *those* agree. This is the number that means something, and it
 /// is the one to quote.
-const MOVED_AGREE_TOTAL: usize = 258;
+const MOVED_AGREE_TOTAL: usize = 264;
 
 // --- the tests --------------------------------------------------------------
 

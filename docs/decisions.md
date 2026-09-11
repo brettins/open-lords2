@@ -8277,3 +8277,80 @@ own implausible number.
 **Not moved into `l2-formats`.** The brief allowed it; the check does not need it,
 because it decodes raw offsets itself, so `l2_formats::save::{County, Realm}` are
 unchanged and the new reads sit in `l2-scenario` beside the ones C142 and C149 added.
+
+**CNEW-aifarms — The AI farmed once a turn and shopped never, and the county that "began short of food" was fed on cheese.**
+
+C149 named three pieces of the AI's farming it did not port. All three are ported now, each
+read out of `Lords2.exe` at the moment of writing rather than out of the entry that named it.
+
+**1. `Ai_ManageFarmsAll` (`0x0049A990`) is `Season_Advance`'s first call.** `0x00448440`
+opens `Ai_ManageFarmsAll(); Rand_Advance();` and only then reads the clock, and the function
+is `Ai_ManageCountyFarms` (`0x0049DD01`) for every realm with `strength != 0 && isHuman == 0`.
+So an AI lord's counties are farmed **twice a turn** — his own step 5 in phase 4, and again
+ahead of tax, rations and industry, on the season that is ending. `Pass::AiManageFarms` at
+position 0 of `SEASON_PIPELINE`. `[V]`.
+
+**The class is four callers of `Ai_ManageCountyFarms`, not two, and one is not ported.**
+`FUN_0049DF48` is the same loop with its two tests swapped, and its only caller is the tail of
+`Battle_ReturnToCampaign` (`0x004AB383`): `FUN_004AD426(); Panels_RefreshAll(); FUN_0049DF48();`.
+`l2_kingdom::battle::return_to_campaign` carries none of that tail, so here an AI's farms are
+**not** re-managed after a battle. Open.
+
+**2. The stall's owned-county arm.** `Ai_BuyGood` (`0x004A4B12`) tests
+`price * qty <= g_realms[owner].gold` for an owned county, and `Merchant_Trade` (`0x004284CE`)
+then writes `gold -= bill; tradeSpentB += bill; tradeSpentA += bill`. `CountyStall` now carries
+the realms and does both, and AI step 5 and the season head pass it instead of `NoMarket`. `[V]`.
+**Not ported, and it is the nearest remaining gap:** each realm style opens with
+`Ai_TradeForCounty` (`0x0049E39B`) — the surplus sale and the weapon purchase — before its
+`Ai_BuyGood` lines.
+
+**3. Realm `+0xF4`/`+0xF8`, and what they are for: nothing a rule reads.** Writers:
+`Tax_CollectAll` (`0x0044B59B`) credits both with every owned county's take, beside the
+treasury; `Game_SetupRealmsAndCounties` (`0x0049BD99`) clears them. Readers, by two checks that
+share no step: the decompilation names `field_0xf4`/`field_0xf8` of `g_realms` in those two
+functions only; and a scan of `Lords2.exe` for the absolute addresses `0x0057BFF4` and
+`0x0057BFF8` finds four instructions — `0x0044B7BD`, `0x0044B7DE`, `0x0049C364`, `0x0049C37C` —
+all inside those two. The same scan finds the trade pair's `+0x10C` only in `Merchant_Trade` and
+the clear, and the score's `+0x50` fourteen times, so it sees readers where there are readers.
+It cannot see an access through a record pointer plus a small displacement. The only
+whole-record consumers are `Save_Write` and `Sync_CompareState`, so the pair is **stored,
+desync-checked and unread** — carried exactly as the trade pair is: `Realm::tax_ledger`,
+`l2_kingdom::save::VERSION` 20 (+48 bytes), imported from a `.sav`, and its
+`docs/stored-fields.json` row moved from `excluded` to `imported`.
+
+**The differential, before and after.** `AGREE_TOTAL` 900 → **906** of 932, `MOVED_AGREE_TOTAL`
+258 → **264** of 279. Six divergences went, all on realm 2 and none arrived: battle 3->4's
+`realm.wood` (+31), `realm.iron` (+5) and `realm.weapons.4` (−2), and siege 12->13's
+`realm.iron` (+35), `realm.wood` (+35) and `realm.weapons.1` (−6) — all outputs of
+`Industry_ProduceAll`, which reads the labour split and industry share the season-head pass
+resets. **Attributed by ablation**: emptying the `Pass::AiManageFarms` arm alone, with the stall
+arm and the ledger still in, restores exactly 900 and 258 and all six rows. So on these four
+pairs the stall and the ledger moved nothing. **Not moved:** realm 2's `realm.gold` (+5, and
++2,005 on siege 13->14), `realm.wages` and `realm.score`. On siege 13->14 the original's realm 2
+spends about 1,620 crowns and gains a hundred maces, which is the shape of `Ai_TradeForCounty`.
+`[I]`; not chased.
+
+**The trap, in the place the brief said to look.** Wiring the pass turned
+`realm_fives_county_diverges_because_the_save_does_not_record_what_it_ate` red. That test,
+`docs/kingdom.md` §4.3 and `reproduction.rs`'s own module documentation said realm 5's county
+must have opened on **eight sacks** the save did not record, and that this settled
+`Ration_Apply` debiting the store. **The save records it, and there were no sacks.**
+`Grain_SeasonTick` (`0x0044C8AE`) and `Herd_SeasonTick` (`0x0044D60D`) each open by copying the
+store into county `+0x228` / `+0x254` and only then take the season's food out;
+`Game_SetupRealmsAndCounties` writes the new-game stores into the same two fields. On the
+England fixture `+0x254` is **95** in every county: the county went into the ration pass with
+95 head and fed 417 people on cheese. Starting all fourteen counties from `+0x228`/`+0x254`
+reproduces twenty-five fields each, the ration split included, with no inversion anywhere — a
+test now. The eight sacks were the unique answer of a model that was ours twice over: a ration
+pass that debits the store (C149 read `Ration_Apply` and found no `-=`) and that saw the herd
+the season *ended* on. **Uniqueness inside a wrong model is not a measurement.**
+
+**What that new test does not show, measured:** it passes with the pass ablated too, so it is
+evidence about the rewind and none about the pass. What pins the pass on that fixture is the
+rewritten realm-5 test: from the rewound stores (no grain, 74 head) the lord's own
+`Ai_SetRations(county, 0)` (`0x004A4782` — an upward sweep that keeps the first strict
+improvement, read and matching our port) settles on split 100 and feeds Normal on slaughter, so
+happiness, health, deaths and population land on the file by a different road; ablate the pass
+and the old Half comes back. `l2_scenario::Scenario::starting_kingdom` still rewinds to the
+post-season stores, and says so at the function; switching it changes what a rewound position
+*is* and is left to the importer's owner.

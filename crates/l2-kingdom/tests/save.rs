@@ -130,6 +130,7 @@ fn furnished(seed: u64) -> Kingdom {
         r.trade_spent_b = 1200 + n;
         r.trade_received_a = 1300 + n;
         r.trade_received_b = 1400 + n;
+        r.tax_ledger = [1500 + n, 1600 + n];
         r.population_total = 4000 + n;
         r.population_last = 3900 + n;
         r.population_mean = 300 + n;
@@ -663,7 +664,11 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // `County_RecountMerchants` writes all three and `Ai_BuyGood` reads the
     // first two as the gate and the price in front of every purchase an AI or
     // an unowned county makes.
-    assert_eq!(c.finish().len, 58_474, "the state encoding changed - bump VERSION?");
+    //
+    // +48 at version 20 for realm `+0xF4`/`+0xF8`, `Realm::tax_ledger` — two
+    // `i32` a realm over 6 realm slots. `Tax_CollectAll` credits both beside the
+    // treasury and no rule reads either.
+    assert_eq!(c.finish().len, 58_522, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

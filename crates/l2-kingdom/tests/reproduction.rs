@@ -75,6 +75,32 @@
 //! have left those eight sacks in it. **It debits**, which is the reading
 //! `l2_kingdom::ration::apply` already implements.
 //!
+//! > ### ⚠ Both paragraphs above are wrong, and the save said so all along.
+//! >
+//! > **The save does record what the season started with.** `Grain_SeasonTick`
+//! > (`0x0044C8AE`) and `Herd_SeasonTick` (`0x0044D60D`) each open by copying the
+//! > store into county `+0x228` / `+0x254` and only then take the season's food
+//! > out of it; `Game_SetupRealmsAndCounties` (`0x0049BD99`) writes the same two
+//! > fields with the new-game stores. In this file `+0x254` is 95 in every
+//! > county — so realm 5's county went into the ration pass with 95 head, fed
+//! > all 417 people on cheese, and ate **no grain at all**. There were never
+//! > eight sacks.
+//! >
+//! > **And `Ration_Apply` (`0x0044DF5F`) does not debit** — `docs/decisions.md`
+//! > C149 read it and found no store `-=` anywhere; the debit is the two ticks'
+//! > second statements. The inversion here assumed a debiting pass that saw the
+//! > post-season herd, and under that model its answer really is unique — which
+//! > is why uniqueness did not make it a measurement.
+//! >
+//! > Start every county from `+0x228` and `+0x254` and the whole map reproduces,
+//! > fourteen counties and twenty-five fields with no inversion anywhere:
+//! > [`every_county_reproduces_from_the_stores_the_season_found`]. What predicts
+//! > "the hungry county" is therefore not a lord who begins short of food but the
+//! > one county whose herd the season took below 84 head, where cheese stops
+//! > covering 417 people. Why realm 5's herd fell further than the others' — its
+//! > lord is the only arable one in this save, and the arable style keeps one
+//! > pasture — is `[I]`, not established here.
+//!
 //! # Running it
 //!
 //! ```text
@@ -135,6 +161,14 @@ const MAP_DEAD_END: usize = 1;
 /// the first save and county 8 belongs to realm 5 in the second. One lord always
 /// begins short of food, and it is always realm 5. That is a game-design fact
 /// nobody here had noticed while it was written down as a county index.
+///
+/// > **Not a game-design fact, and not "short of food" either.** Every county
+/// > began on 95 head (county `+0x254`, the herd `Herd_SeasonTick` found) and
+/// > was fed on cheese; this is the one whose herd the season then took below
+/// > 84, where cheese stops covering 417 people, so the *rewound* position —
+/// > which starts from the post-season herd — cannot feed it. Two saves agreeing
+/// > on realm 5 is two saves; why that realm's herd falls furthest is `[I]`.
+/// > See the module documentation's correction.
 fn hungry_county(s: &Scenario) -> usize {
     s.county_ids()
         .find(|&id| s.counties[id].as_ref().is_some_and(|c| c.owner == 5))
@@ -470,22 +504,48 @@ fn every_county_the_save_can_feed_reproduces_every_stored_field() {
     assert_eq!(checked, 13 * 24, "thirteen counties, twenty-four fields each");
 }
 
-/// **Realm 5's county is the divergence, and it is a missing input rather than
-/// a broken rule.**
+/// **Realm 5's county, rewound to the stores the season *ended* on, and what
+/// its lord's own ration sweep does with them.**
 ///
 /// It holds no grain, splits its ration entirely onto grain, and keeps a herd of
 /// 74 — which feeds 370 of its 417 people. The file says it ate at Normal
-/// (`shownRation = +1`), so it must have had grain to eat. Started from the
-/// stored zero it drops to Half, and the whole five-stage chain follows the
-/// drop: −2 instead of +1 on happiness, a health delta that leaves the meter in
-/// band 2 instead of band 3, and a death rate that costs it twenty-one people.
+/// (`shownRation = +1`).
 ///
-/// Pinned to the exact numbers, so a change to any stage of the chain moves this
-/// test rather than passing quietly — but pinned to the county the *file* says
-/// realm 5 holds, not to the index that realm happened to draw once. See
-/// [`hungry_county`].
+/// # What this test used to say, and why it was wrong
+///
+/// It was `realm_fives_county_diverges_because_the_save_does_not_record_what_it_ate`,
+/// and it pinned ours at Half (`2, −2`), a health meter of 59, happiness 68, 66
+/// deaths and a population of 414, on the reading that *"it must have had grain
+/// to eat"* — eight sacks the save supposedly did not record. **Both halves of
+/// that were ours.**
+///
+/// * **The save does record what the season started with.** `Grain_SeasonTick`
+///   (`0x0044C8AE`) opens `+0x228 = grain; grain -= eaten;` and
+///   `Herd_SeasonTick` (`0x0044D60D`) opens `+0x254 = herd; herd -= eaten;`. In
+///   this file `+0x254` is **95** in every county and `+0x228` is 0 in every
+///   owned one: the county went into the ration pass with 95 head, whose cheese
+///   alone feeds 475 people, and needed no grain at all. The eight sacks were an
+///   inversion of a pass that debits the store and saw the post-season herd;
+///   `Ration_Apply` (`0x0044DF5F`) does neither (`docs/decisions.md` C149).
+///   [`every_county_reproduces_from_the_stores_the_season_found`] is the proof.
+/// * **And from the rewound stores ours no longer starves**, because
+///   `Ai_ManageFarmsAll` (`0x0049A990`) now runs at the head of the new game's
+///   `Season_Advance`. That county's lord farms arable (`Ai_FarmStyleArable`,
+///   `0x004A4052`), which with under 101 head calls `Ai_SetRations(county, 0)`
+///   (`0x004A4782`): an upward sweep over the split that keeps the first strict
+///   improvement. With no grain and 74 head, split 0 feeds Half and split 100
+///   feeds Normal on slaughter, so the sweep settles on 100. The original's
+///   sweep saw 95 head, found split 0 already Normal on cheese, and kept it.
+///
+/// So the chain downstream of the happiness term now **lands on the file** —
+/// happiness, health, deaths and population — by a different road, and the
+/// divergence has moved to the three things the road changes: the split, the
+/// closing ration preview, and the head slaughtered.
+///
+/// *Ablation*: skip `Pass::AiManageFarms` and this goes red with the old
+/// numbers back — `(0, 2, −2)`, 59/2, 68, 66, 414.
 #[test]
-fn realm_fives_county_diverges_because_the_save_does_not_record_what_it_ate() {
+fn realm_fives_county_is_fed_on_slaughter_by_its_lords_sweep_from_the_rewound_stores() {
     let s = england!();
     let file = s.kingdom(SEED);
     let mut k = s.starting_kingdom(SEED);
@@ -502,22 +562,75 @@ fn realm_fives_county_diverges_because_the_save_does_not_record_what_it_ate() {
     );
     assert_eq!(theirs.shown_ration, 1, "the file says it was fed at Normal");
 
-    assert_eq!((ours.ration_achieved, ours.shown_ration), (2, -2), "ours starves");
-    assert_eq!((ours.health_meter, ours.health_band), (59, 2), "and the health chain follows");
-    assert_eq!((theirs.health_meter, theirs.health_band), (67, 3));
+    // The road: the lord's sweep put the ration on the herd.
     assert_eq!(
-        (ours.happiness, theirs.happiness),
-        (68, 72),
-        "65 + 5 + 0 - 2 against 65 + 5 + 1 + 1"
+        (ours.ration_split, ours.ration_achieved, ours.shown_ration),
+        (100, 3, 1),
+        "ours is fed at Normal by slaughter"
     );
-    assert_eq!((ours.deaths, theirs.deaths), (66, 45), "band 2 dies faster than band 3");
-    assert_eq!((ours.population, theirs.population), (414, 435));
+    // Where it lands — on the file.
+    assert_eq!((ours.health_meter, ours.health_band), (theirs.health_meter, theirs.health_band));
+    assert_eq!((ours.health_meter, ours.health_band), (67, 3));
+    assert_eq!(ours.happiness, theirs.happiness);
+    assert_eq!(ours.deaths, theirs.deaths);
+    assert_eq!(ours.population, theirs.population);
+    // And the three things the road changes.
+    assert_eq!((ours.d_hap_ration, theirs.d_hap_ration), (1, -2), "the closing preview");
+    assert_eq!((ours.herd_eaten, theirs.herd_eaten), (12, 0), "the head slaughtered");
 
-    // Everything upstream of the ration term still lands.
+    // Everything upstream of the ration term lands either way.
     assert_eq!(ours.pop_last, theirs.pop_last);
     assert_eq!(ours.births, theirs.births, "the birth factor band is the same either way");
     assert_eq!(ours.shown_tax, theirs.shown_tax);
     assert_eq!(ours.tax_collected, theirs.tax_collected);
+}
+
+/// **Start every county from the stores the season found, and the whole map
+/// reproduces — fourteen counties, twenty-five fields, no inversion.**
+///
+/// `+0x228` and `+0x254` are written by `Game_SetupRealmsAndCounties`
+/// (`0x0049BD99`) with the new-game starting grain and herd, and again by
+/// `Grain_SeasonTick` and `Herd_SeasonTick` as their first statement, *before*
+/// the season's food is taken out. In a turn-one save that is the same number
+/// twice, and it is the store the ration pass saw. The twenty-four fields of
+/// [`comparison`] plus the ration split all land, for every county — including
+/// realm 5's, which [`every_county_the_save_can_feed_reproduces_every_stored_field`]
+/// has to skip and [`solve_opening`] had to invent eight sacks for.
+///
+/// **What this does not prove, measured rather than assumed**: it passes with
+/// `Pass::AiManageFarms` skipped as well. On this fixture the AI's season-head
+/// pass leaves every one of these fields where the rest of the season puts
+/// them, once the stores are right — so this test is evidence about the
+/// *rewind*, and none at all about the pass. The pass is pinned by
+/// [`realm_fives_county_is_fed_on_slaughter_by_its_lords_sweep_from_the_rewound_stores`].
+///
+/// *Ablation*: drop the `+0x254` read, so every county starts on the herd the
+/// season ended with, and realm 5's county — only that one — goes red on three
+/// fields: the split (100 against 0), the achieved level (3 against 2) and the
+/// closing preview's ration term (+1 against −2). Measured with a scratch
+/// probe, not reasoned.
+#[test]
+fn every_county_reproduces_from_the_stores_the_season_found() {
+    let save = l2_testkit::england!();
+    let s = Scenario::from_save(&save).expect("the England turn-one fixture must import");
+    let file = s.kingdom(SEED);
+    let mut k = s.starting_kingdom(SEED);
+    for id in s.county_ids() {
+        k.counties[id].grain = county_i32(&save, id, 0x228);
+        k.counties[id].herd = county_i32(&save, id, 0x254);
+    }
+    k.start_new_game();
+
+    let mut checked = 0;
+    for id in s.county_ids() {
+        for (name, ours, theirs) in comparison(&k.counties[id], &file.counties[id]) {
+            assert_eq!(ours, theirs, "county {id} {name}");
+            checked += 1;
+        }
+        assert_eq!(k.counties[id].ration_split, file.counties[id].ration_split, "county {id} split");
+        checked += 1;
+    }
+    assert_eq!(checked, 14 * 25);
 }
 
 /// **The food the season ate is recoverable, and the answer is unique.**
@@ -532,6 +645,17 @@ fn realm_fives_county_diverges_because_the_save_does_not_record_what_it_ate() {
 /// `Ration_Apply`'s two calls survives: a pass that did not debit the store
 /// could not have taken county 1's grain to zero, nor the unowned counties'
 /// herds from 73 to 67.
+///
+/// > **Kept as arithmetic, retracted as a finding.** The assertions below are
+/// > true of [`solve_opening`]: under a ration pass that debits the store and
+/// > sees the herd the season ended on, these openings are the only ones that
+/// > fit. Neither premise is the original's. `Ration_Apply` (`0x0044DF5F`) has
+/// > no store subtraction (`docs/decisions.md` C149), and the herd it saw is in
+/// > the file at county `+0x254` — **95** in every county, not 73 or 74 —
+/// > because `Herd_SeasonTick` (`0x0044D60D`) copies the herd there before it
+/// > debits what was eaten. Uniqueness inside a wrong model is not evidence for
+/// > the model. [`every_county_reproduces_from_the_stores_the_season_found`]
+/// > reproduces the map from the stores the file records, with no inversion.
 #[test]
 fn the_food_the_season_ate_is_recoverable_and_unique() {
     let s = england!();

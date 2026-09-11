@@ -539,9 +539,17 @@ which is why the neutral tax ladder in §8.2 exists at all.
 > food — **fifty sacks of grain a season, each, measured against the original**.
 > `l2_kingdom::tax::bank` is the branch; both limbs now run.
 >
-> `+0x0F4` and `+0x0F8` are **not** ported and are not `Realm::trade_received_a`/`_b`
-> (those are `+0x10C`/`+0x110`, which `Merchant_Trade` writes). Nothing has been found that
-> reads either; they are named rather than invented. `CLAUDE.md` rule 5.
+> `+0x0F4` and `+0x0F8` are `Realm::tax_ledger`, and are not `Realm::trade_received_a`/`_b`
+> (those are `+0x10C`/`+0x110`, which `Merchant_Trade` writes). **[V] Nothing reads either.**
+> Two checks that share no step: the decompilation names them in exactly two functions,
+> this one and `Game_SetupRealmsAndCounties` (`0x0049BD99`, the new-game clear); and a scan of
+> `Lords2.exe` for the absolute addresses `0x0057BFF4`/`0x0057BFF8` finds four instructions,
+> `0x0044B7BD`/`0x0044B7DE` in `Tax_CollectAll` and `0x0049C364`/`0x0049C37C` in the clear.
+> The same scan finds `+0x10C` only in `Merchant_Trade` and the clear, and `+0x50` (the score)
+> fourteen times. It cannot see a read through a record pointer plus a small displacement.
+> The only whole-record consumers are `Save_Write` and `Sync_CompareState`, so they are
+> **stored and desync-checked and read by no rule** — carried, saved and imported for the
+> trade pair's reason (`l2_kingdom::save::VERSION` 20).
 
 **[V] The castle multipliers are exactly the published castle tax bonuses.**
 `g_castleTaxBonus` (`0x004D8A28`) holds `50, 75, 100, 125, 150` — and
@@ -708,6 +716,20 @@ what the county can feed, then spends, in order:
 > The same inversion recovers the opening stores the file does not record, uniquely: the
 > unowned counties began the season on **73 head** and closed on 67, and realm 5's county
 > began on **8 sacks**. Put those back and the whole map reproduces every stored field.
+>
+> **Corrected — the two paragraphs above are an inversion of our own model, and the file
+> records the answer.** `Grain_SeasonTick` (`0x0044C8AE`) and `Herd_SeasonTick`
+> (`0x0044D60D`) each open by copying the store into county `+0x228` / `+0x254` before they
+> take the season's food out of it, and `Game_SetupRealmsAndCounties` (`0x0049BD99`) writes
+> the new-game stores into the same two fields. This file holds **95** head at `+0x254` in
+> every county and no grain at `+0x228` in any owned one. So realm 5's county was fed Normal
+> on the cheese of 95 head (475 ≥ 417) and ate no grain; nothing was debited by
+> `Ration_Apply` (`0x0044DF5F`), which has no store subtraction (C149), and the first call
+> did not have to debit anything. Started from `+0x228`/`+0x254`, all fourteen counties
+> reproduce twenty-five fields each with no inversion — `crates/l2-kingdom/tests/reproduction.rs`.
+> "One lord always begins short of food" is not established by this: the county that goes
+> short is the one whose herd the season took below 84 head. **[V]** on the offsets and the
+> reproduction; **[I]** on why realm 5's herd fell furthest.
 
 ### 4.4 Putting happiness together
 

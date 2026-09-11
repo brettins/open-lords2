@@ -4667,10 +4667,22 @@ fn the_produce_rows_map_to_labour_slots_by_column_and_pitch() {
 fn the_pastures_have_cattle_in_them_and_the_herd_chooses_which() {
     let (mut game, assets) = world!();
 
-    // A real pasture of the England position, and the county that grazes it.
+    // A real pasture of the England position, and the county that grazes it —
+    // **one no AI lord re-lays at the head of the season.** `Season_Advance`
+    // (`0x00448440`) opens with `Ai_ManageFarmsAll` (`0x0049A990`), which runs
+    // every AI realm's farming style, and on this Winter save the arable and
+    // mixed styles clear the fields and sow grain over them. That is the
+    // original's behaviour and it would put grain on the tile claim 3 watches,
+    // which says nothing about the herd. A person's county or a lordless one is
+    // not touched by that pass, so the tile is left to `Herd_UpdateCrowding`,
+    // which is what claim 3 is about.
     let (county, tile) = {
         let k = &game.kingdom;
         (1..=k.county_count)
+            .filter(|&id| {
+                let owner = k.counties[id].owner;
+                owner == 0 || k.owner_is_human(owner)
+            })
             .find_map(|id| {
                 (0..l2_kingdom::MAX_FIELDS)
                     .filter_map(|s| k.counties[id].field_tile(s))

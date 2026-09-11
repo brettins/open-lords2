@@ -1432,8 +1432,14 @@ fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut boo
             }
         }
         AiStep::ResourceWants => kingdom.run_ai_resource_wants(realm),
+        // **At the stall.** This passed `NoMarket`, so an AI lord's counties
+        // never bought a sack or a head: `Ai_FarmStyleArable`/`Grazing`/`Mixed`
+        // (`0x004A4052`, `0x004A42E3`, `0x004A440F`) each open with
+        // `Ai_BuyGood` lines, and `Ai_BuyGood` (`0x004A4B12`) pays an owned
+        // county's bill out of `g_realms[owner].gold`. The same pass runs again
+        // at the head of the season — `l2_kingdom::Pass::AiManageFarms`.
         AiStep::ManageFields => {
-            kingdom.run_ai_farms(realm, &mut l2_kingdom::ai_farm::NoMarket);
+            kingdom.run_ai_farms_at_the_stall(realm);
         }
         AiStep::BuildCastles => {
             kingdom.run_ai_castles(realm);
