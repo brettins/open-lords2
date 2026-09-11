@@ -60,6 +60,172 @@ fn the_ledger_passes_its_schema_and_says_it_did_not_compare_git() {
     );
 }
 
+/// Git in a scratch repository, isolated from this machine's configuration so
+/// a developer's global hooks, signing or aliases cannot change what the
+/// fixture is.
+fn scratch_git(dir: &Path, empty_config: &Path, args: &[&str]) -> Option<Output> {
+    Command::new("git")
+        .args(["-c", "user.name=l2 fixture", "-c", "user.email=fixture@invalid", "-c", "core.autocrlf=false"])
+        .args(args)
+        .current_dir(dir)
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_GLOBAL", empty_config)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+}
+
+/// **Every figure is `main`'s, and the ledger's provenance is the ledger's.**
+///
+/// The first version of the view read the inventories out of whatever checkout
+/// the tool sat in while its header said `main 76a0437`: run from an agent's
+/// worktree, it quoted that worktree's differential and census under main's
+/// name, and called a file main had "not on this base". It also stamped the
+/// ledger with the *tool's* HEAD, which is a different file's history.
+///
+/// So this builds a repository whose working tree **disagrees with its `main`
+/// on every inventory** — each figure is changed, and `stored-fields.json` is
+/// deleted — and whose ledger has uncommitted changes and was last committed
+/// one commit *before* HEAD. Every figure in the view must be main's, and the
+/// ledger line must name the ledger's own last commit and its uncommitted
+/// state. A copy of the tool that reads the working tree reports the worktree's
+/// numbers, and a copy that borrows HEAD names the wrong commit; both go red.
+#[test]
+fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_commit() {
+    let root = root();
+    let dir = std::env::temp_dir().join(format!("l2-work-ref-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let config = dir.join("empty.gitconfig");
+    std::fs::write(&config, "").unwrap();
+    let repo = dir.join("repo");
+
+    let put = |rel: &str, body: &str| {
+        let p = repo.join(rel);
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, body).unwrap();
+    };
+    let copy = |rel: &str| put(rel, &std::fs::read_to_string(root.join(rel)).expect(rel));
+    let arms = |statuses: &[&str]| {
+        let rows: Vec<String> = statuses
+            .iter()
+            .enumerate()
+            .map(|(i, s)| format!(r#"{{"id": "arm-{i}", "status": "{s}", "group": "g", "gesture": "key"}}"#))
+            .collect();
+        format!("{{\"arms\": [{}]}}\n", rows.join(", "))
+    };
+    let audio = |statuses: &[&str]| {
+        let rows: Vec<String> = statuses
+            .iter()
+            .enumerate()
+            .map(|(i, s)| format!(r#"{{"id": "site#{i}", "status": "{s}", "class": "file", "sound": null}}"#))
+            .collect();
+        format!("{{\"sites\": [{}]}}\n", rows.join(", "))
+    };
+    let differential = |agree: usize, moved_agree: usize| {
+        format!(
+            "const COMPARED_TOTAL: usize = 932;\nconst AGREE_TOTAL: usize = {agree};\n\
+             const MOVED_TOTAL: usize = 279;\nconst MOVED_AGREE_TOTAL: usize = {moved_agree};\n"
+        )
+    };
+    let census = |n: usize| format!("    (\"crates/x/tests/y.rs\", \"install\", {n}),\nconst GATED_TOTAL: usize = {n};\n");
+    let ledger = |title: &str| {
+        format!(
+            "{{\n  \"about\": \"a fixture ledger\",\n  \"states\": {{\n    \"open\": \"known\"\n  }},\n  \"tracks\": {{\n    \"play\": \"a game plays\"\n  }},\n  \"items\": [\n    \
+             {{\"id\": \"only\", \"title\": \"{title}\", \"track\": \"play\", \"system\": \"s\", \"state\": \"open\", \"branch\": null, \"depends_on\": [], \"source\": \"\", \"next\": \"\", \"note\": \"\"}}\n  ]\n}}\n"
+        )
+    };
+
+    // --- main, as committed ------------------------------------------------
+    copy("tools/pm/work.js");
+    copy("tools/figures/figures.js");
+    put("docs/arms.json", &arms(&["reproduced", "reproduced", "missing"]));
+    put("docs/audio.json", &audio(&["reproduced", "missing"]));
+    put(
+        "docs/stored-fields.json",
+        "{\"fields\": [{\"id\": \"County+0x000\", \"status\": \"imported\"}, {\"id\": \"County+0x001\", \"status\": \"excluded\"}]}\n",
+    );
+    put("crates/l2-game/tests/differential.rs", &differential(900, 258));
+    put("crates/l2-testkit/tests/census.rs", &census(412));
+    put("docs/work.json", &ledger("as committed"));
+
+    let files = [
+        "tools/pm/work.js",
+        "tools/figures/figures.js",
+        "docs/arms.json",
+        "docs/audio.json",
+        "docs/stored-fields.json",
+        "crates/l2-game/tests/differential.rs",
+        "crates/l2-testkit/tests/census.rs",
+        "docs/work.json",
+    ];
+    let git = |args: &[&str]| scratch_git(&repo, &config, args);
+    let Some(_) = git(&["init", "-q"]) else {
+        let _ = std::fs::remove_dir_all(&dir);
+        return; // no git on this machine
+    };
+    git(&["symbolic-ref", "HEAD", "refs/heads/main"]).expect("name the branch main");
+    let mut add = vec!["add", "--"];
+    add.extend(files);
+    git(&add).expect("stage the fixture");
+    git(&["commit", "-q", "-m", "main's inventories and the ledger"]).expect("first commit");
+    let ledger_commit = String::from_utf8_lossy(&git(&["rev-parse", "HEAD"]).unwrap().stdout).trim()[..7].to_string();
+    put("notes.txt", "a later commit that does not touch the ledger\n");
+    git(&["add", "--", "notes.txt"]).expect("stage the note");
+    git(&["commit", "-q", "-m", "a later commit"]).expect("second commit");
+    let head = String::from_utf8_lossy(&git(&["rev-parse", "HEAD"]).unwrap().stdout).trim()[..7].to_string();
+
+    // --- the working tree, disagreeing with main on everything ----------------
+    put("docs/arms.json", &arms(&["reproduced", "reproduced", "reproduced", "reproduced"]));
+    put("docs/audio.json", &audio(&["reproduced", "reproduced", "reproduced"]));
+    std::fs::remove_file(repo.join("docs/stored-fields.json")).unwrap();
+    put("crates/l2-game/tests/differential.rs", &differential(1, 2));
+    put("crates/l2-testkit/tests/census.rs", &census(7));
+    put("docs/work.json", &ledger("edited and not committed"));
+
+    let out = Command::new("node")
+        .arg(repo.join("tools/pm/work.js"))
+        .args(["--status", "--file"])
+        .arg(repo.join("docs/work.json"))
+        .current_dir(&repo)
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_GLOBAL", &config)
+        .output();
+    let _ = std::fs::remove_dir_all(&dir);
+    let Ok(out) = out else {
+        return; // no node on this machine; the CI job has one
+    };
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "the view failed on the fixture:\n{stderr}\n{stdout}");
+
+    for (main_says, worktree_says) in [
+        ("figures and git facts: main ", "figures and git facts: (working tree)"),
+        ("Input arms: 2 of 3 live arms reproduced", "Input arms: 4 of 4"),
+        ("Sound triggers: 1 of 2 trigger sites fire", "Sound triggers: 3 of 3"),
+        ("Stored fields: 1 of 2 stored fields carried", "Stored fields: not in"),
+        ("End Turn differential: 258 of 279", "End Turn differential: 2 of 279"),
+        ("900 of 932 comparisons agree", "1 of 932 comparisons agree"),
+        ("Install-gated tests: 412 tests", "Install-gated tests: 7 tests"),
+    ] {
+        assert!(
+            stdout.contains(main_says) && !stdout.contains(worktree_says),
+            "the view should say \"{main_says}\" (main's file) and never \"{worktree_says}\" \
+             (the working tree's) — a page that names main must count main:\n{stdout}"
+        );
+    }
+    assert!(stdout.contains(&format!("figures and git facts: main {head}")), "the ref line does not name main's commit {head}:\n{stdout}");
+
+    let ledger_line = stdout.lines().find(|l| l.starts_with("ledger: ")).unwrap_or_default();
+    assert!(
+        ledger_line.starts_with(&format!(
+            "ledger: docs/work.json on main, with uncommitted changes since {ledger_commit}"
+        )),
+        "the ledger line must name the ledger file's own last commit ({ledger_commit}) and say it has \
+         uncommitted changes — not the tool's HEAD ({head}):\n{ledger_line}"
+    );
+}
+
 /// A ledger with one defect per row, and one row with none.
 const BROKEN: &str = r##"{
   "about": "a ledger broken on purpose, one defect per row",

@@ -107,8 +107,11 @@ function fromCargo() {
 // player could ever see. `invention` is not in the denominator either — it is
 // ours, and it is reported separately because it is the other half of 1:1 and
 // the half nobody was counting.
-function fromArms() {
-  const j = JSON.parse(fs.readFileSync(path.join(repo, 'docs', 'arms.json'), 'utf8'));
+//
+// `j` defaults to this checkout's file. `tools/pm/work.js` passes the copy it
+// read from a git ref instead, because a page that says "main X" must count
+// main X's inventory and not whatever working tree the script sits in.
+function fromArms(j = JSON.parse(fs.readFileSync(path.join(repo, 'docs', 'arms.json'), 'utf8'))) {
   const by = k => j.arms.filter(a => a.status === k).length;
   const reproduced = by('reproduced');
   const missing = by('missing');

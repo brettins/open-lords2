@@ -6,7 +6,8 @@
 //   node tools/pm/work.js --check --schema    schema only -- what the test runs
 //   node tools/pm/work.js --status            the derived view, as text
 //   node tools/pm/work.js --html <path>       the same view as one page
-//   ...                        --file <path>  read another ledger (ablations)
+//   ...                        --file <path>  read another ledger file
+//   ...                        --ref <ref>    compare and count against <ref> (default main)
 //
 // # Why this exists
 //
@@ -24,6 +25,26 @@
 // written anywhere. A stored "merged: false" is a claim with no timestamp; a
 // derived one cannot be stale.
 //
+// # Every figure comes from the ref the view names, never from a working tree
+//
+// The first version of this tool read the systems inventories out of whatever
+// checkout it sat in, while its header said `main 76a0437`. Run from an agent's
+// worktree, the page quoted that worktree's differential (251 of 279) and
+// census (399) under main's name, when main held 258 and 412, and said "stored
+// fields: not on this base" of a file main had. That is this tool committing
+// the exact failure it exists to prevent, and it was caught by a person reading
+// the page. So:
+//
+// * the rollup reads every inventory with `git show <ref>:<path>`, and so does
+//   the arms counting rule in `tools/figures/figures.js` wherever that ref's
+//   copy can be required -- and says so on the page where it cannot;
+// * the ledger's provenance is the ledger FILE's: its own checkout, branch and
+//   the last commit that touched it, or plainly "uncommitted" -- never the
+//   tool's HEAD, which is a different file's history in a different checkout.
+//
+// `crates/l2-testkit/tests/work_ledger.rs` holds both, in a scratch repository
+// whose working tree disagrees with its main on every inventory.
+//
 // # What --check enforces
 //
 // *Schema*, which needs nothing but the file and runs everywhere: every row has
@@ -34,9 +55,9 @@
 //
 // *Git agreement*, which needs the clone the work happens in: every branch a row
 // names exists; no `in-flight` or `queued-merge` row names a branch already
-// merged into `main` (merged work leaves the file); no unmerged
-// `worktree-agent-*` or `wip/*` branch with commits ahead of `main` goes without
-// a row; no `queued-merge` branch carries `HANDOFF.md`.
+// merged into the ref (merged work leaves the file); no unmerged
+// `worktree-agent-*` or `wip/*` branch with commits ahead of the ref goes
+// without a row; no `queued-merge` branch carries `HANDOFF.md`.
 //
 // A fresh clone -- a CI runner -- has no agent branches, and comparing the
 // ledger against refs that were never fetched would report every branch
@@ -46,8 +67,8 @@
 //
 // # What "merged" means here, and where that breaks
 //
-// A branch is merged when its tip is reachable from `main` and is **not on
-// `main`'s own first-parent line**. The second clause separates a merged branch
+// A branch is merged when its tip is reachable from the ref and is **not on the
+// ref's own first-parent line**. The second clause separates a merged branch
 // from a freshly cut one, whose tip is an ordinary `main` commit: both have zero
 // commits ahead, and only one of them is finished. Every merge on this project
 // is a merge commit, which that rule reads correctly. A fast-forward merge would
@@ -67,7 +88,7 @@ const opt = (flag) => {
 };
 
 const LEDGER = opt('--file') ? path.resolve(opt('--file')) : path.join(repo, 'docs', 'work.json');
-const rel = (p) => path.relative(repo, p).replace(/\\/g, '/') || p;
+const REF = opt('--ref') || 'main';
 
 // The row schema. Every field is required: an empty string, [] or null says
 // "nothing to say" explicitly, which an absent field cannot.
@@ -82,6 +103,46 @@ const AGENT_BRANCH = /^(worktree-agent-|wip\/)/;
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);
 
+function git(args, cwd = repo) {
+  try {
+    return execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 64 << 20,
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+// The ref every git fact and every figure is computed from, resolved once.
+function resolveBase() {
+  if (git(['rev-parse', '--git-dir']) === null) return null;
+  const sha = git(['rev-parse', '--verify', '--quiet', `${REF}^{commit}`]);
+  return sha ? { name: REF, sha, short: sha.slice(0, 7) } : null;
+}
+
+// Where the ledger file itself came from: its own checkout, branch, and the
+// last commit that touched it -- or plainly that no commit holds what was read.
+function ledgerSource() {
+  const top = git(['rev-parse', '--show-toplevel'], path.dirname(LEDGER));
+  if (top === null) {
+    return { path: LEDGER, checkout: null, branch: null, commit: null, state: 'outside', label: `${LEDGER}, a file outside any git checkout` };
+  }
+  const p = path.relative(top, LEDGER).replace(/\\/g, '/');
+  const head = git(['rev-parse', '--abbrev-ref', 'HEAD'], top);
+  const branch = !head || head === 'HEAD' ? 'a detached HEAD' : head;
+  const tracked = git(['ls-files', '--error-unmatch', '--', p], top) !== null;
+  const last = tracked ? git(['log', '-1', '--format=%H', '--', p], top) : null;
+  const commit = last ? last.slice(0, 7) : null;
+  const dirty = tracked && !!git(['status', '--porcelain', '--', p], top);
+  const place = `${p} on ${branch}`;
+  if (!commit) return { path: p, checkout: top, branch, commit, state: 'uncommitted', label: `${place}, an uncommitted file that no commit holds` };
+  if (dirty) return { path: p, checkout: top, branch, commit, state: 'modified', label: `${place}, with uncommitted changes since ${commit}` };
+  return { path: p, checkout: top, branch, commit, state: 'committed', label: `${place}, last committed in ${commit}` };
+}
+
 // ---- schema ---------------------------------------------------------------
 
 function load() {
@@ -89,12 +150,12 @@ function load() {
   try {
     text = fs.readFileSync(LEDGER, 'utf8');
   } catch (e) {
-    return { problems: [{ id: '(file)', msg: `cannot read ${rel(LEDGER)}: ${e.message}` }] };
+    return { problems: [{ id: '(file)', msg: `cannot read ${LEDGER}: ${e.message}` }] };
   }
   try {
     return { j: JSON.parse(text), problems: [] };
   } catch (e) {
-    return { problems: [{ id: '(file)', msg: `${rel(LEDGER)} is not valid JSON: ${e.message}` }] };
+    return { problems: [{ id: '(file)', msg: `${LEDGER} is not valid JSON: ${e.message}` }] };
   }
 }
 
@@ -201,36 +262,20 @@ function schema(j) {
 
 // ---- git ------------------------------------------------------------------
 
-function git(args) {
-  try {
-    return execFileSync('git', args, {
-      cwd: repo,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      maxBuffer: 64 << 20,
-    }).trim();
-  } catch {
-    return null;
-  }
-}
-
 // Everything git can say about the ledger's branches, or the reason it cannot.
-function gitFacts(rows) {
+function gitFacts(rows, base) {
   if (git(['rev-parse', '--git-dir']) === null) return { skip: 'this is not a git checkout' };
+  if (!base) return { skip: `the ref ${REF} does not resolve here (a pull-request checkout, or a clone that never made it)` };
   const listing = git(['for-each-ref', '--format=%(refname:short)%09%(objectname)', 'refs/heads']);
   const heads = new Map((listing || '').split('\n').filter(Boolean).map((l) => l.split('\t')));
-  if (!heads.has('main')) {
-    return { skip: 'there is no local main branch to compare against (a pull-request checkout, or a clone that never made one)' };
-  }
   const agents = [...heads.keys()].filter((b) => AGENT_BRANCH.test(b));
   if (!agents.length) {
     return { skip: 'there are no local worktree-agent-* or wip/* branches, so this is not the clone the work happens in (a fresh clone, or a CI runner)' };
   }
 
-  const mainSha = heads.get('main');
-  const firstParent = new Set((git(['rev-list', '--first-parent', 'refs/heads/main']) || '').split('\n'));
+  const firstParent = new Set((git(['rev-list', '--first-parent', base.sha]) || '').split('\n'));
   const reachable = new Set(
-    (git(['for-each-ref', '--merged', 'refs/heads/main', '--format=%(refname:short)', 'refs/heads']) || '')
+    (git(['for-each-ref', '--merged', base.sha, '--format=%(refname:short)', 'refs/heads']) || '')
       .split('\n')
       .filter(Boolean),
   );
@@ -242,17 +287,17 @@ function gitFacts(rows) {
     if (!heads.has(b)) f = { branch: b, exists: false };
     else {
       const sha = heads.get(b);
-      const inMain = reachable.has(b);
-      const ahead = inMain ? 0 : Number(git(['rev-list', '--count', `refs/heads/main..refs/heads/${b}`]));
-      const last = ahead ? git(['log', '-1', '--format=%cI%x09%s', `refs/heads/main..refs/heads/${b}`]) : null;
+      const inBase = reachable.has(b);
+      const ahead = inBase ? 0 : Number(git(['rev-list', '--count', `${base.sha}..refs/heads/${b}`]));
+      const last = ahead ? git(['log', '-1', '--format=%cI%x09%s', `${base.sha}..refs/heads/${b}`]) : null;
       const [date, subject] = last ? last.split('\t') : [null, null];
       f = {
         branch: b,
         exists: true,
         sha,
         ahead,
-        merged: inMain && !firstParent.has(sha),
-        fresh: inMain && firstParent.has(sha),
+        merged: inBase && !firstParent.has(sha),
+        fresh: inBase && firstParent.has(sha),
         handoff: git(['cat-file', '-e', `refs/heads/${b}:HANDOFF.md`]) !== null,
         date,
         subject,
@@ -267,14 +312,14 @@ function gitFacts(rows) {
   for (const r of rows) {
     if (!r.branch) continue;
     const f = { ...facts(r.branch) };
-    // Commits of its own: ahead of main AND of every branch it is built on.
+    // Commits of its own: ahead of the ref AND of every branch it is built on.
     // A row stacked on another row's branch carries that branch's commits too,
     // and "12 ahead" would otherwise credit it with work it did not do.
     const bases = (Array.isArray(r.depends_on) ? r.depends_on : [])
       .map((d) => byId.get(d))
       .filter((d) => d && d.branch && d.branch !== r.branch && heads.has(d.branch));
     if (f.exists && f.ahead && bases.length) {
-      f.own = Number(git(['rev-list', '--count', `refs/heads/${r.branch}`, '^refs/heads/main', ...bases.map((d) => `^refs/heads/${d.branch}`)]));
+      f.own = Number(git(['rev-list', '--count', `refs/heads/${r.branch}`, `^${base.sha}`, ...bases.map((d) => `^refs/heads/${d.branch}`)]));
     } else if (f.exists) f.own = f.ahead;
     rowFacts.set(r.id, f);
   }
@@ -282,19 +327,13 @@ function gitFacts(rows) {
   const named = new Set(rows.map((r) => r.branch).filter(Boolean));
   const orphans = agents.filter((b) => !reachable.has(b) && !named.has(b)).map(facts);
 
-  return {
-    mainSha,
-    branches: heads.size,
-    agentBranches: agents.length,
-    rowFacts,
-    orphans,
-  };
+  return { base, branches: heads.size, agentBranches: agents.length, rowFacts, orphans };
 }
 
 function agreement(rows, g) {
   const P = [];
   const bad = (id, msg) => P.push({ id, msg });
-  const main = g.mainSha.slice(0, 7);
+  const into = `${g.base.name} (${g.base.short})`;
   for (const r of rows) {
     const f = g.rowFacts.get(r.id);
     if (!f) continue;
@@ -306,7 +345,7 @@ function agreement(rows, g) {
       const dependents = rows.filter((x) => Array.isArray(x.depends_on) && x.depends_on.includes(r.id)).map((x) => x.id);
       bad(
         r.id,
-        `is ${r.state}, but ${r.branch} (${f.sha.slice(0, 7)}) is already merged into main (${main}). ` +
+        `is ${r.state}, but ${r.branch} (${f.sha.slice(0, 7)}) is already merged into ${into}. ` +
           `Merged work leaves the ledger: delete this row` +
           (dependents.length ? `, and remove "${r.id}" from depends_on in ${dependents.join(', ')}` : ''),
       );
@@ -318,7 +357,7 @@ function agreement(rows, g) {
   for (const f of g.orphans) {
     bad(
       `branch ${f.branch}`,
-      `has ${f.ahead} commit${f.ahead === 1 ? '' : 's'} ahead of main (last ${day(f.date)}: "${f.subject}") and no row names it. ` +
+      `has ${f.ahead} commit${f.ahead === 1 ? '' : 's'} ahead of ${into} (last ${day(f.date)}: "${f.subject}") and no row names it. ` +
         'Work nobody is tracking is what this ledger exists to prevent: write its row, or delete the branch if it is dead',
     );
   }
@@ -330,9 +369,10 @@ const stamp = (iso) => (iso ? iso.slice(0, 16).replace('T', ' ') : '-');
 
 // ---- the systems rollup ---------------------------------------------------
 //
-// Computed from the inventories that are themselves checked, never typed. Each
-// figure is quoted with its second column, because a count weights every row
-// equally and a player does not (`CLAUDE.md`, the three inventories).
+// Computed from the inventories that are themselves checked, never typed, and
+// read from the ref the view names -- never from the working tree. Each figure
+// is quoted with its second column, because a count weights every row equally
+// and a player does not (`CLAUDE.md`, the three inventories).
 //
 // A figure that cannot be read is an error on the page, in red, and a non-zero
 // exit -- not a blank. A tool that degrades silently is worse the more people
@@ -351,38 +391,72 @@ const listCounts = (o, order) =>
     .sort((a, b) => (order ? order.indexOf(a[0]) - order.indexOf(b[0]) : b[1] - a[1] || (a[0] < b[0] ? -1 : 1)))
     .map(([k, v]) => `${v} ${k}`)
     .join(', ');
-const readJson = (p) => JSON.parse(fs.readFileSync(path.join(repo, p), 'utf8'));
 
-function inventories() {
+// Reads files as they are in one commit.
+function at(base) {
+  const where = `${base.name} ${base.short}`;
+  const exists = (p) => git(['cat-file', '-e', `${base.sha}:${p}`]) !== null;
+  const read = (p) => {
+    const t = git(['show', `${base.sha}:${p}`]);
+    if (t === null) throw new Error(`${p} is not in ${where}`);
+    return t;
+  };
+  return { where, exists, read, json: (p) => JSON.parse(read(p)) };
+}
+
+// The arms counting rule, from the same commit as the data where that commit's
+// `figures.js` can be required. A copy from before it exported `fromArms(j)`
+// would run the whole suite if loaded, so that case uses this checkout's rule
+// and the page says so rather than pretending.
+function armsRule(src) {
+  const p = 'tools/figures/figures.js';
+  const text = src.exists(p) ? src.read(p) : '';
+  if (/module\.exports = \{ fromArms \}/.test(text) && /function fromArms\(j\b/.test(text)) {
+    const Module = require('module');
+    const filename = path.join(repo, p);
+    const m = new Module(filename, module);
+    m.filename = filename;
+    m.paths = Module._nodeModulePaths(path.dirname(filename));
+    m._compile(text, filename);
+    return { fromArms: m.exports.fromArms, borrowed: null };
+  }
+  return {
+    fromArms: require(path.join(repo, p)).fromArms,
+    borrowed: `the counting rule is this checkout's tools/figures/figures.js, because the copy in ${src.where} predates the export; the data is ${src.where}'s`,
+  };
+}
+
+function inventories(base) {
+  const src = at(base);
   const out = [];
   const attempt = (meta, fn) => {
     try {
-      out.push({ ...meta, ...fn() });
+      out.push({ ...meta, where: src.where, ...fn() });
     } catch (e) {
-      out.push({ ...meta, error: e.message });
+      out.push({ ...meta, where: src.where, error: e.message });
     }
   };
 
   attempt({ track: 'screens', system: 'input', name: 'Input arms', source: 'docs/arms.json' }, () => {
-    // The counting rule is figures.js's, required rather than restated.
-    const { fromArms } = require(path.join(repo, 'tools', 'figures', 'figures.js'));
-    const a = fromArms();
-    const arms = readJson('docs/arms.json').arms;
-    const missing = counts(arms.filter((x) => x.status === 'missing'), (x) => x.group || '(no group)');
+    const rule = armsRule(src);
+    const j = src.json('docs/arms.json');
+    const a = rule.fromArms(j);
+    const missing = counts(j.arms.filter((x) => x.status === 'missing'), (x) => x.group || '(no group)');
     return {
       head: `${a.reproduced} of ${a.live}`,
       unit: 'live arms reproduced',
       pct: a.pct,
       second: [
         `${a.kinded} of the ${a.live} live arms are filed under one of the ${a.kinds} mouse gesture kinds -- which controls a screen answers is not how it answers them`,
-        `${a.missing} missing, by group: ${listCounts(missing)}`,
+        `${a.missing} missing, by group: ${listCounts(missing) || 'none'}`,
         `${a.dead} dead in the binary and ${a.inventions} inventions of ours, both outside the denominator`,
+        ...(rule.borrowed ? [rule.borrowed] : []),
       ],
     };
   });
 
   attempt({ track: 'presentation', system: 'audio', name: 'Sound triggers', source: 'docs/audio.json' }, () => {
-    const sites = readJson('docs/audio.json').sites;
+    const sites = src.json('docs/audio.json').sites;
     const order = ['reproduced', 'missing', 'blocked', 'dead'];
     const byStatus = counts(sites, (s) => s.status);
     for (const s of Object.keys(byStatus)) if (!order.includes(s)) order.push(s);
@@ -408,7 +482,7 @@ function inventories() {
         .sort((a, b) => b[1] - a[1])
         .map(([t, n]) => `"${t}" (${n} site${n === 1 ? '' : 's'})`)
         .join('; ');
-      return { of: of.length, files: files.size, fileSites: of.filter(oneFile).length, quoted };
+      return { files: files.size, fileSites: of.filter(oneFile).length, quoted };
     };
     const fired = describe('reproduced');
     const blocked = describe('blocked');
@@ -426,12 +500,12 @@ function inventories() {
   });
 
   attempt({ track: 'play', system: 'save-load', name: 'Stored fields', source: 'docs/stored-fields.json' }, () => {
-    const p = path.join(repo, 'docs', 'stored-fields.json');
-    if (!fs.existsSync(p)) {
-      return { absent: 'not on this base -- it arrives with the stored-fields sweep, and this rollup reads it from then on' };
+    const p = 'docs/stored-fields.json';
+    if (!src.exists(p)) {
+      return { absent: `not in ${src.where} -- it arrives with the stored-fields sweep, and this rollup reads it from then on` };
     }
-    const fields = JSON.parse(fs.readFileSync(p, 'utf8')).fields;
-    if (!Array.isArray(fields)) throw new Error('docs/stored-fields.json has no "fields" array');
+    const fields = src.json(p).fields;
+    if (!Array.isArray(fields)) throw new Error(`${p} in ${src.where} has no "fields" array`);
     const order = ['imported', 'derived', 'excluded'];
     const byStatus = counts(fields, (f) => f.status);
     for (const s of Object.keys(byStatus)) if (!order.includes(s)) order.push(s);
@@ -452,10 +526,10 @@ function inventories() {
   });
 
   attempt({ track: 'play', system: 'turns', name: 'End Turn differential', source: 'crates/l2-game/tests/differential.rs' }, () => {
-    const src = fs.readFileSync(path.join(repo, 'crates', 'l2-game', 'tests', 'differential.rs'), 'utf8');
+    const text = src.read('crates/l2-game/tests/differential.rs');
     const c = (name) => {
-      const m = src.match(new RegExp(`const ${name}: usize = (\\d+);`));
-      if (!m) throw new Error(`${name} is not in differential.rs any more -- this rollup reads it rather than restating it, so find where it went`);
+      const m = text.match(new RegExp(`const ${name}: usize = (\\d+);`));
+      if (!m) throw new Error(`${name} is not in differential.rs in ${src.where} -- this rollup reads it rather than restating it, so find where it went`);
       return Number(m[1]);
     };
     const [compared, agree, moved, movedAgree] = ['COMPARED_TOTAL', 'AGREE_TOTAL', 'MOVED_TOTAL', 'MOVED_AGREE_TOTAL'].map(c);
@@ -470,10 +544,10 @@ function inventories() {
   });
 
   attempt({ track: 'instruments', system: 'tests', name: 'Install-gated tests', source: 'crates/l2-testkit/tests/census.rs' }, () => {
-    const src = fs.readFileSync(path.join(repo, 'crates', 'l2-testkit', 'tests', 'census.rs'), 'utf8');
-    const m = src.match(/const GATED_TOTAL: usize = (\d+);/);
-    if (!m) throw new Error('GATED_TOTAL is not in census.rs any more');
-    const files = new Set([...src.matchAll(/^\s*\("(crates\/[^"]+)",/gm)].map((x) => x[1]));
+    const text = src.read('crates/l2-testkit/tests/census.rs');
+    const m = text.match(/const GATED_TOTAL: usize = (\d+);/);
+    if (!m) throw new Error(`GATED_TOTAL is not in census.rs in ${src.where}`);
+    const files = new Set([...text.matchAll(/^\s*\("(crates\/[^"]+)",/gm)].map((x) => x[1]));
     return {
       head: m[1],
       unit: 'tests that do not exist without a copy of the game',
@@ -488,19 +562,26 @@ function inventories() {
 function derive() {
   const { j, problems: loadProblems } = load();
   if (!j) return { fatal: loadProblems };
+  const base = resolveBase();
+  if (!base) {
+    return {
+      fatal: [
+        {
+          id: '(ref)',
+          msg: `${REF} does not resolve in this clone. The view computes every git fact and every figure from a ref, never from the working tree the tool sits in, so name one that exists: --ref <branch or sha>`,
+        },
+      ],
+    };
+  }
   const problems = schema(j);
   const rows = (Array.isArray(j.items) ? j.items : []).filter((r) => r && typeof r.id === 'string');
 
-  let g = null;
+  let g = gitFacts(rows, base);
   let skip = null;
-  if (has('--schema')) skip = '--schema was given';
-  else {
-    g = gitFacts(rows);
-    if (g.skip) {
-      skip = g.skip;
-      g = null;
-    } else problems.push(...agreement(rows, g));
-  }
+  if (g.skip) {
+    skip = g.skip;
+    g = null;
+  } else problems.push(...agreement(rows, g));
 
   const byId = new Map(rows.map((r) => [r.id, r]));
   const facts = (r) => (g ? g.rowFacts.get(r.id) : null);
@@ -523,7 +604,7 @@ function derive() {
     .filter((r) => Array.isArray(r.depends_on) && r.depends_on.some((d) => byId.has(d)))
     .map((r) => ({ row: r, on: r.depends_on.filter((d) => byId.has(d)).map((d) => byId.get(d)) }));
 
-  const inv = inventories();
+  const inv = inventories(base);
 
   // Tracks in the ledger's own order; systems alphabetical within each.
   const trackNames = [...Object.keys(j.tracks || {})];
@@ -541,14 +622,10 @@ function derive() {
     };
   });
 
-  const head = git(['rev-parse', '--short', 'HEAD']);
-  const dirty = git(['status', '--porcelain', '--', rel(LEDGER)]);
   return {
     generated: new Date().toISOString(),
-    main: g ? g.mainSha.slice(0, 7) : (git(['rev-parse', '--short', 'refs/heads/main']) || 'unknown'),
-    head,
-    ledger: rel(LEDGER),
-    ledgerDirty: !!dirty,
+    base,
+    ledger: ledgerSource(),
     stateOrder: Object.keys(j.states || {}),
     states: j.states || {},
     git: g ? { branches: g.branches, agentBranches: g.agentBranches, orphans: g.orphans.length } : null,
@@ -566,7 +643,7 @@ function derive() {
 
 // ---- text -----------------------------------------------------------------
 
-function gitLine(r, f) {
+function gitLine(m, r, f) {
   if (!r.branch) return 'no branch';
   if (!f) return `${r.branch}  (git not compared)`;
   if (!f.exists) return `${r.branch}  BRANCH MISSING`;
@@ -574,7 +651,7 @@ function gitLine(r, f) {
   if (f.merged) bits.push(ON_A_BRANCH.includes(r.state) ? 'MERGED -- row is stale' : 'merged');
   else if (f.fresh) bits.push('no commits of its own yet');
   else {
-    bits.push(`${f.ahead} ahead`);
+    bits.push(`${f.ahead} ahead of ${m.base.name}`);
     if (f.own !== f.ahead) bits.push(`${f.own} beyond the branch it is built on`);
     bits.push(`last ${stamp(f.date)} "${f.subject}"`);
   }
@@ -598,7 +675,9 @@ function text(m) {
     if (line) out.push(indent + line);
     return out;
   };
-  L.push(`lords2 work ledger -- derived ${stamp(m.generated)} UTC from main ${m.main}, ledger ${m.ledger}${m.ledgerDirty ? ' (uncommitted changes)' : ''}`);
+  L.push(`lords2 work ledger -- derived ${stamp(m.generated)} UTC`);
+  L.push(`figures and git facts: ${m.base.name} ${m.base.short}`);
+  L.push(`ledger: ${m.ledger.label}${m.ledger.checkout ? ` (checkout ${m.ledger.checkout})` : ''}`);
   L.push(
     m.skip
       ? `git half SKIPPED: ${m.skip}; ${m.rows.filter((r) => r.branch).length} rows name a branch and were not compared`
@@ -617,7 +696,7 @@ function text(m) {
         if (x.error) L.push(`      ${x.name}: ERROR ${x.error}`);
         else if (x.absent) L.push(`      ${x.name}: ${x.absent}`);
         else {
-          L.push(`      ${x.name}: ${x.head} ${x.unit}${x.pct !== undefined ? ` (${x.pct}%)` : ''}   [${x.source}]`);
+          L.push(`      ${x.name}: ${x.head} ${x.unit}${x.pct !== undefined ? ` (${x.pct}%)` : ''}   [${x.source} @ ${x.where}]`);
           for (const s2 of x.second) L.push(...wrap(s2, '        '));
         }
       }
@@ -631,7 +710,7 @@ function text(m) {
   };
   const row = (r, prefix = '  ') => {
     L.push(`${prefix}${r.id}  [${r.track}/${r.system}]  ${r.title}`);
-    L.push(`${' '.repeat(prefix.length + 4)}${gitLine(r, m.facts(r))}`);
+    L.push(`${' '.repeat(prefix.length + 4)}${gitLine(m, r, m.facts(r))}`);
     if (r.next) L.push(...wrap(`next: ${r.next}`, ' '.repeat(prefix.length + 4)));
   };
   section('IN FLIGHT', m.inState('in-flight'), (r) => row(r));
@@ -713,25 +792,38 @@ function html(m) {
   const waiting = m.inState('awaiting-user');
   const open = m.inState('open');
   const parked = [...m.inState('deferred'), ...m.inState('abandoned')];
+  const refName = `${m.base.name} ${m.base.short}`;
+  const led = m.ledger;
   const verdict = m.problems.length
     ? `<a class="chip bad" href="#disagreements">${m.problems.length} disagreement${m.problems.length === 1 ? '' : 's'}</a>`
     : m.skip
       ? chip('warn', 'schema clean, git not compared', m.skip)
       : chip('good', 'agrees with git');
+  const ledgerMeta = led.checkout
+    ? `<span>ledger <b>${esc(led.path)}</b> on <b>${esc(led.branch)}</b>${led.commit ? ` @ <b>${esc(led.commit)}</b>` : ''}</span>${
+        led.state === 'modified' ? chip('warn', 'uncommitted changes', led.label) : led.state === 'uncommitted' ? chip('warn', 'uncommitted file', led.label) : ''
+      }`
+    : `<span>ledger <b>${esc(led.path)}</b></span>${chip('warn', 'outside git', led.label)}`;
+  const ledgerLede = led.checkout
+    ? `<code>${esc(led.path)}</code> on <code>${esc(led.branch)}</code>${
+        led.state === 'committed' ? `, last committed in <code>${esc(led.commit)}</code>` : led.state === 'modified' ? `, with uncommitted changes since <code>${esc(led.commit)}</code>` : ', an uncommitted file'
+      }`
+    : `<code>${esc(led.path)}</code>, outside any git checkout`;
 
   const gauges = (s) =>
     s.inventories
       .map((x) => {
+        const from = `<div class="src">${esc(x.source)} @ ${esc(x.where)}</div>`;
         if (x.error) {
-          return `<div class="gauge error"><div class="k"><span>${esc(x.name)}</span></div><div class="v">unreadable</div><p class="why">${esc(x.error)}</p><div class="src">${esc(x.source)}</div></div>`;
+          return `<div class="gauge error"><div class="k"><span>${esc(x.name)}</span></div><div class="v">unreadable</div><p class="why">${esc(x.error)}</p>${from}</div>`;
         }
         if (x.absent) {
-          return `<div class="gauge absent"><div class="k"><span>${esc(x.name)}</span></div><p class="why">${esc(x.absent)}</p><div class="src">${esc(x.source)}</div></div>`;
+          return `<div class="gauge absent"><div class="k"><span>${esc(x.name)}</span></div><p class="why">${esc(x.absent)}</p>${from}</div>`;
         }
         const bar = x.pct !== undefined ? `<div class="bar" role="img" aria-label="${x.pct} percent"><i style="width:${Math.max(0, Math.min(100, x.pct))}%"></i></div>` : '';
         return `<div class="gauge"><div class="k"><span>${esc(x.name)}</span>${x.pct !== undefined ? `<span>${x.pct}%</span>` : ''}</div>
 <div class="v">${esc(x.head)}<small>${esc(x.unit)}</small></div>${bar}
-<ul>${x.second.map((l) => `<li>${esc(l)}</li>`).join('')}</ul><div class="src">${esc(x.source)}</div></div>`;
+<ul>${x.second.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>${from}</div>`;
       })
       .join('');
 
@@ -908,7 +1000,7 @@ function html(m) {
   .problems td:first-child { width: 26%; font: 500 12px/1.45 var(--mono); color: var(--gules); word-break: break-all; }
   .skip { margin: 0 0 12px; padding: 10px 14px; border: 1px dashed var(--or); border-radius: 3px; font-size: 13px; color: var(--ink-dim); }
 
-  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule); font: 12px/1.6 var(--mono); color: var(--ink-faint); }
+  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule); font: 12px/1.6 var(--mono); color: var(--ink-faint); overflow-wrap: anywhere; }
   @media (max-width: 720px) {
     .track { grid-template-columns: minmax(0, 1fr); }
   }
@@ -918,18 +1010,18 @@ function html(m) {
   <header>
     <p class="eyebrow">lords2 &middot; the work ledger, derived</p>
     <h1>What is in flight, and what is left</h1>
-    <p class="lede">Each row is intent the lead wrote in <code>${esc(m.ledger)}</code>. Everything beside it that git can answer &mdash; merged, commits ahead of <code>main</code>, a handoff note &mdash; was computed when this page was generated, and none of it is stored. If the time below is old, regenerate the page rather than trust it.</p>
+    <p class="lede">Each row is intent the lead wrote in ${ledgerLede}. Everything beside it that git can answer &mdash; merged, commits ahead, a handoff note &mdash; and every systems figure was computed from <code>${esc(refName)}</code> when this page was generated. None of it is read from a working tree, and none of it is stored. If the time below is old, regenerate the page rather than trust it.</p>
     <div class="metabar">
       <span>generated <b>${esc(stamp(m.generated))} UTC</b></span>
-      <span>main <b>${esc(m.main)}</b></span>
-      <span>ledger at <b>${esc(m.head || 'unknown')}</b>${m.ledgerDirty ? ' <b>+ uncommitted</b>' : ''}</span>
+      <span>${esc(m.base.name)} <b>${esc(m.base.short)}</b></span>
+      ${ledgerMeta}
       <span>${m.rows.length} rows</span>
       ${verdict}
     </div>
   </header>
 
   <h2>Systems</h2>
-  <p class="intro">Figures are read from the inventories that are themselves checked, never typed. Each is quoted with its second column, because a count weights every row equally and a player does not.</p>
+  <p class="intro">Read from <code>${esc(refName)}</code>&rsquo;s copies of the inventories that are themselves checked, never typed and never from a working tree. Each figure is quoted with its second column, because a count weights every row equally and a player does not.</p>
   ${systems}
 
   <h2>In flight <span class="n">${inflight.length}</span></h2>
@@ -937,7 +1029,7 @@ function html(m) {
   ${inflight.length ? table(['Work', 'Branch', 'Last commit', 'Next'], inflight.map((r) => `<tr><td>${work(r)}</td><td>${gitCell(m, r)}</td><td>${lastCell(m, r)}</td><td class="prose">${esc(r.next) || '<span class="dim">-</span>'}</td></tr>`).join('')) : empty('No agent is working on anything.')}
 
   <h2>Merge queue <span class="n">${m.queue.length}</span></h2>
-  <p class="intro">In the order they merge: the ledger's order, except that nothing merges ahead of a queued row it depends on.</p>
+  <p class="intro">In the order they merge: the ledger&rsquo;s order, except that nothing merges ahead of a queued row it depends on.</p>
   ${m.queue.length ? table(['#', 'Work', 'Branch', 'Waits on', 'Next'], m.queue.map((r, i) => `<tr><td class="pos">${i + 1}</td><td>${work(r)}</td><td>${gitCell(m, r)}</td><td>${waits(m, r)}</td><td class="prose">${esc(r.next) || '<span class="dim">-</span>'}</td></tr>`).join(''), 'queue') : empty('Nothing is waiting to merge.')}
 
   <h2>Waiting on the player <span class="n">${waiting.length}</span></h2>
@@ -953,7 +1045,7 @@ function html(m) {
   <h2 id="disagreements">Where the ledger disagrees <span class="n">${m.problems.length}</span></h2>
   ${m.problems.length ? table(['Row or branch', 'What the schema or git says'], m.problems.map((p) => `<tr><td>${esc(p.id)}</td><td class="prose">${esc(p.msg)}</td></tr>`).join(''), 'problems') : empty(m.skip ? `The schema is clean. Git was not compared: ${m.skip}.` : 'The ledger agrees with its schema and with git.')}
 
-  <footer>Generated by <code>node tools/pm/work.js --html</code> from ${esc(m.ledger)}. Regenerate rather than edit: nothing on this page is stored anywhere.</footer>
+  <footer>Generated by <code>node tools/pm/work.js --html</code>. Ledger: ${esc(led.label)}${led.checkout ? ` (checkout ${esc(led.checkout)})` : ''}. Figures and git facts: ${esc(m.base.name)} ${esc(m.base.sha)}. Regenerate rather than edit: nothing on this page is stored anywhere.</footer>
 </div>
 `;
 }
@@ -962,7 +1054,7 @@ function html(m) {
 
 function main() {
   if (!has('--check') && !has('--status') && !has('--html')) {
-    console.error('usage: node tools/pm/work.js --check [--schema] | --status | --html <path>   [--file <ledger>]');
+    console.error('usage: node tools/pm/work.js --check [--schema] | --status | --html <path>   [--file <ledger>] [--ref <ref>]');
     process.exit(2);
   }
   if (has('--html') && !opt('--html')) {
@@ -983,11 +1075,11 @@ function main() {
     if (has('--schema')) {
       console.log(`work: SKIP git agreement: --schema was given; ${named} rows name a branch and were not compared`);
     } else {
-      const g = gitFacts(rows);
+      const g = gitFacts(rows, resolveBase());
       if (g.skip) console.log(`work: SKIP git agreement: ${g.skip}; ${named} rows name a branch and were not compared`);
       else {
         const found = agreement(rows, g);
-        console.log(`work: git: ${named} row branches and ${g.agentBranches} agent branches compared against main ${g.mainSha.slice(0, 7)}, ${found.length} problem(s)`);
+        console.log(`work: git: ${named} row branches and ${g.agentBranches} agent branches compared against ${g.base.name} ${g.base.short}, ${found.length} problem(s)`);
         problems.push(...found);
       }
     }
@@ -1006,7 +1098,7 @@ function main() {
     const out = path.resolve(opt('--html'));
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, html(m));
-    console.error(`work: wrote ${out} (main ${m.main}, ${m.rows.length} rows, ${m.problems.length} disagreement(s))`);
+    console.error(`work: wrote ${out} (${m.base.name} ${m.base.short}, ${m.rows.length} rows, ${m.problems.length} disagreement(s))`);
   }
   for (const x of unreadable) console.error(`work: rollup: ${x.name} could not be read: ${x.error}`);
   process.exit(unreadable.length ? 1 : 0);

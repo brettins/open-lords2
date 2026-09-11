@@ -64,6 +64,16 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
 for the player — generated, **never committed**, with the time and the `main` SHA on it so
 its own staleness is visible.
 
+**A view that names `main X` computes everything from `main X`.** The first version read the
+systems inventories out of whatever checkout the tool sat in while its header said
+`main 76a0437`. Run from an agent's worktree, it quoted that worktree's differential (251 of
+279) and census (399) under main's name when main held 258 and 412. It also stamped the ledger
+with the tool's own HEAD. So every figure is read with `git show <ref>:<path>` (`--ref`,
+default `main`), and the ledger line names **the ledger file's** checkout, branch and last
+commit, or says plainly that no commit holds it. The lead caught it by reading the page, which
+is the only reason this paragraph exists; `work_ledger.rs` now holds both, in a scratch
+repository whose working tree disagrees with its `main` on every inventory.
+
 ### Limits, stated rather than discovered
 
 * **"Merged" means the branch tip is reachable from `main` and is not on `main`'s own
