@@ -107,8 +107,11 @@ function fromCargo() {
 // player could ever see. `invention` is not in the denominator either — it is
 // ours, and it is reported separately because it is the other half of 1:1 and
 // the half nobody was counting.
-function fromArms() {
-  const j = JSON.parse(fs.readFileSync(path.join(repo, 'docs', 'arms.json'), 'utf8'));
+//
+// `j` defaults to this checkout's file. `tools/pm/work.js` passes the copy it
+// read from a git ref instead, because a page that says "main X" must count
+// main X's inventory and not whatever working tree the script sits in.
+function fromArms(j = JSON.parse(fs.readFileSync(path.join(repo, 'docs', 'arms.json'), 'utf8'))) {
   const by = k => j.arms.filter(a => a.status === k).length;
   const reproduced = by('reproduced');
   const missing = by('missing');
@@ -300,6 +303,16 @@ const TARGETS = [
   'CLAUDE.md',
 ];
 const MARKER = /<!--fig:([a-z0-9-]+)-->([\s\S]*?)<!--\/fig-->/g;
+
+// **Required rather than run.** `tools/pm/work.js` quotes the arms inventory in
+// its systems rollup, and a second copy of this counting rule there would be
+// the duplicate-rule failure `docs/agents.md` records twice. Node allows a
+// top-level `return` in a CommonJS module, so everything below -- which runs
+// the whole suite -- only runs when this file is the program.
+if (require.main !== module) {
+  module.exports = { fromArms };
+  return;
+}
 
 const values = figures();
 let stale = [];
