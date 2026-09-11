@@ -573,6 +573,14 @@ impl Machine {
         if top.take_redraw() {
             self.dirty = true;
         }
+        // **Nothing on this path clicks today**, and it is drained anyway.
+        // `Widget_Test`'s auto-repeat and its delayed fire are both silent, so
+        // `Screen::update` never counts one — but if a screen ever did, the
+        // count would sit in its `Press` until the *next event* drained it in
+        // [`Machine::handle`], and a click from a tick would be heard on the
+        // release. The ablation that added a click to `Press::tick` stayed
+        // green until this line existed.
+        self.clicks = self.clicks.wrapping_add(top.take_clicks() as u32);
         if t != Transition::Stay {
             self.apply(t);
             self.dirty = true;

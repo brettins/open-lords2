@@ -1113,6 +1113,39 @@ impl Screen for CountyScreen {
                     self.adjust(ctx, if i == 0 { 1 } else { -1 });
                 }
             }
+            // **A double click is a press to both of this ladder's live tests**,
+            // and this screen used to drop it on the floor. Windows sends
+            // `WM_LBUTTONDBLCLK` *instead of* the second `WM_LBUTTONDOWN`, so a
+            // fast second press arrives as `g_mouseLeftDoubleClick` and never as
+            // `g_mouseLeftPressed`. `Ration_SliderClick` reads the double-click
+            // flag in its own guard (see [`CountyScreen::split_click`]), and
+            // `Widget_Test`'s kind-4 arm tests `g_mouseLeftPressed ||
+            // g_mouseLeftDoubleClick` — so in the original a quick double click
+            // on the tax arrow is **two steps and two clicks**, and here it was
+            // one and one.
+            //
+            // Found by `tests/click.rs`, which asserted the click's own guard
+            // through the machine rather than through [`crate::press::Press`]
+            // alone — `tests/gestures.rs` covers the double click at the `Press`
+            // level, which is exactly the layer that could not see a screen
+            // declining to ask.
+            //
+            // Not an arm of its own: kind 4 *is* "press or double click", and
+            // the arm below the `Click` pattern above already carries that kind.
+            //
+            // Not reached for a double click in the right column, because
+            // [`crate::screens::belongs_to_the_right_column`] matches a press, a
+            // release and a pointer and nothing else. That is recorded rather
+            // than changed here; the column is the map's.
+            Event::DoubleClick { x, y } => {
+                if self.split_click(ctx, x, y, true) {
+                    self.slider_held = true;
+                    return Transition::Stay;
+                }
+                if let Some(i) = self.press.event(&self.arrows(), event) {
+                    self.adjust(ctx, if i == 0 { 1 } else { -1 });
+                }
+            }
             _ => {}
         }
         Transition::Stay

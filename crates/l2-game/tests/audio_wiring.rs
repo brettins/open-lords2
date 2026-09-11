@@ -446,7 +446,24 @@ fn the_voice_class_is_84_percent_of_the_games_audio() {
     // Every name `Msg_PlayVoice` can produce, asked for through the real
     // `play_speech`. The three bands are the original's tables: 170..=197 have
     // a lord and sixteen takes, 100..=169 and 200..=284 have one clip each.
-    for group in 100..=300u16 {
+    //
+    // **Except the tip groups, 200..=218**, which this count used to include
+    // and which no player of this engine can hear. Their windows are
+    // categories 0x05..=0x09, and `Tip_Show` (`0x00476DA9`) is the only
+    // function in the original that posts one; nothing here posts a tip. A
+    // name-driven loop proves the *name* resolves, not that the game can ask
+    // for it, and thirteen tip clips were sitting in the 543 on that basis.
+    // `docs/audio.json` `Msg_DrawWindow#24` and `FUN_004b3acd#1`.
+    //
+    // **Not 219**, though `FUN_00476A5D` clears twenty tip flags from 200:
+    // `L2.eng` 219 is *"Already in alliance."*, a refusal `Diplo_SendClicked`
+    // posts, and its clip ships. The first draft of this range swallowed it and
+    // the count came out one short — which is the check working.
+    //
+    // What this does not establish: that every *other* group in the bands is
+    // posted by this engine. Only the tip band has been checked.
+    const TIP_GROUPS: std::ops::RangeInclusive<u16> = 200..=218;
+    for group in (100..=300u16).filter(|g| !TIP_GROUPS.contains(g)) {
         for variant in 0..16u8 {
             if let Some(name) = l2_game::audio::names::message_voice(group, variant) {
                 audio.play_speech(&name);
@@ -455,26 +472,29 @@ fn the_voice_class_is_84_percent_of_the_games_audio() {
     }
     let spoken = audio.heard().len();
     assert_eq!(
-        spoken, 543,
+        spoken, 530,
         "the narrator's reachable performance moved: {spoken} clips"
     );
-    // 448 lord takes and 95 system clips. The system bands cover 155 groups and
-    // only 95 of them ship an `_01`, which is not a gap in the tables - a group
-    // with no clip is a message the narrator does not read.
-    assert_eq!(audio.heard().iter().filter(|n| n.starts_with('s')).count(), 95);
-    assert_eq!(spoken - 95, 448);
+    // 448 lord takes and 82 system clips. The system bands outside the tips
+    // cover 135 groups and only 82 of them ship an `_01`, which is not a gap in
+    // the tables - a group with no clip is a message the narrator does not read.
+    assert_eq!(audio.heard().iter().filter(|n| n.starts_with('s')).count(), 82);
+    assert_eq!(spoken - 82, 448);
 
     // **What is still out of reach in this class**, so the number is not read
-    // as "the voice is done": groups whose narration is a *chain* of takes.
-    // `FUN_004B3ACD(group)` walks a five-wide table at `0x004E1E40`, playing
-    // `S201_02.wav + (n - 1) * 0x10` one clip at a time as each finishes, and
-    // nothing here calls it - so `S010_13.wav` and its like are named by the
-    // binary and unreachable by us.
-    assert!(!audio.heard().contains(&"s010_13.wav"), "the chained takes are not wired");
+    // as "the voice is done": the tip screens, first line and chain alike.
+    // `FUN_004B3ACD(group)` walks a five-wide table at `0x004E1E40` whose only
+    // live rows are groups 200..=218, playing `S201_02.wav + (n - 1) * 0x10`
+    // one clip at a time as each finishes. This used to name `S010_13.wav` as
+    // the chain's evidence, and that clip is not in the chain at all: it is
+    // `g_msgVoiceS010`'s, a sibling table with a different caller.
+    for clip in ["s200_01.wav", "s201_01.wav", "s201_02.wav", "s218_03.wav"] {
+        assert!(!audio.heard().contains(&clip), "{clip} is a tip clip and no tip is posted");
+    }
 }
 
 #[test]
-fn the_music_fanfares_and_screens_are_twenty_nine_more() {
+fn the_music_fanfares_screens_and_the_click_are_thirty_more() {
     let Some(dir) = l2_testkit::install_dir() else {
         l2_testkit::skip!("no game install, so nothing to open");
     };
@@ -545,6 +565,11 @@ fn the_music_fanfares_and_screens_are_twenty_nine_more() {
             audio.play_effect_if_idle(n);
         }
     }
+    // **The pointer click** — `Widget_Test`'s `Sound_RestartSlot(1)`, the slot
+    // `Director::hear_the_click` asks for. `tests/click.rs` is when it sounds.
+    if let Some(n) = l2_game::audio::names::slot(l2_game::audio::names::Bank::Kingdom, 1) {
+        audio.play_effect(n);
+    }
 
     assert_eq!(
         audio.heard(),
@@ -554,6 +579,7 @@ fn the_music_fanfares_and_screens_are_twenty_nine_more() {
             "battle2.wav",
             "battle3.wav",
             "battle4.wav",
+            "click3.wav",
             "fallow.wav",
             "ff_batl.wav",
             "ff_capt.wav",
@@ -583,7 +609,7 @@ fn the_music_fanfares_and_screens_are_twenty_nine_more() {
          ADDED this is good news and the number in crates/l2-game/src/audio/mod.rs, \
          docs/mechanics.md and docs/decisions.md C116 moves with it."
     );
-    assert_eq!(audio.heard().len(), 29, "29 of 771 outside the voice class");
+    assert_eq!(audio.heard().len(), 30, "30 of 771 outside the voice class");
 
     // `battle5.wav` ships and decodes; nothing can ask for it. That is not a
     // gap in the wiring, it is `DAT_0057A0F0` being unidentified, and
@@ -627,4 +653,99 @@ fn turning_music_off_on_the_sounds_page_stops_the_music() {
     game.prefs.music = true;
     listen!();
     assert_eq!(audio.music_name().as_deref(), Some("scroll1.wav"), "Music: On did not resume");
+}
+
+/// **The pointer click reaches a speaker, once per press — and not from a
+/// hotspot.**
+///
+/// `tests/click.rs` asserts when [`Machine::clicks`] moves; this asserts that
+/// [`audio::Director::listen`] turns the movement into `click3.wav` and nothing
+/// else into it. `Widget_Test` (`0x0040DA1E`) is the only function in the game
+/// whose click sound is live — the other two sites are dead code
+/// (`docs/audio.json`) — and it sounds on the **initial press** of a kind-4 or
+/// kind-5 widget only.
+///
+/// The held half is the one worth having: the buffer is drained with
+/// [`Audio::mix`] until the click has finished, and then the arrow is held for
+/// two seconds of ticks. A click on any repeat pulse would put `click3.wav`
+/// back in the mixer, and `is_playing` would see it on that very tick.
+///
+/// **Ablations, run:** delete the `self.hear_the_click(..)` call in
+/// `Director::listen` and the loud assertion goes red; make `hear_the_click`
+/// play on `now != 0` rather than on a change and the held assertion does.
+#[test]
+fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no click3.wav");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+    let mut audio = Audio::headless(&platform.vfs);
+    let mut director = audio::Director::new();
+
+    // **The sidebar, which is `Hotspot_Test` kind 1.** Each button on a fresh
+    // machine, so that every one of them is pressed from the map.
+    let mut opened = 0;
+    for b in l2_game::screens::map::SIDEBAR_BUTTONS {
+        let mut game = world();
+        game.selected = 1;
+        let mut machine = Machine::new(APP_ROOT);
+        machine.push(ScreenId::Campaign);
+        director.listen(&mut audio, &machine, &game);
+        let r = b.rect();
+        send(&mut machine, &mut game, &assets, Event::Click { x: r.x + r.w / 2, y: r.y + r.h / 2 });
+        if machine.top_id() != Some(ScreenId::Campaign) {
+            opened += 1;
+        }
+        director.listen(&mut audio, &machine, &game);
+        assert!(!audio.heard().contains(&"click3.wav"), "{} is a hotspot and clicked", b.name);
+    }
+    assert!(opened >= 1, "no sidebar button opened anything, so the silence proves nothing");
+
+    // **The tax arrow, which is `Widget_Test` kind 4.**
+    let mut game = world();
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    machine.push(ScreenId::County(1, l2_game::screens::county::Panel::Tax));
+    macro_rules! tick {
+        () => {{
+            let mut ctx = Ctx { game: &mut game, assets: &assets };
+            machine.update(&mut ctx);
+            director.listen(&mut audio, &machine, &game);
+        }};
+    }
+    tick!();
+    let up = l2_game::screens::county::Panel::Tax.increase_button().expect("an up arrow");
+    send(&mut machine, &mut game, &assets, Event::Click { x: up.x + up.w / 2, y: up.y + up.h / 2 });
+    tick!();
+    assert!(audio.heard().contains(&"click3.wav"), "the press was silent; heard {:?}", audio.heard());
+    assert!(audio.is_playing("click3.wav"), "and it is sounding now");
+
+    // Let it finish. A second of samples at a time, and no more than ten.
+    let mut buf = vec![0f32; 44_100 * 2];
+    for _ in 0..10 {
+        if !audio.is_playing("click3.wav") {
+            break;
+        }
+        audio.mix(&mut buf);
+    }
+    assert!(!audio.is_playing("click3.wav"), "click3.wav never finished");
+
+    // Hold for two seconds of ticks.
+    let mut steps = 0;
+    for t in 0..125 {
+        let before = game.kingdom.counties[1].tax_rate;
+        tick!();
+        if game.kingdom.counties[1].tax_rate != before {
+            steps += 1;
+        }
+        assert!(
+            !audio.is_playing("click3.wav"),
+            "tick {t} of the hold put the click back in the mixer; the original plays it on the press only"
+        );
+    }
+    assert!(steps >= 4, "the hold must have repeated for its silence to mean anything: {steps}");
+    send(&mut machine, &mut game, &assets, Event::Release { x: up.x + up.w / 2, y: up.y + up.h / 2 });
+    tick!();
+    assert!(!audio.is_playing("click3.wav"), "letting go of the arrow clicked");
 }

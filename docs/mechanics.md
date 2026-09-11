@@ -611,10 +611,10 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   `Audio` is not in `Ctx`, so no screen can reach it, and the event loop derives what
   should be audible from what already happened.
 
-  **The number that keeps this row honest is 572 of 771**, and it is measured rather
+  **The number that keeps this row honest is 560 of 771**, and it is measured rather
   than typed — `crates/l2-game/tests/audio_wiring.rs` drives the real paths and reads
-  back what was actually opened. **543 of those 572 are the narrator**, 448 lord takes
-  and 95 system clips, because 646 of the install's 771 files — **84 %** — are somebody
+  back what was actually opened. **530 of those 560 are the narrator**, 448 lord takes
+  and 82 system clips, because 646 of the install's 771 files — **84 %** — are somebody
   speaking. A player: *"that guy's voice acting is half the personality of the game."*
   By file count he understates it.
 
@@ -623,21 +623,25 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   the front end is pushed under the campaign rather than replaced by it, so it answered
   *"front end"* forever (`docs/decisions.md` C116) — then 11, then 555 when the message
   window arrived and the voice class came with it, then 572 when the screens that speak
-  as they open were wired. Everything below this paragraph is about the original and was
+  as they open were wired, then 573 with the pointer click — and then **560**, when thirteen tip clips
+  turned out to be counted because their names resolved, not because anything in the
+  game could ask for them. Everything below this paragraph is about the original and was
   never in doubt; what was in doubt was whether anything called it, which is the question
   this row now answers with a fraction instead of a tick.
 
   Two things the fraction hides. **`Battle5` is unreachable**: it ships, it decodes, and
   the counter that selects it is `DAT_0057A0F0`, the unidentified third battle mode, so
-  nothing can ask for it. And **the narrator's *chained* takes are not wired** —
-  `FUN_004B3ACD` reads a notice as a sequence of clips, one starting as the last
-  finishes, which is why `S010_13.wav` exists; we play `_01` and stop.
+  nothing can ask for it. And **the tip screens are not built**, which silences two things: every tip's
+  first line and `FUN_004B3ACD`'s chain of further takes, one starting a second after
+  the last finishes — 40 files. The chain was filed as *"a per-message take cursor"*
+  and blamed for `S010_13.wav`; the cursor is two globals and a table, and
+  `S010_13.wav` is not in the chain at all.
 
-  **And the count that says what to do next is 50 of 143**, in `docs/audio.json` — the
+  **And the count that says what to do next is 51 of 143**, in `docs/audio.json` — the
   audio equivalent of the input-arm audit, and it now has the same two checks behind it
   that `docs/arms.json` has: `node tools/oracle/sounds.js --check` compares it with the
   decompilation, and `crates/l2-game/tests/sfx.rs` compares it with the `// sfx:` markers
-  in `crates/`. Every site is `reproduced` (50), `blocked` (55) or `missing` (38), and a
+  in `crates/`. Every site is `reproduced` (51), `blocked` (52), `missing` (37) or `dead` (3), and a
   `blocked` record is required by the test to **name the mechanic** it is waiting for.
 
   **The denominator moved from 134 to 143 and that is the interesting part.** The audit
@@ -647,17 +651,19 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   call it. The title screen was silent for weeks with nothing in the inventory saying a
   sound was missing. `docs/decisions.md` C143.
 
-  **The two counts disagree by a factor of twenty and both are right**: 16 of the sites
-  carry 543 of the 771 files, because `Msg_PlayVoice` is a table lookup and the other
-  primitives are mostly constants. A site count weights every trigger equally and a player
+  **The two counts disagree by a factor of twenty and both are right**: 13 of the fired
+  sites carry 530 of the 560 reachable files, because `Msg_PlayVoice` is a table lookup
+  and the other primitives are mostly constants. A site count weights every trigger equally and a player
   does not. The largest thing still missing is the **battlefield**, 25 sites — and it is a
   limit of the design rather than a to-do: a sword swing is an event inside a tick, and
   the director derives sound from the world after the tick.
 
-  Of the rest, the one a player notices first is `click3.wav`, played by
-  `Sound_RestartSlot(1)` from **four sites behind three hit-testers** — `Widget_Test`
-  (`0x0040DA1E`) twice, plus `FUN_0040D6AD` and `FUN_0040D7B8` — and we have no shared
-  hit-tester to put it in. That is a widget-layer job, not an audio one.
+  **The pointer click is fired**, and it was two sites rather than four. `click3.wav`
+  is `Sound_RestartSlot(1)` inside `Widget_Test` (`0x0040DA1E`), at its kind-4 and kind-5
+  arms, on the **press** — never on the auto-repeat, never from a hotspot or an OK
+  button. The two sites once counted beside it are the arrows of a slider widget that
+  nothing in the executable instantiates (`docs/bugs.md` `DNEW-slider-widget`).
+  `tests/click.rs` is mostly the silent cases.
 
   | | files | size | |
   |---|---:|---:|---|

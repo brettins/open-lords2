@@ -7198,9 +7198,10 @@ Two smaller corrections fell out of reading the arm:
 
 ## CNEW-the-click-is-two-sites-not-four
 
-**Status: unverified — written from a session that was cut short.** The evidence
-below is `[V]` and stands on its own; the code it was written for was never
-compiled. See `HANDOFF.md` at the root of the branch.
+**Written in two sittings with a restart between**, and the second sitting
+compiled, wired and tested what the first could only record. The evidence below
+was `[V]` from the start; the click it was written for now sounds, and
+`tests/click.rs` asserts when it does not.
 
 `docs/audio-triggers.md` closes with a correction it is proud of:
 
@@ -7264,3 +7265,24 @@ delegated painters 2 / 0 new; **the chained takes 1 / 27**; the mercenary offer
 one site, 27 files, the largest files-per-site ratio in the inventory, and both
 halves of what it needs already exist in shape (`Mixer::is_playing`, and a
 `Director` that already keeps per-tick memory).
+
+**That proposal was wrong about its blocker, and reading the call site showed
+why.** `FUN_004B3ACD` has one caller — `Msg_DrawWindow`'s categories
+`0x05`…`0x09` branch — and its cursor is reset in one place, `Tip_Show`. Those
+categories are the **tip screens**, and `Tip_Show` is the only function in the
+original that posts one. Our engine posts none. So the chain is not blocked on a
+cursor; it is blocked on a screen, and **it took a reproduced claim down with it**:
+`Msg_DrawWindow#24`, the same branch's first line, had been `reproduced` since the
+narrator landed, and thirteen tip clips were in the *"543 reachable"* because a
+name-driven loop resolved their names. Both are corrected — 51 of 143, 560 of 771.
+
+The lesson is the one `docs/audio-triggers.md` already carried about the ninth
+primitive, pointed the other way: **a count measured by resolving names measures
+the names.** The test that produced 543 drove `message_voice` over every group
+in the bands, which proves a file exists for each and says nothing about whether
+the game can post the message. Only the tip band has been checked; the rest of
+the 530 has not been re-audited against what actually posts.
+
+Two smaller corrections from the same reading: the chain was said to be *"why
+`S010_13.wav` exists"*, and that clip is `g_msgVoiceS010`'s; and the lord sting's
+table at `0x004E2470` holds four clips and a sentinel, not five lords.
