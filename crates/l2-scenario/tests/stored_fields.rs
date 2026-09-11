@@ -647,6 +647,7 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("Realm+0x0EB", |k, i, _| k.realms[i].war_target as i64),
         at("Realm+0x0EC", |k, i, _| k.realms[i].offer_timer as i64),
         at("Realm+0x0ED", |k, i, _| k.realms[i].crowned_once as i64),
+        at("Realm+0x0F4", |k, i, e| k.realms[i].tax_ledger[e] as i64),
         at("Realm+0x0FC", |k, i, _| k.realms[i].wages as i64),
         at("Realm+0x104", |k, i, _| k.realms[i].trade_spent_a as i64),
         at("Realm+0x108", |k, i, _| k.realms[i].trade_spent_b as i64),

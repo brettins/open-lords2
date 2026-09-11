@@ -237,6 +237,13 @@ impl TurnMachine {
 /// one-line descriptions are **`[D]`/`[I]`**.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Pass {
+    /// `Ai_ManageFarmsAll` (`0x0049A990`) — **`Season_Advance`'s first call,
+    /// ahead of the clock**: `Ai_ManageCountyFarms` for every realm whose
+    /// strength is non-zero and which no person drives. It is the AI's farming
+    /// pass a second time in the same turn — step 5 already ran it in phase 4
+    /// — and it runs before tax, rations and industry read the fields and the
+    /// labour split. See [`crate::Kingdom::ai_manage_farms_all`].
+    AiManageFarms,
     /// season, year, turn counter.
     Clock,
     /// `Event_RollAll` — random events per county.
@@ -405,7 +412,13 @@ pub enum Pass {
 ///
 ///    **`docs/armies.md` §2.1 has these two the wrong way round**, giving
 ///    `Units_ResetMoves` first. Corrected there.
-pub const SEASON_PIPELINE: [Pass; 32] = [
+pub const SEASON_PIPELINE: [Pass; 33] = [
+    // **`Season_Advance`'s first call, ahead of `Rand_Advance` and the clock**
+    // (`0x00448440`: `Ai_ManageFarmsAll(); Rand_Advance(); ...`). Inserted at
+    // position 0, so every later pass index moved by one — which
+    // `l2_game::save` writes a season report's pass as, and which
+    // `l2_kingdom::save::VERSION` 20 records.
+    Pass::AiManageFarms,
     Pass::Clock,
     Pass::EventRoll,
     Pass::Weather,
@@ -634,9 +647,17 @@ mod tests {
         assert!(Pass::RationPreview.order() < Pass::MercenaryAdvance.order());
     }
 
+    /// **The clock is not first, and this test said it was.** `Season_Advance`
+    /// (`0x00448440`) opens `Ai_ManageFarmsAll(); Rand_Advance();` and only then
+    /// reads `g_seasonNext` — so the AI farms the season that is *ending*, and a
+    /// Winter re-sow happens on the Winter turn. The assertion used to be
+    /// `SEASON_PIPELINE[0] == Pass::Clock`, which described our array rather than
+    /// the function.
     #[test]
-    fn the_pipeline_holds_no_duplicates_and_starts_with_the_clock() {
-        assert_eq!(SEASON_PIPELINE[0], Pass::Clock);
+    fn the_pipeline_holds_no_duplicates_and_farms_before_the_clock() {
+        assert_eq!(SEASON_PIPELINE[0], Pass::AiManageFarms);
+        assert_eq!(SEASON_PIPELINE[1], Pass::Clock);
+        assert!(is_in_season_advance(Pass::AiManageFarms), "it is the function's first call");
         for (i, p) in SEASON_PIPELINE.iter().enumerate() {
             assert_eq!(p.order(), i, "{p:?} should be unique and at {i}");
         }

@@ -247,7 +247,7 @@
     {"id": "Realm+0x0ED", "name": "crownedOnce", "type": "bool", "status": "imported"},
     {"id": "Realm+0x0EE", "name": "realmBit", "type": "u8", "status": "excluded", "why": "1 << (realm - 1), written by FUN_0049CA32 and read only by the battle's selection code; not campaign state"},
     {"id": "Realm+0x0EF", "name": "setupEF", "type": "u8", "count": 2, "status": "excluded", "why": "zeroed by Game_SetupRealmsAndCounties and touched by nothing else"},
-    {"id": "Realm+0x0F4", "name": "taxLedger", "type": "i32", "count": 2, "status": "excluded", "why": "two totals Tax_CollectAll adds to and nothing reads"},
+    {"id": "Realm+0x0F4", "name": "taxLedger", "type": "i32", "count": 2, "status": "imported"},
     {"id": "Realm+0x0FC", "name": "wages", "type": "i32", "status": "imported"},
     {"id": "Realm+0x100", "name": "setup100", "type": "i32", "status": "excluded", "why": "zeroed by Game_SetupRealmsAndCounties and touched by nothing else"},
     {"id": "Realm+0x104", "name": "tradeSpentA", "type": "i32", "status": "imported"},

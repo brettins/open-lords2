@@ -551,6 +551,9 @@ impl Kingdom {
     /// against a hand-built kingdom.
     pub fn run_pass(&mut self, pass: Pass, report: &mut SeasonReport) {
         match pass {
+            Pass::AiManageFarms => {
+                self.ai_manage_farms_all();
+            }
             Pass::Clock => self.clock(),
             Pass::EventRoll => self.event_roll(report),
             Pass::Weather => self.weather(),
@@ -1657,9 +1660,11 @@ impl Kingdom {
     /// AI step 5 — `Ai_ManageCountyFarms`. Orders fields and runs the lord's
     /// farming style over every county the realm holds.
     ///
-    /// `market` is the merchant seam; pass [`crate::ai_farm::NoMarket`] until
-    /// there is a stall to trade with, and every style still lays out its
-    /// fields, sets its rations and splits its labour.
+    /// `market` is the merchant seam. **The game's own callers pass the stall**
+    /// — [`Kingdom::run_ai_farms_at_the_stall`] — and this form stays for a
+    /// hand-built kingdom with no merchant model, which passes
+    /// [`crate::ai_farm::NoMarket`] and still gets every style's layout,
+    /// rations and labour split.
     pub fn run_ai_farms(&mut self, realm: u8, market: &mut dyn crate::ai_farm::Market) -> i32 {
         let Some(r) = self.realms.get(realm as usize) else { return 0 };
         let lord = r.lord;
@@ -1702,10 +1707,15 @@ impl Kingdom {
     /// ordered, as [`Kingdom::run_neutral_farms`] does.
     pub fn run_neutral_farms_at_the_stall(&mut self) -> i32 {
         let env = self.farm_env();
+        // The stall holds the realms mutably; the pass reads a copy. Exact for
+        // the reason given at [`Kingdom::run_ai_farms_at_the_stall`], and here
+        // trivially so: an unowned county's trade never touches a realm.
+        let view = self.realms.clone();
         let mut market = crate::ai_farm::CountyStall::new(
             &self.tables,
             &self.counties,
             &self.campaign.units,
+            &mut self.realms,
             env.season_next,
             env.armies_eat,
         );
@@ -1714,10 +1724,92 @@ impl Kingdom {
             &mut self.counties,
             self.county_count,
             &mut self.campaign.map,
-            &self.realms,
+            &view,
             &mut market,
             &env,
         )
+    }
+
+    /// AI step 5, **with the county's own merchant stall attached** —
+    /// `Ai_ManageCountyFarms` (`0x0049DD01`) as the original runs it, where
+    /// each realm style's opening `Ai_BuyGood` lines (`0x004A4B12`) pay out of
+    /// the owning realm's treasury.
+    ///
+    /// Returns the number of fields ordered, as [`Kingdom::run_ai_farms`] does.
+    ///
+    /// # Why the pass may read a copy of the realms
+    ///
+    /// The stall needs the realm array mutably, to test and debit the treasury
+    /// and book the spend; the pass needs it immutably, because
+    /// `County_RefreshEstimates` reads the owner's record for the blacksmith's
+    /// ceiling. The pass is handed a copy taken before it starts, and the copy
+    /// is **exact** rather than approximately right: a grain or cattle purchase
+    /// writes `gold`, `trade_spent_a` and `trade_spent_b` and nothing else on
+    /// the realm, and no estimate reads any of the three (`crate::field` and
+    /// `crate::industry`'s estimates read no treasury — the one `gold` in
+    /// `crate::industry` is `Wages_PayAll`'s, which is a season pass).
+    /// `Ai_TradeForCounty`, which *would* move wood and iron under the
+    /// estimates, is not implemented; if it arrives, this reasoning has to be
+    /// redone rather than reused.
+    pub fn run_ai_farms_at_the_stall(&mut self, realm: u8) -> i32 {
+        let Some(r) = self.realms.get(realm as usize) else { return 0 };
+        let lord = r.lord;
+        let env = self.farm_env();
+        let view = self.realms.clone();
+        let mut market = crate::ai_farm::CountyStall::new(
+            &self.tables,
+            &self.counties,
+            &self.campaign.units,
+            &mut self.realms,
+            env.season_next,
+            env.armies_eat,
+        );
+        crate::ai_farm::manage_county_farms(
+            &self.tables,
+            &mut self.counties,
+            self.county_count,
+            &mut self.campaign.map,
+            &view,
+            realm,
+            lord,
+            &mut market,
+            &env,
+        )
+    }
+
+    /// **`Ai_ManageFarmsAll` (`0x0049A990`)** — the first thing
+    /// `Season_Advance` (`0x00448440`) does, ahead of `Rand_Advance` and the
+    /// clock.
+    ///
+    /// ```c
+    /// for (r = 1; r < 6; r++)
+    ///     if (g_realms[r].strength != 0 && g_realms[r].isHuman == 0)
+    ///         Ai_ManageCountyFarms(r);
+    /// ```
+    ///
+    /// So an AI lord's counties are farmed **twice** a turn — once by his own
+    /// step 5 in phase 4, and once here at the start of phase 7 — and the
+    /// second time is ahead of tax, rations and industry, which then read the
+    /// fields, the labour split and the larder it leaves. It shops at the
+    /// stall like step 5 does. `g_season` is still the season that is ending
+    /// when it runs, so the Winter re-sow fires here on the Winter turn.
+    ///
+    /// **The class is four callers of `Ai_ManageCountyFarms`, and three are
+    /// reproduced.** AI step 5 and this are two. `FUN_0049DF48` is a
+    /// byte-for-byte twin of this loop (tests in the other order) whose only
+    /// caller is the tail of `Battle_ReturnToCampaign` (`0x004AB383`):
+    /// `FUN_004AD426(); Panels_RefreshAll(); FUN_0049DF48();`. That tail is not
+    /// in `crate::battle::return_to_campaign`, so an AI's farms are **not**
+    /// re-managed after a battle here. Open, not cleared.
+    pub fn ai_manage_farms_all(&mut self) -> i32 {
+        let mut ordered = 0;
+        for id in 1..MAX_REALMS {
+            let realm = &self.realms[id];
+            if realm.strength != 0 && !realm.is_human {
+                ordered += self.run_ai_farms_at_the_stall(id as u8);
+            }
+        }
+        ordered
     }
 
     /// AI step 6 — `AI_BuildCastles`.
@@ -1943,6 +2035,51 @@ mod tests {
         }
         assert!(seasons >= 3, "several full cycles should have run");
         assert_eq!(k.turn_count as usize, seasons);
+    }
+
+    /// **`Ai_ManageFarmsAll` (`0x0049A990`) farms every realm with strength
+    /// and no person behind it, at the stall, and nobody else.**
+    ///
+    /// Three realms each hold one county set up identically — a merchant
+    /// standing in it, no grain, a herd above the grazing style's cattle floor,
+    /// and 2,000 crowns in the treasury. Realm 2 is an AI lord (lord 1, style 1,
+    /// whose only grain line is `if (grain < 100) buy 400`), realm 3 is a
+    /// person, and realm 4 is an AI at strength 0. Only realm 2 buys.
+    ///
+    /// *Ablation*: empty `ai_manage_farms_all`'s loop and the first assertion
+    /// goes red; drop its `!realm.is_human` and the realm-3 one does; drop the
+    /// `strength != 0` and the realm-4 one does.
+    #[test]
+    fn the_season_head_farms_ai_realms_with_strength_and_leaves_the_rest() {
+        let mut k = Kingdom::new(1);
+        assert!(k.set_county_count(3));
+        for (id, realm, human, strength) in [(1usize, 2usize, false, 1u8), (2, 3, true, 1), (3, 4, false, 0)] {
+            let r = &mut k.realms[realm];
+            r.in_play = true;
+            r.strength = strength;
+            r.is_human = human;
+            r.lord = 1;
+            r.gold = 2_000;
+            let c = &mut k.counties[id];
+            c.owner = realm as u8;
+            c.population = 500;
+            c.grain = 0;
+            c.herd = 50;
+            c.merchant_count = 1;
+            c.merchant_unit = id as u8;
+            let mut m = crate::unit::Unit::new(crate::unit::UnitKind::Merchant, 6, 8, 8);
+            m.morale = 100;
+            m.county = id as u8;
+            k.campaign.units.put(id, m);
+        }
+        assert_eq!(k.tables.ai_farm_style(1), Some(1), "lord 1 grazes");
+
+        k.ai_manage_farms_all();
+
+        assert_eq!((k.counties[1].grain, k.realms[2].gold), (400, 400), "the AI lord buys 400 sacks for 1,600");
+        assert_eq!(k.realms[2].trade_spent_a, 1_600);
+        assert_eq!((k.counties[2].grain, k.realms[3].gold), (0, 2_000), "a person's realm is not farmed");
+        assert_eq!((k.counties[3].grain, k.realms[4].gold), (0, 2_000), "a realm at strength 0 is not farmed");
     }
 
     /// The determinism property lockstep depends on. Two kingdoms built the

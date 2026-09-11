@@ -1559,6 +1559,9 @@ impl Default for RealmState {
             trade_spent_b: 0,
             trade_received_a: 0,
             trade_received_b: 0,
+            // `Game_SetupRealmsAndCounties` zeroes `+0xF4`/`+0xF8` beside the
+            // trade pair (`0x0049C364`, `0x0049C37C`).
+            tax_ledger: [0; 2],
         }
     }
 }

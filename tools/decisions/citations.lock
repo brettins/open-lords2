@@ -281,6 +281,9 @@ crates/l2-kingdom/tests/reproduction.rs	C12	410abd9ce336	bb0dd488f9d2
 crates/l2-kingdom/tests/reproduction.rs	C12	7bfb2efd8284	bb0dd488f9d2
 crates/l2-kingdom/tests/reproduction.rs	C12	ad9202d83e81	bb0dd488f9d2
 crates/l2-kingdom/tests/reproduction.rs	C12	d076297559db	bb0dd488f9d2
+crates/l2-kingdom/tests/reproduction.rs	C149	91d28f9638f5	138117948441
+crates/l2-kingdom/tests/reproduction.rs	C149	d9d291c10ddf	138117948441
+crates/l2-kingdom/tests/reproduction.rs	C149	e7b51c854c60	138117948441
 crates/l2-kingdom/tests/save.rs	C30	31a64a9407b3	50fdf5e17ba0
 crates/l2-kingdom/tests/save.rs	C30	48f05b5acb89	50fdf5e17ba0
 crates/l2-kingdom/tests/save.rs	C30	58b3a28bdf98	50fdf5e17ba0
@@ -601,6 +604,8 @@ docs/decisions.md	C147	cb863e5fc623	02e99ae849d5
 docs/decisions.md	C148	4a4eeea01aa4	d3efa7d90685
 docs/decisions.md	C148	deba52697c3b	d3efa7d90685
 docs/decisions.md	C149	343974a9c489	138117948441
+docs/decisions.md	C149	b4c54c719f7c	138117948441
+docs/decisions.md	C149	dd72bfb2ae4e	138117948441
 docs/decisions.md	C15	e567688e5a9b	2a3830f6d22a
 docs/decisions.md	C150	6351417fad63	ac4a8b416cea
 docs/decisions.md	C151	f4e9d215993c	0701a5ebd6fc
@@ -966,6 +971,7 @@ docs/symbols.json	C157	9a9483baa5fc	c5258d1ad957
 docs/symbols.json	C160	20f63ddc5dd5	4c76a005bc3e
 docs/symbols.json	C160	e260d9da717b	4c76a005bc3e
 docs/symbols.json	C163	ff117c58b3b2	d043a04534f8
+docs/symbols.json	C168	4004690ce9ff	981eac4d9b1d
 docs/symbols.json	C20	01f6f924103e	0ec8eeb4f874
 docs/symbols.json	C20	7ddb8e5c217a	0ec8eeb4f874
 docs/symbols.json	C22	936f7d5bda76	0364b53a921d
@@ -1041,6 +1047,7 @@ docs/symbols.md	C157	ecbecf998653	c5258d1ad957
 docs/symbols.md	C160	20f63ddc5dd5	4c76a005bc3e
 docs/symbols.md	C160	e260d9da717b	4c76a005bc3e
 docs/symbols.md	C163	ff117c58b3b2	d043a04534f8
+docs/symbols.md	C168	87dd002afbce	981eac4d9b1d
 docs/symbols.md	C20	d50fe7b21adc	0ec8eeb4f874
 docs/symbols.md	C20	f78855d335cd	0ec8eeb4f874
 docs/symbols.md	C22	76e2e999ec4b	0364b53a921d

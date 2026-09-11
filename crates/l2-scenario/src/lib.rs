@@ -862,6 +862,9 @@ pub struct RealmState {
     /// Realm"*, which was true: it is [`l2_kingdom::unit::ArmyNames`], a field
     /// of the campaign.
     pub army_names: [u8; l2_kingdom::unit::ARMY_NAME_SLOTS],
+    /// Realm `+0xF4` and `+0xF8` — `Tax_CollectAll`'s accumulator pair,
+    /// [`l2_kingdom::realm::Realm::tax_ledger`].
+    pub tax_ledger: [i32; 2],
 }
 
 /// A whole starting position, as plain data.
@@ -1399,6 +1402,7 @@ impl Scenario {
                     }
                     row
                 },
+                tax_ledger: [save.i32_at(at(0x0F4))?, save.i32_at(at(0x0F8))?],
                 // The 96 bytes at `+0x84` that nothing read until C83.
                 pairs: {
                     let mut p = [l2_kingdom::realm::Pair::default(); l2_kingdom::realm::MAX_REALMS];
@@ -1849,6 +1853,7 @@ impl Scenario {
                 trade_spent_b,
                 trade_received_a,
                 trade_received_b,
+                tax_ledger,
                 ..
             } = r;
             let realm = &mut k.realms[id];
@@ -1890,6 +1895,7 @@ impl Scenario {
             realm.trade_spent_b = *trade_spent_b;
             realm.trade_received_a = *trade_received_a;
             realm.trade_received_b = *trade_received_b;
+            realm.tax_ledger = *tax_ledger;
         }
         k
     }
@@ -1904,8 +1910,19 @@ impl Scenario {
     /// starting position that already carried last season's outputs would let a
     /// broken pass pass by leaving them alone.
     ///
-    /// **The food stores are the ones the save holds**, because the save holds
-    /// no earlier ones. See the module documentation.
+    /// **The food stores are the ones the save holds** at `+0x224` / `+0x250`,
+    /// the stores the season *ended* on.
+    ///
+    /// > This used to continue *"because the save holds no earlier ones"*, and
+    /// > it does: county `+0x228` and `+0x254` are the grain and herd as
+    /// > `Grain_SeasonTick` (`0x0044C8AE`) and `Herd_SeasonTick` (`0x0044D60D`)
+    /// > found them, copied before the season's food is taken out, and
+    /// > `Game_SetupRealmsAndCounties` (`0x0049BD99`) writes the new-game stores
+    /// > into the same two fields. Starting from them reproduces the whole
+    /// > England turn-one map — `crates/l2-kingdom/tests/reproduction.rs`,
+    /// > `every_county_reproduces_from_the_stores_the_season_found`. This
+    /// > function still does not read them; that is a change to what a rewound
+    /// > position *is*, and it is left for whoever owns the importer.
     pub fn starting_kingdom(&self, seed: u64) -> Kingdom {
         self.starting_kingdom_with_tables(seed, Tables::DEFAULT)
     }
@@ -2009,6 +2026,7 @@ impl Scenario {
                 trade_spent_b: _,
                 trade_received_a: _,
                 trade_received_b: _,
+                tax_ledger: _,
             } = r;
             let realm = &mut k.realms[id];
             realm.in_play = *in_play;

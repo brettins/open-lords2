@@ -89,8 +89,11 @@
 //!   trigger them — `if (grain < 100) buy 400; if (grain < 100) buy 200;` — so
 //!   whether a lot arrives changes whether the next one is even attempted. That
 //!   cannot be a list of requests returned at the end; it has to be a callback,
-//!   which is [`Market`]. [`NoMarket`] refuses everything and is what a caller
-//!   with no stall yet passes.
+//!   which is [`Market`]. [`CountyStall`] is `Ai_BuyGood` and is what **all
+//!   three** of the game's callers pass — the unowned counties' pass, AI step
+//!   5, and `Ai_ManageFarmsAll` at the head of the season. [`NoMarket`]
+//!   refuses everything and is left for a hand-built kingdom with no merchant
+//!   model.
 //! * **`FUN_0049E39B`, the AI's selling pass**, which the three *realm* styles
 //!   run first: it sells wood, iron and stone down to the lord's reserves at
 //!   personality `+0x84`/`+0x88`/`+0x8C` and buys weapons of the county's type
@@ -243,6 +246,12 @@ pub struct CountyStall<'a> {
     /// id. A fixed-size array rather than a map, because the lookup happens
     /// inside the simulation (`docs/netcode.md` D-4).
     stall: [Option<i32>; crate::county::MAX_COUNTIES],
+    /// **The realms, mutably** — the treasury an owned county's bill is tested
+    /// against and paid out of, and the two spending accumulators
+    /// `Merchant_Trade` books it in. The farming pass itself is handed a
+    /// *copy* of the realm array for its estimates; see
+    /// [`crate::Kingdom::run_ai_farms_at_the_stall`] for why the copy is exact.
+    realms: &'a mut [Realm],
     /// `g_seasonNext`, for `County_RefreshEstimates` in the trade's tail.
     season_next: Season,
     /// `g_optArmiesEat`, for the `Ration_Apply` in the same tail.
@@ -267,6 +276,7 @@ impl<'a> CountyStall<'a> {
         t: &'a Tables,
         counties: &[County; crate::county::MAX_COUNTIES],
         units: &crate::unit::Units,
+        realms: &'a mut [Realm],
         season_next: Season,
         armies_eat: bool,
     ) -> CountyStall<'a> {
@@ -278,7 +288,7 @@ impl<'a> CountyStall<'a> {
             }
             *slot = units.get(county.merchant_unit as usize).map(|u| u.morale);
         }
-        CountyStall { t, stall, season_next, armies_eat, bought: 0 }
+        CountyStall { t, stall, realms, season_next, armies_eat, bought: 0 }
     }
 
     /// `Ai_BuyGood`'s price: the stall's base plus the merchant's morale as a
@@ -313,24 +323,56 @@ impl Market for CountyStall<'_> {
         };
         let price = self.price(good, morale);
         let bill = price * qty;
-        // Gate 3 — the purse. `Merchant_Trade`'s own gold guard is inside
-        // `if (realm != 0)` and so never runs for an unowned county; this test
-        // in `Ai_BuyGood` is the only thing in front of it, which is why
-        // `crate::trade`'s `UnownedCountyTradesUnchecked` quirk is about a
-        // *reachable* path rather than a theoretical one.
+        // Gate 3 — the purse, and **which purse is the county's owner**:
         //
-        // An **owned** county is checked against its realm's gold instead, and
-        // this market does not carry a realm. `manage_county_farms` still
-        // passes `NoMarket`, so the owned arm has no caller yet and is left
-        // unwritten rather than guessed at. `CLAUDE.md` rule 5.
-        if county.owner != 0 || bill > county.purse {
+        // ```c
+        // if (((realm != 0) || (price * qty <= g_counties[county].purse)) &&
+        //     ((realm == 0) || (price * qty <= g_realms[realm].gold)))
+        // ```
+        //
+        // For an unowned county `Merchant_Trade`'s own gold guard is inside
+        // `if (realm != 0)` and so never runs; this test in `Ai_BuyGood` is the
+        // only thing in front of it, which is why `crate::trade`'s
+        // `UnownedCountyTradesUnchecked` quirk is about a *reachable* path
+        // rather than a theoretical one.
+        //
+        // > The owned arm used to be refused outright here, with the note that
+        // > `manage_county_farms` still passed `NoMarket` and so the arm had no
+        // > caller. That made the note true and the AI wrong: every AI lord's
+        // > counties farmed without ever shopping. Both callers pass the stall
+        // > now — AI step 5 and `Ai_ManageFarmsAll` at the head of the season.
+        let owner = county.owner as usize;
+        let affordable = if owner == 0 {
+            bill <= county.purse
+        } else {
+            self.realms.get(owner).is_some_and(|r| bill <= r.gold)
+        };
+        if !affordable {
             return false;
         }
+        // `Merchant_Trade(0, qty, good, price, base, realm, county)`'s buy limb
+        // (`0x004284CE`). Its own `gold < bill` refusal is the test just made,
+        // so it cannot fire; then the store, then the money, in this order.
         match good {
             Good::Grain => county.grain += qty,
             Good::Cattle => county.herd += qty,
         }
-        county.purse -= bill;
+        if owner == 0 {
+            county.purse -= bill;
+        } else {
+            // `gold -= bill; tradeSpentB += bill; tradeSpentA += bill;` — the
+            // same three writes, in the same order, as `crate::trade::trade`'s
+            // owned buy limb, which is the player's door into the same function.
+            let realm = &mut self.realms[owner];
+            realm.gold -= bill;
+            realm.trade_spent_b += bill;
+            realm.trade_spent_a += bill;
+        }
+        // `Merchant_Trade`'s tail also runs `Realm_RecountWeapons` (a derived
+        // total here, `Realm::weapons_total`), `Castle_DeliverMaterials` and —
+        // for cattle — `County_EnsurePasture`. The last two are not in
+        // `settle_county` and are not in `crate::trade::trade` either; both are
+        // named in `crate::trade`'s module documentation as not reproduced.
         crate::trade::settle_county(
             self.t,
             county,
@@ -1045,7 +1087,16 @@ pub fn order_fields(county: &County, map: &mut CampaignMap) -> i32 {
 ///
 /// That second caller matters more than the first: it runs **ahead of the whole
 /// economy**, so an AI's fields and labour split are already this season's when
-/// tax, rations and industry read them. The human's are not.
+/// tax, rations and industry read them. The human's are not. Both are
+/// reproduced — [`crate::Kingdom::run_ai_farms_at_the_stall`] and
+/// [`crate::Kingdom::ai_manage_farms_all`] — and both pass [`CountyStall`], so
+/// the realm styles' `Ai_BuyGood` lines pay out of the treasury. A third caller,
+/// `FUN_0049DF48` at the tail of `Battle_ReturnToCampaign`, is **not**
+/// reproduced; see `ai_manage_farms_all`.
+///
+/// **What each realm style runs first and this does not**: `Ai_TradeForCounty`
+/// (`0x0049E39B`), the surplus sale and weapon purchase, which is the second
+/// seam in the module documentation and still unbuilt.
 ///
 /// For each county the realm holds: order fields, copy the lord's `farmStyle`
 /// into the county, dispatch, and re-allocate labour. Returns the number of
@@ -1311,12 +1362,60 @@ mod tests {
         (c, map, units)
     }
 
+    /// A stall over a throwaway realm array, for the unowned-county tests that
+    /// never read a realm back. Leaked rather than threaded through every
+    /// call, because a test process ends and a borrow checker does not care.
     fn stall<'a>(t: &'a Tables, c: &County, units: &crate::unit::Units) -> CountyStall<'a> {
+        stall_with(t, c, units, Box::leak(realms().into_boxed_slice()))
+    }
+
+    fn stall_with<'a>(
+        t: &'a Tables,
+        c: &County,
+        units: &crate::unit::Units,
+        realms: &'a mut [Realm],
+    ) -> CountyStall<'a> {
         let mut counties = vec![County::new(); crate::county::MAX_COUNTIES];
         counties[1] = c.clone();
         let counties: [County; crate::county::MAX_COUNTIES] =
             counties.try_into().expect("MAX_COUNTIES entries");
-        CountyStall::new(t, &counties, units, Season::Spring, true)
+        CountyStall::new(t, &counties, units, realms, Season::Spring, true)
+    }
+
+    /// **An owned county pays out of its lord's treasury, not its own purse**
+    /// — `Ai_BuyGood`'s second clause, `realm == 0 || price * qty <= gold`,
+    /// then `Merchant_Trade`'s owned buy limb: `gold -= bill`,
+    /// `tradeSpentB += bill`, `tradeSpentA += bill`.
+    ///
+    /// The grazing realm style has one grain line, `if (grain < 100) buy 400`,
+    /// so the 1,600-crown bill is all or nothing: 1,600 in the treasury buys it
+    /// and 1,599 does not. The county's own purse is loaded with more than
+    /// enough both times, which is what says the purse is not the money.
+    ///
+    /// *Ablation*: put the owned arm back to `county.owner != 0 → false` and
+    /// the first case goes red (nothing bought); test the purse for an owned
+    /// county instead of the gold and the second goes red (the purse pays).
+    #[test]
+    fn an_ai_lords_county_pays_for_its_grain_out_of_the_treasury() {
+        for (gold, bought) in [(1_600, 400), (1_599, 0)] {
+            let (mut c, mut map, units) = neutral_with_purse(10_000);
+            c.owner = 2;
+            c.grain = 0;
+            c.herd = 50; // above the grazing style's cattle floor of 41
+            let mut rs = realms();
+            rs[2].gold = gold;
+            let mut m = stall_with(T, &c, &units, &mut rs);
+            run_buys(FarmStyle::RealmGrazing, 1, &mut c, &mut map, &mut m);
+            drop(m);
+            assert_eq!(c.grain, bought, "treasury {gold}");
+            assert_eq!(c.purse, 10_000, "treasury {gold}: an owned county's purse is not spent");
+            let bill = bought * 4;
+            assert_eq!(rs[2].gold, gold - bill, "treasury {gold}");
+            assert_eq!((rs[2].trade_spent_a, rs[2].trade_spent_b), (bill, bill), "treasury {gold}");
+            for (i, r) in rs.iter().enumerate().filter(|(i, _)| *i != 2) {
+                assert_eq!(r.gold, 0, "realm {i} is not the owner and pays nothing");
+            }
+        }
     }
 
     /// **A sack of grain costs four crowns**, which is the whole of why the

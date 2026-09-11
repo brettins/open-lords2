@@ -4964,7 +4964,7 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Tax_CollectAll(void)",
-      "comment": "Per county: rate = 320 + castle bonus (480/560/640/720/800 for castle types 1..5, i.e. +50/75/100/125/150%); take = Pct(Pct(population, rate), taxRate); credited to the owner realm's gold. Also writes the tax happiness delta 5 - taxRate + realm[+0x28] into county +0x0E."
+      "comment": "Per county: rate = 320 + castle bonus (480/560/640/720/800 for castle types 1..5, i.e. +50/75/100/125/150%); take = Pct(Pct(population, rate), taxRate); credited to the owner realm's gold, and to realm +0xF4/+0xF8 (Realm::tax_ledger), which nothing reads (docs/decisions.md C168). Also writes the tax happiness delta 5 - taxRate + realm[+0x28] into county +0x0E."
     },
     {
       "addr": "0x0044B80B",
