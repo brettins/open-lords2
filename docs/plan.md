@@ -95,16 +95,22 @@ All three say the same thing: **quote the second column, not only the count.**
 
 ### Standing numbers, and the one that is unaudited
 
-At `be3dfc4`: **2,158 tests**, C1..C136, 870 citations, 1,293 functions and 573 globals named,
-`GATED_TOTAL` 363. All checks green.
+At `4ea2669` plus this branch: **2,168 tests**, C1..C136 and three `CNEW` placeholders,
+870 citations, 1,293 functions and 573 globals named, `GATED_TOTAL` 369. All checks green.
 
-**And the standing gap those numbers do not show.** Two of our inventories are *checked* against
-the tree and the rest are prose. `crates/l2-game/tests/arms.rs` asserts set equality in both
-directions between `docs/arms.json`'s `reproduced` records and the `// arm:` markers in
-`crates/`; `crates/l2-sim/tests/oracle.rs` opens `Lords2.exe` at its fixed `0x400000` base and
-compares three battle tables byte for byte against our constants. **`docs/draws.md`,
-`docs/draws-map.md` and `docs/audio-triggers.md` have no such check** — they are hand-marked and
-can rot exactly the way `input.rs`'s "the only reader of `g_mouseLeftDoubleClick`" rotted.
+**And the standing gap those numbers do not show.** Three of our inventories are *checked*
+against the tree and the rest are prose. `crates/l2-game/tests/arms.rs` asserts set equality in
+both directions between `docs/arms.json`'s `reproduced` records and the `// arm:` markers in
+`crates/`; `crates/l2-game/tests/sfx.rs` does the same for `docs/audio.json` and `// sfx:`, with
+`node tools/oracle/sounds.js --check` holding the *other* end of that file against the
+decompilation; `crates/l2-sim/tests/oracle.rs` opens `Lords2.exe` at its fixed `0x400000` base and
+compares three battle tables byte for byte against our constants. **`docs/draws.md` and
+`docs/draws-map.md` have no such check** — they are hand-marked and can rot exactly the way
+`input.rs`'s "the only reader of `g_mouseLeftDoubleClick`" rotted, and exactly the way
+`docs/audio-triggers.md` did: it was prose, it claimed *"24 of 134"*, and **both numbers were
+wrong** — the denominator because the enumeration was one primitive short
+(`docs/decisions.md` CNEW-ninth-primitive) and the numerator because nobody had compared it
+with the code since it was typed.
 
 **Nothing anywhere compares what the original and our engine *do*.** Everything we check is a set
 of names or a block of static data. There is no test that starts both from the same state, steps
@@ -908,7 +914,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,158<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,168<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

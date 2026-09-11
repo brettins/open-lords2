@@ -141,7 +141,7 @@ fn every_in_game_screen_over_the_front_end_is_campaign_music() {
 /// the clause the fix must not break: `SetupPage::Load` is the title's load
 /// screen and is not `ScreenId::SaveLoad`.
 #[test]
-fn the_front_end_stays_silent_through_all_thirteen_of_its_pages() {
+fn the_front_end_is_its_own_scene_on_all_thirteen_of_its_pages() {
     let game = world();
     for page in SetupPage::ALL {
         let m = Machine::new(ScreenId::Setup(page));
@@ -211,7 +211,12 @@ fn pressing_start_on_the_title_screen_makes_a_noise() {
     }
 
     tick!();
-    assert_eq!(audio.music_name(), None, "the title screen is silent");
+    // **The title screen is not silent, and this line used to say it was.**
+    // `Music_Play` (`0x004263AD`) is a ninth sound primitive that
+    // `docs/audio-triggers.md`'s eight did not enumerate, and all nine of its
+    // call sites are the front end playing `setup.wav`. See
+    // `tests/audio_screens.rs`.
+    assert_eq!(audio.music_name().as_deref(), Some("setup.wav"), "the front end's own bed");
 
     // *Single player* — page 1 item 0, the first hotspot, so the selection is
     // already on it. Then *Custom game* — page 2 item 3.
@@ -224,7 +229,11 @@ fn pressing_start_on_the_title_screen_makes_a_noise() {
     assert_eq!(machine.top_id(), Some(ScreenId::Setup(SetupPage::Custom)));
 
     tick!();
-    assert_eq!(audio.music_name(), None, "still the front end, three pages in");
+    assert_eq!(
+        audio.music_name().as_deref(),
+        Some("setup.wav"),
+        "still the front end, three pages in — and still one bed, not restarted"
+    );
 
     // *Start* — the third caption at y = 0xC6, the same coordinates
     // `tests/setup.rs` presses.
@@ -465,7 +474,7 @@ fn the_voice_class_is_84_percent_of_the_games_audio() {
 }
 
 #[test]
-fn the_music_and_fanfares_are_twelve_more() {
+fn the_music_fanfares_and_screens_are_twenty_nine_more() {
     let Some(dir) = l2_testkit::install_dir() else {
         l2_testkit::skip!("no game install, so nothing to open");
     };
@@ -473,6 +482,8 @@ fn the_music_and_fanfares_are_twelve_more() {
     let mut audio = Audio::headless(&platform.vfs);
     assert_eq!(audio.file_count(), 771, "the install's sound count moved");
 
+    // The front end's own bed, which is `Music_Play`'s and not either picker's.
+    audio.follow(Scene::FrontEnd);
     // Every rung of `Music_StartCampaign`'s ladder, both clauses.
     for (counties, share) in [(1, 7), (2, 7), (2, 8), (2, 15), (2, 29), (2, 43)] {
         audio.follow(Scene::Campaign { county_count: counties, share_of_map_pct: share });
@@ -494,27 +505,85 @@ fn the_music_and_fanfares_are_twelve_more() {
     // which had no caller until the message window arrived.
     audio.play_effect(l2_game::audio::names::fanfare::CAPTURED);
 
+    // **The screen class**, which `tests/audio_screens.rs` drives through the
+    // machine and which is asked for here by name, so that this one assertion
+    // stays the whole count of what the engine can reach outside the narrator.
+    // Six bank slots from `g_jobSound`, four from `TileInfo_Draw`'s ladder —
+    // which overlap, because a mine sounds the same in the village and on the
+    // map — the forge, and five spoken lines.
+    for job in 1..=9usize {
+        if let Some(n) = l2_game::audio::names::slot(
+            l2_game::audio::names::Bank::Kingdom,
+            l2_game::audio::names::JOB_SOUND[job],
+        ) {
+            audio.play_effect(n);
+        }
+    }
+    audio.play_effect(l2_game::audio::names::blacksmith::FIRE);
+    for graphic in 0..13u8 {
+        if let Some(n) = l2_game::audio::names::resource_site_slot(graphic)
+            .and_then(|s| l2_game::audio::names::slot(l2_game::audio::names::Bank::Kingdom, s))
+        {
+            audio.play_effect(n);
+        }
+    }
+    for line in [
+        l2_game::audio::names::speech::RATION_NOT_MET,
+        l2_game::audio::names::speech::RATION_ON_DAIRY,
+        l2_game::audio::names::speech::SUPPLIES,
+        l2_game::audio::names::speech::ZOOM_OUT,
+        l2_game::audio::names::speech::SPLIT_ARMY,
+        l2_game::audio::names::speech::CHOOSE_YOUR_SHIELD,
+    ] {
+        audio.play_speech(line);
+    }
+    // The four movement sounds `Director::hear_the_march` asks for.
+    for slot in [5usize, 11, 12] {
+        if let Some(n) =
+            l2_game::audio::names::slot(l2_game::audio::names::Bank::Kingdom, slot)
+        {
+            audio.play_effect_if_idle(n);
+        }
+    }
+
     assert_eq!(
         audio.heard(),
         [
+            "army.wav",
             "battle1.wav",
             "battle2.wav",
             "battle3.wav",
             "battle4.wav",
+            "fallow.wav",
             "ff_batl.wav",
             "ff_capt.wav",
             "ff_msg.wav",
+            "fire.wav",
+            "iron.wav",
+            "merchant.wav",
+            "moo_2.wav",
+            "rioters.wav",
+            "s011_02.wav",
+            "s017_01.wav",
+            "s021_01.wav",
+            "s021_02.wav",
+            "s033_01.wav",
+            "s033_02.wav",
             "scroll1.wav",
             "scroll2.wav",
             "scroll3.wav",
             "scroll4.wav",
             "scroll5.wav",
+            "setup.wav",
+            "stonecut.wav",
+            "wheat.wav",
+            "woodcut.wav",
         ],
         "the set of sounds this engine can reach has changed. If a call site was \
          ADDED this is good news and the number in crates/l2-game/src/audio/mod.rs, \
          docs/mechanics.md and docs/decisions.md C116 moves with it."
     );
-    assert_eq!(audio.heard().len(), 12, "12 of 771 outside the voice class");
+    assert_eq!(audio.heard().len(), 29, "29 of 771 outside the voice class");
 
     // `battle5.wav` ships and decodes; nothing can ask for it. That is not a
     // gap in the wiring, it is `DAT_0057A0F0` being unidentified, and

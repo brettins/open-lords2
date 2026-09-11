@@ -6338,3 +6338,109 @@ not."*
 county `+0x108`, whose meaning was not traced"* — it is the worker count, and it is the
 divisor of the efficiency ramp's overstaffing term. Same class of change, same reason for not
 making it now.
+
+**CNEW-ninth-primitive — An enumeration whose denominator says *"every X goes through
+these N"* is a claim, and this one was one short.**
+
+`docs/audio-triggers.md` opened by explaining why the sound audit was cheap and the input-arm
+audit was not: *"the original funnels every sound in the game through **eight** leaf
+functions, so the denominator is a grep."* True of eight of them. There are nine.
+**`Music_Play` (`0x004263AD`) has nine call sites of its own**, and every one of them is the
+front end — `App_WinMain` at start-up, `FUN_00497A34` on every return to the title,
+`Screen_DrawConquest` over the interstitial, `Smk_OnFinished` when the intro films end, and
+four more over the credits.
+
+It was missed for a reason worth naming, because it is not carelessness and it will recur:
+**`Music_Play` is called by two of the eight**, so from the inside it reads as an
+implementation detail of `Music_StartCampaign` and `Music_StartBattle` — exactly the thing
+the audit correctly excludes. The nine sites that call it *directly* are invisible from that
+angle. The same shape had already cost this file once: its first pass counted 121 and missed
+`FUN_004262CF`, a 28-byte forwarder with thirteen callers, and the lesson was written down as
+*an absence is evidence only in proportion to how hard it was looked for*. Writing it down did
+not prevent the second instance, which is `docs/agents.md`'s standing point about documented
+process; `node tools/oracle/sounds.js --check` is the version a machine enforces.
+
+**What the omission cost was a player's report going unanswered while the count said
+nothing was wrong.** He said *"I don't hear music"*. C116 found the campaign half and fixed
+it. The title screen stayed silent, and `audio::scene`'s front-end arm explained why in a
+sentence that is entirely correct:
+
+> *"The original plays no music here: `Music_StartCampaign` is reached from the campaign
+> coming up, and the title screen's only sound is `setup.wav`."*
+
+Every clause true; `setup.wav` **is** the music, played by `Music_Play(name, 0, 1)` — the same
+looping call the campaign picker ends in. And because no row of the inventory covered
+`Music_Play`, the count did not *understate* the gap. It could not see it. **A missing row is
+worse than a wrong row**, because a wrong row is a lead and a missing one is a clean bill of
+health.
+
+**CNEW-the-dairy-line-is-spoken — C133 searched the right condition in the wrong medium.**
+
+A player: *"Also sorely missing: 'All your people are fed by dairy.'"* C133 searched every one
+of `L2.eng`'s 317 groups for *dairy*, *fed by* and *all your people*, found only group 62's
+**cut** ration screen, and concluded that *"that string does not exist"* — filing the report
+under *a memory that fits is not evidence* alongside two genuine misremembering.
+
+**The readout exists.** `Panel_OpenRation` (`0x0043A846`) is four statements and two of them
+are sounds:
+
+```c
+g_screenId = 0x19; Panel_Ration();
+if (rationAchieved == 0)                              Sound_PlayFile("S021_02.wav", 1, 0);
+else if (herd && herdEaten == 0 && grainEaten == 0)   Sound_PlayFile("S021_01.wav", 1, 0);
+```
+
+`[V]`. The second condition **is** the sentence: a standing herd, and opening the larder took
+neither a cow nor a sack. The game says it by **speaking**, on the frame the panel opens, and
+`S021_01.wav` ships. Both arms are now fired; `docs/oracle-requests.md` §11 asks somebody to
+listen and confirm the words, which is the only part still `[I]`.
+
+**The conclusion C133 drew was right about strings and wrong about the game**, and the reason
+it looked exhaustive is the reason it is worth recording: `L2.eng` really is where this game
+keeps its words, and `docs/formats/eng.md` §5 makes 317 groups searchable in a minute. That is
+a genuinely good instrument, and it made *"I searched all 317 groups"* feel like *"I searched
+everywhere"*. **646 of the install's 771 `.wav` files are somebody speaking.** A game with a
+narrator keeps part of its interface text in its audio, and a text search over the text files
+is exhaustive only over the half that is text.
+
+**It also revises the standing rule about this player's recollections**, which C133 stated as
+*three reversed out of three*. It is two out of three. The pattern that survives is the useful
+one and it is now unbroken: **he has never been wrong about the behaviour**, and the ration
+panel really did have a readout for exactly the condition he named.
+
+**CNEW-sound-inventory-has-a-test — the audio inventory was prose, and prose is what rots.**
+
+`docs/arms.json` has had `crates/l2-game/tests/arms.rs` behind it since C61: set equality in
+both directions between the inventory and the `// arm:` markers in `crates/`.
+`docs/audio-triggers.md` had the same job, the same purpose and **no check at all** — a
+hand-marked table saying *"we reproduce 24 of 134"*. Both numbers were wrong: the denominator
+by the correction above, and the numerator because nobody had compared it with the code since
+it was typed.
+
+It now has the same treatment, in two halves that meet in the middle:
+
+* `docs/audio.json` — one record per site, `id` / `addr` / `prim` / `class` / `arg` **generated**
+  from the decompilation by `sounds.js --rebuild`, and `status` / `ours` / `note` ours.
+* `node tools/oracle/sounds.js --check` — the file against the corpus, both directions, plus
+  the four generated fields per row. Runs where the corpus does.
+* `crates/l2-game/tests/sfx.rs` — the file against the `// sfx:` markers, both directions.
+  Runs everywhere.
+
+**One deliberate difference from `arms.rs`, and it is not a relaxation.** A `// sfx:` marker
+may claim several ids. `Msg_PlayVoice` is asked for at sixteen places guarded by sixteen
+values of one countdown, and `audio::voice_tick` is that whole ladder in one function;
+fourteen markers on one line would be fourteen claims about one line, which is the kind of
+tidiness that makes a census lie. What the check forbids is an id claimed **twice** — that is
+the property that matters, and it is the one `arms.rs` is really enforcing too.
+
+**And the status vocabulary is the finding, not the count.** Every one of the 143 sites is
+`reproduced` (50), `blocked` (55) or `missing` (38), and a `blocked` record is **required by
+the test to name the mechanic** in its `note`. That is what turns *"49 bank sites, ✗"* into
+something actionable: 25 of them are the battlefield's per-man state machine, 8 are Smacker
+playback, 4 are the shared hit-tester. A `blocked` with no note is indistinguishable from a
+`missing`, so the assertion on the note is the whole difference between a verdict and a
+shrug.
+
+`dead` is asserted **empty**: nothing in the table is unreachable in the shipped game. The
+unreachable audio is on the other side of the question — `Ff_win.wav` ships and no call site
+names it, which is a file with no trigger rather than a trigger with no path.

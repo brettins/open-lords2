@@ -72,3 +72,12 @@ docs/records.json    merge=l2json
 # silence -- so `id` outranks `addr` in KEY_FIELDS, and `merge-json.js --check`
 # refuses any array whose chosen key is not unique.
 docs/arms.json       merge=l2json
+#
+# `docs/audio.json` is registered here at the same moment it is created, which is
+# the half of the mechanism that was missed last time: the driver had been built,
+# tested and falsified the day before `docs/arms.json` landed, and the newest and
+# most exposed file of that shape was outside it. `docs/agents.md`, *the worked
+# example*. Keyed by `id` (`<caller>#<n>`) rather than `addr`, because one
+# function holds several trigger sites -- `Msg_DrawWindow` holds twenty-four --
+# so an `addr` key would collapse 143 records into 70 and discard 73 in silence.
+docs/audio.json      merge=l2json

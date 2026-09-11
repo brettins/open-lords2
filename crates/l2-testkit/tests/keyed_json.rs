@@ -42,8 +42,18 @@ fn root() -> PathBuf {
 /// with 42 records across 23 addresses, because one function can hold several
 /// input arms. Merged on `addr` the driver would have collapsed those 42 into 23
 /// and discarded 19 in silence.
-const KEYED: &[&str] =
-    &["docs/symbols.json", "docs/hypotheses.json", "docs/records.json", "docs/arms.json"];
+/// `docs/audio.json` is the same shape one inventory along — 143 trigger sites
+/// across 70 functions, so `Msg_DrawWindow` alone holds twenty-four of them and
+/// an `addr` key would discard 73 records in silence. It was registered in the
+/// same commit that created it, which is the half `docs/agents.md`'s worked
+/// example records as the one nobody checks.
+const KEYED: &[&str] = &[
+    "docs/symbols.json",
+    "docs/hypotheses.json",
+    "docs/records.json",
+    "docs/arms.json",
+    "docs/audio.json",
+];
 
 /// Every file `.gitattributes` hands to the driver is in [`KEYED`], and every
 /// file in [`KEYED`] is handed to the driver.

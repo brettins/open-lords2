@@ -30,6 +30,7 @@ const PRIMITIVES = [
   ['Sound_PlayTroopCry', '0x00499CB1', 'cry', '11 x 4 x 4, then Sound_PlayFile'],
   ['Music_StartCampaign', '0x00499ACA', 'music', 'the progress-bar ladder'],
   ['Music_StartBattle', '0x00477B2F', 'music', 'the alternating pair'],
+  ['Music_Play', '0x004263AD', 'music', 'a named track, looped or not - the front end is all of these'],
 ];
 
 /// Sites that live *inside* one of the primitives are that primitive's
@@ -37,7 +38,7 @@ const PRIMITIVES = [
 /// line and every troop cry.
 const DISPATCHERS = new Set([
   'Msg_PlayVoice', 'Sound_PlayTroopCry', 'Sound_PlayFile',
-  'Music_StartBattle', 'Music_StartCampaign', 'FUN_004262cf',
+  'Music_StartBattle', 'Music_StartCampaign', 'FUN_004262cf', 'Music_Play',
   'Sound_LoadKingdomBank', 'Sound_LoadBattleBank',
 ]);
 
@@ -73,11 +74,116 @@ function scan() {
   return rows;
 }
 
-const rows = scan();
+/// **The id of a trigger site: `<caller>#<n>`, `n` counting from 1 in source
+/// order within that caller.**
+///
+/// The caller name is what a reader needs and the ordinal is what makes it
+/// unique — `Unit_MoveInFacing` holds four sites and `Melee_Tick` six, so the
+/// function alone does not name one. The *line number* would also be unique and
+/// is deliberately not used: it moves every time the corpus is regenerated,
+/// and an id that changes under a rebuild is an id that cannot be written in a
+/// comment in `crates/`.
+function withIds(rows) {
+  const sorted = rows.slice().sort((a, b) =>
+    a.fn.localeCompare(b.fn) || a.file.localeCompare(b.file) || a.line - b.line);
+  const seen = new Map();
+  for (const r of sorted) {
+    const n = (seen.get(r.fn) || 0) + 1;
+    seen.set(r.fn, n);
+    r.id = `${r.fn}#${n}`;
+  }
+  return sorted;
+}
+
+const rows = withIds(scan());
 const byPrim = new Map();
 for (const r of rows) {
   if (!byPrim.has(r.prim)) byPrim.set(r.prim, []);
   byPrim.get(r.prim).push(r);
+}
+
+/// `docs/audio.json`'s `sites` array, as `{id: record}`.
+function inventory() {
+  const p = path.join(__dirname, '..', '..', 'docs', 'audio.json');
+  const doc = JSON.parse(fs.readFileSync(p, 'utf8'));
+  const out = new Map();
+  for (const s of doc.sites) out.set(s.id, s);
+  return { path: p, doc, out };
+}
+
+// **The denominator against the inventory, in both directions.**
+//
+// `crates/l2-game/tests/sfx.rs` checks `docs/audio.json` against the *markers*
+// in our code, and it can do that anywhere, because both live in the repo.
+// Neither of them can check the file against `Lords2.exe`, because the corpus
+// is gitignored and a player's machine has no Ghidra on it. This is that half,
+// and it runs wherever the corpus does.
+if (process.argv.includes('--check')) {
+  const { out } = inventory();
+  const here = new Set(rows.map((r) => r.id));
+  const there = new Set(out.keys());
+  const missing = [...here].filter((id) => !there.has(id));
+  const extra = [...there].filter((id) => !here.has(id));
+  let bad = 0;
+  if (missing.length) {
+    console.error(`${missing.length} trigger site(s) in the corpus and not in docs/audio.json:`);
+    for (const id of missing) {
+      const r = rows.find((x) => x.id === id);
+      console.error(`  ${id}  ${r.prim}(${r.arg})  ${r.addr}`);
+    }
+    bad = 1;
+  }
+  if (extra.length) {
+    console.error(`${extra.length} record(s) in docs/audio.json with no site in the corpus:`);
+    for (const id of extra) console.error(`  ${id}`);
+    bad = 1;
+  }
+  // And the fields the file copies out of the corpus, which are the ones a
+  // hand edit can silently get wrong.
+  for (const r of rows) {
+    const s = out.get(r.id);
+    if (!s) continue;
+    for (const [k, v] of [['prim', r.prim], ['class', r.cls], ['addr', r.addr], ['arg', r.arg]]) {
+      if (s[k] !== v) {
+        console.error(`${r.id}: docs/audio.json says ${k} ${JSON.stringify(s[k])}, ` +
+          `the corpus says ${JSON.stringify(v)}`);
+        bad = 1;
+      }
+    }
+  }
+  if (!bad) console.log(`docs/audio.json agrees with the corpus on all ${rows.length} sites`);
+  process.exit(bad);
+}
+
+// Regenerate `docs/audio.json`'s `sites` array from the corpus, **keeping every
+// verdict the file already carries**. The addresses and arguments come from the
+// decompilation; `status`, `ours` and `note` are ours and are never touched.
+if (process.argv.includes('--rebuild')) {
+  const { path: p, doc, out } = inventory();
+  // **Sorted by `id`, not by the order the sites were found**, because
+  // `.gitattributes` merges this file with `tools/symbols/merge-json.js` and
+  // that driver refuses an array that is not in key order: an unsorted array is
+  // what lets a text merge misalign two branches in the first place, which is
+  // the failure the driver exists for. The ordinal inside an id still comes
+  // from source order — that is what makes it stable — and only the array's
+  // order is lexicographic.
+  doc.sites = rows.slice().sort((a, b) => a.id.localeCompare(b.id)).map((r) => {
+    const was = out.get(r.id) || {};
+    return {
+      id: r.id,
+      addr: r.addr,
+      prim: r.prim,
+      class: r.cls,
+      arg: r.arg,
+      status: was.status || 'missing',
+      ours: was.ours,
+      sound: was.sound,
+      note: was.note,
+    };
+  });
+  fs.writeFileSync(p, JSON.stringify(doc, null, 2) + '\n');
+  console.log(`wrote ${doc.sites.length} sites to ${p}`);
+  process.exit(0);
 }
 
 if (process.argv.includes('--count')) {
@@ -95,10 +201,10 @@ for (const [prim, paddr, cls, what] of PRIMITIVES) {
     a.fn.localeCompare(b.fn) || a.line - b.line);
   console.log(`\n## ${prim} (${paddr}) - ${cls}`);
   console.log(`${what}. ${list.length} trigger site(s).\n`);
-  console.log('| caller | addr | argument |');
+  console.log('| id | addr | argument |');
   console.log('|---|---|---|');
   for (const r of list) {
-    console.log(`| \`${r.fn}\` | \`${r.addr}\` | \`${r.arg}\` |`);
+    console.log(`| \`${r.id}\` | \`${r.addr}\` | \`${r.arg}\` |`);
   }
 }
 console.log(`\n**${rows.length} trigger sites across ` +
