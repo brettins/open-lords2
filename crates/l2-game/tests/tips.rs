@@ -522,3 +522,65 @@ fn a_tip_reads_its_first_line_and_then_its_takes_a_second_apart() {
     let takes: Vec<&str> = sound.heard().into_iter().filter(|h| pool.iter().any(|p| p == h)).collect();
     assert_eq!(takes, vec!["s200_02.wav", "s200_03.wav"]);
 }
+
+/// **A troop cry holds a tip's next take back exactly as the narrator does**,
+/// because there is one buffer. `FUN_004B3ACD` asks `Sound_OneShotBusy()`, and
+/// `Sound_PlayTroopCry` is `Sound_PlayFile` into the same `DAT_00522AEC` the
+/// first line went into — so a cry keeps the next take waiting until a full
+/// second after the cry ends. That is what folding the tips' and the battle's
+/// two records of the buffer into one field was for (`docs/decisions.md`
+/// C166), and until this test nothing had put a cry in front of a take.
+///
+/// Two runs of one new game. The first finds the tick `S200_02.wav` starts on.
+/// The second is the same game with a cry put into the buffer on that tick,
+/// before the director listens: the take must not start then, and must start
+/// 64 ticks after the last tick the cry was sounding — the rule's own numbers,
+/// as in the test above, counted from the cry instead of the narrator.
+///
+/// Ablation: delete `self.one_shot = Some(key)` from `Audio::play_file` and the
+/// take starts on the cry's own tick.
+#[test]
+fn a_troop_cry_holds_back_a_tips_next_take_as_the_narrator_does() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no voice clips");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    const TAKE: &str = "s200_02.wav";
+    // `Sound_PlayTroopCry`'s file for a knight told to attack, take 2.
+    const CRY: &str = "knig_e2.wav";
+
+    // (the tick `TAKE` was first heard, the last tick `CRY` was sounding)
+    let run = |cry_on: Option<usize>| -> (Option<usize>, Option<usize>) {
+        let (mut g, a, mut m) = campaign();
+        let mut sound = Audio::headless(&platform.vfs);
+        let mut director = audio::Director::new();
+        // Sixteen milliseconds of stereo at the mixer's 44.1 kHz.
+        let mut buf = vec![0f32; 706 * 2];
+        let mut cry_last = None;
+        for t in 1..=8000 {
+            tick(&mut m, &mut g, &a);
+            if cry_on == Some(t) {
+                assert!(sound.play_file(CRY, true), "the buffer was busy on the take's own tick");
+            }
+            director.listen(&mut sound, &m, &g);
+            if sound.heard().contains(&TAKE) {
+                return (Some(t), cry_last);
+            }
+            sound.mix(&mut buf);
+            if sound.is_playing(CRY) {
+                cry_last = Some(t);
+            }
+        }
+        (None, cry_last)
+    };
+
+    let on = run(None).0.expect("S200_02.wav was never played");
+    let (take, cry_last) = run(Some(on));
+    // The claim first: a take that starts on the cry's own tick returns before
+    // the cry has been mixed once, so `cry_last` would be empty and an unwrap
+    // ahead of this would report the wrong thing.
+    assert_ne!(take, Some(on), "the take talked over the cry on tick {on}");
+    let take = take.expect("S200_02.wav was never played once the cry had finished");
+    let cry_last = cry_last.expect("the cry never sounded");
+    assert_eq!(take, cry_last + 1 + 63, "a second of quiet from the cry's last tick, {cry_last}");
+}

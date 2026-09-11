@@ -8639,7 +8639,7 @@ lockstep has.
 reachable, from the merged `docs/audio.json` and the tests. Both branches had added a record of
 the one-shot buffer, `DAT_00522AEC`: the tips' `last_speech` for `Sound_OneShotBusy` and this
 branch's `one_shot` for `Sound_PlayFile`'s drop. The original has one buffer and both ask it,
-so they are one field, set by `play_speech` and `play_file` and read by both checks. A troop
+so they are one field, set by `play_speech` and `play_file` and read by both checks (since C176, `stop_and_play_file` in `play_speech`'s place). A troop
 cry now keeps the tips' chained takes waiting, as it would in the original.
 
 ---
@@ -9122,3 +9122,57 @@ decrements read out of `Lords2.exe`; every character `0x20…0xFF` put to
 (ink of `0x86`/`0x87` one row above `'a'`/`0x80` in body, identical in heading, small and
 eight), `shell::the_each_turn_help_page_keeps_its_nine_bullets`, and
 `shell::the_glyph_map_is_the_table_in_the_users_own_executable`, now over 224 bytes.
+
+---
+
+**C176 — every play path now behaves as one of the original's two `Sound_PlayFile`
+shapes, and the verb that never dropped a request is gone.**
+
+`Sound_PlayFile` (`0x00427990`) returns at once while the one-shot buffer, `DAT_00522AEC`, is
+still playing. Ours did that only for the troop cries and `Wall_Smash`. `Audio::play_speech` never
+dropped a request, and the fanfares and `fire.wav` went through `Audio::play_effect`, which neither
+dropped a request nor took the buffer.
+
+**The statement in front of each reproduced call site splits them into two shapes.** `[V]`
+
+* **Plain `Sound_PlayFile`: drops while the buffer plays.** Now [`Audio::play_file`]. This covers
+  the speech lines (`Panel_OpenRation` ×2, `Sidebar_Button`, `Panel_SplitButton`, `Map_ZoomOut`),
+  the tips' chained takes (`FUN_004B3ACD`), `Msg_DrawWindow`'s five message fanfares and
+  `Battle_ChooseSettlement`'s `ff_batl.wav`, `Panel_JobDetail`'s `fire.wav`, the six troop-cry
+  sites via `Sound_PlayTroopCry`, and `Wall_Smash`.
+* **`Sound_StopOneShot()` then `Sound_PlayFile`: cuts off whatever is playing, and is never
+  dropped.** Now [`Audio::stop_and_play_file`], with [`Audio::stop_one_shot`] for the stop. This
+  covers `Msg_PlayVoice` in all three bands, and setup page 4's line (`FUN_00432CC8` ×2 and
+  `Setup_ChooseCampaign`, each `S011_02.wav`).
+
+**`play_speech` is removed, so no call site can regain the old non-dropping behaviour.** A request
+that is dropped no longer becomes the buffer's occupant, so the clip that was there stays the one
+`Sound_OneShotBusy` asks about.
+
+**A behaviour change a player can hear.** The message fanfares pass `isSpeech = 1`, so the
+**Speech** switch now silences `ff_msg.wav` and `ff_capt.wav`, and the Sound Effects switch no
+longer does.
+
+**The battlefield's H and V order now works while paused.** `Battle_FormationKey` (`0x0043C77A`)
+checks `DAT_00553C6C == 0 && g_appPhase == 3`, and its `WM_CHAR` caller checks
+`g_battlePhase == 2 && DAT_0057A0CC == 0`. Neither is the pause word `DAT_0053F238`, which
+`Battle_OrderClicked` tests for click orders. So H and V change the formation while paused, as they
+do in the original.
+
+**Tests**, each ablated and observed red on its own assertion:
+* in `audio_screens`, a zoom-out line and `ff_batl` requested over the ration line are dropped and
+  do not take the buffer, and requested after the line ends both play;
+* in `audio_wiring`, a letter's fanfare holds the buffer, the lord's voice cuts it off, and
+  Speech: Off silences the fanfare;
+* in `tips`, a troop cry holds a tip's next take back until 64 ticks after the cry's last sounding
+  tick, as the narrator does;
+* in `audio_battle`, V and H change unit `+0x09` while paused.
+
+`a_screen_speaks_once` was rewritten. Its mid-line comparison had been measuring the rewind a second
+trigger caused, and the drop hides that, so it now plays the line out and listens again.
+
+**At merge.** The film merge (C171) had added one more caller of `play_speech`, which this branch
+never saw: the ending film's narrator line, `Msg_DrawWindow#21`. Its own comment names it
+`Msg_PlayVoice(DAT_004F0374, DAT_004F0354)`, so it is `stop_and_play_file(name, true)` by the same
+rule as every other `Msg_PlayVoice` site. C166's sentence about the one buffer being "set by
+`play_speech` and `play_file`" now says that `stop_and_play_file` took `play_speech`'s place, here.

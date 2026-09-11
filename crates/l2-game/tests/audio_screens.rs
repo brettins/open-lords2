@@ -328,51 +328,137 @@ fn four_screens_speak_as_they_open() {
 /// `Director::listen` runs sixty times a second. The original's sound is in the
 /// handler that *changes* `g_screenId`, so it happens once; a test that only
 /// checked "did it play" would pass just as well with the guard removed and the
-/// player would hear the narrator stutter for as long as the panel was open.
+/// player would hear the narrator repeat for as long as the panel was open.
+///
+/// **A repeat can only be heard once the line has ended.** `Sidebar_Button`'s
+/// call is `Sound_PlayFile`, which drops a request while the one-shot buffer
+/// sounds, so sixty ticks of the same screen *during* the line are sixty dropped
+/// requests whether the edge is there or not. The previous version of this test
+/// mixed two buffers mid-line and compared them, which was a test of the rewind a
+/// second trigger used to cause; once `Audio::play_file` dropped, the drop hid
+/// the missing edge exactly as the original's would. So the line is played to its
+/// end, and then the panel, still up, is listened to again.
 ///
 /// **Ablation:** drop the `&& !self.stack…` half of `opened` and this goes red
-/// while every other test in the file stays green.
+/// on the line starting again.
 #[test]
 fn a_screen_speaks_once_and_not_once_a_frame() {
     let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
     let assets = Assets::placeholder();
-    let mut game = world();
-    // **The music has to be off**, and finding that out is the reason this
-    // comment exists. The first draft of this test left it on, mixed two
-    // buffers and compared them — and passed **with the guard deleted**,
-    // because `scroll1.wav` advances 4096 frames between the two `mix` calls
-    // and made them differ whatever the effect did. The assertion was true and
-    // was about the music. `docs/agents.md`, *a check that passes for an
-    // accidental reason*.
-    game.prefs.music = false;
+    let game = world();
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut director = audio::Director::new();
     listen(&mut director, &mut audio, &machine, &game);
 
     machine.push(ScreenId::Supplies(1));
-    // One tick, then take the first 4096 frames — which advances the voice's
-    // playhead past them. Then fifty-nine more ticks of the *same* screen and
-    // the next 4096 frames. `Mixer::play_effect` is retain-then-push, so a
-    // second trigger rewinds the clip to zero: if the guard is gone, the second
-    // buffer is the FIRST 4096 frames all over again and the two are equal.
     listen(&mut director, &mut audio, &machine, &game);
+    let line = names::speech::SUPPLIES;
+    assert!(audio.is_playing(line), "the supplies line never started, so this proves nothing");
+
     let mut buf = vec![0.0f32; 2 * 4096];
-    audio.mix(&mut buf);
-    for _ in 0..59 {
+    for n in 0.. {
+        if !audio.is_playing(line) {
+            break;
+        }
+        assert!(n < 2_000, "{line} never finished");
+        audio.mix(&mut buf);
+    }
+    for _ in 0..60 {
         listen(&mut director, &mut audio, &machine, &game);
     }
-    let mut buf2 = vec![0.0f32; 2 * 4096];
-    audio.mix(&mut buf2);
     assert!(
-        buf.iter().any(|s| *s != 0.0),
-        "the supplies line never reached the mixer, so this test proves nothing"
-    );
-    assert_ne!(
-        buf, buf2,
-        "sixty ticks of one screen produced the same first 4096 frames twice: the clip is \
-         being re-triggered on every tick, which is the narrator stuttering for as long as \
-         the panel is open"
+        !audio.is_playing(line),
+        "sixty ticks of a panel that was already up started its line again: the narrator \
+         repeats for as long as the panel is open"
     );
     let _ = &assets;
+}
+
+/// Mix until `name` has stopped sounding.
+fn drain(audio: &mut Audio, name: &str) {
+    let mut buf = vec![0.0f32; 2 * 4096];
+    for _ in 0..2_000 {
+        if !audio.is_playing(name) {
+            return;
+        }
+        audio.mix(&mut buf);
+    }
+    panic!("{name} never finished");
+}
+
+/// **A line or a fanfare asked for while the one-shot buffer sounds is
+/// dropped, and one asked for once it has finished plays.** `Sound_PlayFile`
+/// opens with `if (Sound_OneShotBusy()) return 0;`, and `Map_ZoomOut` and
+/// `Battle_ChooseSettlement` call it with nothing in front of it, so the
+/// narrator's zoom-out line and the battle fanfare wait for nobody: asked for
+/// over another clip, they are not played at all. `[V]`
+///
+/// The buffer is held by `Panel_OpenRation`'s `S021_01.wav`, itself a
+/// `Sound_PlayFile`. **And a request that is dropped does not take the
+/// buffer**: after each drop the ration line is still what `Sound_OneShotBusy`
+/// asks about. Nothing is mixed until both drops have been asked for, so the
+/// line cannot have ended by itself in between.
+///
+/// Ablations: take the busy test out of `Audio::play_file` and the zoom-out line
+/// is heard over the ration line; give `Map_ZoomOut` `stop_and_play_file`, the
+/// same; give `Battle_ChooseSettlement` `play_effect` back and `ff_batl.wav` is
+/// heard; record the name in `play_file` before its busy return and
+/// `one_shot_busy` answers no after the first drop.
+#[test]
+fn a_line_or_a_fanfare_over_the_one_shot_buffer_is_dropped_and_after_it_plays() {
+    let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
+    let mut game = world();
+    game.kingdom.counties[1].ration_achieved = 3;
+    game.kingdom.counties[1].herd = 400;
+    game.kingdom.counties[1].herd_eaten = 0;
+    game.kingdom.counties[1].grain_eaten = 0;
+    game.select(1);
+    // `Machine` has no pop, and the director reads nothing but the ids, so each
+    // listen is handed the stack it should see.
+    let stack = |over: &[ScreenId]| {
+        let mut m = Machine::new(APP_ROOT);
+        m.push(ScreenId::Campaign);
+        for id in over {
+            m.push(*id);
+        }
+        m
+    };
+    let ration = ScreenId::County(1, Panel::Ration);
+    let prompt = ScreenId::BattlePrompt;
+    let mut director = audio::Director::new();
+    listen(&mut director, &mut audio, &stack(&[]), &game);
+
+    listen(&mut director, &mut audio, &stack(&[ration]), &game);
+    assert!(
+        audio.is_playing(names::speech::RATION_ON_DAIRY),
+        "the ration line did not start, so nothing below is tested - heard {:?}",
+        audio.heard()
+    );
+    assert!(audio.one_shot_busy());
+
+    game.map_zoom_far = true;
+    listen(&mut director, &mut audio, &stack(&[ration]), &game);
+    assert!(!audio.heard().contains(&"s033_02.wav"), "Map_ZoomOut's line played over the ration line");
+    assert!(audio.one_shot_busy(), "the dropped zoom-out line took the buffer");
+
+    listen(&mut director, &mut audio, &stack(&[ration, prompt]), &game);
+    assert!(!audio.heard().contains(&"ff_batl.wav"), "the battle fanfare played over the ration line");
+    assert!(audio.one_shot_busy(), "the dropped fanfare took the buffer");
+
+    drain(&mut audio, names::speech::RATION_ON_DAIRY);
+    assert!(!audio.one_shot_busy());
+
+    // The same two again, each into an idle buffer.
+    game.map_zoom_far = false;
+    listen(&mut director, &mut audio, &stack(&[ration]), &game);
+    game.map_zoom_far = true;
+    listen(&mut director, &mut audio, &stack(&[ration]), &game);
+    assert!(audio.heard().contains(&"s033_02.wav"), "heard {:?}", audio.heard());
+    assert!(audio.one_shot_busy(), "the zoom-out line holds the buffer");
+
+    drain(&mut audio, names::speech::ZOOM_OUT);
+    listen(&mut director, &mut audio, &stack(&[ration, prompt]), &game);
+    assert!(audio.heard().contains(&"ff_batl.wav"), "heard {:?}", audio.heard());
+    assert!(audio.one_shot_busy(), "and the fanfare holds it in turn");
 }

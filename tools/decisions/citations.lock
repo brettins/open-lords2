@@ -190,6 +190,7 @@ crates/l2-game/tests/screens.rs	C48	a3f70d784d36	9e81512f4c0d
 crates/l2-game/tests/screens.rs	C61	0666dfecda29	60611046b40d
 crates/l2-game/tests/shell.rs	C22	df2346f350a7	0364b53a921d
 crates/l2-game/tests/siege_battle.rs	C35	7b2f7bc2325e	193a1920e229
+crates/l2-game/tests/tips.rs	C166	594d57b2ba61	e426c5b6c94a
 crates/l2-game/tests/turn.rs	C115	e1e6a0456501	085c9b771281
 crates/l2-game/tests/turn.rs	C134	e56871c4814a	d12cd2f96f79
 crates/l2-game/tests/turn.rs	C134	f5c6ceb24b23	d12cd2f96f79
@@ -633,9 +634,12 @@ docs/decisions.md	C161	6e968c63f3ee	8b6af36909ef
 docs/decisions.md	C161	bd94546675a8	8b6af36909ef
 docs/decisions.md	C163	2510e92d9958	d043a04534f8
 docs/decisions.md	C163	2ae950ef80e9	d043a04534f8
+docs/decisions.md	C166	761b215cfd0c	e426c5b6c94a
 docs/decisions.md	C169	c5ce93a241fa	4f087d2d4d89
 docs/decisions.md	C17	f0ab9c80c1a8	b9aaae4e270c
 docs/decisions.md	C170	59ae0f7705e2	2bbb0887e7d4
+docs/decisions.md	C171	dd8413c6c098	8915b523a9ad
+docs/decisions.md	C176	ddfc00ae0561	4d47d841886c
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
 docs/decisions.md	C21	7e1ce2bf6129	f7bf296341ff
