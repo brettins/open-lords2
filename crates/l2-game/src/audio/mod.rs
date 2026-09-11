@@ -98,7 +98,7 @@
 //!
 //! What is left, in the order a player notices it:
 //!
-//! * **Nine battlefield sites, each on a mechanic rather than a channel.** This
+//! * **Three battlefield sites, each on a mechanic rather than a channel.** This
 //!   bullet used to say the whole battlefield — 25 sites — was *"a limit of the
 //!   design rather than a to-do"*, because a sword swing is an event inside a
 //!   tick and [`Director`] derives sound from the world after it. The premise
@@ -106,15 +106,19 @@
 //!   the event. `l2_sim::cue` is that record — monotone counts the battle writes
 //!   and never reads — and because every battlefield call is drop-if-busy, a
 //!   count that moved since the last tick is exactly what the original's calls
-//!   could make audible. Sixteen of the 25 sound now. The nine that do not are
-//!   fire, boiling oil, a tower docking, state 17's own loose, the high-rampart
-//!   catapult miss and a realm eliminated mid-battle — each named in
+//!   could make audible. Twenty-two of the 25 sound now: sixteen from the
+//!   record as it was written, and six more once fire, boiling oil, a tower
+//!   docking and the rampart too high to shoot down were built in
+//!   `l2_sim::fire` and `l2_sim::siege`. The three that do not are state 17's
+//!   own loose and a realm eliminated mid-battle — each named in
 //!   `docs/audio.json`, and each a mechanic `l2-sim` does not have.
 //! * **The two sample banks elsewhere.** [`names::KINGDOM_BANK`] and
 //!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
 //!   their 29 slots ship. The campaign half of the kingdom bank now sounds —
-//!   the march, the resource sites, the village's work — and `dest_ind.wav`,
-//!   the field brush and the peasant mob's other arms do not.
+//!   the march, the resource sites, the village's work — and `dest_ind.wav`'s
+//!   six campaign sites, the field brush and the peasant mob's other arms do
+//!   not. (The battlefield's bridge fire plays the same `dest_ind.wav` by name,
+//!   so the file is reachable; those six sites are not.)
 //!
 //!   > This used to end *"and **nothing calls
 //!   > [`Audio::play_effect_if_idle`]**"*, and that is no longer true. The
@@ -1569,12 +1573,12 @@ pub enum Request {
 /// `l2-sim`; which *slot* that event plays is decided here, because it is the
 /// original's ladder and not a rule of the battle.
 ///
-/// Nine of the twenty-five sites are not here, and each is `blocked` in
-/// `docs/audio.json` on a mechanic this engine does not model: fire
-/// (`BattleMan_BurnTick` ×2, `FUN_0048551D`), boiling oil (`FUN_0047A814`),
-/// a siege tower docking (`FUN_00491492`), state 17's own loose
-/// (`BattleMan_StateCloseToAttack` ×2), a catapult shot on a rampart four high
-/// (`Missile_Step#2`), and a realm eliminated mid-battle (`FUN_0047FE0B`).
+/// Three of the twenty-five sites are not here, and each is `blocked` in
+/// `docs/audio.json` on a mechanic this engine does not model: state 17's own
+/// loose (`BattleMan_StateCloseToAttack` ×2) and a realm eliminated
+/// mid-battle (`FUN_0047FE0B`). Fire, boiling oil, a tower docking and the
+/// rampart too high to shoot down were the other six, and `l2_sim::fire` is
+/// where they went.
 pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
     use l2_sim::{Troop, WeaponClass, ALL_TROOPS, SIDE_A, SIDE_B};
     let struck = |t: Troop| now.melee_casualties(t) != was.melee_casualties(t);
@@ -1612,12 +1616,23 @@ pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
     // sfx: Melee_Tick#6
     ask(now.melee_deaths(SIDE_B) != was.melee_deaths(SIDE_B), Request::Slot(0xc));
 
+    // **`BattleMan_BurnTick` (`0x0049459A`), a figure's last man dying in
+    // fire** — the same ladder as the melee death, on the same two slots:
+    // `me.side == 0 ? 0xB : me.side == 4 ? 0xC`. `[V]`
+    // sfx: BattleMan_BurnTick#1
+    ask(now.burn_deaths(SIDE_A) != was.burn_deaths(SIDE_A), Request::Slot(0xb));
+    // sfx: BattleMan_BurnTick#2
+    ask(now.burn_deaths(SIDE_B) != was.burn_deaths(SIDE_B), Request::Slot(0xc));
+
     // **`Missile_Step` (`0x00492C8B`).** A catapult shot counted against a
-    // wall; a shot striking a man, crossbow 10 and bow 8; the same slot again
-    // on a casualty, which is always dropped because that buffer started a
+    // wall, and one that reached a wall four or more high and was not; a shot
+    // striking a man, crossbow 10 and bow 8; the same slot again on a
+    // casualty, which is always dropped because that buffer started a
     // statement earlier; and `0xD` for the last man. `[V]`
     // sfx: Missile_Step#1
     ask(now.walls_struck() != was.walls_struck(), Request::Slot(0xf));
+    // sfx: Missile_Step#2
+    ask(now.walls_missed() != was.walls_missed(), Request::Slot(0x10));
     // sfx: Missile_Step#3
     ask(hit(WeaponClass::Crossbow), Request::Slot(10));
     // sfx: Missile_Step#4
@@ -1645,6 +1660,19 @@ pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
     // `Sound_PlayFile("bathit2.wav", 0, 0)`. `[V]`
     // sfx: FUN_0049694f#1
     ask(now.walls_smashed() != was.walls_smashed(), Request::File(names::battle::WALL_SMASH));
+
+    // **`FUN_0047A814`, a pot of oil poured** — its last statement,
+    // `FUN_004262CF(3)`, `pouroil.wav`. `[V]`
+    // sfx: FUN_0047a814#1
+    ask(now.oil_poured() != was.oil_poured(), Request::Slot(3));
+    // **`FUN_00491492`, a siege tower docking** — `FUN_004262CF(0x11)`,
+    // `siegedoc.wav`, the last of the seventeen. `[V]`
+    // sfx: FUN_00491492#1
+    ask(now.towers_docked() != was.towers_docked(), Request::Slot(0x11));
+    // **`FUN_0048551D`, a bridge catching fire** — its first statement,
+    // `Sound_PlayFile("dest_ind.wav", 0, 0)`, the one-shot buffer. `[V]`
+    // sfx: FUN_0048551d#1
+    ask(now.bridges_fired() != was.bridges_fired(), Request::File(names::battle::BRIDGE_FIRE));
 
     out
 }

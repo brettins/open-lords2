@@ -193,10 +193,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xb",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Fire. BattleMan_BurnTick plays FUN_004262cf(0xB), deadguy2.wav, when a side-0 figure standing on a burning cell (surface 10 or 17) loses its last man. l2-sim has no burning cells: the effects that write those surfaces, FUN_00485675 and FUN_00485861, are not built. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "deadguy2.wav",
+      "note": "Fire. BattleMan_BurnTick plays FUN_004262cf(0xB) when a side-0 figure standing on a burning cell (surface 10 or 0x11) loses its last man. l2_sim::fire::burn, run from BattleRunner::update_man at the head of each figure's frame; the occasion is l2_sim::cue's burn_deaths and the slot is chosen by audio::battle_requests. Surface 10 is written by FUN_00485675 (oil, a bridge) and 0x11 by FUN_004859E5 from FUN_00485861's 0x10 (a wood) - this note used to say both were written directly."
     },
     {
       "id": "BattleMan_BurnTick#2",
@@ -204,10 +204,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xc",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Fire. The side-4 twin of #1: FUN_004262cf(0xC), deadguy3.wav. Not built for the same reason. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "deadguy3.wav",
+      "note": "Fire. The side-4 twin of #1: FUN_004262cf(0xC). l2_sim::fire::burn; the occasion is l2_sim::cue's burn_deaths and the slot is chosen by audio::battle_requests."
     },
     {
       "id": "BattleMan_FireMissile#1",
@@ -501,10 +501,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "3",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Boiling oil. FUN_0047A814 is Melee_Tick’s troopType == 10 arm: it spawns a class-7 missile, kills the pot and plays FUN_004262cf(3), pouroil.wav. l2-sim’s melee::engage refuses every siege engine, oil included, so the pot never reaches it. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "pouroil.wav",
+      "note": "Boiling oil. FUN_0047A814 has two callers, and this note once named one: Melee_Tick's troopType == 10 arm, reached when an enemy steps at the pot (Melee_AdjacentEnemyDir does not skip engines, and the 999 arm locks the pot into state 4), and BattleUnit_Order's oil loop, when the pot's unit is ordered downhill from surface 6, 4 or 5. It spawns the class-7 stream, spends the pot and plays FUN_004262cf(3). BattleRunner::pour_oil and l2_sim::fire; the occasion is l2_sim::cue's oil_poured."
     },
     {
       "id": "FUN_0047fe0b#1",
@@ -523,10 +523,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_dest_ind_wav_004d9f28,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The bridge fire. Missile_Step calls FUN_0048551D whenever any missile enters a surface-7 cell: Sound_PlayFile(dest_ind.wav, 0, 0), then FUN_00485675 sets that cell and its neighbours burning. l2-sim models no fire and no ignition. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "The bridge fire. FUN_0048551D has two callers: Missile_Step, when a missile whose +0x3C is 0 enters a surface-7 cell, and Cell_TryEnter, when a side-4 figure tries one. Sound_PlayFile(dest_ind.wav, 0, 0), then FUN_00485675 on the cell and on every bridge cell beside a burning one for five rings - along the bridge, not round the cell as this note used to say. l2_sim::fire::bridge_fire; the occasion is l2_sim::cue's bridges_fired, through Audio::play_file, the one-shot buffer."
     },
     {
       "id": "FUN_00491492#1",
@@ -534,10 +534,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0x11",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A siege tower docking. FUN_00491492 is troopType 8 finding an elevation-2 cell round its polar facing: it destroys the tower, lays a 3x3 ramp and plays FUN_004262cf(0x11), siegedoc.wav. l2-sim’s towers are stopped by a wall; docking is not built. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "siegedoc.wav",
+      "note": "A siege tower docking. FUN_00491492 runs when a troop-8 engine's step is refused, and docks against ground exactly two high two cells ahead of one of its four orthogonal facings, starting from its polar facing: it destroys the tower, lays a 3x3 ramp (FUN_004921E5), adds 3 to the breach score and 4 to the approach score and plays FUN_004262cf(0x11). l2_sim::siege::tower_dock_site and lay_tower_ramp, BattleRunner::dock_tower; the occasion is l2_sim::cue's towers_docked."
     },
     {
       "id": "FUN_0049694f#1",
@@ -864,10 +864,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "0x10",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A catapult shot on a rampart four high. Missile_Step’s class-3 arm counts the hit and plays FUN_004262cf(0xF) (#1, reproduced) when the cell’s elevation is 1..3, and plays Sound_PlaySlot(0x10), catmiss.wav, without counting when it is 4 or more. l2-sim’s strike_wall_with_shot counts every wall cell and has no elevation arm. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "catmiss.wav",
+      "note": "A catapult shot on a rampart four high. Missile_Step's class-3 arm counts the hit and plays FUN_004262cf(0xF) (#1) when the cell's elevation is 1..3, and plays Sound_PlaySlot(0x10) without counting when it is 4 or more. BattleRunner::strike_wall_with_shot's high arm; the occasion is l2_sim::cue's walls_missed. The gate in front of both arms is the original's surface 4 with frame > 2; ours is the wall flag, which is what our castle has instead of the frames."
     },
     {
       "id": "Missile_Step#3",

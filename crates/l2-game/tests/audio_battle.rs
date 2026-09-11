@@ -341,13 +341,15 @@ fn an_order_onto_the_moat_is_the_fourth_cry() {
 
 // ---------------------------------------------------------------- the fighting
 
-/// **Every call the battlefield's ladder can make, pinned.** Sixteen sites,
-/// thirteen files, and the verb each one uses: every bank slot is
-/// drop-if-busy on its own buffer and the wall is the one-shot buffer.
+/// **Every call the battlefield's ladder can make, pinned.** Twenty-two sites,
+/// seventeen files, and the verb each one uses: every bank slot is
+/// drop-if-busy on its own buffer, and the wall coming down and the bridge
+/// catching are the one-shot buffer.
 ///
-/// A new arm makes this red with the request it added.
+/// A new arm makes this red with the request it added — which is how the six
+/// that fire, oil, the tower and the high rampart added arrived here.
 #[test]
-fn the_battle_ladder_is_sixteen_calls_and_thirteen_files() {
+fn the_battle_ladder_is_twenty_two_calls_and_seventeen_files() {
     let every = Cues::of_every_occasion();
     let asked = audio::battle_requests(&Cues::default(), &every);
     assert_eq!(
@@ -359,7 +361,10 @@ fn the_battle_ladder_is_sixteen_calls_and_thirteen_files() {
             Request::Slot(6),
             Request::Slot(0xb),
             Request::Slot(0xc),
+            Request::Slot(0xb),
+            Request::Slot(0xc),
             Request::Slot(0xf),
+            Request::Slot(0x10),
             Request::Slot(10),
             Request::Slot(8),
             Request::Slot(10),
@@ -369,6 +374,9 @@ fn the_battle_ladder_is_sixteen_calls_and_thirteen_files() {
             Request::Slot(7),
             Request::Slot(0xe),
             Request::File("bathit2.wav"),
+            Request::Slot(3),
+            Request::Slot(0x11),
+            Request::File("dest_ind.wav"),
         ]
     );
     let files: BTreeSet<&str> = asked.into_iter().map(file_of).collect();
@@ -380,11 +388,15 @@ fn the_battle_ladder_is_sixteen_calls_and_thirteen_files() {
             "bowmen1.wav",
             "catfire.wav",
             "cathit.wav",
+            "catmiss.wav",
             "cros_hit.wav",
             "crossbow.wav",
             "deadguy2.wav",
             "deadguy3.wav",
             "deadguy4.wav",
+            "dest_ind.wav",
+            "pouroil.wav",
+            "siegedoc.wav",
             "sword2.wav",
             "sword3.wav",
             "sword5.wav",
@@ -509,6 +521,71 @@ fn sound_does_not_change_the_battle() {
     assert!(melee > 0, "{:?}", b.runner.sim.cues);
 }
 
+/// **The proving ground as a live battle**: `l2_sim::proving`'s siege, unpaused,
+/// in a game on the battlefield screen.
+fn staged_siege() -> (Game, Machine) {
+    let runner = l2_sim::proving::deploy();
+    let mut live = LiveBattle::new(runner, 0, 0, 0, Some(l2_sim::proving::LEVEL), 1, 1);
+    live.paused = false;
+    live.cam = (20, 25);
+    let mut g = Game::new(5);
+    g.prefs.tip_screens = false;
+    g.player = 1;
+    g.battle = Some(Box::new(live));
+    (g, Machine::new(ScreenId::Battlefield))
+}
+
+/// One siege that pours oil, docks a tower, burns a bridge and the men on it
+/// and bounces catapult shots off a wall four high, played twice from the same
+/// timetable: once with a [`audio::Director`] listening after every tick, once
+/// with nothing listening.
+fn play_a_siege_twice(sound: &mut Audio) -> (Game, Game) {
+    let a = Assets::placeholder();
+    let (mut heard, mut hm) = staged_siege();
+    let (mut silent, mut sm) = staged_siege();
+    let mut director = audio::Director::new();
+    for (g, m) in [(&mut heard, &mut hm), (&mut silent, &mut sm)] {
+        send(m, g, &a, Event::Pointer { x: 240, y: 240 });
+    }
+    for t in 0..2_000 {
+        for g in [&mut heard, &mut silent] {
+            l2_sim::proving::orders(&mut g.battle.as_deref_mut().unwrap().runner);
+        }
+        tick(&mut hm, &mut heard, &a);
+        director.listen(sound, &hm, &heard);
+        tick(&mut sm, &mut silent, &a);
+        assert!(heard.battle == silent.battle, "sound changed the siege at tick {t}");
+    }
+    (heard, silent)
+}
+
+/// **Sound does not change a siege that burns, tick for tick** — C166's proof,
+/// extended to the six sites fire, oil, the tower and the high rampart added.
+///
+/// The same comparison as [`sound_does_not_change_the_battle`]: the whole
+/// `LiveBattle` at every tick — every field of the runner, the missile array
+/// with its fires and its stream, the battlefield with its burning cells and
+/// its ramp — and the saved game's bytes at the end. The second half of the
+/// assertion is what keeps the first from being about a quiet siege: every one
+/// of the six occasions happened, so the listener was asked for all six.
+#[test]
+fn sound_does_not_change_a_siege_that_burns() {
+    let mut silent_layer = Audio::silent();
+    let (heard, silent) = play_a_siege_twice(&mut silent_layer);
+    assert_eq!(l2_game::save::encode(&heard), l2_game::save::encode(&silent));
+    let c = live(&heard).runner.sim.cues;
+    assert_eq!(c.oil_poured(), 1, "{c:?}");
+    assert_eq!(c.towers_docked(), 1, "{c:?}");
+    assert!(c.bridges_fired() >= 1, "{c:?}");
+    assert!(c.walls_missed() >= 1, "{c:?}");
+    assert!(c.burn_deaths(SIDE_B) >= 1, "{c:?}");
+    let asked = audio::battle_requests(&Cues::default(), &c);
+    for want in [Request::Slot(3), Request::Slot(0x11), Request::File("dest_ind.wav"), Request::Slot(0x10), Request::Slot(0xc)] {
+        assert!(asked.contains(&want), "{want:?} was never asked for: {asked:?}");
+    }
+    assert_eq!(live(&heard).conclusion, None, "the siege was still being fought");
+}
+
 // ------------------------------------------------------ against the install
 
 /// The install's case-insensitive lookup, as `tests/audio_install.rs` does it.
@@ -535,6 +612,24 @@ fn sound_that_plays_does_not_change_the_battle() {
     assert_eq!(l2_game::save::encode(&heard), l2_game::save::encode(&silent));
     let played = sound.heard();
     for want in ["swor_u2.wav", "bowmen1.wav", "crossbow.wav"] {
+        assert!(played.contains(&want), "{want} was never played: {played:?}");
+    }
+}
+
+/// **The same siege with sound that actually plays** — and the four files the
+/// siege added are among what was opened: the pour, the dock, the bridge and
+/// the shot off the high wall, with a burning man's death cry beside them.
+#[test]
+fn sound_that_plays_does_not_change_a_siege_that_burns() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so nothing to play");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let mut sound = Audio::headless(&platform.vfs);
+    let (heard, silent) = play_a_siege_twice(&mut sound);
+    assert_eq!(l2_game::save::encode(&heard), l2_game::save::encode(&silent));
+    let played = sound.heard();
+    for want in ["pouroil.wav", "siegedoc.wav", "dest_ind.wav", "catmiss.wav", "deadguy3.wav"] {
         assert!(played.contains(&want), "{want} was never played: {played:?}");
     }
 }
@@ -594,12 +689,13 @@ fn the_troop_cry_table_is_the_one_at_0x004db0d0() {
     }
 }
 
-/// **Seventy-nine more files**: the ladder's thirteen and the sixty-six cries,
+/// **Eighty-three more files**: the ladder's seventeen and the sixty-six cries,
 /// asked for through the verbs the director uses and counted by what the layer
-/// actually opened. With `tests/audio_wiring.rs`' 530 and 30 that is **639 of
-/// 771**.
+/// actually opened. With `tests/audio_wiring.rs`' 530 and 30 that is **643 of
+/// 771**. It was seventy-nine until the siege could pour oil, dock a tower,
+/// burn a bridge and bounce a shot off a wall four high.
 #[test]
-fn the_battlefield_is_seventy_nine_more_files() {
+fn the_battlefield_is_eighty_three_more_files() {
     let Some(dir) = l2_testkit::install_dir() else {
         l2_testkit::skip!("no game install, so nothing to open");
     };
@@ -624,15 +720,15 @@ fn the_battlefield_is_seventy_nine_more_files() {
     }
     let heard = sound.heard();
     let ladder = [
-        "bathit2.wav", "bow_hit.wav", "bowmen1.wav", "cathit.wav", "catfire.wav", "cros_hit.wav",
-        "crossbow.wav", "deadguy2.wav", "deadguy3.wav", "deadguy4.wav", "sword2.wav", "sword3.wav",
-        "sword5.wav",
+        "bathit2.wav", "bow_hit.wav", "bowmen1.wav", "cathit.wav", "catfire.wav", "catmiss.wav",
+        "cros_hit.wav", "crossbow.wav", "deadguy2.wav", "deadguy3.wav", "deadguy4.wav",
+        "dest_ind.wav", "pouroil.wav", "siegedoc.wav", "sword2.wav", "sword3.wav", "sword5.wav",
     ];
     for f in ladder {
         assert!(heard.contains(&f), "{f} was not opened: {heard:?}");
     }
     assert_eq!(heard.len() - ladder.len(), 66, "the cries: {heard:?}");
-    assert_eq!(heard.len(), 79);
+    assert_eq!(heard.len(), 83);
 }
 
 /// **The throttle is the original's and nothing else.** `Sound_PlayFile` has

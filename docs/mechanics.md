@@ -640,14 +640,14 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   `Audio` is not in `Ctx`, so no screen can reach it, and the event loop derives what
   should be audible from what already happened.
 
-  **The number that keeps this row honest is 674 of 771.** 639 of them are measured
+  **The number that keeps this row honest is 678 of 771.** 643 of them are measured
   rather than typed — `crates/l2-game/tests/audio_wiring.rs` and `tests/audio_battle.rs`
   drive the real paths and read back what was actually opened — and the other **35 are
   the tip screens**, of which `crates/l2-game/tests/tips.rs` drives one tip's three clips
   end to end and the rest are counted from the take table and the install's listing, not
-  driven. **565 of those 674 are the narrator** — 448 lord takes, 93 system clips and 24
+  driven. **565 of those 678 are the narrator** — 448 lord takes, 93 system clips and 24
   tip takes — because 646 of the install's 771 files, **84 %**, are somebody speaking;
-  66 more are the troop cries and 13 the fighting. A player: *"that guy's voice acting is
+  66 more are the troop cries and 17 the fighting. A player: *"that guy's voice acting is
   half the personality of the game."* By file count he understates it.
 
   It was **0 of 771** from the day the layer landed until a player said he heard
@@ -659,7 +659,9 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   turned out to be counted because their names resolved, not because anything in the
   game could ask for them — then **595**, when the tip screens were built
   (`crates/l2-game/src/tip.rs`) and 35 of their 40 files could be asked for — and then
-  **674**, when the battlefield got an event stream. Everything below this paragraph is
+  **674**, when the battlefield got an event stream — and then **678**, when a siege could
+  pour oil, dock a tower, burn a bridge and bounce a shot off a wall four high
+  (`docs/battle.md` §17). Everything below this paragraph is
   about the original and was never in doubt; what was in doubt was whether anything
   called it, which is the question this row now answers with a fraction instead of a tick.
 

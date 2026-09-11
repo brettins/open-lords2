@@ -109,8 +109,8 @@ the verdicts a reader wants:
 
 | status | sites | means |
 |---|---:|---|
-| `reproduced` | **73** | we fire it; a `// sfx:` marker is on the line |
-| `blocked` | **36** | the mechanic behind it is not built, and `note` **names** it |
+| `reproduced` | **81** | we fire it; a `// sfx:` marker is on the line |
+| `blocked` | **28** | the mechanic behind it is not built, and `note` **names** it |
 | `missing` | **31** | reachable and unwired — no excuse, just not done |
 | `dead` | **3** | the shipped game cannot reach it; `note` is the evidence and `docs/bugs.md` has the entry |
 
@@ -140,12 +140,15 @@ with no path.
 | a channel from a click to the audio layer (the field brush) | 5 | 3 |
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
 | the two delegated message painters (categories `0x0C`, `0x14`) | 2 | 0 — both `ff_msg.wav` |
-| battlefield fire — `BattleMan_BurnTick` ×2, the bridge fire `FUN_0048551D` | 3 | 1 — `dest_ind.wav`; the two death cries already sound |
 | state 17's own loose — `BattleMan_StateCloseToAttack` ×2 | 2 | 0 — the bow and crossbow already sound from state 5 |
-| boiling oil — `FUN_0047A814` | 1 | 1 — `pouroil.wav` |
-| a siege tower docking — `FUN_00491492` | 1 | 1 — `siegedoc.wav` |
-| a catapult shot on a rampart four high — `Missile_Step#2` | 1 | 1 — `catmiss.wav` |
 | a realm eliminated mid-battle — `FUN_0047FE0B` | 1 | 0 — `deadguy4.wav` already sounds |
+
+**Four rows left this table together**: battlefield fire (`BattleMan_BurnTick` ×2 and the
+bridge fire `FUN_0048551D`), boiling oil (`FUN_0047A814`), a siege tower docking
+(`FUN_00491492`) and the catapult shot on a rampart four high (`Missile_Step#2`) — six
+sites and four files, `dest_ind.wav`, `pouroil.wav`, `siegedoc.wav` and `catmiss.wav`.
+They were blocked on mechanics, and the mechanics are `crates/l2-sim/src/fire.rs` and
+the tower half of `siege.rs`; `docs/battle.md` §17 is what was read to build them.
 
 **Read the second column before the first.**
 
@@ -194,6 +197,11 @@ no rate limit — and we add none.
 | `BattleMan_FireMissile#1`, `#2` | a crossbow / a bow looses | 9 `crossbow` · 7 `bowmen1` |
 | `BattleMan_StateEngineFire#1` | a catapult fires | `0xE` `catfire` |
 | `FUN_0049694f#1` | `Wall_Smash` | `bathit2.wav`, the one-shot buffer |
+| `BattleMan_BurnTick#1`, `#2` | a figure's last man dies in fire, side 0 / side 4 | `0xB` `deadguy2` · `0xC` `deadguy3` |
+| `Missile_Step#2` | a catapult shot reaches a wall four or more high and is **not** counted | `0x10` `catmiss` |
+| `FUN_0047a814#1` | a pot of boiling oil is poured | 3 `pouroil` |
+| `FUN_00491492#1` | a siege tower docks | `0x11` `siegedoc` |
+| `FUN_0048551d#1` | a bridge catches fire | `dest_ind.wav`, the one-shot buffer |
 
 Every slot is `[V]` from the call's constant, and every one lands on a file whose
 name says what the occasion is — `bowmen1` on the loose and `bow_hit` on the hit — which
@@ -204,7 +212,11 @@ the listener holds `&Game`, and two tests hold both halves: `l2-sim`'s
 `a_battle_whose_cues_are_wiped_every_tick_is_the_same_battle` zeroes one copy's record
 every tick and requires every other field to agree, and `tests/audio_battle.rs`'s
 `sound_does_not_change_the_battle` plays one battle with a director listening and one
-without and compares the whole `LiveBattle` at every tick.
+without and compares the whole `LiveBattle` at every tick. Both proofs have a siege twin
+over `l2_sim::proving`'s constructed field, which pours oil, docks a tower, burns a bridge
+and the men on it, and bounces shots off a wall four high inside two thousand frames:
+`a_siege_whose_cues_are_wiped_every_tick_is_the_same_siege` and
+`sound_does_not_change_a_siege_that_burns`, the second with real decoded audio as well.
 
 ## The troop cries: a round robin, and no random number anywhere
 

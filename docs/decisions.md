@@ -9415,3 +9415,58 @@ Folding the passes would move `l2_game::save`'s pass indices.
 * **`Industry_ProduceAll` repaints every county's site tile, with no owner test, `[D]`.** Ours
   skips unowned counties. So a county that secedes keeps a working mine or forest on the map after
   `County_MakeIndependent` has switched it off: the picture and the switch disagree.
+
+---
+
+**C181 — a siege had no fire, no oil and no docked tower because five routines had
+never been read, and the three documents that described them were wrong in ways that would
+have built them wrong.**
+
+C166 filed nine battlefield sound sites as blocked on mechanics. Six of them were five routines
+of a siege, and this entry is what reading them end to end found. `docs/battle.md` §17 is the
+mechanism; this is what was believed before, and what was built.
+
+**Three descriptions were half-right, and each half would have been built.**
+* `docs/audio.json` said `FUN_0047A814` is `Melee_Tick`'s oil arm. **It has a second caller**,
+  `BattleUnit_Order`'s oil loop: a pot ordered downhill pours where it stands. And the first
+  caller is reached because `Melee_AdjacentEnemyDir` (`0x004972F9`) **does not skip siege
+  engines** — a man steps at a pot and the 999 arm puts it in melee. Built from the note alone,
+  a pot would pour only if something engaged it, and nothing in `l2-sim` could.
+* `docs/audio.json` said the bridge fire *"sets that cell and its neighbours burning"*. **It walks
+  five rings along the bridge**, lighting only bridge cells beside something already burning,
+  each seven frames longer-lived than the last. And its second caller is `Cell_TryEnter`: a
+  besieger stepping onto a bridge sets it alight.
+* `docs/battle.md` §6.3 said surfaces 10 and 17 are written by `0x00485675` and `0x00485861`.
+  **`0x00485861` writes 0x10, which burns nobody**; `FUN_004859E5` turns it into 0x11 a frame
+  later and floods the wood one ring a frame. And §14.3b filed the Readme's *"towers can not be
+  moved again"* as unlocated: it is `FUN_00491492`, **which destroys the tower** and writes a ramp.
+
+**Built**, in `crates/l2-sim`, as lockstep state: `fire.rs` (a fire is a class-5 record in the
+same hundred slots as the arrows, remembering the surface it burnt; the oil stream is class 7;
+the bridge fire; the wood fire and the AI garrison's fire arrows; `BattleMan_BurnTick`), the
+tower half of `siege.rs` (the leading-edge test from `g_engineEdgeOrtho`/`Diag`, the dock search
+from the polar facing, the ramp), the elevation-4 arm of the catapult strike, and their places in
+`runner.rs`. Every new field is in `tests/lockstep.rs`' encoder, and the field census walks the
+two structs that gained one. Six sites move from `blocked` to `reproduced`: **75 → 81 of 143**,
+and reachable files **674 → 678 of 771**.
+
+**Determinism**, proven over a siege that uses all of it: `l2_sim::proving` is a constructed
+field — ours, like `our_castle` — on which a pot pours, a tower docks, a knight climbs its ramp, a
+bridge and the men on it burn, and catapult shots bounce off a wall four high, inside two thousand
+frames. A copy whose cue record is wiped every frame equals the untouched one at every frame; a
+game with a sound `Director` listening equals one without at every frame and saves byte-identical,
+with silent audio and with the install's.
+
+**Our own castle cannot show two of the five**, and that is a finding about our layout, not about
+the rules: a tower docks only against ground exactly two high and an AI's oil will not pour from
+below two, and every wall `our_castle` draws is one high. `proving.rs` exists because of it.
+
+**Found and not built**, each named in §17.8: men attack siege engines in the original (the 999
+arm does not ask what it engaged) and `melee::engage` refuses them; rams and catapults still step
+as one cell; the player's fire arrow; the engine side-step. One defect of the original is
+reproduced and filed: `FUN_00485675` does not test its slot, so a cell set alight with the array
+full burns for good — `docs/bugs.md` `B102`.
+
+**The lesson is C140's, and the brief's.** A blocked row's note is a description written to
+explain why something could not be built, and it is read for that and nothing else. Two of these
+three were one clause short, and the missing clause was the caller.
