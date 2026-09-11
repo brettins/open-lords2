@@ -139,3 +139,104 @@ fn the_turn_pair_is_the_same_game_at_earlier_turns() {
         turn(&after)
     );
 }
+
+/// **The four siege saves are one catapult being built, and the arithmetic
+/// closes.** This is the evidence for [`l2_formats::save::SiegeEngine`]'s
+/// offsets and for `l2_kingdom::siege::build_tick`'s port at the same time,
+/// because neither was fitted to it.
+///
+/// Realm 1's 43-man army stands outside county 4's castle in all four, with one
+/// catapult ordered. `g_siegeEngineWork[catapult]` is **200** man-seasons, read
+/// out of `Lords2.exe` and written down long before anybody opened these files.
+/// A besieging army puts `men` man-seasons a season into its unfinished
+/// records — `Siege_BuildTick` (`0x004A8507`) — and `Siege_RecomputeBuildTime`
+/// (`0x004A80DB`) writes `percent = work * 100 / total` and
+/// `seasonsLeft = ceil((total − work) / men)`.
+///
+/// | save | work | step | `work * 100 / 200` | `ceil((200−work)/43)` | stored % | stored `+0x19C` |
+/// |---|---:|---|---:|---:|---:|---:|
+/// | `siege-safeturn` | 86 | — | 43 | 3 | 43 | 3 |
+/// | `siege-old_turn` | 129 | +43 | 64 | 2 | 64 | 2 |
+/// | `siege-lastturn` | 172 | +43 | 86 | 1 | 86 | 1 |
+/// | `siege-sieging` | 200 | capped | 100 | 0 | 100 | 0 |
+///
+/// **Four independent quantities agree at once** — the +43 step, the
+/// percentage, the countdown, and the 200 that came from the binary — so the
+/// three `i16` at `+0x182` are what they are claimed to be. `[V]`
+///
+/// And the consequence, which is why this test exists rather than the offsets
+/// being taken on trust: the importer used to default all of this to zero, so
+/// our End Turn read *no work remaining*, wrote `seasonsLeft = 0` and launched
+/// the assault **three seasons early** on each of the three turn openings.
+/// `docs/decisions.md` CNEW-siege-engines-import.
+#[test]
+fn the_siege_ladder_of_the_three_siege_saves_is_one_catapult_being_built() {
+    /// `g_siegeEngineWork[0]` (`0x004DE440`), from `Lords2.exe`, not from these
+    /// files.
+    const CATAPULT_WORK: i32 = 200;
+    /// The besieger's headcount, which is also its man-seasons a season.
+    const MEN: i32 = 43;
+    /// `(file, work done, seasons left)`.
+    const LADDER: [(&str, i16, u8); 4] = [
+        ("siege-safeturn.sav", 86, 3),
+        ("siege-old_turn.sav", 129, 2),
+        ("siege-lastturn.sav", 172, 1),
+        ("siege-sieging.sav", 200, 0),
+    ];
+
+    let mut previous: Option<i16> = None;
+    for (file, work, seasons) in LADDER {
+        let save = open!(file);
+        let besieger = save
+            .units()
+            .expect("units")
+            .into_iter()
+            .find(|u| u.is_live() && u.kind == 1 && u.besieging_county != 0)
+            .unwrap_or_else(|| panic!("{file}: no besieging army"));
+
+        assert_eq!(i32::from(besieger.men as i16), MEN, "{file}: the besieger's headcount");
+        assert_eq!(besieger.besieging_county, 4, "{file}: besieging county 4");
+        assert_eq!(besieger.engines[0].ordered, 1, "{file}: one catapult ordered");
+        assert_eq!(besieger.engines[1].ordered, 0, "{file}: no towers");
+        assert_eq!(besieger.engines[2].ordered, 0, "{file}: no rams");
+        assert_eq!(besieger.engines[0].work_done, work, "{file}: man-seasons done");
+
+        // The percentage and the countdown are *derived*, so they are checked
+        // against the formula rather than against a second literal — two
+        // literals maintained together would agree because they were written to
+        // (`docs/agents.md`, *two artefacts that must agree*).
+        let done = i32::from(work);
+        assert_eq!(
+            i32::from(besieger.engines[0].percent),
+            done * 100 / CATAPULT_WORK,
+            "{file}: Siege_RecomputeBuildTime's percentage"
+        );
+        let remaining = CATAPULT_WORK - done;
+        assert_eq!(
+            i32::from(seasons),
+            (remaining + MEN - 1) / MEN,
+            "{file}: ceil({remaining} / {MEN}) seasons"
+        );
+        assert_eq!(besieger.siege_seasons_left, seasons, "{file}: +0x19C");
+
+        // And the step between consecutive saves is the headcount, capped.
+        if let Some(before) = previous {
+            assert_eq!(
+                done,
+                (i32::from(before) + MEN).min(CATAPULT_WORK),
+                "{file}: one season of {MEN} men, capped at the catapult's {CATAPULT_WORK}"
+            );
+        }
+        previous = Some(work);
+    }
+
+    // The assault does happen — three turns later. `siege-aftersie.sav` has no
+    // besieging army left and the garrison is down from 149 to 133, so the
+    // question our End Turn got wrong was never *whether*, only *when*.
+    let after = open!("siege-aftersie.sav");
+    let armies: Vec<_> =
+        after.units().unwrap().into_iter().filter(|u| u.is_live() && u.kind == 1).collect();
+    assert_eq!(armies.len(), 1, "only the garrison is left after the assault");
+    assert_eq!(armies[0].men, 133, "the garrison of 149 lost sixteen men repelling it");
+    assert_eq!(armies[0].besieged_by, 0, "and the siege link is gone");
+}

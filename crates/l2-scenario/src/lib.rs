@@ -730,14 +730,24 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         // for a merchant; `Scenario::merchant_start` is what checks it.
         defence_mark: if kind.is_combatant() { u.role } else { 0 },
         cargo_county: if kind.is_combatant() { 0 } else { u.role },
-        // The siege build records and the countdown are not read out of the save
-        // yet - the unit block holds them and `l2-formats` does not surface them -
-        // so an imported army starts with no engines ordered. A besieging army
-        // imported mid-build therefore resumes at zero work, which is wrong and
-        // is recorded here rather than hidden: it needs the three `+0x16C` words
-        // and the countdown adding to `l2_formats::save`.
-        engines: Default::default(),
-        siege_seasons_left: 0,
+        // `+0x182 + e*6` and `+0x19C` — the three siege build records and the
+        // countdown `Siege_BuildTick` (`0x004A8507`) derives from them.
+        //
+        // **These were defaulted to zero for months, and the comment that said
+        // so was the whole of the defect.** `Siege_BuildTick`'s recount sums
+        // `total - work_done` over records that are *ordered and unfinished*,
+        // so an army whose records are all zero has nothing remaining, writes
+        // `siegeSeasonsLeft = 0`, and returns *ready* on its very first tick.
+        // Turn phase 2 then launches the assault. The three siege fixtures are
+        // a 43-man army three, two and one seasons from finishing one catapult,
+        // and our End Turn stormed a Norman keep held by 149 men on each of
+        // them. `docs/decisions.md` CNEW-siege-engines-import.
+        engines: u.engines.map(|e| l2_kingdom::siege::EngineBuild {
+            ordered: e.ordered,
+            percent: e.percent,
+            work_done: e.work_done,
+        }),
+        siege_seasons_left: u.siege_seasons_left,
         // Unit `+0x1A` and `+0x19B` — the AI's mission byte and the county it
         // is about (`l2_kingdom::ai_army::Mission`). **Neither is surfaced by
         // `l2_formats::save`'s unit block yet**, so an imported army starts

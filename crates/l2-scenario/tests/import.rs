@@ -382,6 +382,28 @@ fn every_unit_in_every_save_is_imported_slot_for_slot() {
             assert_eq!(ours.cargo_county, cargo, "{at}: +0x167 as a cargo county");
             assert_eq!(ours.garrison_county, f.garrison_county, "{at}: garrison");
             assert_eq!(ours.besieging_county, f.besieging_county, "{at}: besieging");
+            // **The siege build records and the countdown they produce.**
+            // These were defaulted to zero by the importer for months, with a
+            // comment saying so, and the consequence was not a missing number
+            // on a screen: `Siege_BuildTick` sums the work *remaining* over
+            // ordered-and-unfinished records, so an army whose records are all
+            // zero has nothing remaining, writes `siegeSeasonsLeft = 0` and is
+            // reported ready on its first tick. The three siege fixtures are
+            // one catapult 43 %, 64 % and 86 % built, and our turn phase 2
+            // stormed the castle on each of them.
+            // `docs/decisions.md` CNEW-siege-engines-import.
+            for e in 0..3 {
+                assert_eq!(ours.engines[e].ordered, f.engines[e].ordered, "{at}: engine {e} ordered");
+                assert_eq!(ours.engines[e].percent, f.engines[e].percent, "{at}: engine {e} percent");
+                assert_eq!(
+                    ours.engines[e].work_done, f.engines[e].work_done,
+                    "{at}: engine {e} work"
+                );
+            }
+            assert_eq!(
+                ours.siege_seasons_left, f.siege_seasons_left,
+                "{at}: +0x19C, the seasons the engines still need"
+            );
             assert_eq!(ours.needs_destination, f.needs_destination, "{at}: idle");
             assert_eq!(ours.dest_county, f.dest_county, "{at}: dest county");
             assert_eq!(ours.path.len(), f.path_len as usize, "{at}: path length");

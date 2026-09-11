@@ -530,6 +530,18 @@ impl Save {
             garrison_county: self.u8_at(base + 0x198)?,
             besieging_county: self.u8_at(base + 0x199)?,
             besieged_by: self.u8_at(base + 0x19A)?,
+            engines: {
+                let mut e = [SiegeEngine::default(); 3];
+                for (n, record) in e.iter_mut().enumerate() {
+                    let at = base + 0x182 + (n * 6) as u32;
+                    *record = SiegeEngine {
+                        ordered: self.i16_at(at)?,
+                        percent: self.i16_at(at + 2)?,
+                        work_done: self.i16_at(at + 4)?,
+                    };
+                }
+                e
+            },
             siege_seasons_left: self.u8_at(base + 0x19C)?,
         })
     }
@@ -660,6 +672,30 @@ impl Realm {
     }
 }
 
+/// One besieging army's build record for one engine type — `+0x182 + e*6`,
+/// three `i16` in the order `g_siegeEngineWork` numbers them: catapult, siege
+/// tower, battering ram.
+///
+/// **`Save_Write` stores these**, and it is the countdown's whole input.
+/// `Siege_BuildTick` (`0x004A8507`) adds `men / incomplete` man-seasons to each
+/// unfinished record every turn and recomputes `+0x19C` from what is left, so
+/// an army whose records are read as zeros reports *ready* on its first tick —
+/// which is a stormed castle three seasons early. See
+/// [`the_siege_ladder_of_the_three_siege_saves_is_one_catapult_being_built`] in
+/// `crates/l2-formats/tests/battle_fixtures.rs`, where the three consecutive
+/// saves carry `work` 86, 129, 172 against a 200-man-season catapult with 43
+/// men building it, and `+0x19C` reads 3, 2, 1.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SiegeEngine {
+    /// `+0` — how many of this type were ordered.
+    pub ordered: i16,
+    /// `+2` — percent complete, 0…100, stored because the preparation screen
+    /// prints it.
+    pub percent: i16,
+    /// `+4` — man-seasons of work done, against `ordered * g_siegeEngineWork[e]`.
+    pub work_done: i16,
+}
+
 /// One `g_units` record: an army, a peasant mob, a merchant or a transport.
 ///
 /// **They are one array on purpose.** The type byte at `+0x08` is the only
@@ -741,6 +777,11 @@ pub struct Unit {
     pub garrison_county: u8,
     pub besieging_county: u8,
     pub besieged_by: u8,
+    /// `+0x182 + e*6` — the three siege-engine build records. Read because
+    /// `+0x19C` below is **derived from them every turn** and cannot be
+    /// resumed without them.
+    pub engines: [SiegeEngine; 3],
+    /// `+0x19C` — seasons until the ordered engines are ready.
     pub siege_seasons_left: u8,
 }
 

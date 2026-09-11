@@ -7195,3 +7195,96 @@ Two smaller corrections fell out of reading the arm:
   `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
   call sites in a half this change does not touch — but recorded, because it is
   the kind of thing that reads as a font choice rather than as a divergence.
+
+---
+
+**CNEW-siege-engines-import — the army the original left standing was not an AI
+decision, a battle or an interception. The importer dropped the siege's
+progress, so phase 2 stormed the castle three seasons early.**
+
+C137 and C146 left one divergence as the whole of the differential's siege
+residual, and stated it accurately: realm 1's **43-man army sits at (46,41) in
+all three siege saves**, and *our* turn had realm 2's 149-man army destroy it
+every time (`loser_owner: 1, loser_destroyed: true`). `43 / 5 = 8` was exactly
+realm 1's score shortfall. It was filed as *"an AI army-movement or siege
+divergence"*.
+
+**All three of the candidate explanations are wrong, and the ruling-out is worth
+as much as the answer.** The two armies are not standing adjacent; they are a
+**siege**, and the save says so in four bytes nobody had read:
+
+```
+unit 5  owner 1  43 men  (46,41)  besieging=4   seasonsLeft 3 -> 2 -> 1
+unit 4  owner 2 149 men  (45,42)  garrison=4    besiegedBy=5
+```
+
+* **Not an AI movement decision.** Realm 2's army never moves in any of the six
+  siege saves; it is `garrison_county = 4`, inside the castle, mission byte 5.
+* **Not a battle-resolution error.** The assault the original eventually fights
+  destroys the besieger too — `siege-aftersie.sav` has no besieging army and the
+  garrison is down 149 → 133. Our outcome was right. Our *timing* was three
+  seasons early.
+* **Not an interception rule.** Nothing intercepts anything; turn phase 2
+  launched the assault, from `Siege_BuildTick` reporting the engines ready.
+
+**The cause is a defaulted import, and the comment above it described the defect
+in full.** `l2_scenario::unit_of` carried:
+
+> *"The siege build records and the countdown are not read out of the save yet …
+> so an imported army starts with no engines ordered. A besieging army imported
+> mid-build therefore resumes at zero work, which is wrong and is recorded here
+> rather than hidden."*
+
+Right, cited, load-bearing — and what it did not say is that **zero work is not
+"resumes from the beginning", it is "finished"**. `Siege_BuildTick`
+(`0x004A8507`) sums `total − work_done` over records that are *ordered and
+unfinished*; a record with `ordered == 0` is skipped, so an army with no records
+has `remaining = 0`, is written `siegeSeasonsLeft = 0`, and returns **ready** on
+its first tick. `Siege_LaunchAssault`'s gate is `level < 3 || engines > 0`, and
+county 4's castle is a level-0 palisade, so 43 men stormed it bare-handed
+against 149. `docs/agents.md`'s *a correct explanation sitting directly above the
+omission it describes*, in its sharpest form yet: the comment named the field,
+the crate to add it to, and the consequence, and got the **sign** of the
+consequence backwards.
+
+**The evidence is four independent quantities closing at once, and nothing was
+fitted to it.** `g_siegeEngineWork[catapult]` is 200 man-seasons, read out of
+`Lords2.exe` long before these files were opened. Realm 1's besieger has one
+catapult ordered and 43 men:
+
+| save | `work_done` | step | `work*100/200` | stored `%` | `ceil((200−work)/43)` | stored `+0x19C` |
+|---|---:|---|---:|---:|---:|---:|
+| `siege-safeturn` | 86 | — | 43 | 43 | 3 | 3 |
+| `siege-old_turn` | 129 | +43 | 64 | 64 | 2 | 2 |
+| `siege-lastturn` | 172 | +43 | 86 | 86 | 1 | 1 |
+| `siege-sieging` | 200 | capped | 100 | 100 | 0 | 0 |
+
+The +43 step is the headcount, the percentage is
+`Siege_RecomputeBuildTime`'s (`0x004A80DB`), the countdown is its `div_ceil`, and
+the 200 came from the binary. **[V]** — the three `i16` at `+0x182 + e*6` are
+what they are claimed to be, and `l2_kingdom::siege::build_tick`'s port is
+confirmed by the same table.
+
+**What it moved.** `l2_formats::save::Unit` gains `engines` and the importer
+carries them and `+0x19C`. Realm 1's `strength`, `score` and `wages` and realm
+2's `wages` come to agreement on **both** siege pairs, and so does `realm.gold`
+on `siege 12->13` — the two gold rows were `+10` and `+5`, which are exactly the
+two realms' unpaid wages. 889 of 932 fields become **900**, and the number that
+means something — the fields the original's own turn moved — goes 251 to **256
+of 279**.
+
+**And one divergence got *worse*, which is the instrument working.** Realm 2's
+`score` on `siege 13->14` was `−3` and is now `+50`. The `−3` was our early
+assault's casualties happening to cancel most of a real gap: realm 2 spends 1,621
+crowns in the armoury during that turn (gold 2,015 → 394, `weapons.1` 26 → 126),
+which is the half of the step this pair cannot carry, and the score's gold
+bracket follows it. A wrong battle was flattering the number.
+
+**The rule this leaves.** *Not carried yet* and *carried as zero* are different
+claims, and a `Default::default()` makes them look identical at the call site.
+Where a field is an **input to a termination test**, the default is not neutral —
+it is an answer, and here it was the answer *done*. A `// NOT IMPORTED` beside
+the field would have read the same way; what would have caught it is asking what
+`build_tick` does when the record is empty, which its own doc comment already
+said: *"an army with no engines ordered at all returns true on its first tick"*.
+Two true sentences, in two crates, and nobody put them side by side.

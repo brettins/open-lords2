@@ -544,3 +544,89 @@ fn a_mid_game_save_keeps_the_standing_it_was_saved_with() {
     );
     assert_eq!(standing, 18, "the file's own byte, thirteen turns of healing above the opening 5");
 }
+
+/// **A siege in progress survives the load, and one End Turn advances it by one
+/// season instead of storming the castle.**
+///
+/// This is the behaviour behind the last divergence
+/// `crates/l2-game/tests/differential.rs` could attribute to one cause. Realm
+/// 1's 43-man army is besieging county 4 in all three siege turn-openings and
+/// the original leaves it standing; **ours destroyed it on every one of the
+/// three**, which cost realm 1 one point of `strength`, `43 / 5 = 8` points of
+/// `score`, and both realms their unpaid wages.
+///
+/// It was not an AI movement decision, a battle-resolution error or an
+/// interception rule. `l2_scenario` defaulted `Unit::engines` and
+/// `Unit::siege_seasons_left` to zero with a comment saying so, and
+/// `Siege_BuildTick` (`0x004A8507`) sums the work *remaining* over records that
+/// are ordered and unfinished — so an army with no records has nothing
+/// remaining, is written `siegeSeasonsLeft = 0`, and is reported **ready** on
+/// its first tick. Turn phase 2 then launched the assault three seasons early,
+/// against a garrison of 149.
+///
+/// The assertion is not *"no battle happened"* but the original's own next
+/// save: `siege-safeturn.sav` holds 86 man-seasons of one catapult with three
+/// seasons to go, and `siege-old_turn.sav` — one End Turn later — holds 129 and
+/// two. `docs/decisions.md` CNEW-siege-engines-import.
+///
+/// **Ablated** by putting `engines: Default::default(), siege_seasons_left: 0`
+/// back in `l2_scenario::unit_of`: the besieger is gone from the array and this
+/// fails at the first assertion.
+#[test]
+fn a_besieging_army_builds_for_another_season_instead_of_storming_the_castle() {
+    let before = l2_testkit::fixture!("siege-safeturn.sav");
+    let mut game = scenario::from_save(&before, Tables::DEFAULT).expect("the save loads");
+
+    let besieger = game
+        .kingdom
+        .campaign
+        .units
+        .iter()
+        .find(|(_, u)| u.besieging_county != 0)
+        .map(|(slot, _)| slot)
+        .expect("the save has a besieging army");
+    let garrison = game.kingdom.counties[4].garrison_unit;
+    assert_ne!(garrison, 0, "county 4 holds the garrison being besieged");
+
+    // What the file says the siege stands at, read rather than assumed.
+    let opening = game.kingdom.campaign.units.get(besieger).cloned().expect("the besieger");
+    assert_eq!(opening.men, 43);
+    assert_eq!(opening.engines[0].work_done, 86, "one catapult, 86 of 200 man-seasons");
+    assert_eq!(opening.siege_seasons_left, 3, "+0x19C: three seasons to go");
+
+    l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+
+    let after = game
+        .kingdom
+        .campaign
+        .units
+        .get(besieger)
+        .cloned()
+        .expect("the besieger is still on the board; the assault fired early and destroyed it");
+    assert_eq!(after.besieging_county, 4, "still besieging county 4");
+    assert_eq!(after.men, 43, "and it has not fought anything");
+
+    // The original's own next save, field for field.
+    let next = l2_testkit::fixture!("siege-old_turn.sav");
+    let theirs = next
+        .units()
+        .expect("units")
+        .into_iter()
+        .find(|u| u.is_live() && u.besieging_county != 0)
+        .expect("the next save still has the besieger");
+    assert_eq!(
+        after.engines[0].work_done, theirs.engines[0].work_done,
+        "one season of 43 men: 86 -> 129, which is what siege-old_turn.sav holds"
+    );
+    assert_eq!(after.engines[0].percent, theirs.engines[0].percent, "64 %");
+    assert_eq!(
+        after.siege_seasons_left, theirs.siege_seasons_left,
+        "+0x19C counts 3 -> 2, not straight to zero"
+    );
+
+    // And the garrison is untouched, which is the other half of what the
+    // differential was reading as realm 2 destroying realm 1.
+    let held = game.kingdom.campaign.units.get(garrison).expect("the garrison");
+    assert_eq!(held.men, 149, "the garrison repelled nothing because nothing came");
+    assert_eq!(held.garrison_county, 4, "and it did not march out");
+}

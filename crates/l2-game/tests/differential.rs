@@ -682,11 +682,7 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 12->13", "county.pop_band", 1),
     ("siege 12->13", "county.population", 1),
     ("siege 12->13", "global.ai_lords", 1),
-    ("siege 12->13", "realm.gold", 2),
     ("siege 12->13", "realm.iron", 1),
-    ("siege 12->13", "realm.score", 2),
-    ("siege 12->13", "realm.strength", 1),
-    ("siege 12->13", "realm.wages", 2),
     ("siege 12->13", "realm.weapons.0", 1),
     ("siege 12->13", "realm.weapons.1", 1),
     ("siege 12->13", "realm.wood", 1),
@@ -696,9 +692,7 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 13->14", "global.ai_lords", 1),
     ("siege 13->14", "realm.gold", 2),
     ("siege 13->14", "realm.iron", 1),
-    ("siege 13->14", "realm.score", 2),
-    ("siege 13->14", "realm.strength", 1),
-    ("siege 13->14", "realm.wages", 2),
+    ("siege 13->14", "realm.score", 1),
     ("siege 13->14", "realm.weapons.0", 1),
     ("siege 13->14", "realm.weapons.1", 1),
     ("siege 13->14", "realm.weapons.4", 1),
@@ -716,14 +710,14 @@ const COMPARED_TOTAL: usize = 932;
 /// one**: most of a county record is inert across a season, so a field neither
 /// side touched agrees for free and this number is mostly a measure of how much
 /// of the record the import carried unchanged.
-const AGREE_TOTAL: usize = 889;
+const AGREE_TOTAL: usize = 900;
 
 /// How many comparisons are of a field **the original's own End Turn moved**.
 const MOVED_TOTAL: usize = 279;
 
 /// How many of *those* agree. This is the number that means something, and it
 /// is the one to quote.
-const MOVED_AGREE_TOTAL: usize = 251;
+const MOVED_AGREE_TOTAL: usize = 256;
 
 // --- the tests --------------------------------------------------------------
 
