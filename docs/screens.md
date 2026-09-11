@@ -894,11 +894,16 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   gated on the `g_optToolTips` option, waits one second of `timeGetTime` with the pointer
   still, resolves a hotspot id through the per-screen table `DAT_004D6FB8[g_screenId]`, and
   draws `L2.eng` group 220 index *id* in a box beside the cursor. `docs/formats/eng.md` §5
-  has had it right all along — *"the 35 tool tips, index = hotspot id"*, `[V]`. **Twenty-four
-  of the thirty-five are the campaign sidebar**, resolved by `FUN_00477320` (1,082 bytes),
-  and they name the five sidebar buttons and every produce row in order — an independent
-  confirmation of `map.rs`'s `SIDEBAR_BUTTONS` and of `FUN_0040FEC1`'s two lists.
-  `docs/draws-map.md` §5.1, **C86**;
+  has had it right all along — *"the 35 tool tips"*, `[V]`. **Twenty-six of the thirty-five
+  are the campaign sidebar** (this paragraph said twenty-four; the ladder answers 1–22 and
+  31–34), resolved by `FUN_00477320` (1,082 bytes), and they name the five sidebar buttons
+  and every produce row in order — an independent confirmation of `map.rs`'s
+  `SIDEBAR_BUTTONS` and of `FUN_0040FEC1`'s two lists. The id is that ladder's answer for the
+  pointer, not a widget record's hotspot id. `docs/draws-map.md` §5.1, **C86**.
+
+  **Now built**: `crates/l2-game/src/tooltip.rs`, on the thirty-six screens
+  `DAT_004D6FB8` names — thirty-five on the sidebar's ladder and the battlefield on its own
+  — after a rest of more than 999 ms of `timeGetTime`, which is 63 of our ticks;
 * the map opening on the player's own town, which is `Game_SetupRealmsAndCounties`'s tail
   call `FUN_00432746(g_playerStartTable[g_localPlayer * 2])` and not `Map_InitMode`
   (`docs/decisions.md` C48);

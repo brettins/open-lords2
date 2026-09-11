@@ -201,6 +201,11 @@ rather than hidden: nothing below the renderer may read a clock (`docs/netcode.m
 
 * **Drag** — `g_mouseLeftDown && g_mouseInputChanged`. `Ration_SliderClick` is the
   example and it **returns 0 on the release**: a drag is not a click with extra steps.
+* **Hover** — the tool tip, `FUN_00476E95`. Not a record and not a kind: a frame
+  function that waits for `g_mouseInputChanged` to stay clear for **more than 999 ms of
+  `timeGetTime`** (63 of our 16 ms ticks), then asks one of two pointer ladders for an
+  `L2.eng` group 220 index. A button change counts as a mouse change, so a click takes a tip
+  away as a move does. `crates/l2-game/src/tooltip.rs`.
 * **Double click** — `g_mouseLeftDoubleClick`, a *different flag* set from
   `WM_LBUTTONDBLCLK`. Windows sends it **instead of** the second press.
 * **The settled click** — release, then **300 ms with no second press**:

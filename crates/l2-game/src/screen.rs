@@ -329,6 +329,15 @@ pub trait Screen {
         None
     }
 
+    /// **`g_minimapMode` (`0x0057A0C4`)**, from the one screen that keeps it.
+    ///
+    /// A global in the original and a field of the campaign map here, and the
+    /// tool-tip ladder (`FUN_00477320`) reads it on every screen that sits on
+    /// the sidebar — so the machine asks the stack. See [`crate::tooltip`].
+    fn minimap_mode(&self) -> Option<u8> {
+        None
+    }
+
     /// The `.256` this screen runs under, if it is not the campaign palette.
     ///
     /// A [`Canvas`] is a plane of palette *indices* and means nothing without
@@ -489,11 +498,43 @@ pub struct Machine {
     /// them, so a screen cannot see the total and cannot be told what was done
     /// with it. See [`Screen::take_clicks`].
     clicks: u32,
+    /// `(g_mouseX, g_mouseY)` — the last canvas pixel an event put the pointer
+    /// on. The original reads `GetCursorPos` every frame; ours hears about it.
+    pointer: (i32, i32),
+    /// **`g_mouseInputChanged`** — the pointer moved or a button changed since
+    /// the last tick. `FUN_004B191E` recomputes it once a frame, so it is taken
+    /// once a tick, by [`Machine::run_tooltips`].
+    pointer_changed: bool,
+    /// **The tool tips** — `FUN_00476E95`'s state. Here and not on
+    /// [`Game`], because it counts frames and `Game` is compared whole by the
+    /// save round trips. See [`crate::tooltip`].
+    tooltips: crate::tooltip::Tooltips,
+    /// The screens the last tick painted, to see a repaint — `Screen_Draw`
+    /// opens with `FUN_0047703A`.
+    tooltip_screens: Vec<ScreenId>,
+    /// `g_optToolTips` as the last tick saw it, to see `Opt_ToggleToolTips`.
+    tool_tips_seen: Option<bool>,
 }
 
 impl Machine {
     pub fn new(root: ScreenId) -> Machine {
-        Machine { stack: vec![root.build()], quit: false, dirty: true, clicks: 0 }
+        Machine {
+            stack: vec![root.build()],
+            quit: false,
+            dirty: true,
+            clicks: 0,
+            pointer: (0, 0),
+            pointer_changed: false,
+            tooltips: crate::tooltip::Tooltips::new(),
+            tooltip_screens: Vec::new(),
+            tool_tips_seen: None,
+        }
+    }
+
+    /// The tool-tip layer's state: which tip is up and where. See
+    /// [`crate::tooltip`].
+    pub fn tooltips(&self) -> &crate::tooltip::Tooltips {
+        &self.tooltips
     }
 
     /// Every widget click the stack has made, ever. See the field.
@@ -579,6 +620,24 @@ impl Machine {
     /// same machine it has always been for everything that does not pass.
     /// `docs/bugs.md` B63 catalogues the collapse and what a switch would cost.
     pub fn handle(&mut self, event: Event, ctx: &mut Ctx) {
+        // `FUN_004B191E`'s `g_mouseInputChanged`: the position moved, or either
+        // button went down or up. A key does not set it.
+        match event {
+            Event::Pointer { x, y } => {
+                if (x, y) != self.pointer {
+                    self.pointer = (x, y);
+                    self.pointer_changed = true;
+                }
+            }
+            Event::Click { x, y }
+            | Event::Release { x, y }
+            | Event::DoubleClick { x, y }
+            | Event::RightClick { x, y } => {
+                self.pointer = (x, y);
+                self.pointer_changed = true;
+            }
+            Event::KeyDown(_) | Event::Text(_) | Event::PointerLeft => {}
+        }
         for depth in (0..self.stack.len()).rev() {
             let t = self.stack[depth].handle(event, ctx);
             // **Before the transition, because the transition may drop the
@@ -608,21 +667,81 @@ impl Machine {
         self.run_tips(ctx);
         self.pump_messages(ctx);
         self.run_turn_clock(ctx);
-        let Some(top) = self.stack.last_mut() else { return };
-        let t = top.update(ctx);
-        if top.take_redraw() {
-            self.dirty = true;
+        if let Some(top) = self.stack.last_mut() {
+            let t = top.update(ctx);
+            if top.take_redraw() {
+                self.dirty = true;
+            }
+            // **Nothing on this path clicks today**, and it is drained anyway.
+            // `Widget_Test`'s auto-repeat and its delayed fire are both silent, so
+            // `Screen::update` never counts one — but if a screen ever did, the
+            // count would sit in its `Press` until the *next event* drained it in
+            // [`Machine::handle`], and a click from a tick would be heard on the
+            // release. The ablation that added a click to `Press::tick` stayed
+            // green until this line existed.
+            self.clicks = self.clicks.wrapping_add(top.take_clicks() as u32);
+            if t != Transition::Stay {
+                self.apply(t);
+                self.dirty = true;
+            }
         }
-        // **Nothing on this path clicks today**, and it is drained anyway.
-        // `Widget_Test`'s auto-repeat and its delayed fire are both silent, so
-        // `Screen::update` never counts one — but if a screen ever did, the
-        // count would sit in its `Press` until the *next event* drained it in
-        // [`Machine::handle`], and a click from a tick would be heard on the
-        // release. The ablation that added a click to `Press::tick` stayed
-        // green until this line existed.
-        self.clicks = self.clicks.wrapping_add(top.take_clicks() as u32);
-        if t != Transition::Stay {
-            self.apply(t);
+        self.run_tooltips(ctx);
+    }
+
+    /// **`FUN_00476E95` (`0x00476E95`)** — the tool tips, near the end of
+    /// `Battle_Frame` and after everything above. [`crate::tooltip`] has the
+    /// decompilation; this is the three things only the machine can see.
+    ///
+    /// * **A repaint.** `Screen_Draw` opens with `FUN_0047703A`, which drops the
+    ///   tip and keeps its stamp. A painter runs when the screen changes, so a
+    ///   change in the screens on the stack — looking through the message
+    ///   scroll, which is not a screen id — is that call. `[I]`, and the module
+    ///   header says what it does not cover.
+    /// * **`Opt_ToggleToolTips` (`0x004347C7`)** is three statements, and the
+    ///   second is `_DAT_004EA830 = 0`. `g_optToolTips` has no other writer in
+    ///   play, so a flip seen between two ticks is that function having run.
+    /// * **`Map_InitMode` (`0x00498270`)** writes the same zero, from
+    ///   `FUN_00497A34`, the campaign's bring-up: the campaign map arriving on
+    ///   the stack.
+    ///
+    /// And the lookup: `DAT_004D6FB8[g_screenId]` for the top screen `g_screenId`
+    /// names, resolved through the campaign map's minimap mode and the selected
+    /// county's produce rows.
+    fn run_tooltips(&mut self, ctx: &mut Ctx) {
+        let changed = core::mem::take(&mut self.pointer_changed);
+        let screens: Vec<ScreenId> =
+            self.stack.iter().map(|s| s.id()).filter(|id| *id != ScreenId::Message).collect();
+        if screens != self.tooltip_screens {
+            let arrived = screens.contains(&ScreenId::Campaign)
+                && !self.tooltip_screens.contains(&ScreenId::Campaign);
+            if arrived {
+                self.tooltips.rearm();
+            }
+            if self.tooltips.drop_tip() {
+                self.dirty = true;
+            }
+            self.tooltip_screens = screens;
+        }
+        let enabled = ctx.game.prefs.tool_tips;
+        if self.tool_tips_seen.is_some_and(|was| was != enabled) {
+            self.tooltips.rearm();
+        }
+        self.tool_tips_seen = Some(enabled);
+
+        let top = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message);
+        let byte = top.and_then(|s| {
+            crate::tooltip::screen_byte(s.id(), ctx.game, s.mode_screen_id())
+        });
+        let minimap = self.stack.iter().find_map(|s| s.minimap_mode()).unwrap_or(0);
+        let game: &Game = ctx.game;
+        let resolve = |x: i32, y: i32| match crate::tooltip::ladder_of(byte) {
+            crate::tooltip::ladder::CAMPAIGN => {
+                crate::tooltip::campaign_tip(&crate::tooltip::Sidebar::of(game, minimap), x, y)
+            }
+            crate::tooltip::ladder::BATTLE => crate::tooltip::battle_tip(x, y),
+            _ => 0,
+        };
+        if self.tooltips.frame(enabled, changed, self.pointer, resolve) {
             self.dirty = true;
         }
     }
@@ -838,6 +957,8 @@ impl Machine {
             screen.draw(ctx, canvas);
         }
         self.draw_turn_timer(ctx, canvas);
+        // `FUN_00476E95` comes after `FUN_0041A639` in `Battle_Frame`.
+        crate::tooltip::draw(ctx, &self.tooltips, canvas);
     }
 
     /// The lowest screen that has to be painted for the top one to make sense.

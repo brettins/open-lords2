@@ -834,7 +834,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 217 | 6 | `Castle Building:` | Tip screen (§5.3) — Castle building, screen 0x1B. | `Tip_Show` [D] |
 | 218 | 4 | `Advanced Game Options:` | Tip screen (§5.3) — Advanced game options, screen 0x39. | `Tip_Show` [D] |
 | 219 | 2 | `Already in alliance.` | Refusal: that player is already in an alliance. | `Diplo_SendClicked` [D] |
-| 220 | 35 | `Null tool tip` | The 35 tool tips, index = hotspot id; drawn by the tooltip layer when `g_optToolTips` is on. | `FUN_00476e95` [V] |
+| 220 | 35 | `Null tool tip` | The 35 tool tips. The index is the id a pointer ladder answers — `FUN_00477320` over the campaign sidebar (26 ids: 1–22, 31–34) or `FUN_004777AA` over the battlefield (8 ids: 23–30), chosen by `DAT_004D6FB8[g_screenId]` — **not** a widget record's hotspot id; drawn by the tooltip layer when `g_optToolTips` is on. Ours: `crate::tooltip`. | `FUN_00476e95` [V] |
 | 221 | 2 | `INTERNAL ERROR` | "INTERNAL ERROR — Unable to build an army." | `Msg_Enqueue` <- `FUN_00435b4d` [D] |
 | 222 | 2 | `Demo  Version` | "This function is not available in the Lords2 Demonstration version." | [I] dead — demo-only |
 | 223 | 2 | `No modem play` | "This version of the game does not yet support linked modem play." | [I] dead |
