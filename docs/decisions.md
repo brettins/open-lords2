@@ -6979,3 +6979,125 @@ findings of every new tool's first run*.
 a kind for about forty of the original's 332 input records. All five kinds are built and
 `Kind::Held` reaches nothing, because all seven of its handlers are skirmish and multiplayer
 setup pages this engine does not have.
+**C149 — The seam's stated reason was false, and checking it cost fifty
+sacks a county a season.**
+
+C137's second finding, closed. `crates/l2-game/tests/differential.rs` measured that the
+original's unowned counties 1 and 3 go 71 → 121 and 57 → 103 across `old_turn.sav →
+battle-before.sav` where ours went 71 → 71 and 57 → 53 — **50 sacks short, each, every
+season**. Phase 1 ran `Kingdom::run_neutral_farms` with `l2_kingdom::ai_farm::NoMarket`,
+and `NoMarket` carried the reason at the type:
+
+> *"there is no stall yet, so every style's opening shopping cascade is refused and the
+> county farms what it already has."*
+
+**The stall was there. The money was there. Nobody had opened the file.**
+
+`Ai_BuyGood` (`0x004A4B12`) is three gates, and the fixtures answer all three:
+
+```c
+if (g_counties[county].merchantCount != '\0') {          /* +0x1A4 — the stall  */
+    price = base + max(1, Pct(base, g_units[+0x1A5].morale));
+    if (((realm != 0) || (price * qty <= g_counties[county].purse)) &&   /* +0x1F4 */
+        ((realm == 0) || (price * qty <= g_realms[realm].gold)))
+        Merchant_Trade(0, qty, good, price, base, realm, county);
+}
+```
+
+`+0x1A4` is non-zero on every county holding a merchant, in all six one-turn-apart saves.
+`+0x1F4` reads **186, 297, 260** on county 1 and **195, 316, 294** on county 3 across three
+consecutive turns of the battle game, and 436 on siege county 3.
+
+**Where the money comes from, and the sentence in `docs/symbols.md` that hid it.**
+`Tax_CollectAll` (`0x0044B59B`) ends in a two-limb branch:
+
+```c
+if (realm == 0) g_counties[c].purse += g_counties[c].taxCollected;
+else            { g_realms[realm].gold += take; realm.f0xF4 += take; realm.f0xF8 += take; }
+```
+
+`docs/symbols.md` describes that as *"credited to the owner realm's gold"* and stops, so the
+`realm == 0` limb was missing from the file this project consults to decide what the binary
+does. `Kingdom::tax_collect` dropped the take on the floor for months.
+
+**And here is the uncomfortable part: `docs/symbols.md` was the only place it was missing.**
+`docs/kingdom.md` §4.1 has carried `if (owner == 0) county.f1F4 += take;` **in its
+pseudocode**, with a `[V]` paragraph underneath saying *"an unowned county banks its own tax
+into `+0x1F4` rather than into any treasury, which is why the neutral tax ladder in §8.2
+exists at all."* `l2_kingdom::ai`'s comment on that ladder says it too — *"nobody is
+collecting it, though: `Tax_CollectAll` banks an unowned county's take into the county
+itself"*. `County::purse`'s doc says it a third time. **Three documents were right and no
+code did it.** That is `docs/agents.md`'s *a correct explanation sitting directly above the
+omission it describes*, and it is the first instance where the explanation was in three
+places at once — so *write it down* was not the missing step, and adding a fourth sentence
+would not have helped. The same is true of `County_RecountMerchants`, which is in
+`docs/kingdom.md`'s printed season-pass list and was in no pipeline.
+**`+0xF4` and `+0xF8` are a third accumulator pair, not `Realm::trade_received_a`/`_b`,
+which are `+0x10C`/`+0x110`; they are named and not ported.**
+
+**The fifty is a computation, and the control is in the same fixture.** Grain's base price
+is 2 (`g_goodsPrice`) and every merchant the shipped game creates has morale 100, so a sack
+costs `2 + Pct(2, 100)` = **4 crowns**. The neutral grazing cascade offers 400, 200, 100 and
+50 sacks in that order, whole lot or nothing, and takes the first the purse covers:
+
+| save | county 1 purse | county 3 purse | 50-sack bill | bought |
+|---|---:|---:|---:|---|
+| `safeturn` → `old_turn` | 186 | 195 | 200 | **nothing** |
+| `old_turn` → `battle-before` | 297 | 316 | 200 | **50 sacks each** |
+
+Purse − 200 + that turn's tax lands on the after-save's purse **exactly**, both counties:
+`297 − 200 + 163 = 260` and `316 − 200 + 178 = 294`. So the number is
+`max(lot : 4 * lot <= purse)` over the cascade, and a constant of 50 would have been wrong
+one turn earlier in the very same fixture. That is the difference between a fix that
+generalises and one that fits.
+
+**And it was checked somewhere else, because two fixtures agreeing about 50 would not have
+settled it.** Sixty turns driven from `england-turn1.sav` — a different map, a different
+game, counties this work never looked at — produce eight neutral purchases, and they are
+**not all fifty**: county 3 takes the 50-sack lot out of 297 crowns, county 10 takes 100 out
+of 497 (with the arable style's `+100` top-up in front of it), and county 7 takes the top
+**400-sack** lot out of 2,003. Three different rungs of the same ladder, each the largest
+its purse covers. A constant would have produced 50 in all three.
+
+They are also *rare* — eight purchases in sixty turns, against 178 county-turns where a
+neutral county had a stall at all — because the cascade needs `grain < 100` **and** a
+merchant standing in the county on that turn. A neutral county's purse therefore climbs a
+long way between visits; the sixty-turn run tops out at 22,535 crowns. That is the
+original's behaviour and not a leak: nothing in the binary ever spends a county purse except
+`Merchant_Trade`, and `County::purse`'s only other writer is the style-0 top-up.
+
+**What it took to build, all of it in the binary's own order.**
+`County_RecountMerchants` (`0x00451061`), season pass 22, which was not in the pipeline at
+all — it writes the stall; `Tax_CollectAll`'s realm-0 limb; the four county bytes carried
+through `l2-scenario` (a save's stall must be *imported*, because phase 1 runs before the
+recount does); and `CountyStall`, which is `Ai_BuyGood`. The neutral arable style's
+`purse += 100` was already written down in `neutral_purse_top_up` and **reported rather than
+applied**, with a comment deferring it to a caller that did not exist — `lay_out` applies it
+now.
+
+**And the defect underneath, which is the part worth carrying.** Wiring the cascade made
+county 3 end eight sacks *low*. `crate::trade`'s port of `Merchant_Trade`'s tail called
+`ration::apply` twice, and ours debits the store — where `Ration_Apply` (`0x0044DF5F`) has
+**no store subtraction anywhere in it**, on either of its two passes over the ladder. Every
+trade at the merchant made the county eat two extra meals on the spot. It had survived
+because its only caller was a person clicking a stall, which no test drives against a
+fixture; the neutral cascade gave it a caller the differential watches and it showed up the
+same hour, as two helpings of four sacks.
+
+That defect had also written itself into the record. `docs/bugs.md` **B11a** explained that
+the unowned county's negative store *"is then erased by the very next statement… the bug is
+worth free crowns rather than a visible negative number, which is presumably why it has
+never been reported"* — careful, mechanical, and **reasoning about a defect of ours as
+though it were a rule of the game's**. A test asserted the erasure. Both are corrected; the
+store really is left negative.
+
+> **A stated reason that nothing checks is the same failure whether it appears on a screen
+> or at a seam.** `NOT SIMULATED` (C120), the font comment (C107) and `INDUSTRY / NOT DRAWN`
+> (C136) were all prose that read as a decision and was never a measurement. This one cost
+> fifty sacks a county a season for as long as it stood, and the check was one `grep` of a
+> save file at `+0x1F4`.
+
+Result: `MOVED_AGREE_TOTAL` 243 → **247** of 279, `AGREE_TOTAL` 877 → **881** of 932, and
+both `county.grain` and `county.grain_available` divergences gone on both counties. The
+ablation is stated at each test and was run: reverting phase 1 to `NoMarket` puts the
+baseline back to exactly its four old rows and 243.

@@ -18,7 +18,7 @@ CLAUDE.md	C124	9cf9ee1c286d	38723617b085
 CLAUDE.md	C133	ea1ee3c1202e	91fcca97cc98
 CLAUDE.md	C143	d2376fb46498	2035c02750d9
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
-CLAUDE.md	C61	12d04c35cf27	60611046b40d
+CLAUDE.md	C61	6a444a5591fe	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
 README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
@@ -109,6 +109,7 @@ crates/l2-game/src/shell/mod.rs	C140	ac3b5990aa16	e3a1ede42a95
 crates/l2-game/src/shell/mod.rs	C61	4852635e7bff	60611046b40d
 crates/l2-game/src/shell/mod.rs	C61	bf7c15012e16	60611046b40d
 crates/l2-game/src/turn.rs	C115	42714a7de34c	085c9b771281
+crates/l2-game/src/turn.rs	C149	101237d06443	138117948441
 crates/l2-game/src/turn.rs	C27	c7f2d16a69e2	1db64332cb22
 crates/l2-game/src/turn.rs	C35	5d5f3b924ebe	193a1920e229
 crates/l2-game/src/turn.rs	C35	820d88d9976c	193a1920e229
@@ -177,6 +178,8 @@ crates/l2-game/tests/turn.rs	C134	e56871c4814a	d12cd2f96f79
 crates/l2-game/tests/turn.rs	C134	f5c6ceb24b23	d12cd2f96f79
 crates/l2-game/tests/turn.rs	C19	2b27ff0ebcc9	ce538fe9a9e8
 crates/l2-kingdom/src/ai.rs	C13	b6951068455b	006e7d0b71a7
+crates/l2-kingdom/src/ai_farm.rs	C149	5db8dc380a87	138117948441
+crates/l2-kingdom/src/ai_farm.rs	C149	ab2aebf82e2c	138117948441
 crates/l2-kingdom/src/ai_farm.rs	C3	5a9c96365a5c	35bf3a86555f
 crates/l2-kingdom/src/battle.rs	C31	595fe1623cf7	1d151b02cb56
 crates/l2-kingdom/src/battle.rs	C31	6b32e180f17e	1d151b02cb56
@@ -184,6 +187,7 @@ crates/l2-kingdom/src/battle.rs	C31	8d915a69b7d9	1d151b02cb56
 crates/l2-kingdom/src/battle.rs	C38	0e75ae65c153	cd66a8ec76e7
 crates/l2-kingdom/src/battle.rs	C71	0c621cbb0ebd	3d674af30522
 crates/l2-kingdom/src/conquest.rs	C21	0fc3f0194453	f7bf296341ff
+crates/l2-kingdom/src/county.rs	C149	053b8d59f74a	138117948441
 crates/l2-kingdom/src/county.rs	C53	e8fb6191353a	cad36ab11dbf
 crates/l2-kingdom/src/diplomacy.rs	C62	8f8a093f4110	ebb6a7ec3711
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2	006e7d0b71a7
@@ -215,6 +219,7 @@ crates/l2-kingdom/src/ration.rs	C3	316be8511779	35bf3a86555f
 crates/l2-kingdom/src/save.rs	C123	763bc3ea2e6d	3a5cc2fec37d
 crates/l2-kingdom/src/save.rs	C134	8c3c2ccdc448	d12cd2f96f79
 crates/l2-kingdom/src/save.rs	C136	78341762a0c9	724c11b1e475
+crates/l2-kingdom/src/save.rs	C149	9883292be64c	138117948441
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8	ed7ea7df1f23
@@ -224,9 +229,12 @@ crates/l2-kingdom/src/tables.rs	C11	b50cc9ec171d	07dfad15821c
 crates/l2-kingdom/src/tables.rs	C16	d8ed617206dd	2e6270fa32a9
 crates/l2-kingdom/src/tables.rs	C16	ee2a3a83524e	2e6270fa32a9
 crates/l2-kingdom/src/tables.rs	C3	5cab149d2244	35bf3a86555f
+crates/l2-kingdom/src/tax.rs	C149	7ceb97ebaf2f	138117948441
 crates/l2-kingdom/src/tax.rs	C26	03649751764a	e8179d1f76a8
 crates/l2-kingdom/src/tax.rs	C26	2b481fbbd074	e8179d1f76a8
 crates/l2-kingdom/src/territory.rs	C34	9a3dae26c192	be3b535841d7
+crates/l2-kingdom/src/trade.rs	C149	8e38e2fb84cc	138117948441
+crates/l2-kingdom/src/trade.rs	C149	9f99d2db016e	138117948441
 crates/l2-kingdom/src/unit.rs	C134	fd68bb3094c3	d12cd2f96f79
 crates/l2-kingdom/src/units_tick.rs	C134	2125e205a9f4	d12cd2f96f79
 crates/l2-kingdom/src/units_tick.rs	C134	a2026c60465b	d12cd2f96f79
@@ -277,6 +285,7 @@ crates/l2-net/tests/lobby.rs	C62	e3882440edf8	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C134	55ce9f5adbe9	d12cd2f96f79
 crates/l2-scenario/src/lib.rs	C142	cae249d7b506	d13324698105
 crates/l2-scenario/src/lib.rs	C142	e86d29076348	d13324698105
+crates/l2-scenario/src/lib.rs	C149	37a4fcc4e08b	138117948441
 crates/l2-scenario/src/lib.rs	C57	14b498ed2873	3b42b65157bf
 crates/l2-scenario/src/lib.rs	C62	578b7d16171a	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C62	94a85e9708ab	ebb6a7ec3711
@@ -430,6 +439,7 @@ docs/battle.md	C99	eb24f35e0786	b890db1f6d4a
 docs/bugs.md	C1	573fb4c46bcc	6b7e8edb019e
 docs/bugs.md	C12	1126d2682b1f	bb0dd488f9d2
 docs/bugs.md	C13	9a58c0fd9984	006e7d0b71a7
+docs/bugs.md	C149	3aa89208c73e	138117948441
 docs/bugs.md	C31	18772c7679b0	1d151b02cb56
 docs/bugs.md	C31	d4548fdca7c1	1d151b02cb56
 docs/bugs.md	C33	970cde363d20	564cc48dd837
@@ -445,6 +455,7 @@ docs/decisions.md	C10	1026d11e7d3f	68e4eb2d2a1f
 docs/decisions.md	C10	6307927dc59c	68e4eb2d2a1f
 docs/decisions.md	C10	ff432eaffe58	68e4eb2d2a1f
 docs/decisions.md	C107	3efb7eed35ff	eb231bef7ee5
+docs/decisions.md	C107	cc3e19934b3e	eb231bef7ee5
 docs/decisions.md	C116	c507a4e50138	1c49feddd496
 docs/decisions.md	C118	7cc36ed680a5	cd0e7b0adc57
 docs/decisions.md	C118	c29564560940	cd0e7b0adc57
@@ -458,6 +469,7 @@ docs/decisions.md	C12	439c2f1bab58	bb0dd488f9d2
 docs/decisions.md	C12	729dde396cc4	bb0dd488f9d2
 docs/decisions.md	C12	a388b50da6e9	bb0dd488f9d2
 docs/decisions.md	C120	7c9b703bcdc3	e96a6897511c
+docs/decisions.md	C120	e3304840f5e5	e96a6897511c
 docs/decisions.md	C123	1262cc0f058c	3a5cc2fec37d
 docs/decisions.md	C125	4a3bc312925c	6084e87aec70
 docs/decisions.md	C125	5b745e098dad	6084e87aec70
@@ -482,9 +494,11 @@ docs/decisions.md	C133	ca0e15ab5416	91fcca97cc98
 docs/decisions.md	C133	d0f6772c2a0f	91fcca97cc98
 docs/decisions.md	C133	d1b998eebb52	91fcca97cc98
 docs/decisions.md	C133	edf25f8ff042	91fcca97cc98
+docs/decisions.md	C136	8e1c5d41f14b	724c11b1e475
 docs/decisions.md	C137	08301a5d821f	eaaf586c5da0
 docs/decisions.md	C137	1a60c980d49c	eaaf586c5da0
 docs/decisions.md	C137	26bac2a2aa3b	eaaf586c5da0
+docs/decisions.md	C137	4dced47d8c9b	eaaf586c5da0
 docs/decisions.md	C138	fed28cd17a8f	7724e6665b90
 docs/decisions.md	C14	19873f4c7f74	687f69afd1c6
 docs/decisions.md	C14	9228b35094b8	687f69afd1c6
@@ -675,6 +689,7 @@ docs/hypotheses.json	C3	6d7b9bc8a5c3	35bf3a86555f
 docs/hypotheses.json	C3	80313a1ef950	35bf3a86555f
 docs/kingdom.md	C12	ea411ce7f8a2	bb0dd488f9d2
 docs/kingdom.md	C142	95890825b7a9	d13324698105
+docs/kingdom.md	C149	e18921e5ea82	138117948441
 docs/kingdom.md	C16	b5ee9c5eb7a2	2e6270fa32a9
 docs/kingdom.md	C29	2c4e4b24a052	405b63debb8e
 docs/kingdom.md	C3	95fbb7f03470	35bf3a86555f

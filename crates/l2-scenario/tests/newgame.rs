@@ -621,6 +621,18 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         |c| c.ration_split as i64,
         "County_Reset opens every county at 100; the first ration pass moves an AI county's",
     );
+    // **The purse and the stall.** `County_Reset` zeroes all four and no
+    // new-game path writes any of them, so a fresh county has no money and no
+    // merchant; a played save has both, and they are the two things
+    // `Ai_BuyGood` reads before it will let an unowned county buy food.
+    judge("purse", |c| c.purse as i64, "Tax_CollectAll fills it only once a season has run");
+    judge(
+        "merchant_count",
+        |c| c.merchant_count as i64,
+        "County_RecountMerchants is season pass 22, so turn one has no stall anywhere",
+    );
+    judge("merchant_unit", |c| c.merchant_unit as i64, "written by the same pass");
+    judge("merchant_visits", |c| c.merchant_visits as i64, "the same pass's lifetime counter");
     for (field, f) in [
         ("labour", (|c: &CountyState| c.labour.iter().map(|&n| n as i64).sum())
             as fn(&CountyState) -> i64),
@@ -709,6 +721,15 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             "grain_eaten",
             "immigrants",
             "industry",
+            // **And this row is the whole of how the neutral counties came to
+            // starve.** `purse` is zero on both sides *of turn one* — nothing
+            // has been banked yet, because `Tax_CollectAll` runs at the end of
+            // a season and turn one has not had one. `County::purse`'s own
+            // comment generalised exactly this observation to *"it is 0 in
+            // every fixture"*, and the turn pair carries 186 … 436. A field
+            // that is inert in the only save a check reads is not an inert
+            // field; it is an unread one.
+            "purse",
             "tax_collected",
             "tax_rate",
             "tax_shown",
@@ -771,6 +792,10 @@ const JUDGED: &[&str] = &[
     "industry_share",
     "field_tiles",
     "farm_style",
+    "purse",
+    "merchant_count",
+    "merchant_unit",
+    "merchant_visits",
 ];
 
 /// **Enumerate the fields; do not spot-check them.**

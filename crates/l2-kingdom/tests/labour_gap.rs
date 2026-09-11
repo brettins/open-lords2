@@ -82,7 +82,7 @@ fn the_season_pipeline_allocates_twice_and_recounts_the_fields() {
     let joined = names.join(" ");
     assert!(joined.contains("LabourAllocate"), "{joined}");
     assert!(joined.contains("CountyRecountFields"), "{joined}");
-    assert_eq!(SEASON_PIPELINE.len(), 31, "and the length is written down too");
+    assert_eq!(SEASON_PIPELINE.len(), 32, "and the length is written down too");
 
     // The order is the rule, and it is this: everything that moves a ceiling
     // runs before the first allocation.

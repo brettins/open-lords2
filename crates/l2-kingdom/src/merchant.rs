@@ -323,6 +323,60 @@ pub fn advance_all(
     started
 }
 
+/// `County_RecountMerchants` (`0x00451061`) — **season pass 22**, and the pass
+/// that decides which counties have a stall to trade at.
+///
+/// ```c
+/// for (c = 1; c <= g_countyCount; c++) { c.merchantCount = 0; c.f15C = 0; c.merchantUnit = 0; }
+/// for (u = 1; u < 0x97; u++)
+///     if (g_units[u].kind == 3) {
+///         g_counties[g_units[u].county].merchantCount++;
+///         g_counties[g_units[u].county].merchantVisits++;
+///         g_counties[g_units[u].county].merchantUnit = (byte)u;
+///     }
+/// ```
+///
+/// **Three details are the rule rather than incidental**, and all three are
+/// visible in the C above:
+///
+/// * the visit counter is **not** cleared, which is what makes it a lifetime
+///   total — `docs/symbols.md` records it rising by exactly that turn's count
+///   across three successive turns of one saved game;
+/// * the second loop is over **every unit slot**, so it credits a merchant to
+///   whatever county its `+0x10` says, including county 0 — the clear loop only
+///   walks `1 ..= g_countyCount`, so a merchant standing outside the map's
+///   county range writes into a record the pass never resets. Reproduced by
+///   bounds-checking the write instead of the clear, which is the same
+///   behaviour for every county that exists;
+/// * two merchants in one county leave the **higher** slot in `merchantUnit`,
+///   because the store overwrites.
+///
+/// The county it counts is the unit's own `+0x10`, which `Army_Tick` keeps
+/// equal to the tile's county byte — **not** `dest_county`, which is where the
+/// route said to go. See [`advance_all`] for why those two differ.
+///
+/// `+0x15C` is the third field the clear loop zeroes and this crate does not
+/// model it; it is cleared here by nothing, which is stated rather than left
+/// to be discovered.
+pub fn recount_all(counties: &mut [County; MAX_COUNTIES], county_count: usize, units: &Units) {
+    for county in counties.iter_mut().take(county_count + 1).skip(1) {
+        county.merchant_count = 0;
+        county.merchant_unit = 0;
+    }
+    // Ascending slot order — the original's `for (u = 1; ...)`, and the
+    // iteration order `docs/netcode.md` §5 requires anyway. `Units::iter`
+    // yields slots in index order.
+    for (id, unit) in units.iter() {
+        if unit.kind != UnitKind::Merchant {
+            continue;
+        }
+        let Some(county) = counties.get_mut(unit.county as usize) else { continue };
+        county.merchant_count += 1;
+        county.merchant_visits += 1;
+        county.merchant_unit = id as u8;
+    }
+}
+
 /// The `g_merchantRoutes` row a unit reads: **its slot number minus one**.
 ///
 /// Not the unit's stored route index. See [`advance_all`].
@@ -344,6 +398,70 @@ mod tests {
         let mut r = MerchantRoutes::none();
         r.set_route(0, &ENGLAND_ROUTE_0);
         r
+    }
+
+    fn counties() -> Box<[County; MAX_COUNTIES]> {
+        Box::new(core::array::from_fn(|_| County::new()))
+    }
+
+    fn merchant_in(county: u8) -> Unit {
+        let mut u = Unit::new(UnitKind::Merchant, 6, 8, 8);
+        u.morale = 100;
+        u.county = county;
+        u
+    }
+
+    /// **The recount is the stall**, and `docs/symbols.md`'s own evidence for
+    /// it is the shape this reproduces: the counties with a non-zero count are
+    /// exactly the counties holding a merchant, the count reaches 2 where two
+    /// share a county, and `merchant_unit` holds a live slot.
+    ///
+    /// *Ablation*: delete the `county.merchant_count += 1` and the first three
+    /// assertions go red; delete the `merchant_count = 0` in the clear loop and
+    /// the re-run assertion below goes red instead.
+    #[test]
+    fn the_recount_counts_merchants_and_only_merchants() {
+        let mut c = counties();
+        let mut units = Units::new();
+        units.put(1, merchant_in(3));
+        units.put(2, merchant_in(3));
+        units.put(5, merchant_in(1));
+        // An army standing in county 2 is not a stall.
+        let mut army = Unit::new(UnitKind::Army, 1, 9, 9);
+        army.county = 2;
+        units.put(7, army);
+
+        recount_all(&mut c, 4, &units);
+        assert_eq!((c[1].merchant_count, c[1].merchant_unit), (1, 5));
+        assert_eq!(c[2].merchant_count, 0, "an army is not a merchant");
+        assert_eq!(
+            (c[3].merchant_count, c[3].merchant_unit),
+            (2, 2),
+            "two merchants, and the HIGHER slot survives because the store overwrites"
+        );
+
+        // **The count is a snapshot, not an accumulator** — the clear loop is
+        // why. Running it twice leaves the same counts.
+        recount_all(&mut c, 4, &units);
+        assert_eq!(c[3].merchant_count, 2, "the clear loop makes the pass idempotent");
+        // The visit counter is the one thing that is NOT cleared, so it rises
+        // by that pass's count every time. Two passes, two merchants: four.
+        assert_eq!(c[3].merchant_visits, 4, "the lifetime counter is deliberately not cleared");
+    }
+
+    /// A merchant that walks away takes the stall with it.
+    #[test]
+    fn a_county_the_merchant_has_left_has_no_stall() {
+        let mut c = counties();
+        let mut units = Units::new();
+        units.put(1, merchant_in(3));
+        recount_all(&mut c, 4, &units);
+        assert_eq!(c[3].merchant_count, 1);
+
+        units.get_mut(1).expect("slot 1").county = 4;
+        recount_all(&mut c, 4, &units);
+        assert_eq!(c[3].merchant_count, 0, "the stall is where the merchant is standing");
+        assert_eq!(c[4].merchant_count, 1);
     }
 
     /// The cursor starts at 1, so the first destination is the *second* county

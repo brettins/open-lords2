@@ -292,6 +292,18 @@ pub enum Pass {
     MigrationUpdate,
     /// `Population_UpdateAll` — births, deaths, new population.
     PopulationUpdate,
+    /// `County_RecountMerchants` (`0x00451061`) — **which counties have a stall
+    /// this season**, and therefore which of them can trade at all.
+    ///
+    /// Its position is `Season_Advance`'s own: immediately after
+    /// `Population_UpdateAll` and before `Army_RecountCountyTroops`. Nothing
+    /// later in the pipeline reads what it writes, so the *ordering* is inert
+    /// today — but the pass is not, because **phase 1 of the next turn reads it
+    /// as a gate.** `Ai_BuyGood` does nothing whatever for a county whose
+    /// `merchantCount` is zero, so with this pass absent every unowned county
+    /// in the game is permanently unable to buy food. See
+    /// [`crate::merchant::recount_all`].
+    CountyRecountMerchants,
     /// `Score_RankRealms` — scores and the ranking.
     ScoreRank,
     /// `Labour_AllocateAll` a **second** time, after the population pass and
@@ -393,7 +405,7 @@ pub enum Pass {
 ///
 ///    **`docs/armies.md` §2.1 has these two the wrong way round**, giving
 ///    `Units_ResetMoves` first. Corrected there.
-pub const SEASON_PIPELINE: [Pass; 31] = [
+pub const SEASON_PIPELINE: [Pass; 32] = [
     Pass::Clock,
     Pass::EventRoll,
     Pass::Weather,
@@ -417,6 +429,11 @@ pub const SEASON_PIPELINE: [Pass; 31] = [
     Pass::LabourAllocate,
     Pass::MigrationUpdate,
     Pass::PopulationUpdate,
+    // **Inserted, not appended, and that shifts every later pass index** — which
+    // `l2_game::save` writes a pass as. `l2_game::save::VERSION` moves with it.
+    // The position is `Season_Advance`'s: `Population_UpdateAll();
+    // County_RecountMerchants(); FUN_00428471(); Army_RecountCountyTroops();`.
+    Pass::CountyRecountMerchants,
     Pass::ScoreRank,
     Pass::LabourAllocateAgain,
     Pass::History,

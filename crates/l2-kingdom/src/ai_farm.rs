@@ -140,18 +140,206 @@ impl Good {
 /// down.
 pub trait Market {
     /// Buy `qty` of `good` for this county. Returns whether the goods moved.
-    fn buy(&mut self, county: &mut County, qty: i32, good: Good) -> bool;
+    ///
+    /// `id` is the county index, which is what `Ai_BuyGood` is passed and what
+    /// it reads the stall out of; the record comes with it because the caller
+    /// already holds the borrow and the cascade re-reads the stock between
+    /// lines.
+    ///
+    /// The map is here because `Merchant_Trade`'s tail is — `Herd_UpdateCrowding`
+    /// repaints the county's pasture from the new herd, so a trade that moves a
+    /// store has to be able to move the ground with it. See
+    /// [`crate::trade::settle_county`].
+    fn buy(
+        &mut self,
+        id: usize,
+        county: &mut County,
+        map: &mut CampaignMap,
+        qty: i32,
+        good: Good,
+    ) -> bool;
 }
 
-/// A market that refuses every trade — what a caller with no merchant stall
-/// passes. Every style still lays out its fields, sets its rations and splits
-/// its labour; it just farms what it already has.
+/// A market that refuses every trade.
+///
+/// **This is no longer what the neutral pass is given**, and the reason is worth
+/// keeping at the type rather than in a log. Its comment used to read *"there is
+/// no stall yet, so every style's opening shopping cascade is refused and the
+/// county farms what it already has"*, and that stated reason was checked and
+/// was **false**: `Ai_BuyGood`'s stall gate is county `+0x1A4`, which the six
+/// one-turn-apart fixtures carry non-zero on every county holding a merchant,
+/// and the money is county `+0x1F4`, which they carry at 186 … 436. The stall
+/// was there, the money was there, and refusing the cascade cost the unowned
+/// counties **50 sacks of grain a season each**. `docs/decisions.md`
+/// C149; [`CountyStall`] is what phase 1 passes now.
+///
+/// It stays as the thing a caller with no merchant model at all passes — a
+/// hand-built `Kingdom` in a unit test, mostly — and because a style still lays
+/// out its fields, sets its rations and splits its labour against it.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct NoMarket;
 
 impl Market for NoMarket {
-    fn buy(&mut self, _county: &mut County, _qty: i32, _good: Good) -> bool {
+    fn buy(
+        &mut self,
+        _id: usize,
+        _county: &mut County,
+        _map: &mut CampaignMap,
+        _qty: i32,
+        _good: Good,
+    ) -> bool {
         false
+    }
+}
+
+/// **`Ai_BuyGood` (`0x004A4B12`)** — the county's own merchant stall, which is
+/// what an AI lord and an unowned county actually buy through.
+///
+/// ```c
+/// void Ai_BuyGood(county, qty, good) {
+///     if (g_counties[county].merchantCount != '\0') {
+///         realm = g_counties[county].owner;
+///         base  = g_merchantStall[good].price;
+///         markup = Pct(base, g_units[g_counties[county].merchantUnit].morale);
+///         if (markup < 1) markup = 1;
+///         if (good == 4) markup = 0;                       /* ale */
+///         price = base + markup;
+///         if (((realm != 0) || (price * qty <= g_counties[county].purse)) &&
+///             ((realm == 0) || (price * qty <= g_realms[realm].gold)))
+///             Merchant_Trade(0, qty, good, price, base, realm, county);
+///     }
+/// }
+/// ```
+///
+/// Three gates, in that order, and **each one of them is load-bearing on the
+/// real fixtures**:
+///
+/// 1. **the stall.** No merchant standing in the county, no purchase — not a
+///    cheaper one, none at all.
+/// 2. **the price.** `g_goodsPrice[1]` is 2 for grain and every merchant the
+///    shipped game creates has morale 100, so `Pct(2, 100) = 2` and a sack
+///    costs **4 crowns**. That number is the whole of why the cascade lands
+///    where it does.
+/// 3. **the purse.** `price * qty <= purse`, whole lot or nothing — there is no
+///    partial fill anywhere in this path.
+///
+/// Put together with [`FarmStyle::buys`], the cascade is *"take the largest lot
+/// whose bill the purse covers"* expressed as four `if`s. The 400, 200 and 100
+/// sack lots cost 1600, 800 and 400 crowns, which an unowned county has never
+/// had; the 50-sack lot costs **200**, and that is the one that moves. So the
+/// fifty sacks an unowned county gains in a season are not a constant anybody
+/// adds — they are `min(lot : 4 * lot <= purse)` over `{400, 200, 100, 50}`,
+/// and the identical arithmetic buys **nothing** one turn earlier at purses of
+/// 186 and 195. `docs/decisions.md` C149.
+///
+/// `morale` is looked up per county rather than passed as one number because
+/// the price is the *county's* merchant's morale: two counties in the same
+/// season can quote different prices, and nothing about the shipped game's
+/// uniform morale of 100 is a rule this should bake in.
+pub struct CountyStall<'a> {
+    /// The tables the stall's base prices come from.
+    t: &'a Tables,
+    /// Whether each county has a stall, and at what morale — indexed by county
+    /// id. A fixed-size array rather than a map, because the lookup happens
+    /// inside the simulation (`docs/netcode.md` D-4).
+    stall: [Option<i32>; crate::county::MAX_COUNTIES],
+    /// `g_seasonNext`, for `County_RefreshEstimates` in the trade's tail.
+    season_next: Season,
+    /// `g_optArmiesEat`, for the `Ration_Apply` in the same tail.
+    armies_eat: bool,
+    /// How many lots actually moved, for the caller's report.
+    pub bought: i32,
+}
+
+impl<'a> CountyStall<'a> {
+    /// Build the stall from the counties' own `+0x1A4` / `+0x1A5` and the unit
+    /// array — exactly the two reads `Ai_BuyGood` makes.
+    ///
+    /// A county whose `merchant_unit` names a slot that is empty gets **no
+    /// stall at all** rather than a morale of zero. That is a deliberate
+    /// departure and it is the safe direction: the original would index
+    /// `g_units` unchecked and mark up by whatever it found, and a morale of
+    /// zero would still leave the one-crown floor and let the trade happen at
+    /// 3 crowns a sack. Refusing is the smaller invention, and
+    /// [`crate::merchant::recount_all`] is the only writer of the pair, so the
+    /// two cannot disagree in a game this crate has driven.
+    pub fn new(
+        t: &'a Tables,
+        counties: &[County; crate::county::MAX_COUNTIES],
+        units: &crate::unit::Units,
+        season_next: Season,
+        armies_eat: bool,
+    ) -> CountyStall<'a> {
+        let mut stall = [None; crate::county::MAX_COUNTIES];
+        for (id, slot) in stall.iter_mut().enumerate() {
+            let county = &counties[id];
+            if county.merchant_count == 0 {
+                continue;
+            }
+            *slot = units.get(county.merchant_unit as usize).map(|u| u.morale);
+        }
+        CountyStall { t, stall, season_next, armies_eat, bought: 0 }
+    }
+
+    /// `Ai_BuyGood`'s price: the stall's base plus the merchant's morale as a
+    /// percentage of it, floored at one crown. Ale's exemption is carried
+    /// because the function has it, even though no farming style buys ale.
+    ///
+    /// This is [`crate::trade::quote`] with the merchant read off the county's
+    /// stall rather than off a click, which is the sentence `docs/symbols.md`
+    /// uses for it: *"Ai_BuyGood and Ai_SellGood apply the identical markup off
+    /// the county's own stall slot, so this is the price for everybody."*
+    pub fn price(&self, good: Good, morale: i32) -> i32 {
+        let g = match good {
+            Good::Grain => crate::trade::Good::Grain,
+            Good::Cattle => crate::trade::Good::Cattle,
+        };
+        crate::trade::quote(self.t, g, morale).buy
+    }
+}
+
+impl Market for CountyStall<'_> {
+    fn buy(
+        &mut self,
+        id: usize,
+        county: &mut County,
+        map: &mut CampaignMap,
+        qty: i32,
+        good: Good,
+    ) -> bool {
+        // Gate 1 — the stall.
+        let Some(morale) = self.stall.get(id).copied().flatten() else {
+            return false;
+        };
+        let price = self.price(good, morale);
+        let bill = price * qty;
+        // Gate 3 — the purse. `Merchant_Trade`'s own gold guard is inside
+        // `if (realm != 0)` and so never runs for an unowned county; this test
+        // in `Ai_BuyGood` is the only thing in front of it, which is why
+        // `crate::trade`'s `UnownedCountyTradesUnchecked` quirk is about a
+        // *reachable* path rather than a theoretical one.
+        //
+        // An **owned** county is checked against its realm's gold instead, and
+        // this market does not carry a realm. `manage_county_farms` still
+        // passes `NoMarket`, so the owned arm has no caller yet and is left
+        // unwritten rather than guessed at. `CLAUDE.md` rule 5.
+        if county.owner != 0 || bill > county.purse {
+            return false;
+        }
+        match good {
+            Good::Grain => county.grain += qty,
+            Good::Cattle => county.herd += qty,
+        }
+        county.purse -= bill;
+        crate::trade::settle_county(
+            self.t,
+            county,
+            map,
+            self.armies_eat,
+            self.season_next.index(),
+        );
+        self.bought += 1;
+        true
     }
 }
 
@@ -364,9 +552,17 @@ impl FarmStyle {
 /// it has something to spend. Only [`FarmStyle::NeutralArable`] does it, which
 /// is odd company for the one style whose lord does not exist.
 ///
-/// This crate has no field for that purse — it is [`Market`]'s business — so
-/// this reports the top-up rather than applying it, and an implementation with
-/// a purse credits it before running the cascade.
+/// **`[V]`**, and the order is the rule: the top-up is `Ai_FarmStyleNeutralArable`'s
+/// *first* statement and the four `if (grain < 100) Ai_BuyGood(...)` lines
+/// follow it, so the hundred crowns are available to the cascade that spends
+/// them in the same pass.
+///
+/// > This used to end *"this crate has no field for that purse — it is
+/// > `Market`'s business — so this reports the top-up rather than applying it"*.
+/// > [`County::purse`] has existed the whole time; the function reported and
+/// > **[`lay_out`] did not apply it**, which is the shape `docs/agents.md` calls
+/// > *a comment that defers work to a caller must name the caller*. `lay_out`
+/// > applies it now.
 pub const NEUTRAL_PURSE_TOP_UP: i32 = 100;
 
 /// Whether this pass hands the county [`NEUTRAL_PURSE_TOP_UP`] before shopping.
@@ -386,10 +582,18 @@ fn stock(county: &County, good: Good) -> i32 {
 }
 
 /// Run one style's cascade against a market. Returns how many lots moved.
-pub fn run_buys(style: FarmStyle, county: &mut County, market: &mut dyn Market) -> i32 {
+pub fn run_buys(
+    style: FarmStyle,
+    id: usize,
+    county: &mut County,
+    map: &mut CampaignMap,
+    market: &mut dyn Market,
+) -> i32 {
     let mut bought = 0;
     for line in style.buys() {
-        if stock(county, line.good) < line.floor && market.buy(county, line.lot, line.good) {
+        if stock(county, line.good) < line.floor
+            && market.buy(id, county, map, line.lot, line.good)
+        {
             bought += 1;
         }
     }
@@ -701,7 +905,12 @@ pub fn lay_out(
     market: &mut dyn Market,
     env: &FarmEnv,
 ) {
-    run_buys(style, &mut counties[id], market);
+    // **The purse top-up is the first statement of the arable neutral style**,
+    // and it has to happen before the cascade because the cascade is what
+    // spends it. `Ai_FarmStyleNeutralArable`: `if (grain < 100) county.purse += 100;`.
+    // It is a no-op for every other style — see [`neutral_purse_top_up`].
+    counties[id].purse += neutral_purse_top_up(style, &counties[id]);
+    run_buys(style, id, &mut counties[id], map, market);
 
     let total = counties[id].field_total();
 
@@ -969,7 +1178,14 @@ mod tests {
     }
 
     impl Market for Ledger {
-        fn buy(&mut self, county: &mut County, qty: i32, good: Good) -> bool {
+        fn buy(
+            &mut self,
+            _id: usize,
+            county: &mut County,
+            _map: &mut CampaignMap,
+            qty: i32,
+            good: Good,
+        ) -> bool {
             self.asked.push((qty, good));
             if !self.grant {
                 return false;
@@ -1053,21 +1269,150 @@ mod tests {
     /// the next one be tried; an accepted one ends the run.
     #[test]
     fn a_lot_that_arrives_stops_the_cascade_and_one_refused_does_not() {
-        let (mut c, _) = county_with(4);
+        let (mut c, mut cmap) = county_with(4);
         c.grain = 0;
         let mut m = ledger(true);
-        run_buys(FarmStyle::NeutralArable, &mut c, &mut m);
+        run_buys(FarmStyle::NeutralArable, 1, &mut c, &mut cmap, &mut m);
         assert_eq!(m.asked, vec![(400, Good::Grain)], "the first lot satisfied the floor");
         assert_eq!(c.grain, 400);
 
-        let (mut c, _) = county_with(4);
+        let (mut c, mut cmap) = county_with(4);
         c.grain = 0;
         let mut m = ledger(false);
-        run_buys(FarmStyle::NeutralArable, &mut c, &mut m);
+        run_buys(FarmStyle::NeutralArable, 1, &mut c, &mut cmap, &mut m);
         assert_eq!(
             m.asked,
             vec![(400, Good::Grain), (200, Good::Grain), (100, Good::Grain), (50, Good::Grain)],
             "every lot is offered when the purse refuses"
+        );
+    }
+
+    // --- the stall, and the fifty sacks -------------------------------------
+
+    /// Build a county with a stall and a purse, the way the battle fixture's
+    /// unowned counties are: grazing style, a merchant standing in it, and its
+    /// own money from a season of tax.
+    fn neutral_with_purse(purse: i32) -> (County, CampaignMap, crate::unit::Units) {
+        let (mut c, map) = county_with(12);
+        c.owner = 0;
+        c.farm_style = 1;
+        c.purse = purse;
+        c.grain = 57;
+        c.herd = 135;
+        c.merchant_count = 1;
+        c.merchant_unit = 4;
+        let mut units = crate::unit::Units::new();
+        let mut m = crate::unit::Unit::new(crate::unit::UnitKind::Merchant, 6, 8, 8);
+        // `Merchant_SpawnAll` writes 100 into every merchant and nothing in the
+        // binary ever writes a merchant's morale again.
+        m.morale = 100;
+        m.county = 1;
+        units.put(4, m);
+        (c, map, units)
+    }
+
+    fn stall<'a>(t: &'a Tables, c: &County, units: &crate::unit::Units) -> CountyStall<'a> {
+        let mut counties = vec![County::new(); crate::county::MAX_COUNTIES];
+        counties[1] = c.clone();
+        let counties: [County; crate::county::MAX_COUNTIES] =
+            counties.try_into().expect("MAX_COUNTIES entries");
+        CountyStall::new(t, &counties, units, Season::Spring, true)
+    }
+
+    /// **A sack of grain costs four crowns**, which is the whole of why the
+    /// cascade lands where it does.
+    ///
+    /// `g_goodsPrice[1]` is 2 and `Merchant_SpawnAll` gives every merchant a
+    /// morale of 100, so `Ai_BuyGood` quotes `2 + max(1, Pct(2, 100))`. The
+    /// number is pinned from the table rather than computed from the same
+    /// expression the code under test uses — `docs/agents.md`, *compute the
+    /// probe from the constant you are ablating*.
+    #[test]
+    fn a_sack_of_grain_costs_four_crowns_at_the_countys_own_stall() {
+        let (c, _, units) = neutral_with_purse(0);
+        let s = stall(T, &c, &units);
+        assert_eq!(s.price(Good::Grain, 100), 4, "base 2 doubled by a morale of 100");
+        // And the price really does follow the merchant rather than a constant.
+        assert_eq!(s.price(Good::Grain, 0), 3, "the one-crown markup floor");
+        assert_eq!(s.price(Good::Grain, 200), 6);
+    }
+
+    /// **The fifty sacks are `min(lot : 4 * lot <= purse)`, not a constant.**
+    ///
+    /// This is the fixture's own arithmetic, both ways round: county 3 of
+    /// `old_turn.sav` holds 316 crowns and buys the 50-sack lot for 200; the
+    /// same county of `safeturn.sav` one turn earlier holds 195 and buys
+    /// **nothing**, because 200 is more than 195 and there is no smaller lot.
+    /// A purse of 400 reaches the 100-sack lot instead, which is what says the
+    /// rule is a threshold rather than a number.
+    #[test]
+    fn the_lot_an_unowned_county_takes_is_the_largest_its_purse_covers() {
+        for (purse, expect_lot, why) in [
+            (195, 0, "one turn earlier, 195 crowns buys nothing at all"),
+            (200, 50, "exactly the 50-sack bill"),
+            (316, 50, "the fixture's own purse"),
+            (399, 50, "still short of the 100-sack lot's 400"),
+            (400, 100, "and the next lot up opens at exactly 400"),
+            (1600, 400, "the top of the cascade"),
+        ] {
+            let (mut c, mut map, units) = neutral_with_purse(purse);
+            let before = c.grain;
+            let mut m = stall(T, &c, &units);
+            run_buys(FarmStyle::NeutralGrazing, 1, &mut c, &mut map, &mut m);
+            assert_eq!(c.grain - before, expect_lot, "purse {purse}: {why}");
+            assert_eq!(c.purse, purse - expect_lot * 4, "purse {purse}: {why}");
+        }
+    }
+
+    /// **No stall, no purchase** — not a smaller one, none. `Ai_BuyGood`'s
+    /// whole body is inside `if (county.merchantCount != '\0')`.
+    ///
+    /// *Ablation*: delete the `if county.merchant_count == 0 { continue }` in
+    /// [`CountyStall::new`] and this goes red — the county has a purse of 1,000
+    /// and would buy the 200-sack lot.
+    #[test]
+    fn a_county_with_no_merchant_in_it_cannot_buy_at_any_price() {
+        let (mut c, mut map, units) = neutral_with_purse(1_000);
+        c.merchant_count = 0;
+        let mut m = stall(T, &c, &units);
+        run_buys(FarmStyle::NeutralGrazing, 1, &mut c, &mut map, &mut m);
+        assert_eq!(c.grain, 57, "the stall gate refuses before the purse is even read");
+        assert_eq!(c.purse, 1_000);
+    }
+
+    /// **A trade does not feed anybody.** `Merchant_Trade`'s tail recomputes
+    /// the ration; it does not serve it.
+    ///
+    /// `Ration_Apply` (`0x0044DF5F`) has no store `-=` anywhere in it, and
+    /// `crate::trade::settle_county` used to call the debiting `ration::apply`
+    /// twice — so a county that bought 50 sacks ate two extra meals for it.
+    ///
+    /// *Ablation*: put either `ration::preview` in `settle_county` back to
+    /// `ration::apply` and this goes red, because the store loses two meals it
+    /// should not. **The herd is cut to 11 on purpose**: the first draft of
+    /// this test left the fixture's 135 head in place, the dairy alone fed the
+    /// county, no grain was ever eaten, and the ablation went green against a
+    /// test that could not have failed. `docs/agents.md`, *ablate something the
+    /// check claims*.
+    #[test]
+    fn buying_grain_does_not_make_the_county_eat_it() {
+        let (mut c, mut map, units) = neutral_with_purse(400);
+        // Just above the cascade's cattle floor of 11, so no herd is bought and
+        // the dairy cannot cover five hundred people.
+        c.herd = 11;
+        c.ration_wanted = 3;
+        c.ration_split = 0;
+        let mut m = stall(T, &c, &units);
+        // Establish that this county DOES eat grain, or the assertion below is
+        // about nothing.
+        let mut control = c.clone();
+        crate::ration::apply(T, &mut control, true);
+        assert!(control.grain < 57, "the fixture must actually eat grain for this to test anything");
+
+        run_buys(FarmStyle::NeutralGrazing, 1, &mut c, &mut map, &mut m);
+        assert_eq!(
+            c.grain, 157,
+            "57 in store plus the 100-sack lot, with nothing eaten on the way through"
         );
     }
 
@@ -1076,20 +1421,20 @@ mod tests {
     /// stops after the three big lots are offered.
     #[test]
     fn the_arable_realm_style_tops_up_to_six_hundred_then_to_one_hundred() {
-        let (mut c, _) = county_with(4);
+        let (mut c, mut cmap) = county_with(4);
         c.grain = 150;
         let mut m = ledger(false);
-        run_buys(FarmStyle::RealmArable, &mut c, &mut m);
+        run_buys(FarmStyle::RealmArable, 1, &mut c, &mut cmap, &mut m);
         assert_eq!(
             m.asked,
             vec![(400, Good::Grain), (200, Good::Grain), (100, Good::Grain)],
             "150 sacks is under 600 but not under 100"
         );
 
-        let (mut c, _) = county_with(4);
+        let (mut c, mut cmap) = county_with(4);
         c.grain = 50;
         let mut m = ledger(false);
-        run_buys(FarmStyle::RealmArable, &mut c, &mut m);
+        run_buys(FarmStyle::RealmArable, 1, &mut c, &mut cmap, &mut m);
         assert_eq!(m.asked.len(), 5, "under 100, the two small lots are tried too");
     }
 
