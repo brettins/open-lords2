@@ -616,7 +616,8 @@ impl Screen for DropdownScreen {
 
         // **Ours**, and in our own 5 x 7 font so a screenshot cannot mistake it
         // for the game's wording: what a refused item could not do.
-        if !self.status.is_empty() {
+        // Debug overlay only.
+        if ctx.game.prefs.debug_overlay && !self.status.is_empty() {
             text::draw(canvas, plate.x, plate.y + plate.h + 4, &self.status, ink.bad);
         }
     }

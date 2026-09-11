@@ -131,6 +131,42 @@
 //! of the player's own `L2.eng`. `Icon_tmp.pl8` **is** loaded by
 //! `crate::shell::ShellAssets` and until now no frame of it was drawn anywhere;
 //! [`ICON`] is what changes that.
+//!
+//! # A field says what it is — `TileInfo_Draw`'s farmland arm
+//!
+//! A player right-clicked a field and got *"the screen that left clicking should
+//! bring … but the text for that field isn't filled in."* The panel had its box,
+//! its brush and its county name, and not one word of `TileInfo_Draw`
+//! (`0x0041C208`) for a `0x20` tile. [`draw_farmland`] is that arm, whole:
+//!
+//! * **the heading and the mode** — `DAT_004D2EC8`, sixteen bytes a terrain
+//!   value, gives `(heading, body, icon, mode)` and the painter draws
+//!   `Eng_DrawString(30, heading)` then `Eng_DrawString(30, mode)` after it, both
+//!   in `&g_fontHeading`: *"Farmland - Wheat."* [`FARM_TILE_INFO`] is the
+//!   table, checked against the player's `Lords2.exe` by
+//!   `tests/screens.rs`;
+//! * **a body, or a report, by mode** — `0x13` *Wheat* runs
+//!   `TileInfo_DrawGrain` (`0x0041CB3A`) and `0x15` *Cattle* runs
+//!   `TileInfo_DrawHerd` (`0x0041D299`), and **neither draws the table's
+//!   description**: 30/35 … 30/39 and 30/44 … 30/47 are read into `local_1c`
+//!   and never reach a draw call. `0x12` *Fallow* swaps its body for 30/58 or
+//!   30/34 on `g_optAdvancedFarming`; the rest wrap the table's body at
+//!   `(0x68, row*16 + 100)`;
+//! * **the icon**, `Icon_tmp.pl8` frame `icon` at `(0x28, row*16 + 0x60)`;
+//! * and first, from `FUN_0041BEFE`, **the inset well** every tile panel sits
+//!   in, `Ui_DrawInsetRect(0x20, row*16 + 0x38, 400, (0x18 - row) * 16)`.
+//!
+//! Groups 30, 77 and 22 are this arm's vocabulary and every word is drawn from
+//! the player's own `L2.eng`, with our transcription only where the file has
+//! none (`CLAUDE.md` rule 6).
+//!
+//! **Two figures are not carried and are not drawn**, said here rather than
+//! discovered: county `+0x278` and `+0x274`, the grain and herd a random event
+//! took or gave, and `+0x24C` and `+0x270`, what the weather did (advanced
+//! farming only). `docs/stored-fields.json` has all four as *excluded*, so an
+//! event season's first report line and the weather line are missing draws.
+//! The *"no outside factors"* sentence is drawn exactly when the original's
+//! figure is provably zero — see [`draw_grain_report`].
 
 use l2_view::Canvas;
 
@@ -367,6 +403,172 @@ pub const BRUSH_DIM: i32 = 48;
 pub const BRUSH_FIELD_ID: [u8; 3] = [1, 2, 0x13];
 pub const BRUSH_WASTE_ID: [u8; 2] = [0x19, 0];
 
+/// **`DAT_004D2EC8` — `TileInfo_Draw`'s farmland table**, one row per terrain
+/// value `0 … 0x1C`: `[heading, body, icon, mode]`, the four `i32`s the painter
+/// reads as `local_20`, `local_1c`, `local_8` and `local_c`.
+///
+/// Transcribed from the player's `Lords2.exe` and asserted against it,
+/// row for row, by `tests/screens.rs`
+/// `the_farmland_table_is_the_images_own`. Row `0x1D` onward is other data —
+/// the image carries no bound, and `Terrain_Set` writes nothing above `0x1C`
+/// onto a farm tile — so a terrain past the end draws no field text at all.
+pub const FARM_TILE_INFO: [[usize; 4]; 0x1D] = [
+    [6, 33, 0, 17],
+    [6, 34, 1, 18],
+    [6, 35, 2, 19],
+    [6, 36, 3, 19],
+    [6, 37, 4, 19],
+    [6, 38, 5, 19],
+    [6, 39, 6, 19],
+    [6, 36, 7, 19],
+    [6, 37, 8, 19],
+    [6, 38, 9, 19],
+    [6, 39, 10, 19],
+    [6, 36, 11, 19],
+    [6, 37, 12, 19],
+    [6, 38, 13, 19],
+    [6, 39, 14, 19],
+    [6, 40, 15, 20],
+    [6, 41, 16, 20],
+    [6, 42, 17, 20],
+    [6, 43, 18, 20],
+    [6, 44, 19, 21],
+    [6, 45, 20, 21],
+    [6, 46, 21, 21],
+    [6, 47, 22, 21],
+    [12, 80, 33, 17],
+    [13, 81, 34, 17],
+    [6, 40, 17, 20],
+    [6, 41, 17, 20],
+    [6, 42, 17, 20],
+    [6, 43, 17, 20],
+];
+
+/// `local_c`, the table's fourth column: the `L2.eng` 30 index drawn after the
+/// heading, and the switch on what the panel says below it.
+pub mod mode {
+    /// *"- Barren."*
+    pub const BARREN: usize = 0x11;
+    /// *"- Lying Fallow."* — the body is swapped on `g_optAdvancedFarming`.
+    pub const FALLOW: usize = 0x12;
+    /// *"- Wheat."* — `TileInfo_DrawGrain`, and no body.
+    pub const WHEAT: usize = 0x13;
+    /// *"- Being reclaimed."*
+    pub const RECLAIMING: usize = 0x14;
+    /// *"- Cattle."* — `TileInfo_DrawHerd`, and no body.
+    pub const CATTLE: usize = 0x15;
+}
+
+/// The fallow body's two strings: 30/58 *"Traditionally, fields were left
+/// fallow…"* with advanced farming off, 30/34 *"Presently being rested…"* with
+/// it on. `if (local_c == 0x12) local_1c = g_optAdvancedFarming == 0 ? 0x3A : 0x22;`
+pub const FALLOW_BODY_PLAIN: usize = 0x3A;
+pub const FALLOW_BODY_ADVANCED: usize = 0x22;
+
+/// `L2.eng` group 77 — the grain and herd report's words.
+pub const REPORT_GROUP: usize = 77;
+/// `L2.eng` group 22 — the seven fertility phrases.
+pub const FERTILITY_GROUP: usize = 22;
+
+/// `TileInfo_DrawGrain`'s and `TileInfo_DrawHerd`'s worker colour: `0x3F`, or
+/// `0xF9` while the job is short of its floor, or `0xFC` while it has more
+/// hands than it can use. Literals of the two painters, not the strip's.
+pub const WORKERS_SHORT: u8 = 0xF9;
+pub const WORKERS_IDLE: u8 = 0xFC;
+
+/// `Ui_DrawDelta`'s `colourNeg` at all five report call sites; `colourPos` is
+/// `0x3F`, [`font::TEXT`].
+pub const REPORT_NEG: u8 = 0xF9;
+
+/// **Our transcription of the words this arm draws**, used only where the
+/// player's `L2.eng` has none — an install with no file, or a placeholder test
+/// asset. Group 30's are the eighteen indices the farmland arm can reach.
+const TILE_WORDS: [(usize, &str); 23] = [
+    (6, "Farmland"),
+    (12, "Flooded Field."),
+    (13, "Parched Field."),
+    (17, "- Barren."),
+    (18, "- Lying Fallow."),
+    (19, "- Wheat."),
+    (20, "- Being reclaimed."),
+    (21, "- Cattle."),
+    (33, "Unusable at present. Farmers may be diverted from other tasks to reclaim this field."),
+    (34, "Presently being rested. The more fallow land in a county, the higher its fertility for growing wheat."),
+    (35, "This wheat field is currently unused."),
+    (36, "This wheat field has just been sown."),
+    (37, "This wheat field contains ripening crops."),
+    (38, "This wheat field will be harvested next season."),
+    (39, "This wheat field is ready for planting next season."),
+    (40, "Over time and with continued labor, this field will return to a usable state and increase your overall farming capacity."),
+    (41, "This field has improved somewhat, but needs further work before it is usable."),
+    (42, "Partially restored, this field is on the way to returning to its former state."),
+    (43, "Almost reclaimed, this field will very shortly be ready for use."),
+    (52, "Click on an icon to alter field usage."),
+    (58, "Traditionally, fields were left fallow for a season as part of a crop rotation system."),
+    (80, "This field was flooded in the recent deluge, and any crops held within it were drowned."),
+    (81, "This field was baked dry in the recent drought, and any crops held within it withered and died."),
+];
+
+/// Group 77, indices 0 … 28.
+const REPORT_WORDS: [&str; 29] = [
+    "from",
+    "to be sown, yielding",
+    "in 4 seasons.",
+    "harvested in",
+    "sown in spring.",
+    "Calf births expected",
+    "Cow deaths expected",
+    "Change due to farming",
+    "Low herd crowding.",
+    "Average herd crowding.",
+    "Herd overcrowded.",
+    "Massive overcrowding!!",
+    "field being reclaimed",
+    "fields being reclaimed",
+    "Next field reclaimed in",
+    "No field reclamation with 0 labourers",
+    "gained last season, due to weather.",
+    "lost last season, due to weather.",
+    "Weather had no effect last season.",
+    "No outside events affected the herd this season.",
+    "died of disease.",
+    "taken by wolves.",
+    "had to be put down.",
+    "born, over expectations.",
+    "No outside factors affected stored grain.",
+    "eaten by rats.",
+    "found as surplus.",
+    "Change due to eating",
+    "Overall change",
+];
+
+/// Group 22, indices 0 … 6.
+const FERTILITY_WORDS: [&str; 7] = [
+    "Infertile - almost no production.",
+    "Very poor fertility - mainly weeds.",
+    "Poor fertility - crops grow less well.",
+    "Average fertility - no effect on crops.",
+    "Good fertility - crops are boosted.",
+    "Very High fertility - many extra crops.",
+    "Excellent fertility - bumper crop!",
+];
+
+/// **One string of this arm's vocabulary**: the player's `L2.eng` first, our
+/// transcription where the file has nothing at that index.
+pub fn words(a: &crate::shell::ShellAssets, group: usize, index: usize) -> String {
+    let s = a.text(group, index);
+    if !s.is_empty() {
+        return s.to_string();
+    }
+    let ours = match group {
+        TILE_GROUP => TILE_WORDS.iter().find(|&&(i, _)| i == index).map(|&(_, s)| s),
+        REPORT_GROUP => REPORT_WORDS.get(index).copied(),
+        FERTILITY_GROUP => FERTILITY_WORDS.get(index).copied(),
+        _ => None,
+    };
+    ours.unwrap_or("").to_string()
+}
+
 /// `TileInfo_Draw`'s ladder, as far as it selects a *layout*. The eighty-eight
 /// group 30 strings are the player's data and not a table of ours.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -473,6 +675,16 @@ impl InfoScreen {
             .is_some_and(|c| c.mercenary_offer != 0)
     }
 
+    /// **The farm tile this panel describes**, or `None` — `TileInfo_Draw`'s
+    /// ladder, in its order: bits `0x01` (road), `0x04` (sea), `0x10` (a
+    /// dwelling), `0x08` (mountain or wood) are all tested before `0x20`.
+    pub fn farmland(&self, ctx: &Ctx) -> Option<usize> {
+        let Target::Tile(tile) = self.target else { return None };
+        let f = ctx.game.kingdom.campaign.map.flags[tile];
+        (f & (0x01 | 0x04 | 0x10 | 0x08) == 0 && f & l2_kingdom::map::flags::FARMLAND != 0)
+            .then_some(tile)
+    }
+
     /// The three army buttons, and which of the two tables they come from.
     ///
     /// `FUN_00437002` picks between `g_infoUnitButtons` (`0x004DC560`) and the
@@ -541,8 +753,15 @@ impl InfoScreen {
                         .is_some_and(|c| c.mercenary_offer != 0);
                     return Layout { row: if offer { 0x0F } else { 0x11 }, headroom: 2 };
                 }
-                if map.flags[tile] & l2_kingdom::map::flags::FARMLAND != 0 && mine {
-                    let t = map.terrain[tile];
+                // `FUN_0041BEFE`'s `0x20` arm tests the blighted pair **before**
+                // the owner: a flooded or parched field is row `0x11` on anybody's
+                // county, because it offers no brush.
+                let t = map.terrain[tile];
+                if map.flags[tile] & l2_kingdom::map::flags::FARMLAND != 0
+                    && mine
+                    && t != 0x17
+                    && t != 0x18
+                {
                     if t == 0 || t > 0x18 {
                         Layout { row: 0x0C, headroom: 2 }
                     } else {
@@ -670,6 +889,11 @@ impl Screen for InfoScreen {
         // closes the panel afterwards because `Field_SetType` sets
         // `g_screenId = 0`.
         // arm: 0x00438990/field-brush left-release
+        //
+        // `0x00438990/tile-panel-hotspots` is the same arm, filed a second time
+        // while the table stood in a popup of ours on the campaign map; the
+        // popup is gone and both records now name this one test.
+        // arm: 0x00438990/tile-panel-hotspots left-release
         if let Some(ids) = self.brush(ctx) {
             let xs: &[i32] = if ids.len() == 3 { &BRUSH_FIELD_X } else { &BRUSH_WASTE_X };
             for (i, &bx) in xs.iter().enumerate() {
@@ -906,6 +1130,14 @@ impl Screen for InfoScreen {
             }
             Target::Tile(tile) => {
                 let map = &ctx.game.kingdom.campaign.map;
+                // `FUN_0041BEFE`, after the box and the OK button and before
+                // `TileInfo_Draw`: the recessed well the tile panel's words sit in.
+                pen.inset(canvas, Rect::new(0x20, l.y(0x38), 400, (0x18 - l.row) * 16));
+                // **`TileInfo_Draw`'s farmland arm** — the heading, the body or
+                // the report, and the icon. See [`draw_farmland`].
+                if let Some(field) = self.farmland(ctx) {
+                    draw_farmland(ctx, &pen, canvas, l, field);
+                }
                 // The county's name, centred over the box in the head-room the
                 // layout granted.
                 if l.headroom != 0 {
@@ -1009,7 +1241,10 @@ impl Screen for InfoScreen {
                             font::TEXT,
                         );
                     }
-                } else {
+                } else if self.farmland(ctx).is_none() && ctx.game.prefs.debug_overlay {
+                    // Ours, debug overlay only: the rest of the ladder — road,
+                    // sea, village, mountain, wood, industry, castle — is not
+                    // drawn yet.
                     l2_view::text::draw(
                         canvas,
                         4,
@@ -1020,11 +1255,212 @@ impl Screen for InfoScreen {
                 }
             }
         }
-        // **Ours.** The original answers a refused disband with message `0x91`
-        // on a scroll we have not built; this is the same sentence with nowhere
-        // else to go.
-        if !self.status.is_empty() {
+        // **Ours**, debug overlay only. The original answers a refused disband
+        // with message `0x91` on a scroll we have not built; this is the same
+        // sentence with nowhere else to go.
+        if ctx.game.prefs.debug_overlay && !self.status.is_empty() {
             l2_view::text::draw(canvas, 12, 452, &self.status, ink.highlight);
         }
     }
+}
+
+/// **`TileInfo_Draw` (`0x0041C208`) for a `0x20` tile**, in the painter's own
+/// order: the heading and its mode in `&g_fontHeading`, then the body or one of
+/// the two reports, then the icon.
+///
+/// `draw` puts the county's name over it (`Ui_DrawCentred(100, …)`, the same
+/// block for every tile with head-room) and the brush under it
+/// (`FUN_0041C996`).
+pub fn draw_farmland(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, tile: usize) {
+    let k = &ctx.game.kingdom;
+    let terrain = k.campaign.map.terrain[tile] as usize;
+    let Some(&[heading, body, frame, mode]) = FARM_TILE_INFO.get(terrain) else { return };
+    let a = pen.assets;
+    let county = k.counties.get(k.campaign.map.county[tile] as usize);
+    // `g_localPlayer == g_pickedCountyOwner`.
+    let mine = county.is_some_and(|c| c.owner == ctx.game.player);
+
+    // `g_penAdvance = 0; Eng_DrawString(30, local_20, 0x28, row*16 + 0x40,
+    // &g_fontHeading); if (local_c) Eng_DrawString(30, local_c, g_penAdvance +
+    // 0x28, …)` — the mode follows the heading on the same line.
+    let x = pen.heading(canvas, HEADING_X, l.y(HEADING_DY), &words(a, TILE_GROUP, heading), font::TEXT);
+    if mode != 0 {
+        pen.heading(canvas, x, l.y(HEADING_DY), &words(a, TILE_GROUP, mode), font::TEXT);
+    }
+
+    match (mode, county) {
+        (mode::WHEAT, Some(c)) if mine => draw_grain_report(ctx, pen, canvas, l, c),
+        (mode::CATTLE, Some(c)) if mine => draw_herd_report(pen, canvas, l, c),
+        // Somebody else's wheat or cattle: the heading and the icon, and the
+        // table's description is **not** drawn — `local_1c` goes unread.
+        (mode::WHEAT | mode::CATTLE, _) => {}
+        (mode::FALLOW, _) => {
+            let index = if k.options.advanced_farming { FALLOW_BODY_ADVANCED } else { FALLOW_BODY_PLAIN };
+            let s = words(a, TILE_GROUP, index);
+            // Yours sits lower and wider, clear of the brush's caption.
+            if mine {
+                pen.body_wrapped(canvas, 0x48, l.y(0xB0), 0x150, &s, font::TEXT);
+            } else {
+                pen.body_wrapped(canvas, BODY_X, l.y(0x60), TILE_BODY_WRAP, &s, font::TEXT);
+            }
+        }
+        // Barren, blighted and being reclaimed — both owner arms are the same
+        // call.
+        _ => {
+            let s = words(a, TILE_GROUP, body);
+            pen.body_wrapped(canvas, BODY_X, l.y(BODY_DY), TILE_BODY_WRAP, &s, font::TEXT);
+        }
+    }
+
+    // `File_ReadChunk("icon_tmp.pl8"); Sprite_WGenSprite(local_8, 0x28, row*16 + 0x60)`.
+    if let Some(f) = a.sheet(ICON_SHEET).and_then(|s| s.frame(frame)) {
+        canvas.blit(&f, ICON_AT.0, l.y(ICON_AT.1));
+    }
+}
+
+/// The worker count's colour — both reports' three-way ladder on their own job.
+fn workers_colour(c: &l2_kingdom::County, job: usize) -> u8 {
+    if c.labour[job] < c.labour_wanted[job] {
+        WORKERS_SHORT
+    } else if c.labour_useful[job] < c.labour[job] {
+        WORKERS_IDLE
+    } else {
+        font::TEXT
+    }
+}
+
+/// `if (v == 0) Ui_DrawNumber(0, '@', " ", 0x108, y) else Ui_DrawDelta(v, 0, " ",
+/// " ", 0x108, y, body, 0x3F, 0xF9)` — the five signed lines of both reports.
+///
+/// The zero is drawn, not skipped: mode 0 would draw nothing, and the painters
+/// test for it first and print `0` instead. Every one of the ten string
+/// arguments (`&DAT_004D4240` … `&DAT_004D4278`) is a single space, read out
+/// of the image.
+fn report_value(pen: &Pen, canvas: &mut Canvas, y: i32, value: i32) {
+    const X: i32 = 0x108;
+    let body = crate::shell::Face::Body;
+    if value == 0 {
+        pen.number_in(body, canvas, X, y, 0, '@', " ", font::TEXT);
+        return;
+    }
+    // `Ui_DrawText(prefix, x, y, font, sign ? colourNeg : colourPos)`, then the
+    // number at `x + g_penAdvance` with `'-'` or `'+'` in the lead.
+    let colour = if value < 0 { REPORT_NEG } else { font::TEXT };
+    let next = pen.body(canvas, X, y, " ", colour);
+    let lead = if value < 0 { '-' } else { '+' };
+    pen.number_in(body, canvas, next, y, value.abs(), lead, " ", colour);
+}
+
+/// **`TileInfo_DrawGrain` (`0x0041CB3A`)** — the wheat field's report, owner only.
+///
+/// # The store line, and why it is drawn only sometimes
+///
+/// ```c
+/// if (county.field_0x278 == 0) Eng_DrawString(77, 0x18, 0x28, row*16 + 0x94);   /* no outside factors */
+/// else { Ui_DrawCount(county.field_0x278, 2, …); /* then 77/0x19 rats or 77/0x1A surplus */ }
+/// ```
+///
+/// `Grain_SeasonTick` zeroes `+0x278` and writes it only from
+/// `eventGrainPct`, and the only handlers that set that byte are *Rats* (`0x87`)
+/// and *Grain found* (`0x8B`); `Event_RollAll` runs before the grain tick in
+/// the season pipeline, so the county's `event_id` at the time the panel is
+/// drawn is the event the last tick applied. **So any other event id means
+/// `+0x278` is zero and the sentence is exact.** With one of those two the
+/// figure is the grain that event moved, which this workspace does not carry
+/// (`docs/stored-fields.json`, *excluded*), and the line is **not drawn** rather
+/// than drawn wrong.
+///
+/// The weather line under it (`+0x24C`, advanced farming only) is the same kind
+/// of figure and is not drawn at all: NOT PORTED.
+fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
+    let k = &ctx.game.kingdom;
+    let a = pen.assets;
+    let say = |canvas: &mut Canvas, x: i32, y: i32, index: usize| {
+        pen.body(canvas, x, y, &words(a, REPORT_GROUP, index), font::TEXT)
+    };
+    // `Ui_DrawCount(labour[0].workers, 0x20, 0x68, row*16 + 0x68, body, colour)` —
+    // *"Farmers"* — and the store, `Ui_DrawCount(grain, 2, 0x128, …)`, *"Sacks"*.
+    pen.count(canvas, 0x68, l.y(0x68), c.labour[0], 0x20, workers_colour(c, 0));
+    pen.count(canvas, 0x128, l.y(0x68), c.grain, 2, font::TEXT);
+    if k.options.advanced_farming {
+        let band = ((c.fertility + 100) / 0x1D).clamp(0, 6) as usize;
+        pen.body(canvas, 0x68, l.y(0x78), &words(a, FERTILITY_GROUP, band), font::TEXT);
+    }
+    // NOT PORTED: the `+0x278` figure — see the doc above.
+    if !matches!(c.event_id, 0x87 | 0x8B) {
+        say(canvas, 0x28, l.y(0x94), 0x18);
+    }
+    // NOT PORTED: `if (g_optAdvancedFarming == 1)` the `+0x24C` weather line.
+
+    if k.season_next == 1 {
+        // Facing Spring: the seed and what it will yield.
+        let x = pen.count(canvas, 0x28, l.y(0xC0), c.grain_sown_expected, 2, font::TEXT);
+        say(canvas, x, l.y(0xC0), 1);
+        let yielding = c.grain_sown_expected * k.tables.grain.yield_per_sack;
+        let x = pen.count(canvas, 0x28, l.y(0xD0), yielding, 2, font::TEXT);
+        say(canvas, x, l.y(0xD0), 2);
+    } else {
+        let seasons = match k.season_next {
+            2 => 3,
+            3 => 2,
+            _ => 1,
+        };
+        let crop = if k.season_next == 4 { c.crop[2] } else { c.grain_grown_expected };
+        let x = pen.count(canvas, 0x28, l.y(0xC0), crop, 2, font::TEXT);
+        let x = say(canvas, x, l.y(0xC0), 3);
+        pen.count(canvas, x, l.y(0xC0), seasons, 0x42, font::TEXT);
+        let x = say(canvas, 0x28, l.y(0xD0), 0);
+        let x = pen.count(canvas, x, l.y(0xD0), c.crop[0], 2, font::TEXT);
+        say(canvas, x, l.y(0xD0), 4);
+    }
+    say(canvas, 0x28, l.y(0xE0), 0x1B);
+    report_value(pen, canvas, l.y(0xE0), -c.grain_eaten);
+    say(canvas, 0x28, l.y(0xF0), 0x1C);
+    report_value(pen, canvas, l.y(0xF0), c.grain_change_expected);
+}
+
+/// **`TileInfo_DrawHerd` (`0x0041D299`)** — the pasture's report, owner only.
+///
+/// The event line has [`draw_grain_report`]'s shape: `+0x274` is written by
+/// `Herd_SeasonTick` only from `eventHerdPct`, whose setters are *Mad cows*
+/// (`0x88`), *Wolves* (`0x89`), *Bad cattle* (`0x8C`) and *Cow bonanza*
+/// (`0x8D`) — *No bull*'s 99 zeroes it — so any other id is the exact
+/// *"No outside events affected the herd"*, and those four are the missing
+/// figure. The weather line (`+0x270`) is NOT PORTED.
+fn draw_herd_report(pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
+    let a = pen.assets;
+    let say = |canvas: &mut Canvas, x: i32, y: i32, index: usize| {
+        pen.body(canvas, x, y, &words(a, REPORT_GROUP, index), font::TEXT)
+    };
+    // *"Dairy maids"* and *"Animals"*.
+    pen.count(canvas, 0x68, l.y(0x68), c.labour[1], 0x22, workers_colour(c, 1));
+    pen.count(canvas, 0x128, l.y(0x68), c.herd, 4, font::TEXT);
+    if c.fields_cattle != 0 {
+        let crowding = match c.herd_crowding {
+            10 => 8,
+            20 => 9,
+            30 => 10,
+            _ => 11,
+        };
+        say(canvas, 0x68, l.y(0x78), crowding);
+    }
+    // NOT PORTED: the `+0x274` figure — see the doc above.
+    if !matches!(c.event_id, 0x88 | 0x89 | 0x8C | 0x8D) {
+        say(canvas, 0x28, l.y(0x94), 0x13);
+    }
+    // NOT PORTED: `if (g_optAdvancedFarming == 1)` the `+0x270` weather line.
+
+    say(canvas, 0x28, l.y(0xC0), 5);
+    pen.count(canvas, 0x108, l.y(0xC0), c.herd_births_expected, 4, font::TEXT);
+    say(canvas, 0x28, l.y(0xD0), 6);
+    pen.count(canvas, 0x108, l.y(0xD0), c.herd_deaths_expected, 4, font::TEXT);
+    // *"Change due to farming"* is computed inline and never stored.
+    say(canvas, 0x28, l.y(0xE0), 7);
+    report_value(pen, canvas, l.y(0xE0), c.herd_births_expected - c.herd_deaths_expected);
+    say(canvas, 0x28, l.y(0xF0), 0x1B);
+    report_value(pen, canvas, l.y(0xF0), -c.herd_eaten);
+    // *"Overall change"* — county `+0x258`, `herd_change_expected`
+    // (`docs/records.json` `herdOverallChange`, C128).
+    say(canvas, 0x28, l.y(0x100), 0x1C);
+    report_value(pen, canvas, l.y(0x100), c.herd_change_expected);
 }

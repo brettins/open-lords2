@@ -375,7 +375,8 @@ are. **`0x20` is `explored`:**
 **What we draw now.** `campaign::draw` takes the fog (`Map_DrawTile`, `Map_DrawTileApex`
 and the surround arms); `draw_units`, `draw_flags` (banner, mercenary marker, garrison
 banner), `draw_herds` and the industry wheel each test `Game::hides_tile` on their own tile,
-and so does our owner marker, which stands in for the banner. The whole of its behaviour
+and so does our owner marker, which stood in for the banner and is debug overlay only now
+(§7). The whole of its behaviour
 *is* drawing, as this section said — but it needed the plane first, and the plane needed
 four writers in the simulation.
 
@@ -882,6 +883,19 @@ line; `TURN n`; `COUNTIES n/m`; the clock and the treasury in our own font (2); 
 (2); the unit banner panel and its two lines (3); the field brush popup (5); the county
 panel's focus outline; the drop-down's recess and its status line (2); `NO MINIMAP`;
 `NO COUNTY SELECTED`.
+
+> **Since this list was written.** The field brush popup's five are **gone** — the left click
+> on a field opens screen `0x04`, `Map_Click`'s own destination, and `FUN_0041C996` draws
+> the brush there. And every remaining site above that a complete install reaches — the
+> marker and field squares, the far-zoom status line, `TURN n`, `COUNTIES n/m`, the sidebar
+> status line, focus frame and name, the unit banner, `NO COUNTY SELECTED`, and on the
+> unit layer the garrison marker, the selection ring and the besieger dot — is **drawn only
+> with the debug overlay on** (Ctrl+D, `Prefs::debug_overlay`, `docs/arms.json`
+> `ours/debug-overlay-toggle`). Two players reported them as *"debug squares still on the
+> town square"* and *"debug outlines and text for the 4 icons at the bottom right"*.
+> `crates/l2-game/tests/screens.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
+> asserts each absence at a pixel the overlay really draws. The sites are still counted,
+> because the audit counts source call sites and they are still in the source.
 
 Every one is marked in the source. Eleven of them exist because a thing the original draws is
 not drawn yet, so the number should fall as §2's right-hand column rises — which makes it the

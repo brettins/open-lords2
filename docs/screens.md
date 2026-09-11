@@ -933,15 +933,16 @@ into the gitignored `out/` so it can be looked at.
 * one measured pixel difference: **4,600 of 436,176 diamond body pixels** across the ten
   tile banks hold palette index 0, which the original writes as black and we skip, because
   `DecodedFrame::opaque` cannot tell those from the transparent corners;
-* the county **outline** and the county **marker squares** — invented, no original
-  equivalent. The flags themselves *are* placed now (§5.1): the town's owner-coloured
-  banner, the mercenary-offer marker beside it, and the castle's garrison banner;
-* the **field markers** and the words on the brush's buttons. The original does not mark
-  fields: it repaints the tile artwork itself, `FUN_0046D7F4` choosing a graphics bank and
-  frame from the same terrain value it writes. We do not, because that ladder's bank byte
-  (`|1`, `&0xE3`, `|8` or `|0`, `&0x7F`, `|0x80` for pasture) is only half understood and a
-  painted tile would claim to be what the game looked like. A marker only claims we know
-  what the field is. C21;
+* the county **outline** (removed) and the county **marker squares** — invented, no
+  original equivalent, and **drawn only with the debug overlay on** (Ctrl+D,
+  `Prefs::debug_overlay`): a player reported them as *"debug squares still on the town
+  square"*. The flags themselves *are* placed (§5.1): the town's owner-coloured banner, the
+  mercenary-offer marker beside it, and the castle's garrison banner;
+* the **field markers** — debug overlay only, for the same report. The original does not
+  mark fields, and the tile artwork *is* repainted now (`MapScreen::field_graphics`, from
+  `Terrain_Set`), so the squares were saying twice what the tile already said. The brush
+  **popup** they were targets for is removed: a left click on your field opens screen
+  `0x04`, as `Map_Click`'s farmland arm does, and the brush is drawn there;
 * **tile picking**: the original inverts the projection and answers for any tile
   (`Map_PickTile`). We hit-test the diamonds of the tiles that can mean something — the
   selected county's fields and settlements — which is right where it answers and silent

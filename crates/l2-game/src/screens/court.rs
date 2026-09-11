@@ -393,6 +393,9 @@ impl Screen for CourtScreen {
         // The widget the painter does not draw, and the note that its
         // destination is not built.
         pen.system_frame(canvas, NOBLES_FRAME, NOBLES_BUTTON.x, NOBLES_BUTTON.y);
-        l2_view::text::draw(canvas, 4, 470, "0x20 THE STANDINGS IS NOT BUILT", ink.dim);
+        // Debug overlay only.
+        if ctx.game.prefs.debug_overlay {
+            l2_view::text::draw(canvas, 4, 470, "0x20 THE STANDINGS IS NOT BUILT", ink.dim);
+        }
     }
 }

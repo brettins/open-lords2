@@ -222,6 +222,21 @@ $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
 
 `DecompileFunc.java` takes any number of hex addresses as script arguments.
 
+## Keys of ours, in the game
+
+**Ctrl+D — the debug overlay, off by default.** It shows everything we draw that
+`Lords2.exe` does not: the squares on town squares and fields, the ring round a picked
+army, the outline and name over the sidebar icon under the pointer, `TURN n` and
+`COUNTIES n/m`, and every status line and *NOT SIMULATED* stub on every screen. Press it
+again to hide them. It works on every screen, is never saved, and changes nothing about
+the game — only which pixels are painted. Chosen because the original answers Ctrl+D with
+nothing (`docs/arms.json` `ours/debug-overlay-toggle`).
+
+It does **not** hide the title page's build stamp — quote that in a report — or a
+warning that a file of the install is missing, which a complete install never shows.
+
+**F5** snaps the window to a whole multiple of 640 × 480; that key is the original's.
+
 ## Gotchas
 
 - **Backslashes are eaten** by the shell layer inside `sed`, `awk` and inline `node -e`.

@@ -9000,3 +9000,43 @@ is exactly the original's. It is simulation-written, in the save (version 20) an
 digest. **And one ordering, disclosed:** our walker marks an army stopped on the commit that
 empties its path, where the original stops after crossing into the last tile, so the
 destination's square is revealed on the commit — same tiles, one crossing earlier.
+
+---
+
+**C173 — A left click on a field opens the information panel, and the panel says what the field is.**
+
+Three reports from one player, whose reports of the original have held without exception:
+the left click on a field *"still brings up placeholder"*, the right click opens the right
+screen with *"the text for that field … not filled in"*, and there are *"debug squares still
+on the town square … and the fields"*. All three **[V]** against the decompilation.
+
+**The click.** `Map_Click` (`0x0043CE1A`)'s farmland arm is `_DAT_005681CC = 3; g_screenId =
+4; FUN_0041B032();`, and the right release's `FUN_0043CAF4` ends in the same two statements;
+`FUN_0041B032` picks the tile half on `g_pickedTileUnit == 0`. So on your own field the two
+buttons open one screen. `docs/arms.json` `0x0043CE1A/field-brush` said the mode byte *"is
+what makes the information panel draw the crop table instead of the tile panel"* — nothing on
+that path reads it, and both buttons write the same 3 — and the arm was answered with a popup
+of ours on screen 0, `ours/brush-popup-on-the-map`, now removed. The paths still differ in
+one respect, recorded and not built: `FUN_0043CAF4` also selects and recentres on another
+county when no unit is picked.
+
+**The words.** `TileInfo_Draw` (`0x0041C208`) draws a field from `DAT_004D2EC8`, sixteen
+bytes a terrain value — heading, body, icon, mode — and **the table's own descriptions for
+wheat (30/35 … 30/39) and cattle (30/44 … 30/47) are read and never drawn**: those two modes
+run `TileInfo_DrawGrain` and `TileInfo_DrawHerd` instead, which draw groups 77 and 22. The
+table is transcribed and asserted against the player's image. `FUN_0041BEFE` also draws an
+inset well we did not, and gives a flooded or parched field of yours row `0x11`, not 5.
+
+**What is still missing, measured.** Four county figures those reports draw are excluded in
+`docs/stored-fields.json`: `+0x278` and `+0x274`, what an event did to the grain and the herd,
+and `+0x24C` and `+0x270`, what the weather did. The *"no outside factors"* sentences are
+drawn exactly when the original's figure is provably zero — `Event_RollAll` runs before the
+grain tick and only *Rats*, *Grain found*, *Mad cows*, *Wolves*, *Bad cattle* and *Cow
+bonanza* write the two percentage bytes — and the figure lines are not drawn otherwise.
+
+**The squares, and every other thing of ours on the map and the screens**, are behind a
+debug overlay, off by default, flipped by Ctrl+D (`Prefs::debug_overlay`,
+`ours/debug-overlay-toggle`): `Sprite_TopIt` puts a banner on the town's quadrant 0 and a
+herd on a pasture and nothing else, and `Sidebar_ButtonClicked` is a hit test that draws
+nothing. Ctrl+D because the window procedure has no letter arm and `Edit_TypeChar` rejects the
+`0x04` it sends.

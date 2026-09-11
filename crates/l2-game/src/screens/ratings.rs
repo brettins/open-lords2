@@ -541,12 +541,15 @@ impl Screen for RatingsScreen {
             }
         }
 
-        l2_view::text::draw(
-            canvas,
-            4,
-            470,
-            "NO SKIRMISH MODE: THESE ARE A BATTLE'S NUMBERS AND NOTHING FILLS THEM YET",
-            ink.dim,
-        );
+        // Debug overlay only.
+        if ctx.game.prefs.debug_overlay {
+            l2_view::text::draw(
+                canvas,
+                4,
+                470,
+                "NO SKIRMISH MODE: THESE ARE A BATTLE'S NUMBERS AND NOTHING FILLS THEM YET",
+                ink.dim,
+            );
+        }
     }
 }

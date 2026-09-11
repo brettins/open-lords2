@@ -49,8 +49,8 @@ crates/l2-game/src/scenario.rs	C83	d0e421a3fd81	88ac11ea6de0
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7	0364b53a921d
 crates/l2-game/src/screens/army.rs	C45	056ecffec256	4d770bef92bd
 crates/l2-game/src/screens/army.rs	C61	cda5b05eea52	60611046b40d
+crates/l2-game/src/screens/battle.rs	C21	1405d686a5df	f7bf296341ff
 crates/l2-game/src/screens/battle.rs	C21	6031699e7f6a	f7bf296341ff
-crates/l2-game/src/screens/battle.rs	C21	cd58ecd512b2	f7bf296341ff
 crates/l2-game/src/screens/battlefield.rs	C21	16e47176d6c1	f7bf296341ff
 crates/l2-game/src/screens/castle.rs	C27	e6bab7a842a1	1db64332cb22
 crates/l2-game/src/screens/county.rs	C112	f88ab6b616c3	0dbcd00423ed
@@ -74,11 +74,10 @@ crates/l2-game/src/screens/info.rs	C25	81871fcedfac	5d466f0cb89c
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/map.rs	C132	3a974c32854e	84bc50c0ddbe
 crates/l2-game/src/screens/map.rs	C138	3ac5e2071333	7724e6665b90
-crates/l2-game/src/screens/map.rs	C152	b183d33d7dd0	582988651236
-crates/l2-game/src/screens/map.rs	C158	e599fa7d6513	3b5e22280a31
+crates/l2-game/src/screens/map.rs	C152	0572ee1cacc9	582988651236
+crates/l2-game/src/screens/map.rs	C158	12f4c2311571	3b5e22280a31
 crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C21	d7e286680856	f7bf296341ff
-crates/l2-game/src/screens/map.rs	C21	f00297685d46	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C22	9269ad59f313	0364b53a921d
 crates/l2-game/src/screens/map.rs	C25	23e8c28769c0	5d466f0cb89c
 crates/l2-game/src/screens/map.rs	C45	12e98c92949f	4d770bef92bd
@@ -177,6 +176,7 @@ crates/l2-game/tests/screens.rs	C125	7451a8225f45	6084e87aec70
 crates/l2-game/tests/screens.rs	C129	9dcd01797f42	d7820532a89c
 crates/l2-game/tests/screens.rs	C132	bcc7335581ba	84bc50c0ddbe
 crates/l2-game/tests/screens.rs	C138	800999466b29	7724e6665b90
+crates/l2-game/tests/screens.rs	C138	dcf67743539a	7724e6665b90
 crates/l2-game/tests/screens.rs	C140	227badb0235c	e3a1ede42a95
 crates/l2-game/tests/screens.rs	C140	e626e6be922d	e3a1ede42a95
 crates/l2-game/tests/screens.rs	C153	623b31365217	c724d7afe0dd

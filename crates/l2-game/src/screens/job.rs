@@ -400,7 +400,10 @@ impl Screen for JobScreen {
         let face = crate::shell::Face::Body;
         pen.count_with_noun(face, canvas, NAME_X, COUNT_Y, i32::from(n), &noun, colour);
 
-        body_stub(canvas, ink, w, self.job);
+        // Our NOT SIMULATED stub: debug overlay only.
+        if ctx.game.prefs.debug_overlay {
+            body_stub(canvas, ink, w, self.job);
+        }
 
         // `Ui_OkButton(0x1A4, rows * 0x10 + 0x44, 0)` — or, for the blacksmith,
         // `(0x1C0, 0x1C0)`. `Pen::ok_button` draws `System.pl8` frame 0x33 and
