@@ -51,7 +51,7 @@ crates/l2-game/src/screens/army.rs	C45	056ecffec256	4d770bef92bd
 crates/l2-game/src/screens/army.rs	C61	cda5b05eea52	60611046b40d
 crates/l2-game/src/screens/battle.rs	C21	6031699e7f6a	f7bf296341ff
 crates/l2-game/src/screens/battle.rs	C21	cd58ecd512b2	f7bf296341ff
-crates/l2-game/src/screens/battlefield.rs	C21	16e47176d6c1	f7bf296341ff
+crates/l2-game/src/screens/battlefield.rs	C21	b92233f26400	f7bf296341ff
 crates/l2-game/src/screens/castle.rs	C27	e6bab7a842a1	1db64332cb22
 crates/l2-game/src/screens/county.rs	C112	f88ab6b616c3	0dbcd00423ed
 crates/l2-game/src/screens/county.rs	C135	a8a8cbf37bb0	39859e3b9368

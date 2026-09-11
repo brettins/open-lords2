@@ -392,6 +392,20 @@ impl Assets {
         Minimap::load(bytes, slot).ok()
     }
 
+    /// **The palette a screen's `.256` name resolves to** — the table the
+    /// presenter widens the canvas through, and so the original's `Palette_Set`
+    /// (`0x004B0AB5`), which is a plain copy of 256 triples with no remap, shade
+    /// or dither table in it. `None` is the campaign's `base01.256`.
+    ///
+    /// This was a line in `main.rs`'s `present`, the one place no test can
+    /// call, and it is where the battlefield turned blue: a name that no loader
+    /// had read fell through to `base01.256` without a word, so every index of
+    /// `T32_bat1.256`'s artwork came out in the campaign's colours. See
+    /// [`crate::shell::PALETTES`].
+    pub fn palette_named(&self, name: Option<&str>) -> &Palette {
+        name.and_then(|n| self.shell.palette(n)).unwrap_or(&self.palette)
+    }
+
     /// Assets with nothing in them: a grey ramp for a palette, one blank map
     /// slot, and five tile banks holding a single 2 x 2 frame.
     ///

@@ -113,11 +113,7 @@ impl App {
         // the merchant, the armoury, castle building and the ratings each read
         // a `.256` of their own, and a canvas of indices means nothing without
         // knowing which one. The top screen names it.
-        let palette = self
-            .machine
-            .palette_name()
-            .and_then(|n| self.assets.shell.palette(n))
-            .unwrap_or(&self.assets.palette);
+        let palette = self.assets.palette_named(self.machine.palette_name());
         // **The end-of-turn fade, and it is the whole of the effect.**
         // `FUN_004B0CB4` never touches the framebuffer — it rewrites the
         // display palette and lets the unchanged plane of indices resolve

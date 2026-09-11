@@ -153,6 +153,17 @@ pub const PALETTES: &[&str] = &[
     "Armoury.256",
     "Cas_back.256",
     "Score1.256",
+    // 0x29 … 0x2B, the battlefield. Not a painter's own read: `Res_LoadStatic`
+    // (`0x00499859`) preloads it into `0x00568EE0` as record 2 of
+    // `g_preloadTable`, and `Screen_DrawBattlefield` (`0x004233F7`) sets it
+    // with `Palette_Set(0x568EE0)`. **It was missing from this list** while
+    // `BattlefieldScreen::palette` named it, so the lookup failed and the
+    // presenter drew a battle in `base01.256` — *"blue grainy madness"*.
+    //
+    // NOT PORTED: the siege arm, `Palette_Set(0x5675A0)` = `t32_stn1.256`. It
+    // belongs with `t32_stn1.pl8`, and `l2_view::scene` draws every battle
+    // from `T32_bat1.pl8`; one without the other would be wrong both ways.
+    "T32_bat1.256",
 ];
 
 /// The artwork and text a shell screen draws with.
@@ -1202,6 +1213,23 @@ mod tests {
         let before = seen.len();
         seen.dedup();
         assert_eq!(seen.len(), before);
+    }
+
+    /// **A palette a screen names is a palette something loads.** The
+    /// battlefield named `T32_bat1.256` for as long as it existed and this list
+    /// never carried it, so `Assets::palette_named` fell through to
+    /// `base01.256` and a player saw the battle in the campaign's colours. It
+    /// needs no install: both halves are names.
+    ///
+    /// Ablation: delete the `"T32_bat1.256"` line above — red.
+    #[test]
+    fn the_battlefields_palette_is_one_the_shell_loads() {
+        let name = crate::screen::ScreenId::Battlefield.build().palette();
+        let name = name.expect("the battlefield names a palette of its own");
+        assert!(
+            PALETTES.iter().any(|p| key(p) == key(name)),
+            "{name} is named by the battlefield and loaded by nobody"
+        );
     }
 
     #[test]
