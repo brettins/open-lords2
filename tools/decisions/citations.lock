@@ -48,6 +48,7 @@ crates/l2-game/src/screens/battle.rs	C21	cd58ecd512b2	f7bf296341ff
 crates/l2-game/src/screens/battlefield.rs	C21	16e47176d6c1	f7bf296341ff
 crates/l2-game/src/screens/castle.rs	C27	e6bab7a842a1	1db64332cb22
 crates/l2-game/src/screens/county.rs	C112	f88ab6b616c3	0dbcd00423ed
+crates/l2-game/src/screens/county.rs	C135	a8a8cbf37bb0	39859e3b9368
 crates/l2-game/src/screens/county.rs	C22	11557e27ba54	0364b53a921d
 crates/l2-game/src/screens/county.rs	C22	f88818d7df89	0364b53a921d
 crates/l2-game/src/screens/county.rs	C42	8b7388d80e13	a2ac3547bb32
@@ -170,7 +171,11 @@ crates/l2-kingdom/src/county.rs	C53	e8fb6191353a	cad36ab11dbf
 crates/l2-kingdom/src/diplomacy.rs	C62	8f8a093f4110	ebb6a7ec3711
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2	006e7d0b71a7
 crates/l2-kingdom/src/field.rs	C123	9757bf8fd453	3a5cc2fec37d
+crates/l2-kingdom/src/field.rs	C123	cbfd8f35645e	3a5cc2fec37d
 crates/l2-kingdom/src/field.rs	C128	0a9b768f788b	3a8c5dae41c2
+crates/l2-kingdom/src/field.rs	C136	0350cebe39a1	724c11b1e475
+crates/l2-kingdom/src/industry.rs	C123	37f6e80213ab	3a5cc2fec37d
+crates/l2-kingdom/src/industry.rs	C136	c5566f719892	724c11b1e475
 crates/l2-kingdom/src/kingdom.rs	C26	952c32e6e678	e8179d1f76a8
 crates/l2-kingdom/src/kingdom.rs	C62	24c0c9697884	ebb6a7ec3711
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992	68e4eb2d2a1f
@@ -182,6 +187,7 @@ crates/l2-kingdom/src/lib.rs	C62	2dc2468a0675	ebb6a7ec3711
 crates/l2-kingdom/src/lib.rs	C62	2dea38655850	ebb6a7ec3711
 crates/l2-kingdom/src/lib.rs	C90	3fc5a8b2b598	f1599ed23aee
 crates/l2-kingdom/src/map.rs	C25	28b0c4932b46	5d466f0cb89c
+crates/l2-kingdom/src/map.rs	C30	3aa93ddc8f5a	50fdf5e17ba0
 crates/l2-kingdom/src/mercenary.rs	C3	5338c04f3210	35bf3a86555f
 crates/l2-kingdom/src/movement.rs	C25	c507242adac1	5d466f0cb89c
 crates/l2-kingdom/src/movement.rs	C40	87816e7f9e43	d344563abef8
@@ -192,6 +198,7 @@ crates/l2-kingdom/src/ration.rs	C3	316be8511779	35bf3a86555f
 crates/l2-kingdom/src/realm.rs	C3	806d5d4cf93c	35bf3a86555f
 crates/l2-kingdom/src/save.rs	C123	763bc3ea2e6d	3a5cc2fec37d
 crates/l2-kingdom/src/save.rs	C134	8c3c2ccdc448	d12cd2f96f79
+crates/l2-kingdom/src/save.rs	C136	78341762a0c9	724c11b1e475
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8	ed7ea7df1f23
@@ -217,6 +224,7 @@ crates/l2-kingdom/tests/fields.rs	C23	00c611a35590	6ac2f322c3bd
 crates/l2-kingdom/tests/fields.rs	C24	55fea2f1d2e9	52e202e041ab
 crates/l2-kingdom/tests/fields.rs	C26	c91f959746f2	e8179d1f76a8
 crates/l2-kingdom/tests/fields.rs	C3	fe6412b1ad06	35bf3a86555f
+crates/l2-kingdom/tests/industry_forecast.rs	C30	ffe7f4b68b10	50fdf5e17ba0
 crates/l2-kingdom/tests/oracle.rs	C10	54a471daa1d9	68e4eb2d2a1f
 crates/l2-kingdom/tests/oracle.rs	C12	e241145b7370	bb0dd488f9d2
 crates/l2-kingdom/tests/oracle.rs	C17	edc2b5f29915	b9aaae4e270c
@@ -299,6 +307,7 @@ crates/l2-view/src/campaign.rs	C49	38f05e43397f	4ce32e6c42e0
 crates/l2-view/src/campaign.rs	C57	cc211f4ea532	3b42b65157bf
 crates/l2-view/src/campaign.rs	C58	f81f70509bd8	2a1ff4d5966d
 crates/l2-view/src/campaign.rs	C63	3a082e1b8c33	34cab2e30849
+crates/l2-view/src/chrome.rs	C135	1638dc1c9112	39859e3b9368
 crates/l2-view/src/chrome.rs	C50	d9471b57f9d8	85416be0b69b
 crates/l2-view/src/fade.rs	C49	538f7940f33a	4ce32e6c42e0
 crates/l2-view/src/ink.rs	C112	b767057058d1	0dbcd00423ed
@@ -419,6 +428,7 @@ docs/decisions.md	C12	439c2f1bab58	bb0dd488f9d2
 docs/decisions.md	C12	729dde396cc4	bb0dd488f9d2
 docs/decisions.md	C12	a388b50da6e9	bb0dd488f9d2
 docs/decisions.md	C120	7c9b703bcdc3	e96a6897511c
+docs/decisions.md	C123	1262cc0f058c	3a5cc2fec37d
 docs/decisions.md	C13	09c4dae65b2c	006e7d0b71a7
 docs/decisions.md	C13	6ecd926bb63e	006e7d0b71a7
 docs/decisions.md	C13	7868cb038a6c	006e7d0b71a7
@@ -585,6 +595,7 @@ docs/decisions.md	C91	4a0deb20ef90	ffbe0b3f0847
 docs/diplomacy.md	C26	cc112f11d1ea	e8179d1f76a8
 docs/diplomacy.md	C3	d4bc35a985fd	35bf3a86555f
 docs/draws-map.md	C123	9135c786184e	3a5cc2fec37d
+docs/draws-map.md	C135	d88e188c416f	39859e3b9368
 docs/draws-map.md	C30	40a6a7104696	50fdf5e17ba0
 docs/draws-map.md	C72	230aae5fabd7	e2bb936cf01c
 docs/draws-map.md	C77	cfea9c21de5f	94789f222b99

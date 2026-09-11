@@ -95,11 +95,11 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_004100AF` | `0x004100AF` | strip row: cattle | live | 5 | 4 |
 | `FUN_0041023A` | `0x0041023A` | strip row: grain | live | 5 | 4 |
 | `FUN_004103C5` | `0x004103C5` | strip row: reclamation | live | 4 | 2 |
-| `FUN_00410502` | `0x00410502` | strip row: stone | live | 2 | 0 |
-| `FUN_00410598` | `0x00410598` | strip row: wood | live | 2 | 0 |
-| `FUN_0041062E` | `0x0041062E` | strip row: iron | live | 2 | 0 |
-| `FUN_004106C4` | `0x004106C4` | strip row: weapons | live | 3 | 0 |
-| `CountyStrip_DrawCastleIcon` | `0x004107D1` | strip row: castle | live | 8 | 0 |
+| `FUN_00410502` | `0x00410502` | strip row: iron² | live | 2 | 2 |
+| `FUN_00410598` | `0x00410598` | strip row: stone² | live | 2 | 2 |
+| `FUN_0041062E` | `0x0041062E` | strip row: wood² | live | 2 | 2 |
+| `FUN_004106C4` | `0x004106C4` | strip row: weapons | live | 3 | 3 |
+| `CountyStrip_DrawCastleIcon` | `0x004107D1` | strip row: castle | live | 8 | 8 |
 | `Minimap_Draw` | `0x00410AA9` | the minimap plate | live | 6 | 6 |
 | `Minimap_DrawOverlay` | `0x00410CBD` | its county tint | live | 1 | 1 |
 | `Screen_DrawEndTurn` | `0x0041A734` | the End Turn strip | live | 2 | 2 |
@@ -115,6 +115,12 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_00406BBA` | `0x00406BBA` | a second tall-tile pass | dead | 1 | — |
 | `FUN_0041424A` | `0x0041424A` | zoom-1 left edge | dead | 5 | — |
 | `FUN_0041432B` | `0x0041432B` | zoom-2 left edge | dead | 2 | — |
+
+² **These three names were the wrong way round in this table until the rows were
+built from it.** It read stone, wood, iron; `CountyStrip_Draw`'s dispatch is on the
+**labour slot** — 4 iron to `0x00410502`, 5 stone to `0x00410598`, 6 wood to
+`0x0041062E` — and `Unit_TrampleTile`'s four arms agree from the other side. The counts
+were right and only the names moved. `docs/decisions.md` C135.
 
 ¹ `FUN_00405602`'s single fill is inside `if (g_mapZoom == 1)`, which `docs/screens.md` §2.2
 proves unreachable. **120 live and 9 dead** is the tighter reading; the script cannot see
@@ -717,8 +723,19 @@ That leaves these arms enumerated but not observed, and I have not inferred past
 * **the burning dwelling** (arm 3) — needs an enemy army to have razed a `0x10` plot;
 * **the wrecked-industry animation** (arm 5c) — needs `Unit_TrampleTile` *and* three seasons
   of `disabledSeasons`;
-* **the working-industry animation rates** (arm 5b) — needs four different output bands in
-  one county over time;
+* ~~**the working-industry animation rates** (arm 5b) — needs four different output bands in
+  one county over time;~~ **Exercised.** `crates/l2-game/tests/industry.rs`.
+
+  **And the premise of this bullet was wrong, which is worth more than the bullet.** It was
+  written as *"every fixture is turn one, so only the idle appearance can be seen"*, from
+  `map.rs`'s own test asserting `terrain == 1` on an iron tile. That is true of iron.
+  **England turn one has all five owned counties' forests switched on** — their site tiles
+  hold terrain **11**, which is `INDUSTRY_IDLE[wood] + 1`, the value
+  `Industry_UpdateSiteTile` writes for *enabled* and the one arm 5b animates. So the working
+  appearance was on the shipped fixture the whole time, and the bottom and top **bands** are
+  reachable from it without staging: `total − totalSnapshot` is 0 before a season and 173
+  after one. Only the two middle bands need a number written by hand. A true statement about
+  one commodity, read as a statement about the map — `docs/agents.md`, *name the branch*;
 * **the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
   campaign map, which the battle triple does not carry;
 * **a garrison whose shield differs from the county's** — the case §4's missing guard is

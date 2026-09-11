@@ -474,6 +474,24 @@ const TOWN_FRAME_BASE: [(i32, u8); 3] = [(801, 47), (1201, 51), (i32::MAX, 55)];
 /// The plane-1 byte a town tile carries: bank `0x0c`, `Town1a.pl8`.
 const TOWN_BANK: u8 = 0x0c;
 
+/// **One industry's building on the campaign map, and the frame it is showing.**
+///
+/// The mine, the quarry, the forest and the smithy are `Town1a.pl8` frames like
+/// the town is, and this is the wheel `Sprite_TopIt` turns. See
+/// [`MapScreen::step_industry`] for the rate and
+/// [`l2_view::campaign::INDUSTRY_FRAMES`] for the four runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct IndustrySite {
+    /// Tile index, `y * 64 + x`. Fixed for the life of the map.
+    tile: usize,
+    county: u8,
+    /// [`l2_kingdom::tables::Commodity::index`] — wood 0, iron 1, weapons 2,
+    /// stone 3.
+    commodity: usize,
+    /// The frame the tile is drawn with right now.
+    frame: u8,
+}
+
 pub struct MapScreen {
     zoom: Zoom,
     view: Viewport,
@@ -492,7 +510,24 @@ pub struct MapScreen {
     /// other**, which is the argument for it being a tuple rather than a
     /// hand-written comparison: a missed component is a stale picture, and a
     /// stale picture is the hardest defect on this screen to attribute.
-    built: Option<(usize, u8, Viewport, u32, u8, u64, u64)>,
+    built: Option<(usize, u8, Viewport, u32, u8, u64, u64, u64)>,
+    /// **Every industry site on the map, and the frame its wheel is on** —
+    /// `Sprite_TopIt` arm 5b's `g_tiles[].frame`, which the original steps in
+    /// the tile record itself.
+    ///
+    /// It is here and not in `Kingdom` because it is **display state driven by
+    /// a clock**, and `docs/netcode.md` D-12 says nothing below this crate may
+    /// read one. The original has no such constraint — its tile array is both
+    /// the simulation's map and the renderer's — so this is the one place the
+    /// animation departs from it, in storage and not in behaviour.
+    ///
+    /// Built once per map slot by [`MapScreen::rebuild_industry_sites`]: a
+    /// site's *tile* never moves, only its terrain and its frame change.
+    industry_sites: Vec<IndustrySite>,
+    industry_slot: Option<usize>,
+    /// The fixed-tick counter the four pulses are derived from. See
+    /// [`MapScreen::step_industry`].
+    industry_tick: u32,
     /// The two 128 × 128 rasters for this slot, decoded once.
     minimap: Option<Minimap>,
     minimap_slot: Option<usize>,
@@ -690,6 +725,9 @@ impl MapScreen {
             base: Canvas::screen(),
             tags: Tags::screen(),
             built: None,
+            industry_sites: Vec::new(),
+            industry_slot: None,
+            industry_tick: 0,
             minimap: None,
             minimap_slot: None,
             focus: Focus::None,
@@ -950,6 +988,17 @@ impl MapScreen {
         Self::settlements(ctx, county)
     }
 
+    /// **Every industry site's tile and the frame its wheel is showing**, so a
+    /// test can watch the wheel turn without reaching into private state or
+    /// re-deriving the site list beside the code that derives it.
+    ///
+    /// `(tile, county, commodity, frame)`, in [`MapScreen::rebuild_industry_sites`]'s
+    /// own order. The list is empty until the first
+    /// [`MapScreen::step_industry`], which is the first `update`.
+    pub fn industry_sites_for_test(&self) -> Vec<(usize, u8, usize, u8)> {
+        self.industry_sites.iter().map(|s| (s.tile, s.county, s.commodity, s.frame)).collect()
+    }
+
     /// **Which settlement tile a pixel is on — the ground first, then the
     /// building standing on it.**
     ///
@@ -1114,6 +1163,13 @@ impl MapScreen {
             ctx.game.kingdom.season,
             Self::field_digest(ctx),
             Self::castle_key(ctx),
+            // **And the industry wheels**, which move without a turn ending and
+            // without anything being clicked — the eighth component, and the
+            // first one a *clock* writes. Without it a mine that stepped its
+            // frame would keep the cached picture until something else
+            // invalidated it, which is precisely the shape of *"industry map
+            // things are still not animated when active."*
+            self.industry_key(),
         );
         if self.built == Some(key) {
             return;
@@ -1127,6 +1183,13 @@ impl MapScreen {
             return;
         };
         let lattice = Lattice::build(&slot);
+        // The towns, the fields, the castles — and now the four industry
+        // buildings per county, whose frame is the animation. `Overrides` was
+        // written for the first three and never carried the fourth, which is
+        // the whole of *"industry map things are still not animated"*: the
+        // feature was enumerated and nothing drove it.
+        let mut overrides = Self::tile_graphics(ctx);
+        self.add_industry_graphics(&mut overrides);
         self.base.clear(ctx.assets.ink.background);
         self.tags.clear();
         campaign::draw(
@@ -1137,7 +1200,7 @@ impl MapScreen {
             self.view,
             &self.zoom,
             &mut self.tags,
-            &Self::tile_graphics(ctx),
+            &overrides,
             ctx.game.kingdom.season,
         );
         self.built = Some(key);
@@ -1236,6 +1299,132 @@ impl MapScreen {
             Self::castle_graphics(ctx, id as u8, &mut out);
         }
         out
+    }
+
+    /// Stamp each site's current frame over the map file's.
+    ///
+    /// Every site gets an override, not only the working ones: an idle mine's
+    /// picture is *also* wrong from the file the moment
+    /// `Industry_UpdateSiteTile` has ever run, and a wrecked one is a different
+    /// frame entirely. The bank is [`TOWN_BANK`] because the mine, the quarry,
+    /// the forest and the smithy live in `Town1a.pl8` beside the town.
+    fn add_industry_graphics(&self, out: &mut campaign::Overrides) {
+        for site in &self.industry_sites {
+            let (x, y) = l2_kingdom::map::coords(site.tile);
+            out.set(x as usize, y as usize, TOWN_BANK, site.frame);
+        }
+    }
+
+    /// **Find every industry building once**, when the map slot changes.
+    ///
+    /// The original does not look: `County_PlaceResourceSites` stores each
+    /// site's tile on the record at load (`Industry.siteTile`, county `+0x298 +
+    /// c*0x18`) and every reader indexes it. We derive it from the settlement
+    /// bit and the terrain ladder instead —
+    /// [`l2_kingdom::map::industry_site`] carries the argument for deriving
+    /// rather than storing — and cache the answer here, because the *tile* is
+    /// what never changes while the terrain on it does.
+    fn rebuild_industry_sites(&mut self, ctx: &Ctx) {
+        if self.industry_slot == Some(ctx.game.map_slot) {
+            return;
+        }
+        self.industry_slot = Some(ctx.game.map_slot);
+        self.industry_sites.clear();
+        let k = &ctx.game.kingdom;
+        for id in k.county_ids() {
+            for c in l2_kingdom::tables::Commodity::ALL {
+                let Some(tile) = l2_kingdom::map::industry_site(&k.campaign.map, id as u8, c)
+                else {
+                    continue;
+                };
+                self.industry_sites.push(IndustrySite {
+                    tile,
+                    county: id as u8,
+                    commodity: c.index(),
+                    frame: Self::industry_rest_frame(ctx, tile, c.index()),
+                });
+            }
+        }
+    }
+
+    /// The frame a site shows when its wheel is **not** turning: the wrecked
+    /// picture if an army trampled it, and otherwise the idle one
+    /// `Industry_UpdateSiteTile` writes whenever the season's output was not
+    /// positive.
+    fn industry_rest_frame(ctx: &Ctx, tile: usize, commodity: usize) -> u8 {
+        let (idle, _, _, wrecked) = campaign::INDUSTRY_FRAMES[commodity.min(3)];
+        let terrain = ctx.game.kingdom.campaign.map.terrain.get(tile).copied().unwrap_or(0);
+        match l2_kingdom::map::industry_state(terrain) {
+            Some((_, l2_kingdom::map::SiteState::Wrecked)) => wrecked,
+            _ => idle,
+        }
+    }
+
+    /// **`Sprite_TopIt` arm 5b, once per fixed tick — the wheel, and its rate.**
+    ///
+    /// A site whose terrain says *working* steps its own frame; one that is
+    /// idle or wrecked is pinned to [`MapScreen::industry_rest_frame`]. There is
+    /// **no overlay for either state**: the whole of "this mine is running" is
+    /// that its picture moves, which is why a feature that was fully enumerated
+    /// still looked like nothing was happening — `Overrides` was written for
+    /// fields, towns and castles, so every site drew the frame `L2_maps.dat`
+    /// stores, and that is the idle frame in all four cases.
+    ///
+    /// The rate is [`campaign::industry_period_ms`], banded from the season's
+    /// output. Converted here rather than there because the tick is this
+    /// crate's: `main::TICK` is 16 ms, so 640 ms is 40 ticks and 80 ms is 5.
+    ///
+    /// **This is the only thing in the screen that a clock drives into a
+    /// picture the base plane holds**, so it returns whether anything moved and
+    /// the caller repaints on that rather than every frame.
+    fn step_industry(&mut self, ctx: &Ctx) -> bool {
+        self.rebuild_industry_sites(ctx);
+        self.industry_tick = self.industry_tick.wrapping_add(1);
+        let k = &ctx.game.kingdom;
+        let mut moved = false;
+        for site in &mut self.industry_sites {
+            let terrain = k.campaign.map.terrain.get(site.tile).copied().unwrap_or(0);
+            let working = matches!(
+                l2_kingdom::map::industry_state(terrain),
+                Some((_, l2_kingdom::map::SiteState::Working))
+            );
+            if !working {
+                let (idle, _, _, wrecked) = campaign::INDUSTRY_FRAMES[site.commodity];
+                let rest = match l2_kingdom::map::industry_state(terrain) {
+                    Some((_, l2_kingdom::map::SiteState::Wrecked)) => wrecked,
+                    _ => idle,
+                };
+                if site.frame != rest {
+                    site.frame = rest;
+                    moved = true;
+                }
+                continue;
+            }
+            // `total - totalSnapshot`, which this crate keeps as
+            // `Industry::output` and computes at exactly the same moment.
+            let output = k
+                .counties
+                .get(site.county as usize)
+                .map_or(0, |c| c.industry[site.commodity].output);
+            let every = (campaign::industry_period_ms(output) / crate::TICK_MS).max(1);
+            if self.industry_tick % every != 0 {
+                continue;
+            }
+            site.frame = campaign::industry_step(site.commodity, site.frame);
+            moved = true;
+        }
+        moved
+    }
+
+    /// The site frames, folded so the base plane's cache notices a wheel that
+    /// turned. A fold over the list in build order, not a hash of anything
+    /// unordered — `docs/netcode.md` §3, and it never leaves this screen.
+    fn industry_key(&self) -> u64 {
+        let mut n: u64 = 0;
+        for site in &self.industry_sites {
+            n = n.wrapping_mul(0x100_0001).wrapping_add(site.frame as u64);
+        }
+        n
     }
 
     /// Every county's castle state, folded into one number, so that the painted
@@ -2558,6 +2747,41 @@ impl Screen for MapScreen {
                             match industry::map_toggle_for_graphic(terrain) {
                                 Some(what) => {
                                     let on = ctx.game.kingdom.toggle_industry(county as usize, what);
+                                    // **`Industry_ToggleFromMap`'s last
+                                    // statement**, which was missing entirely:
+                                    // *"there's no message saying or visually
+                                    // showing mining on / mining off."*
+                                    //
+                                    // `Msg_Enqueue(0, g_localPlayer, group, 0,
+                                    // 0x04, 0, 0, 0)` — a **floating tip**, so
+                                    // the words appear by the cursor, carry no
+                                    // OK button and time out on their own.
+                                    // `industry::toggle_message_group` is the
+                                    // id and the whole derivation.
+                                    //
+                                    // The guard is the original's own
+                                    // `if (county.owner == g_localPlayer)` and
+                                    // is already satisfied: this arm is inside
+                                    // `ctx.game.is_players(county)`.
+                                    let player = ctx.game.player;
+                                    ctx.game.messages.enqueue(
+                                        crate::message::Record {
+                                            to: 0,
+                                            from: player,
+                                            group: industry::toggle_message_group(what, on),
+                                            variant: 0,
+                                            category: crate::message::category::TIP,
+                                            county: 0,
+                                            spare: 0,
+                                            payload: 0,
+                                        },
+                                        player,
+                                    );
+                                    // OURS, and it stays: the sidebar's status
+                                    // line is this interface's only running
+                                    // commentary and a player reading it should
+                                    // not have to catch a tip that lasts a
+                                    // hundred ticks.
                                     self.status = format!(
                                         "{} {}",
                                         toggle_name(what),
@@ -2678,6 +2902,21 @@ impl Screen for MapScreen {
         if phase != self.herd_phase {
             self.herd_phase = phase;
             self.scrolled = true;
+        }
+        // **And the industry wheels**, which are neither of those clocks: they
+        // run off `Tick_Pulses` (`0x004BBC80`), the 20 ms `timeGetTime` divider
+        // chain the *village* animates from, at whichever of its four rungs the
+        // mine's output picked. Three different clocks on one screen, and the
+        // natural guess — that everything on screen shares one — is wrong about
+        // all three pairs.
+        {
+            let read = Ctx { game: ctx.game, assets: ctx.assets };
+            if self.step_industry(&read) {
+                // A wheel that turned changes the **base plane**, unlike a flag
+                // or a cow, so this is a repaint of the map and not only of the
+                // overlays. `ensure`'s key picks it up.
+                self.scrolled = true;
+            }
         }
         // The season has turned and the screen is dark or on its way there.
         // Nothing else may run: the fade *is* the frame.
@@ -3468,20 +3707,20 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // one status line this interface has. A stub that says so beats one that
     // looks finished.
     //
-    // **The left column is now drawn**, by `county::draw_produce_rows` with the
-    // rest of the strip, because that is where the blue outline lives — the cow
-    // gains a ring the moment more people are milking than the herd can use.
-    // The right column is not: three of its five rows are flat icons and the
-    // other two pick their frame from bytes this project has not settled. So
-    // the box that used to cover the whole plate covers the right half only,
-    // and names which half it is.
+    // **Both columns are now drawn**, by `county::draw_produce_rows` and
+    // `county::draw_industry_rows` with the rest of the strip. The left is
+    // where the blue outline lives — the cow gains a ring the moment more
+    // people are milking than the herd can use — and the right is the five
+    // industry rows, which stood behind a box of ours reading
+    // `INDUSTRY / NOT DRAWN` until the seventeen draw calls under it were
+    // enumerated. The reason the box was there — *"three of its five rows are
+    // flat icons and the other two pick their frame from bytes this project has
+    // not settled"* — was checkable and wrong on both halves; see
+    // `county::draw_industry_rows`.
+    //
+    // What is left here is the one status line this interface has, which is
+    // ours and is marked so in §7's count.
     let x = PANEL_X + 8;
-    let jobs = Rect::new(PANEL_X + 84, chrome::PANEL_OWN_C_Y + 4, PANEL_W - 87, 100);
-    if ctx.assets.chrome.is_some() {
-        widget::panel(canvas, ink, jobs);
-    }
-    text::draw(canvas, jobs.x + 4, jobs.y + 5, "INDUSTRY", ink.dim);
-    text::draw(canvas, jobs.x + 4, jobs.y + 17, "NOT DRAWN", ink.dim);
     text::draw(canvas, x, chrome::PANEL_OWN_C_Y + 110, &screen.status, ink.dim);
 
     // **The five sidebar buttons.** `Misc_cty` frame 57 already drew them; all

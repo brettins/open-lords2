@@ -1672,6 +1672,10 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     }
 
     draw_produce_rows(ctx, canvas, c, strip_ink);
+    // **The right-hand list**, which used to be a box of ours saying
+    // `INDUSTRY / NOT DRAWN`. `CountyStrip_Draw` walks the two lists back to
+    // back off the same `FUN_0040FEC1`, so they belong together here too.
+    draw_industry_rows(ctx, canvas, c);
 
     // OURS: the original's quadrants are invisible. A one-pixel outline is how
     // a keyboard player sees which of the four is open.
@@ -1873,6 +1877,218 @@ fn draw_produce_rows(
             body_number_centred(ctx, canvas, v, ' ', " ", 480, y + 0x14D, 0x3C, strip_ink);
         }
     }
+}
+
+/// **The five industry rows — the other half of the same plate, and the
+/// seventeen draw calls a box of ours was standing on.**
+///
+/// The sidebar used to carry `INDUSTRY / NOT DRAWN` over the right half of the
+/// jobs plate, on the reading recorded in [`draw_produce_rows`]'s own header:
+/// *"three of the five have no state at all … and the two that do pick their
+/// frame from bytes this project has not settled."* Both halves of that were
+/// wrong, and both were checkable:
+///
+/// * **The two stateful rows' bytes are settled.** The blacksmith's frame is
+///   `county[+0x290] + 0x30`, and `Industry_LabourEstimate` indexes
+///   `&g_weaponCost + county[+0x290] * 8` with the same byte — so `+0x290` is
+///   [`County::weapon_type`](l2_kingdom::county::County::weapon_type), which
+///   this crate has had all along under a comment saying *"engine state"* with
+///   no offset. The castle's are `+0x1D0` and `+0x1D4`, already carried as
+///   `castle_stone_owed` and `castle_wood_owed`.
+/// * **The three flat rows still draw a number**, and it is a *forecast*, not a
+///   stock. `Ui_DrawDelta` at `(0x22C, pitch*row + 0x139)`, from county
+///   `+0x2A8 + c*0x18` — see
+///   [`Industry::next_season`](l2_kingdom::county::Industry::next_season).
+///   `L2.eng` group 220's tooltips say what it is in the game's own words:
+///   *"Wood produced next season"*, *"Stone …"*, *"Iron …"*, *"Weapons
+///   produced. Click for smithy."*
+///
+/// So *"there is nothing to put here"* answered a question it also raised, and
+/// the answer was no. `docs/draws-map.md` §5.5.
+///
+/// # The row order, and a document this contradicts
+///
+/// `FUN_0040FEC1` fills the right list with **labour slots** — 6 wood, 4 iron,
+/// 5 stone, 7 blacksmith, 3 castle, pushed in the order wood, iron, stone,
+/// weapons, castle — and `CountyStrip_Draw` dispatches on the slot:
+///
+/// | slot | painter | row |
+/// |---|---|---|
+/// | 4 | `FUN_00410502` | iron |
+/// | 5 | `FUN_00410598` | stone |
+/// | 6 | `FUN_0041062E` | wood |
+/// | 7 | `FUN_004106C4` | weapons |
+/// | 3 | `CountyStrip_DrawCastleIcon` (`0x004107D1`) | the castle |
+///
+/// **`docs/draws-map.md` §2 has the first three the wrong way round**, naming
+/// `0x00410502` stone, `0x00410598` wood and `0x0041062E` iron. Two independent
+/// readings say otherwise: the dispatch above, and `Unit_TrampleTile`
+/// (`0x0046873F`), whose iron arm zeroes the same `industry + 2` word
+/// `FUN_00410502` draws. `docs/decisions.md` C135.
+fn draw_industry_rows(ctx: &Ctx, canvas: &mut Canvas, c: &l2_kingdom::county::County) {
+    use l2_kingdom::tables::Commodity;
+
+    // The same list `job_row_at` hit-tests, so the picture and the target
+    // cannot drift apart — and `DAT_0053F04C`, the pitch, which is *three*
+    // cases here against the farm column's two.
+    let rows = industry_rows(c);
+    let pitch = industry_pitch(rows.len());
+
+    for (n, &slot) in rows.iter().enumerate() {
+        let y = pitch * n as i32;
+        // `DAT_0056D68C` is the row counter every one of the five painters
+        // advances on the way out; `n` is it.
+        let flat = match slot {
+            4 => Some((misc_cty::INDUSTRY_IRON, misc_cty::INDUSTRY_X[0], Commodity::Iron)),
+            5 => Some((misc_cty::INDUSTRY_STONE, misc_cty::INDUSTRY_X[1], Commodity::Stone)),
+            6 => Some((misc_cty::INDUSTRY_WOOD, misc_cty::INDUSTRY_X[2], Commodity::Wood)),
+            _ => None,
+        };
+        if let Some((frame, x, commodity)) = flat {
+            // `Pl8_DrawFrame(g_miscCtySheet, frame, x, pitch*row + 0x133)`.
+            draw_strip_icon(ctx, canvas, frame, x, y + 0x133, INDUSTRY_LABEL[commodity.index()]);
+            strip_delta(ctx, canvas, c.industry[commodity.index()].next_season, 0x22C, y + 0x139);
+            continue;
+        }
+        if slot == 7 {
+            // **`FUN_004106C4`, the blacksmith — the one industry row that
+            // reacts to its staffing.** The same three-way question the farm
+            // rows ask, minus the shortfall arm:
+            //
+            // ```c
+            // if (labour[7].useful < labour[7].workers)
+            //     Pl8_DrawFrame(sheet, weaponType + 0x4F, 0x256, pitch*row + 0x131);
+            // else
+            //     Pl8_DrawFrame(sheet, weaponType + 0x30, 600,   pitch*row + 0x133);
+            // ```
+            //
+            // Six weapon types, six frames each way — `misc_cty::RINGED_PAIRS`
+            // rows 3..=8, which were read off the file before anything drew
+            // them.
+            let idle = c.labour_useful[7] < c.labour[7];
+            let weapon = c.weapon_type.min(l2_kingdom::tables::WEAPON_TYPE_COUNT - 1);
+            let (plain, ringed) = misc_cty::RINGED_PAIRS[3 + weapon];
+            let (frame, x, dy) =
+                if idle { (ringed, 0x256, 0x131) } else { (plain, 600, 0x133) };
+            let drawn = ctx
+                .assets
+                .chrome
+                .as_ref()
+                .is_some_and(|ch| ch.draw_misc(canvas, frame, x, y + dy));
+            if !drawn {
+                let ink = &ctx.assets.ink;
+                text::draw(canvas, x, y + dy + 8, "SMITH", ink.dim);
+                if idle {
+                    widget::frame(canvas, Rect::new(x, y + dy, 44, 32), ink.realm[2]);
+                }
+            }
+            strip_delta(
+                ctx,
+                canvas,
+                c.industry[Commodity::Weapons.index()].next_season,
+                0x22C,
+                y + 0x139,
+            );
+            continue;
+        }
+        if slot == 3 {
+            draw_castle_row(ctx, canvas, c, y, n);
+        }
+    }
+}
+
+/// The fallback words for the three flat industry rows, in commodity order —
+/// ours, and reached only by an install with no `Misc_cty.pl8`.
+const INDUSTRY_LABEL: [&str; 4] = ["WOOD", "IRON", "WEAPONS", "STONE"];
+
+/// One `Misc_cty` frame with our own word behind it when the sheet is absent.
+fn draw_strip_icon(ctx: &Ctx, canvas: &mut Canvas, frame: usize, x: i32, y: i32, label: &str) {
+    let drawn = ctx.assets.chrome.as_ref().is_some_and(|ch| ch.draw_misc(canvas, frame, x, y));
+    if !drawn {
+        text::draw(canvas, x, y + 8, label, ctx.assets.ink.dim);
+    }
+}
+
+/// **`CountyStrip_DrawCastleIcon` (`0x004107D1`)** — the castle's cell on the
+/// strip, and eight draw calls in one small function.
+///
+/// ```c
+/// nudge = (row < 2) ? 6 : 0;
+/// if (county.castleSwitch == 0) return;                    /* the whole body is inside this */
+/// if (labour[3].useful < labour[3].workers)
+///      Pl8_DrawFrame(sheet, 0x4E, 0x255, pitch*row + nudge + 0x129);
+/// else Pl8_DrawFrame(sheet, 0x40, 0x25B, pitch*row + nudge + 300);
+/// if (stoneOwed == 0 && woodOwed == 0) {
+///     if (seasons != 0) {
+///         Ui_DrawNumber  (seasons, ' ', " ", 0x23C, …+0x13A, font10,   0xFA);
+///         Ui_DrawUnitNoun(seasons, 0x42,     0x234, …+0x146, fontSmall, 0xFA);
+///     }
+/// } else {
+///     …one of three materials icons at (0x23C, …)…
+///     Eng_DrawString(0x47, 0x12, 0x234, …+0x146, fontSmall, 0xFA);   /* "Needed" */
+/// }
+/// ```
+///
+/// Three things worth having beyond the coordinates.
+///
+/// * **The gate is `castleSwitch` (`+0x1B0`), not `castleDegraded`.** The row
+///   is *listed* when the county has a castle job at all — `FUN_0040FEC1` tests
+///   `castleDegraded` — and then draws **nothing** while the switch is off. So
+///   a row of the strip can be present, hit-testable and blank, which is the
+///   original's behaviour and not a hole.
+/// * **The 6-pixel nudge applies to the first two rows only**, so the castle
+///   sits lower in a short list than in a long one.
+/// * **The ringed castle is a different picture, not the plain one in a ring** —
+///   `0x4E` is 32 × 34 against `0x40`'s 23 × 26 and is drawn six left and three
+///   up, where every other pair on this plate is two and two. See
+///   [`misc_cty::CASTLE_PLAIN`].
+fn draw_castle_row(
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    c: &l2_kingdom::county::County,
+    y: i32,
+    row: usize,
+) {
+    if !c.castle_switch {
+        return;
+    }
+    let nudge = if row < 2 { 6 } else { 0 };
+    let y = y + nudge;
+    let idle = c.labour_useful[l2_kingdom::tables::JOB_CASTLE_BUILDING]
+        < c.labour[l2_kingdom::tables::JOB_CASTLE_BUILDING];
+    let (frame, x, dy) = if idle {
+        (misc_cty::CASTLE_RINGED, 0x255, 0x129)
+    } else {
+        (misc_cty::CASTLE_PLAIN, 0x25B, 300)
+    };
+    draw_strip_icon(ctx, canvas, frame, x, y + dy, "CASTLE");
+
+    let (stone, wood) = (c.castle_stone_owed, c.castle_wood_owed);
+    if stone == 0 && wood == 0 {
+        // `county +0x1A6` — [`l2_kingdom::industry::castle_seasons_left`], the
+        // number the tooltip layer calls *"Seasons left to build castle"*
+        // (`L2.eng` 220/22). Zero draws nothing at all, which is the original's
+        // own `if (value != 0)`.
+        let seasons = l2_kingdom::industry::castle_seasons_left(&ctx.game.kingdom.tables, c);
+        if seasons != 0 {
+            strip_text(ctx, canvas, 0x23C, y + 0x13A, &format!("{seasons} "), DELTA_POS);
+            // `Ui_DrawUnitNoun(seasons, 0x42, …)` — `L2.eng` group 8 index
+            // `0x42`/`0x43`, which are *"Season"* and *"Seasons"*, singular at
+            // exactly 1.
+            let index = crate::shell::count_noun(seasons, 0x42);
+            let noun = eng(ctx, 8, index, if index == 0x42 { "SEASON" } else { "SEASONS" });
+            strip_text(ctx, canvas, 0x234, y + 0x146, &noun, DELTA_POS);
+        }
+        return;
+    }
+    let (needs, ndy) = match (stone != 0, wood != 0) {
+        (true, true) => (misc_cty::CASTLE_NEEDS_BOTH, 0x131),
+        (false, _) => (misc_cty::CASTLE_NEEDS_WOOD, 0x137),
+        (true, false) => (misc_cty::CASTLE_NEEDS_STONE, 0x137),
+    };
+    draw_strip_icon(ctx, canvas, needs, 0x23C, y + ndy, "NEEDS");
+    // `Eng_DrawString(0x47, 0x12, …)` — group 71 index 18, *"Needed"*.
+    strip_text(ctx, canvas, 0x234, y + 0x146, &eng(ctx, 71, 18, "NEEDED"), DELTA_POS);
 }
 
 impl CountyScreen {

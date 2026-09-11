@@ -39,6 +39,17 @@
 //! with nothing on screen — which is also the shape the eventual pixel diff
 //! against `Lords2.exe` will take.
 
+/// **One fixed simulation tick, in milliseconds.** The application's only
+/// clock rate, and `main::TICK` is built from it.
+///
+/// It lives in the library because a screen that reproduces an animation whose
+/// rate is stated in *milliseconds* has to convert — the campaign map's
+/// industry wheels turn on `Tick_Pulses`' 80/160/320/640 ms rungs
+/// (`0x004BBC80`), and 640 ms is forty of these. Nothing below this crate may
+/// read a clock (`docs/netcode.md` D-12) and this is not one: it is the length
+/// of a tick, not the time.
+pub const TICK_MS: u32 = 16;
+
 pub mod audio;
 pub mod battlefield;
 pub mod build_id;

@@ -356,6 +356,9 @@ fn furnished(seed: u64) -> Kingdom {
             c.industry[slot].enabled = slot != 2;
             c.industry[slot].disabled_seasons = s % 3 + 1;
             c.industry[slot].total = 100 * (s + 1) + n;
+            // The sidebar industry row's forecast, VERSION 17 — county
+            // `+0x2A8 + c*0x18`, `Industry_LabourEstimate`'s tail.
+            c.industry[slot].next_season = 7 * (s + 1) + n + 3;
         }
         c.weapon_type = id % 6;
         c.farm_style = (id % 5 + 1) as u8;
@@ -647,7 +650,11 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     //
     // +238 at version 15 for `County::siege_scars`: fourteen bytes a county —
     // two `u16`, two `i32`, a `u8` and a `bool` — over 17 county slots.
-    assert_eq!(c.finish().len, 58_049, "the state encoding changed - bump VERSION?");
+    //
+    // +272 at version 17 for `Industry::next_season`: four bytes on each of the
+    // four industry records, over 17 county slots. It is the number the
+    // sidebar's industry rows draw — county `+0x2A8 + c*0x18`.
+    assert_eq!(c.finish().len, 58_321, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

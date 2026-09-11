@@ -137,6 +137,48 @@ pub mod misc_cty {
     pub const CASTLE_PLAIN: usize = 0x40;
     pub const CASTLE_RINGED: usize = 0x4E;
 
+    /// **The three industry rows that have no state at all.**
+    ///
+    /// `FUN_00410502` (iron), `FUN_00410598` (stone) and `FUN_0041062E` (wood)
+    /// are the same nine lines three times over: one `Pl8_DrawFrame` of a fixed
+    /// frame, one `Ui_DrawDelta`, and the row counter. **They have no ringed
+    /// twin and no shortfall frame** — only the blacksmith and the castle, of
+    /// the five industry rows, react to their staffing.
+    ///
+    /// The `x` differs by six pixels between the iron row and the other two and
+    /// that is the original's, not a slip: iron is drawn at 600 and stone and
+    /// wood at `0x252` = 594.
+    ///
+    /// **`docs/draws-map.md` §2 names these three painters in the wrong
+    /// order** — it has `0x00410502` as stone, `0x00410598` as wood and
+    /// `0x0041062E` as iron. `CountyStrip_Draw`'s dispatch settles it: the
+    /// right-hand list holds *labour slots*, and slot 4 (iron mining) calls
+    /// `0x00410502`, slot 5 (stone quarrying) calls `0x00410598`, slot 6 (wood
+    /// cutting) calls `0x0041062E`. `Unit_TrampleTile` agrees from the other
+    /// side. `docs/decisions.md` C135.
+    pub const INDUSTRY_IRON: usize = 0x2C;
+    pub const INDUSTRY_STONE: usize = 0x2D;
+    pub const INDUSTRY_WOOD: usize = 0x2E;
+    /// The x each of the three is drawn at, in the same order.
+    pub const INDUSTRY_X: [i32; 3] = [600, 0x252, 0x252];
+
+    /// **The castle row's three materials icons.**
+    /// `CountyStrip_DrawCastleIcon` picks one when the castle is still owed
+    /// anything, and puts `L2.eng` 71/18 — *"Needed"* — under it:
+    ///
+    /// ```c
+    /// if (stoneOwed && woodOwed)      frame 0x1B at (0x23C, y + 0x131);
+    /// else if (stoneOwed == 0)        frame 0x1A at (0x23C, y + 0x137);
+    /// else                            frame 0x19 at (0x23C, y + 0x137);
+    /// ```
+    ///
+    /// So `0x19` is the stone the county still owes, `0x1A` the wood, and
+    /// `0x1B` the pair — and the pair sits **six pixels higher**, because it is
+    /// the taller picture.
+    pub const CASTLE_NEEDS_STONE: usize = 0x19;
+    pub const CASTLE_NEEDS_WOOD: usize = 0x1A;
+    pub const CASTLE_NEEDS_BOTH: usize = 0x1B;
+
     /// The shortfall icons, drawn when a job is **below** its wanted floor —
     /// the other end of the same test, and the only two the strip has.
     pub const SHORTFALL_GRAIN: usize = 0x23;
