@@ -109,22 +109,12 @@ struct App {
 impl App {
     fn present(&mut self) {
         let Some(pixels) = self.pixels.as_mut() else { return };
-        // Which palette. Most screens run under the campaign's; the front end,
-        // the merchant, the armoury, castle building and the ratings each read
-        // a `.256` of their own, and a canvas of indices means nothing without
-        // knowing which one. The top screen names it.
-        let palette = self
-            .machine
-            .palette_name()
-            .and_then(|n| self.assets.shell.palette(n))
-            .unwrap_or(&self.assets.palette);
-        // **The end-of-turn fade, and it is the whole of the effect.**
-        // `FUN_004B0CB4` never touches the framebuffer — it rewrites the
-        // display palette and lets the unchanged plane of indices resolve
-        // darker. So this is the one line, and the screen decides *when* by
-        // answering `Screen::fade`. See `l2_view::fade`.
-        let faded = self.machine.fade().map(|phase| l2_view::fade::at(palette, phase));
-        self.canvas.to_rgba(faded.as_ref().unwrap_or(palette), pixels.frame_mut());
+        // Which palette, and the end-of-turn fade. Most screens run under the
+        // campaign's; the front end, the merchant, the armoury, castle building,
+        // the battlefield and the ratings each read a `.256` of their own, and a
+        // window drawn over one of those runs under it. `Machine::present` is
+        // the whole decision, in the library, where a test can see its colours.
+        self.machine.present(&self.assets, &self.canvas, pixels.frame_mut());
         if let Err(e) = pixels.render() {
             eprintln!("render failed: {e}");
         }

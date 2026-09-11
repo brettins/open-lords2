@@ -554,40 +554,41 @@ fn a_soldier_walks_over_and_takes_the_weapon() {
     );
 }
 
-/// **The clock is the original's rate and our ticks.**
+/// **A pulse is two of our ticks, because `Tick_Pulses` resets its stamp.**
 ///
-/// `Tick_Pulses` gates on 20 ms and makes `g_pulse80` every fourth pulse. Our
-/// fixed tick is 16 ms and does not divide 20, so ticks are accumulated —
-/// **five ticks is 80 ms is exactly four pulses and exactly one `g_pulse80`**,
-/// which is the property that makes the walk 200 pixels a second on our clock
-/// as well as on theirs.
+/// `if (0x13 < now - stamp) { …; stamp = now; }` — the stamp goes to the frame
+/// that fired, not twenty milliseconds on, so the remainder is thrown away.
+/// On a 16 ms tick the first sum past 19 is 32, and every pulse after it is
+/// another 32. `g_pulse80` is every fourth pulse: eight ticks.
 ///
-/// The number to check it against is the one the game states: `x += 4` per
-/// 20 ms pulse, so 16 pixels per 80 ms.
+/// This test used to be called *"eighty milliseconds of our ticks is four
+/// pulses"* and asserted five ticks to four pulses — the accumulate-and-carry
+/// reading that made the walk 1.6 times the original's speed. Every number
+/// below is typed from the gate, not computed from `PULSE_MS`. **Ablation,
+/// run:** put the `while acc_ms >= PULSE_MS { acc_ms -= PULSE_MS }` loop back
+/// and the steps land on ticks 2, 3, 4, 5, 7, 8.
 #[test]
-fn eighty_milliseconds_of_our_ticks_is_four_pulses_and_one_eightieth() {
+fn a_pulse_is_two_of_our_ticks_because_tick_pulses_resets_its_stamp() {
     let mut anim = armoury::Anim::default();
     anim.walker.latch(1, 0);
     assert!(anim.walker.start(1, 1), "one man was assigned, so he sets off");
     let x0 = anim.walker.x;
-    for _ in 0..5 {
+    let mut walked = Vec::new();
+    for _ in 0..8 {
         anim.tick();
+        walked.push(anim.walker.x - x0);
     }
-    assert_eq!(
-        anim.walker.x - x0,
-        armoury::WALKER_STEP * 4,
-        "five 16 ms ticks are four 20 ms pulses",
-    );
-    assert_eq!(anim.torch, 1, "and exactly one 80 ms pulse");
+    assert_eq!(walked, vec![0, 4, 4, 8, 8, 12, 12, 16], "four pixels on every second tick");
+    assert_eq!(anim.torch, 1, "and one 80 ms pulse in eight ticks");
     assert_eq!(anim.weapon, 1);
 
-    // A hundred ticks is 1.6 s: twenty 80 ms pulses, so the torch has wrapped
-    // once past its thirteen and the weapon has not past its twenty-four.
-    for _ in 0..95 {
+    // A hundred ticks: fifty pulses, and the 80 ms pulse on every fourth of
+    // them — twelve, so neither counter has wrapped.
+    for _ in 0..92 {
         anim.tick();
     }
-    assert_eq!(anim.torch, 20 % armoury::TORCH_FRAMES);
-    assert_eq!(anim.weapon, 20 % armoury::WEAPON_FRAMES);
+    assert_eq!(anim.torch, 12);
+    assert_eq!(anim.weapon, 12);
 }
 
 /// **`FUN_004AABD8`'s three guards, each one ablated by taking it away.**

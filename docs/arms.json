@@ -1434,9 +1434,33 @@
       "screen": "0x0A, 0x0D",
       "gesture": "left-press",
       "addr": "0x004358B0",
-      "what": "CLICKING A WEAPON OPENS ITS RACK -- AND SENDS A SOLDIER TO FETCH THE LAST ONE. Armoury_ClickRack refuses when g_levyBasket[id].available <= 0, so an empty rack is inert; otherwise its FIRST statement is FUN_004AABD8(county, g_armourySelectedType), which is the rack being LEFT, before the assignment that overwrites it. FUN_004AABD8 then walks a soldier only when latch[t] < chosen[t], the latch being what this same function wrote at +0x0C when rack t was opened. So the animation fires on leaving a rack the player assigned somebody to, and the man is of that type.",
+      "what": "CLICKING A WEAPON OPENS ITS RACK -- AND SENDS A SOLDIER TO FETCH THE LAST ONE. Armoury_ClickRack refuses when g_levyBasket[id].available <= 0, so an empty rack is inert; otherwise its FIRST statement is FUN_004AABD8(county, g_armourySelectedType), which is the rack being LEFT, before the assignment that overwrites it. FUN_004AABD8 then walks a soldier only when latch[t] < chosen[t], the latch being what this same function wrote at +0x0C when rack t was opened. So the animation fires on leaving a rack the player assigned somebody to, and the man is of that type. Two consequences, both [V]: the FIRST pick after any door into the armoury never walks, because Levy_Seed (0x004AA90A) zeroes g_armourySelectedType and FUN_004AABD8 refuses type 0; and picking the rack that is ALREADY open runs this again for it -- 0x0D's arm tests no selected type -- so equipping men and picking the same weapon sends one of them.",
       "note": "The row is live on BOTH screens -- Screen_FrameInput tests nine hotspot records on 0x0A and the first seven on 0x0D -- so this is one record and one function, per the file's counted-per-implementation rule. It was reached by two call sites of ours before this branch and neither did the latch or the walk.",
       "ours": "crates/l2-game/src/screens/armoury.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00435CEF/levy-slider-step",
+      "status": "reproduced",
+      "group": "management-screens",
+      "screen": "0x17",
+      "gesture": "left-press",
+      "addr": "0x00435CEF",
+      "what": "Levy_SliderClick's two arrows. The hit band is x 0x80..0x175 by y base+0x10..base+0x3F, where the local is 0xB0 with no mercenary offer and 0x90 with one. x < 0xC4 decrements g_levyPercent and x >= 0x129 increments it, each ONLY on g_mouseLeftPressed || g_mouseLeftDoubleClick; clamped 0..100, then Levy_SetPercent and g_redrawRequest = 2, returning 1. Screen_FrameInput's 0x17 arm reads the right release and the corner picture only when this returns 0.",
+      "note": "Not a widget record, so no kind-4 ramp: an arrow held down steps once. It also answers the double click, which kind 1 does not; filed under left-press as the nearest word. This arm had NO RECORD until a player reported that the track could not be dragged -- a missing row, which is why the inventory said nothing was wrong.",
+      "ours": "crates/l2-game/src/screens/army.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00435CEF/levy-slider-track",
+      "status": "reproduced",
+      "group": "management-screens",
+      "screen": "0x17",
+      "gesture": "drag",
+      "addr": "0x00435CEF",
+      "what": "Levy_SliderClick's track: 0xC4 <= x < 0x129 inside the same band sets g_levyPercent = x - 0xC4 on EVERY frame g_mouseLeftDown is set -- the level, not an edge and not g_mouseInputChanged -- so the knob follows a held button, one pressed elsewhere and slid in included. Off the track the level reads nothing, so a drag carried past either end leaves the knob where the track last put it. The window procedure's WM_LBUTTONDBLCLK arm sets only DAT_004EADA1, never the down bit, so a double click on the track does nothing.",
+      "note": "FOUND WRONG in its gesture: ours answered the track on Event::Click alone, so the knob jumped to the press and then ignored the pointer. A player: \"Slider bar in army recruitment cant be dragged.\"",
+      "ours": "crates/l2-game/src/screens/army.rs",
       "evidence": "V"
     },
     {

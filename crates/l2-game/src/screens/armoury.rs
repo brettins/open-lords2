@@ -504,8 +504,11 @@ pub const TORCH_SECOND: usize = 0x0D;
 /// **The walking soldier's geometry**, all of it out of `Armoury_DrawWalker`
 /// (`0x004190DB`) and `FUN_004AABD8` (`0x004AABD8`).
 ///
-/// He starts off the left edge at `-0x50`, takes four pixels every 20 ms —
-/// **200 pixels a second** — and the walk is over at `0x280`, one screen width.
+/// He starts off the left edge at `-0x50`, takes four pixels a 20 ms pulse and
+/// the walk is over at `0x280`, one screen width. **Four pixels a pulse is not
+/// 200 pixels a second**: `Tick_Pulses` resets its stamp to the frame that
+/// fired, so a pulse is 20 ms rounded *up* to whole frames — 32 ms and 125
+/// pixels a second on our 16 ms tick. See [`Anim::tick`].
 pub const WALKER_START_X: i32 = -0x50;
 pub const WALKER_END_X: i32 = 0x280;
 pub const WALKER_STEP: i32 = 4;
@@ -530,7 +533,8 @@ pub const WALKER_STOP_X: [i32; 8] = [0, 45, 120, 490, 170, 380, 270, 50];
 /// is exactly one soldier tall. `[V]`
 pub const WALK_PHASES: u8 = 8;
 /// `DAT_0052F008 = DAT_005681F8 / 3 + 8` — five frames, each held three 80 ms
-/// pulses, so the pickup takes about 1.1 seconds.
+/// pulses. The counter starts at 1 and the run ends when it reaches 15, so it
+/// is fourteen `g_pulse80`s — 1.1 s on a 20 ms pulse, 1.8 s on our 32 ms one.
 pub const PICKUP_FIRST: usize = 8;
 pub const PICKUP_LAST: usize = 0x0C;
 pub const PICKUP_HOLD: u8 = 3;
@@ -797,29 +801,46 @@ impl Anim {
     /// it still has two torches, so this is true roughly every fifth tick and
     /// not every one.
     ///
-    /// **The quantisation is ours and this is it.** The original's gate is
-    /// 20 ms of `timeGetTime` and our tick is 16 ms, which does not divide it;
-    /// nothing below `main.rs` may read a clock, so ticks are accumulated and a
-    /// pulse is taken whenever 20 ms of them have gone by. Over any 80 ms —
-    /// five ticks — that is exactly four pulses and exactly one `g_pulse80`, so
-    /// the rate is the original's and only the jitter, ±1 tick, is ours.
+    /// **At most one pulse a tick, and the remainder is thrown away.** Both are
+    /// `Tick_Pulses` (`0x004BBC80`), which `Battle_Frame` calls once a frame:
+    ///
+    /// ```c
+    /// now = timeGetTime();
+    /// if (0x13 < (int)(now - stamp) || (int)(now - stamp) < 0) {
+    ///     DAT_005AEB2C++;  DAT_0058FCB0 = 1;  stamp = now;     /* now, not +20 */
+    /// }
+    /// ```
+    ///
+    /// So the pulse comes on the **first frame at least 20 ms after the last
+    /// pulse**, and on a 16 ms frame that is every second frame — 32 ms, not
+    /// 20. `[V]` for the gate; *our tick is the frame* is the reading
+    /// [`crate::press`] already makes of `FUN_004B20ED`, the 30 ms gate beside
+    /// it, which resets its stamp the same way.
+    ///
+    /// **This used to subtract twenty and keep the rest**, which is the one
+    /// reading under which the walk is exactly 200 pixels a second on every
+    /// machine — a rate the original reaches only on a frame of exactly 20 ms
+    /// and never above it. A player: *"his animation speed was faster than the
+    /// regular game. not bad, but not the OG."* It was 1.6 times faster.
+    /// `docs/decisions.md` CNEW-pulse-stamp.
     pub fn tick(&mut self) -> bool {
         self.acc_ms += TICK_MS;
+        if self.acc_ms < PULSE_MS {
+            return false;
+        }
+        self.acc_ms = 0;
+        self.div += 1;
+        let pulse80 = self.div >= PULSE80_DIVIDER;
         let mut moved = false;
-        while self.acc_ms >= PULSE_MS {
-            self.acc_ms -= PULSE_MS;
-            self.div += 1;
-            let pulse80 = self.div >= PULSE80_DIVIDER;
-            if pulse80 {
-                self.div = 0;
-                self.torch = (self.torch + 1) % TORCH_FRAMES;
-                self.weapon = (self.weapon + 1) % WEAPON_FRAMES;
-                moved = true;
-            }
-            if self.walker.active {
-                self.walker.pulse(pulse80);
-                moved = true;
-            }
+        if pulse80 {
+            self.div = 0;
+            self.torch = (self.torch + 1) % TORCH_FRAMES;
+            self.weapon = (self.weapon + 1) % WEAPON_FRAMES;
+            moved = true;
+        }
+        if self.walker.active {
+            self.walker.pulse(pulse80);
+            moved = true;
         }
         moved
     }
@@ -1278,9 +1299,18 @@ impl Screen for RackScreen {
                 // weapon to the next without going back. `Create` is record 6
                 // and is live too; `Change` and `Cancel` are records 7 and 8
                 // and are not.
+                //
+                // **The rack already open is one of them.** `Screen_FrameInput`'s
+                // `0x0D` arm runs `Armoury_GridClick` and the hotspot table with
+                // no test against `g_armourySelectedType`, so clicking the weapon
+                // whose panel is up runs `Armoury_ClickRack` for it again — and
+                // that is `FUN_004AABD8(county, t)` with the old type equal to
+                // the new one. A player who equipped men and clicks the same
+                // weapon sends one of them to fetch it. Ours refused a click on
+                // the open rack, so the walk came only from a *different* rack.
                 let read = Ctx { game: ctx.game, assets: ctx.assets };
                 if let Some(troop) = ArmouryScreen::rack_at(&read, x, y) {
-                    if troop != self.troop && click_rack(ctx.game, troop) {
+                    if click_rack(ctx.game, troop) {
                         return Transition::Replace(ScreenId::Rack(self.county, troop));
                     }
                     return Transition::Stay;
