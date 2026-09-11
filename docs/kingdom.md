@@ -160,8 +160,8 @@ the battle debug overlay.
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
 | `+0xB9` | u8 | **taxRate** | [V] | group 86 index 1, *"Tax rate"*. |
-| `+0xBC` | i32 | taxCollected | [V] | what the treasury actually banks. |
-| `+0xC0` | i32 | taxShown | [V] | group 86 index 2, *"People pay"*. |
+| `+0xBC` | i32 | taxCollected | [V] | what the treasury actually banks, at the moment `Tax_Collect` ran. |
+| `+0xC0` | i32 | taxShown | [V] | group 86 index 2, *"People pay"*. `Pct(Pct(population, castleBase), taxRate)`, checked against the original's own byte in eight counties across five saves. See the note below the table. |
 | `+0xC4 + job*0x0C` | i32 | labour | [V] | workers assigned to each of **nine** jobs. §7, §14. |
 | `+0xC4 + job*0x0C + 4` | i32 | labourWanted | [V] | the job's **wanted floor** — below it the count is drawn red and the shortfall appears as unselectable icons. −1 means no floor. §14. |
 | `+0xC4 + job*0x0C + 8` | i32 | labourUseful | [V] | its **useful ceiling** — the allocator fills the job to it and no further. 100,000 means none; 0 means the county has no such resource. §14. |
@@ -196,6 +196,29 @@ the battle debug overlay.
 | `+0x1FE` | u8 | farmStyle | [V] | the farming style the county is farmed by. Step 5 writes it from the owning lord; the unowned-counties pass only reads it. §8.6. |
 | `+0x219` | u8 | **aleGiven** | [V] | the total happiness this county has ever been given by ale; caps the bonus at 5 and is never reset. §4.4. |
 | `+0x21C` | u8 | weatherLast | [D] | the previous season's band, saved at the top of `Weather_UpdateAll`. |
+
+**How `taxShown` (`+0xC0`) and `taxCollected` (`+0xBC`) differ**, which this section used to
+say it did not know. Two causes, and the common one is not the interesting one:
+
+* **They are computed at different moments.** `Tax_RecomputePreview` (`0x0044B80B`) reruns on
+  every tax control and at the end of every season; `Tax_Collect` ran once, at collection, on
+  the population the county had *then*. `safeturn.sav` county 2 stores **283** shown against
+  **249** collected, and 283 is this season's 738 people while 249 is last season's. The
+  preview is the fresher number, which is why it is the one the panel draws. `[V]`
+* **The preview has no suppression test.** `Tax_Collect` opens `if (taxSuppressed) base = 0`
+  and `Tax_RecomputePreview` does not, so a suppressed county goes on telling the player what
+  his people *would* pay while the treasury banks nothing. `[D]` — read off the two functions;
+  no save on this machine carries a suppressed county.
+
+A third state says why the field has to be **read** on load rather than recomputed:
+`battle-during.sav` stores 245 where the current population gives 225, because the fighting
+has already taken the people and the preview still holds the pre-battle answer.
+`battle-after.sav` stores 225. `docs/decisions.md` C142.
+
+**`+0x0F` (`dHapTaxLocal`) is `5 - taxRate` in every owned county of every save** on this
+machine — 5 at rate 0, 2 at rate 3, −1 at rate 6, −3 at rate 8. It is **not** `+0x0E`, which
+is that plus the realm's empire term; the tax panel draws `realm+0x28 + county+0x0F` and the
+happiness pass banks `+0x0E`. `[V]`
 
 ---
 

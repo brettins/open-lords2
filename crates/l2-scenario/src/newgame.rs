@@ -1190,6 +1190,15 @@ fn county_reset(id: usize) -> CountyState {
         shown_health: 0,
         shown_events: 0,
         d_hap_ration: 0,
+        // **Zero here for the same reason `tax_rate` is**, and stated rather
+        // than assumed: `FUN_0046EA28` zeroes the whole county record in
+        // `Game_NewGame`'s preamble, and no new-game path read here writes any
+        // of the three. The season the new game immediately runs is what fills
+        // them — `Panels_RefreshAll`'s `Tax_RecomputePreview` turns `+0x0F`
+        // into 5 at rate 0, which is what every shipped save holds. `[D]`.
+        d_hap_health: 0,
+        d_hap_tax_local: 0,
+        tax_shown: 0,
         health_meter: reset::HEALTH_METER,
         health_band: reset::HEALTH_BAND,
         unrest: 0,

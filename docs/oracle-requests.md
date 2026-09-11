@@ -53,8 +53,13 @@ Every saved game this project has is **turn one**, and in every one of them **ea
 exactly one county**. So every rule that needs a bigger position than that has been written
 from a decompiler and checked against nothing:
 
-* the empire-wide tax penalty, which is *flat zero* until you tax above 19% — and no fixture
-  has ever had a county above 0%;
+* the empire-wide tax penalty, which is *flat zero* until you tax above 19% — and no save
+  this project has has ever carried a county above 8%. **The "no fixture has ever had a
+  county above 0%" that stood here was measured on England turn one alone**: the turn pair
+  and the six siege saves carry 2, 3, 6 and 8, which turned out to be a working oracle for
+  the *"People pay"* preview and was never looked at. So the ask below is specifically for a
+  rate of **20 or more**, which is where `g_taxHappinessOther` first bites, and not for a
+  non-zero rate. `docs/decisions.md` C142;
 * secession, which needs a lord holding lands in two pieces;
 * revolt, bankruptcy, alliances, starving armies;
 * the weather accumulator, which drifts for a hundred seasons and which we have only ever

@@ -270,6 +270,8 @@ crates/l2-net/src/quirks.rs	C26	e75f82770f0b	e8179d1f76a8
 crates/l2-net/src/quirks.rs	C62	e187f3a3e544	ebb6a7ec3711
 crates/l2-net/tests/lobby.rs	C62	e3882440edf8	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C134	55ce9f5adbe9	d12cd2f96f79
+crates/l2-scenario/src/lib.rs	C142	cae249d7b506	d13324698105
+crates/l2-scenario/src/lib.rs	C142	e86d29076348	d13324698105
 crates/l2-scenario/src/lib.rs	C57	14b498ed2873	3b42b65157bf
 crates/l2-scenario/src/lib.rs	C62	578b7d16171a	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C62	94a85e9708ab	ebb6a7ec3711
@@ -281,6 +283,7 @@ crates/l2-scenario/src/newgame.rs	C25	5198b008d5c4	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C25	f78fd48882c8	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C41	b844f3c01eef	df664f2e9ea9
 crates/l2-scenario/tests/import.rs	C26	bdddd4567993	e8179d1f76a8
+crates/l2-scenario/tests/newgame.rs	C142	690b3d3b4d32	d13324698105
 crates/l2-scenario/tests/newgame.rs	C23	4b471e07b88e	6ac2f322c3bd
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8	2a3830f6d22a
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2	2e6270fa32a9
@@ -444,6 +447,11 @@ docs/decisions.md	C12	729dde396cc4	bb0dd488f9d2
 docs/decisions.md	C12	a388b50da6e9	bb0dd488f9d2
 docs/decisions.md	C120	7c9b703bcdc3	e96a6897511c
 docs/decisions.md	C123	1262cc0f058c	3a5cc2fec37d
+docs/decisions.md	C125	4a3bc312925c	6084e87aec70
+docs/decisions.md	C125	5b745e098dad	6084e87aec70
+docs/decisions.md	C125	91cc166c79af	6084e87aec70
+docs/decisions.md	C125	fd0154e63fec	6084e87aec70
+docs/decisions.md	C125	fd7b2d34aab5	6084e87aec70
 docs/decisions.md	C126	36dae66e2b1a	1b2c97c7731a
 docs/decisions.md	C127	5569248811af	537ace9eca06
 docs/decisions.md	C127	ce490bc6caac	537ace9eca06
@@ -456,6 +464,7 @@ docs/decisions.md	C132	8e8a7046fb5f	84bc50c0ddbe
 docs/decisions.md	C132	9d42d57dfe34	84bc50c0ddbe
 docs/decisions.md	C132	a16103029f0c	84bc50c0ddbe
 docs/decisions.md	C132	c3d762cf2b9c	84bc50c0ddbe
+docs/decisions.md	C133	d1b998eebb52	91fcca97cc98
 docs/decisions.md	C137	08301a5d821f	eaaf586c5da0
 docs/decisions.md	C14	19873f4c7f74	687f69afd1c6
 docs/decisions.md	C14	9228b35094b8	687f69afd1c6
@@ -602,6 +611,7 @@ docs/decisions.md	C61	d69570a53654	60611046b40d
 docs/decisions.md	C61	f258c8cb9698	60611046b40d
 docs/decisions.md	C61	f6aa494f4261	60611046b40d
 docs/decisions.md	C62	789a08c82088	ebb6a7ec3711
+docs/decisions.md	C62	8a50d8f3e009	ebb6a7ec3711
 docs/decisions.md	C62	caa3cf750af3	ebb6a7ec3711
 docs/decisions.md	C62	f35d8bee3341	ebb6a7ec3711
 docs/decisions.md	C63	93cf83b910a5	34cab2e30849
@@ -641,6 +651,7 @@ docs/formats/pl8.md	C5	7da3bb460200	5751c743a83c
 docs/hypotheses.json	C3	6d7b9bc8a5c3	35bf3a86555f
 docs/hypotheses.json	C3	80313a1ef950	35bf3a86555f
 docs/kingdom.md	C12	ea411ce7f8a2	bb0dd488f9d2
+docs/kingdom.md	C142	95890825b7a9	d13324698105
 docs/kingdom.md	C16	b5ee9c5eb7a2	2e6270fa32a9
 docs/kingdom.md	C29	2c4e4b24a052	405b63debb8e
 docs/kingdom.md	C3	840abeb8509b	35bf3a86555f
@@ -688,14 +699,17 @@ docs/netcode.md	C39	ebf3b4632de2	9a04e88ad74b
 docs/netcode.md	C62	194b1c4f05c3	ebb6a7ec3711
 docs/netcode.md	C62	aa279b8b0e57	ebb6a7ec3711
 docs/netcode.md	C8	7d0d61b3a9f8	bf400476a6df
+docs/oracle-requests.md	C142	dc5afa199d96	d13324698105
 docs/oracle-requests.md	C26	0e5b3c2b1cc0	e8179d1f76a8
 docs/plan.md	C11	42457d7739ce	07dfad15821c
 docs/plan.md	C119	a097b9411449	306c4c740506
 docs/plan.md	C127	364a99615bcb	537ace9eca06
 docs/plan.md	C140	08a5878fcc32	e3a1ede42a95
+docs/plan.md	C142	803b1d92e46b	d13324698105
 docs/plan.md	C21	e07a03ef7613	f7bf296341ff
 docs/plan.md	C22	e96ddb30aaa7	0364b53a921d
 docs/plan.md	C25	dadfcab27aec	5d466f0cb89c
+docs/plan.md	C26	d391e2b8c895	e8179d1f76a8
 docs/plan.md	C27	e7d20517c30b	1db64332cb22
 docs/plan.md	C28	34b11ce8cc30	df5936ad8492
 docs/plan.md	C28	cde824a84877	df5936ad8492
@@ -721,6 +735,7 @@ docs/rules.md	C130	062c5dacb8d8	055c6c022450
 docs/rules.md	C26	ed34d4cfa431	e8179d1f76a8
 docs/screens-county.md	C112	55f12c7e2104	0dbcd00423ed
 docs/screens-county.md	C140	d76c4d24e8da	e3a1ede42a95
+docs/screens-county.md	C142	45dac4b2d02e	d13324698105
 docs/screens-county.md	C22	5291dc6a63dc	0364b53a921d
 docs/screens-county.md	C22	a40f71f868e3	0364b53a921d
 docs/screens-county.md	C22	c5ec69650b74	0364b53a921d
@@ -757,9 +772,12 @@ docs/symbols.json	C102	a540abe57c9f	e01ce233d22a
 docs/symbols.json	C105	0b1960f7de0a	c2e0145299b3
 docs/symbols.json	C105	9c93a2827d4d	c2e0145299b3
 docs/symbols.json	C119	4c018b84adad	306c4c740506
-docs/symbols.json	C119	5dd6eaacaef4	306c4c740506
+docs/symbols.json	C119	e9a886e876b7	306c4c740506
+docs/symbols.json	C127	bee5ef330f1d	537ace9eca06
 docs/symbols.json	C130	3a2ba51373ac	055c6c022450
 docs/symbols.json	C130	9be57797da98	055c6c022450
+docs/symbols.json	C140	94aa6083fb83	e3a1ede42a95
+docs/symbols.json	C140	f2ff304436de	e3a1ede42a95
 docs/symbols.json	C20	01f6f924103e	0ec8eeb4f874
 docs/symbols.json	C20	7ddb8e5c217a	0ec8eeb4f874
 docs/symbols.json	C22	936f7d5bda76	0364b53a921d
@@ -821,10 +839,13 @@ docs/symbols.md	C102	36cc489ab4e3	e01ce233d22a
 docs/symbols.md	C102	5f63b7e4c754	e01ce233d22a
 docs/symbols.md	C105	1b589a0615a6	c2e0145299b3
 docs/symbols.md	C105	c425aadeeece	c2e0145299b3
-docs/symbols.md	C119	6a212003419f	306c4c740506
+docs/symbols.md	C119	36b014defd9b	306c4c740506
 docs/symbols.md	C119	e81dc4b37eec	306c4c740506
+docs/symbols.md	C127	29e7b92ba8b6	537ace9eca06
 docs/symbols.md	C130	14ddbe8d366a	055c6c022450
 docs/symbols.md	C130	74cfc64ea960	055c6c022450
+docs/symbols.md	C140	248d028a0864	e3a1ede42a95
+docs/symbols.md	C140	f2ff304436de	e3a1ede42a95
 docs/symbols.md	C20	d50fe7b21adc	0ec8eeb4f874
 docs/symbols.md	C20	f78855d335cd	0ec8eeb4f874
 docs/symbols.md	C22	76e2e999ec4b	0364b53a921d

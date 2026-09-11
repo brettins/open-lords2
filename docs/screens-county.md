@@ -1076,6 +1076,14 @@ Window `Ui_DrawBox(80, 144, 20, 9)` → **(80, 144) to (400, 288)**, 320 × 144.
 
 Vignette frame 0x3E at (320, 160); button `Ui_OkButton(372, 260, 0)`.
 
+**Both live numbers on this panel come from the save, not from a recompute.** `+0xC0` and
+`+0x0F` are written by `Tax_RecomputePreview` (`0x0044B80B`) — on a control, and once per
+county at the end of every season — and are then *restored* by a load like any other part of
+the memory image. Our importer read neither, so a freshly loaded tax panel said *"People pay
+0 crowns"* at any rate and drew `( 0 ☺ )` where the original draws `( +5 ☺ )` at rate 0;
+`docs/decisions.md` C142, and `battle-during.sav` is the save that shows
+recomputing on load would be wrong rather than merely redundant.
+
 **The two arrow buttons are the widget table `g_taxWidgets` (`0x004DD790`)** — two records,
 both 24 × 24, kind 4 (auto-repeating press):
 

@@ -6581,3 +6581,94 @@ What is done instead is this entry plus a line in the script's header, so the ne
 who watches the figure fall knows to ask whether anything was lost before treating it as a
 regression. **The figure is a coverage estimate with a known style term in it, not a
 measurement.**
+
+
+**C142 — the tax panel's two dead readouts were fixed at the
+control and never at the load, and the importer is where a reader should have looked.**
+
+A player, on a build that already carried C125: *"'People pay 0 crowns' on the tax thing
+always says 0 crowns. and the happines bonus / minus on tax screen is also stuck and not
+adjusting."*
+
+**C125 was right and it was half the fix.** It found that `Tax_IncreaseCounty`
+(`0x0043AA83`) is `taxRate++`, `Tax_RecomputePreview`, `Panel_Tax()` and that ours wrote
+the rate and returned, and it wired the control up. Measured now: stepping the arrow does
+move both numbers, on the bare screen and through the whole `Machine`. What it did not ask
+is **what those fields hold on the frame the game is loaded**, and the answer was nothing.
+
+`crates/l2-scenario` read county `+0x0E`, `+0x11`, `+0x12`…`+0x17` and `+0xBC` out of the
+county record and **not `+0x0F`, `+0x10` or `+0xC0`** — which are, in order, the tax panel's
+*This county* line, the ration panel's health delta, and the tax panel's *People pay*. All
+three arrived as `County::new()`'s zero. So a freshly loaded game's tax panel said *"People
+pay 0 crowns"* at any rate and drew `( 0 ☺ )` where the original draws `( +5 ☺ )`, until the
+player touched a control and C125's recompute filled them in. **That is the player's sentence
+exactly**, and it survived a correction written about the same two lines.
+
+> **A control that recomputes is not the same claim as a field that is carried.** C125 asked
+> *"who writes this when the player acts?"* and answered it. Nobody asked *"who writes this
+> when the game is loaded?"*, and the two questions have different answers and different
+> code.
+
+It is the `County::farm_style` shape (C62) and the `Unit::mission` shape a third and fourth
+time, and the reason it evaded the exhaustive-destructuring defence is worth stating: that
+defence is on `CountyState`, and **a field that was never added to `CountyState` cannot be
+caught by a check that enumerates `CountyState`.** The struct literal makes it impossible to
+*drop* a field on the way through; it says nothing about a field the reader never read. The
+producer is protected and the consumer is protected, and the gap is upstream of both.
+
+**The save is a better oracle than we had recorded, and it settles two open questions.** `[V]`
+
+* **`+0x0F` is `5 - taxRate` in every owned county of every save on this machine** — 5 at
+  rate 0, 2 at rate 3, −1 at rate 6, −3 at rate 8 — which is `Tax_RecomputePreview`'s second
+  statement and is what says the offset is the right one.
+* **`+0xC0` is `Pct(Pct(population, castleBase), taxRate)` to the unit**, in eight of the
+  nine counties that carry a rate above zero: `sieging.sav` county 1 stores **147** for 767
+  people at rate 6 with no castle; `safeturn.sav` county 2 stores **283** for 738 at rate 8
+  behind a wooden castle. This is the **first oracle this project has had for a non-zero tax
+  rate**, and it promotes the preview arithmetic from *"our two implementations agree"* to
+  *"the original wrote this number."*
+* **The ninth is the argument for reading the byte rather than recomputing it on load.**
+  `battle-during.sav` stores 245 where the current population gives 225, because the battle
+  has already taken the people and the preview still holds the pre-battle answer;
+  `battle-after.sav` stores 225. No recompute can produce 245. The original restores a memory
+  image and `Tax_RecomputePreview` runs on a control or at the end of a season, never on a
+  load.
+* **`docs/kingdom.md` §1.3 lists `taxShown` beside `taxCollected` and says it does not know
+  how the two differ.** C125 answered it from the code (`Tax_RecomputePreview` has no
+  suppression test) and marked it `[D]`. The saves show a second, commoner cause and it is
+  not suppression at all: `safeturn.sav` county 2 stores 283 shown against 249 collected,
+  and 283 is this season's population while 249 is last season's. **They differ because they
+  are computed at different moments**, and the preview is the fresher.
+
+**`docs/plan.md` §2.5 is wrong about the evidence and it is worth correcting, not only
+patching.** It says *"every county in every fixture is at rate 0"* and lists the tax
+happiness terms among the rules that therefore *"have no oracle at all"*. True of the England
+fixture; false of the turn pair and the six siege saves, which carry rates 2, 3, 6 and 8. The
+part that is still true is the part that matters for `g_taxHappinessOther`, which is flat
+zero below 20 — so the *preview* had an oracle nobody had looked for and the *empire term*
+still has none. **An absence claimed about "every fixture" was measured on one of them**,
+which is `docs/agents.md`'s *name the branch* on a corpus instead of a call site.
+
+**What the existing test could not see, which is why a second one exists.**
+`stepping_the_tax_rate_changes_the_panel_in_the_same_frame` asserts that some pixel outside
+the arrows moved and that `tax_shown > 0`. Both survive this defect completely — the load-time
+values are never drawn in the frame it compares — and both would survive a painter that drew
+a literal `0` on the *People pay* row, because the happiness lines move on their own and the
+field it reads is not the one the pixels came from. Confirmed by ablation: with the import
+line deleted, that test stays green. The new one reads the number and the words off the
+canvas at a real rate and names the call site in its failure message.
+
+**And the words are now pinned as an equality rather than a promise.** C133's rule — a
+screen's strings are its specification — reached the tax panel in the same branch that landed
+it, but nothing asserted it. `Panel_Tax` fetches group 86 four times (indices 1…4; index 0,
+*"Tax in"*, is drawn by nothing in the whole corpus), the install's strings are mixed case and
+our fallbacks are upper case, so *"People pay"* present on the canvas and *"PEOPLE PAY"*
+absent is the whole of rule 6 for this screen, in two assertions that go red if anyone
+reverts it. **Four of group 86's five strings drawn by the original; four by us.**
+
+**Left open, and named rather than quietly fixed.** County `+0x16` (*Other counties*) and
+realm `+0x28` are also unimported — and they are **zero in every county of every save on this
+machine**, because no save carries a rate of 20 or more and `g_taxHappinessOther` is flat
+below that. Importing them would change no pixel and could not be tested, so they are recorded
+here and in `docs/oracle-requests.md` instead of written blind. That is the one thing on this
+panel a late-game save would still settle.
