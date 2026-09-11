@@ -139,7 +139,7 @@
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
-use crate::press::{Kind, Press, Widget};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use l2_kingdom::Kingdom;
 
@@ -300,8 +300,8 @@ impl Cart {
         }
     }
 
-    /// `FUN_0043B1CA` — take from the cart, put back in the county.
-    // arm: 0x0043B1CA/supplies-minus left-press-repeat
+    /// `FUN_0043B1CA` — take from the cart, put back in the county. Its arm is
+    /// declared on [`widgets`], beside the kind it is answered with.
     pub fn minus(&mut self, id: usize) {
         let p = self.pair(id);
         if p.1 <= BULK_ABOVE {
@@ -315,8 +315,8 @@ impl Cart {
         }
     }
 
-    /// `FUN_0043B27A` — take from the county, put in the cart.
-    // arm: 0x0043B27A/supplies-plus left-press-repeat
+    /// `FUN_0043B27A` — take from the county, put in the cart. Its arm is
+    /// declared on [`widgets`].
     pub fn plus(&mut self, id: usize) {
         let p = self.pair(id);
         if p.0 <= BULK_ABOVE {
@@ -368,16 +368,23 @@ pub struct SuppliesScreen {
 pub fn widgets() -> Vec<Widget> {
     let mut out = Vec::with_capacity(8);
     for row in &ROWS {
-        out.push(Widget::new(row.minus, Kind::Repeat));
-        out.push(Widget::new(row.plus, Kind::Repeat));
+        out.push(Widget::new(row.minus, crate::arm!("0x0043B1CA/supplies-minus", Repeat)));
+        out.push(Widget::new(row.plus, crate::arm!("0x0043B27A/supplies-plus", Repeat)));
     }
-    out.push(Widget::new(THUMB_UP, Kind::Delayed));
-    out.push(Widget::new(THUMB_DOWN, Kind::Delayed));
+    out.push(Widget::new(THUMB_UP, crate::arm!("0x0043B04C/supplies-dispatch", Delayed)));
+    out.push(Widget::new(THUMB_DOWN, crate::arm!("0x0043B04C/supplies-cancel", Delayed)));
     out
 }
 
 /// [`widgets`]' index of the thumb-up; the thumb-down is the one after it.
-const THUMB_UP_INDEX: usize = 6;
+///
+/// **Derived, because the literal was wrong.** It read `6` — three rows of two
+/// spinners — while [`ROWS`] holds two, so the thumbs are records 4 and 5 and
+/// both fell into the spinner arm of [`SuppliesScreen::fire`], indexing a third
+/// row that is not there. Pressing either thumb panicked twenty ticks later,
+/// and drew no pressed picture before it did. Nothing had fired a thumb through
+/// the screen until `tests/gestures.rs` did.
+const THUMB_UP_INDEX: usize = ROWS.len() * 2;
 
 impl SuppliesScreen {
     pub fn new(to: u8) -> SuppliesScreen {
@@ -392,7 +399,8 @@ impl SuppliesScreen {
     }
 
     /// One widget's handler, whether it was reached from the press
-    /// ([`Kind::Repeat`]) or from the countdown ([`Kind::Delayed`]).
+    /// ([`crate::press::Kind::Repeat`]) or from the countdown
+    /// ([`crate::press::Kind::Delayed`]).
     fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
             // The two spinners' own arms are marked on [`Cart::minus`] and
@@ -406,9 +414,8 @@ impl SuppliesScreen {
                 }
                 Transition::Stay
             }
-            // arm: 0x0043B04C/supplies-dispatch left-press-delayed
+            // `FUN_0043B04C`, both thumbs; the arms are declared on [`widgets`].
             THUMB_UP_INDEX => self.dispatch(ctx),
-            // arm: 0x0043B04C/supplies-cancel left-press-delayed
             _ => {
                 self.outcome = Dispatch::Cancelled;
                 Transition::Pop
@@ -496,6 +503,12 @@ impl Screen for SuppliesScreen {
         self.press.take_clicks()
     }
 
+    /// A held spinner moved the cart: `Screen_DrawWidgets`' `0x18` arm runs
+    /// `FUN_0041AEA2` every frame. See [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     fn title(&self, _ctx: &Ctx) -> String {
         "Send supplies — screen 0x18".into()
     }
@@ -530,6 +543,19 @@ impl Screen for SuppliesScreen {
                     debug_assert!(fired.is_none(), "no supplies widget is a release widget");
                     Transition::Stay
                 }
+                // **A double click reaches the eight widgets and nothing else.**
+                // `Screen_HandleInput`'s `0x18` arm is `Hotspot_Test` on the two
+                // icons — kind 1, `g_mouseLeftPressed` alone — then
+                // `Widget_Test` on the six widgets, kinds 4 and 5, whose guards
+                // read `g_mouseLeftPressed || g_mouseLeftDoubleClick`; the
+                // minimap pick `FUN_0043B412` opens `if (g_mouseLeftPressed ==
+                // 0) return 0`. So a spinner steps once more, a thumb restarts
+                // its twenty frames, and the icons and the map ignore it. `[V]`
+                // This screen dropped it.
+                Event::DoubleClick { .. } => match self.press.event(&widgets(), event) {
+                    Some(i) => self.fire(ctx, i),
+                    None => Transition::Stay,
+                },
                 _ => Transition::Stay,
             };
         };
@@ -578,10 +604,13 @@ impl Screen for SuppliesScreen {
     /// `Widget_Test`'s per-frame pass: the spinners' ramp and the thumbs'
     /// twenty-frame countdown.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        match self.press.tick() {
-            Some(i) => self.fire(ctx, i),
-            None => Transition::Stay,
+        for i in self.press.tick() {
+            let t = self.fire(ctx, i);
+            if t != Transition::Stay {
+                return t;
+            }
         }
+        Transition::Stay
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
@@ -633,8 +662,8 @@ impl Screen for SuppliesScreen {
         pen.inset(canvas, WELL);
         // `Widget_Draw`'s `base + 1` while `+0x0D` runs. The index is
         // [`widgets`]', which is why the loop counts.
-        let down = self.press.pressed();
-        let frame = |i: usize, base: usize| if down == Some(i) { base + 1 } else { base };
+        let press = &self.press;
+        let frame = |i: usize, base: usize| if press.is_pressed(i) { base + 1 } else { base };
         for (n, row) in ROWS.iter().enumerate() {
             let (left, cart) = self.cart.get(row.id);
             pen.eng(canvas, GROUP, row.label, row.label_at.0, row.label_at.1, font::TEXT);

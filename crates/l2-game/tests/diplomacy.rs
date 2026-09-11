@@ -85,6 +85,32 @@ fn press_and_wait(machine: &mut Machine, game: &mut Game, assets: &Assets, event
     machine.update(&mut ctx);
 }
 
+/// **A double click reaches the verb buttons and the dialog's gauntlets, and
+/// each waits its twenty frames.**
+///
+/// Both screens dropped `Event::DoubleClick`. In the original the six verb
+/// buttons and the send and cancel pairs are `Widget_Test` kind 5, whose guard
+/// is `g_mouseLeftPressed || g_mouseLeftDoubleClick`; the card pick
+/// `FUN_004369BD` opens `if (g_mouseLeftPressed != 0)` and the county picker
+/// `FUN_0043B4CB` `else if (g_mouseLeftPressed == 0) return 0`. `[V]`
+///
+/// **Ablations, run:** delete the `Event::DoubleClick` early return from
+/// `DiplomacyScreen::handle` and the dialog never opens; delete the
+/// `Event::DoubleClick` arm of `ComposeScreen::handle` and it never closes.
+#[test]
+fn a_double_click_opens_a_dialog_and_a_double_click_closes_it_each_after_twenty_frames() {
+    let (mut game, assets) = world();
+    let mut machine = Machine::new(ScreenId::Diplomacy);
+    let double = |r: l2_game::input::Rect| Event::DoubleClick { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+
+    press_and_wait(&mut machine, &mut game, &assets, double(diplomacy::menu_widget(0)));
+    assert_eq!(machine.top_id(), Some(ScreenId::DiploCompose(2, Kind::Gift.byte())));
+
+    press_and_wait(&mut machine, &mut game, &assets, double(diplomacy::GIFT_CANCEL));
+    assert_eq!(machine.top_id(), Some(ScreenId::Diplomacy), "the cross returns to the cards");
+    assert_eq!(machine.clicks(), 2, "each double click was one press of Widget_Test's");
+}
+
 /// **The whole player's side, click by click: pick a rival, open the gift
 /// dialog, step the amount up, send it, and find the gold gone and the letter
 /// in the AI's inbox.**

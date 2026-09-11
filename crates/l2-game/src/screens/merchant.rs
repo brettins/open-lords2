@@ -210,6 +210,7 @@ use l2_kingdom::trade::{self, Good, Order, Quote, Refusal};
 use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 
@@ -452,6 +453,35 @@ pub fn cancel_button() -> Rect {
     widget_rect(5)
 }
 
+/// **`DAT_004DD838` as a table: six kind-4 records**, and `DAT_00553F58` of
+/// them live — four with nothing agreed, six with a quantity pending.
+///
+/// `node tools/oracle/kinds.js` files all six handlers under `widget 4`. `[V]`
+/// So every one fires on the press, clicks, shows `base + 1`, and repeats while
+/// held; this screen answered raw clicks, so none of them clicked, drew a
+/// pressed picture or repeated — and the thumbs up and down at the bottom are
+/// the same mailed hands as every yes/no in the game.
+///
+/// Each `arm!` is the marker and the kind. The index is the table's.
+fn trade_widgets(pending: bool) -> Vec<Widget> {
+    let mut out = vec![
+        Widget::new(up_button(), crate::arm!("0x00435339/trade-more", Repeat)),
+        Widget::new(down_button(), crate::arm!("0x0043543D/trade-less", Repeat)),
+        Widget::new(ceiling_button(), crate::arm!("0x004355DB/trade-all", Repeat)),
+        Widget::new(floor_button(), crate::arm!("0x00435541/trade-none", Repeat)),
+    ];
+    if pending {
+        out.push(Widget::new(confirm_button(), crate::arm!("0x00435286/trade-agree", Repeat)));
+        out.push(Widget::new(cancel_button(), crate::arm!("0x004352F2/trade-refuse", Repeat)));
+    }
+    out
+}
+
+/// **`if (DAT_00591554 < 0x2C)` — the repeat step from which the trade arrows
+/// move ten at a time.** `FUN_00435339` and `FUN_0043543D` both read it, and it
+/// is `0` on the press. `[V]` See [`crate::press::Press::repeat_step`].
+pub const TRADE_FAST_STEP: u8 = 0x2C;
+
 /// `Ui_DrawBevelRect` (`0x00403FDD`) — **four clipped lines and no fill**, and
 /// it is [`crate::shell::inset_rect`] with its two colours the other way round:
 /// `0x1F` along the top and right, `0x10` along the bottom and left. So an
@@ -689,6 +719,8 @@ pub struct TradeScreen {
     limit: i32,
     /// Ours: what happened, in our own words, under the window.
     status: String,
+    /// `DAT_004DD838`'s press timers and repeat counter. See [`trade_widgets`].
+    press: Press,
 }
 
 impl TradeScreen {
@@ -699,7 +731,24 @@ impl TradeScreen {
             qty: 0,
             limit: 0,
             status: String::new(),
+            press: Press::new(),
         }
+    }
+
+    /// One `DAT_004DD838` record's handler, from the press or from the repeat.
+    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+        let by = if self.press.repeat_step() < TRADE_FAST_STEP { 1 } else { 10 };
+        match widget {
+            0 => self.step(&Ctx { game: ctx.game, assets: ctx.assets }, by),
+            1 => self.step(&Ctx { game: ctx.game, assets: ctx.assets }, -by),
+            2 => self.jump_to_limit(&Ctx { game: ctx.game, assets: ctx.assets }, true),
+            3 => self.jump_to_limit(&Ctx { game: ctx.game, assets: ctx.assets }, false),
+            // `FUN_00435286`: `Merchant_Trade(…)`, then `g_screenId = 8`.
+            4 => return self.confirm(ctx),
+            // `FUN_004352F2`: `g_screenId = 8`.
+            _ => return Transition::Pop,
+        }
+        Transition::Stay
     }
 
     fn morale(&self, ctx: &Ctx) -> i32 {
@@ -708,6 +757,11 @@ impl TradeScreen {
 
     fn quote(&self, ctx: &Ctx) -> Quote {
         trade::quote(&ctx.game.kingdom.tables, self.good, self.morale(ctx))
+    }
+
+    /// `DAT_00554170`, the quantity on the panel: positive buys, negative sells.
+    pub fn qty(&self) -> i32 {
+        self.qty
     }
 
     /// The county the merchant stands in — `g_selectedCounty`, which the map
@@ -852,6 +906,28 @@ impl Screen for TradeScreen {
         Some("Merchant.256")
     }
 
+    /// `Widget_Test`'s per-frame pass over `DAT_004DD838`: the arrows' ramp.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        for widget in self.press.tick() {
+            let t = self.fire(ctx, widget);
+            if t != Transition::Stay {
+                return t;
+            }
+        }
+        Transition::Stay
+    }
+
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio layer.
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
+    /// A held arrow moved the quantity: `Screen_DrawWidgets`' `0x0C` arm runs
+    /// `Trade_DrawPanel` every frame. See [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let read = Ctx { game: ctx.game, assets: ctx.assets };
         match event {
@@ -881,22 +957,22 @@ impl Screen for TradeScreen {
                 self.jump_to_limit(&read, false);
                 Transition::Stay
             }
-            Event::Click { x, y } => {
-                if up_button().contains(x, y) {
-                    self.step(&read, 1);
-                } else if down_button().contains(x, y) {
-                    self.step(&read, -1);
-                } else if ceiling_button().contains(x, y) {
-                    self.jump_to_limit(&read, true);
-                } else if floor_button().contains(x, y) {
-                    self.jump_to_limit(&read, false);
-                } else if self.qty != 0 && confirm_button().contains(x, y) {
-                    return self.confirm(ctx);
-                } else if (self.qty != 0 && cancel_button().contains(x, y))
-                    || PANEL_OK.contains(x, y)
-                {
+            // The six widgets through the hit test, each on its own kind — a
+            // double click is a press to kind 4. The corner picture is not a
+            // widget and reads only the press here.
+            Event::Click { x, y } | Event::DoubleClick { x, y } => {
+                let table = trade_widgets(self.qty != 0);
+                if let Some(i) = self.press.event(&table, event) {
+                    return self.fire(ctx, i);
+                }
+                if matches!(event, Event::Click { .. }) && PANEL_OK.contains(x, y) {
                     return Transition::Pop;
                 }
+                Transition::Stay
+            }
+            Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
+                let fired = self.press.event(&trade_widgets(self.qty != 0), event);
+                debug_assert!(fired.is_none(), "no trade widget is a release widget");
                 Transition::Stay
             }
             _ => Transition::Stay,
@@ -1036,7 +1112,7 @@ impl Screen for TradeScreen {
         let shown = if self.qty == 0 { 4 } else { 6 };
         for (i, &frame) in WIDGET_FRAMES.iter().enumerate().take(shown) {
             let r = widget_rect(i);
-            pen.system_frame(canvas, frame, r.x, r.y);
+            pen.system_frame(canvas, frame + usize::from(self.press.is_pressed(i)), r.x, r.y);
         }
         // The two clamps are read for the *arrows'* behaviour, not for their
         // pictures: `Widget_Draw` draws every record it is given whether or not

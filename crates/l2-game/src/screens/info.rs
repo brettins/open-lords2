@@ -135,7 +135,7 @@
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
-use crate::press::{Kind, Press, Widget};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
 
@@ -411,8 +411,11 @@ pub struct InfoScreen {
 /// click as a press. The repeat is inert — `FUN_00438ACC` assigns the same
 /// garrison every time — and that is a property of the handler, not of the
 /// record.
+///
+/// **`FUN_00438A91` — the tile half's one widget**, and the `arm!` is its
+/// marker.
 fn garrison_widgets() -> [Widget; 1] {
-    [Widget::new(GARRISON_WIDGET, Kind::Repeat)]
+    [Widget::new(GARRISON_WIDGET, crate::arm!("0x00438A91/info-garrison-widget", Repeat))]
 }
 
 impl InfoScreen {
@@ -578,6 +581,20 @@ impl InfoScreen {
             Some(&BRUSH_FIELD_ID)
         }
     }
+
+    /// **`FUN_00438A91`**: a press or a double click on the garrison widget,
+    /// and `FUN_00438ACC` behind it, which turns the tile half into the unit
+    /// half in place. True when it did.
+    fn garrison_press(&mut self, ctx: &mut Ctx, event: Event) -> bool {
+        if self.press.event(&garrison_widgets(), event).is_none() || ctx.game.map_zoom_far {
+            return false;
+        }
+        let Some(unit) = self.garrison(&Ctx { game: ctx.game, assets: ctx.assets }) else {
+            return false;
+        };
+        self.target = Target::Unit(unit);
+        true
+    }
 }
 
 impl Screen for InfoScreen {
@@ -591,6 +608,12 @@ impl Screen for InfoScreen {
         self.press.take_clicks()
     }
 
+    /// The garrison widget's picture coming back up. See
+    /// [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     fn title(&self, _ctx: &Ctx) -> String {
         match self.target {
             Target::Unit(id) => format!("Unit {id} — screen 0x04"),
@@ -600,6 +623,18 @@ impl Screen for InfoScreen {
 
     fn is_overlay(&self) -> bool {
         true
+    }
+
+    /// **`Widget_Test`'s countdown over `DAT_004DD640`**, which runs the garrison
+    /// widget's pressed picture back up.
+    ///
+    /// This screen had no `update`, so the picture went down on the first press
+    /// and stayed down. The repeat that a held press produces here is inert —
+    /// `FUN_00438ACC` has already turned the panel into the unit half, which
+    /// has no garrison widget — so nothing is done with it.
+    fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+        let _ = self.press.tick();
+        Transition::Stay
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -641,6 +676,19 @@ impl Screen for InfoScreen {
                 // arm: 0x0042FF10/info-edge-scroll-closes pointer
                 Event::Pointer { x, y } if !ctx.game.map_zoom_far && at_screen_edge(x, y) => {
                     Transition::Pop
+                }
+                // **A double click reaches the garrison widget and nothing else
+                // on this screen.** `0x04`'s arm runs `Ui_OkButtonClicked` and
+                // the brush (`Hotspot_Test` kind 3), both of which read
+                // `g_mouseLeftReleased`; then `FUN_00438A91`, whose
+                // `Widget_Test` kind 4 reads `g_mouseLeftPressed ||
+                // g_mouseLeftDoubleClick`; then the unit buttons, `Hotspot_Test`
+                // kind 1, `g_mouseLeftPressed` alone; and the minimap epilogue
+                // is guarded by `g_mouseLeftPressed || g_mouseRightPressed`.
+                // So of the five, one answers. `[V]` This screen dropped it.
+                Event::DoubleClick { .. } => {
+                    self.garrison_press(ctx, event);
+                    Transition::Stay
                 }
                 _ => Transition::Stay,
             };
@@ -699,13 +747,10 @@ impl Screen for InfoScreen {
         // of `self.target` and not a transition.
         //
         // `FUN_00438ACC` opens `if (g_mapZoom != 2)` and does nothing at the far
-        // zoom, which is [`crate::game::Game::map_zoom_far`] here.
-        // arm: 0x00438A91/info-garrison-widget left-press-repeat
-        if self.press.event(&garrison_widgets(), event).is_some() && !ctx.game.map_zoom_far {
-            if let Some(unit) = self.garrison(&Ctx { game: ctx.game, assets: ctx.assets }) {
-                self.target = Target::Unit(unit);
-                return Transition::Stay;
-            }
+        // zoom, which is [`crate::game::Game::map_zoom_far`] here. The arm is
+        // declared on [`garrison_widgets`].
+        if self.garrison_press(ctx, event) {
+            return Transition::Stay;
         }
         // **`FUN_00437002` — the three army buttons, on left *press*** while the
         // brush above fires on release. Which three depends on
@@ -961,7 +1006,7 @@ impl Screen for InfoScreen {
                     // record's `+4` carries; our own button is the fallback for
                     // an install with no artwork. `Widget_Draw` adds one to it
                     // while the press timer at `+0x0D` runs.
-                    let frame = if self.press.pressed().is_some() { 26 } else { 25 };
+                    let frame = if self.press.is_pressed(0) { 26 } else { 25 };
                     if !pen.system_frame(canvas, frame, GARRISON_WIDGET.x, GARRISON_WIDGET.y) {
                         crate::widget::frame(canvas, GARRISON_WIDGET, ink.highlight);
                     }

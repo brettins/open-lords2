@@ -269,7 +269,7 @@ use l2_view::{text, Canvas};
 
 use crate::game::{MAX_RATION_SPLIT, MAX_TAX_RATE};
 use crate::input::{Event, Key, Rect};
-use crate::press::{Kind, Press, Widget};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen, TRAILING};
 use crate::widget;
@@ -845,11 +845,14 @@ impl CountyScreen {
     ///
     /// Index 0 is **up** and index 1 is **down**, which is the tables' own order
     /// and puts the up arrow to the *left* of the pair.
+    ///
+    /// The `arm!` is `Screen_HandleInput`'s widget tables' marker, and the kind
+    /// they are answered with, in one token.
     fn arrows(&self) -> Vec<Widget> {
         [self.panel.increase_button(), self.panel.decrease_button()]
             .into_iter()
             .flatten()
-            .map(|r| Widget::new(r, Kind::Repeat))
+            .map(|r| Widget::new(r, crate::arm!("0x004BA9C8/tax-and-ration-arrows", Repeat)))
             .collect()
     }
 
@@ -956,6 +959,12 @@ impl Screen for CountyScreen {
         self.press.take_clicks()
     }
 
+    /// A held arrow's repeat stepped the number: `Tax_IncreaseCounty` ends
+    /// `Panel_Tax()`. See [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     fn title(&self, _ctx: &Ctx) -> String {
         format!("County {}", self.county)
     }
@@ -1001,7 +1010,7 @@ impl Screen for CountyScreen {
             return Transition::Pass;
         }
         // **The arrows' bookkeeping, for the events that only end the hold.**
-        // The table holds nothing of [`Kind::Release`], so this can never fire a
+        // The table holds nothing of [`crate::press::Kind::Release`], so this can never fire a
         // handler; it is the release that stops the repeat, and the pointer
         // walking off the button, which in the original is simply the hit test
         // failing to match on the next frame. The press itself is answered in
@@ -1107,8 +1116,7 @@ impl Screen for CountyScreen {
                 // (`0x004DD790`) and `g_rationWidgets` (`0x004DD7C0`), two
                 // records each, up then down.
                 // **Kind 4**, so the press steps once and the hold keeps
-                // stepping: see [`CountyScreen::arrows`].
-                // arm: 0x004BA9C8/tax-and-ration-arrows left-press-repeat
+                // stepping: see [`CountyScreen::arrows`], where the arm is.
                 if let Some(i) = self.press.event(&self.arrows(), event) {
                     self.adjust(ctx, if i == 0 { 1 } else { -1 });
                 }
@@ -1154,7 +1162,7 @@ impl Screen for CountyScreen {
     /// `Widget_Test`'s per-frame pass over `g_taxWidgets` / `g_rationWidgets`:
     /// the press timer counts down and the repeat counter walks the ramp.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        if let Some(i) = self.press.tick() {
+        for i in self.press.tick() {
             self.adjust(ctx, if i == 0 { 1 } else { -1 });
         }
         Transition::Stay
@@ -2521,9 +2529,8 @@ impl CountyScreen {
         let live = ctx.game.is_players(self.county);
         // `Widget_Draw` (`0x0040CFD2`) picks record `+0x04` **plus one** while
         // the press timer at `+0x0D` runs, so each arrow has a pressed picture —
-        // frames `0x16` and `0x18`. `Press::pressed` is that timer, and the
+        // frames `0x16` and `0x18`. `Press::is_pressed` is that timer, and the
         // index is the table's: 0 up, 1 down.
-        let down = self.press.pressed();
         for (i, (rect, frame, label)) in [
             (self.panel.increase_button(), system::ARROW_UP, "+"),
             (self.panel.decrease_button(), system::ARROW_DOWN, "-"),
@@ -2532,7 +2539,7 @@ impl CountyScreen {
         .enumerate()
         {
             let Some(r) = rect else { continue };
-            let frame = if down == Some(i) { frame + 1 } else { frame };
+            let frame = if self.press.is_pressed(i) { frame + 1 } else { frame };
             if !pen.system_frame(canvas, frame, r.x, r.y) {
                 widget::button(canvas, ink, r, label, live);
             }

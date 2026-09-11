@@ -219,6 +219,7 @@ use l2_kingdom::unit::TroopType;
 use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::screens::armoury;
 use crate::shell::{self, font, Pen};
@@ -415,6 +416,27 @@ pub fn hire_no(offer: bool) -> Rect {
     Rect::new(400, 260 + widget_offset(offer), 32, 32)
 }
 
+/// **`DAT_004DD340` as a table: three kind-5 records**, and
+/// `DAT_00522F58` of them live — 3 on the affordable branch, 1 otherwise.
+///
+/// `node tools/oracle/kinds.js` files `RaiseArmy_Continue` and
+/// `RaiseArmy_HireToggle` under `widget 5`. `[V]` So Continue, the tick and the
+/// cross all go down on the press and act twenty frames later; this screen
+/// answered raw clicks, so all three acted at once with no picture and no
+/// click. Index 0 is Continue, 1 the tick, 2 the cross. Each `arm!` is the
+/// marker and the kind.
+fn widgets(offer: bool, affordable: bool) -> Vec<Widget> {
+    let mut out = vec![Widget::new(
+        continue_button(offer),
+        crate::arm!("0x00435CBF/raise-army-continue", Delayed),
+    )];
+    if offer && affordable {
+        out.push(Widget::new(hire_yes(offer), crate::arm!("0x00435C89/hire-yes", Delayed)));
+        out.push(Widget::new(hire_no(offer), crate::arm!("0x00435C89/hire-no", Delayed)));
+    }
+    out
+}
+
 /// `Eng_DrawString(18, 0 or 1, 0x1D0, base + 0x98)` — **not a button.** The
 /// word the flag prints, kept as a rectangle only so that the drawing code and
 /// the test that says nothing tests it can name the same thing.
@@ -442,11 +464,24 @@ pub struct RaiseArmyScreen {
     county: u8,
     /// One line of feedback. **Ours.**
     status: String,
+    /// `DAT_004DD340`'s press timers. See [`widgets`].
+    press: Press,
 }
 
 impl RaiseArmyScreen {
     pub fn new(county: u8) -> RaiseArmyScreen {
-        RaiseArmyScreen { county, status: "DRAG THE SLIDER, THEN CONTINUE".into() }
+        RaiseArmyScreen {
+            county,
+            status: "DRAG THE SLIDER, THEN CONTINUE".into(),
+            press: Press::new(),
+        }
+    }
+
+    /// The table as it stands: Continue, and the tick and cross only when the
+    /// band can be afforded.
+    fn table(&self, ctx: &Ctx) -> Vec<Widget> {
+        let offer = self.offer(ctx) != 0;
+        widgets(offer, offer && self.affordable(ctx))
     }
 
     pub fn county(&self) -> u8 {
@@ -547,7 +582,29 @@ impl Screen for RaiseArmyScreen {
             ctx.game.seed_levy_basket();
             ctx.game.levy.hire = false;
         }
+        // `Widget_Test`'s countdown over `DAT_004DD340`.
+        for widget in self.press.tick() {
+            match widget {
+                // `RaiseArmy_Continue` (`0x00435CBF`): `g_screenId = 0x0A`.
+                0 => return self.open_armoury(ctx),
+                // `RaiseArmy_HireToggle` (`0x00435C89`):
+                // `DAT_0055446C = (g_uiHotspotId == 1)`.
+                1 => ctx.game.levy.hire = true,
+                _ => ctx.game.levy.hire = false,
+            }
+        }
         Transition::Stay
+    }
+
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio layer.
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
+    /// The tick or the cross changed the flag's word with no event. See
+    /// [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -602,22 +659,24 @@ impl Screen for RaiseArmyScreen {
                 if OK.contains(x, y) {
                     return Transition::Pop;
                 }
-                if continue_button(offer).contains(x, y) {
-                    return self.open_armoury(ctx);
-                }
-                // The tick and the cross only exist on the affordable branch —
-                // `DAT_00522F58` is 1 otherwise and `Widget_Test` never reaches
-                // records 1 and 2.
-                if offer && self.affordable(&Ctx { game: ctx.game, assets: ctx.assets }) {
-                    if hire_yes(offer).contains(x, y) {
-                        ctx.game.levy.hire = true;
-                        return Transition::Stay;
-                    }
-                    if hire_no(offer).contains(x, y) {
-                        ctx.game.levy.hire = false;
-                        return Transition::Stay;
-                    }
-                }
+                // Continue, and the tick and the cross only on the affordable
+                // branch — `DAT_00522F58` is 1 otherwise and `Widget_Test` never
+                // reaches records 1 and 2. **Kind 5**: the press puts the
+                // picture down and [`Screen::update`] acts twenty ticks later.
+                let table = self.table(&Ctx { game: ctx.game, assets: ctx.assets });
+                let fired = self.press.event(&table, event);
+                debug_assert!(fired.is_none(), "every DAT_004DD340 record is kind 5");
+                Transition::Stay
+            }
+            // A double click is a press to a kind-5 record, and restarts its
+            // twenty frames.
+            Event::DoubleClick { .. }
+            | Event::Release { .. }
+            | Event::Pointer { .. }
+            | Event::PointerLeft => {
+                let table = self.table(&Ctx { game: ctx.game, assets: ctx.assets });
+                let fired = self.press.event(&table, event);
+                debug_assert!(fired.is_none(), "every DAT_004DD340 record is kind 5");
                 Transition::Stay
             }
             _ => Transition::Stay,
@@ -807,10 +866,11 @@ impl Screen for RaiseArmyScreen {
                 let r = hire_readout(on);
                 pen.heading(canvas, r.x, r.y + 2, &label, font::TEXT);
                 let (yes, no) = (hire_yes(on), hire_no(on));
-                if !pen.system_frame(canvas, HIRE_YES_FRAME, yes.x, yes.y) {
+                let up = |i: usize| usize::from(self.press.is_pressed(i));
+                if !pen.system_frame(canvas, HIRE_YES_FRAME + up(1), yes.x, yes.y) {
                     widget::frame(canvas, yes, if levy.hire { ink.highlight } else { ink.border });
                 }
-                if !pen.system_frame(canvas, HIRE_NO_FRAME, no.x, no.y) {
+                if !pen.system_frame(canvas, HIRE_NO_FRAME + up(2), no.x, no.y) {
                     widget::frame(canvas, no, if levy.hire { ink.border } else { ink.highlight });
                 }
             }
@@ -832,7 +892,8 @@ impl Screen for RaiseArmyScreen {
         pen.eng(canvas, GROUP, TOTAL_WEAPONS, x, fy, font::TEXT);
         pen.eng(canvas, GROUP, CONTINUE, CONTINUE_LABEL_X, fy, font::TEXT);
         let cont = continue_button(on);
-        if !pen.system_frame(canvas, CONTINUE_FRAME, cont.x, cont.y) {
+        let cont_frame = CONTINUE_FRAME + usize::from(self.press.is_pressed(0));
+        if !pen.system_frame(canvas, cont_frame, cont.x, cont.y) {
             widget::frame(canvas, cont, ink.highlight);
         }
 

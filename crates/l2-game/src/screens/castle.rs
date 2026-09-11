@@ -128,6 +128,8 @@
 use l2_kingdom::industry::{self, CastleRefusal};
 use l2_view::{text, Canvas};
 
+use crate::press::{Press, Widget};
+
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
@@ -287,6 +289,23 @@ pub const OK: Rect = Rect::new(432, 440, 32, 32);
 /// …and record 1, the cross, hotspot 0.
 pub const CANCEL: Rect = Rect::new(472, 444, 32, 32);
 
+/// **`g_castleBuildWidgets` as a table: two kind-5 records** — the module
+/// header has said *"two kind-5 sprites"* since the table was decoded, and
+/// `node tools/oracle/kinds.js` files `CastleBuild_Confirm` under `widget 5`.
+/// `[V]` The thumb goes down on the press and the order is placed twenty
+/// frames later. This screen answered a raw click, so it acted at once, drew no
+/// pressed picture and played no click — the yes/no box's defect, a second
+/// time, on a screen that was never given a `Press`.
+///
+/// Each `arm!` is the marker and the kind. Index 0 is hotspot 1, index 1
+/// hotspot 0.
+fn widgets() -> [Widget; 2] {
+    [
+        Widget::new(OK, crate::arm!("0x00436B59/castle-build-confirm", Delayed)),
+        Widget::new(CANCEL, crate::arm!("0x00436B59/castle-build-cancel", Delayed)),
+    ]
+}
+
 /// What the OK button did, for a caller that wants to know without reading the
 /// county back.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -317,6 +336,8 @@ pub struct CastleScreen {
     pub choice: CastleChoice,
     /// The refusal line, for the status bar the map draws when we come back.
     pub message: Option<&'static str>,
+    /// `g_castleBuildWidgets`' two press timers.
+    press: Press,
 }
 
 impl CastleScreen {
@@ -324,7 +345,13 @@ impl CastleScreen {
     /// already standing, or 0 when there is none — so the screen opens showing
     /// what you have and the OK is refused until you move.
     pub fn new(county: u8) -> CastleScreen {
-        CastleScreen { county, selected: None, choice: CastleChoice::None, message: None }
+        CastleScreen {
+            county,
+            selected: None,
+            choice: CastleChoice::None,
+            message: None,
+            press: Press::new(),
+        }
     }
 
     pub fn county(&self) -> u8 {
@@ -414,6 +441,31 @@ impl Screen for CastleScreen {
         Some("cas_back.256")
     }
 
+    /// `Widget_Test`'s countdown over `g_castleBuildWidgets`: the thumb's
+    /// handler runs on its twentieth frame.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        if let Some(widget) = self.press.tick().next() {
+            // `CastleBuild_Confirm` closes the screen on either hotspot, so a
+            // table nobody walks fires nothing more.
+            if widget == 0 {
+                return self.confirm(ctx);
+            }
+            self.choice = CastleChoice::Cancelled;
+            return Transition::Pop;
+        }
+        Transition::Stay
+    }
+
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio layer.
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
+    /// The thumb coming back up. See [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
             Event::KeyDown(Key::Escape) => {
@@ -421,13 +473,26 @@ impl Screen for CastleScreen {
                 Transition::Pop
             }
             Event::KeyDown(Key::Enter) => self.confirm(ctx),
+            // **Kind 5, and a double click is a press to it**: the thumb goes
+            // down, or back down, and [`Screen::update`] acts twenty ticks
+            // later. Nothing else on `0x1B` reads a double click — the strips
+            // are `Hotspot_Test` kind 1 and the corner is `Ui_OkButtonClicked`.
+            Event::DoubleClick { .. } => {
+                let fired = self.press.event(&widgets(), event);
+                debug_assert!(fired.is_none(), "both castle-build widgets are kind 5");
+                Transition::Stay
+            }
+            Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
+                let fired = self.press.event(&widgets(), event);
+                debug_assert!(fired.is_none(), "both castle-build widgets are kind 5");
+                Transition::Stay
+            }
             Event::Click { x, y } => {
-                if OK.contains(x, y) {
-                    return self.confirm(ctx);
-                }
-                if CANCEL.contains(x, y) {
-                    self.choice = CastleChoice::Cancelled;
-                    return Transition::Pop;
+                let table = widgets();
+                let fired = self.press.event(&table, event);
+                debug_assert!(fired.is_none(), "both castle-build widgets are kind 5");
+                if table.iter().any(|w| w.rect.contains(x, y)) {
+                    return Transition::Stay;
                 }
                 // `Screen_FrameInput`'s `0x1B` arm: `Ui_OkButtonClicked()` →
                 // `g_screenId = 0`, so the **corner** picture closes to the map
@@ -572,8 +637,14 @@ impl Screen for CastleScreen {
 
         // `Widget_Draw(0, 0, &g_castleBuildWidgets, 2)` — the thumb up and the
         // thumb down, drawn from `Screen_DrawWidgets` rather than the painter.
-        pen.system_frame(canvas, THUMB_UP, OK.x, OK.y);
-        pen.system_frame(canvas, THUMB_DOWN, CANCEL.x, CANCEL.y);
+        // `Widget_Draw` shows `base + 1` for the twenty frames a thumb waits.
+        pen.system_frame(canvas, THUMB_UP + usize::from(self.press.is_pressed(0)), OK.x, OK.y);
+        pen.system_frame(
+            canvas,
+            THUMB_DOWN + usize::from(self.press.is_pressed(1)),
+            CANCEL.x,
+            CANCEL.y,
+        );
 
         // ---- ours, and only when there is no artwork to point at -----------
         //

@@ -90,7 +90,7 @@ use crate::battlefield::{
     VIEW_ROWS,
 };
 use crate::input::{Event, Key, Rect};
-use crate::press::{Kind, Press, Widget};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
 use crate::turn::{self, TurnStep};
@@ -135,8 +135,12 @@ pub const CONFIRM_NO_FRAME: usize = 31;
 /// **0**, the cross. `Ui_ConfirmClicked` (`0x00434E1F`) is
 /// `g_confirmAnswer = g_uiHotspotId; (*g_confirmCallback)();` — the answer *is*
 /// the hotspot id.
-pub const CONFIRM_WIDGETS: [Widget; 2] =
-    [Widget::new(CONFIRM_YES, Kind::Delayed), Widget::new(CONFIRM_NO, Kind::Delayed)];
+///
+/// The two `arm!`s are the arms' markers, and each is the kind it declares.
+pub const CONFIRM_WIDGETS: [Widget; 2] = [
+    Widget::new(CONFIRM_YES, crate::arm!("0x00434E1F/confirm-yes", Delayed)),
+    Widget::new(CONFIRM_NO, crate::arm!("0x00434E1F/confirm-no", Delayed)),
+];
 
 /// `Screen_BattleOutcome` (`0x00423241`)'s short window —
 /// `FUN_004093E0(0x10, 0x90, 0x1C, 0x0A)` — and the three things inside it.
@@ -279,9 +283,10 @@ impl Screen for BattlefieldScreen {
             // calling the handler; the handler runs from the countdown at the
             // top of the next call, on the frame the timer reaches zero. So
             // this returns nothing and [`Screen::update`] gives the answer.
+            // A double click is a press to kind 5 as well, and restarts the
+            // gauntlet's twenty frames.
             //
-            // arm: 0x00434E1F/confirm-yes left-press-delayed
-            // arm: 0x00434E1F/confirm-no left-press-delayed
+            // The two arms are declared on [`CONFIRM_WIDGETS`], beside their kind.
             let fired = self.press.event(&CONFIRM_WIDGETS, event);
             if fired.is_some() || self.press.busy() {
                 self.redraw = true;
@@ -414,11 +419,12 @@ impl Screen for BattlefieldScreen {
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         // `Widget_Test`'s countdown loop, which runs whether or not anything is
-        // under the pointer. Index 0 is the tick, index 1 the cross.
-        if let Some(widget) = self.press.tick() {
+        // under the pointer. Index 0 is the tick, index 1 the cross. The first
+        // answer closes the box, and a table nobody walks fires nothing more.
+        if let Some(widget) = self.press.tick().next() {
             return self.answer_confirm(ctx, widget == 0);
         }
-        if self.confirm.is_some() && self.press.pressed().is_some() {
+        if self.confirm.is_some() && self.press.any_pressed() {
             // The gauntlet is down; the picture has to move while it is.
             self.redraw = true;
         }
@@ -434,7 +440,8 @@ impl Screen for BattlefieldScreen {
     }
 
     fn take_redraw(&mut self) -> bool {
-        std::mem::take(&mut self.redraw)
+        // `|`, not `||`: both flags are drained on every call.
+        std::mem::take(&mut self.redraw) | self.press.take_redraw()
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
@@ -559,13 +566,12 @@ impl Screen for BattlefieldScreen {
             // `Gfx_MarkWidgetUrgent` rather than `Gfx_MarkSpriteDirty` so the
             // depressed picture appears on the same frame as the press. This is
             // the only place in this engine that draws one.
-            let down = self.press.pressed();
             for (i, (r, frame, label)) in
                 [(CONFIRM_YES, CONFIRM_YES_FRAME, "YES"), (CONFIRM_NO, CONFIRM_NO_FRAME, "NO")]
                     .into_iter()
                     .enumerate()
             {
-                let frame = if down == Some(i) { frame + 1 } else { frame };
+                let frame = if self.press.is_pressed(i) { frame + 1 } else { frame };
                 let drawn = ctx
                     .assets
                     .chrome

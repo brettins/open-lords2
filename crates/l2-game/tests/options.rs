@@ -181,7 +181,7 @@ fn every_row_goes_down_on_the_press_and_acts_twenty_ticks_later() {
                 // Letting go changes nothing: kind 5 does not wait for it.
                 assert_eq!(screen.handle(Event::Release { x, y }, &mut ctx), Transition::Stay);
             }
-            assert_eq!(screen.pressed(), Some(i), "{page:?} {:?}: the picture goes down at once", row.setting);
+            assert_eq!(screen.pressed_rows(), vec![i], "{page:?} {:?}: the picture goes down at once", row.setting);
             assert_eq!(
                 value(row.setting, &mut game, &assets),
                 before,
@@ -197,13 +197,13 @@ fn every_row_goes_down_on_the_press_and_acts_twenty_ticks_later() {
                     "{page:?} {:?} acted at tick {t}",
                     row.setting,
                 );
-                assert_eq!(screen.pressed(), Some(i), "{page:?} {:?} came up at tick {t}", row.setting);
+                assert_eq!(screen.pressed_rows(), vec![i], "{page:?} {:?} came up at tick {t}", row.setting);
             }
             let last = {
                 let mut ctx = Ctx { game: &mut game, assets: &assets };
                 screen.update(&mut ctx)
             };
-            assert_eq!(screen.pressed(), None, "{page:?} {:?}: up again on the twentieth", row.setting);
+            assert!(screen.pressed_rows().is_empty(), "{page:?} {:?}: up again on the twentieth", row.setting);
             if row.supported() {
                 assert_ne!(
                     value(row.setting, &mut game, &assets),
@@ -217,6 +217,46 @@ fn every_row_goes_down_on_the_press_and_acts_twenty_ticks_later() {
         }
     }
     assert_eq!(seen, 10, "ten of the twelve rows are honoured; the other two are asserted elsewhere");
+}
+
+/// **Two rows pressed five ticks apart both toggle, each on its own twentieth
+/// tick.**
+///
+/// `+0x0D` is a byte of each 24-byte record, and `Widget_Test`'s countdown loop
+/// decrements every record's timer on every call and calls each kind-5 handler
+/// whose timer reaches zero. `Press` held one timer and one pending widget, so
+/// the second press overwrote the first and *Music* never toggled.
+///
+/// **Ablation, run:** zero every other record's timer in `Press::press_delayed`
+/// — the one-pending-press model — and the tick-20 assertion goes red: *Music*
+/// has not moved.
+#[test]
+fn two_rows_pressed_five_ticks_apart_both_toggle_each_on_its_own_twentieth_tick() {
+    let (mut game, assets) = world();
+    let page = Page::Sound;
+    let (first, second) = (page.rows()[0], page.rows()[1]);
+    let (a0, b0) = (value(first.setting, &mut game, &assets), value(second.setting, &mut game, &assets));
+    let mut screen = OptionsScreen::new(page);
+    let mut press = |screen: &mut OptionsScreen, game: &mut Game, r: options::Row| {
+        let (x, y) = mid(r.hit());
+        let mut ctx = Ctx { game, assets: &assets };
+        screen.handle(Event::Click { x, y }, &mut ctx);
+        screen.handle(Event::Release { x, y }, &mut ctx);
+    };
+    press(&mut screen, &mut game, first);
+    for t in 1..=25u32 {
+        if t == 6 {
+            press(&mut screen, &mut game, second);
+            assert_eq!(screen.pressed_rows(), vec![0, 1], "both rows are drawn down");
+        }
+        {
+            let mut ctx = Ctx { game: &mut game, assets: &assets };
+            screen.update(&mut ctx);
+        }
+        let (a, b) = (value(first.setting, &mut game, &assets), value(second.setting, &mut game, &assets));
+        assert_eq!(a != a0, t >= 20, "{:?} at tick {t}", first.setting);
+        assert_eq!(b != b0, t >= 25, "{:?} at tick {t}", second.setting);
+    }
 }
 
 /// **A row clicks on the press and is silent when it acts** — through the
@@ -298,7 +338,7 @@ fn a_near_miss_neither_toggles_nor_closes() {
                 );
                 let now = value(row.setting, &mut game, &assets);
                 assert_eq!(before, now, "{page:?}: a click at ({x}, {y}) toggled {:?}", row.setting);
-                assert_eq!(screen.pressed(), None, "{page:?}: a miss at ({x}, {y}) went down");
+                assert!(screen.pressed_rows().is_empty(), "{page:?}: a miss at ({x}, {y}) went down");
             }
         }
     }

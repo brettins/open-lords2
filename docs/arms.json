@@ -1239,6 +1239,41 @@
       "evidence": "V"
     },
     {
+      "id": "0x004342F3/saveload-confirm",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x35, 0x36",
+      "gesture": "left-press-repeat",
+      "addr": "0x004342F3",
+      "what": "The thumb up of g_saveLoadWidgets (0x004DDD78, record 0, frame 29). Its handler is one statement, DAT_005CD41C = 100 -- the latch Enter's Edit_Confirm also sets -- and SaveLoad_Tick (0x004AD9F0) turns it into DAT_0057D3C4 = 0x96 frames of 'Saving game. Please wait.' before Save_Write or the loader runs. A press during the wait re-arms the latch and starts the count again.",
+      "note": "Kind 4 (tools/oracle/kinds.js, widget 4), so the press acts, clicks and shows base + 1. Ours answered a raw click and saved on the spot: no click, no picture, no wait. A player reported it twice, as 'no sound on clicking the yes/no on save, and it is still on mousedown instead of mouseup' -- the press IS the original's edge; the 150 frames are what he remembered.",
+      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434308/saveload-cancel",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x35, 0x36",
+      "gesture": "left-press-repeat",
+      "addr": "0x00434308",
+      "what": "The thumb down of g_saveLoadWidgets (0x004DDD90, record 1, frame 31): SaveLoad_Cancel restores g_screenIdSaved, or g_setupPage on the front end. During SaveLoad_Tick's wait it is how a save is abandoned -- the count ends on a screen that is no longer 0x35 or 0x36 and nothing is written.",
+      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434346/saveload-scroll",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x35, 0x36",
+      "gesture": "left-press-repeat",
+      "addr": "0x00434346",
+      "what": "The two list arrows of g_saveLoadWidgets (0x004DDDA8 and 0x004DDDC0, records 2 and 3): SaveLoad_Scroll with hotspot id -3 and +3 and list 1, then g_redrawRequest = 2. Kind 4, so holding one scrolls on the repeat ramp.",
+      "note": "One record for two widgets because they are one handler told apart by the hotspot id. The clamp is ours and is recorded in the screen's module docs.",
+      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x00434556/opt-advanced-farming",
       "status": "reproduced",
       "group": "options-panels",
@@ -1428,6 +1463,74 @@
       "evidence": "V"
     },
     {
+      "id": "0x00435286/trade-agree",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0C",
+      "gesture": "left-press-repeat",
+      "addr": "0x00435286",
+      "what": "DAT_004DD838 (0x004DD898) record 4, the thumb up, live when a quantity is pending (DAT_00553F58 = 6): Merchant_Trade, then g_screenId = 8.",
+      "note": "Kind 4, not 5: the same mailed hand as the yes/no box, acting on the press. Ours acted on the press too and did not click or draw the pressed picture.",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004352F2/trade-refuse",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0C",
+      "gesture": "left-press-repeat",
+      "addr": "0x004352F2",
+      "what": "DAT_004DD838 (0x004DD8B0) record 5, the thumb down: g_screenId = 8.",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00435339/trade-more",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0C",
+      "gesture": "left-press-repeat",
+      "addr": "0x00435339",
+      "what": "DAT_004DD838 record 0, frame 21: DAT_00554170 += 1 -- or += 10 once DAT_00591554, the repeat counter Widget_Test publishes before the call, has reached 0x2C -- clamped to what the treasury can buy.",
+      "note": "So a held arrow walks one at a time for 1.3 s and then ten at a time. Ours stepped one per click and did not repeat at all.",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043543D/trade-less",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0C",
+      "gesture": "left-press-repeat",
+      "addr": "0x0043543D",
+      "what": "DAT_004DD838 (0x004DD850) record 1, frame 23: the same walk downward, -1 or -10 by the same counter, clamped to the floor.",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00435541/trade-none",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0C",
+      "gesture": "left-press-repeat",
+      "addr": "0x00435541",
+      "what": "DAT_004DD838 (0x004DD880) record 3, frame 70: the quantity straight to the floor.",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004355DB/trade-all",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0C",
+      "gesture": "left-press-repeat",
+      "addr": "0x004355DB",
+      "what": "DAT_004DD838 (0x004DD868) record 2, frame 72: the quantity straight to the ceiling.",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x004358B0/armoury-rack-click",
       "status": "reproduced",
       "group": "armoury",
@@ -1437,6 +1540,40 @@
       "what": "CLICKING A WEAPON OPENS ITS RACK -- AND SENDS A SOLDIER TO FETCH THE LAST ONE. Armoury_ClickRack refuses when g_levyBasket[id].available <= 0, so an empty rack is inert; otherwise its FIRST statement is FUN_004AABD8(county, g_armourySelectedType), which is the rack being LEFT, before the assignment that overwrites it. FUN_004AABD8 then walks a soldier only when latch[t] < chosen[t], the latch being what this same function wrote at +0x0C when rack t was opened. So the animation fires on leaving a rack the player assigned somebody to, and the man is of that type.",
       "note": "The row is live on BOTH screens -- Screen_FrameInput tests nine hotspot records on 0x0A and the first seven on 0x0D -- so this is one record and one function, per the file's counted-per-implementation rule. It was reached by two call sites of ours before this branch and neither did the latch or the walk.",
       "ours": "crates/l2-game/src/screens/armoury.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00435C89/hire-no",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x17",
+      "gesture": "left-press-delayed",
+      "addr": "0x00435C89",
+      "what": "DAT_004DD340 (0x004DD370) record 2, the thumb down, hotspot 0: the same handler sets DAT_0055446C = 0.",
+      "ours": "crates/l2-game/src/screens/army.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00435C89/hire-yes",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x17",
+      "gesture": "left-press-delayed",
+      "addr": "0x00435C89",
+      "what": "DAT_004DD340 (0x004DD358) record 1, the thumb up, hotspot 1: RaiseArmy_HireToggle sets DAT_0055446C = 1. Live only on the affordable branch, where DAT_00522F58 = 3.",
+      "ours": "crates/l2-game/src/screens/army.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00435CBF/raise-army-continue",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x17",
+      "gesture": "left-press-delayed",
+      "addr": "0x00435CBF",
+      "what": "DAT_004DD340 record 0, frame 33 at (480, 336) plus the table offset: RaiseArmy_Continue sets g_screenId = 0x0A and runs Levy_Seed, twenty frames after the press.",
+      "note": "Ours answered a raw click and opened the armoury at once.",
+      "ours": "crates/l2-game/src/screens/army.rs",
       "evidence": "V"
     },
     {
@@ -1550,6 +1687,29 @@
       "addr": "0x004369BD",
       "what": "Test (48, 49 + 100*slot, 82, 78) for each rival still in play and set g_diploTarget. THE ONLY place a player sets the target, and it works even in menu state 3, where there are no widgets at all - so a lord with a pending letter is never a dead end.",
       "ours": "crates/l2-game/src/screens/diplomacy.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00436B59/castle-build-cancel",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x1B",
+      "gesture": "left-press-delayed",
+      "addr": "0x00436B59",
+      "what": "g_castleBuildWidgets (0x004DDB98) record 1, the thumb down at (472, 444), hotspot 0: the same handler closes to the map and orders nothing, twenty frames after the press.",
+      "ours": "crates/l2-game/src/screens/castle.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00436B59/castle-build-confirm",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x1B",
+      "gesture": "left-press-delayed",
+      "addr": "0x00436B59",
+      "what": "g_castleBuildWidgets (0x004DDB80) record 0, the thumb up at (432, 440), hotspot 1: CastleBuild_Confirm places the order or sends one of its two refusals, and closes the screen either way -- twenty frames after the press.",
+      "note": "Kind 5 by the table's own byte, which the screen's module header had said since the table was decoded, and ours answered a raw click at once with no picture and no click.",
+      "ours": "crates/l2-game/src/screens/castle.rs",
       "evidence": "V"
     },
     {

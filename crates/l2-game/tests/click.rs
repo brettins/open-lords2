@@ -182,7 +182,7 @@ fn a_gauntlet_clicks_on_the_press_and_not_when_it_acts() {
 
     let mut fired = None;
     for _ in 0..press::DELAYED_FRAMES {
-        fired = fired.or(p.tick());
+        fired = fired.or(p.tick().next());
     }
     assert_eq!(fired, Some(0), "the handler ran twenty ticks on");
     assert_eq!(p.take_clicks(), 0, "and nothing sounded when it did");
@@ -217,7 +217,7 @@ fn the_hotspot_kinds_are_silent() {
 
     let mut p = Press::new();
     assert_eq!(p.event(&[Widget::new(r, Kind::Held)], Event::Click { x: 4, y: 4 }), Some(0));
-    let pulses = (0..200).filter(|_| p.tick().is_some()).count();
+    let pulses = (0..200).map(|_| p.tick().count()).sum::<usize>();
     assert!(pulses >= 3, "the held pulse must have run: {pulses}");
     assert_eq!(p.take_clicks(), 0, "kind 2 fired {pulses} more times and was silent throughout");
 }

@@ -159,19 +159,22 @@ fn a_loaded_game_offers_and_hires_the_band_its_save_has_standing_in_the_county()
     let (px, py) = (yes.x + yes.w / 2, yes.y + yes.h / 2);
 
     // 2,354 crowns against 3,500 is 69/3's branch, where the tick is no button.
-    assert!(g.gold() < 3_500, "the save's treasury cannot meet the Irish price");
-    {
-        let mut ctx = Ctx { game: &mut g, assets: &a };
+    // **`RaiseArmy_HireToggle` is kind 5**, so every press below is followed by
+    // the twenty frames its record waits before the handler runs.
+    let press_the_tick = |g: &mut Game, screen: &mut army::RaiseArmyScreen| {
+        let mut ctx = Ctx { game: g, assets: &a };
         screen.handle(Event::Click { x: px, y: py }, &mut ctx);
-    }
+        for _ in 0..l2_game::press::DELAYED_FRAMES {
+            screen.update(&mut ctx);
+        }
+    };
+    assert!(g.gold() < 3_500, "the save's treasury cannot meet the Irish price");
+    press_the_tick(&mut g, &mut screen);
     assert!(!g.levy.hire, "a band the treasury cannot meet cannot be ticked");
 
     let player = g.player as usize;
     g.kingdom.realms[player].gold = 10_000;
-    {
-        let mut ctx = Ctx { game: &mut g, assets: &a };
-        screen.handle(Event::Click { x: px, y: py }, &mut ctx);
-    }
+    press_the_tick(&mut g, &mut screen);
     assert!(g.levy.hire, "and once it can, the tick hires");
 
     let realm = g.kingdom.realms[player].clone();
@@ -367,7 +370,7 @@ fn the_walk_from_the_map_through_the_armoury_puts_an_equipped_army_on_the_map() 
 
     // Continue. The armoury *replaces* the levy screen rather than stacking on
     // it, because the original has one `g_screenId` byte and no stack.
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
     assert_eq!(m.depth(), 2, "the levy window was replaced, not covered");
     assert_eq!(g.levy.basket.unequipped(), 300, "the armoury seeded three hundred peasants");
@@ -430,7 +433,7 @@ fn walking_back_to_the_levy_screen_and_forward_again_strips_the_men() {
     press(&mut m, &mut g, &a, 'r');
     tick(&mut m, &mut g, &a);
     set_levy(&mut m, &mut g, &a, 30);
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
 
     let swords = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 3).expect("a sword rack");
     click(&mut m, &mut g, &a, ((swords.0 + swords.2) / 2, (swords.1 + swords.3) / 2));
@@ -444,7 +447,7 @@ fn walking_back_to_the_levy_screen_and_forward_again_strips_the_men() {
     assert_eq!(g.levy.percent, 30, "the slider stayed where it was");
     assert_eq!(g.levy.basket.troops()[TroopType::Swordsman.index()], 200, "and so did the swords");
 
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
     assert_eq!(g.levy.basket.troops()[TroopType::Swordsman.index()], 0, "re-seeded on the way in");
     assert_eq!(g.levy.basket.unequipped(), 300, "every man a peasant again");
@@ -462,7 +465,7 @@ fn a_rack_the_realm_has_no_weapons_for_does_not_open() {
     press(&mut m, &mut g, &a, 'r');
     tick(&mut m, &mut g, &a);
     set_levy(&mut m, &mut g, &a, 30);
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
 
     for h in &armoury::RACK_HOTSPOTS {
         click(&mut m, &mut g, &a, ((h.0 + h.2) / 2, (h.1 + h.3) / 2));
@@ -486,7 +489,7 @@ fn a_levy_of_nothing_and_a_levy_under_fifty_are_both_refused() {
         press(&mut m, &mut g, &a, 'r');
         tick(&mut m, &mut g, &a);
         set_levy(&mut m, &mut g, &a, percent);
-        click(&mut m, &mut g, &a, on(army::continue_button(false)));
+        press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
         click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
         assert_eq!(
             m.top_id(),
@@ -507,7 +510,7 @@ fn cancel_on_the_armoury_leaves_for_the_map_and_raises_nothing() {
     press(&mut m, &mut g, &a, 'r');
     tick(&mut m, &mut g, &a);
     set_levy(&mut m, &mut g, &a, 40);
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
     click(&mut m, &mut g, &a, on(armoury::CANCEL_BOX));
     assert_eq!(m.top_id(), Some(ScreenId::Campaign));
     assert_eq!(g.kingdom.campaign.units.len(), 0, "nothing was raised");
@@ -523,7 +526,7 @@ fn the_plus_and_minus_on_a_rack_move_exactly_one_man() {
     press(&mut m, &mut g, &a, 'r');
     tick(&mut m, &mut g, &a);
     set_levy(&mut m, &mut g, &a, 30);
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
     let bows = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 5).expect("a bow rack");
     click(&mut m, &mut g, &a, ((bows.0 + bows.2) / 2, (bows.1 + bows.3) / 2));
 
@@ -553,7 +556,7 @@ fn create_reaches_through_an_open_rack_and_the_other_two_buttons_do_not() {
     press(&mut m, &mut g, &a, 'r');
     tick(&mut m, &mut g, &a);
     set_levy(&mut m, &mut g, &a, 30);
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
     let swords = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 3).expect("a sword rack");
     let sword_click = ((swords.0 + swords.2) / 2, (swords.1 + swords.3) / 2);
 
@@ -584,7 +587,7 @@ fn no_pixel_of_the_armoury_opens_the_wrong_thing() {
     press(&mut m, &mut g, &a, 'r');
     tick(&mut m, &mut g, &a);
     set_levy(&mut m, &mut g, &a, 30);
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
 
     for &(x0, y0, x1, y1, troop) in &armoury::RACK_HOTSPOTS {
         for (x, y) in [(x0, y0), (x1 - 1, y0), (x0, y1 - 1), (x1 - 1, y1 - 1)] {
@@ -881,6 +884,47 @@ fn a_selected_army_opens_the_division_screen_and_an_unselected_one_does_not() {
     assert_eq!(m.top_id(), Some(ScreenId::Divide(id)));
 }
 
+/// **A double click on a stepper is a press, and it does not hold the button
+/// down.**
+///
+/// `g_splitWidgets`' steppers are `Widget_Test` kind 4, whose guard reads
+/// `g_mouseLeftPressed || g_mouseLeftDoubleClick`, so a fast second press steps
+/// again. And `App_WndProc` (`0x004B29BE`) handles `WM_LBUTTONDBLCLK` by setting
+/// the double-click bit and nothing else, so `g_mouseLeftDown` stays clear and
+/// the hold branch returns: however long the button stays down after a double
+/// click, it does not repeat. This screen dropped the double click entirely.
+///
+/// Five presses and a double click are sixty men, and the two hundred ticks
+/// after the double click, with no release, add none.
+///
+/// **Ablations, run:** delete the `Event::DoubleClick` pattern from the divide
+/// screen's `Click` arm and the daughter has fifty; delete `self.release()` from
+/// `Press::event`'s double-click `Repeat` arm and she has far more than sixty.
+#[test]
+fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, _) = adjacent_pair(|x| x < 30);
+    army_at(&mut g, 1, 1, 300, here);
+    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    press(&mut m, &mut g, &a, 'a');
+    tick(&mut m, &mut g, &a);
+
+    let at = on(divide::parent_button(0));
+    for _ in 0..5 {
+        click(&mut m, &mut g, &a, at);
+        send(&mut m, &mut g, &a, Event::Release { x: at.0, y: at.1 });
+    }
+    send(&mut m, &mut g, &a, Event::DoubleClick { x: at.0, y: at.1 });
+    for _ in 0..200 {
+        tick(&mut m, &mut g, &a);
+    }
+    press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
+
+    assert_eq!(g.kingdom.campaign.units.len(), 2, "the split went through");
+    let daughter = g.kingdom.campaign.units.iter().map(|(_, u)| u.men).min().unwrap();
+    assert_eq!(daughter, 60, "five presses and a double click, ten men each, and no repeat");
+}
+
 /// The buttons move men between the two columns and Split makes a second army,
 /// with both halves paying the five moves `Army_Split` charges.
 #[test]
@@ -1153,7 +1197,7 @@ fn the_levy_window_lifts_off_the_armoury_and_leaves_the_room_behind() {
     tick(&mut m, &mut g, &a);
     let with_window = frame(&mut m, &mut g, &a);
 
-    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
     let armoury_only = frame(&mut m, &mut g, &a);
 
@@ -1379,6 +1423,29 @@ fn the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled() {
         assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the turn finished");
         assert!(!l2_game::turn::turn_in_flight(&g), "nothing left suspended");
     }
+}
+
+/// **A double click on a thumb answers the prompt.** `DAT_004DDBB0`'s two
+/// records are kind 4, whose guard is `g_mouseLeftPressed ||
+/// g_mouseLeftDoubleClick`, and Windows sends the double click *instead of* a
+/// press — so a player who double-clicks *Decline* declines.
+///
+/// `docs/input.md` counted this screen among six that dropped a double click.
+/// It did not: `BattlePromptScreen::handle` hands every event to
+/// `Press::event`. This is the test that says so.
+///
+/// **Ablation, run:** make `Press::event`'s `DoubleClick` arm answer
+/// `Kind::Repeat` with `None` and this goes red.
+#[test]
+fn a_double_click_on_a_thumb_answers_the_prompt() {
+    let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
+    press(&mut m, &mut g, &a, 'e');
+    assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt));
+    let (x, y) = on(battle::widget_rect(battle::DECLINE));
+    send(&mut m, &mut g, &a, Event::DoubleClick { x, y });
+    let r = l2_game::turn::pending_report(&g).expect("the double click declined");
+    assert_eq!(r.resolution, l2_game::engagement::Resolution::Autocalc);
+    assert_eq!(m.clicks(), 1, "and it is Widget_Test's press, so it clicks");
 }
 
 /// **Screen `0x12` has exactly two exits and neither of them is a button on the

@@ -141,6 +141,7 @@
 use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Press, Widget};
 use crate::saves::{self, Entry};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
@@ -255,6 +256,47 @@ fn widget_rect(w: (i32, i32, usize, i32)) -> Rect {
     Rect::new(w.0, w.1, w.3, w.3)
 }
 
+/// **`g_saveLoadWidgets` as a table, and all four records are kind 4** —
+/// `node tools/oracle/kinds.js` files `FUN_004342F3`, `SaveLoad_Cancel` and
+/// `SaveLoad_Scroll` under `widget 4`, read out of `+0x0F` of `0x004DDD78` …
+/// `0x004DDDC0`. `[V]`
+///
+/// So the thumb up **acts on the press**, clicks, and shows `base + 1` — and a
+/// player who says it *"is still on mousedown instead of mouseup"* is feeling
+/// something real that is not the gesture: the handler only arms a latch, and
+/// the save happens 150 frames later ([`WORK_FRAMES`]). This screen used to
+/// answer a raw click, so it did neither the click nor the wait.
+///
+/// Each `arm!` is the marker and the kind. The two scroll arrows are one
+/// handler, `SaveLoad_Scroll`, told apart by the hotspot id, so they share one.
+fn widgets() -> [Widget; 4] {
+    const SCROLL: crate::press::Kind = crate::arm!("0x00434346/saveload-scroll", Repeat);
+    [
+        Widget::new(widget_rect(CONFIRM), crate::arm!("0x004342F3/saveload-confirm", Repeat)),
+        Widget::new(widget_rect(CANCEL), crate::arm!("0x00434308/saveload-cancel", Repeat)),
+        Widget::new(widget_rect(SCROLL_UP), SCROLL),
+        Widget::new(widget_rect(SCROLL_DOWN), SCROLL),
+    ]
+}
+
+/// **`SaveLoad_Tick`'s wait, in frames: `DAT_0057D3C4 = 0x96`.**
+///
+/// The thumb up's handler `FUN_004342F3` is one statement,
+/// `DAT_005CD41C = 100`, and so is `Edit_Confirm`, Enter's. `SaveLoad_Tick`
+/// (`0x004AD9F0`) sees the latch on its next call, clears it, sets
+/// `DAT_0057D3C4 = 0x96`, copies the name, and only when that count has run
+/// down to zero restores `g_screenIdSaved` and calls `Save_Write` or the
+/// loader. While it runs, `SaveLoad_DrawStatus` prints group 40's *"Saving
+/// game. Please wait."* `[V]`
+///
+/// **A press during the wait starts it again** — the latch is re-armed and the
+/// tick resets the count to `0x96` — and the cross during it closes the box, so
+/// the count ends on a screen that is no longer `0x35` or `0x36` and nothing is
+/// written. Both fall out of the same two lines here.
+///
+/// Frames, not milliseconds, and ours are 16 ms ticks: `crate::press` says why.
+pub const WORK_FRAMES: u8 = 0x96;
+
 /// What the status line is saying.
 ///
 /// **There is no `Done`,** and that is the original's behaviour rather than an
@@ -268,6 +310,10 @@ pub enum Status {
     /// Nothing has happened yet, and the line is blank — which is also what the
     /// original draws while `DAT_0057D3C4` is clear.
     Idle,
+    /// The thumb up (or Enter) armed the latch and [`WORK_FRAMES`] are running.
+    /// Group 40 index 2 or 3, *"Loading game. Please wait."* or *"Saving game.
+    /// Please wait."*
+    Working,
     /// It did not work. Group 40 index 4 in the game's font, and the detail —
     /// which is ours, since the original has no vocabulary for "this save was
     /// written by a newer build" — in ours.
@@ -290,6 +336,10 @@ pub struct SaveLoadScreen {
     /// the character filter in one change. `docs/arms.json`, group `text`.
     name: crate::text::TextField,
     status: Status,
+    /// `g_saveLoadWidgets`' press timers and repeat counter.
+    press: Press,
+    /// `DAT_0057D3C4` — frames left before the load or the save; 0 is none.
+    working: u8,
 }
 
 /// `Edit_Begin(&DAT_004EA130, 8, 0xA0, 1)` — the save box's own arguments, and
@@ -326,6 +376,8 @@ impl SaveLoadScreen {
             selected: None,
             name: begin_name(""),
             status: Status::Idle,
+            press: Press::new(),
+            working: 0,
         };
         // Loading opens on the first file, because loading *is* choosing one.
         // Saving opens on none, because saving is naming one, and a preselected
@@ -406,10 +458,43 @@ impl SaveLoadScreen {
         self.name = begin_name(&entry.name);
     }
 
-    /// The confirm button - `g_saveLoadWidgets` frame 29, a mailed hand with
-    /// its thumb up rather than a tick. Everything that can go wrong comes
-    /// back as a [`Status`] and
-    /// the screen stays open; only success closes it.
+    /// **`DAT_005CD41C = 100`**, which is the whole of the thumb up's handler
+    /// and of Enter's: arm the latch, and let [`WORK_FRAMES`] run.
+    fn begin(&mut self) {
+        self.working = WORK_FRAMES;
+        self.status = Status::Working;
+    }
+
+    /// Frames left before the load or the save runs; 0 when nothing is armed.
+    pub fn working(&self) -> u8 {
+        self.working
+    }
+
+    /// One `g_saveLoadWidgets` record's handler. The index is [`widgets`]'.
+    fn fire(&mut self, widget: usize) -> Transition {
+        match widget {
+            // `FUN_004342F3`.
+            0 => {
+                self.begin();
+                Transition::Stay
+            }
+            // `SaveLoad_Cancel` (`0x00434308`): `g_screenId = g_screenIdSaved`.
+            1 => Transition::Pop,
+            // `SaveLoad_Scroll`, hotspot id −3 and +3.
+            2 => {
+                self.scroll(-(SCROLL_STEP as i32));
+                Transition::Stay
+            }
+            _ => {
+                self.scroll(SCROLL_STEP as i32);
+                Transition::Stay
+            }
+        }
+    }
+
+    /// The load or the save itself — what `SaveLoad_Tick` does when
+    /// `DAT_0057D3C4` reaches zero. Everything that can go wrong comes back as
+    /// a [`Status`] and the screen stays open; only success closes it.
     fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         match self.mode {
             Mode::Load => {
@@ -506,9 +591,36 @@ impl Screen for SaveLoadScreen {
     /// The caret's blink, and nothing else. `Edit_DrawCaret` counts frames of
     /// its own; `docs/netcode.md` does not let anything below the renderer read
     /// a clock, so it is a tick here. See [`crate::text`].
-    fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+    ///
+    /// **And `Widget_Test`'s countdown and `SaveLoad_Tick`'s**, in that order:
+    /// the scroll arrows repeat while held, and the latch the thumb up armed
+    /// runs down to the load or the save.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
         self.name.tick();
+        for widget in self.press.tick() {
+            let t = self.fire(widget);
+            if t != Transition::Stay {
+                return t;
+            }
+        }
+        if self.working > 0 {
+            self.working -= 1;
+            if self.working == 0 {
+                return self.confirm(ctx);
+            }
+        }
         Transition::Stay
+    }
+
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio layer.
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
+    /// A held arrow scrolled the list: `SaveLoad_Scroll` sets
+    /// `g_redrawRequest = 2`. See [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
     }
 
     fn is_overlay(&self) -> bool {
@@ -542,7 +654,10 @@ impl Screen for SaveLoadScreen {
             // out to be an arm.
             //
             // arm: 0x00401C5B/enter-confirms key
-            Event::KeyDown(Key::Enter) => self.confirm(ctx),
+            Event::KeyDown(Key::Enter) => {
+                self.begin();
+                Transition::Stay
+            }
             // **Space no longer confirms, and could not**: the field takes it
             // above as a character, on both screens, which is what the original
             // does — a space is a legal character in a name and `VK_SPACE` has
@@ -566,25 +681,22 @@ impl Screen for SaveLoadScreen {
             // keys, taken by the field above — and a screen that spent them on
             // a list would leave a person unable to move the caret in the one
             // place the game has a caret. Clicking a row still selects it.
-            Event::Click { x, y } => {
-                if widget_rect(CANCEL).contains(x, y) {
-                    return Transition::Pop;
+            // **The four widgets, through the hit test that plays the click.**
+            // Kind 4: each acts on the press, and a double click is a press.
+            // The arms are declared on [`widgets`].
+            Event::Click { x, y } | Event::DoubleClick { x, y } => {
+                if let Some(i) = self.press.event(&widgets(), event) {
+                    return self.fire(i);
                 }
-                if widget_rect(CONFIRM).contains(x, y) {
-                    return self.confirm(ctx);
-                }
-                if widget_rect(SCROLL_UP).contains(x, y) {
-                    self.scroll(-(SCROLL_STEP as i32));
-                    return Transition::Stay;
-                }
-                if widget_rect(SCROLL_DOWN).contains(x, y) {
-                    self.scroll(SCROLL_STEP as i32);
-                    return Transition::Stay;
-                }
-                if let Some(i) = self.at(x, y) {
+                if let (Event::Click { .. }, Some(i)) = (event, self.at(x, y)) {
                     self.select(i);
                     self.status = Status::Idle;
                 }
+                Transition::Stay
+            }
+            Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
+                let fired = self.press.event(&widgets(), event);
+                debug_assert!(fired.is_none(), "no save/load widget is a release widget");
                 Transition::Stay
             }
             _ => Transition::Stay,
@@ -653,18 +765,26 @@ impl Screen for SaveLoadScreen {
         // it; ours, in our font, where it does not.
         match &self.status {
             Status::Idle => {}
+            // `SaveLoad_DrawStatus`: `Eng_DrawString(40, 2 | 3, …)` while
+            // `DAT_0057D3C4` runs.
+            Status::Working => {
+                pen.eng(canvas, GROUP, self.mode.working_index(), STATUS.0, STATUS.1, font::TEXT);
+            }
             Status::Failed(detail) => {
                 pen.eng(canvas, GROUP, ERROR_INDEX, STATUS.0, STATUS.1, font::TEXT);
                 text::draw(canvas, STATUS.0, STATUS.1 + 18, &ours(detail), ink.bad);
             }
         }
 
-        for w in [CONFIRM, CANCEL, SCROLL_UP, SCROLL_DOWN] {
+        // `Widget_Draw(0x10, 0x90, &g_saveLoadWidgets, 4)`, with `base + 1`
+        // while a record's press timer runs.
+        for (i, w) in [CONFIRM, CANCEL, SCROLL_UP, SCROLL_DOWN].into_iter().enumerate() {
+            let frame = w.2 + usize::from(self.press.is_pressed(i));
             let drawn = ctx
                 .assets
                 .chrome
                 .as_ref()
-                .is_some_and(|c| c.draw_system(canvas, w.2, w.0, w.1));
+                .is_some_and(|c| c.draw_system(canvas, frame, w.0, w.1));
             if !drawn {
                 shell::button_recess(canvas, w.0, w.1, w.3, w.3);
             }

@@ -160,6 +160,8 @@ fn every_weapon_can_be_clicked_where_it_hangs() {
 #[test]
 fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
     let (mut g, a) = world!();
+    // Continue waits twenty ticks now, and ticks run the tip screens.
+    g.prefs.tip_screens = false;
     let county = own_county(&g);
     g.selected = county;
     let realm = g.player as usize;
@@ -200,6 +202,11 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
 
     let cont = l2_game::screens::army::continue_button(false);
     send(&mut m, &mut g, Event::Click { x: cont.centre_x(), y: cont.y + cont.h / 2 });
+    // `RaiseArmy_Continue` is `Widget_Test` kind 5: twenty frames after the press.
+    for _ in 0..l2_game::press::DELAYED_FRAMES {
+        let mut ctx = Ctx { game: &mut g, assets: &a };
+        m.update(&mut ctx);
+    }
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(county)));
 
     // **Click the weapon where it hangs on the wall**, through `arm_grid.pl8`.
@@ -444,6 +451,8 @@ fn the_two_animation_counters_wrap_where_their_sheets_end() {
 #[test]
 fn a_soldier_walks_over_and_takes_the_weapon() {
     let (mut g, a) = world!();
+    // Continue waits twenty ticks now, and ticks run the tip screens.
+    g.prefs.tip_screens = false;
     let county = own_county(&g);
     g.selected = county;
     let realm = g.player as usize;
@@ -477,6 +486,11 @@ fn a_soldier_walks_over_and_takes_the_weapon() {
     );
     let cont = l2_game::screens::army::continue_button(false);
     send(&mut m, &mut g, Event::Click { x: cont.centre_x(), y: cont.y + cont.h / 2 });
+    // `RaiseArmy_Continue` is `Widget_Test` kind 5: twenty frames after the press.
+    for _ in 0..l2_game::press::DELAYED_FRAMES {
+        let mut ctx = Ctx { game: &mut g, assets: &a };
+        m.update(&mut ctx);
+    }
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(county)));
 
     // Open the first rack. **Nobody walks yet** — the latch was just set, so
