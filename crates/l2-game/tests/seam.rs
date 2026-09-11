@@ -164,6 +164,7 @@ fn attacking_county_three_levies_the_defence_the_saved_game_holds() {
         COUNTY,
         options.difficulty,
         *year,
+        &mut campaign.explored,
     );
 
     let Attack::Battle { defender, .. } = outcome else {
@@ -219,6 +220,7 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
             COUNTY,
             options.difficulty,
             *year,
+            &mut campaign.explored,
         )
     };
     let Attack::Battle { defender, .. } = outcome else { panic!("{outcome:?}") };
@@ -305,6 +307,7 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
             COUNTY,
             options.difficulty,
             *year,
+            &mut campaign.explored,
         )
     };
     let Attack::Battle { defender, .. } = outcome else { panic!("{outcome:?}") };

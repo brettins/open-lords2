@@ -959,6 +959,7 @@ impl Kingdom {
             &mut campaign.names,
             &basket,
             Muster { realm, county, happiness_cost, year },
+            &mut campaign.explored,
         )
         .ok()
     }
@@ -1065,6 +1066,7 @@ impl Kingdom {
             &mut campaign.names,
             &basket,
             Muster { realm, county, happiness_cost, year },
+            &mut campaign.explored,
         )
         .ok()
     }
@@ -1172,6 +1174,7 @@ impl Kingdom {
             &mut campaign.names,
             &basket,
             Muster { realm, county, happiness_cost, year },
+            &mut campaign.explored,
         )
         .ok()
     }
@@ -1366,6 +1369,7 @@ impl Kingdom {
             &mut campaign.names,
             &basket,
             Muster { realm, county, happiness_cost, year },
+            &mut campaign.explored,
         )
         .ok()
     }

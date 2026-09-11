@@ -532,6 +532,8 @@ fn resolve_battle(
             castle_level.is_some(),
             withdrawal,
             options.difficulty,
+            &campaign.map,
+            &mut campaign.explored,
         )
     };
 

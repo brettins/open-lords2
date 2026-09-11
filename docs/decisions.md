@@ -8949,3 +8949,54 @@ restoring a remembered screen. So the Smacker test page, `Smk_ReplayIntro` and t
 table behind it are unreachable, and `docs/arms.json` files its two widget handlers `dead`.
 **[D]**: exhaustive over immediates, and relies on the register stores only ever copying ids
 that were written first.
+
+---
+
+**C172 — The Exploration option flipped a flag nothing read, and the fog is built now.**
+
+`g_optExploration` (`0x0053F264`) has been in `Options`, the setup screen, the options page
+and the save since save version 12, and **nothing in this engine read it**: the switch looked
+like it worked and did not. In `Lords2.exe` it has eleven readers and every one but the
+options page's Yes/No is a map painter. **[V]**, each read in the decompilation:
+`Map_RenderIso` (`0x0040526E`, two surround arms), `Map_RenderAlignedRow` (`0x00405AE9`, one),
+`Map_RenderOffsetRow` (`0x00405C2F`, three), `Map_DrawTile` (`0x004063C1`), `Map_DrawTileApex`
+(`0x00406673`), `Sprite_TopIt` (`0x004071A0`), `Map_DrawArmies` (`0x00408438`) and the dead
+`FUN_00406BBA`; `Screen_AdvancedOptions` (`0x00414F68`) draws it; `Opt_ToggleExploration`
+(`0x00434693`) and `NetAct_SetGameOptions` (`0x00447E0B`) write it; `Setup_CommitOptions`
+and two resets zero or commit it. **No input arm, no AI step, no simulation pass and not the
+minimap reads the option or its bit** — the AI lords see everything.
+
+The painters test it with tile record `+2` bit `0x20`, the seen bit. Its writers, all
+**[V]**: `FUN_0046E067(x, y, r)` sets the `(2r+1)²` square; `Unit_Step` (at every tile
+centre, army only) and `Army_Create` pass 6; `FUN_0046DFD5` passes 1 for every tile of a
+county and is called by `County_ChangeOwner` and at the end of
+`Game_SetupRealmsAndCounties`; `FUN_0046DF51` clears the plane from `Map_InitScenario` and is
+the only thing that ever clears a bit. **Every writer tests `g_localPlayer` and none tests the
+option.** `Save_Write` carries the plane, because `g_tiles` is block 0.
+
+**Checked against data, not only code.** The England turn-one fixture was saved with the
+option off, and its seen bits are *exactly* the local player's county and a one-tile border —
+bit for bit, 4,096 tiles (`crates/l2-scenario/tests/explored.rs`). The battle and turn saves
+hold at least the squares round their armies and the borders of their counties; what else
+they hold is where those armies walked, which no save records, so that half is a lower bound
+and is stated as one. **The radius of 6 is verified from below by data and exactly only by
+the decompiled literal.**
+
+**Three things this found that were wrong about our own documents.** `draws-map.md` §5.2
+said *"six draw functions"* and listed seven, named the toggle as `FUN_00447E0B` (that is the
+network action), and gave `FUN_0046E067` a width and height it does not take.
+`docs/mechanics.md` said the work was *"setting it as units move and counties change hands"*,
+and it is four writers, not two: the new game's start county and a raised army both reveal.
+And a draw test's own first version asserted that the `base` bank's frame 0 — the picture of
+the dark — was blank at both zooms. It is blank at the near zoom and a green diamond at the
+far one; the test's option-off control caught the first half of that and a measurement
+settled the second.
+
+**The one divergence is representation.** The original's plane is the local player's, so a
+network game's machines each hold a different one — which cannot be lockstep state. Ours
+keeps a bit per realm (`l2_kingdom::explore::Explored`), every writer sets the bit of the
+realm the original sets it for *when that realm is the local player*, and the viewer's plane
+is exactly the original's. It is simulation-written, in the save (version 20) and in the
+digest. **And one ordering, disclosed:** our walker marks an army stopped on the commit that
+empties its path, where the original stops after crossing into the last tile, so the
+destination's square is revealed on the commit — same tiles, one crossing earlier.

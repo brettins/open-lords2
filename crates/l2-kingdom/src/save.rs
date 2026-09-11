@@ -508,7 +508,29 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   *Written as 20 with `VERSION` at 19 on `main`, while another queued branch
 ///   was also taking 20. Per the standing hazard above, assume the number has
 ///   moved.* It merged as 22, after the mercenaries' 20 and the tax ledger's 21.
-pub const VERSION: u32 = 22;
+///
+/// * 23 — **the fog of war's seen plane**, [`crate::explore::Explored`]: one
+///   byte a tile, bit `r` for realm `r`, **+4,096**. The original keeps it as
+///   tile record `+2` bit `0x20` and `Save_Write` stores it with the rest of
+///   `g_tiles`, which is the first block of every `.sav`.
+///
+///   `Options::exploration` has been carried since entry 12 and **read by
+///   nothing**: the switch was honest, the fog did not exist. It exists now,
+///   and the plane it draws is not derivable from anything else in this file —
+///   it is the record of every tile a realm's armies have stood within six of,
+///   every county it has held and the one it started in. `docs/decisions.md`
+///   C172.
+///
+///   **Refusal rather than default**, and the default here would be visibly
+///   wrong rather than subtly: a version 19 save loaded with no tile seen and
+///   the option on is a player's own county blacked out. A default of *every*
+///   tile seen is the other wrong answer — a fog that lifted over a load.
+///
+///   *Written as 20 with `VERSION` at 19 on `main` — and a queued branch was
+///   already known to take 20. Per the standing hazard above, this entry is the
+///   one that renumbers, to 21, at whichever merge comes second.* It merged as 23, after
+///   entries 20, 21 and 22.
+pub const VERSION: u32 = 23;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -837,6 +859,10 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
         out.raw(campaign.routes.row(route));
     }
     out.u32(campaign.mob_cursor as u32);
+
+    // Version 20 — the seen plane, one byte a tile. `crate::explore`.
+    out.section("explored");
+    campaign.explored.encode(out);
 }
 
 fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, LoadError> {
@@ -896,6 +922,9 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, L
         campaign.routes.set_row(route, row);
     }
     campaign.mob_cursor = input.u32()? as usize;
+
+    let seen = input.raw(crate::map::MAP_TILES)?;
+    campaign.explored.copy_from_bytes(seen);
     Ok(campaign)
 }
 

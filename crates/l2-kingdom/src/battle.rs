@@ -499,6 +499,8 @@ pub fn return_to_campaign(
     is_siege: bool,
     withdrawal: bool,
     difficulty: u8,
+    map: &crate::map::CampaignMap,
+    explored: &mut crate::explore::Explored,
 ) -> Aftermath {
     let mut out = Aftermath::default();
     let (winner, loser) = (verdict.winner(), verdict.loser());
@@ -513,7 +515,7 @@ pub fn return_to_campaign(
                 c.garrison_unit = 0;
             }
             crate::conquest::change_owner(
-                counties, realms, units, winner_unit.owner, county, difficulty,
+                counties, realms, units, winner_unit.owner, county, difficulty, map, explored,
             );
             out.county_taken_by = Some(winner_unit.owner);
         }
@@ -523,7 +525,7 @@ pub fn return_to_campaign(
         // county, and so is this.
         if loser_unit.defence_mark != 0 {
             crate::conquest::change_owner(
-                counties, realms, units, winner_unit.owner, county, difficulty,
+                counties, realms, units, winner_unit.owner, county, difficulty, map, explored,
             );
             out.county_taken_by = Some(winner_unit.owner);
         }
@@ -959,7 +961,7 @@ mod tests {
 
         let v = Verdict::a_won(a, d);
         let after =
-            return_to_campaign(T, &mut counties, &mut realms, &mut units, &mut names, v, 2, false, false, 1);
+            return_to_campaign(T, &mut counties, &mut realms, &mut units, &mut names, v, 2, false, false, 1, &crate::map::CampaignMap::empty(), &mut crate::explore::Explored::new());
 
         assert_eq!(after.county_taken_by, Some(1));
         assert_eq!(counties[2].owner, 1, "the county changed hands");
@@ -988,7 +990,7 @@ mod tests {
 
         let v = Verdict::b_won(a, d);
         let after =
-            return_to_campaign(T, &mut counties, &mut realms, &mut units, &mut names, v, 2, false, false, 1);
+            return_to_campaign(T, &mut counties, &mut realms, &mut units, &mut names, v, 2, false, false, 1, &crate::map::CampaignMap::empty(), &mut crate::explore::Explored::new());
 
         assert_eq!(after.county_taken_by, None);
         assert_eq!(counties[2].owner, 0, "still neutral");
@@ -1012,6 +1014,8 @@ mod tests {
         return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
             Verdict::a_won(a, d), 2, false, false, 1,
+            &crate::map::CampaignMap::empty(),
+            &mut crate::explore::Explored::new(),
         );
         let w = units.get(a).unwrap();
         assert_eq!(w.moves_left(), 1, "a winning AI is finished for the season");
@@ -1023,6 +1027,8 @@ mod tests {
         return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
             Verdict::b_won(a, d), 2, false, false, 1,
+            &crate::map::CampaignMap::empty(),
+            &mut crate::explore::Explored::new(),
         );
         assert_eq!(units.get(d).unwrap().moves_used, 0);
 
@@ -1033,6 +1039,8 @@ mod tests {
         return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
             Verdict::b_won(a, d), 2, false, false, 1,
+            &crate::map::CampaignMap::empty(),
+            &mut crate::explore::Explored::new(),
         );
         assert_eq!(units.get(d).unwrap().moves_used, AI_DEFENDER_MOVE_COST);
     }
@@ -1050,6 +1058,8 @@ mod tests {
         let after = return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
             Verdict::a_won(a, d), 2, false, false, 1,
+            &crate::map::CampaignMap::empty(),
+            &mut crate::explore::Explored::new(),
         );
         assert_eq!(after.county_taken_by, None);
         assert_eq!(counties[2].owner, 2, "beating an army in the field takes no land");
@@ -1077,6 +1087,8 @@ mod tests {
         let after = return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
             Verdict::b_won(a, d), 2, true, false, 1,
+            &crate::map::CampaignMap::empty(),
+            &mut crate::explore::Explored::new(),
         );
         assert!(!after.loser_destroyed, "the assault failed; the army did not");
         assert!(after.loser_siege_lifted);
@@ -1096,6 +1108,8 @@ mod tests {
         let after = return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
             Verdict::b_won(a, d), 2, true, false, 1,
+            &crate::map::CampaignMap::empty(),
+            &mut crate::explore::Explored::new(),
         );
         assert!(after.loser_destroyed);
         assert!(units.get(a).is_none());
@@ -1126,6 +1140,8 @@ mod tests {
             let after = return_to_campaign(
                 T, &mut counties, &mut realms, &mut units, &mut names,
                 Verdict::b_won(a, d), 2, false, true, 1,
+                &crate::map::CampaignMap::empty(),
+                &mut crate::explore::Explored::new(),
             );
             assert_eq!(units.get(a).is_some(), survives, "{men} men");
             assert_eq!(after.loser_siege_lifted, survives);
@@ -1195,6 +1211,8 @@ mod tests {
         let after = return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
             Verdict::b_won(a, d), 2, true, true, 1,
+            &crate::map::CampaignMap::empty(),
+            &mut crate::explore::Explored::new(),
         );
         assert_eq!(after.withdrawal_casualties, Some(30));
         assert!(after.loser_destroyed, "thirty men, none of them in a line of eleven");
@@ -1213,6 +1231,8 @@ mod tests {
         let after = return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
             Verdict::b_won(a, d), 2, false, false, 1,
+            &crate::map::CampaignMap::empty(),
+            &mut crate::explore::Explored::new(),
         );
         assert!(after.loser_destroyed);
         assert!(units.get(a).is_none());

@@ -467,6 +467,7 @@ pub fn create_army(
     names: &mut ArmyNames,
     basket: &LevyBasket,
     muster: Muster,
+    explored: &mut crate::explore::Explored,
 ) -> Result<usize, LevyRefusal> {
     // `County_FindFree*Tile` searches around the county's **anchor**, not over
     // the county — C47, and see [`muster_tile`].
@@ -534,6 +535,16 @@ pub fn create_army(
     let realms_snapshot: [Realm; MAX_REALMS] = realms.clone();
     units.recount_county_troops(counties, &realms_snapshot);
     crate::unit::refresh_wages(t, units, realms, muster.realm, 0);
+    // `Army_Create`'s last act before it returns 1:
+    //
+    // ```c
+    // if (g_localPlayer == realm) { FUN_0046E067(unit.x, unit.y, 6); Gfx_MarkAllDirty(); }
+    // ```
+    //
+    // The new army sees its 13 × 13 square — for the realm that raised it, and
+    // for nobody when `realm == 0` raised an ownerless militia.
+    // `crate::explore`.
+    explored.reveal_square(muster.realm, x as i32, y as i32, crate::explore::ARMY_SIGHT);
     Ok(id)
 }
 
@@ -602,6 +613,7 @@ pub fn raise_defence(
     percent: i32,
     mode: Defence,
     year: i32,
+    explored: &mut crate::explore::Explored,
 ) -> Option<usize> {
     let c = counties.get(county as usize)?;
     if c.population < DEFENCE_MIN_POPULATION {
@@ -645,6 +657,7 @@ pub fn raise_defence(
         names,
         &basket,
         Muster { realm, county, happiness_cost, year },
+        explored,
     )
     .ok()
 }
@@ -875,6 +888,7 @@ mod tests {
             &mut names,
             &basket,
             Muster { realm: 1, county: 1, happiness_cost: levy.happiness_cost, year: 1268 },
+            &mut crate::explore::Explored::new(),
         )
         .expect("there is room in the county");
 
@@ -918,6 +932,7 @@ mod tests {
             &mut names,
             &basket,
             Muster { realm: 1, county: 1, happiness_cost: 40, year: 1268 },
+            &mut crate::explore::Explored::new(),
         )
         .unwrap();
         assert_eq!(units.get(id).unwrap().morale, 100, "not the 60 it is left at");
@@ -944,6 +959,7 @@ mod tests {
             &mut names,
             &basket,
             Muster { realm: 1, county: 1, happiness_cost: 50, year: 1268 },
+            &mut crate::explore::Explored::new(),
         )
         .unwrap();
         assert_eq!(counties[1].happiness, 0);
@@ -1022,6 +1038,7 @@ mod tests {
                 &mut names,
                 &basket,
                 Muster { realm: 1, county: 1, happiness_cost: 0, year: 1268 },
+                &mut crate::explore::Explored::new(),
             ),
             Err(LevyRefusal::NowhereToStand)
         );
@@ -1053,6 +1070,7 @@ mod tests {
 
         let id = raise_defence(
             T, &m2, &mut counties, &mut realms, &mut units, &mut names, 2, 25, Defence::Militia, 1268,
+            &mut crate::explore::Explored::new(),
         )
         .expect("five hundred people can defend themselves");
         let u = units.get(id).unwrap();
@@ -1095,7 +1113,8 @@ mod tests {
         let mut units = Units::new();
         let mut names = ArmyNames::new();
         assert!(raise_defence(
-            T, &m, &mut counties, &mut realms, &mut units, &mut names, 1, 40, Defence::AiCounty, 1268
+            T, &m, &mut counties, &mut realms, &mut units, &mut names, 1, 40, Defence::AiCounty, 1268,
+            &mut crate::explore::Explored::new(),
         )
         .is_none());
         assert_eq!(units.len(), 0);
@@ -1113,7 +1132,7 @@ mod tests {
 
         let id = raise_defence(
             T, &m, &mut counties, &mut realms, &mut units, &mut names, 1, DEFENCE_PERCENT,
-            Defence::HumanCounty, 1268,
+            Defence::HumanCounty, 1268, &mut crate::explore::Explored::new(),
         )
         .unwrap();
         let u = units.get(id).unwrap();
@@ -1134,7 +1153,7 @@ mod tests {
 
         let id = raise_defence(
             T, &m, &mut counties, &mut realms, &mut units, &mut names, 1, DEFENCE_PERCENT,
-            Defence::AiCounty, 1268,
+            Defence::AiCounty, 1268, &mut crate::explore::Explored::new(),
         )
         .unwrap();
         let u = units.get(id).unwrap();

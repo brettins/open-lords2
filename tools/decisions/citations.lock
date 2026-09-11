@@ -110,6 +110,7 @@ crates/l2-game/src/screens/siege.rs	C61	c5060d93d70d	60611046b40d
 crates/l2-game/src/screens/supplies.rs	C148	e6078ab15510	d3efa7d90685
 crates/l2-game/src/screens/village.rs	C22	81b65db0836a	0364b53a921d
 crates/l2-game/src/screens/village.rs	C76	cddc3e0e2856	53e207ae069e
+crates/l2-game/src/setup.rs	C172	8e1a6de54816	0bbb117a9f49
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857	f7bf296341ff
 crates/l2-game/src/setup.rs	C62	a935365ea2c1	ebb6a7ec3711
 crates/l2-game/src/shell/font.rs	C155	b2daf0637f13	03caee7e7f69
@@ -241,6 +242,7 @@ crates/l2-kingdom/src/save.rs	C134	8c3c2ccdc448	d12cd2f96f79
 crates/l2-kingdom/src/save.rs	C136	78341762a0c9	724c11b1e475
 crates/l2-kingdom/src/save.rs	C149	47e6a1be6570	138117948441
 crates/l2-kingdom/src/save.rs	C169	ca68a8407d7d	4f087d2d4d89
+crates/l2-kingdom/src/save.rs	C172	41dd85d16c21	0bbb117a9f49
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8	ed7ea7df1f23
@@ -810,6 +812,7 @@ docs/draws-map.md	C153	ee15a56549e1	c724d7afe0dd
 docs/draws-map.md	C155	a8b1da7a71c0	03caee7e7f69
 docs/draws-map.md	C158	ac7ab3a9b027	3b5e22280a31
 docs/draws-map.md	C163	cbec3f75f2dd	d043a04534f8
+docs/draws-map.md	C172	030caf16c71b	0bbb117a9f49
 docs/draws-map.md	C30	40a6a7104696	50fdf5e17ba0
 docs/draws-map.md	C72	230aae5fabd7	e2bb936cf01c
 docs/draws-map.md	C77	cfea9c21de5f	94789f222b99
@@ -858,7 +861,7 @@ docs/kingdom.md	C90	cab1f0e798c1	f1599ed23aee
 docs/mechanics.md	C116	b7e35926ffec	1c49feddd496
 docs/mechanics.md	C130	00a2c5080f8d	055c6c022450
 docs/mechanics.md	C143	b2eff0fec6ef	2035c02750d9
-docs/mechanics.md	C21	6fbffcda52e0	f7bf296341ff
+docs/mechanics.md	C172	01f98c6faf84	0bbb117a9f49
 docs/mechanics.md	C22	0c47beed33b6	0364b53a921d
 docs/mechanics.md	C26	811398837c72	e8179d1f76a8
 docs/mechanics.md	C27	6a66e90a3f82	1db64332cb22

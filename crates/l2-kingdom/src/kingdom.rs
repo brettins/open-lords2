@@ -67,21 +67,19 @@ pub struct Options {
     /// as `FUN_004A6A30` does. [`crate::battle::FIGHT_HUMANS_ONLY_DEFAULT`] is
     /// the game's default.
     pub fight_humans_only_byte: u8,
-    /// `g_optExploration` (`0x0053F264`), the *Exploration* drop-down.
+    /// `g_optExploration` (`0x0053F264`), the *Exploration* drop-down — **the
+    /// fog of war**.
     ///
-    /// **Carried, and deliberately read by no rule in this crate.** `L2.eng`
-    /// group 218 index 3 says what it does: *"When Exploration is turned on,
-    /// the world outside your county is blacked out. It is gradually revealed
-    /// as your armies move through and conquer new counties."* That is a
-    /// per-viewer visibility layer over the campaign map — the original keeps
-    /// its seen bit in the *tile record's* `bank` byte (`0x20`,
-    /// `docs/records.json`), which this crate's [`crate::map::CampaignMap`]
-    /// does not even store — so nothing in the economy or the war can branch on
-    /// it. It is here because it is a property of *this game* that a save must
-    /// carry, exactly as `g_optExploration` is one of the globals
-    /// `Save_Write` stores.
-    ///
-    /// **The behaviour is not implemented.** `docs/mechanics.md` has the gap.
+    /// **Read by no rule in this crate, and that is the original's shape rather
+    /// than a gap.** `L2.eng` group 218 index 3 says what it does: *"When
+    /// Exploration is turned on, the world outside your county is blacked out.
+    /// It is gradually revealed as your armies move through and conquer new
+    /// counties."* Its readers in `Lords2.exe` are seven map painters and the
+    /// options page, and nothing else — no AI step, no input arm, no pass — so
+    /// here it is read by [`crate::explore::hides`] and the painters that call
+    /// it. The *seen bits* are simulation-written and live in
+    /// [`Campaign::explored`]; they are kept whether this is on or off, exactly
+    /// as the original keeps them.
     pub exploration: bool,
     /// `g_optTimeLimit` (`0x0053F26C`) — **seconds**, 0 for no limit.
     ///
@@ -362,6 +360,15 @@ pub struct Campaign {
     /// small one that would be easy to leave out of a save and never notice
     /// until two lockstep peers sent their mobs to different counties.
     pub mob_cursor: usize,
+    /// **What each realm has seen of the map** — the fog of war, tile record
+    /// `+2` bit `0x20` in the original. See [`crate::explore`].
+    ///
+    /// Here and not beside the map's planes because nothing on the map reads
+    /// it: no cost, no step and no AI decision looks at a seen bit. It is in
+    /// the campaign because the campaign's rules *write* it — an army walking,
+    /// an army raised, a county taken — and because nothing can rebuild it, so
+    /// the save has to carry it.
+    pub explored: crate::explore::Explored,
 }
 
 impl Default for Campaign {
@@ -379,6 +386,9 @@ impl Campaign {
             names: crate::unit::ArmyNames::new(),
             routes: crate::merchant::MerchantRoutes::none(),
             mob_cursor: 0,
+            // `Map_InitScenario` clears every seen bit (`FUN_0046DF51`) straight
+            // after the planes are loaded.
+            explored: crate::explore::Explored::new(),
         }
     }
 }
@@ -1160,6 +1170,7 @@ impl Kingdom {
             &mut self.campaign.names,
             &basket,
             muster,
+            &mut self.campaign.explored,
         ) else {
             return;
         };

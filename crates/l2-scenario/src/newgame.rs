@@ -1477,6 +1477,28 @@ impl Scenario {
         let map = w.tiles.campaign_map();
         let units = spawn_merchants(w, &map);
 
+        // **`Game_SetupRealmsAndCounties`' last statement** (`0x0049BD99`):
+        // `FUN_0046DFD5(g_playerStartTable[g_localPlayer * 2])` — the local
+        // player's start county, and a one-tile border, is seen. Every other
+        // tile was cleared by `Map_InitScenario` (`FUN_0046DF51`), which is
+        // `Explored::new`. Every seated realm gets its own, for the reason
+        // `l2_kingdom::explore` gives; only the person's is ever drawn.
+        //
+        // **The garrison's square is not here, and it is not missing from
+        // this line.** The original's `Army_Create` for the starting garrison
+        // reveals thirteen by thirteen round it, and the England fixture's
+        // bits carry it; this build does not raise that garrison yet
+        // (`l2_game::setup::Settings::unhonoured`), and the day it does it
+        // will go through `levy::create_army`, which reveals.
+        let mut explored = l2_kingdom::explore::Explored::new();
+        for id in 1..=w.county_count {
+            if let Some(c) = counties.get(id).and_then(|c| c.as_ref()) {
+                if c.owner != 0 {
+                    explored.reveal_county(c.owner, &map, id as u8);
+                }
+            }
+        }
+
         Ok(Scenario {
             county_count: w.county_count,
             local_player: setup.local_player,
@@ -1491,6 +1513,7 @@ impl Scenario {
             // straight after `Merchant_SpawnAll`. Nothing on the new-game path
             // ran it, so a new campaign had no mercenaries either.
             mercenaries: MercenaryBands::init(w.county_count),
+            explored,
             units,
             routes: w.routes.clone(),
             merchant_start: w.merchant_start,

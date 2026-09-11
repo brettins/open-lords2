@@ -227,6 +227,7 @@ pub mod county;
 pub mod diplomacy;
 pub mod divide;
 pub mod event;
+pub mod explore;
 pub mod field;
 pub mod happiness;
 pub mod health;
