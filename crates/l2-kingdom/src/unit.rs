@@ -594,6 +594,32 @@ impl Unit {
         }
     }
 
+    /// **`+0x1B`, the walk phase — derived, because in every state the
+    /// original can reach it is `+0x149` halved.**
+    ///
+    /// `Unit_StepOnce` (`0x0046634D`) is the only writer of either byte and it
+    /// moves them together: an admitted tick adds 1 to `+0x1B` and
+    /// [`SUBTILE_STEP_SOLO`](crate::tables::SUBTILE_STEP_SOLO) to `+0x149`;
+    /// reaching the tile edge zeroes both; and the commit writes `+0x149 = 1`
+    /// with `+0x1B` already 0 — from that edge, or from `Unit_Spawn`'s cleared
+    /// record, which is the only other way the latch it commits from is ever
+    /// set. So a crossing reads `(1, 0), (3, 1) … (15, 7)` and a unit at rest
+    /// `(0, 0)`, and a stored byte would be a second copy of a number the record
+    /// already holds. **[D]** — and "only writer" is a search of the whole
+    /// corpus: `+0x149` appears in `Unit_StepOnce` and in `Map_DrawArmies`,
+    /// which only reads it.
+    ///
+    /// Single player. The network game's `+4` would make it `+0x149 / 4`, and
+    /// that step is not selectable yet — see
+    /// [`SUBTILE_STEP_NET`](crate::tables::SUBTILE_STEP_NET).
+    ///
+    /// **No rule reads it.** The four tick handlers turn it into the figure's
+    /// frame through [`UNIT_WALK_FRAMES`] or [`MERCHANT_WALK_FRAMES`] — see
+    /// [`Unit::sprite_frame`] — and nothing else in the binary looks at it.
+    pub fn walk_phase(&self) -> usize {
+        usize::from(self.sub_tile / crate::tables::SUBTILE_STEP_SOLO)
+    }
+
     /// The `(x, y)` `Map_DrawArmies` adds for this kind before it centres the
     /// figure on the tile's bottom vertex. `[D]`
     pub fn sprite_nudge(&self) -> (i32, i32) {

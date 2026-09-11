@@ -1676,7 +1676,7 @@ impl MapScreen {
                 let r = unit_marker_half(&self.zoom, u) + 1;
                 return ((x - cx).abs() <= r && (y - cy).abs() <= r).then_some(id);
             }
-            self.unit_sprite_covers(ctx, u, x, y).then_some(id)
+            self.unit_sprite_covers(ctx, id, u, x, y).then_some(id)
         })
     }
 
@@ -1684,17 +1684,16 @@ impl MapScreen {
     /// [`campaign::draw_unit`]'s own placement and against the frame's own
     /// opacity mask. Falls back to the marker box when the sprite sheets are
     /// missing, which is the case in every test that runs without an install.
-    fn unit_sprite_covers(&self, ctx: &Ctx, u: &l2_kingdom::Unit, x: i32, y: i32) -> bool {
+    ///
+    /// **Where it is drawn, walk offset and all**, so an army part-way across a
+    /// tile is hit on its figure rather than on the tile it has not reached.
+    fn unit_sprite_covers(&self, ctx: &Ctx, id: usize, u: &l2_kingdom::Unit, x: i32, y: i32) -> bool {
         let Some((cx, cy)) =
             campaign::tile_centre(self.view, &self.zoom, u.x as usize, u.y as usize)
         else {
             return false;
         };
-        let sprite = campaign::UnitSprite {
-            sheet: u.sprite_sheet(),
-            frame: u.sprite_frame(0),
-            nudge: u.sprite_nudge(),
-        };
+        let sprite = unit_sprite(&self.zoom, ctx.game, id, u);
         match campaign::unit_sprite_rect(&ctx.assets.map, self.view, &self.zoom, (u.x as usize, u.y as usize), sprite) {
             Some((ox, oy, decoded)) => {
                 let (dx, dy) = (x - ox, y - oy);
@@ -3283,6 +3282,23 @@ fn unit_marker_half(zoom: &Zoom, unit: &l2_kingdom::Unit) -> i32 {
     base + unit.size_class() as i32
 }
 
+/// **What `Map_DrawArmies` (`0x00408438`) draws one unit with**: the sheet; the
+/// frame its tick handler wrote on the way into the last sweep
+/// ([`crate::game::UnitFrames`]); the per-kind nudge; and the walk offset for
+/// its facing and `+0x149`, which is how far across its tile it is
+/// ([`campaign::walk_offset`]).
+///
+/// One function for the painter and for the hit test, so a figure part-way
+/// across a tile is clicked where it is seen.
+fn unit_sprite(zoom: &Zoom, game: &crate::game::Game, id: usize, unit: &l2_kingdom::Unit) -> campaign::UnitSprite {
+    campaign::UnitSprite {
+        sheet: unit.sprite_sheet(),
+        frame: game.unit_frame(id, unit),
+        nudge: unit.sprite_nudge(),
+        walk: campaign::walk_offset(zoom, unit.facing, unit.sub_tile),
+    }
+}
+
 /// **`Map_DrawArmies` (`0x00408438`)** — every unit on the map, as the figure
 /// the original draws.
 ///
@@ -3290,10 +3306,12 @@ fn unit_marker_half(zoom: &Zoom, unit: &l2_kingdom::Unit) -> i32 {
 /// `Sprite1a.pl8` for armies, mobs **and merchants**, `Sprite1b.pl8` for
 /// transports alone, `frame = bank + 3*((facing+1)&7) + walk` for the first two
 /// and `6*((facing+1)&7) + phase` for the other two, anchored on the tile's
-/// bottom vertex. See [`l2_kingdom::Unit::sprite_frame`] and
-/// [`campaign::draw_unit`] for the arithmetic and for the one piece left out —
-/// the sixteen-step walk interpolation, which needs a sub-tile step counter we
-/// do not keep.
+/// bottom vertex, then **dragged back toward the tile it is leaving** by the
+/// walk tables. See [`unit_sprite`], [`l2_kingdom::Unit::sprite_frame`] and
+/// [`campaign::walk_offset`]. This used to leave the walk tables out as needing
+/// *"a sub-tile step counter we do not keep"*; `docs/decisions.md` C134 gave
+/// the unit that counter and nothing here read it, so every army jumped from
+/// tile to tile.
 ///
 /// **What is still ours** is the *selection* and the *state marks*: the
 /// original shows a selected army by flood-filling its reachable tiles, and it
@@ -3333,11 +3351,7 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
                 screen.view,
                 &screen.zoom,
                 (unit.x as usize, unit.y as usize),
-                campaign::UnitSprite {
-                    sheet: unit.sprite_sheet(),
-                    frame: unit.sprite_frame(0),
-                    nudge: unit.sprite_nudge(),
-                },
+                unit_sprite(&screen.zoom, ctx.game, id, unit),
                 clip,
             );
         if !drawn {
@@ -3564,13 +3578,16 @@ fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: C
     for &(x, y) in &sel.path {
         let spent = sel.field.cost_to(x, y).unwrap_or(0);
         let in_range = spent <= left_at_start;
+        // `local_14`: the gold ball on a tile a click would act on, tested
+        // before the cost is looked at. See [`path_marker_is_action`].
+        let action = path_marker_is_action(&ctx.game.kingdom.campaign.map, x, y);
         let drawn = campaign::draw_path_marker(
             canvas,
             &ctx.assets.map,
             screen.view,
             &screen.zoom,
             (x as usize, y as usize),
-            campaign::path_marker_frame(spent, in_range),
+            campaign::path_marker_frame(spent, in_range, action),
             clip,
         );
         if drawn {
@@ -3583,6 +3600,28 @@ fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: C
         let colour = if in_range { ink.highlight } else { ink.dim };
         fill_clipped(canvas, cx - 1, cy - 1, 3, colour, clip);
     }
+}
+
+/// **`Map_DrawPathMarker`'s `local_14` (`0x004081A6`) — is this a tile a click
+/// would act on?**
+///
+/// ```c
+/// local_14 = flags & 0x50;                                   /* the town, or a dwelling plot */
+/// if ((flags & 0x80) != 0 && content != 0x14) local_14 = 1;  /* a site or a castle, not a bare plot */
+/// ```
+///
+/// The plane-0 bits and the terrain byte, and nothing else: not the owner, not
+/// the reach, not a unit standing there. So your own town is gold, a town past
+/// the budget is gold, and an enemy army on open ground is coloured by its cost
+/// like any other tile — which is narrower than *"an attack"*, and is the
+/// original's. `Map_HoverUnitTarget` asks the same bits separately, with an
+/// owner test, to decide what a click would *do*; the ball does not.
+fn path_marker_is_action(map: &l2_kingdom::map::CampaignMap, x: u8, y: u8) -> bool {
+    use l2_kingdom::map::{flags, terrain};
+    let tile = l2_kingdom::map::index(x, y);
+    let f = map.flags[tile];
+    f & (flags::CASTLE | flags::PLOT) != 0
+        || (f & flags::SETTLEMENT != 0 && map.terrain[tile] != terrain::CASTLE_PLOT)
 }
 
 /// **Ours, and it is deliberately not in the right column.**

@@ -499,6 +499,9 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // for a loaded game as for a new one, so the turn timer starts from the
         // full limit on its first tick. See `crate::turn_clock`.
         turn_clock: crate::turn_clock::TurnClock::default(),
+        // And an eighth: the frame each unit's tick handler last wrote is one
+        // tick of presentation, and the first sweep after the load writes it.
+        unit_frames: crate::game::UnitFrames::default(),
         map_slot: map_slot as usize,
         realm_colour,
         player_names,

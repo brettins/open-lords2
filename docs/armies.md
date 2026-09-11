@@ -93,7 +93,7 @@ at — and `+0x0C` is checked on every one of them, because `(y * 64 + x) * 8` i
 | `+0x12` `+0x13` | i8 | pixel sub-position | [D] | `x<<4`, `y<<4` at spawn. |
 | `+0x14` `+0x15` | i8 | stepTargetX/Y | [D] | the tile currently being walked to. |
 | `+0x16` `+0x17` | i8 | destX/destY | [D] | the end of the ordered path. |
-| `+0x1B` | u8 | walkPhase | [D] | indexes `g_unitWalkFrames` (`0x004D6A78`) = `0,1,2,1,…`. |
+| `+0x1B` | u8 | walkPhase | [D] | indexes `g_unitWalkFrames` (`0x004D6A78`) = `0,1,2,1,…`. +1 per admitted tick, 0 at the tile edge, so it is `+0x149 / 2` in every reachable state — see `docs/screens.md` §5.2. |
 | `+0x1C` | u8 | **pathLen** | [V] | steps remaining; the stepper counts it down to 0. |
 | `+0x1D … +0x148` | u8×300 | **path** | [V] | 150 `(x, y)` pairs, walked from `pathLen−1` downwards. |
 
@@ -105,7 +105,7 @@ offset anything in the binary references. The 150 is the loop bound in `Path_Cop
 
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
-| `+0x149` | i8 | stepAccum | [D] | 0 … 15 sub-tile accumulator; +2 a frame, +4 with animation off. At 16 the unit lands on the next tile. |
+| `+0x149` | i8 | stepAccum | [D] | 0 … 15 sub-tile accumulator; +2 an admitted tick in single player, **+4 in a network game** (`g_multiplayer`, not "animation off" as this row said — C134). The commit writes 1; at 16 it goes to 0 and the edge latch `+0x14B` bit 0 is set, and the same tick commits the next tile. It indexes `Map_DrawArmies`' walk tables — `docs/screens.md` §5.2. |
 | `+0x14A` | i8 | animTick | [D] | frame delay: 3 off-road, 0 on a road, so units visibly move faster on roads too. |
 | `+0x14B` | u8 | flags | [D] | bit 0 = "on a tile centre, ready for the next step". |
 | `+0x14C` | u8 | **moveState** | [V] | 0 idle, **2 = moving**. |
@@ -487,6 +487,24 @@ n = distance[tile] - 1;
 if (unit.moveAllowance - unit.movesUsed < n) n = 0;             /* out of range */
 frame = (tile is castle/settlement/plot) ? 0x4E : 0x38 + n;     /* g_flagsSheet */
 ```
+
+> **Corrected, and a player found the difference.** *"Castle/settlement/plot"* is looser
+> than the function, and ours had not built the arm at all — so a town, which costs 100 to
+> enter and is therefore always past the budget, drew the grey ball: *"it's just a grey ball
+> like I can't get there when I attack a town."* `Map_DrawPathMarker` (`0x004081A6`),
+> verbatim:
+>
+> ```c
+> local_14 = flags & 0x50;                                   /* the town, or a dwelling plot */
+> if ((flags & 0x80) != 0 && content != 0x14) local_14 = 1;  /* a site or a castle, not a bare plot */
+> frame = local_14 == 0 ? 0x38 + n : 0x4E;
+> g_drawX += 0x14;  g_drawY += 6;                            /* no centring, no zoom test */
+> ```
+>
+> The plane-0 bits and the terrain byte, **tested before the cost** and nothing else: your
+> own town is gold, a town out of reach is gold, and an enemy army on open ground is coloured
+> by its cost. The hovered tile is the ball's tile unsnapped — `FUN_00472986` is `tile / 8`,
+> `% 64`, `/ 64`. **[D]**, and `docs/decisions.md` CNEW-walk.
 
 so the frame index **is** the accumulated cost, and everything past the remaining budget
 collapses to frame `0x38`. That is the player's *"gold balls along the steps, greyed where

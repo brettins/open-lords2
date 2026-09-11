@@ -73,6 +73,7 @@ crates/l2-game/src/screens/info.rs	C110	610d3cd4e224	a4ab43902f60
 crates/l2-game/src/screens/info.rs	C25	81871fcedfac	5d466f0cb89c
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/map.rs	C132	3a974c32854e	84bc50c0ddbe
+crates/l2-game/src/screens/map.rs	C134	414ddf907651	d12cd2f96f79
 crates/l2-game/src/screens/map.rs	C138	3ac5e2071333	7724e6665b90
 crates/l2-game/src/screens/map.rs	C152	b183d33d7dd0	582988651236
 crates/l2-game/src/screens/map.rs	C158	e599fa7d6513	3b5e22280a31
@@ -386,6 +387,7 @@ crates/l2-testkit/tests/quirks_catalogue.rs	C62	0139b3d61739	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	158971b86058	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	6e16796702fc	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	bb3cf267d3c1	ebb6a7ec3711
+crates/l2-view/src/campaign.rs	C134	976c35888d40	d12cd2f96f79
 crates/l2-view/src/campaign.rs	C49	38f05e43397f	4ce32e6c42e0
 crates/l2-view/src/campaign.rs	C57	cc211f4ea532	3b42b65157bf
 crates/l2-view/src/campaign.rs	C58	f81f70509bd8	2a1ff4d5966d
@@ -531,6 +533,7 @@ docs/decisions.md	C12	a388b50da6e9	bb0dd488f9d2
 docs/decisions.md	C120	7c9b703bcdc3	e96a6897511c
 docs/decisions.md	C120	e3304840f5e5	e96a6897511c
 docs/decisions.md	C123	1262cc0f058c	3a5cc2fec37d
+docs/decisions.md	C123	27b5befee410	3a5cc2fec37d
 docs/decisions.md	C123	59a89116ad95	3a5cc2fec37d
 docs/decisions.md	C124	1168fcc7f029	38723617b085
 docs/decisions.md	C125	4a3bc312925c	6084e87aec70
@@ -562,6 +565,8 @@ docs/decisions.md	C133	ca0e15ab5416	91fcca97cc98
 docs/decisions.md	C133	d0f6772c2a0f	91fcca97cc98
 docs/decisions.md	C133	d1b998eebb52	91fcca97cc98
 docs/decisions.md	C133	edf25f8ff042	91fcca97cc98
+docs/decisions.md	C134	0505b9063a14	d12cd2f96f79
+docs/decisions.md	C134	f42c9e8fba15	d12cd2f96f79
 docs/decisions.md	C135	b671ddf7d3d9	39859e3b9368
 docs/decisions.md	C136	6d12b0ebe9a1	724c11b1e475
 docs/decisions.md	C136	8e1c5d41f14b	724c11b1e475
@@ -906,6 +911,7 @@ docs/screens-county.md	C59	aec4d2276a51	37ab8ac1a2fc
 docs/screens-county.md	C61	675bbac0eace	60611046b40d
 docs/screens-county.md	C76	982107e9770f	53e207ae069e
 docs/screens-county.md	C97	6fb9495168cb	f5f75acd2cda
+docs/screens.md	C134	a3bc8eedfa5b	d12cd2f96f79
 docs/screens.md	C139	af83add24e4f	d11336df05e7
 docs/screens.md	C22	29997cfa2796	0364b53a921d
 docs/screens.md	C25	6e23d74e76ec	5d466f0cb89c

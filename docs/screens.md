@@ -724,7 +724,33 @@ The 8 × 16 tables at `0x004D8108` … `0x004D8388` are six `i8` arrays indexed
 `[direction][+0x149]`: index 0 is zero and index 1 is the full previous-tile delta, ramping
 back to zero at 15. They **drag the sprite backwards toward the tile it stepped out of**
 while a step plays out, which is the walk animation; the unit's own `x`/`y` are already at
-the destination.
+the destination. **Built** — `campaign::walk_offset`, and five more things about it, each
+**[V]** against the bytes or **[D]** as marked (`docs/decisions.md` CNEW-walk):
+
+* **Only the odd indices are drawn while walking.** `Unit_StepOnce` (`0x0046634D`) writes
+  `+0x149 = 1` at the commit and adds 2 per admitted tick; on reaching 16 the same tick
+  commits the next tile. A crossing is eight positions, 1, 3 … 15, and a stopped unit is at
+  0. Linear, in whole pixels. **[D]**
+* **The whole step is short.** Index 1 is `(−28, +14)` against a pitch of `(30, 15)` and
+  `−56` against 60 near; `−5` and `−11` against 6 and 12 far. The figure hops two pixels
+  (four straight, one far) at every commit. **[V]**, the bytes and the projection.
+* **The frame is one tick behind the position.** `Army_Tick`, `PeasantMob_Tick`,
+  `Merchant_Tick` and `Transport_Tick` write `+0x07` from facing and `+0x1B` *before*
+  `Unit_Step`; `Map_DrawArmies` reads `+0x149` and `+0x09` live. So a turning unit is drawn
+  at its new heading's offset facing the old way for one tick. `+0x1B` advances once per
+  admission — every tick on a road, one in four off it — and is `+0x149 / 2` in every
+  reachable state. **[D]**
+* **Every kind walks the same tables**: armies and mobs through `g_unitWalkFrames`
+  (`0, 1, 2, 1` twice), merchants and transports through `g_merchantWalkFrames`
+  (`0 … 5, 0, 1` — eight entries, restarting at every tile). Only the nudge differs.
+* **The fog test is on the tile walked into.** `Unit_MoveInFacing` relinks the unit at the
+  commit, so a unit walking out of sight vanishes as it commits and one walking into sight
+  is drawn over the dark for its whole crossing. A person's own army never walks into the
+  dark: `Unit_Step` lit the square round the tile it is leaving first.
+
+Not reproduced: `Map_DrawArmies(mode)` — the lattice walk passes `mode 1` for the first cell
+of a half-offset row, which lands that one column's figures two pixels left of every other
+column's. Ours places every cell by `cell_to_screen`.
 
 County **borders are in the tile data**, not an overlay: `maps-layers.md` §2.1 — plane-0
 bit `0x02` switches the tile to the `roads` bank's boundary frames. There is no separate
@@ -879,7 +905,13 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   `campaign::tests::the_clip_rectangle_swallows_exactly_the_columns_the_half_blitters_drop`
   goes red if the clip is moved to 480;
 * **the unit sprites and the two flags**, from `Sprite1a/1b.pl8` and `Flags1a.pl8`, with the
-  original's frame arithmetic, its anchor and its 16 ms wave counter (§5.1, §5.2);
+  original's frame arithmetic, its anchor and its 16 ms wave counter (§5.1, §5.2) — **and
+  the walk**: the 8 × 16 tables by `+0x149`, the frame one tick behind the position, at both
+  zooms (§5.2). This line used to be in the list below as *"we keep no step counter"*, a
+  correction after C134 gave the unit one;
+* **the path balls' own placement and the gold ball of action** — `Map_DrawPathMarker`'s
+  `(+0x14, +6)` from the tile origin, and frame `0x4E` on a town, a dwelling plot, an
+  industry site or a standing castle whatever it costs (`docs/armies.md` §2.3);
 * **`Map_Click`'s merchant arm**, guarded on the *county's* owner as the original guards it,
   centring on that county's town and opening screen `0x08` — **which trades now**, carrying
   the clicked unit with it because `DAT_00553C64` is what the price is computed from. See
@@ -944,9 +976,6 @@ into the gitignored `out/` so it can be looked at.
 * **settlement state** on the map — `FUN_004071A0`'s industry-shut-down marker
   (`Flags1a.pl8` frames `0x28 … 0x37`, cycled on its own 16-step counter) and the field
   overlay block at `0x55 … 0x66`;
-* the **walk interpolation** — `Map_DrawArmies` looks the sprite's sub-tile offset up in the
-  8 × 16 tables at `0x004D8108` … `0x004D8388` by unit `+0x149`, and we keep no step counter,
-  so every unit is drawn at rest (§5.2);
 * the **besieger's banner** (`Flags1a.pl8` frame `0x82` with the seasons left under it,
   `FUN_00407F82`) and the **selection flood fill** the original paints for an army under
   orders. Ours are a dot and a ring;
