@@ -146,24 +146,35 @@ Glyph_Draw:   frame = g_glyphWidths[c] - 1;  record = font + frame * 0x10 + 8;
 ```
 
 * **There is no per-face table.** `g_glyphWidths` (`0x004D71F0`) is indexed the same way
-  whichever `font` pointer is passed. The only per-face special case in `Glyph_Draw` is a
-  one-pixel raise when `font == &g_fontBody` and the **index** (`c - 0x20`, which is what
-  `Ui_DrawText` passes) is in `0x61…0x6D`, `0x73…0x77` or `0x80…0x84` — characters
-  `0x81…0x8D`, `0x93…0x97` and `0xA0…0xA4`, the accented range. **Not reproduced** by
-  `shell::font`, which has no per-face branch; no English `L2.eng` string has been checked
-  for those bytes.
+  whichever `font` pointer is passed. **It is 224 bytes, not 128** — `Ui_DrawText` indexes
+  it with `c - 0x20` for every byte above `0x1F` — and eleven of the last 96 are glyphs:
+  `0xA0…0xA7` (frames 83, 91, 95, 99, 103, 103, 0, 14) and `0xDF…0xE1` (frame 105). No
+  absolute address in the file points into its tail, and `0x004D72D0` starts another table.
+  **[V]** from the image.
+* **The only per-face special case in `Glyph_Draw` is a one-pixel raise when
+  `font == &g_fontBody`** (`cmp dword [ebp+8], 0x005AF8F0` at `0x00402A97`) and the
+  **index** (`c - 0x20`, which is what `Ui_DrawText` passes) is in `0x61…0x6D`, `0x73…0x77`
+  or `0x80…0x84` — inclusive, `dec dword [g_drawY]` at `0x00402AC0`, `0x00402AE2` and
+  `0x00402B08`. In characters, `0x81…0x8D`, `0x93…0x97` and `0xA0…0xA4`. The test is the
+  code, not the frame: `0x86` uses `'a'`'s frame and is raised, `0x87` uses `0x80`'s and is
+  raised while `0x80` is not. **[V]** from the bytes; reproduced by `shell::font`
+  (`ACCENT_RAISE`, `Font::raising_accents`), and `tests/shell.rs` reads both the compares
+  and the drawn ink. **No string in the shipped English `L2.eng` contains a raised
+  character**: its only bytes above `0x7F` are nine `0xB7`s, one at the head of each of
+  295/2…295/10, and `0xB7` is a blank.
 * **Nothing checks the frame index against the file's count**, so a face is safe only if
   every non-zero entry lands inside it. Measured against the shipped files, all five do:
 
   | face | global | frames | highest frame the table asks for |
   |---|---|---:|---:|
-  | `Fnt_8.pl8` | `g_font8` | 150 | 104 |
-  | `Fntl2_9.pl8` | `g_fontSmall` | 108 | 104 |
-  | `Font_10.pl8` | `g_font10` | 108 | 104 |
-  | `Fntl2_14.pl8` | `g_fontBody` | 108 | 104 |
-  | `Fntl2_22.pl8` | `g_fontHeading` | 106 | 104 |
+  | `Fnt_8.pl8` | `g_font8` | 150 | 105 |
+  | `Fntl2_9.pl8` | `g_fontSmall` | 108 | 105 |
+  | `Font_10.pl8` | `g_font10` | 108 | 105 |
+  | `Fntl2_14.pl8` | `g_fontBody` | 108 | 105 |
+  | `Fntl2_22.pl8` | `g_fontHeading` | 106 | 105 |
 
-  (The table's largest entry is 105, frame 104.)
+  (The table's largest entry is 106, frame 105, for `0xDF…0xE1`. This table said 104 when
+  it read only the first 128 bytes.)
 * **A gap is a zero entry, and only `Ui_DrawText` handles it**: four pixels of advance, no
   blit. `Glyph_Draw` itself returns 0 for one. There is no substitution and no fallback
   face.

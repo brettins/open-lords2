@@ -8574,3 +8574,85 @@ exe, and never reads the `Kind` the code declares — the marker is text. What w
 `Opt_ToggleAnimations` are each kind 5 in their panel and kind 4 in the orphaned table, so
 their address alone is ambiguous; a record whose prose names one record base calling that
 handler is now judged by that record. Coverage 37 → 54 by handler, 12 → 31 by prose.
+
+---
+
+**CNEW-unitheadings — The information panel's body-face headings were in the unit half, not the tile half: three drawn in body and five not drawn.** **[V]**
+
+C150 recorded that *"the tile half's headings are `&g_fontHeading`"* and *"the unit half's use
+`Pen::eng`, which is the body font, at the same slot"*, and left *"five call sites in a half
+this change does not touch"*. The brief that followed read that as five call sites in
+`TileInfo_Draw`. Reading both painters' call sites:
+
+| painter | `&g_fontHeading` calls | ours before |
+|---|---:|---|
+| `TileInfo_Draw` (`0x0041C208`) | 3 — heading 30/`local_20` at `(0x28, R*16+0x40)`, its farm-field suffix 30/`local_c` at `g_penAdvance + 0x28`, the county name `Ui_DrawCentred(100, …, 8, R*16+0x18, 0x1C0)` | the county-town heading and the county name, both already heading; the suffix belongs to the farmland arm, which is not built |
+| `TileInfo_DrawGrain`, `…Herd`, `…Castle` | 0 | — |
+| `UnitPanel_Draw` (`0x0041B19D`) | 8 | below |
+
+`UnitPanel_Draw`'s eight, and what each draws now:
+
+| call | was | is |
+|---|---|---|
+| 31/2 at `(0x18, R*16+0x30)`, transport | body, at `(0x28, R*16+0x40)` | heading, at `(0x18, R*16+0x30)` |
+| 100/`unit[+0x167] + scen*20` at `g_penAdvance + 0x18`, transport | not drawn | heading — the cargo county |
+| 31/`local_20` at `(0x28, R*16+0x40)`, merchant 0 and peasants 5 | body | heading |
+| `(owner + 0x5D)`/`nameIndex` at `(0x28, R*16+0x30)`, every army | not drawn | heading |
+| 16/0 at `(0x38, R*16+0x130)`, own army with no band | not drawn | heading |
+| `Ui_DrawNumber(mercMen, '@', "", 0x38, …)`, 16/`mercBand`, `Ui_DrawUnitNoun(mercMen, mercTroop*2 + 0x34, …)` | not drawn | heading, chained on `g_penAdvance` |
+
+`DAT_004D422C` is a NUL, read out of the image. `Ui_DrawUnitNoun` (`0x0041AC3E`) is
+`value == 1 ? index : index + 1`, without `Ui_DrawCount`'s `-1` arm. C150's *"five"* is
+`UnitPanel_Draw`'s `Eng_DrawString` heading calls outside the mercenary-band branch.
+
+**And a claim in `docs/draws.md` is contradicted by the same function.** Its *And a second
+dead thing* says `local_14` is *"read nowhere in the function"*;
+`Sprite_WGenSprite(local_14, 0x28, R*16+0x60)` reads it, and `screens/info.rs` already draws
+those five frames as the unit icons. Not edited here.
+
+Test: `chrome_text::every_unit_panel_heading_is_in_the_heading_face_inside_its_box` — six
+units, each line found in `Fntl2_22.pl8` at its call site's own position, inside
+`Ui_DrawBox(8, R*0x10 + 0x20, 0x1C, 0x1B − R)`, and not found in `Fntl2_14.pl8`.
+
+---
+
+**CNEW-accentraise — `Glyph_Draw` raises 23 characters in the body face, `g_glyphWidths` is 224 bytes, and `L2.eng` dropped every string with a byte above `0x7F`.** **[V]**
+
+**The raise, from the instruction bytes.** After `add [g_drawY], eax` (`y += record[0x0D]`,
+`0x00402A91`), `Glyph_Draw` (`0x00402A14`) does `cmp dword [ebp+8], 0x005AF8F0` —
+`g_fontBody` — and `jne 0x00402B0E` past everything below. Then three times:
+`xor eax, eax ; mov al, [ebp+0xC]`, `cmp eax, lo ; jl`, `cmp eax, hi ; jg`,
+`dec dword [g_drawY]`, with `(lo, hi)` = `(0x61, 0x6D)`, `(0x73, 0x77)`, `(0x80, 0x84)` and the
+decrements at `0x00402AC0`, `0x00402AE2`, `0x00402B08`. The argument is the index `c - 0x20`
+that `Ui_DrawText` passes, so the raised **characters** are `0x81…0x8D`, `0x93…0x97` and
+`0xA0…0xA4` — 23 — in **`Fntl2_14.pl8` only**. `Glyph_Draw` has nine call sites, all in
+`Ui_DrawText`, all passing the same font and index, so both shadow passes and the drop shadow
+move with the glyph. The test is the code and not the picture: `0x86` is `'a'`'s frame and
+raised, `0x87` is `0x80`'s frame and raised while `0x80` is not.
+
+**The table was missing 96 bytes.** `Ui_DrawText` looks up every byte above `0x1F`, so
+`g_glyphWidths` runs to index `0xDF`: 224 bytes, ending at `0x004D72CF`, where another table
+begins; no absolute address in the file points into `0x004D71F1…0x004D72CF`. Eleven of the 96
+are glyphs — `0xA0…0xA7` and `0xDF…0xE1` — and our 128-byte `GLYPH_MAP` drew them as blanks;
+five of the raised characters are among them. `pl8.md`'s *"highest frame the table asks for"*
+was 104 for that reason and is 105, which every face still holds.
+
+**`Eng::get` returned `None` for any string with a byte above `0x7F`**, under a comment saying
+the file is Latin-1 and that `from_utf8` would reject those bytes. It ran `from_utf8`. The
+English file has nine such strings — 295/2…295/10, the bullets of *"What should I do each
+turn?"*, each opening with `0xB7` — and `group(295)` read two strings of eleven. `Eng` now
+returns each byte as the `char` of the same number, which is the number `Font` indexes with.
+
+**What could not be done as asked.** The brief wanted the raise measured on a real `L2.eng`
+string that contains a raised character. **There is none**: the English file's only bytes
+above `0x7F` are those nine `0xB7`s, which have no glyph, and the DOS install's `L2.ENG` has
+no raised byte either. The raise is reachable only through a translated `L2.eng`, and none is
+on this machine. The test measures it on the two shared-frame pairs, and asserts the file's
+high bytes so that a translated file turns it red.
+
+Tests: `shell::glyph_draw_raises_three_index_ranges_and_only_for_g_font_body` (compares and
+decrements read out of `Lords2.exe`; every character `0x20…0xFF` put to
+`font::accent_raised`), `shell::an_accent_sits_one_row_above_its_own_frame_in_the_body_face_and_nowhere_else`
+(ink of `0x86`/`0x87` one row above `'a'`/`0x80` in body, identical in heading, small and
+eight), `shell::the_each_turn_help_page_keeps_its_nine_bullets`, and
+`shell::the_glyph_map_is_the_table_in_the_users_own_executable`, now over 224 bytes.

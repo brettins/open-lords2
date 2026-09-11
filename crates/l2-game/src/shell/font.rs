@@ -30,6 +30,13 @@
 //! frames in that file that are four pixels taller than their neighbours.
 //! Descenders land on the descending letters. Nothing else would.
 //!
+//! # One face raises its accents
+//!
+//! `Glyph_Draw` has exactly one branch that knows which font it was given:
+//! when it is `&g_fontBody`, the characters `0x81 … 0x8D`, `0x93 … 0x97` and
+//! `0xA0 … 0xA4` are drawn one pixel higher. [`ACCENT_RAISE`] has the bytes;
+//! [`Font::raising_accents`] is how the loader marks the body face.
+//!
 //! # Every string is drawn three times — except when it is drawn once
 //!
 //! `Ui_DrawText` (`0x00402637`) draws each glyph at `y - 1` in one shadow
@@ -64,15 +71,34 @@ use l2_formats::DecodedFrame;
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-/// `g_glyphWidths` (`0x004D71F0`), transcribed.
+/// `g_glyphWidths` (`0x004D71F0`), transcribed — **all 224 bytes of it.**
 ///
 /// One byte per character from `0x20`, giving `frame + 1`; zero means the
 /// character has no glyph and advances [`SPACE_ADVANCE`]. This is the
 /// executable's data, not ours, and it is a constant here for the same reason
 /// `l2_view::chrome::MINIMAP_REALM_RAMP` is: it is a constant of the game, and
 /// this crate should not have to open `Lords2.exe` to draw a letter.
-/// `tests/install.rs` reads the same bytes back out of the user's own copy.
-pub const GLYPH_MAP: [u8; 128] = [
+/// `tests/shell.rs` reads the same bytes back out of the user's own copy.
+///
+/// **It used to be 128 bytes, and the original's is 224.** **[V]**
+/// `Ui_DrawText` (`0x00402637`) looks up every character above `0x1F` as
+/// `g_glyphWidths[c - 0x20]`, with `c` a byte and no bound, so the index runs
+/// to `0xDF`; `Glyph_Draw` (`0x00402A14`) and the measure `FUN_004014F0`
+/// (`0x004D71D0[c]`, the same bytes) do the same. The 96 bytes past 128 were
+/// read out of the image and eleven are not zero:
+///
+/// * `0xA0 … 0xA7` → frames 83, 91, 95, 99, 103, 103, 0, 14. Each of the first
+///   four is the frame one before the one `0x85`, `0x8D`, `0x95` and `0x97` use,
+///   and `0xA6` and `0xA7` reuse `'a'` and `'o'` — **[I]** code page 437's
+///   *á í ó ú ñ Ñ ª º*, which is what the neighbours `0x80 … 0x9A` are;
+/// * `0xDF`, `0xE0`, `0xE1` → frame 105.
+///
+/// Nothing else holds the tail: no absolute address in the file points into
+/// `0x004D71F1 … 0x004D72CF`, and `0x004D72D0` begins a different table. The
+/// highest frame the table asks for is therefore **105**, not 104, which every
+/// shipped face still holds (`Fntl2_22.pl8`, the smallest, has 106).
+/// Our 128-byte copy drew those eleven characters as blanks.
+pub const GLYPH_MAP: [u8; 224] = [
     0, 63, 64, 0, 0, 65, 0, 74, 67, 68, 66, 70, 78, 69, 79, 77, //
     62, 53, 54, 55, 56, 57, 58, 59, 60, 61, 72, 73, 0, 71, 0, 75, //
     0, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, //
@@ -80,8 +106,61 @@ pub const GLYPH_MAP: [u8; 128] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, //
     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 0, 0, 0, 0, 0, //
     103, 99, 88, 86, 83, 85, 1, 103, 90, 87, 89, 91, 94, 93, 27, 27, //
-    31, 105, 105, 98, 95, 97, 102, 101, 25, 41, 47, 0, 0, 0, 0, 0,
+    31, 105, 105, 98, 95, 97, 102, 101, 25, 41, 47, 0, 0, 0, 0, 0, //
+    84, 92, 96, 100, 104, 104, 1, 15, 0, 0, 0, 0, 0, 0, 0, 0, //
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 106, //
+    106, 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
+
+/// **The one per-face branch in `Glyph_Draw`: three index ranges drawn one
+/// pixel higher, in `&g_fontBody` only.** **[V]**, from the instruction bytes.
+///
+/// ```text
+/// 0x00402A8C  mov  eax, [g_blitRowCount] ; add [g_drawY], eax    ; y += record[0x0D]
+/// 0x00402A97  cmp  dword [ebp+8], 0x005AF8F0                     ; font == &g_fontBody
+/// 0x00402A9E  jne  0x00402B0E                                    ; any other face: no raise
+/// 0x00402AA9  cmp  eax, 0x61 ; jl  …    0x00402AB7  cmp eax, 0x6D ; jg  …
+/// 0x00402AC0  dec  dword [0x00591528]                            ; g_drawY -= 1
+/// 0x00402ACB  cmp  eax, 0x73 ; jl  …    0x00402AD9  cmp eax, 0x77 ; jg  …
+/// 0x00402AE2  dec  dword [0x00591528]
+/// 0x00402AED  cmp  eax, 0x80 ; jl  …    0x00402AFD  cmp eax, 0x84 ; jg  …
+/// 0x00402B08  dec  dword [0x00591528]
+/// ```
+///
+/// `eax` is `Glyph_Draw`'s second argument zero-extended, and that argument is
+/// the **index** — `Ui_DrawText` has already subtracted `0x20`. So the ranges
+/// are inclusive index ranges, and in characters they are `0x81 … 0x8D`,
+/// `0x93 … 0x97` and `0xA0 … 0xA4`. `0x005AF8F0` is `g_fontBody`, which
+/// `Res_LoadStatic` fills from `Fntl2_14.pl8`; no other face is compared, so
+/// `Fntl2_22.pl8`, `Fntl2_9.pl8`, `Font_10.pl8` and `Fnt_8.pl8` never raise.
+///
+/// **The test is the character code, not the picture**, and two pairs in the
+/// table show it plainly: `0x86` is drawn with `'a'`'s own frame and `0x87`
+/// with the frame `0x80` uses, and in the body face `0x86` and `0x87` sit one
+/// row above `'a'` and `0x80` while the heading face puts each pair on the same
+/// row. `0x8E … 0x92`, `0x98 … 0x9A` and `0xA5 … 0xA7` have glyphs and are not
+/// raised.
+///
+/// Every one of `Ui_DrawText`'s nine `Glyph_Draw` calls passes the same font
+/// and index, so the raise moves the two shadow passes and the drop shadow with
+/// the glyph. [`Font::draw`] and [`Font::draw_dropped`] apply it to every blit
+/// of the character for the same reason.
+pub const ACCENT_RAISE: [(u8, u8); 3] = [(0x61, 0x6D), (0x73, 0x77), (0x80, 0x84)];
+
+/// Whether `Glyph_Draw` raises `c` **in the body face** — `c - 0x20` inside one
+/// of [`ACCENT_RAISE`]'s ranges. Whether a face raises at all is
+/// [`Font::raises_accents`].
+pub fn accent_raised(c: char) -> bool {
+    let code = c as u32;
+    if code < GLYPH_MAP_BASE as u32 {
+        return false;
+    }
+    let index = code - GLYPH_MAP_BASE as u32;
+    ACCENT_RAISE.iter().any(|&(lo, hi)| index >= lo as u32 && index <= hi as u32)
+}
 
 /// Where that table lives, so a test can go and read it.
 pub const GLYPH_MAP_VA: u32 = 0x004D_71F0;
@@ -229,6 +308,11 @@ pub struct Font {
     /// painters position every line absolutely — but useful for a shell that
     /// has to place a line the original never drew.
     pub line: i32,
+    /// Whether this is `&g_fontBody` for `Glyph_Draw`'s purposes — the face
+    /// that draws [`ACCENT_RAISE`]'s characters one pixel higher. False from
+    /// [`Font::new`]; [`Font::raising_accents`] is how the loader says which
+    /// file became that global.
+    raises_accents: bool,
 }
 
 /// The file names of the two fonts the management screens use.
@@ -289,7 +373,30 @@ pub const EIGHT: &str = "Fnt_8.pl8";
 impl Font {
     pub fn new(bytes: Vec<u8>, line: i32) -> Result<Font, String> {
         let sheet = Sheet::new(bytes).map_err(|e| e.to_string())?;
-        Ok(Font { sheet, line })
+        Ok(Font { sheet, line, raises_accents: false })
+    }
+
+    /// This font, as `&g_fontBody`: [`ACCENT_RAISE`]'s characters one pixel
+    /// higher. `Glyph_Draw` (`0x00402A14`) decides by the font *pointer*, so it
+    /// is a property of which global a file was loaded into and not of the
+    /// file — `crate::shell::ShellAssets::load` gives it to `Fntl2_14.pl8`.
+    pub fn raising_accents(mut self) -> Font {
+        self.raises_accents = true;
+        self
+    }
+
+    /// Whether this face raises [`ACCENT_RAISE`]'s characters.
+    pub fn raises_accents(&self) -> bool {
+        self.raises_accents
+    }
+
+    /// `Glyph_Draw`'s `g_drawY = g_drawY + -1` for `c` in this face: `-1` or `0`.
+    fn lift(&self, c: char) -> i32 {
+        if self.raises_accents && accent_raised(c) {
+            -1
+        } else {
+            0
+        }
     }
 
     /// The frame for a character.
@@ -381,7 +488,8 @@ impl Font {
             };
             // The order the original draws in: above, below, then the real one
             // on top of both. The glyph's own vertical offset is inside the
-            // frame — see `glyph` — so all three share `y` and nothing else.
+            // frame — see `glyph` — so all three share `y` and the raise.
+            let y = y + self.lift(c);
             if let Some((up, down)) = style.shadow {
                 Font::blit_mask(canvas, &frame, pen, y - 1, up);
                 Font::blit_mask(canvas, &frame, pen, y + 1, down);
@@ -408,6 +516,7 @@ impl Font {
                 pen += SPACE_ADVANCE;
                 continue;
             };
+            let y = y + self.lift(c);
             Font::blit_mask(canvas, &frame, pen + 1, y + 1, DROP_SHADOW_COLOUR);
             Font::blit_mask(canvas, &frame, pen, y, colour);
             pen += frame.width as i32 + 1;
@@ -473,12 +582,31 @@ mod tests {
     }
 
     #[test]
-    fn the_map_covers_every_character_from_0x20() {
-        assert_eq!(GLYPH_MAP.len(), 128);
+    fn the_map_covers_every_byte_from_0x20() {
+        // `Ui_DrawText` looks up every byte above 0x1F, so 0x20 ..= 0xFF.
+        assert_eq!(GLYPH_MAP.len(), 0x100 - 0x20);
         assert_eq!(GLYPH_MAP_BASE, 0x20);
-        // The highest frame any character asks for. Fntl2_14.pl8 has 108
-        // frames and Fntl2_22.pl8 has 106, so nothing here can be out of range
-        // in the body font and only the accented tail could be in the heading.
-        assert_eq!(GLYPH_MAP.iter().copied().max().unwrap(), 105);
+        // The highest entry is 106, frame 105, for 0xDF ..= 0xE1. Fntl2_22.pl8
+        // has 106 frames and is the smallest face, so every entry is in range.
+        assert_eq!(GLYPH_MAP.iter().copied().max().unwrap(), 106);
+        assert_eq!(&GLYPH_MAP[0xBF..0xC2], &[106, 106, 106]);
+    }
+
+    #[test]
+    fn the_raise_is_by_character_code_and_not_by_picture() {
+        // Same frame, opposite answers: 0x86 is 'a''s frame and 0x87 is 0x80's.
+        assert_eq!(GLYPH_MAP[0x86 - 0x20], GLYPH_MAP['a' as usize - 0x20]);
+        assert_eq!(GLYPH_MAP[0x87 - 0x20], GLYPH_MAP[0x80 - 0x20]);
+        assert!(accent_raised('\u{86}') && !accent_raised('a'));
+        assert!(accent_raised('\u{87}') && !accent_raised('\u{80}'));
+        // Both ends of all three ranges, and one past each.
+        for (c, raised) in [
+            (0x80, false), (0x81, true), (0x8D, true), (0x8E, false),
+            (0x92, false), (0x93, true), (0x97, true), (0x98, false),
+            (0x9F, false), (0xA0, true), (0xA4, true), (0xA5, false),
+        ] {
+            assert_eq!(accent_raised(char::from_u32(c).unwrap()), raised, "{c:#04X}");
+        }
+        assert!(!accent_raised('\u{1F}') && !accent_raised('\u{100}'));
     }
 }

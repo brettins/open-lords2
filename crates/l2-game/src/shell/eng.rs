@@ -35,6 +35,25 @@ pub struct Eng {
     bytes: Vec<u8>,
     /// One file offset per slot, straight out of the table.
     offsets: Vec<usize>,
+    /// **The whole file with every byte as the `char` of the same number** —
+    /// `0x82` is `'\u{82}'` — so a string with a byte above `0x7F` in it comes
+    /// back as a string rather than as nothing.
+    ///
+    /// The number is what matters and the name of the character does not:
+    /// `Ui_DrawText` (`0x00402637`) indexes `g_glyphWidths` with the byte, and
+    /// so does [`super::font::Font`] with `c as u32`. Whether the file's high
+    /// bytes *mean* Latin-1 or code page 437 is not decided here.
+    ///
+    /// **`get` used to run `from_utf8` on the bytes and return `None` when it
+    /// failed**, under a comment saying the file is Latin-1 and that
+    /// `from_utf8` would reject its accented bytes. So it did: the shipped
+    /// English file has nine such strings — `L2.eng` 295/2 … 295/10, the
+    /// bullets of *"What should I do each turn?"*, each opening with `0xB7` —
+    /// and all nine read as missing, and `group(295)` stopped at two.
+    decoded: String,
+    /// Where byte `i` of `bytes` begins in `decoded`, with one entry past the
+    /// end.
+    starts: Vec<u32>,
 }
 
 impl Eng {
@@ -55,7 +74,14 @@ impl Eng {
             return Err(format!("L2.eng: {slots} slots do not fit in {} bytes", bytes.len()));
         }
         let offsets = (0..slots).map(at).collect();
-        Ok(Eng { bytes, offsets })
+        let mut decoded = String::with_capacity(bytes.len());
+        let mut starts = Vec::with_capacity(bytes.len() + 1);
+        for &b in &bytes {
+            starts.push(decoded.len() as u32);
+            decoded.push(char::from(b));
+        }
+        starts.push(decoded.len() as u32);
+        Ok(Eng { bytes, offsets, decoded, starts })
     }
 
     /// How many slots the table has. Groups `1 ..= count() - 1` are addressable.
@@ -65,7 +91,7 @@ impl Eng {
 
     /// One group's bytes, or `None` for a group the table does not cover or
     /// whose run is empty — several slots in the shipped file are.
-    fn group_bytes(&self, group: usize) -> Option<&[u8]> {
+    fn group_bytes(&self, group: usize) -> Option<(usize, &[u8])> {
         let start = *self.offsets.get(group)?;
         let end = match self.offsets.get(group + 1) {
             Some(&e) => e,
@@ -74,7 +100,7 @@ impl Eng {
         if start >= end || end > self.bytes.len() {
             return None;
         }
-        Some(&self.bytes[start..end])
+        Some((start, &self.bytes[start..end]))
     }
 
     /// String `index` of `group`, exactly as `Eng_DrawString` walks to it:
@@ -84,7 +110,7 @@ impl Eng {
     /// a caller can tell "the group is shorter than I thought" from "the game
     /// really does draw nothing here".
     pub fn get(&self, group: usize, index: usize) -> Option<&str> {
-        let run = self.group_bytes(group)?;
+        let (start, run) = self.group_bytes(group)?;
         let mut p = 0usize;
         for _ in 0..index {
             while p < run.len() && run[p] != 0 {
@@ -99,10 +125,11 @@ impl Eng {
             return None;
         }
         let end = run[p..].iter().position(|&b| b == 0).map_or(run.len(), |n| p + n);
-        // Latin-1 in the file; the shipped strings are ASCII apart from a few
-        // accented names, and `from_utf8` would reject those. Bytes below 0x80
-        // are the same in both, so this only ever matters for those.
-        std::str::from_utf8(&run[p..end]).ok()
+        // Byte for byte: see `decoded`. A byte below 0x80 is one `char` of the
+        // same number in either reading, so every ASCII string is unchanged.
+        let from = self.starts[start + p] as usize;
+        let to = self.starts[start + end] as usize;
+        Some(&self.decoded[from..to])
     }
 
     /// The same, but "" for anything missing. What a painter wants: a screen
@@ -195,6 +222,21 @@ mod tests {
     fn a_short_file_is_refused_rather_than_indexed() {
         assert!(Eng::parse(vec![0u8; 4]).is_err());
         assert!(Eng::parse(vec![0u8; 32]).is_err(), "group 1 at offset 0 is not a table end");
+    }
+
+    #[test]
+    fn a_byte_above_0x7f_is_the_char_of_the_same_number_and_not_a_missing_string() {
+        // Hand-built, because `synth` writes UTF-8: group 1 is "\xB7 Adjust.",
+        // "a\x86" and "b" — the first shaped like L2.eng 295/2.
+        let mut bytes = synth(&[&[], &["X Adjust.", "aX", "b"]]);
+        let run = bytes.len() - "X Adjust.\0aX\0b\0".len();
+        bytes[run] = 0xB7;
+        bytes[run + "X Adjust.\0a".len()] = 0x86;
+        let e = Eng::parse(bytes).unwrap();
+        assert_eq!(e.get(1, 0), Some("\u{B7} Adjust."));
+        assert_eq!(e.get(1, 1), Some("a\u{86}"));
+        assert_eq!(e.get(1, 2), Some("b"), "the index after a high byte is not shifted");
+        assert_eq!(e.group(1).len(), 3);
     }
 
     #[test]

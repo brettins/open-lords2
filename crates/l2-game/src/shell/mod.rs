@@ -218,7 +218,11 @@ impl ShellAssets {
         }
         let loaded = ShellAssets {
             eng: read("L2.eng").and_then(|b| Eng::parse(b).ok()),
-            body: read(font::BODY).and_then(|b| Font::new(b, 16).ok()),
+            // `&g_fontBody` is the one face `Glyph_Draw` compares against, and
+            // raises three ranges of accented characters in — see
+            // [`font::ACCENT_RAISE`]. The identity is the global, so it is
+            // given here, where the file becomes that global.
+            body: read(font::BODY).and_then(|b| Font::new(b, 16).ok()).map(Font::raising_accents),
             heading: read(font::HEADING).and_then(|b| Font::new(b, 24).ok()),
             small: read(font::SMALL).and_then(|b| Font::new(b, 12).ok()),
             // Twelve: every painter that uses `g_font8` steps its rows `0x0C`
@@ -802,6 +806,24 @@ impl<'a> Pen<'a> {
     ) -> i32 {
         let s = self.assets.text(group, index).to_string();
         self.body(canvas, x, y, &s, colour)
+    }
+
+    /// `Eng_DrawString(group, index, x, y, font, colour)` in the face the call
+    /// site names, with [`Pen::body`]'s return. [`Pen::eng`] is this with
+    /// [`Face::Body`], and a call site that passes `&g_fontHeading` is not that.
+    #[allow(clippy::too_many_arguments)]
+    pub fn eng_in(
+        &self,
+        face: Face,
+        canvas: &mut Canvas,
+        group: usize,
+        index: usize,
+        x: i32,
+        y: i32,
+        colour: u8,
+    ) -> i32 {
+        let s = self.assets.text(group, index).to_string();
+        self.text_in(face, canvas, x, y, &s, colour)
     }
 
     /// `Ui_DrawCentred(group, index, x, y, width, body, colour)`.
