@@ -155,6 +155,8 @@ fn furnished(seed: u64) -> Kingdom {
         r.offer_timer = -(n as i8) - 1;
         r.crowned_once = id % 3 == 0;
         r.voice_rotation = (id % 4 + 1) as u8;
+        // Realm `+0x2A`, `VERSION` 24 — what `County_ChangeOwner`'s letter reads.
+        r.peak_counties = (id + 12) as u8;
 
         // The war plan — `l2_kingdom::ai_army`, `VERSION` 14. Standing orders
         // that persist between turns, so a save that dropped them would forget
@@ -689,7 +691,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // *Plague* and *Wedding fever*'s letters print it.
     // +4,096 at version 23 for the fog of war's seen plane,
     // `Campaign::explored` — one byte a tile, bit `r` for realm `r`.
-    assert_eq!(c.finish().len, 62_958, "the state encoding changed - bump VERSION?");
+    // +6 at version 24 for realm `+0x2A`, `Realm::peak_counties` — one byte a
+    // realm over 6 realm slots. `County_ChangeOwner` reads it to choose the
+    // capture letter and raises it.
+    assert_eq!(c.finish().len, 62_964, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

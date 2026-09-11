@@ -728,27 +728,27 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 111 | 2 | `No drawbridge!` | Refusal: no drawbridge to lower. | `Msg_Enqueue` <- `FUN_0043bbe7` [D] |
 | 112 | 2 | `No right of rule!!` | Refusal: no right of rule in this county. | `Msg_Enqueue` <- `FUN_00436a88`, `Sidebar_Button`, `Map_Click` [D] |
 | 113 | 2 | `No people to arm!` | Refusal: no people allocated to arm. Reachable by no path found. | [I] dead |
-| 114 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 115 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 116 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 117 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 118 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 119 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 120 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 121 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 122 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 123 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 124 | 2 | `FREE` | The final-conquest congratulation of the same series. No call site passes 124; `FUN_004a72fe` stops at 123 and 125. | [I] dead |
-| 125 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 126 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
+| 114 | 2 | `FREE` | Capture notice to an onlooker: one lord took another's county. Category 0, from the taker, `+0x13` = the loser; heading is the county (group 100). | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 115 | 2 | `FREE` | Capture notice to the loser: *"Our county is lost!"* Category 0, from the taker. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 116 | 2 | `FREE` | Capture notice to an onlooker: a neutral county was taken. Category 0, from the taker. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 117 | 2 | `FREE` | Capture letter to the taker, category `0x0D`: past his peak (realm `+0x2A`) with a peak below 2 — *"Bravo!!"* | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 118 | 2 | `FREE` | Capture letter, `0x0D`: past a peak below 3 — *"a solid base"*. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 119 | 2 | `FREE` | Capture letter, `0x0D`: past a peak of 3+, share of map **before** the capture below 26 %. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 120 | 2 | `FREE` | Capture letter, `0x0D`: share below 41 %. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 121 | 2 | `FREE` | Capture letter, `0x0D`: share below 61 %. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 122 | 2 | `FREE` | Capture letter, `0x0D`: share below 81 %. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 123 | 2 | `FREE` | Capture letter, `0x0D`: the taker now holds `g_countyCount − 1` — *"One more county and the crown is yours!"* Tested before the peak. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 124 | 2 | `FREE` | The final-conquest congratulation of the same series. No call site passes 124; `County_ChangeOwner` stops at 123 and 125. | [V] dead |
+| 125 | 2 | `FREE` | Capture letter, `0x0D`: share 81 % and above. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 126 | 2 | `FREE` | Capture letter, `0x0D`: a capture that does not pass the peak — *"The county is yours. May you rule it wisely."* | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
 | 127 | 2 | `FREE` | **Secession**: "Deeming itself too far from the heart of your empire…". | `Territory_SecedeMinorBlocks` [D] |
 | 128 | 2 | `Your lands divide.` | "Your lands divide." — the kingdom-level companion to 127. | `Territory_SecedeMinorBlocks` [D] |
-| 129 | 2 | `FREE` | Refusal: a county too far from the heart of your lands. | `FUN_004a72fe` [D] |
-| 130 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
-| 131 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
-| 132 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
-| 133 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
-| 134 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
+| 129 | 2 | `FREE` | Refusal: a county too far from the heart of your lands — posted to a local taker when the county borders none of his, and the county is then made independent. Category 0. **Not built**: the rule is not, so neither is the letter. | `County_ChangeOwner` [V] |
+| 130 | 2 | `FREE` | Neutral county's greeting, category 2, to the army's owner: happiness below 10 — *"The people are wretched"*. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
+| 131 | 2 | `FREE` | Greeting: happiness below 30, or an army at least as large as the county's population — a welcome. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
+| 132 | 2 | `FREE` | Greeting: an army 50…99 % of the population. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
+| 133 | 2 | `FREE` | Greeting: 20…49 % — *"unacceptable"*. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
+| 134 | 2 | `FREE` | Greeting: under 20 % — *"an outrage"*. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
 | 135 | 2 | `Rats!!` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
 | 136 | 2 | `Mad Cows !!` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
 | 137 | 2 | `Wolves.` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
@@ -784,7 +784,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 167 | 2 | `Cannot combine armies.` | Refusal: those mercenaries will not fight together. | `Msg_Enqueue` <- `MoveOrder_ConfirmGarrison`, `Army_Combine` [D] |
 | 168 | 2 | `Cannot raise army.` | Refusal: army of zero men. | `Msg_Enqueue` <- `FUN_00435b4d` [D] |
 | 169 | 2 | `Cannot build weapon` | "You cannot build this weapon type in the Lords 2 demo." | [I] dead — demo-only |
-| 170 | 17 | `Invasion of` | Invasion declaration, 16 takes (4 lords × 4). | `Unit_EnterCounty` [D] |
+| 170 | 17 | `Invasion of` | Invasion declaration, 16 takes (4 lords × 4): category 1, from the invader to the county's owner, when an army crosses into an owned county that is its destination; variant `lord × 4 + rotation − 4`, and posting it advances the invader's realm `+0x159`. | `Unit_EnterCounty` [V] — `crates/l2-kingdom/src/arrival.rs` |
 | 171 | 17 | `Reply to gift.` | Reply to a generous gift (+10 standing). | `Diplo_ReplyGift` local [D] |
 | 172 | 17 | `Reply to gift.` | Reply to an adequate gift (+5). | `Diplo_ReplyGift` local [D] |
 | 173 | 17 | `Reply to gift.` | Reply to a mean gift (-8). | `Diplo_ReplyGift` local [D] |

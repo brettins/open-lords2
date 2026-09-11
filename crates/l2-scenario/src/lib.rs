@@ -823,6 +823,9 @@ pub struct RealmState {
     /// the realm id; a custom game's colour picker permutes it.
     pub shield_index: u8,
     pub county_count: u8,
+    /// Realm `+0x2A` — the most counties ever held,
+    /// [`l2_kingdom::realm::Realm::peak_counties`].
+    pub peak_counties: u8,
     pub rank: u8,
     pub score: i32,
     pub gold: i32,
@@ -1395,6 +1398,7 @@ impl Scenario {
             realms.push(RealmState {
                 ai_step: save.i32_at(at(0x000))?,
                 tax_hap_empire: save.i8_at(at(0x028))?,
+                peak_counties: save.u8_at(at(0x02A))?,
                 population_total: save.i32_at(at(0x010))?,
                 population_mean: save.i32_at(at(0x014))?,
                 population_last: save.i32_at(at(0x018))?,
@@ -2021,6 +2025,7 @@ impl Scenario {
                 lord,
                 shield_index,
                 county_count,
+                peak_counties,
                 rank,
                 score,
                 gold,
@@ -2083,6 +2088,8 @@ impl Scenario {
             // custom game's flags are its own colours and not the realm order.
             realm.shield_index = *shield_index;
             realm.county_count = *county_count;
+            // Beside the count it shadows: a starting position, not per-turn.
+            realm.peak_counties = *peak_counties;
             realm.rank = *rank;
             realm.score = *score;
             realm.gold = *gold;

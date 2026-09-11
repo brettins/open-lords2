@@ -458,7 +458,7 @@ fn an_army_that_reaches_a_castle_takes_the_county() {
         conquest::march_and_fight(tables, campaign, counties, realms, id, 0, 1268);
     assert_eq!(steps.len(), 1);
     assert_eq!(steps[0].reached_castle, Some(2));
-    assert_eq!(outcome, Some(conquest::Attack::Captured));
+    assert!(matches!(outcome, Some(conquest::Attack::Captured(_))), "got {outcome:?}");
 
     assert_eq!(k.counties[2].owner, 1);
     assert_eq!(k.realms[1].county_count, 2);

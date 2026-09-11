@@ -552,9 +552,20 @@ way it reads**: the bigger your army relative to the county, the politer the pea
 only a small force gets the outrage.
 
 **An owned county** whose owner is not the army's sends message `0xAA` = group 170,
-*"Invasion of"* — sixteen variants indexed by `lord * 4 + realm[+0x159]`, a counter cycling
+*"Invasion of"* — sixteen variants indexed by `lord * 4 + realm[+0x159] - 4`, a counter cycling
 0 … 3 so a lord does not repeat himself. It fires only when the county is the army's declared
-destination (`+0x151`), so marching *through* does not trigger it. [D]
+destination (`+0x151`), so marching *through* does not trigger it. **[V]**, and four things
+the paragraph did not say: the letter is **category 1**, a lord's letter; it is **from the
+invader to the county's owner**, so a player sees a lord's invasion of him and never his own of a
+lord; the greeting above is **category 2**, to the army's owner; and **posting the invasion
+letter advances the invader's `+0x159`** — for every invasion, whoever is watching — so it is
+simulation state and not display. Nothing else is posted on a crossing: no test for a siege, an
+army in the county or a castle. No option or single-player test guards either letter; the only
+filter is `Msg_Enqueue`'s own.
+
+Both are built: `crates/l2-kingdom/src/arrival.rs` decides them at the crossing and
+`crates/l2-game/src/arrival.rs` puts them on the local player's ring. A player on build
+`73DF34969` had reported *"county did not give me a message when I moved an army into it."*
 
 Both paths then call `Army_RecountCountyTroops` (§3.2).
 
@@ -2040,15 +2051,34 @@ size tie-break and the edge guard — is in the unit tests beside the function.
 ### 8.3 `County_ChangeOwner` (`FUN_004A72FE`)
 
 ```c
+Realm_UpdateTotals(new);                              /* recount, and share = PctOf(count, g_countyCount) */
+if (realm[new].countyCount == 0 || County_BordersRealm(new, county)) {
 realm[new].countyCount++;
-...one of nine messages, 0x72..0x7E, by how many counties the taker now holds...
+...one of thirteen letters -- see below...
 county.owner = new;
 penalty = realm[new].isHuman ? (difficulty * 20 + 10) : 30;
 if (county.happiness < penalty) { county[+0x17] -= happiness; happiness = 0; }
 else                            { happiness -= penalty; county[+0x17] -= penalty; }
 county[+0x07] = realm[new].shield;
-realm[new].peakCounties = max(peakCounties, countyCount);
+realm[new].peakCounties = max(peakCounties, countyCount);   /* +0x2A */
+} else {
+if (new == g_localPlayer) Msg(129, "too far from the heart of your lands");
+County_MakeIndependent(county);
+}
 ```
+
+**The letters, `[V]`.** "Nine messages by how many counties the taker holds" was wrong in both
+numbers. The taker, when he is the local player, gets one of **nine** in category `0x0D` —
+123 if the count is `g_countyCount − 1`; otherwise, past his peak (`+0x2A`), 117 at a peak
+below 2, 118 below 3, then 119/120/121/122/125 by the **pre-capture** share of the map below
+26/41/61/81 %; and 126 when the capture does not pass his peak — from realm 0, with the loser
+in `+0x13`. **Anybody else** gets a category-0 notice from the taker: 115 if he was the loser, 116
+if the county was neutral, 114 otherwise. Group 124 is never posted. An **ungovernable** county —
+not bordering the taker's lands, taken by a realm that already holds one — is not taken at all: its
+taker is sent 129 and it is made independent. That branch is **not built**:
+`crates/l2-kingdom/src/conquest.rs` still hands the county over, and so posts no letter for it.
+The rest are built (`crates/l2-game/src/arrival.rs`), including the second letter a
+defence-marked garrison's defeat posts through `Battle_ReturnToCampaign`'s second call.
 
 Two things worth naming. **The conquest penalty is drawn on the *"From events"* line**
 (`+0x17`, `L2.eng` group 85 index 9) rather than on the army row, so a newly taken county

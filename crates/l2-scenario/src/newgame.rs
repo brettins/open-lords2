@@ -1456,6 +1456,9 @@ impl Scenario {
             // answer and not a second rule beside it.
             realm.lord = assigned.lord[id];
             realm.county_count = 1;
+            // `g_realms[i].field_0x2a = 1` beside it (`0x00490000.c` setup walk,
+            // `Game_SetupRealmsAndCounties`): the most counties ever held.
+            realm.peak_counties = 1;
             let Some(&county) = seats.get(id - 1) else { continue };
             let Some(c) = counties.get_mut(county as usize).and_then(|c| c.as_mut()) else {
                 continue;
@@ -1536,6 +1539,7 @@ impl Default for RealmState {
             lord: 0,
             shield_index: 0,
             county_count: 0,
+            peak_counties: 0,
             rank: 0,
             score: 0,
             gold: 0,

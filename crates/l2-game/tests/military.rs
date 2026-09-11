@@ -1033,7 +1033,31 @@ fn an_army_ordered_from_the_map_takes_an_undefended_county_when_the_turn_ends() 
         g.kingdom.campaign.units.get(id).is_some_and(|u| u.moving),
         "the order was placed from the map",
     );
-    end_turn(&mut m, &mut g, &a);
+    // **Taking it writes to the player** — `County_ChangeOwner`'s capture
+    // letter, category `0x0D`, `tests/arrival.rs`'s subject. The turn is wound
+    // by the map's `update`, which does not run under the scroll, so the turn is
+    // ended the way a player ends it: closing each letter as it comes.
+    let before = g.kingdom.turn_count;
+    press(&mut m, &mut g, &a, 'e');
+    let mut letters = Vec::new();
+    for _ in 0..2_000 {
+        if g.kingdom.turn_count > before {
+            break;
+        }
+        if m.top_id() == Some(ScreenId::Message) {
+            letters.extend(g.messages.open().copied());
+            send(&mut m, &mut g, &a, Event::RightClick { x: 320, y: 240 });
+        }
+        tick(&mut m, &mut g, &a);
+    }
+    assert!(g.kingdom.turn_count > before, "the turn happened");
+    for _ in 0..=l2_view::fade::PHASES {
+        tick(&mut m, &mut g, &a);
+    }
+    assert!(
+        letters.iter().any(|r| r.category == l2_game::message::category::CAPTURE && r.county == 2),
+        "the player was told he took county 2: {letters:?}",
+    );
     assert_eq!(
         g.kingdom.counties[2].owner, 1,
         "the county changed hands without the player leaving the map",
@@ -1418,6 +1442,20 @@ fn a_siege_laid_on_the_map_is_carried_to_its_assault_by_ending_the_turn() {
     click(&mut m, &mut g, &a, on(battle::ok_rect()));
     // The map's own `update` picks the suspended turn back up the moment the
     // result screen is gone.
+    for _ in 0..4 {
+        tick(&mut m, &mut g, &a);
+    }
+    // **And the player is written to.** The beaten garrison gave up the
+    // county, and `Battle_ReturnToCampaign`'s `County_ChangeOwner` posts the
+    // capture letter, category `0x0D`, which is up over the map. The turn is
+    // wound by the map's `update`, so it waits for the letter to be closed.
+    let letter = g.messages.open().copied();
+    assert_eq!(m.top_id(), Some(ScreenId::Message), "the capture letter is up");
+    assert!(
+        letter.is_some_and(|r| r.category == l2_game::message::category::CAPTURE && r.county == 2),
+        "a capture letter for county 2: {letter:?}",
+    );
+    send(&mut m, &mut g, &a, Event::RightClick { x: 320, y: 240 });
     for _ in 0..4 {
         tick(&mut m, &mut g, &a);
     }

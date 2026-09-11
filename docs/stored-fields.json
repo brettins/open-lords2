@@ -203,7 +203,7 @@
     {"id": "Realm+0x020", "name": "setup20", "type": "i32", "count": 2, "status": "excluded", "why": "zeroed by Game_SetupRealmsAndCounties and touched by nothing else"},
     {"id": "Realm+0x028", "name": "taxHapEmpire", "type": "i8", "status": "imported"},
     {"id": "Realm+0x029", "name": "countyCount", "type": "u8", "status": "imported"},
-    {"id": "Realm+0x02A", "name": "seatTaken", "type": "u8", "status": "excluded", "why": "the most counties ever held, which County_ChangeOwner reads to choose conquest letter 0x75, 0x76 or 0x7E; equal to +0x29 in every save, and the letters are not built"},
+    {"id": "Realm+0x02A", "name": "peakCounties", "type": "u8", "status": "imported"},
     {"id": "Realm+0x02B", "name": "rank", "type": "u8", "status": "imported"},
     {"id": "Realm+0x02C", "name": "armyCount", "type": "u8", "status": "imported"},
     {"id": "Realm+0x02D", "name": "armyNameCount", "type": "u8", "count": 24, "status": "imported"},

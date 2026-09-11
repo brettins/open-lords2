@@ -141,7 +141,7 @@ impl TurnOutcome {
     /// Counties that changed hands during the turn.
     pub fn captures(&self) -> impl Iterator<Item = (usize, u8)> + '_ {
         self.contacts.iter().filter_map(|c| match c {
-            Contact::Castle { unit, county, outcome: l2_kingdom::conquest::Attack::Captured } => {
+            Contact::Castle { unit, county, outcome: l2_kingdom::conquest::Attack::Captured(_) } => {
                 Some((*unit, *county))
             }
             _ => None,
@@ -477,6 +477,9 @@ pub fn tick_turn(game: &mut Game) -> TurnStep {
 pub fn tick_units_only(game: &mut Game) -> usize {
     let moved = game.kingdom.tick_units();
     game.tips.note_incursions(&moved.incursions, game.player);
+    // `Unit_EnterCounty`'s and `County_ChangeOwner`'s letters, onto this peer's
+    // ring. See `crate::arrival`.
+    crate::arrival::post(game, &moved.posted);
     let stepped = moved.stepped;
     if let Some(e) = moved.battle() {
         raise_idle_battle(game, e);
@@ -833,6 +836,8 @@ fn run_phase_tick(game: &mut Game) {
     let moved = game.kingdom.tick_units();
     // `DAT_00553210`, the invasion tip's flag. See `crate::tip`.
     game.tips.note_incursions(&moved.incursions, game.player);
+    // The same sweep's letters, the same door as `tick_units_only`'s.
+    crate::arrival::post(game, &moved.posted);
     let Some(p) = game.turn.as_mut() else { return };
     p.steps += moved.stepped;
     p.stage = Stage::Tail;
@@ -961,6 +966,10 @@ fn pump_siege(game: &mut Game) {
 /// called it from either. `docs/decisions.md` C71.
 fn record(game: &mut Game, report: Option<BattleReport>) {
     let Some(report) = report else { return };
+    // `County_ChangeOwner`'s letters. They are posted inside
+    // `Battle_ReturnToCampaign`, before the `Realm_RecountStrength` at its
+    // bottom, so a capture is on the ring ahead of any *"Defeat!"* it causes.
+    crate::arrival::post_captures(game, &report.aftermath.captures);
     game.recount_realm(report.aftermath.loser_owner);
     if let Some(p) = game.turn.as_mut() {
         p.unseen = Some(report.clone());

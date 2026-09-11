@@ -195,6 +195,22 @@ pub struct Incursion {
     pub county: u8,
 }
 
+/// **A `Msg_Enqueue` the unit sweep made**, in the order the sweep made it.
+///
+/// Two kinds, and they differ in who decides the recipient. A [`Posted::Letter`]
+/// is fully addressed by the world — `County_GreetArmy` writes to the army's
+/// owner and the invasion letter to the county's — so any peer's ring filter
+/// keeps or drops it. A [`Posted::Capture`] is not: `County_ChangeOwner` chooses
+/// its letter by comparing realms against `g_localPlayer`, so what is reported
+/// is the facts, and the peer chooses. `l2_game::arrival` posts both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Posted {
+    /// `Unit_EnterCounty` (`0x004ABB36`): a greeting or an invasion letter.
+    Letter(crate::diplomacy::Letter),
+    /// `County_ChangeOwner` (`0x004A72FE`), reached from `Army_AttackCounty`.
+    Capture(crate::conquest::Capture),
+}
+
 /// What one call to [`Kingdom::tick_units`] did.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct UnitsTick {
@@ -207,6 +223,8 @@ pub struct UnitsTick {
     pub offences: Vec<Offence>,
     /// Armies that crossed into somebody else's county. See [`Incursion`].
     pub incursions: Vec<Incursion>,
+    /// The letters the sweep posted, oldest first. See [`Posted`].
+    pub posted: Vec<Posted>,
 }
 
 impl UnitsTick {
@@ -225,7 +243,7 @@ impl UnitsTick {
     /// Counties that changed hands this tick.
     pub fn captures(&self) -> impl Iterator<Item = (usize, u8)> + '_ {
         self.contacts.iter().filter_map(|c| match c {
-            Contact::Castle { unit, county, outcome: Attack::Captured } => Some((*unit, *county)),
+            Contact::Castle { unit, county, outcome: Attack::Captured(_) } => Some((*unit, *county)),
             _ => None,
         })
     }
@@ -435,12 +453,21 @@ impl Kingdom {
         {
             self.campaign.units.recount_county_troops(&mut self.counties, &self.realms);
         }
-        // `Unit_EnterCounty`'s owner test, from `Army_Tick` and nothing else.
+        // `Unit_EnterCounty`, from `Army_Tick` and nothing else.
         if let (Some(county), Some(u)) = (step.entered_county, self.campaign.units.get(id)) {
-            if u.kind == crate::UnitKind::Army
-                && self.counties.get(county as usize).is_some_and(|c| c.owner != u.owner)
-            {
-                out.incursions.push(Incursion { unit: id, owner: u.owner, county });
+            if u.kind == crate::UnitKind::Army {
+                // Its owner test, for the invasion tip.
+                if self.counties.get(county as usize).is_some_and(|c| c.owner != u.owner) {
+                    out.incursions.push(Incursion { unit: id, owner: u.owner, county });
+                }
+                // Its two `Msg_Enqueue`s — a neutral county's greeting or a
+                // lord's invasion letter — the second of which advances the
+                // invader's voice rotation, which is simulation state.
+                if let Some(letter) =
+                    crate::arrival::enter_county(&self.counties, &mut self.realms, u, county)
+                {
+                    out.posted.push(Posted::Letter(letter));
+                }
             }
         }
 
@@ -466,6 +493,10 @@ impl Kingdom {
                 self.year,
                 &mut self.campaign.explored,
             );
+            // `County_ChangeOwner`'s letter, posted where the capture happens.
+            if let Attack::Captured(capture) = outcome {
+                out.posted.push(Posted::Capture(capture));
+            }
             out.contacts.push(Contact::Castle { unit: id, county, outcome });
             return;
         }
@@ -1032,6 +1063,37 @@ mod tests {
         }
         assert_eq!(k.campaign.units.get(t).unwrap().county, 2, "the merchant crossed");
         assert!(carts.is_empty(), "only Army_Tick calls Unit_EnterCounty: {carts:?}");
+    }
+
+    /// **The sweep reports `Unit_EnterCounty`'s letter at the crossing and
+    /// `County_ChangeOwner`'s at the town**, in that order.
+    ///
+    /// Ablation: delete the `out.posted.push(Posted::Letter(..))` in `step_one`
+    /// and the greeting goes; delete the capture's and the second entry does.
+    #[test]
+    fn crossing_into_a_neutral_county_posts_its_greeting_and_taking_its_town_posts_the_capture() {
+        let mut k = kingdom();
+        k.counties[2].happiness = 5;
+        for (a, b) in [(1usize, 2u8), (2, 1)] {
+            k.counties[a].neighbour_count = 1;
+            k.counties[a].neighbours[0] = b;
+        }
+        k.realms[1].peak_counties = 1;
+        k.campaign.map.set_flags(40, 10, flags::CASTLE);
+        let out = army(&mut k, 1, 30, 10);
+        movement::order_move(&k.campaign.map, &mut k.campaign.units, out, (40, 10), movement::Routing::Direct)
+            .unwrap();
+        let mut posted = Vec::new();
+        for _ in 0..400 {
+            posted.extend(k.tick_units().posted);
+        }
+        assert_eq!(posted.len(), 2, "{posted:?}");
+        let Posted::Letter(greeting) = posted[0] else { panic!("{posted:?}") };
+        assert_eq!((greeting.to, greeting.group, greeting.county), (1, 0x82, 2), "wretched");
+        let Posted::Capture(capture) = posted[1] else { panic!("{posted:?}") };
+        assert_eq!((capture.new_owner, capture.old_owner, capture.county), (1, 0, 2));
+        assert_eq!((capture.held_before, capture.peak_before), (1, 1));
+        assert_eq!(k.counties[2].owner, 1, "a wretched county surrenders");
     }
 
     /// The phase wait is answered by the unit array, and it goes false exactly
