@@ -415,10 +415,10 @@ pub fn refresh_estimates(
     county.labour_wanted[JOB_FIELD_RECLAMATION] = LABOUR_NO_FLOOR;
     county.labour_useful[JOB_FIELD_RECLAMATION] =
         crate::land::reclaim_labour_estimate(tables, county, map);
-    // 's tail — the third of the evening. The loop above
-    // is its first half; this is the season it then simulates, which writes the
-    // two figures the sidebar's reclamation row draws.
-    //  C129.
+    // **`Field_ReclaimEstimate`'s tail** — the third of the evening. The loop
+    // above is its first half; this is the season it then simulates, which
+    // writes the two figures the sidebar's reclamation row draws.
+    // `docs/decisions.md` C129.
     crate::land::reclaim_preview(tables, county, map);
 
     // Grain and the herd both write nothing at all in a county with no people —

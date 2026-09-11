@@ -7195,3 +7195,83 @@ Two smaller corrections fell out of reading the arm:
   `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
   call sites in a half this change does not touch — but recorded, because it is
   the kind of thing that reads as a font choice rather than as a divergence.
+
+---
+
+**C151 — three sidebar reports, all three already fixed, and the two that
+had no test between them.**
+
+Three player reports were sent together because they are one shape — a `Ui_DrawDelta` on a
+produce row, which is the signed forecast for the season about to begin:
+
+> *"Sidebar doesn't show grain being planted as a negative number."*
+> *"The figure is missing in the sidebar — it draws the serf reclaiming, but not the +1."*
+> *"I right now have −11 cattle. If I move it so the people are eating cattle, it still says
+> −11."*
+
+All three were the **tail** of an estimate pass whose search loop had been ported without it,
+and all three had been repaired — C123 (grain, `Grain_LabourEstimate` `0x0044D374`), C128
+(cattle, `Herd_LabourEstimate` `0x0044DD4D`) and C129 (reclamation, `Field_ReclaimEstimate`
+`0x0044C278`). Verified on `main`: painting four fields and reading the sidebar at the sowing
+turn draws `-20 ` in `0xF9` on the produce plate, and the herd forecast moves when the ration
+split moves.
+
+**So the finding is not the fix. It is what the fix left behind, and there are three things.**
+
+**One: the comments that said the work had not been done outlived the work by a day, in the
+function that does it.** `county::draw_produce_rows` carried, ten lines above a `match` that
+reads all three fields, *"Only the cattle row draws one … neither is computed anywhere in this
+workspace, so neither row can draw one yet."* Its doc comment carried *"this workspace never
+computes it"*, and `screens.rs`'s cattle test carried *"nothing in this workspace computes
+it"*. Every one was true when written and every one is an instruction to the next reader not
+to look. This is *a document that promises "until X" keeps promising it long after X* with the
+tense removed — no *"until"*, no *"for now"*, just a statement of fact that expired — and it is
+the third time on this project that prose survived the condition it described.
+
+> **A comment that says a thing is not done is a claim with an expiry date, and the commit
+> that does the thing is the only moment anybody will ever be in a position to strike it.**
+
+**Two: the report that started it was the one with no test.** Cattle got
+`the_cattle_forecast_follows_the_labour_it_depends_on`; reclamation got
+`the_reclamation_forecast_counts_fields_finished_not_work_done`; **grain got none at all**, at
+either layer. `land::grain_preview` had zero callers in any test in the workspace. Three
+repairs in one evening, described in the branch as *"one fix repeated, not three
+investigations"* — and the repetition is exactly what let the middle one ship untested, because
+the two neighbours reading as covered is what covered reads like. The new tests are
+`the_grain_forecast_is_the_sowing_loss_the_player_reported` (the four seasonal arms) and
+`the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel` (the road, brush to glyph).
+
+The second is worth the extra cost for a measurable reason: **its two ablations fail at
+different assertions.** Delete `strip_delta` and it fails at the glyph search; delete
+`grain_preview` and it fails one line earlier, at the simulation's own `shown < 0`. A test that
+set the field by hand — which is what the cattle test does, correctly, for a test about
+`Ui_DrawDelta` — cannot tell those two apart, and the defect being repaired was the second one.
+
+**Three: the cattle question was never only about the sidebar, and the second half is
+answered.** *"I had lots of milk maids with low herd crowding and we were only getting 1 cow,
+and if I added more milk maids they were idle."* Both halves are `Herd_LabourEstimate`'s search
+loop, which assigns the **fewest** workers that reach the best `births − deaths` — a strict `<`
+on the running best. `land::herd_labour_estimate` documented the closed form as *"about
+`6 * herd`"* and marked it `[I]`. Measured over every herd size 1 … 400 in all four seasons:
+
+* **six a head is a true bound** and now a `[V]` assertion, because that is where
+  `PctOf(labour, herd * 3)` hits its 200 % cap and births stop rising;
+* **it is a bad estimate of where the answer lands.** `births = herd * birthRate / 10000`
+  truncates, so on a small herd the integer stops moving long before 200 % and the first argmax
+  wins: a herd of five tops out at **15** milkmaids — three a head, not six — and a herd of one
+  at **1**. That is the player's county, and the blue idle ring is that ceiling being hit.
+
+And *"only getting 1 cow"* is the same truncation from the other end: the rate is applied to
+the **herd**, not to the pasture, so lowering crowding raises the percentage and not the count.
+
+**A quirk fell out of measuring it, and it is the original's.** The small-herd birth bonus is a
+step — `+10000` below 5 head, `+5000` below 10, `+2000` below 25 — and at every one of the three
+boundaries the step down is worth more than the animal that crosses it. Fully staffed at low
+crowding in spring: **4 cows → 7 calves, 5 → 4; 9 → 10, 10 → 6; 24 → 16, 25 → 10.** Reproduced
+and pinned (`docs/bugs.md` B98); a taper would be ours.
+
+**One repair that is not a comment.** `field::refresh_estimates` carried
+`// 's tail — the third of the evening` and `//  C129.` — two backticked spans had been eaten
+out of the comment before it was ever committed, leaving a sentence with no subject and a
+citation with no document. The citation lint could not see it, because a `C129` with nothing in
+front of it still resolves.

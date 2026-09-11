@@ -1785,57 +1785,68 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 ///   flat), and the two that do — the blacksmith and the castle — pick their
 ///   frame from county `+0x290`, an unnamed byte, and from `+0x1B0`. Neither is
 ///   settled, so neither is drawn.
-/// * **The seasonal deltas** — and a player found the hole before this comment
-///   was rewritten: *"Sidebar doesn't show grain being planted as a negative
-///   number."* He is right, and he is describing **Spring**.
+/// * **Four of the eight seasonal deltas** — the industry rows'. The three farm
+///   rows' are drawn; this list is what is *not* here, and the paragraphs below
+///   are kept because they are the reading, not because the work is outstanding.
 ///
-///   Every drawer follows its icon with a `Ui_DrawDelta` (`0x00402E0C`), which
-///   is a *signed* number: `value < 0` draws `Ui_DrawNumber(-value, '-', …)` in
-///   `colourNeg` (`0xF9`), `value > 0` gets a `'+'` lead in `colourPos`
-///   (`0xFA`), and zero gets `'@'`, the blank glyph that keeps a zero
-///   column-aligned. The minus is **not a separate mark** — it overwrites
-///   `g_numberBuffer[0]`, the slot `Ui_NumberToBuffer(value, 1, 0)` leaves free
-///   for a sign, and the whole string goes out in one `Ui_DrawText`. With
-///   `mode == 0`, which is what all eight rows pass, a value of zero draws
-///   **nothing at all**.
+/// # The seasonal deltas, and the report that found them missing
 ///
-///   **It is not "the change since last season".** The tooltip layer says so in
-///   the game's own words — `L2.eng` group 220 index 15 is *"Cattle, and change
-///   next season"* and 16 is *"Wheat, and change next season"* — and the code
-///   agrees: `County_RefreshEstimates(county, g_seasonNext)`.
+/// A player, before any of them were drawn: *"Sidebar doesn't show grain being
+/// planted as a negative number."* He was right, and he was describing
+/// **Spring**.
 ///
-///   **The grain row's value is county `+0x22C`, and this workspace never
-///   computes it.** `Grain_LabourEstimate` (`0x0044D374`) writes it in a tail
-///   *after* the search loop [`l2_kingdom::land::grain_labour_estimate`]
-///   reproduces:
+/// Every drawer follows its icon with a `Ui_DrawDelta` (`0x00402E0C`), which
+/// is a *signed* number: `value < 0` draws `Ui_DrawNumber(-value, '-', …)` in
+/// `colourNeg` (`0xF9`), `value > 0` gets a `'+'` lead in `colourPos`
+/// (`0xFA`), and zero gets `'@'`, the blank glyph that keeps a zero
+/// column-aligned. The minus is **not a separate mark** — it overwrites
+/// `g_numberBuffer[0]`, the slot `Ui_NumberToBuffer(value, 1, 0)` leaves free
+/// for a sign, and the whole string goes out in one `Ui_DrawText`. With
+/// `mode == 0`, which is what all eight rows pass, a value of zero draws
+/// **nothing at all**.
 ///
-///   ```c
-///   staff = county.labour[0].workers;                    /* the real staffing */
-///   county.field_0x230 = Grain_Sow(county, staff, county.grain);
-///   if (season == 4) county.crop[2]      = Grain_Harvest(county, staff, county.crop[1]);
-///   if (season == 2 || season == 3) county.field_0x2FC = Grain_Grow(county, staff, county.crop[1]);
+/// **It is not "the change since last season".** The tooltip layer says so in
+/// the game's own words — `L2.eng` group 220 index 15 is *"Cattle, and change
+/// next season"* and 16 is *"Wheat, and change next season"* — and the code
+/// agrees: `County_RefreshEstimates(county, g_seasonNext)`.
 ///
-///   if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
-///   else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
-///   else                  county.field_0x22C = -county.grainEaten;
-///   ```
+/// **The grain row's value is county `+0x22C`, and it is written by a tail
+/// this workspace did not have.** `Grain_LabourEstimate` (`0x0044D374`)
+/// writes it *after* the search loop
+/// [`l2_kingdom::land::grain_labour_estimate`] reproduces:
 ///
-///   So in **Spring** the row is `−(sown) − eaten`, which cannot be anything but
-///   negative — the player's sentence, exactly. Our port returns
-///   `GrainEstimate { wanted, useful }` and stops at the loop, so all four of
-///   those writes are missing, and **the sign question never arises because the
-///   number never arrives.** It cannot be recovered from the estimate either:
-///   the loop calls `Grain_Sow(county, workers, grain − grainEaten)` and the
-///   tail calls `Grain_Sow(county, staff, grain)` — a different third argument.
-///   `crate::field`'s module docs already say the estimate round runs twice
-///   "for … the panel forecasts, which the estimates fill from whatever the
-///   allocator last decided"; these are those forecasts.
+/// ```c
+/// staff = county.labour[0].workers;                    /* the real staffing */
+/// county.field_0x230 = Grain_Sow(county, staff, county.grain);
+/// if (season == 4) county.crop[2]      = Grain_Harvest(county, staff, county.crop[1]);
+/// if (season == 2 || season == 3) county.field_0x2FC = Grain_Grow(county, staff, county.crop[1]);
 ///
-///   The four industry rows read a different quantity again — commodity `c`'s
-///   i32 at county `0x2A8 + c * 0x18`, which `docs/records.json` gives to
-///   `Industry[c + 1]`'s unnamed head word, and the stone row reads `0x2F0`,
-///   one whole record past the end of a four-record array. Reported, not
-///   guessed at. `docs/draws-map.md` §5.10.
+/// if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
+/// else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
+/// else                  county.field_0x22C = -county.grainEaten;
+/// ```
+///
+/// So in **Spring** the row is `−(sown) − eaten`, which cannot be anything but
+/// negative — the player's sentence, exactly. Our port returned
+/// `GrainEstimate { wanted, useful }` and stopped at the loop, so all four of
+/// those writes were missing, and **the sign question never arose because the
+/// number never arrived.** Nor could it be recovered from the estimate: the
+/// loop calls `Grain_Sow(county, workers, grain − grainEaten)` and the tail
+/// calls `Grain_Sow(county, staff, grain)` — a different third argument.
+/// `crate::field`'s module docs already said the estimate round runs twice
+/// "for … the panel forecasts, which the estimates fill from whatever the
+/// allocator last decided"; these are those forecasts.
+///
+/// [`l2_kingdom::land::grain_preview`] is that tail, and
+/// `crates/l2-game/tests/screens.rs`'s
+/// `the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel` drives
+/// it from the map brush to the glyph. **C123.**
+///
+/// The four industry rows read a different quantity again — commodity `c`'s
+/// i32 at county `0x2A8 + c * 0x18`, which `docs/records.json` gives to
+/// `Industry[c + 1]`'s unnamed head word, and the stone row reads `0x2F0`,
+/// one whole record past the end of a four-record array. Reported, not
+/// guessed at. `docs/draws-map.md` §5.10.
 fn draw_produce_rows(
     ctx: &Ctx,
     canvas: &mut Canvas,
@@ -1887,21 +1898,26 @@ fn draw_produce_rows(
         // all three farm rows, and `dy` `0x139` for the two that have a stock
         // and `0x133` for reclamation, which has a countdown instead.
         //
-        // **Only the cattle row draws one.** Its value is
-        // `Herd_LabourEstimate`'s tail — `(births − deaths) − herdEaten` — and
-        // [`l2_kingdom::land::herd_preview`] is that tail, ported, written on
-        // every season tick and carried in the save. Grain's is county `+0x22C`
-        // and reclamation's `+0x20C`; neither is computed anywhere in this
-        // workspace, so neither row can draw one yet, and the doc comment above
-        // says what it would take. **C123.**
+        // **All three draw one, and all three are the tail of an estimate pass
+        // whose loop was ported without it** — the same defect three times, in
+        // one file, found once. C123, C128 and C129:
+        //
+        // | row | county | the tail |
+        // |---|---|---|
+        // | cattle | `+0x258` | `Herd_LabourEstimate` (`0x0044DD4D`), `(births − deaths) − herdEaten` |
+        // | grain | `+0x22C` | `Grain_LabourEstimate` (`0x0044D374`), `−sown − eaten` entering Spring |
+        // | reclamation | `+0x20C` | `Field_ReclaimEstimate` (`0x0044C278`), fields *finished* next season |
+        //
+        // The four industry rows are **not** the same fix and are still absent:
+        // each reads an `i32` at the head of the `Industry` record *above* the
+        // commodity its row is for, and settling that base is its own job.
+        // `docs/draws-map.md` §5.5.
         let (delta, delta_dy) = match slot {
-            1 => (Some(c.herd_change_expected), 0x139),
-            0 => (Some(c.grain_change_expected), 0x139),
-            _ => (Some(c.reclaim_fields_finishing), 0x133),
+            1 => (c.herd_change_expected, 0x139),
+            0 => (c.grain_change_expected, 0x139),
+            _ => (c.reclaim_fields_finishing, 0x133),
         };
-        if let Some(v) = delta {
-            strip_delta(ctx, canvas, v, 0x204, y + delta_dy);
-        }
+        strip_delta(ctx, canvas, delta, 0x204, y + delta_dy);
         // **The reclamation row's second figure**, and it is the only produce row
         // with one: `Ui_DrawNumber(county +0x214, ' ', " ", 0x20A, y + 0x143,
         // &g_font10, 0xFA)`, drawn **only when it is non-zero** — the original's

@@ -242,6 +242,33 @@ reaches 34%.
 
 Crowding is also drawn on the map, so you can see it without opening a panel.
 
+**There is a ceiling on milkmaids, and for a small herd it is low.** A player: *"I had lots of
+milk maids with low herd crowding and we were only getting 1 cow, and if I added more milk
+maids they were idle."* Both halves are the same arithmetic. The dairy's labour ceiling is not
+a formula the game stores — `Herd_LabourEstimate` **searches** for the fewest workers that
+reach the best `births − deaths`, and assigns exactly that many. Six a head is as high as it
+can ever go, because that is where staffing hits its 200% cap and births stop rising. But
+`births = herd × birthRate ÷ 10000` is an integer division, so on a small herd the count stops
+moving well before then and the search stops with it:
+
+| herd | milkmaids it can use | calves a season |
+|---:|---:|---:|
+| 1 | **1** | 1 |
+| 5 | **15** — three a head | 3 |
+| 74 | 431 | 20, or 30 in spring |
+
+So *"only getting 1 cow"* is the birth rate rounding down on a small herd, and *"more milk
+maids were idle"* is the county having reached that ceiling — the sidebar puts a blue ring on
+the cow the moment more people are assigned than the herd can use. **Neither has anything to do
+with the pasture**: more fields lower crowding, which raises the *rate*, but the number of
+animals the rate is applied to is still the herd.
+
+One consequence worth knowing, because it looks like a bug and is one we keep on purpose: **a
+smaller herd can outbreed a larger one.** The small-herd birth bonus steps down at 5, 10 and 25
+head, and each step is worth more than the animal that crosses it. Fully staffed at low
+crowding in spring, **4 cows give 7 calves and 5 give 4; 9 give 10 and 10 give 6; 24 give 16
+and 25 give 10.** `docs/bugs.md` B98.
+
 **What the sidebar's cattle figure includes.** The campaign sidebar's cattle row is `L2.eng`
 group 220's *"Cattle, and change next season"*, and it is the **whole** change: births, minus
 deaths, minus the animals your people are about to eat. The cattle job popup splits the same
@@ -249,6 +276,13 @@ arithmetic into the three lines it is made of — *Change due to farming* (birth
 *Change due to eating*, and *Overall change* — and **the sidebar shows the third.** So a
 negative number there with a healthy herd usually means your people are eating well, not that
 your cattle are dying.
+
+**It is a forecast of the farm, not of the year.** `Herd_LabourEstimate`'s tail is births,
+deaths and the slaughter and nothing else — the weather's percentage swing and any random
+cattle event are applied by `Herd_SeasonTick` when the season actually runs, and the forecast
+does not see either. So the number the sidebar showed and the number the herd moved by will
+differ whenever the weather was anything but fair, and that is the original's own behaviour
+rather than a rounding error.
 
 ### Fields are painted on the map, and you start with none sown
 

@@ -4956,11 +4956,19 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
 ///
 /// A player, mid-session: *"Sidebar doesn't show grain being planted as a
 /// negative number."* `docs/draws-map.md` §5.10 has the diagnosis — the grain
-/// row's value is county `+0x22C` and nothing in this workspace computes it —
-/// and this is the **cattle** row, whose value does exist
-/// ([`l2_kingdom::land::herd_preview`] is `Herd_LabourEstimate`'s tail) and
-/// which therefore proves the drawing half before the expensive half lands on
+/// row's value is county `+0x22C`, written by a tail of
+/// `Grain_LabourEstimate` that this workspace did not have — and this is the
+/// **cattle** row, whose value existed first
+/// ([`l2_kingdom::land::herd_preview`] is `Herd_LabourEstimate`'s tail), and
+/// which therefore proved the drawing half before the expensive half landed on
 /// it.
+///
+/// **It writes the county field by hand, deliberately and narrowly.** That is
+/// right for a test whose subject is `Ui_DrawDelta` and it says nothing about
+/// whether anything fills the field; the road from the map brush to the glyph
+/// is
+/// [`the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel`], which
+/// exists because this one cannot make that claim.
 ///
 /// `Ui_DrawDelta` (`0x00402E0C`) is asserted in the three ways it can be wrong,
 /// and each is a different line of it:
@@ -5263,4 +5271,215 @@ fn the_foraging_label_starts_one_trailing_gap_after_its_number() {
         Some((expected, 0x150)),
         "87/8 belongs at g_penAdvance + 0x88 for a buffer of \" {men}\", not \" {men} \""
     );
+}
+
+/// **The grain row's sowing loss, from the brush to the pixel.**
+///
+/// > *"Sidebar doesn't show grain being planted as a negative number."*
+///
+/// [`the_cattle_row_draws_its_forecast_with_a_sign`] proved `Ui_DrawDelta`'s
+/// three arms on the row whose data path was finished first, and it says so in
+/// its own doc: *"this is the **cattle** row … which therefore proves the
+/// drawing half before the expensive half lands on it."* The expensive half
+/// landed — `Grain_LabourEstimate`'s tail, `docs/decisions.md` C123 — and
+/// nothing joined the two ends. This is the join.
+///
+/// **It writes no county field.** The cattle test assigns
+/// `herd_change_expected` directly, which is right for a test about
+/// `Ui_DrawDelta` and says nothing about whether anything fills it. Here the
+/// only inputs are a granary, the map brush and `County_RefreshEstimates`, so
+/// what is asserted is the whole road: `Field_SetType` → `Labour_Allocate` →
+/// `Grain_LabourEstimate`'s tail → `FUN_0041023A` → `Ui_DrawDelta`. That is
+/// `docs/agents.md`'s *a field is only tested if something a test reads was
+/// written by something the game runs*, and it is the distinction that let the
+/// hole exist while eleven village tests passed.
+///
+/// Two claims:
+///
+/// 1. **the number the simulation computed is the number on the plate**, in
+///    `colourNeg` (`0xF9`) with a `'-'` lead, and in no other colour;
+/// 2. **it is on the produce plate**, not merely painted somewhere — *"is it
+///    drawn"* and *"can it be seen"* are different claims (`docs/agents.md`).
+///
+/// Ablations, both run, and they fail at **different** assertions, which is the
+/// join working: deleting the `strip_delta` call in `county::draw_produce_rows`
+/// fails claim 1 at the glyph search (*"the grain row draws `-20 `"*), and
+/// deleting the `grain_preview` call in `l2_kingdom::field::refresh_estimates`
+/// fails one line earlier, at the simulation's own `shown < 0` with `0`. A test
+/// that only did the second half could not tell those two apart.
+#[test]
+fn the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel() {
+    let (mut game, assets) = world!();
+    let Some(f) = assets.shell.small.as_ref() else {
+        l2_testkit::skip!("no Fntl2_9.pl8, so the strip has no pen");
+    };
+    // `colourNeg` and `colourPos`, typed from `FUN_0041023A`'s call site rather
+    // than imported from the constants under test.
+    const NEG: u8 = 0xF9;
+    const POS: u8 = 0xFA;
+
+    let county = (1..=game.kingdom.county_count)
+        .find(|&id| game.kingdom.counties[id].owner == game.player)
+        .expect("the local player holds a county");
+    game.select(county as u8);
+
+    // A granary, then the brush. Seed first: the grain ceiling is a search over
+    // `Grain_Sow`, and a county with an empty store is told it has no use for a
+    // farmer.
+    game.kingdom.counties[county].grain = 10_000;
+    let tiles: Vec<usize> = game
+        .kingdom
+        .field_tiles(county)
+        .into_iter()
+        .filter(|&(_, kind)| kind == l2_kingdom::field::FieldType::Fallow)
+        .map(|(tile, _)| tile)
+        .collect();
+    assert!(!tiles.is_empty(), "county {county} has fallow fields to paint");
+    for tile in tiles {
+        game.kingdom
+            .paint_field(county, tile, l2_kingdom::field::FieldType::Grain)
+            .expect("a fallow field takes the grain brush");
+    }
+
+    // The position faces Spring, which is the sowing turn. Nothing else is set.
+    assert_eq!(game.kingdom.season_next, 1, "the England position faces Spring");
+    let shown = game.kingdom.counties[county].grain_change_expected;
+    assert!(shown < 0, "the simulation forecasts a sowing loss: {shown}");
+
+    let canvas = draw(&mut MapScreen::new(), &mut game, &assets);
+    // `Ui_DrawNumber` writes the sign into `g_numberBuffer[0]` and the suffix
+    // after the digits, and both are inside what gets measured — so the string
+    // searched for is the call site's, `'-'` + digits + `" "`. C140.
+    let wanted = format!("-{} ", shown.abs());
+    let at = find_font_text(&canvas, f, &wanted, NEG)
+        .unwrap_or_else(|| panic!("the grain row draws {wanted:?} in {NEG:#04x}"));
+    // 2 — on the produce plate. `Ui_DrawDelta(…, 0x204, y + 0x139, …)`, and the
+    // grain row is the second of the farm list, so it is at or below the
+    // cattle row's own delta at (478, 302).
+    assert!(
+        at.0 >= 478 && at.1 >= 302,
+        "the grain delta belongs on the produce plate, not at {at:?}",
+    );
+    // And not in the positive colour, which is the half a swapped pair would
+    // survive.
+    assert!(
+        find_font_text(&canvas, f, &wanted, POS).is_none(),
+        "a negative delta is 0xF9, not 0xFA",
+    );
+}
+
+/// **The reclamation row's two numbers, and they are two different routines.**
+///
+/// > *"The figure is missing in the sidebar — it draws the serf reclaiming, but
+/// > not the +1 I'm used to."*
+///
+/// `Field_ReclaimEstimate` (`0x0044C278`) is the third of the three tails
+/// (`docs/decisions.md` C129), and the row it feeds is the only produce row
+/// with **two** figures, drawn by two different functions at two different
+/// offsets:
+///
+/// ```c
+/// Ui_DrawDelta (county +0x20C, 0, " ", " ", 0x204, y + 0x133, …, 0xFA, 0xF9);
+/// if (county +0x214) Ui_DrawNumber(county +0x214, ' ', " ", 0x20A, y + 0x143, …, 0xFA);
+/// ```
+///
+/// Three claims, and the first is the one that makes this worth a test of its
+/// own rather than a second copy of the grain row's:
+///
+/// 1. **The two land sixteen pixels apart in `y` and are anchored differently
+///    in `x`** — `0x204`/`0x133` against `0x20A`/`0x143`. Reading only
+///    `CountyStrip_Draw` would give one figure; the offsets are the evidence
+///    there are two. The countdown's digits sit on its own `x` and the delta's
+///    do **not**, because `Ui_DrawDelta` draws a `" "` prefix first and places
+///    the number at `x + g_penAdvance` — so the two are asserted differently on
+///    purpose, and the delta's half is C127 on this row.
+/// 2. **The delta is a count of fields, not of work**, so a gang with enough
+///    labour for two finished fields draws `+2` and not `+1`.
+/// 3. **The countdown is drawn only when it is non-zero** — the original's own
+///    `if`, so a county reclaiming nothing shows a bare icon rather than a `0`.
+///
+/// The row is the second of the farm list here (cattle, then reclamation, with
+/// no grain), so the pitch is `0x3C` and both `y`s carry one row of it. That is
+/// asserted rather than assumed: a wrong pitch would move both figures
+/// together and claim 1 would still hold.
+///
+/// Ablation, run: deleting the `strip_number` call fails claim 1's second half
+/// while the delta stays exactly where it is, which is the pair the two-routine
+/// claim needs.
+#[test]
+fn the_reclamation_row_draws_both_of_its_figures_where_the_call_sites_put_them() {
+    let (mut game, assets) = world!();
+    let Some(f) = assets.shell.small.as_ref() else {
+        l2_testkit::skip!("no Fntl2_9.pl8, so the strip has no pen");
+    };
+    const POS: u8 = 0xFA;
+
+    let county = (1..=game.kingdom.county_count)
+        .find(|&id| game.kingdom.counties[id].owner == game.player)
+        .expect("the local player holds a county");
+    game.select(county as u8);
+
+    // Two fields one season's work from done, and a gang big enough for both.
+    let per = game.kingdom.tables.field.reclaim_per_season;
+    let full = game.kingdom.tables.field.progress_max;
+    let slots: Vec<usize> = (0..l2_kingdom::MAX_FIELDS)
+        .filter(|&s| game.kingdom.counties[county].field_tile(s).is_some())
+        .collect();
+    for &s in slots.iter().take(2) {
+        let tile = game.kingdom.counties[county].field_tile(s).expect("a tile");
+        game.kingdom.campaign.map.terrain[tile] = l2_kingdom::field::terrain::RECLAIM_FIRST;
+        game.kingdom.counties[county].field_progress[s] = (full - per) as u16;
+    }
+    game.kingdom.counties[county].labour[l2_kingdom::tables::JOB_FIELD_RECLAMATION] = per * 2;
+    game.kingdom.refresh_estimates(county);
+    // The cattle row is above this one and would otherwise put its own signed
+    // number on the plate; silenced so that a match below is this row's.
+    // `Ui_DrawDelta` in mode 0 draws nothing at all for zero.
+    game.kingdom.counties[county].herd_change_expected = 0;
+
+    let c = &game.kingdom.counties[county];
+    assert_eq!(c.reclaim_fields_finishing, 2, "two gangs' worth finishes two fields");
+    assert_eq!(c.reclaim_seasons_to_next, 1, "and the nearest is one season away");
+    // The farm list is cattle then reclamation — no grain, this position sows
+    // none — so the reclamation row is row 1 at the wide pitch.
+    let rows = county::farm_rows(c);
+    assert_eq!(rows, vec![1, 2], "cattle then reclamation");
+    let pitch = county::farm_pitch(rows.len());
+    assert_eq!(pitch, 0x3C, "two rows are drawn at the wide pitch");
+
+    let canvas = draw(&mut MapScreen::new(), &mut game, &assets);
+
+    // 1 and 2 — the delta, at `0x204 + the prefix's advance`, `y + 0x133`.
+    let delta = find_font_text(&canvas, f, "+2 ", POS).expect("the reclamation row draws +2");
+    assert_eq!(delta.1, pitch + 0x133, "the delta sits on the row's 0x133 line");
+    // 1 and 3 — the countdown, sixteen pixels below it and six to the right,
+    // and it is `Ui_DrawNumber` with a `' '` lead rather than a sign.
+    let countdown = find_font_text(&canvas, f, " 1 ", POS).expect("and the seasons countdown");
+    assert_eq!(countdown, (0x20A, pitch + 0x143), "the countdown is its own call site");
+    assert_eq!(
+        countdown.1 - delta.1,
+        0x10,
+        "two figures, two lines: {delta:?} and {countdown:?}",
+    );
+    // **And the delta's digits are not at its `x`.** `Ui_DrawDelta` draws the
+    // `" "` prefix at `0x204`, lets it advance the pen, and places the number
+    // at `x + g_penAdvance` — so a match at `0x204` itself would mean the
+    // advance had been dropped, which is C127 on this row. The countdown is a
+    // plain `Ui_DrawNumber` and does sit on its own `x`, which is why the two
+    // assertions are different shapes.
+    assert!(
+        delta.0 > 0x204,
+        "the delta's prefix advances the pen before the number: {delta:?}",
+    );
+
+    // 3 — and a county reclaiming nothing draws neither.
+    for &s in slots.iter().take(2) {
+        let tile = game.kingdom.counties[county].field_tile(s).expect("a tile");
+        game.kingdom.campaign.map.terrain[tile] = l2_kingdom::field::terrain::FALLOW;
+    }
+    game.kingdom.refresh_estimates(county);
+    game.kingdom.counties[county].herd_change_expected = 0;
+    let canvas = draw(&mut MapScreen::new(), &mut game, &assets);
+    assert!(find_font_text(&canvas, f, "+2 ", POS).is_none(), "nothing reclaiming, no delta");
+    assert!(find_font_text(&canvas, f, " 1 ", POS).is_none(), "and no countdown either");
 }
