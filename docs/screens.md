@@ -885,16 +885,21 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   `270 + 16i`, the framed-box kit, the `Misc_cty.pl8` right column, the far zoom's
   `Ui_DrawBox(0, 412, 30, 4)` strip, the End Turn rectangle;
 
-  **— but not the menu bar's bevel, and not the words inside the far-zoom strip.**
-  `Screen_DrawMenuBar` ends its background with `Ui_DrawBevelRect(0, 0, 0x280, 0x18)`, which
-  `Chrome::draw_menu_bar_background` does not draw. And `Screen_DrawCampaign` puts four
-  things in the far-zoom box, all at literal coordinates: `Eng_DrawString(101,
-  g_scenarioIndex, 0x40, 0x1A8)` — the map's name; `Eng_DrawString(34, 0, …, 0x1A8)` —
-  *"Year"*; `Ui_DrawYear(g_year, …, 0x1A8, 1)`; and `Eng_DrawString(34, 1, 0x50, 0x1C6)` —
-  ***"Click on the county you wish to view."*** So the far view reads *England · Year 1268*
-  over that instruction — the game saying in its own words what the far zoom is for, which
-  agrees with `Map_Click` doing nothing at zoom 2. Ours draws its own status line there.
-  `docs/draws-map.md` §5.4, **C89**;
+  **— but not the menu bar's bevel.** `Screen_DrawMenuBar` ends its background with
+  `Ui_DrawBevelRect(0, 0, 0x280, 0x18)`, which `Chrome::draw_menu_bar_background` does not
+  draw;
+* **the four things `Screen_DrawCampaign` puts in the far-zoom box**, all at literal
+  coordinates and all now drawn from the player's own `L2.eng`: `Eng_DrawString(101,
+  g_scenarioIndex, 0x40, 0x1A8)` — the map's name; `Eng_DrawString(34, 0, g_penAdvance + 0x50,
+  0x1A8)` — *"Year"*; `Ui_DrawYear(g_year, g_penAdvance + 0x60, 0x1A8, 1)`; and
+  `Eng_DrawString(34, 1, 0x50, 0x1C6)` — ***"Click on the county you wish to view."*** The
+  first three run with `DAT_0058FE2C` set, in `&g_fontHeading`; the last in `&g_fontBody`
+  with it clear. So the far view reads *England · AD 1268* over that instruction — the game
+  saying in its own words what the far zoom is for, which agrees with `Map_Click` doing
+  nothing at zoom 2. **There is no season in this box**, whatever C173's note and an earlier
+  version of this bullet said: the painter makes three heading draws and a season is not one
+  of them. Ours draws its status line under them, debug overlay only.
+  `docs/draws-map.md` §5.4, **C89**, **CNEW-screen-three**;
 * the `MAPnn.PL8` minimap, its click rectangle, and its owner tint through the realm ramp
   read out of `Lords2.exe` at `0x004D2900`;
 * **all four minimap modes** (§3.3) — the labour, food and happiness overlays through the

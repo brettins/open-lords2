@@ -2206,6 +2206,60 @@ fn the_prompt_paints_inside_its_window_and_over_nothing_above_it() {
     assert_eq!(above, 0, "it painted above its own window");
 }
 
+/// Raise the prompt over an attacker holding two hundred pikemen **one of two
+/// ways**, and hand back what screen `0x12` painted.
+fn the_prompt_over(band: bool) -> l2_view::Canvas {
+    let (mut g, a, mut m, attacker, _) = a_battle_is_about_to_happen();
+    {
+        let u = g.kingdom.campaign.units.get_mut(attacker).expect("the attacker");
+        u.troops = [0; l2_kingdom::unit::TROOP_TYPES];
+        u.men = 200;
+        if band {
+            // `Mercenary_Hire` (`0x004AC7F3`): the band goes in `+0x195…+0x197`
+            // and into `menTotal`, and the seven counts at `+0x16C` stay zero.
+            u.mercenaries =
+                Some(l2_kingdom::Mercenaries { band: 2, troop: TroopType::Pikeman, men: 200 });
+        } else {
+            u.troops[TroopType::Pikeman.index()] = 200;
+        }
+    }
+    press(&mut m, &mut g, &a, 'e');
+    assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt), "the prompt should be up");
+    let mut canvas = l2_view::Canvas::screen();
+    let ctx = Ctx { game: &mut g, assets: &a };
+    m.draw(&ctx, &mut canvas);
+    canvas
+}
+
+/// **A player: *"when I attacked and it asked me to decide it said I had 0 men,
+/// I think it's because it was just mercenaries"*.**
+///
+/// `Mercenary_Hire` (`0x004AC7F3`) adds the band's men to `menTotal` (`+0x168`)
+/// and never writes `+0x16C`, and `FUN_004224E7` — the roster painter both
+/// battle screens share — draws `Ui_DrawCount(unit.menTotal, 0x48, …)` for the
+/// total and folds the band into its own row, `if (unit.mercTroop == row) count
+/// += unit.mercMen`, in **both** of its modes. Ours summed the seven rows for
+/// the total and passed `Unit::troops` raw for the rows, so an army raised with
+/// nothing but a hired band was seven zeroes under *"0 Total men"*, in the one
+/// window that asks whether to fight with them.
+///
+/// The claim is that the two ways of holding two hundred pikemen draw the
+/// **same** prompt, which is exactly what the fold and `menTotal` make true.
+///
+/// **Ablated, both halves.** Summing the rows for the total again: the band
+/// army's total reads 0 against the other's 200. Passing `u.troops` in place of
+/// `engagement::roster_of`: the pikeman row differs as well.
+#[test]
+fn a_mercenary_only_army_is_not_drawn_as_no_men_at_all() {
+    let hired = the_prompt_over(true);
+    let levied = the_prompt_over(false);
+    let differing = (0..480usize)
+        .flat_map(|y| (0..640usize).map(move |x| (x, y)))
+        .filter(|&(x, y)| hired.at(x, y) != levied.at(x, y))
+        .count();
+    assert_eq!(differing, 0, "the band is not in the roster: {differing} pixels differ");
+}
+
 // ---------------------------------------------------------------------------
 // …and the march that gets there **before** End Turn is pressed
 // ---------------------------------------------------------------------------

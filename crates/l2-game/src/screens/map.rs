@@ -2238,6 +2238,48 @@ pub fn season_text(assets: &crate::game::Assets, season: u8) -> String {
     s.to_string()
 }
 
+// ------------------------------------------- the far zoom's box, and its words
+
+/// `L2.eng` group 101 — the sixty map names `g_scenarioIndex` indexes, the same
+/// group `ScenarioList_Draw` and `Screen_DrawConquest` read.
+const FAR_BOX_MAP_GROUP: usize = 101;
+/// Group 34: index 0 *"Year"*, index 1 *"Click on the county you wish to view."*
+/// `Screen_DrawCampaign` is its only consumer — so it is this box's vocabulary,
+/// not a naming lead. `CLAUDE.md` rule 6.
+const FAR_BOX_YEAR_GROUP: usize = 34;
+const FAR_BOX_YEAR_LABEL: usize = 0;
+const FAR_BOX_ADVICE: usize = 1;
+const FAR_BOX_Y: i32 = 0x1A8;
+const FAR_BOX_NAME_X: i32 = 0x40;
+const FAR_BOX_YEAR_LABEL_X: i32 = 0x50;
+const FAR_BOX_YEAR_X: i32 = 0x60;
+const FAR_BOX_ADVICE_X: i32 = 0x50;
+const FAR_BOX_ADVICE_Y: i32 = 0x1C6;
+
+/// `Eng_DrawString(101, g_scenarioIndex, …)` — the map's own name, from the
+/// player's own file, with our slot number where there is no `L2.eng` to read.
+pub fn map_name(ctx: &Ctx) -> String {
+    let s = ctx.assets.shell.text(FAR_BOX_MAP_GROUP, ctx.game.map_slot);
+    if s.is_empty() {
+        return format!("MAP {}", ctx.game.map_slot);
+    }
+    s.to_string()
+}
+
+/// One of group 34's two strings, **as the player's own file spells them**, with
+/// our transcription for an install that has no `L2.eng`. `CLAUDE.md` rule 6:
+/// the fallback is the fallback, not the source.
+fn far_box_text(ctx: &Ctx, index: usize) -> String {
+    let s = ctx.assets.shell.text(FAR_BOX_YEAR_GROUP, index);
+    if !s.is_empty() {
+        return s.to_string();
+    }
+    match index {
+        FAR_BOX_YEAR_LABEL => "Year".to_string(),
+        _ => "Click on the county you wish to view.".to_string(),
+    }
+}
+
 impl Screen for MapScreen {
     fn id(&self) -> ScreenId {
         ScreenId::Campaign
@@ -3069,18 +3111,83 @@ impl Screen for MapScreen {
             );
         }
 
-        // Below the map at the far zoom the original draws a `Ui_DrawBox` of
-        // 30 x 4 cells at (0, 412) — 480 x 64 — and puts the map's name, the
-        // season and the year in it. The box is the original's; the words in it
-        // are ours.
+        // **`Screen_DrawCampaign`'s far-zoom arm** (`0x0040F5FD`), whole:
+        //
+        // ```c
+        // Ui_DrawBox(0, 0x19C, 0x1E, 4);            /* (0, 412), 480 x 64   */
+        // DAT_0058FE2C = 1;
+        // g_penAdvance = 0;
+        // Eng_DrawString(0x65, g_scenarioIndex, 0x40, 0x1A8, &g_fontHeading, 0x3F);
+        // Eng_DrawString(0x22, 0, g_penAdvance + 0x50, 0x1A8, &g_fontHeading, 0x3F);
+        // Ui_DrawYear(g_year, g_penAdvance + 0x60, 0x1A8, 1);
+        // DAT_0058FE2C = 0;
+        // Eng_DrawString(0x22, 1, 0x50, 0x1C6, &g_fontBody, 0x3F);
+        // ```
+        //
+        // The box was here and the four draws were not: C173 gated our own
+        // status line out of it and left the box **empty**, which is the hole
+        // that correction filed rather than closed. Group 101 is the sixty map
+        // names and group 34 is *"Year"* and *"Click on the county you wish to
+        // view."* — the game saying in its own words what the far zoom is for,
+        // which is why `Map_Click` does nothing at zoom 2. `docs/draws-map.md`
+        // §5.4, C89, CNEW-screen-three.
+        //
+        // **There is no season in this box.** C173's note and `docs/screens.md`
+        // §7 both say *"the map's name, the season and the year"*; the painter
+        // draws three things and a season is not one of them. The season is on
+        // the menu bar, out of group 29.
+        //
+        // `g_penAdvance` is the width drawn **since the reset**, cumulative
+        // over both strings, and every `Pen` method returns an absolute x — so
+        // `g_penAdvance + 0x50` after a name drawn at `0x40` is sixteen pixels
+        // past where that name ended, and `g_penAdvance + 0x60` after a label
+        // drawn at `0x50` is sixteen past *that*. Written as the subtraction
+        // the decompilation implies, like `draw_menu_bar` two hundred lines
+        // below. `docs/decisions.md` C61 — the same confusion, seven times.
         if self.zoom.id == FAR.id {
             match &ctx.assets.chrome {
                 Some(c) => c.draw_box(canvas, 0, 412, 30, 4, 0),
                 None => widget::panel(canvas, ink, Rect::new(0, 412, 480, 64)),
             }
-            // Ours, in the original's box: debug overlay only.
+            let pen = crate::shell::Pen {
+                assets: &ctx.assets.shell,
+                ink,
+                chrome: ctx.assets.chrome.as_ref(),
+                shadow: Some(font::SHADOW),
+                caps: None,
+            };
+            // `DAT_0058FE2C = 1` over the three heading draws.
+            let caps = pen.drop_caps();
+            let face = crate::shell::Face::Heading;
+            let name = map_name(ctx);
+            let after_name = caps.text_in(face, canvas, FAR_BOX_NAME_X, FAR_BOX_Y, &name, font::TEXT);
+            let after_year_label = caps.text_in(
+                face,
+                canvas,
+                after_name - FAR_BOX_NAME_X + FAR_BOX_YEAR_LABEL_X,
+                FAR_BOX_Y,
+                &far_box_text(ctx, FAR_BOX_YEAR_LABEL),
+                font::TEXT,
+            );
+            caps.year(
+                canvas,
+                after_year_label - FAR_BOX_YEAR_LABEL_X + FAR_BOX_YEAR_X,
+                FAR_BOX_Y,
+                ctx.game.kingdom.year,
+                1,
+                font::TEXT,
+            );
+            // `DAT_0058FE2C = 0` again, and the body font for the instruction.
+            pen.body(
+                canvas,
+                FAR_BOX_ADVICE_X,
+                FAR_BOX_ADVICE_Y,
+                &far_box_text(ctx, FAR_BOX_ADVICE),
+                font::TEXT,
+            );
+            // Ours, under the original's two lines: debug overlay only.
             if debug {
-                text::draw(canvas, 24, 432, &self.status, ink.text);
+                text::draw(canvas, 24, FAR_BOX_ADVICE_Y + 14, &self.status, ink.text);
             }
         }
 

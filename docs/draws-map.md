@@ -15,7 +15,7 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 ## 0. The headline
 
 > **The campaign map makes 139 draw calls. 121 of them are live, 10 are behind debug
-> switches and 8 are dead code. We reproduce 65 of the 121, and we make about 29 draws the
+> switches and 8 are dead code. We reproduce 69 of the 121, and we make about 29 draws the
 > original does not.**
 
 **Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
@@ -23,18 +23,19 @@ draw*, not *at the original's coordinates*. §5a has the measurement that forced
 distinction: of the eighteen draws read back line-by-line against their call sites, **three
 were four pixels wrong** and every test in the tree passed.
 
-That is **54 %**. `docs/arms.json` holds **25** input arms for the same two screen ids
-(`0x00` and `0x10`) and marks **20** of them reproduced — **80 %**. So on the screen a player
-spends most of the game looking at:
+That is **57 %** — 54 % until CNEW-screen-three drew the far-zoom box's four words.
+`docs/arms.json` holds **25** input arms for the same two screen ids (`0x00` and `0x10`) and
+marks **20** of them reproduced — **80 %**. So on the screen a player spends most of the game
+looking at:
 
-> **We answer four gestures in five and we draw one picture in two.**
+> **We answer four gestures in five and we draw four pictures in seven.**
 
 That gap is the whole argument for this audit existing. It is not visible from the input
 side, it is not visible from any test, and it is the shape both of the player's reports —
 *"I see placeholder shit everywhere"* and *"why do the pastures not have cows in them?"* —
 were about. Neither of those is an arm.
 
-The misses are not evenly spread. Three areas hold 42 of the 56, and each is one of
+The misses are not evenly spread. Three areas hold 42 of the 52, and each is one of
 `docs/draws.md` §3's three hiding places:
 
 | area | live | ours | missing | which hiding place |
@@ -42,7 +43,7 @@ The misses are not evenly spread. Three areas hold 42 of the 56, and each is one
 | `Sprite_TopIt`'s tile overlays | 18 | 4 | **14** | a ladder whose arms nobody enumerated |
 | the sidebar's produce and industry rows | 31 | 10 | **21** | a variable widget count |
 | drawn from `Battle_Frame`, not from a painter | 16 | 9 | **7** | outside the painter |
-| everything else | 56 | 42 | 14 | — |
+| everything else | 56 | 46 | 10 | — |
 
 ---
 
@@ -79,7 +80,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 
 | function | addr | paints | status | draws | ours |
 |---|---|---|---|---:|---:|
-| `Screen_DrawCampaign` | `0x0040F5FD` | the full repaint | live | 8 | 4 |
+| `Screen_DrawCampaign` | `0x0040F5FD` | the full repaint | live | 8 | 8 |
 | `Map_DrawTile` | `0x004063C1` | the terrain diamond | live | 1 | 1 |
 | `Map_DrawTileApex` | `0x00406673` | its overhang | live | 1 | 1 |
 | `Map_DrawSurroundTile` | `0x0042A7F1` | an off-map tile | live | 1 | 1 |
@@ -399,7 +400,7 @@ an army's owner is legible on the map without clicking it. `docs/screens.md` §5
 the sprite, the anchor, the per-kind nudge and the walk tables and **says nothing about
 either banner**; neither does §7's list of what we leave out. **C88.**
 
-### 5.4 The far-zoom box has words in it, and we have not been drawing them
+### 5.4 The far-zoom box has words in it — drawn since CNEW-screen-three
 
 `docs/screens.md` §7 says of the far zoom's `Ui_DrawBox(0, 412, 30, 4)` that *"the box is the
 original's; the words in it are ours."* The words are the original's too — four draws, at
@@ -412,10 +413,20 @@ Ui_DrawYear(g_year, penAdvance + 0x60, 0x1A8, 1);
 Eng_DrawString(34, 1, 0x50, 0x1C6, body);   /* "Click on the county you wish to view." */
 ```
 
-So the far view reads **`England   Year 1268`** over **`Click on the county you wish to
+So the far view reads **`England   Year AD 1268`** over **`Click on the county you wish to
 view.`** — which is also the game telling us, in its own words, what the far zoom is *for*,
 and it agrees with `Map_Click` doing nothing at zoom 2 while `FUN_004350A1` zooms in on the
 clicked tile. **C89.**
+
+All four are drawn as of **CNEW-screen-three**, in `MapScreen::draw`, out of the player's own
+`L2.eng`. Three details the listing above elides and the code needs: the first three run with
+`DAT_0058FE2C = 1` (drop capitals in colour 1, `Pen::drop_caps`) and the fourth with it clear;
+`g_penAdvance` is zeroed once before the name and **accumulates across both heading strings**,
+so each `+ 0x50` / `+ 0x60` is sixteen pixels past where the previous string ended; and
+`Ui_DrawYear` style 1 draws group 26's era *before* the digits and lifts an AD year by one
+pixel. **There is no season here** — C173's note calling for *"the map's name, the season and
+the year"* was prose, not the listing. `tests/chrome_text.rs`
+`the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction`.
 
 ### 5.5 The sidebar's produce rows are eight painters behind two variable counts
 

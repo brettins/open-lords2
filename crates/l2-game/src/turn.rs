@@ -1011,7 +1011,10 @@ fn question_for(
     let units = &game.kingdom.campaign.units;
     let read = |id: usize| {
         units.get(id).map_or((0u8, 0i32, 0u8, false, [0; l2_kingdom::unit::TROOP_TYPES]), |u| {
-            (u.owner, u.men, u.besieging_county, u.owner_is_human, u.troops)
+            // **`roster_of`, not `u.troops`** — `FUN_004224E7` folds the
+            // mercenary band into its own row, because `Mercenary_Hire`
+            // (`0x004AC7F3`) put it in `+0x168` and nowhere else.
+            (u.owner, u.men, u.besieging_county, u.owner_is_human, crate::engagement::roster_of(u))
         })
     };
     let (attacker_owner, attacker_men, besieged, a_human, attacker_roster) = read(attacker);

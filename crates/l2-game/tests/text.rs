@@ -456,3 +456,64 @@ fn the_pixel_limit_bites_before_the_character_limit() {
     );
     assert!(!wide.is_empty(), "and it did not refuse the first one");
 }
+
+// ---------------------------------------------------------------------------
+// 5. `g_playerNames` onto a screen that is about the player
+// ---------------------------------------------------------------------------
+
+/// **A player: *"it says Court of LORD1 even though I wrote a name when I
+/// started the game"*.**
+///
+/// The fifth hand-off, and the file header's four all passed while it was
+/// broken: the name reached `Game::player_names`, survived a save and came back
+/// — and `Court_Draw` (`0x00416925`) drew `format!("LORD {player}")` anyway, on
+/// a comment that said *"nothing in this tree carries them yet"*. True when it
+/// was written; false from the moment hand-off 2 existed.
+///
+/// The original is `Eng_DrawString(70, 5, 0x50, 0x44, heading)` — *"Court of"* —
+/// then `Ui_DrawText(&g_playerNames + realm * 0x2C, g_penAdvance + 0x52, 0x44,
+/// heading)`. **`LORD1` is not in `L2.eng` at all**: a scan of all 317 groups
+/// for a lord-plus-digit finds nothing, and group 7 — the only default-name
+/// group — holds *"No player"*, *"The Knight"*, *"The Baron"*, *"The Countess"*,
+/// *"The Bishop"*, indexed by the **lord**. So the string the player saw was
+/// ours, not a fallback showing through: one defect, not two.
+///
+/// **Ablated:** put `format!("LORD {player}")` back and the two pictures are
+/// identical, because neither reads the array.
+#[test]
+fn the_court_is_headed_with_the_name_the_player_typed() {
+    let assets = Assets::placeholder();
+    let paint = |name: &str| {
+        let mut game = Game::new(1);
+        let player = game.player as usize;
+        game.player_names[player] = PlayerName::new(name);
+        let mut screen = l2_game::screens::court::CourtScreen::new();
+        let mut canvas = Canvas::new(640, 480);
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        screen.draw(&ctx, &mut canvas);
+        canvas
+    };
+    let aethelred = paint("Aethelred");
+    let cuthbert = paint("Cuthbert");
+
+    let differing: Vec<(i32, i32)> = (0..640)
+        .flat_map(|x| (0..480).map(move |y| (x, y)))
+        .filter(|&(x, y)| {
+            aethelred.pixels[y as usize * 640 + x as usize]
+                != cuthbert.pixels[y as usize * 640 + x as usize]
+        })
+        .collect();
+    assert!(
+        !differing.is_empty(),
+        "the court heading does not read g_playerNames: two names drew the same screen"
+    );
+    // And it changed **only** the heading — `Ui_DrawText(name, pen + 0x52,
+    // 0x44, heading)`, so nothing left of `0x50` and nothing off its row.
+    let (hx, hy) = l2_game::screens::court::HEADING_AT;
+    for &(x, y) in &differing {
+        assert!(
+            x >= hx && (hy - 2..hy + 24).contains(&y),
+            "a pixel at ({x}, {y}) changed with the lord's name, outside the heading"
+        );
+    }
+}

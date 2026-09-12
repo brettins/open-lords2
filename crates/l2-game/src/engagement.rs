@@ -166,6 +166,24 @@ pub struct BattleReport {
 /// agrees on.
 pub type Roster = [i32; TROOP_TYPES];
 
+/// **One unit's seven counts with its mercenary band folded into its own troop
+/// type**, which is how the original's roster painter reads them.
+///
+/// `FUN_004224E7` does `if (unit.mercTroop == row) count += unit.mercMen` on
+/// every row of *both* its modes, and mode 0 stashes the folded figure into
+/// `DAT_00568420` / `DAT_0056843C` for mode 1 to print in parentheses. It has
+/// to: `Mercenary_Hire` (`0x004AC7F3`) adds the band to `+0x168` and leaves
+/// `+0x16C` alone, so a band is in the total and in no row until the painter
+/// puts it in one. A mercenary company shows up *inside* the swordsmen rather
+/// than beside them. **[V]**
+pub fn roster_of(u: &l2_kingdom::unit::Unit) -> Roster {
+    let mut rows = u.troops;
+    if let Some(band) = u.mercenaries {
+        rows[band.troop.index()] += band.men();
+    }
+    rows
+}
+
 impl BattleReport {
     /// The realm that held the field.
     pub fn winner_owner(&self) -> u8 {
@@ -449,7 +467,7 @@ fn resolve_battle(
     // after it there is no realm to read off the losing slot at all.
     let owner_of = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.owner);
     let (attacker_owner, defender_owner) = (owner_of(kingdom, attacker), owner_of(kingdom, defender));
-    let roster = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or([0; TROOP_TYPES], |u| u.troops);
+    let roster = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or([0; TROOP_TYPES], roster_of);
     let (a_before, d_before) = (roster(kingdom, attacker), roster(kingdom, defender));
 
     let settlement = battle::settlement(
