@@ -292,14 +292,22 @@ fn every_record_carries_the_verdict_it_claims() {
 /// what an assertion of emptiness does to a real finding: the one person who
 /// could have filed it `dead` was told not to.
 ///
-/// **A pinned set, not a relaxed check.** The fourth entry costs exactly what
-/// the first did: say in `note` which guard can never hold and why, add it to
-/// `docs/bugs.md`, and add its id here.
+/// **A pinned set, not a relaxed check.** The fourth entry cost exactly what the
+/// first did, and so will the fifth: say in `note` which guard can never hold —
+/// or, as `FUN_004b39e8#1` does, that *nothing calls the function at all* — add
+/// it to `docs/bugs.md`, and add its id here.
+///
+/// **The fourth is a different species from the first three and that is the
+/// point of naming them individually.** The first three are code that runs and
+/// cannot produce a sound; the fourth is a function nobody calls. Both are
+/// `dead`, and only the second kind can be mistaken for *"we have not built the
+/// caller yet"* — which is precisely what `docs/audio.json` said about it for
+/// as long as the record existed.
 const DEAD_IN_THE_SHIPPED_GAME: &[&str] =
     &["Battle_PauseButton#1", "FUN_0040d6ad#1", "FUN_0040d7b8#1", "FUN_004b39e8#1"];
 
 #[test]
-fn the_dead_triggers_are_the_three_on_the_bug_list() {
+fn the_dead_triggers_are_the_ones_on_the_bug_list() {
     let root = repo_root();
     let dead: BTreeSet<String> =
         sites(&root).into_iter().filter(|s| s.status == "dead").map(|s| s.id).collect();
