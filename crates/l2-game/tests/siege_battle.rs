@@ -539,6 +539,21 @@ fn the_garrison_lowers_the_drawbridge_and_the_besieger_sees_the_gate_open() {
     );
 
     take_the_field(&mut m, &mut g, &a);
+
+    // **`t32_stn1.256`, not the field's.** `Screen_DrawBattlefield`
+    // (`0x004233F7`) ends every repaint with `if (g_battleIsSiege == 0)
+    // Palette_Set(0x568ee0); else Palette_Set(0x5675a0);`, and those two
+    // buffers are records 2 and 1 of `g_preloadTable` (`0x004D9F48`) —
+    // `t32_bat1.256` and `t32_stn1.256`, spelled in the table's own bytes.
+    // Ours registered only the first, so a siege was drawn in the field's
+    // colours. The name is written out here, never read from `l2_view::scene`.
+    tick(&mut m, &mut g, &a);
+    assert_eq!(
+        m.palette_name(),
+        Some("T32_stn1.256"),
+        "a siege runs under the field battle's palette",
+    );
+
     {
         let live = g.battle.as_ref().expect("a live battle");
         assert!(live.runner.has_drawbridge(), "a stone castle has one");

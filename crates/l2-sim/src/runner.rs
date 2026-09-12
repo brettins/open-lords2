@@ -1463,8 +1463,28 @@ impl BattleRunner {
             }
         }
 
-        // Already locked in a duel: face the opponent and swing.
+        // Already locked in a duel: face the opponent and swing — **unless he
+        // is still crossing a cell, and then he finishes it.**
+        //
+        // `BattleMan_StateMelee` (`0x004831D8`): `Anim_Strike(); … Melee_Tick();
+        // if ((stepFlags & 1) == 0 && BattleMan_Step(1)) Anim_Walk();`. The
+        // `noInterrupt = 1` argument makes the mover count and nothing else —
+        // it returns at the landing without deciding a new step — so a man
+        // engaged mid-crossing keeps walking to the cell he committed to and
+        // is drawn walking while he does. Ours zeroed his progress and struck
+        // on the spot, which put him on that cell up to 30 pixels early.
+        //
+        // **His facing is not rewritten either.** The 999 arm writes `dirc2`
+        // (`+0x19`, the strike frame); `dirc` (`+0x18`, the sub-cell offset)
+        // is the crossing's and nothing touches it. We carry one facing, so
+        // the crossing keeps it.
         if self.sim.figures[self.fighters[i].sim].state == State::Melee {
+            if !self.fighters[i].progress.free {
+                let troop = self.fighters[i].troop;
+                self.fighters[i].progress.tick(troop);
+                self.fighters[i].anim = Motion::Walking;
+                return;
+            }
             if let Some(op) = self.opponent_of(i) {
                 let (ox, oy) = (self.fighters[op].x as i32, self.fighters[op].y as i32);
                 let f = &mut self.fighters[i];
@@ -1478,6 +1498,25 @@ impl BattleRunner {
         }
 
         self.retarget(i);
+
+        // **`BattleMan_Step`'s head, and everything below it is that function's
+        // decision section.** `0x0048F1DD` opens with the sub-cell counter and
+        // returns from it while `(stepFlags & 1) == 0` — before
+        // `Melee_AdjacentEnemyDir`, before `Dir_FromDelta` /
+        // `BattleMan_NextPathDir`, before `BattleMan_TryStepDir`. So a man who
+        // has committed to a cell finishes the crossing: he does not look for
+        // a duel, does not re-aim, and cannot be refused half-way.
+        //
+        // Ours ran the whole thing every tick and entered on the last one. Two
+        // visible faults fell out of that and `docs/battle.md` §13.6 counted
+        // both — mid-crossing turns, and refusals *after* the walk that put a
+        // man back on the square he never left. `docs/decisions.md`
+        // CNEW-crossing.
+        let troop = self.fighters[i].troop;
+        if !self.fighters[i].progress.tick(troop) {
+            self.fighters[i].anim = Motion::Walking;
+            return;
+        }
 
         // Not fighting: look for somebody adjacent, exactly as the original's
         // melee search does — eight neighbours, first live enemy wins.
@@ -1528,12 +1567,6 @@ impl BattleRunner {
             if f.troop == Troop::SiegeTowers {
                 f.polar = crate::siege::tower_polar(f.facing, f.polar);
             }
-        }
-        // Only a committed sub-step moves the figure. This is where the
-        // per-troop speed lives.
-        let troop = self.fighters[i].troop;
-        if !self.fighters[i].progress.step(troop) {
-            return;
         }
         // **`Melee_AdjacentEnemyDir`, as far as a pot of oil.** Before a
         // committed step `BattleMan_Step` looks round all eight neighbours for
@@ -2402,6 +2435,14 @@ impl BattleRunner {
                     f.path.pop();
                 }
                 f.barred = 0;
+                f.hold = 0;
+                // `Cell_TryEnter` answered 1, so `BattleMan_Step`'s tail runs:
+                // `barred = 0; holdIt = 0; stepFlags &= ~1; dirc = dir;
+                // walking = 1; FUN_00491b1f(man)`. The move above is
+                // `FUN_00491B1F`; this is the counter, and from here the
+                // figure's cell is the one it is crossing *to* — which is what
+                // `BattleFigure_Draw` trails him behind.
+                f.progress.begin_crossing();
             }
             Some(other) => {
                 let other = other as usize;
@@ -3830,8 +3871,17 @@ mod tests {
         }
     }
 
+    /// **The commit is the move, and the delay is what follows it.**
+    /// `BattleMan_Step` (`0x0048F1DD`) calls `FUN_00491B1F` — which rewrites
+    /// `mapX`/`mapY` — the tick `Cell_TryEnter` says the cell is free, and
+    /// only then counts `walking` 1, 3 … 15. So an ordered pikeman is on the
+    /// next cell at once and stays there for 40 ticks.
+    ///
+    /// This used to assert the opposite — *"nobody moves before their troop's
+    /// move delay has elapsed"* — which is the order our runner had and not
+    /// the original's.
     #[test]
-    fn nobody_moves_before_their_troops_move_delay_has_elapsed() {
+    fn a_committed_man_is_on_the_next_cell_at_once_and_holds_it_for_the_delay() {
         let mut r = BattleRunner::deploy(
             blank_field(),
             &[(Troop::Pikemen, 1)],
@@ -3839,26 +3889,39 @@ mod tests {
         );
         r.order_unit(r.unit_of(0), 40, 70);
         let start = (r.fighters[0].x, r.fighters[0].y);
-        // Pikemen take 45 ticks to cross a cell.
-        for _ in 0..44 {
+        let mut moves = Vec::new();
+        let mut at = start;
+        for t in 1..=90 {
             r.step();
+            let now = (r.fighters[0].x, r.fighters[0].y);
+            if now != at {
+                moves.push(t);
+                at = now;
+            }
         }
-        assert_eq!((r.fighters[0].x, r.fighters[0].y), start, "moved early");
-        r.step();
-        assert_ne!((r.fighters[0].x, r.fighters[0].y), start, "should have crossed by tick 45");
+        assert_ne!(start, at, "he never moved");
+        // One cell on the commit, then one every 8 * (moveDelay + 1) = 40.
+        let first = moves[0];
+        assert!(first <= 2, "the commit did not move him: first move at tick {first}");
+        let gaps: Vec<u32> = moves.windows(2).map(|w| w[1] - w[0]).collect();
+        assert!(gaps.iter().all(|&g| g == 40), "a pikeman's cells came {gaps:?} ticks apart");
     }
 
     #[test]
     fn a_knight_crosses_five_cells_while_a_pikeman_crosses_one() {
-        fn cells_moved(troop: Troop, ticks: u32) -> i32 {
+        // Past the first cell, which every troop gets on the commit itself.
+        fn cells_after_the_first(troop: Troop, ticks: u32) -> i32 {
             let mut r = BattleRunner::deploy(blank_field(), &[(troop, 1)], &[]);
             r.order_unit(r.unit_of(0), 40, 20);
             let start = r.fighters[0].y as i32;
+            r.run(1);
+            let committed = r.fighters[0].y as i32;
+            assert_ne!(committed, start, "{troop:?} did not commit on its first tick");
             r.run(ticks);
-            (r.fighters[0].y as i32 - start).abs()
+            (r.fighters[0].y as i32 - committed).abs()
         }
-        assert_eq!(cells_moved(Troop::Knights, 45), 5);
-        assert_eq!(cells_moved(Troop::Pikemen, 45), 1);
+        assert_eq!(cells_after_the_first(Troop::Knights, 40), 5);
+        assert_eq!(cells_after_the_first(Troop::Pikemen, 40), 1);
     }
 
     /// The AI advances of its own accord — nothing here orders anybody. The

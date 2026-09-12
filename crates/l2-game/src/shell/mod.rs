@@ -174,10 +174,16 @@ pub const PALETTES: &[&str] = &[
     // `BattlefieldScreen::palette` named it, so the lookup failed and the
     // presenter drew a battle in `base01.256` — *"blue grainy madness"*.
     //
-    // NOT PORTED: the siege arm, `Palette_Set(0x5675A0)` = `t32_stn1.256`. It
-    // belongs with `t32_stn1.pl8`, and `l2_view::scene` draws every battle
-    // from `T32_bat1.pl8`; one without the other would be wrong both ways.
+    // And the siege arm, `Palette_Set(0x5675A0)` = `t32_stn1.256`, record 1 of
+    // the same table. This list said it was NOT PORTED because it *"belongs
+    // with `t32_stn1.pl8`"* and we draw every battle from `T32_bat1.pl8` —
+    // but the palette colours the whole screen, not only the tiles, so
+    // withholding it painted a siege's walls, men, banners and panel in the
+    // field's colours. The tileset is still the field's, and the two files
+    // differ on 3 of 256 entries — `docs/decisions.md` CNEW-crossing has the
+    // measurement and what it is worth.
     "T32_bat1.256",
+    "T32_stn1.256",
 ];
 
 /// The artwork and text a shell screen draws with.
@@ -1257,15 +1263,21 @@ mod tests {
     /// fell through to `base01.256`, and a player saw the battle in the
     /// campaign's colours. It needs no install: both halves are names.
     ///
-    /// Ablation: delete the `"T32_bat1.256"` line above — red.
+    /// **Both of them**, because `Screen_DrawBattlefield` picks between two on
+    /// `g_battleIsSiege` and a siege that names a palette nobody loads falls
+    /// back to `base01.256` exactly as the field battle did.
+    ///
+    /// Ablation: delete either `"T32_bat1.256"` or `"T32_stn1.256"` above — red.
     #[test]
-    fn the_battlefields_palette_is_one_the_shell_loads() {
-        let name = crate::screen::ScreenId::Battlefield.build().palette();
-        let name = name.expect("the battlefield names a palette of its own");
-        assert!(
-            PALETTES.iter().any(|p| key(p) == key(name)),
-            "{name} is named by the battlefield and loaded by nobody"
-        );
+    fn both_battlefield_palettes_are_ones_the_shell_loads() {
+        let field = crate::screen::ScreenId::Battlefield.build().palette();
+        assert_eq!(field, Some(l2_view::scene::TILE_PALETTE), "a fresh screen is a field battle");
+        for name in [l2_view::scene::TILE_PALETTE, l2_view::scene::SIEGE_PALETTE] {
+            assert!(
+                PALETTES.iter().any(|p| key(p) == key(name)),
+                "{name} is named by the battlefield and loaded by nobody"
+            );
+        }
     }
 
     #[test]

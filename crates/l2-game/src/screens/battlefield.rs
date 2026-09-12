@@ -172,6 +172,12 @@ pub struct BattlefieldScreen {
     /// Whether this screen has seen the battle reach `0x2B` — the edge
     /// `Battle_CheckOutcome` plays its film on.
     outcome_seen: bool,
+    /// **`g_battleIsSiege`, latched.** `Screen_DrawBattlefield` (`0x004233F7`)
+    /// reads that global to pick the palette; [`Screen::palette`] is handed no
+    /// context, so [`Screen::update`] — which runs before every paint —
+    /// copies it here. It cannot go stale: a battle does not change kind, and
+    /// the screen lives for one battle.
+    siege: bool,
     overview: Overview,
 }
 
@@ -237,6 +243,7 @@ impl BattlefieldScreen {
             press: Press::new(),
             redraw: true,
             outcome_seen: false,
+            siege: false,
             overview: Overview::new(),
         }
     }
@@ -360,19 +367,28 @@ impl Screen for BattlefieldScreen {
         }
     }
 
-    /// **`t32_bat1.256`, and it is not `Battle_LoadAssets`' read.**
-    /// `Res_LoadStatic` (`0x00499859`) preloads it into `0x00568EE0` at start-up,
-    /// and `Screen_DrawBattlefield` (`0x004233F7`) ends every repaint of `0x28`
-    /// … `0x2A` with `Palette_Set(0x568EE0)` — or `Palette_Set(0x5675A0)`,
-    /// `t32_stn1.256`, for a siege, which is not ported: see
-    /// [`crate::shell::PALETTES`]. `Palette_Set` (`0x004B0AB5`) is a plain
-    /// copy — no remap, no shade table — so the battle's colour is this file
-    /// and nothing else. **[V]**
+    /// **Two files, and the battle's kind picks between them.**
+    /// `Screen_DrawBattlefield` (`0x004233F7`) ends every repaint of `0x28`
+    /// … `0x2A` with
     ///
-    /// This comment used to say the battle "does not run under the campaign
-    /// palette" while the name it returned was loaded by nobody, and so it did.
+    /// ```c
+    /// if (g_battleIsSiege == 0) Palette_Set(0x568ee0);   /* t32_bat1.256 */
+    /// else                      Palette_Set(0x5675a0);   /* t32_stn1.256 */
+    /// ```
+    ///
+    /// **[V]**, and the two buffers are records 2 and 1 of `g_preloadTable`
+    /// (`0x004D9F48`) — the filenames are in the table's own bytes, and
+    /// `Res_LoadStatic` (`0x00499859`) is the `local_10 == 1 →
+    /// &DAT_005675A0`, `local_10 == 2 → &DAT_00568EE0` ladder that fills them.
+    /// Neither is `Battle_LoadAssets`' read. `Palette_Set` (`0x004B0AB5`) is a
+    /// plain copy — no remap, no shade table.
+    ///
+    /// The siege arm was left out because the siege *tileset* is not ported
+    /// and *"one without the other would be wrong both ways"*. Measured the
+    /// other way round: a siege drew every wall and every man in the field's
+    /// colours, which is the whole screen wrong rather than the tiles wrong.
     fn palette(&self) -> Option<&'static str> {
-        Some(l2_view::scene::TILE_PALETTE)
+        Some(if self.siege { l2_view::scene::SIEGE_PALETTE } else { l2_view::scene::TILE_PALETTE })
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -522,6 +538,11 @@ impl Screen for BattlefieldScreen {
     }
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        // `g_battleIsSiege`, which the painter reads and [`Screen::palette`]
+        // cannot. First statement, ahead of every early return.
+        if let Some(b) = ctx.game.battle.as_ref() {
+            self.siege = b.runner.siege.is_siege;
+        }
         // `Widget_Test`'s countdown loop, which runs whether or not anything is
         // under the pointer. Index 0 is the tick, index 1 the cross. The first
         // answer closes the box, and a table nobody walks fires nothing more.

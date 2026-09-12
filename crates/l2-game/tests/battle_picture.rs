@@ -241,6 +241,105 @@ fn the_battlefield_is_shown_in_the_palette_screen_drawbattlefield_sets() {
     assert!(differs * 2 > seen, "base01.256 agrees with T32_bat1.256 on the field: {differs} of {seen}");
 }
 
+/// A siege on the screen, its camera on the keep — for the palette below.
+fn staged_siege(level: u8) -> (Game, Machine) {
+    let runner = BattleRunner::deploy_siege(
+        l2_sim::siege::our_castle(level),
+        0x5EED,
+        l2_sim::runner::Muster { troops: &[(Troop::Swordsmen, 400)], owner: 2, human: false },
+        l2_sim::runner::Muster { troops: &[(Troop::Archers, 200)], owner: 1, human: true },
+        level,
+    );
+    let first = runner.fighters.iter().find(|f| f.side == SIDE_A).expect("a garrison figure");
+    let cam = (first.x as i32 - 7, first.y as i32 - 6);
+    let mut live = LiveBattle::new(runner, 0, 0, 0, Some(level), 1, 1);
+    live.paused = false;
+    live.cam = cam;
+    let mut g = Game::new(5);
+    g.prefs.tip_screens = false;
+    g.prefs.tool_tips = false;
+    g.player = 1;
+    g.battle = Some(Box::new(live));
+    (g, Machine::new(ScreenId::Battlefield))
+}
+
+/// **The siege's own palette, and what it is worth.**
+///
+/// `Screen_DrawBattlefield`'s other arm is `Palette_Set(0x5675A0)`, which
+/// `Res_LoadStatic` (`0x00499859`) fills from record 1 of `g_preloadTable` —
+/// `t32_stn1.256`, spelled in the table's bytes at `0x004D9F5C`. Ours named
+/// `t32_bat1.256` for every battle and `shell::PALETTES` loaded only that, so
+/// a siege was shown in the field battle's colours.
+///
+/// **Measured, and the measurement is the finding.** The two files differ on
+/// **3 of 256 entries** — 0, 115 and 172 in this install; 172 is field green
+/// `(33, 49, 18)` against siege brown `(37, 13, 2)`. **No pixel of a painted
+/// siege changes colour today**, because we draw a siege from
+/// `T32_bat1.pl8` and none of its tiles uses those three indices. They are
+/// `T32_stn1.pl8`'s — the sheet the original draws a siege from, which is not
+/// ported. So this arm is correct, cheap, and worth nothing on screen until
+/// the siege tileset lands; the two counts are printed every run rather than
+/// asserted, because both come from the player's own files.
+///
+/// Ablation: delete `"T32_stn1.256"` from `shell::PALETTES` — red on the
+/// lookup, which is the fall-through to `base01.256`.
+#[test]
+fn a_siege_is_shown_in_t32_stn1_and_that_changes_the_picture() {
+    let Some((assets, platform)) = install() else {
+        l2_testkit::skip!("no game install, so no t32_stn1.256 to read");
+    };
+    let stn1 = Palette::from_bytes(&platform.vfs.read("T32_stn1.256").expect("T32_stn1.256"))
+        .expect("768 bytes");
+    let bat1 = Palette::from_bytes(&platform.vfs.read("T32_bat1.256").expect("T32_bat1.256"))
+        .expect("768 bytes");
+
+    let (mut g, mut m) = staged_siege(3);
+    let mut canvas = Canvas::screen();
+    frame(&mut m, &mut g, &assets, &mut canvas);
+    assert!(g.battle.as_ref().expect("a live battle").runner.siege.is_siege);
+
+    let name = m.palette_name().expect("a battlefield names a palette");
+    assert_eq!(name, "T32_stn1.256", "a siege is painted in the field battle's palette");
+    let applied = assets.shell.palette(name).expect("and the shell loads it");
+    for i in 0..=255u8 {
+        assert_eq!(applied.rgb(i), stn1.rgb(i), "index {i} of the shell's copy");
+    }
+
+    let entries: Vec<u8> = (0..=255u8).filter(|&i| stn1.rgb(i) != bat1.rgb(i)).collect();
+    let mut moved = 0usize;
+    for y in FIELD_Y0..FIELD_Y1 {
+        for x in FIELD_X0..FIELD_X1 {
+            if entries.contains(&canvas.at(x as usize, y as usize)) {
+                moved += 1;
+            }
+        }
+    }
+    // And the same count over the sheet the original would have drawn from,
+    // which is where those indices live.
+    let stn = Sheet::new(platform.vfs.read("T32_stn1.pl8").expect("T32_stn1.pl8")).expect("a sheet");
+    let (mut stn_px, mut stn_hit) = (0usize, 0usize);
+    for i in 0..stn.frame_count() {
+        let Some(f) = stn.frame(i) else { continue };
+        for (n, &idx) in f.indices.iter().enumerate() {
+            if !f.opaque[n] {
+                continue;
+            }
+            stn_px += 1;
+            if entries.contains(&idx) {
+                stn_hit += 1;
+            }
+        }
+    }
+    eprintln!(
+        "t32_stn1.256 vs t32_bat1.256: {} of 256 entries differ ({entries:?}); \
+         {moved} of {} painted siege pixels change colour today, and {stn_hit} of {stn_px} \
+         pixels of T32_stn1.pl8 — the sheet we do not draw — would",
+        entries.len(),
+        (FIELD_X1 - FIELD_X0) * (FIELD_Y1 - FIELD_Y0),
+    );
+    assert!(!entries.is_empty(), "the two battle palettes are the same file");
+}
+
 // ------------------------------------------------------------------- the snap
 
 /// The opaque pixels of a frame, relative to its top-left corner.
@@ -289,11 +388,13 @@ fn locate(canvas: &Canvas, frame: &DecodedFrame, xs: std::ops::Range<i32>, ys: s
 /// it: forward, four pixels a sub-step, and never backward.
 ///
 /// He walks east five cells, so the man's sprite centre must end exactly 160
-/// pixels right of where it began, moving monotonically on the way.
+/// pixels right of where it stood, moving monotonically on the way. **The
+/// first sample is painted before any tick runs**: the commit *is* the move,
+/// so by the end of tick 1 he is already on the next cell and drawn two
+/// pixels along it.
 ///
-/// Ablation: draw `walk_offset(facing, substep)` from `(f.x, f.y)` again in
-/// `l2_view::scene::figure_origin` — red on the first sub-step, 28 pixels
-/// backward, which is the player's *"reset on their square"*.
+/// Ablation: return the facing's neighbour with `walking = substep − 1` from
+/// `l2_view::scene::drawn_cell` — red at once, a cell ahead of himself.
 #[test]
 fn a_walking_man_is_drawn_advancing_every_tick_and_never_back_on_his_old_square() {
     let Some((assets, platform)) = install() else {
@@ -312,9 +413,14 @@ fn a_walking_man_is_drawn_advancing_every_tick_and_never_back_on_his_old_square(
     let row_y = FIELD_Y0 + (start.1 as i32 - cam.1) * 32;
     let mut canvas = Canvas::screen();
     let mut centres: Vec<(u32, i32, Motion)> = Vec::new();
-    // Macemen cross a cell in 18 ticks; five cells and a margin.
-    for t in 0..(5 * 18 + 40) {
-        frame(&mut m, &mut g, &assets, &mut canvas);
+    // Macemen cross a cell in 16 ticks; five cells and a margin. Tick 0 is the
+    // paint before the first update — where he stands, not where he commits.
+    for t in 0..(5 * 16 + 40) {
+        if t == 0 {
+            paint(&mut m, &mut g, &assets, &mut canvas);
+        } else {
+            frame(&mut m, &mut g, &assets, &mut canvas);
+        }
         let f = &live(&g).runner.fighters[man];
         let index = l2_view::figures::frame(f.troop, f.anim, f.facing, f.phase);
         let pic = sheet.frame(index).expect("the frame the man is showing");
@@ -345,6 +451,79 @@ fn a_walking_man_is_drawn_advancing_every_tick_and_never_back_on_his_old_square(
         (start.0 + 5, start.1),
         "the simulation did not put him where he was sent"
     );
+}
+
+// ------------------------------------------------------------- the jump count
+
+/// Two armies eight cells apart, marched at each other. 42 figures, no
+/// install, no painter — [`l2_view::scene::figure_origin`] is the whole
+/// picture and this counts how far it moves a live man in one tick.
+fn march() -> BattleRunner {
+    let human: &[(Troop, u16)] = &[(Troop::Swordsmen, 8), (Troop::Archers, 6), (Troop::Macemen, 7)];
+    let ai: &[(Troop, u16)] = &[(Troop::Crossbowmen, 7), (Troop::Macemen, 8), (Troop::Peasants, 6)];
+    let mut r = BattleRunner::deploy_armies(
+        field(44),
+        0x5EED,
+        Army { troops: ai, owner: 2, human: false },
+        Army { troops: human, owner: 1, human: true },
+    );
+    for u in 1..=l2_sim::unit::MAX_UNITS {
+        if r.units.get(u).is_live() && r.units.get(u).human {
+            r.order_unit(u, 40, 44);
+        }
+    }
+    r
+}
+
+/// **A drawn man never teleports.** One tick moves him four pixels along one
+/// axis — `g_walkOffset[dirc][walking]` is `±(32 − 2·walking)` and `walking`
+/// climbs 1, 3 … 15 — or leaves him where he is. Sixteen pixels is half a
+/// cell: nothing the original draws jumps that far.
+///
+/// `BattleMan_Step` (`0x0048F1DD`) is why. A man who is mid-crossing —
+/// `stepFlags & 1` clear, figure `+0x34` — returns from it before the
+/// direction, the melee search or `Cell_TryEnter` is reached, so his `dirc` is
+/// fixed and his cell is already the one he is entering (`FUN_00491B1F` ran at
+/// the commit). Ours counted first and entered last, and re-chose the
+/// direction every tick: 1,317 jumps before C183 registered the palette and
+/// moved the trail, 504 after it, 0 once the order matched.
+///
+/// Ablation: put the `next_step` / facing block back above
+/// `Progress::tick` in `BattleRunner::step_one` — red, with the mid-crossing
+/// turns back.
+#[test]
+fn no_drawn_man_ever_jumps_half_a_cell_in_one_tick() {
+    let mut r = march();
+    let cam = l2_view::scene::Camera { x: 24, y: 28 };
+    let mut was: Vec<Option<(i32, i32)>> = vec![None; r.fighters.len()];
+    let (mut jumps, mut walking_ticks) = (0usize, 0usize);
+    let mut worst = (0, String::new());
+    for tick in 0..1_200 {
+        for i in 0..r.fighters.len() {
+            let f = &r.fighters[i];
+            if !r.is_alive(i) {
+                was[i] = None;
+                continue;
+            }
+            let now = l2_view::scene::figure_origin(f, cam);
+            if f.anim == Motion::Walking {
+                walking_ticks += 1;
+            }
+            if let Some(before) = was[i] {
+                let d = (now.0 - before.0).abs().max((now.1 - before.1).abs());
+                if d >= 16 {
+                    jumps += 1;
+                    if d > worst.0 {
+                        worst = (d, format!("figure {i} at tick {tick}: {before:?} -> {now:?}"));
+                    }
+                }
+            }
+            was[i] = Some(now);
+        }
+        r.step();
+    }
+    println!("{} figures, 1200 ticks, {walking_ticks} walking figure-ticks, {jumps} jumps", r.fighters.len());
+    assert_eq!(jumps, 0, "{jumps} drawn jumps of 16 px or more; worst {}", worst.1);
 }
 
 // ------------------------------------------------------------------ the ghosts

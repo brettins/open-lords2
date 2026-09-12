@@ -10892,3 +10892,76 @@ which is the *table's* `+0x25` and the name's `+0x21`. Nothing was built on the 
 the colour is passed into `NewGame` rather than read out of a save — so this cost nothing, and
 it is exactly the sentence that would have cost the next person a day. `crates/l2-game/src/text.rs`
 had the record right the whole time and no reader used it.
+
+---
+
+**CNEW-crossing — a man may not change his mind once he has stepped, and the siege
+picks the other palette. Both were in one `if`, and one of them had been read
+backwards for the whole life of the document.**
+
+Two reports on one screen: men still *"reset on their square"* occasionally after C183, and
+a siege runs in the field battle's colours.
+
+**The crossing.** `BattleMan_Step` (`0x0048F1DD`) decompiled end to end settles what §7 and
+`symbols.json` had both recorded the other way round. Bit 0 of `stepFlags` (`+0x34`) gates
+the function: while it is clear the figure is mid-crossing and the body returns after
+counting `moveTick` and `walking`, **above** `Melee_AdjacentEnemyDir`, above
+`Dir_FromDelta` / `BattleMan_NextPathDir` and above `BattleMan_TryStepDir`. A step
+`Cell_TryEnter` accepts runs `stepFlags &= ~1; dirc = dir; walking = 1;
+FUN_00491b1f(man)` — and `FUN_00491b1f` is the move. So the commit is the **first** tick of
+a crossing, not the last; `dirc` is fixed for it; and nothing can refuse the step half-way.
+
+`BattleMan_StateMelee` (`0x004831D8`) is the same rule from the other side and is what the
+last of the jumps needed: `Anim_Strike(); … Melee_Tick(); if ((stepFlags & 1) == 0 &&
+BattleMan_Step(1)) Anim_Walk();`. A man engaged part-way across a cell **finishes the
+crossing**, walking, and `noInterrupt = 1` makes his landing tick decide nothing. Ours
+zeroed his progress and struck where he stood, which teleported him up to 30 pixels onto
+the cell he was still entering. `dirc` is not rewritten there either — the 999 arm writes
+`dirc2` (`+0x19`, the strike frame) and leaves `dirc` (`+0x18`, the sub-cell offset) alone.
+
+Measured, one 42-figure battle, 1,200 ticks, `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`:
+drawn jumps of 16 px or more **324 → 0**. (C183's 1,317 → 504 was the same defect on a
+different scenario; this branch's baseline on its own scenario is the 324.) The 324 were
+mid-crossing turns and refusals after the walk; the last 15 before the melee clause were
+figures engaged mid-crossing. **No `BattleMen_SwapPlaces` fires in that battle** — a swap
+*is* a teleport in the original, and one would have shown as a 32-pixel jump.
+
+**What moves in the lockstep digest.** `Progress` gains `free`, `stepFlags` bit 0, and it
+is hashed: a figure that has just landed and one that has just been ordered both read
+`substep == 0`, so `substep` does not cover it, and two peers that disagreed would have one
+man finishing a crossing while the other re-chose his direction. **The census could not
+have caught that** — it walked `Fighter`, `Missile` and `SiegeState`, and `progress` is one
+field name there and three in the digest. `Progress` is in the walk now; C39's rule needed
+applying one level down.
+
+**And a speed correction nobody was looking for.** `walking` runs 1, 3 … 15 — **eight**
+sub-steps — so a cell costs `8 * (moveDelay + 1)` ticks and not `9 * (…)`: 8 for a knight,
+40 for a pikeman, 48 for an engine. §7's `9` came from reading the counter as starting at
+zero, which it never does. Every relative speed the manual states is a ratio and is
+unchanged, which is exactly why the error survived: `speeds_match_what_the_manual_says` was
+green against both numbers. A test named
+`nobody_moves_before_their_troops_move_delay_has_elapsed` asserted our order rather than the
+original's and is now `a_committed_man_is_on_the_next_cell_at_once_and_holds_it_for_the_delay`.
+
+**The palette, and the measurement is the point.** `Screen_DrawBattlefield` (`0x004233F7`)
+ends every repaint with `if (g_battleIsSiege == 0) Palette_Set(0x568ee0); else
+Palette_Set(0x5675a0);` — records 2 and 1 of `g_preloadTable` (`0x004D9F48`),
+`t32_bat1.256` and `t32_stn1.256`, spelled in the table's own bytes and loaded by
+`Res_LoadStatic`'s (`0x00499859`) index ladder. C183 registered only the first and wrote
+the siege arm off as *"belongs with `t32_stn1.pl8`; one without the other would be wrong
+both ways"*. It is registered now and `BattlefieldScreen` latches `g_battleIsSiege` in
+`update` for `palette`, which is handed no context.
+
+**It changes no pixel today.** The two files differ on **3 of 256 entries** — 0, 115 and
+172; 172 is field green `(33, 49, 18)` against siege brown `(37, 13, 2)` — and **none of
+those indices appears anywhere in a painted siege**, because we draw a siege from
+`T32_bat1.pl8` and the three belong to `T32_stn1.pl8`, which is not ported: 898 of that
+sheet's 215,079 opaque pixels would move. So the arm is faithful, cheap and worth nothing
+on screen until the siege tileset lands. Recorded because the report described it as a
+visible fault and it is not one; the counts are printed by
+`a_siege_is_shown_in_t32_stn1_and_that_changes_the_picture` on every run rather than
+asserted, since both come from the player's own files.
+
+**Left alone.** `FUN_004904EC`, the mover's side-step, and `Path_DetourTooLong`'s
+give-up — both still unreproduced, both still recorded in §8.3a rather than built. The
+siege tileset. And `BattleMen_SwapPlaces`' teleport, which is the original's.

@@ -1,8 +1,9 @@
 //! Movement across the battlefield grid.
 //!
-//! Reimplemented from `docs/battle.md` §7. A figure crosses one cell in nine
-//! sub-steps, and each sub-step costs `moveDelay + 1` ticks, so a cell costs
-//! `9 * (moveDelay + 1)` — from 9 ticks for a knight to 54 for a siege engine.
+//! Reimplemented from `docs/battle.md` §7. A figure **enters** the next cell
+//! and then counts `walking` 1, 3 … 15 across it, eight sub-steps of
+//! `moveDelay + 1` ticks each — 8 ticks for a knight, 40 for a pikeman, 48 for
+//! a siege engine.
 //!
 //! All integer, all in a fixed order. A figure's progress depends only on its
 //! own counters, so two machines stepping the same figures reach the same
@@ -11,9 +12,18 @@
 use crate::figure::Figure;
 use crate::troop::Troop;
 
-/// Sub-steps needed to cross one cell. The original counts up by 2 and commits
-/// at 17, which is nine increments.
-pub const SUBSTEPS_PER_CELL: u32 = 9;
+/// Sub-steps a crossing takes. `BattleMan_Step` (`0x0048F1DD`) sets
+/// `walking = 1` at the commit and adds 2 a sub-step until it reaches 17:
+/// 1, 3 … 15 is eight, and the eighth lands him.
+///
+/// **Corrected, against the binary.** This was 9 and `docs/battle.md` §7 read
+/// `walking += 2; if (walking < 17) return; commit`, counting 2, 4 … 18 from
+/// zero. The counter never starts at zero — `if (local_10 == 1) { dirc = dir;
+/// walking = 1; FUN_00491b1f(man); }` — so the ninth increment does not exist
+/// and a cell costs `8 * (moveDelay + 1)`, not `9 * (…)`. Every relative
+/// speed the manual states is a ratio and is unchanged, which is why the
+/// error survived. `docs/decisions.md` CNEW-crossing.
+pub const SUBSTEPS_PER_CELL: u32 = 8;
 
 /// Ticks per sub-step is `move_delay + 1`.
 pub fn move_delay(troop: Troop) -> u32 {
@@ -55,23 +65,53 @@ pub fn can_step_elevation(from: i32, to: i32) -> bool {
     (to - from).abs() <= 1 || to == 5
 }
 
-/// Per-figure movement progress. Separate from `Figure` so a figure that is
-/// standing still carries no movement state at all.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// Per-figure movement progress — figure `+0x32` `walking`, `+0x33` the move
+/// tick, and bit 0 of `+0x34` `stepFlags`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Progress {
-    /// Ticks accumulated toward the next sub-step.
+    /// Ticks accumulated toward the next sub-step — figure `+0x33`.
     pub tick_counter: u32,
-    /// Sub-step progress across the current cell, counted in twos to 17.
+    /// Sub-cell progress — figure `+0x32`, the debug panel's **`walking`**.
+    /// **0 standing on the cell, else 1, 3 … 15 across the one already
+    /// entered.** Never even: the counter starts at 1.
     pub substep: u32,
+    /// `stepFlags` bit 0, figure `+0x34` — *"ready to leave this cell"*.
+    /// `BattleMan_Create` (`0x0046E4C8`) writes `stepFlags = 1`, so a new
+    /// figure decides on its first tick.
+    ///
+    /// **This is the field that stops a man changing his mind.** While it is
+    /// clear `BattleMan_Step` returns before the direction, the melee search
+    /// and `Cell_TryEnter` are reached, so a committed crossing finishes in
+    /// the direction it began and onto the cell it began on.
+    pub free: bool,
+}
+
+impl Default for Progress {
+    fn default() -> Self {
+        Progress { tick_counter: 0, substep: 0, free: true }
+    }
 }
 
 impl Progress {
-    /// Advance one tick. Returns true when the figure commits to the next cell,
-    /// resetting progress.
-    pub fn step(&mut self, troop: Troop) -> bool {
-        let delay = move_delay(troop);
+    /// One tick of `BattleMan_Step`'s head. **True when the figure may decide
+    /// a step this tick** — it is standing, or it has just landed.
+    ///
+    /// ```text
+    /// if ((stepFlags & 1) == 0) {                     /* mid-crossing */
+    ///     if (++moveTick <= moveDelay) return 1;
+    ///     moveTick = 0;  walking += 2;
+    ///     if (walking < 17) return 1;
+    ///     stepFlags |= 1;  walking = 0;               /* landed; fall through */
+    /// } else { walking = 0; moveTick = 0; }
+    /// ```
+    pub fn tick(&mut self, troop: Troop) -> bool {
+        if self.free {
+            self.substep = 0;
+            self.tick_counter = 0;
+            return true;
+        }
         self.tick_counter += 1;
-        if self.tick_counter <= delay {
+        if self.tick_counter <= move_delay(troop) {
             return false;
         }
         self.tick_counter = 0;
@@ -79,8 +119,18 @@ impl Progress {
         if self.substep < 17 {
             return false;
         }
+        self.free = true;
         self.substep = 0;
         true
+    }
+
+    /// The commit — `stepFlags &= ~1; dirc = dir; walking = 1;
+    /// FUN_00491b1f(man)`. The caller does the move; this is the counter's
+    /// half, and after it the figure's cell is the one it is crossing to.
+    pub fn begin_crossing(&mut self) {
+        self.free = false;
+        self.substep = 1;
+        self.tick_counter = 0;
     }
 }
 
@@ -101,14 +151,14 @@ mod tests {
     use crate::troop::ALL_TROOPS;
 
     #[test]
-    fn a_cell_costs_nine_substeps_of_delay_plus_one() {
+    fn a_cell_costs_eight_substeps_of_delay_plus_one() {
         for t in ALL_TROOPS {
-            assert_eq!(ticks_per_cell(t), 9 * (move_delay(t) + 1));
+            assert_eq!(ticks_per_cell(t), 8 * (move_delay(t) + 1));
         }
-        assert_eq!(ticks_per_cell(Troop::Knights), 9);
-        assert_eq!(ticks_per_cell(Troop::Macemen), 18);
-        assert_eq!(ticks_per_cell(Troop::Pikemen), 45);
-        assert_eq!(ticks_per_cell(Troop::Catapults), 54);
+        assert_eq!(ticks_per_cell(Troop::Knights), 8);
+        assert_eq!(ticks_per_cell(Troop::Macemen), 16);
+        assert_eq!(ticks_per_cell(Troop::Pikemen), 40);
+        assert_eq!(ticks_per_cell(Troop::Catapults), 48);
     }
 
     /// The manual states two speed facts. Both hold exactly, and the knight to
@@ -133,22 +183,30 @@ mod tests {
         assert_eq!(ticks_per_cell(Troop::Pikemen), 5 * ticks_per_cell(Troop::Knights));
     }
 
+    /// A standing figure decides every tick; a crossing one decides on none
+    /// of them until it lands. `walking` runs 1, 3 … 15 and never 0 or even.
     #[test]
-    fn a_knight_crosses_a_cell_in_exactly_nine_ticks() {
+    fn a_knight_crosses_a_cell_in_exactly_eight_ticks_and_decides_on_none_of_them() {
         let mut p = Progress::default();
-        for t in 1..9 {
-            assert!(!p.step(Troop::Knights), "should not commit at tick {t}");
+        assert!(p.tick(Troop::Knights), "a standing figure is free to decide");
+        p.begin_crossing();
+        let mut seen = vec![p.substep];
+        for t in 1..8 {
+            assert!(!p.tick(Troop::Knights), "tick {t} of a crossing must not decide");
+            seen.push(p.substep);
         }
-        assert!(p.step(Troop::Knights), "commits on the ninth tick");
-        assert_eq!(p, Progress::default(), "progress resets on commit");
+        assert_eq!(seen, vec![1, 3, 5, 7, 9, 11, 13, 15]);
+        assert!(p.tick(Troop::Knights), "the eighth tick lands him");
+        assert_eq!(p, Progress::default(), "landing leaves him free, on the cell");
     }
 
     #[test]
     fn slower_troops_take_proportionally_longer() {
         for t in ALL_TROOPS {
             let mut p = Progress::default();
+            p.begin_crossing();
             let mut ticks = 0;
-            while !p.step(t) {
+            while !p.tick(t) {
                 ticks += 1;
                 assert!(ticks < 1000, "{t:?} never crossed a cell");
             }
