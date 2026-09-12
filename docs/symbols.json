@@ -1574,7 +1574,7 @@
       "section": "platform",
       "confidence": "verified",
       "signature": "int Smk_Play(int path, int x, int y, int mode, int returnScreen)",
-      "comment": "Plays a Smacker movie. Calls Smk_Open and, if it opened, parks g_screenId at 0x22 - the movie screen - after stashing returnScreen in g_smkReturnScreen for Smk_OnFinished; if it did not open, it goes straight to returnScreen. Seven callers, and they are the game's whole video inventory: the setup chain, CastleBuild_Confirm, Msg_DrawWindow, Battle_CheckOutcome and Smk_ReplayIntro."
+      "comment": "Plays a Smacker movie. Calls Smk_Open and, if it opened, parks g_screenId at 0x22 - the movie screen - after stashing returnScreen in g_smkReturnScreen for Smk_OnFinished; if it did not open, it goes straight to returnScreen. Seven callers, and they are the game's whole video inventory: the setup chain, CastleBuild_Confirm, Msg_DrawWindow, Battle_CheckOutcome and Smk_ReplayIntro. [V] What each of the eight call sites passes for returnScreen: FUN_004B3571 intro g_screenId; Smk_OnFinished logo and credits 0x1F; FUN_00432B05 trailer g_screenId; CastleBuild_Confirm 0, a literal - the campaign map; Msg_DrawWindow capture and both ending layouts g_screenId, read after Msg_Dismiss; Battle_CheckOutcome g_screenId. Only the castle film names a screen that is not the one it was raised over."
     },
     {
       "addr": "0x0042D96E",
@@ -8218,11 +8218,18 @@
       "comment": "Per-frame dispatcher on g_turnPhase (1..7). Phase 1 neutral-county upkeep, 2 army movement, 3 supply transports, 4 the players' turn, 5 peasant mobs, 6 merchants, 7 end of season. Increments g_turnPhaseStep every call."
     },
     {
+      "addr": "0x0049A3E6",
+      "name": "Season_FinishFade",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "The bottom of the end-of-turn fade, guarded by g_screenId == 0x24 - the id FUN_004B0CB4(0x24, 1, ...) stored when Turn_Tick's phase 7 started the fade down. Reloads the seasonal art (Gfx_LoadCountyMode), repaints, presents, fades back up with FUN_004B0CB4(0, 0, ...), and then calls Save_RotateAndWrite. [V] So the rolling autosave is written in the dark, one frame after Season_Advance, and holds the OPENING of the turn that just began."
+    },
+    {
       "addr": "0x0049A453",
       "name": "Save_RotateAndWrite",
       "section": "kingdom",
       "confidence": "verified",
-      "comment": "Rotates safeturn.sav <- old_turn.sav <- lastturn.sav and then calls Save_Write. Called from Game_NewGame and at each turn boundary."
+      "comment": "The rolling autosave, three deep. Copies three 13-byte name literals into buffers - lastturn.sav / old_turn.sav / safeturn.sav in single player (0x004DC2F0, 0x004DC300, 0x004DC310), the .sva triple for a network master and the .svb triple for a client - then, when DAT_00553260 < 1, remove(safeturn); rename(old_turn, safeturn); rename(lastturn, old_turn); and finally Save_Write(lastturn). Every rotation step's failure is ignored, which is what makes a game's first autosave work. Exactly two callers: Game_NewGame (0x00497E2B) and Season_FinishFade (0x0049A449). DAT_00553260 is raised to 2 only by FUN_0049B973, the multiplayer com-link-error resync that reloads lastturn.sva/.svb, so a single player game always rotates."
     },
     {
       "addr": "0x0049A581",

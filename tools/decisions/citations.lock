@@ -106,7 +106,7 @@ crates/l2-game/src/screens/ratings.rs	C140	86ed189821f1	e3a1ede42a95
 crates/l2-game/src/screens/ratings.rs	C61	4f4b84817209	60611046b40d
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2	f7bf296341ff
 crates/l2-game/src/screens/setup.rs	C117	831195fc9117	b20f3a227f0f
-crates/l2-game/src/screens/setup.rs	C117	bac19d4b1267	b20f3a227f0f
+crates/l2-game/src/screens/setup.rs	C117	badd609f2144	b20f3a227f0f
 crates/l2-game/src/screens/setup.rs	C117	f18a15ba8c91	b20f3a227f0f
 crates/l2-game/src/screens/setup.rs	C21	8b9ebc1ffbf5	f7bf296341ff
 crates/l2-game/src/screens/setup.rs	C21	9c04dd669ff9	f7bf296341ff

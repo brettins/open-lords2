@@ -274,6 +274,79 @@ pub fn read_path(path: &Path, tables: Tables) -> Result<Game, Error> {
     save::decode(&bytes, tables).map_err(|detail| Error::Load { name, detail })
 }
 
+/// **`Save_RotateAndWrite`'s three names** (`0x0049A453`), newest first.
+///
+/// The original's are `lastturn.sav`, `old_turn.sav` and `safeturn.sav` — three
+/// 13-byte literals at `0x004DC2F0`, `0x004DC300` and `0x004DC310`, `[V]` read
+/// out of `.rdata`. The stems are kept and the extension is ours, for
+/// [`crate::save::EXTENSION`]'s reason: these are our files in our own format,
+/// and a directory listing that cannot tell them from the original's memory
+/// dumps is one somebody eventually confuses.
+///
+/// A multiplayer game writes a different triple — `.sva` for the master,
+/// `.svb` for a client — and we have no network game to write one for.
+pub const AUTOSAVES: [&str; 3] = ["lastturn", "old_turn", "safeturn"];
+
+/// **`Save_RotateAndWrite` (`0x0049A453`)** — shift the window down one and
+/// write the newest.
+///
+/// ```c
+/// if (DAT_00553260 < 1) {
+///     remove(safeturn);  rename(old_turn, safeturn);  rename(lastturn, old_turn);
+/// }
+/// Save_Write(lastturn);
+/// ```
+///
+/// `[V]`, decompiled. So it keeps **three** turns, not a numbered series, and
+/// the newest name is rewritten every time: `lastturn` is the turn that just
+/// began, `old_turn` the one before it, `safeturn` the one before that. That is
+/// the shape the player asked for — *"there doesn't seem to be a last-turn
+/// autosave either so I can't easily repro that for you"* — and three deep is
+/// what makes the turn *before* the one that went wrong reachable too.
+///
+/// **Every rotation step's failure is ignored, as the original ignores it.** A
+/// game's first autosave has no `old_turn` to rename and no `safeturn` to
+/// remove, and `remove`/`rename` simply return non-zero there; the write is the
+/// only step whose failure is worth a word.
+///
+/// `DAT_00553260` is not built. It is set to 2 by `FUN_0049B973`, the
+/// multiplayer com-link-error path that reloads `lastturn.sva`/`.svb`, and
+/// decremented per turn — *don't shift the snapshot we just resynced from out
+/// of the window*. `FUN_0043F01D`, the network bring-up, zeroes it. In a single
+/// player game it is zero and the rotation always runs. `[V]` on both writers.
+pub fn rotate_and_write(game: &Game) -> Result<PathBuf, Error> {
+    let [newest, middle, oldest] = AUTOSAVES;
+    let (newest, middle, oldest) = (path_for(newest)?, path_for(middle)?, path_for(oldest)?);
+    let _ = std::fs::remove_file(&oldest);
+    let _ = std::fs::rename(&middle, &oldest);
+    let _ = std::fs::rename(&newest, &middle);
+    write(AUTOSAVES[0], game)
+}
+
+/// **`FUN_0049A3E6`'s last statement, pumped** — the machine's standing autosave
+/// request, carried out.
+///
+/// The request is raised by a screen and drained by [`Machine`]
+/// ([`crate::screen::Screen::take_autosave`]); this is the one place it becomes
+/// a file. It lives in the library rather than in `main.rs` for
+/// [`crate::audio::Director::listen`]'s reason, which is the whole argument for
+/// where the seam goes: **a binary's code cannot be called by a test**, so an
+/// application that performed the write itself could only be checked by a test
+/// that re-typed the same lines beside its own assertions.
+///
+/// It is also why nothing in the simulation writes a file. Seventeen test files
+/// end a turn through [`crate::screens::map::MapScreen`]; not one of them calls
+/// this, so not one of them can rotate the person's own autosaves out from under
+/// them. That failure is the exact defect being fixed here, and
+/// `docs/environment.md` has already watched a program destroy a save
+/// directory's identity once.
+pub fn run_pending(
+    machine: &mut crate::screen::Machine,
+    game: &Game,
+) -> Option<Result<PathBuf, Error>> {
+    machine.take_autosave().then(|| rotate_and_write(game))
+}
+
 /// Delete one. The save screen does not offer it; this exists so that a test
 /// can clean up after itself without reaching for `std::fs` and a path it
 /// assembled by hand.

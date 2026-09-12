@@ -735,6 +735,10 @@ pub struct SetupScreen {
     /// person had arrived — so *Play Now!* built England instead of
     /// Quaintville. `docs/decisions.md` C117.
     campaign: bool,
+    /// **A `Save_RotateAndWrite` is owed** — `Game_NewGame`'s own call to it
+    /// (`0x00497E2B`), raised when *Start* has built a world. See
+    /// [`crate::screen::Screen::take_autosave`].
+    autosave: bool,
     /// `g_campaignTrack` (`DAT_0053F640`) — which of the two campaigns page 5
     /// chose. `Setup_ChooseCampaign` stores the hotspot here.
     track: crate::victory::Track,
@@ -764,6 +768,7 @@ impl SetupScreen {
             unhonoured: Vec::new(),
             failure: None,
             campaign: false,
+            autosave: false,
             track: crate::victory::Track::First,
             name: begin_name(text::DEFAULT_PLAYER_NAME),
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
@@ -1339,6 +1344,12 @@ impl SetupScreen {
         // `Game_NewGame`'s last economic call. Everything above is the position
         // the original hands to it.
         ctx.game.last_report = Some(ctx.game.kingdom.start_new_game());
+        // **`Game_NewGame`'s own `Save_RotateAndWrite()` (`0x00497E2B`)**, the
+        // second of that function's only two call sites — the other is the turn
+        // boundary. It is why a played install's `lastturn.sav` reads turn 1,
+        // Winter 1268 after a new game and before any End Turn.
+        // See [`crate::screen::Screen::take_autosave`].
+        self.autosave = true;
         Transition::Push(ScreenId::Campaign)
     }
 
@@ -1404,6 +1415,12 @@ impl Screen for SetupScreen {
 
     fn palette(&self) -> Option<&'static str> {
         Some(self.page.palette())
+    }
+
+    /// `Game_NewGame`'s `Save_RotateAndWrite()`. Raised by
+    /// [`SetupScreen::new_game`] once a world has actually been built.
+    fn take_autosave(&mut self) -> bool {
+        core::mem::take(&mut self.autosave)
     }
 
     /// `Map_LoadPlanes`'s effect on the option block, once, on the first tick.

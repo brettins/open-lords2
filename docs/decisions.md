@@ -10119,3 +10119,63 @@ drew `LORD1`, because the fifth — *the array onto a screen that is about the p
 the list. A chain of hand-offs is only as long as somebody wrote down, and the end of the list is
 not the end of the chain. The same is true of the battle prompt: `attacker_men` existed, was
 correct, was covered by a test that read the field, and **no test read the pixels**.
+
+---
+
+**C190 — a screen id is a destination, and we had no way
+to say one. Two player reports, one missing idea.**
+
+Two defects arrived as separate reports and share a shape: in both, the original states
+where to *go* and ours could only say where to *come back from*.
+
+> *"There doesn't seem to be a last-turn autosave either so I can't easily repro that for
+> you."*
+
+`Save_RotateAndWrite` (`0x0049A453`) keeps **three** turns, not one, and its names are three
+13-byte literals — `lastturn.sav`, `old_turn.sav`, `safeturn.sav`, `[V]` out of `.rdata` at
+`0x004DC2F0`. The rotation is `remove(safeturn); rename(old_turn, safeturn);
+rename(lastturn, old_turn);` and then `Save_Write(lastturn)`, every step's failure ignored —
+which is the whole reason a game's first autosave works. `docs/environment.md` has recorded
+the *file name* for weeks and nothing had read the function; three deep is the part that
+matters to the report, because the turn a player wants is often the one before the one that
+went wrong.
+
+**Where it is written was the second finding.** Exactly two callers, `[V]`: `Game_NewGame`
+(`0x00497E2B`) and `FUN_0049A3E6` (`0x0049A449`), now `Season_FinishFade`. The latter fires
+on `g_screenId == 0x24` — the bottom of the end-of-turn fade — and its statements are
+*reload the seasonal art, repaint, present, fade back up, autosave*. So the file holds the
+**opening of the turn that just began**, not the end of the one that finished, and
+`l2_view::fade::is_darkest` already named that frame for the art reload without anyone
+noticing the line beside it.
+
+> *"After a castle film the player is stranded on the chooser under a tip."*
+
+`CastleBuild_Confirm` (`0x00436B59`) calls `Smk_Play(castle1.smk + level * 0x10, 0x9E, 0x14,
+0, 0)`. **The fifth argument is a literal `0`: the campaign map.** Reading all eight
+`Smk_Play` call sites is what makes that mean something — seven pass `g_screenId` itself or
+the front end's `0x1F`, which in a stack is *come back where you were*, and exactly one names
+a screen that is not the one it was raised over. Ours popped the film and left the chooser to
+pop itself on its next `update`; `Machine::update` runs `run_tips` and `pump_messages` first
+and `tip::DELAY` is `0x14` frames, so on any film longer than twenty the castle advisor tip
+seated itself and the chooser never got that update. The ablation reproduces the report
+exactly: `[Campaign, Castle(1), Tip, Message]`.
+
+`Transition::Goto(ScreenId)` is the idea that was missing — *go to screen X, unwinding the
+stack*. It is neither `Pop`, which only knows what it is leaving, nor `Replace`, which leaves
+everything underneath standing. The original needed no such vocabulary because `g_screenId`
+is one byte, and a codebase that models one byte as a stack has to say the difference out
+loud or it cannot say it at all.
+
+**The autosave is raised, not performed**, and that is the part worth keeping. Seventeen test
+files end a turn through the map screen; if `tick_fade` wrote a file, every one of them would
+rotate the developer's own autosaves out from under them on every run — which is the exact
+defect being fixed, committed by the fix. So a screen reports it the way it already reports a
+widget click (`Screen::take_autosave`), the machine drains it, and `saves::run_pending` is the
+only thing in the workspace that turns it into a file. Nothing of it is on `Game`, so it is
+in neither the save nor the lockstep digest.
+
+**What was left alone.** `Film::Ending { game_over: true }` stays a `Replace(Conquest)`: its
+return screen is `g_screenId` *read after `Msg_Dismiss` has already entered `0x1C`*, so there
+is no screen on the stack to unwind to and "become this" is what the byte is saying. And
+`DAT_00553260`, the guard that suppresses the rotation, is not built — it is raised only by
+`FUN_0049B973`, the multiplayer com-link-error resync, and we have no network game.

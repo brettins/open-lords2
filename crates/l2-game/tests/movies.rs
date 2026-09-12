@@ -115,6 +115,15 @@ fn the_application_opens_on_the_intro_over_the_title_page() {
 
 /// **`Smk_OnFinished`'s start-up chain, and where each film returns.** A skip
 /// is `Smk_OnFinished` too, so this is also what a click during the intro does.
+///
+/// # `g_smkReturnScreen`, off all eight call sites
+///
+/// Seven of the eight `Smk_Play` calls pass `g_screenId` itself or the front
+/// end's `0x1F` — *come back where you were*, which in a stack is a pop. **One
+/// passes a literal**: `CastleBuild_Confirm` (`0x00436B59`) passes `0`, the
+/// campaign map, so the end of a castle film is the map and the chooser that
+/// raised it is gone with it. That is [`Transition::Goto`], and nothing else
+/// here needs it.
 #[test]
 fn the_start_up_films_chain_intro_logo_credits_and_nothing_else_does() {
     use l2_game::screen::Transition::*;
@@ -122,9 +131,14 @@ fn the_start_up_films_chain_intro_logo_credits_and_nothing_else_does() {
     assert_eq!(Film::ImpTitle.then(), Replace(ScreenId::Movie(Film::Credits)));
     assert_eq!(Film::Credits.then(), Pop);
     assert_eq!(Film::LordsOfMagic.then(), Pop);
-    assert_eq!(Film::Castle(2).then(), Pop);
-    // `Smk_Play` failing never reaches `Smk_OnFinished`, so it never chains.
+    assert_eq!(Film::Battle { file: "bat_win1.smk" }.then(), Pop);
+    // `Smk_Play(castle1.smk + level * 0x10, 0x9E, 0x14, 0, 0)` — screen 0.
+    assert_eq!(Film::Castle(2).then(), Goto(ScreenId::Campaign));
+    // `Smk_Play` failing never reaches `Smk_OnFinished`, so it never chains —
+    // but it does write `g_screenId = returnScreen`, so it goes to the same
+    // place.
     assert_eq!(Film::Intro.on_failure(), Pop);
+    assert_eq!(Film::Castle(2).on_failure(), Goto(ScreenId::Campaign));
     // The positions, off the seven call sites.
     assert_eq!(Film::Intro.at(), (40, 80));
     assert_eq!(Film::ImpTitle.at(), (80, 80));
@@ -232,7 +246,9 @@ fn order_the_castle(m: &mut Machine, g: &mut Game, a: &Assets) {
 /// **The order and the film both arrive on the twentieth frame**, not on the
 /// press — see [`order_the_castle`]. Ablations: delete the `Push` in `confirm`
 /// and the film never appears; declare the thumbs `Press` in `castle::widgets`
-/// and the screen's own debug assertion fires on the press.
+/// and the screen's own debug assertion fires on the press; make
+/// [`Film::then`](movie::Film::then)'s castle arm a `Pop` again and the chooser
+/// is still on the stack when the film goes.
 #[test]
 fn an_ordered_castle_plays_its_film_over_the_chooser() {
     let a = Assets::placeholder();
@@ -248,30 +264,24 @@ fn an_ordered_castle_plays_its_film_over_the_chooser() {
     for _ in 0..3 {
         tick(&mut m, &mut g, &a);
     }
+    // **The end of the film is the map**, and the chooser goes with it.
+    // `Smk_Play(…, 0, 0)`: screen `0` is the campaign map, and the original has
+    // one `g_screenId` byte with nothing to leave the chooser on. This used to
+    // read *"no `Movie` on the stack"* and could not say more, because ours
+    // popped the film and left the chooser to pop itself on its next `update` —
+    // which `Machine::update`'s `run_tips` could take away from it first.
+    //
+    // The tip the chooser posted during its twenty press frames may be *up* by
+    // now, over the map, and that is the original: `FUN_00476E21`'s record
+    // outlives the screen that queued it and `Msg_Pump` opens it on `0x00`. So
+    // the assertion is about the chooser and the film, and the base.
+    assert_eq!(m.ids()[0], ScreenId::Campaign, "the film ends on the map: {:?}", m.ids());
     assert!(
-        !m.ids().iter().any(|id| matches!(id, ScreenId::Movie(_))),
-        "the film is over: {:?}",
+        !m.ids().iter().any(|id| matches!(id, ScreenId::Movie(_) | ScreenId::Castle(_))),
+        "and takes the chooser with it: {:?}",
         m.ids()
     );
 
-    // **This test used to end `assert_eq!(m.ids(), vec![Campaign])` and no
-    // longer can, and the reason is a defect of ours that is older than the
-    // press timers.** `Smk_Play` was handed a return screen of `0`, so in the
-    // original the end of the film *is* the map; ours pops the film and leaves
-    // the chooser to pop itself on its next `update`, and
-    // `Machine::update` runs `run_tips` and `pump_messages` before that update.
-    // `tip::DELAY` is `0x14` frames, so on any film longer than twenty frames
-    // the castle screen's own advisor tip (`Tip_Update`'s `0x1B` arm) is seated
-    // the moment the film goes, the chooser never gets its `update`, and the
-    // player is left on the chooser under a tip instead of on the map.
-    //
-    // **Measured, and not caused by this branch**: pushing `Film::Castle(0)`
-    // over the chooser with no press delay anywhere — `main`'s shape exactly —
-    // and letting the real `castle1.smk` play strands it identically, at tick
-    // 523 of 521 frames of film. It survived here only because placeholder
-    // assets fail to open a film and the whole sequence fitted inside the
-    // twenty frames. Fixing it needs `g_smkReturnScreen` as a transition, which
-    // is not the input machinery; it is reported, not fixed here.
     let (mut g, mut m) = castle_world();
     g.prefs.animations = false;
     order_the_castle(&mut m, &mut g, &a);
@@ -534,17 +544,10 @@ fn the_release_of_the_ordering_click_is_answered_by_the_chooser_not_the_film() {
 
     // The next release is an ordinary one, and the film answers it.
     send(&mut m, &mut g, &a, Event::Release { x: ok.0, y: ok.1 });
-    assert_eq!(m.top_id(), Some(ScreenId::Castle(1)), "a release after it starts skips it");
-    assert!(
-        !m.ids().iter().any(|id| matches!(id, ScreenId::Movie(_))),
-        "and the film is off the stack: {:?}",
-        m.ids()
-    );
-    // It does not go on to assert the map. See the note in
-    // `an_ordered_castle_plays_its_film_over_the_chooser`: the chooser's own
-    // pop is pre-empted by the advisor tip once `tip::DELAY`'s twenty frames
-    // have passed, which they have by here, and that is a defect of ours that
-    // predates the press timers.
+    // **A skip is `Smk_OnFinished`, so it goes where the end of the film goes**
+    // — `g_screenId = g_smkReturnScreen`, and `CastleBuild_Confirm` passed `0`.
+    // This used to assert `Castle(1)`, which was our pop and not the original.
+    assert_eq!(m.ids(), vec![ScreenId::Campaign], "a skip lands where the end lands");
 }
 
 fn decode_frame0(a: &Assets, name: &str) -> l2_smk::Decoder {
@@ -629,6 +632,48 @@ fn buffer(audio: &mut Audio) -> Vec<f32> {
     let mut b = vec![0f32; 2 * 2048];
     audio.mix(&mut b);
     b
+}
+
+/// **The player's defect, with the real film: a castle film longer than twenty
+/// frames used to strand him on the chooser under a tip.**
+///
+/// `castle1.smk` is 521 frames, so it runs far past `tip::DELAY` (`0x14`). The
+/// old shape popped the film and left the chooser to pop itself on its next
+/// `update`; [`Machine::update`] runs `run_tips` and `pump_messages` first, so
+/// the castle advisor tip (`Tip_Update`'s `0x1B` arm) seated itself the moment
+/// the film went and the chooser never got that update. Measured at tick 523.
+///
+/// **Tips are deliberately left on**, because that is the whole point: with
+/// `g_smkReturnScreen` built as a transition, the chooser is gone before the
+/// `0x1B` arm can ever see it, so no tip of that screen's can seat itself.
+///
+/// Ablation: make [`Film::then`](movie::Film::then)'s castle arm `Pop` again
+/// and the stack ends `[Campaign, Castle(1), Tip]`.
+#[test]
+fn a_real_castle_film_ends_on_the_map_however_long_it_runs() {
+    let (_p, a) = install!();
+    let (mut g, mut m) = castle_world();
+    assert!(g.prefs.tip_screens, "the defect needs the advisor tips a new game has");
+    m.push(ScreenId::Movie(Film::Castle(0)));
+    let smk = a.films.open("castle1.smk").expect("the install's castle film");
+    let frames = smk.frames();
+    // `Player::tick` paces the film against [`l2_game::TICK_MS`], so the film is
+    // this many ticks long — and then a tail for the machine after it.
+    let ticks = frames as u64 * smk.header().period_10us() as u64
+        / (l2_game::TICK_MS as u64 * 100)
+        + 4 * l2_game::tip::DELAY as u64;
+    assert!(
+        ticks > l2_game::tip::DELAY as u64,
+        "{frames} frames is {ticks} ticks, long enough to strand it"
+    );
+
+    for _ in 0..ticks {
+        tick(&mut m, &mut g, &a);
+        if m.ids() == vec![ScreenId::Campaign] {
+            return;
+        }
+    }
+    panic!("stranded off the map: {:?}", m.ids());
 }
 
 /// **A film stops the bed and the bed starts over after it** — the five

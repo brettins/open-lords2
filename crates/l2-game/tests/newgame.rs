@@ -90,6 +90,34 @@ fn counties_in(assets: &Assets, slot: usize) -> usize {
 
 // ---------------------------------------------------------------- the headline
 
+/// **`Game_NewGame`'s own `Save_RotateAndWrite()` (`0x00497E2B`)** — the second
+/// of that function's only two call sites, the other being the turn boundary.
+///
+/// It is why a played install's `lastturn.sav` reads turn 1, Winter 1268 after
+/// a new game and before any End Turn, and why the player's first End Turn
+/// leaves a `old_turn.sav` to go back to. Raised, not performed:
+/// [`l2_game::saves::run_pending`] is the only thing that writes a file, and
+/// nothing in the simulation calls it.
+///
+/// Ablations: delete the `self.autosave = true` in `SetupScreen::new_game` and
+/// nothing asks; move it above the `Err` arm and a *Start* that could not build
+/// a world asks anyway.
+#[test]
+fn starting_a_game_asks_for_an_autosave_and_a_start_that_failed_does_not() {
+    let assets = assets!();
+    let mut game = Game::new(scenario::SEED);
+    let mut screen = open(&assets, &mut game);
+    assert!(!l2_game::Screen::take_autosave(&mut screen), "the page itself does not autosave");
+
+    let t = press_start(&mut screen, &mut game, &assets);
+    assert_eq!(t, Transition::Push(ScreenId::Campaign), "Start did nothing");
+    assert!(
+        l2_game::Screen::take_autosave(&mut screen),
+        "Game_NewGame ends in Save_RotateAndWrite"
+    );
+    assert!(!l2_game::Screen::take_autosave(&mut screen), "and it is taken once");
+}
+
 /// **A person picks Ireland and gets Ireland.**
 #[test]
 fn choosing_ireland_starts_ireland() {

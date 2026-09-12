@@ -608,6 +608,10 @@ pub struct MapScreen {
     minimap_mode: MinimapMode,
     /// **The end-of-turn screen fade, while it is running.** See [`Fading`].
     fading: Option<Fading>,
+    /// **A `Save_RotateAndWrite` is owed** — `FUN_0049A3E6`'s last statement,
+    /// raised at the bottom of the fade and drained by the machine. See
+    /// [`crate::screen::Screen::take_autosave`].
+    autosave: bool,
     /// The player's gold when End Turn was pressed, so the *"you gained N"*
     /// line still compares against the right number however many frames later
     /// the turn finishes. See [`MapScreen::end_turn`].
@@ -730,6 +734,7 @@ impl MapScreen {
             slider_held: false,
             minimap_mode: MinimapMode::Owner,
             fading: None,
+            autosave: false,
             gold_at_turn_start: 0,
             scroll_speed: DEFAULT_SCROLL_SPEED,
             scroll_wait: 0,
@@ -2173,6 +2178,31 @@ impl MapScreen {
         let Some(mut f) = self.fading.take() else { return Transition::Stay };
         self.scrolled = true;
         f.phase += 1;
+        // **`FUN_0049A3E6` — the rolling autosave, and this frame is where the
+        // original writes it.** `[V]`:
+        //
+        // ```c
+        // void FUN_0049a3e6(void) {
+        //   if (g_screenId == '$') {                      /* 0x24, the bottom  */
+        //     DAT_0057c968 = 1; Gfx_LoadCountyMode();     /* the season's art  */
+        //     Screen_DrawCampaign(3); FUN_004b14ff(); Gfx_Present(1);
+        //     DAT_0056d6a0 = 1; Gfx_MarkAllDirty();
+        //     FUN_004b0cb4(0,0,0x5691f0);                 /* and back up       */
+        //     Save_RotateAndWrite();
+        //   }
+        // }
+        // ```
+        //
+        // So it is neither the button nor the far side of the light: it is the
+        // one frame the screen is dark and the new season is already loaded, and
+        // what it stores is therefore the **opening of the turn that just
+        // began**. [`l2_view::fade::is_darkest`] already names this frame for
+        // the art reload, which is the statement two lines above it.
+        //
+        // Raised, not performed — see [`crate::screen::Screen::take_autosave`].
+        if l2_view::fade::is_darkest(f.phase) {
+            self.autosave = true;
+        }
         if f.phase < l2_view::fade::PHASES {
             self.fading = Some(f);
             return Transition::Stay;
@@ -3051,6 +3081,12 @@ impl Screen for MapScreen {
 
     fn take_redraw(&mut self) -> bool {
         core::mem::replace(&mut self.scrolled, false)
+    }
+
+    /// `FUN_0049A3E6`'s `Save_RotateAndWrite()`. Raised in
+    /// [`MapScreen::tick_fade`] at [`l2_view::fade::is_darkest`].
+    fn take_autosave(&mut self) -> bool {
+        core::mem::take(&mut self.autosave)
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
