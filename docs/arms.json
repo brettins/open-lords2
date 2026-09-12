@@ -3044,6 +3044,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x004B99C0/frame-winds-the-turn",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "every",
+      "gesture": "frame",
+      "addr": "0x004B99C0",
+      "what": "Battle_Frame's inner loop ends `if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }` and there is NO g_screenId test on it. The campaign winds on under a county panel, a village, an open menu and the message scroll alike; the only thing that suspends it is a battle. Everything in the loop's tail that does dispatch on the screen -- Screen_Draw, Screen_FrameInput, the cursor ladder -- is drawing and input.",
+      "note": "A frame arm rather than a gesture. Ours ran the turn out of MapScreen::update, which the machine gives only to the TOP screen, so an open letter -- which is not a screen in the original at all -- stopped the turn underneath it, and so did walking into a county panel. Machine::wind_turn calls the campaign map's Screen::wind_turn every frame at whatever depth it sits.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screen.rs"
+    },
+    {
       "id": "0x004BA9C8/blacksmith-weapon-choice",
       "status": "reproduced",
       "ours": "crates/l2-game/src/screens/job.rs",

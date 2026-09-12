@@ -152,6 +152,7 @@ fn attacking_county_three_levies_the_defence_the_saved_game_holds() {
     let raised = unit_at(&during, DEFENCE_SLOT).expect("battle-during holds the defence");
 
     let population_before = k.counties[COUNTY as usize].population;
+    let restore = k.restore();
     let Kingdom { counties, realms, campaign, options, tables, year, .. } = &mut k;
     let outcome = conquest::attack_county(
         tables,
@@ -165,6 +166,7 @@ fn attacking_county_three_levies_the_defence_the_saved_game_holds() {
         options.difficulty,
         *year,
         &mut campaign.explored,
+        restore,
     );
 
     let Attack::Battle { defender, .. } = outcome else {
@@ -208,6 +210,7 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
     let after: Save = l2_testkit::fixture!("battle-after.sav");
 
     let outcome = {
+        let restore = k.restore();
         let Kingdom { counties, realms, campaign, options, tables, year, .. } = &mut k;
         conquest::attack_county(
             tables,
@@ -221,6 +224,7 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
             options.difficulty,
             *year,
             &mut campaign.explored,
+            restore,
         )
     };
     let Attack::Battle { defender, .. } = outcome else { panic!("{outcome:?}") };
@@ -295,6 +299,7 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
     let (mut k, attacker) = before(&before_save);
 
     let outcome = {
+        let restore = k.restore();
         let Kingdom { counties, realms, campaign, options, tables, year, .. } = &mut k;
         conquest::attack_county(
             tables,
@@ -308,6 +313,7 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
             options.difficulty,
             *year,
             &mut campaign.explored,
+            restore,
         )
     };
     let Attack::Battle { defender, .. } = outcome else { panic!("{outcome:?}") };

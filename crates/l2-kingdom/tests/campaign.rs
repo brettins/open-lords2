@@ -56,6 +56,13 @@ fn kingdom() -> Kingdom {
         c.crop[1] = 400;
     }
     k.counties[1].owner = 1;
+    // **Counties 1 and 2 are neighbours.** Without an adjacency list
+    // `County_BordersRealm` says no and `County_ChangeOwner` takes its `else`
+    // branch: the county declares independence instead of changing hands.
+    k.counties[1].neighbour_count = 1;
+    k.counties[1].neighbours[0] = 2;
+    k.counties[2].neighbour_count = 1;
+    k.counties[2].neighbours[0] = 1;
 
     let mut map = CampaignMap::empty();
     for i in 0..MAP_TILES {
@@ -453,9 +460,10 @@ fn an_army_that_reaches_a_castle_takes_the_county() {
     let id = army(&mut k, 1, 2, 300, 39, 10);
     k.campaign.units.get_mut(id).unwrap().path = vec![(40, 10)];
 
+    let restore = k.restore();
     let Kingdom { campaign, counties, realms, tables, .. } = &mut k;
     let (steps, outcome) =
-        conquest::march_and_fight(tables, campaign, counties, realms, id, 0, 1268);
+        conquest::march_and_fight(tables, campaign, counties, realms, id, 0, 1268, restore);
     assert_eq!(steps.len(), 1);
     assert_eq!(steps[0].reached_castle, Some(2));
     assert!(matches!(outcome, Some(conquest::Attack::Captured(_))), "got {outcome:?}");
@@ -475,8 +483,9 @@ fn a_county_that_can_defend_itself_produces_a_battle_and_keeps_its_owner() {
     let id = army(&mut k, 1, 2, 300, 39, 10);
     k.campaign.units.get_mut(id).unwrap().path = vec![(40, 10)];
 
+    let restore = k.restore();
     let Kingdom { campaign, counties, realms, tables, .. } = &mut k;
-    let (_, outcome) = conquest::march_and_fight(tables, campaign, counties, realms, id, 0, 1268);
+    let (_, outcome) = conquest::march_and_fight(tables, campaign, counties, realms, id, 0, 1268, restore);
     let Some(conquest::Attack::Battle { attacker, defender }) = outcome else {
         panic!("expected a battle, got {outcome:?}");
     };

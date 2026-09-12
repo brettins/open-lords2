@@ -320,6 +320,28 @@ pub trait Screen {
         Transition::Stay
     }
 
+    /// **`Turn_Tick(); Units_Tick();` — the half of a frame that is not a
+    /// screen's.**
+    ///
+    /// `Battle_Frame` (`0x004B99C0`) ends its inner loop with
+    ///
+    /// ```c
+    /// if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }
+    /// ```
+    ///
+    /// and **there is no `g_screenId` test on it** — `[V]`, read whole. Only
+    /// `Screen_Draw` and `Screen_FrameInput`, in the tail below it, dispatch on
+    /// the screen. So the campaign winds on under a county panel, a village, an
+    /// open menu and the message scroll alike, and the one thing that stops it
+    /// is a battle.
+    ///
+    /// [`Screen::update`] is `Screen_FrameInput`'s half and this is the loop's,
+    /// which is why the campaign map has both: [`Machine::wind_turn`] calls this
+    /// one every frame whatever is on top.
+    fn wind_turn(&mut self, _ctx: &mut Ctx) -> Transition {
+        Transition::Stay
+    }
+
     /// Whether the last [`Screen::update`] changed what is on screen.
     ///
     /// Input already forces a repaint — [`Machine::handle`] marks the machine
@@ -778,6 +800,12 @@ impl Machine {
         self.run_tips(ctx);
         self.pump_messages(ctx);
         self.run_turn_clock(ctx);
+        if self.wind_turn(ctx) {
+            // The stack moved underneath us, so the screen that was on top no
+            // longer is. [`Machine::handle`] breaks for the same reason.
+            self.run_tooltips(ctx);
+            return;
+        }
         if let Some(top) = self.stack.last_mut() {
             let t = top.update(ctx);
             if top.take_redraw() {
@@ -802,6 +830,60 @@ impl Machine {
             }
         }
         self.run_tooltips(ctx);
+    }
+
+    /// **`Battle_Frame`'s `Turn_Tick(); Units_Tick();`** — the campaign winds
+    /// on under whatever is on top of it.
+    ///
+    /// ```c
+    /// if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }
+    /// else if ((g_battlePhase == 2) && (ticksDue != 0)) { …the battle's passes… }
+    /// ```
+    ///
+    /// `[V]`, `0x004B99C0`, and **the absence is the finding**: there is no
+    /// `g_screenId` test on either arm. Everything in the loop's tail that does
+    /// test the screen — `Screen_Draw`, `Screen_FrameInput`, the cursor ladder —
+    /// is *drawing and input*. So the only thing on the stack that suspends a
+    /// turn is a battle, which is `g_battlePhase != 0` and here is
+    /// [`crate::game::Game::battle`] plus the battlefield screen.
+    ///
+    /// **The defect this replaces**: [`Screen::update`] is run for the top
+    /// screen only, and the campaign map is what wound the turn, so a letter —
+    /// which is not a screen in the original at all, see
+    /// [`crate::screens::message`] — stopped the turn while it was open. So did
+    /// walking into a county panel. `docs/decisions.md` CNEW-frame-winds-the-turn.
+    ///
+    /// Returns whether the stack moved.
+    // arm: 0x004B99C0/frame-winds-the-turn frame
+    fn wind_turn(&mut self, ctx: &mut Ctx) -> bool {
+        // `g_battlePhase != 0`. The battlefield is on the stack for the whole
+        // of a fought battle and `Game::battle` for the whole of a suspended
+        // one, and neither implies the other.
+        if ctx.game.battle.is_some() || self.stack.iter().any(|s| s.id() == ScreenId::Battlefield) {
+            return false;
+        }
+        let Some(depth) = self.stack.iter().position(|s| s.id() == ScreenId::Campaign) else {
+            return false;
+        };
+        let t = self.stack[depth].wind_turn(ctx);
+        if self.stack[depth].take_redraw() {
+            self.dirty = true;
+        }
+        self.autosave |= self.stack[depth].take_autosave();
+        // **A screen the turn is already waiting on is not put up twice.**
+        // `resume_turn` asks for `0x12`/`0x13` on every frame the question
+        // stands, which before this ran only on the frame the map was on top.
+        if let Transition::Push(id) = t {
+            if self.stack.iter().any(|s| s.id() == id) {
+                return false;
+            }
+        }
+        if t == Transition::Stay {
+            return false;
+        }
+        self.apply_at(depth, t);
+        self.dirty = true;
+        true
     }
 
     /// **`FUN_00476E95` (`0x00476E95`)** — the tool tips, near the end of

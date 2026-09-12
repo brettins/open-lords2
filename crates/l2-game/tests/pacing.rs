@@ -269,6 +269,89 @@ fn a_frame_of_a_turn_is_exactly_one_turn_tick() {
     assert_eq!(stepped.kingdom.season, at_once.kingdom.season);
 }
 
+/// **A letter open over the map does not stop the turn underneath it.**
+///
+/// `Battle_Frame` (`0x004B99C0`) ends its inner loop with
+///
+/// ```c
+/// if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }
+/// ```
+///
+/// and there is **no `g_screenId` test on it** — `[V]`, read whole. The message
+/// scroll is not a screen in the original at all (`g_messageGroup`, painted
+/// over whatever `g_screenId` is), which is why `Msg_Pump`'s own ladder goes on
+/// treating the campaign map as the screen while a letter is up.
+///
+/// Ours ran the turn out of `MapScreen::update`, which `Machine::update` gives
+/// to the **top** screen only, so the frame the scroll opened was the frame the
+/// campaign stopped on — and it never started again, because in single player
+/// the message timer is clamped and the window waits for a click for ever.
+///
+/// **Ablated**: making `Machine::wind_turn` return early unless the campaign
+/// map is the top screen — what the machine did before — leaves the turn where
+/// the letter found it and this panics on the give-up count.
+#[test]
+fn a_letter_open_over_the_map_does_not_stop_the_turn() {
+    use l2_game::message::{category, Record};
+
+    let mut game = england!();
+    let mut machine = Machine::new(ScreenId::Campaign);
+    let assets = Assets::placeholder();
+    let before = game.kingdom.turn_count;
+
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.handle(Event::KeyDown(Key::letter('e')), &mut ctx);
+    }
+    assert!(l2_game::turn::turn_in_flight(&game), "End Turn started a turn");
+
+    // Four frames in, a letter arrives. `Msg_Pump`'s pull half puts the scroll
+    // up on the next tick and nothing here ever dismisses it.
+    for _ in 0..4 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+    }
+    let posted = Record {
+        to: game.player,
+        from: 0,
+        group: 0x72,
+        variant: 0,
+        category: category::NOTICE,
+        county: 1,
+        spare: 0,
+        payload: 0,
+    };
+    assert!(game.messages.enqueue(posted, game.player), "the letter is this player's");
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+    }
+    assert_eq!(machine.top_id(), Some(ScreenId::Message), "the scroll is up");
+
+    let mut with_the_letter_up = 0;
+    for _ in 0..GIVE_UP {
+        {
+            let mut ctx = Ctx { game: &mut game, assets: &assets };
+            machine.update(&mut ctx);
+        }
+        if machine.top_id() == Some(ScreenId::Message) {
+            with_the_letter_up += 1;
+        }
+        if game.kingdom.turn_count > before {
+            assert!(
+                with_the_letter_up > 20,
+                "the turn came round, but the scroll was up for only \
+                 {with_the_letter_up} of its frames — it closed, so nothing was tested",
+            );
+            return;
+        }
+    }
+    panic!(
+        "the turn never came round in {GIVE_UP} frames with a letter open over the map; \
+         the scroll was up for {with_the_letter_up} of them",
+    );
+}
+
 /// **The pacing, heard.** One hoofbeat per tile per unit —
 /// `Unit_MoveInFacing` (`0x00466D84`), which plays a sound as its first
 /// statement after unlinking the unit from the tile it is leaving.

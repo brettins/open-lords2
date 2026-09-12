@@ -383,5 +383,5 @@ fn every_arrival_letter_is_the_players_own_words_and_our_transcription_is_them()
         }
         assert_eq!(assets.shell.text(*group as usize, words.len()), "", "group {group} has no more");
     }
-    assert_eq!(strings, 17 * 2 + 17, "seventeen two-string groups and group 170's seventeen");
+    assert_eq!(strings, 18 * 2 + 17, "eighteen two-string groups and group 170's seventeen");
 }

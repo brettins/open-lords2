@@ -549,6 +549,7 @@ fn resolve_battle(
     }
 
     let aftermath = {
+        let restore = kingdom.restore();
         let Kingdom { counties, realms, campaign, options, tables, .. } = kingdom;
         battle::return_to_campaign(
             tables,
@@ -563,6 +564,7 @@ fn resolve_battle(
             options.difficulty,
             &campaign.map,
             &mut campaign.explored,
+            restore,
         )
     };
 

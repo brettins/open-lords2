@@ -105,11 +105,17 @@ fn over_the_map(over: ScreenId) -> Machine {
 /// phase machine is wound on once per fixed tick and the season fade follows —
 /// so a test that wants the numbers afterwards has to tick. See
 /// `l2_game::turn::TurnRun`.
+///
+/// **Both halves of a frame**, in `Machine::update`'s order:
+/// `Screen::wind_turn` is `Battle_Frame`'s `Turn_Tick(); Units_Tick();`, which
+/// the driver runs whatever is on top, and `Screen::update` is
+/// `Screen_FrameInput`'s, which it runs for the top screen only.
 fn run_turn<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) {
     let before = game.kingdom.turn_count;
     let mut done_at = None;
     for n in 1..2_000u32 {
         let mut ctx = Ctx { game, assets };
+        screen.wind_turn(&mut ctx);
         screen.update(&mut ctx);
         if done_at.is_none() && game.kingdom.turn_count > before {
             done_at = Some(n);
