@@ -1769,3 +1769,41 @@ drift back.
 different number without it, and there is no second reading of the sequence to prefer.
 `l2_kingdom::industry::preview` carries it with the derivation of why `local_28` is always the
 full-population ramp.
+
+### B103 — a growth season parks its newborns in Idle, and the next click hires them
+
+A player: *"it shows idle and +8 cows, then I click the slider towards industry, then
+suddenly +12 cows, should be less since I moved toward industry instead of farming."*
+
+He is right that it makes no sense and wrong that it is ours. Three facts, and the quirk is
+their product:
+
+* `Herd_LabourEstimate` (`0x0044DD4D`) searches `workers = 0 … population`, so on a county
+  whose herd would keep repaying milkmaids past its own headcount — the argmax runs to about
+  six a head — **the cattle ceiling is simply the population**, and it rises whenever the
+  population does.
+* `Season_Advance`'s order is `[V]` (`docs/kingdom.md` §3.4): `Population_UpdateAll`, …,
+  `Labour_AllocateAll`, `History_Record`, `Panels_RefreshAll` — and
+  `County_RefreshEstimates` is the **middle statement of `Panels_RefreshAll`**, so the
+  ceilings are refreshed *after* the last allocation of the season.
+* `Labour_Allocate` (`0x0044F6E7`) fills each job to its ceiling and drops the remainder into
+  Idle townsfolk, and the farm pool's leftovers never reach the industry jobs.
+
+So the second allocation — the one the call list annotates *"again, now the newborns are
+counted"* — deals the new people against **last season's** cattle ceiling and sends them
+home. Measured on the player's save: across `Panels_RefreshAll` the ceiling goes 305 → 344
+with the labour left at 305, and the county rests with 53 idle. Then **any** later
+`Labour_Allocate` hires them, and the slider is one of its callers
+(`Labour_SetIndustryShare`, `0x0043933B`). Dragging towards industry moved 15 people to wood
+and 33 *more* onto the cattle, so the forecast went up.
+
+**Reproduced**, and the switch is not cheap. Suppressing it means either refreshing the
+estimates before the second `Labour_AllocateAll` — a pass the original does not run there,
+which moves every county's allocation and therefore the lockstep digest on every season — or
+bounding the cattle ceiling by something other than the population, which is a different
+`Herd_LabourEstimate`. Neither is a flag on a row; both are a different economy. The number
+the player is shown is the original's in both states, before the click and after it.
+
+`l2_kingdom::Kingdom::set_industry_share` carries the pointer, since that is where a reader
+arrives from. `docs/decisions.md` C187 separates this from the *other* cattle
+report it arrived with, which was ours.

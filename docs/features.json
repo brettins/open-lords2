@@ -25,7 +25,7 @@
     {"id": "grain", "area": "kingdom", "name": "Growing grain", "status": "done", "evidence": ["C27", "C63", "C124", "crates/l2-kingdom/tests/fields.rs"], "gap": "", "rows": []},
     {"id": "field-painting", "area": "kingdom", "name": "Painting fields on the map", "status": "done", "evidence": ["C27", "crates/l2-kingdom/tests/fields.rs"], "gap": "", "rows": []},
     {"id": "reclamation", "area": "kingdom", "name": "Reclaiming wasteland", "status": "done", "evidence": ["crates/l2-kingdom/tests/fields.rs", "crates/l2-kingdom/tests/labour_gap.rs"], "gap": "", "rows": []},
-    {"id": "cattle", "area": "kingdom", "name": "Cattle, dairy and herd crowding", "status": "partial", "evidence": ["C77"], "gap": "bought cattle get no pasture", "rows": ["lost-rule-inputs"]},
+    {"id": "cattle", "area": "kingdom", "name": "Cattle, dairy and herd crowding", "status": "partial", "evidence": ["C77", "C187"], "gap": "bought cattle get no pasture", "rows": ["lost-rule-inputs"]},
     {"id": "weather", "area": "kingdom", "name": "Weather", "status": "done", "evidence": ["C91", "crates/l2-kingdom/tests/reproduction.rs"], "gap": "", "rows": []},
     {"id": "advanced-farming", "area": "kingdom", "name": "Fertility and Advanced Farming", "status": "done", "evidence": ["C63"], "gap": "", "rows": []},
     {"id": "industry", "area": "kingdom", "name": "Wood, iron, stone and weapons", "status": "partial", "evidence": ["C57", "C136", "C153", "C180", "crates/l2-game/tests/industry.rs"], "gap": "efficiency ramp with Advanced Farming", "rows": ["industry-efficiency-ramp"]},

@@ -927,12 +927,12 @@ impl Kingdom {
                 &mut self.campaign.map,
             );
             if self.counties[id].pop_band != 0 {
-                self.counties[id].labour_useful[crate::tables::JOB_CATTLE_FARMING] =
-                    land::herd_labour_estimate(
-                        &self.tables,
-                        &self.counties[id],
-                        self.season_next,
-                    );
+                // Both words of the record — the break-even floor as well as
+                // the ceiling. See `land::herd_labour_estimate`.
+                let herd =
+                    land::herd_labour_estimate(&self.tables, &self.counties[id], self.season_next);
+                self.counties[id].labour_wanted[crate::tables::JOB_CATTLE_FARMING] = herd.wanted;
+                self.counties[id].labour_useful[crate::tables::JOB_CATTLE_FARMING] = herd.useful;
             }
         }
     }
@@ -1597,15 +1597,43 @@ impl Kingdom {
         self.campaign.map.terrain[tile] = base + u8::from(record.enabled);
     }
 
-    /// **The farm/industry labour split**, as the campaign sidebar's slider
-    /// sets it — `FUN_00439122` writes county `+0x2C` and the county is
-    /// reallocated underneath it.
+    /// **The farm/industry labour split** — `Labour_SetIndustryShare`
+    /// (`0x0043933B`), which is what `Labour_SplitSliderDrag` (`0x00439122`,
+    /// the *drag*, not the writer) calls once the track position has become a
+    /// percentage:
     ///
-    /// The reallocation is [`toggle_industry`](Self::toggle_industry)'s, and
-    /// for the same reason: [`crate::labour::allocate`] reads
+    /// ```c
+    /// county[+0x08] = share;
+    /// Labour_Allocate(county);
+    /// Ration_Apply(county, g_season);
+    /// County_RefreshEstimates(county, g_seasonNext);
+    /// ```
+    ///
+    /// **One pass, not two, and with `Ration_Apply` between them.** Ours ran
+    /// `Labour_Allocate; County_RefreshEstimates` *twice* and never re-applied
+    /// the ration at all — copied from [`toggle_industry`](Self::toggle_industry)
+    /// on the reasoning that a control which moves the labour must re-allocate,
+    /// which is true and is not the same as running the same pair twice. The
+    /// omitted `Ration_Apply` is the one that matters: `herd_eaten` sizes the
+    /// herd the estimate that follows searches over, and the forecast subtracts
+    /// it twice. Two passes and a bare `Ration_SetSplit` is a different
+    /// control — see [`set_ration_wanted`](Self::set_ration_wanted), which
+    /// explains why that asymmetry is deliberate and must not be tidied.
+    ///
+    /// The doc this replaces named `FUN_00439122` and county `+0x2C`; the
+    /// writer is `0x0043933B` and the field is `+0x08`.
+    ///
+    /// [`crate::labour::allocate`] reads
     /// [`crate::county::County::industry_share`] to size the industry pool, so
-    /// moving the split without re-running it leaves every job's headcount
+    /// moving the split without re-running it would leave every job's headcount
     /// describing the split the player just left.
+    ///
+    /// **What this does *not* fix, and cannot:** a click here also re-runs an
+    /// allocation the season left owing, so on a county whose cattle ceiling is
+    /// bounded by its population the milkmaid count *rises* when the player
+    /// drags towards industry. That is the original's, and `docs/bugs.md` has
+    /// it — the pipeline refreshes the ceilings after the last
+    /// `Labour_AllocateAll`, so a growth season parks its newborns in Idle.
     pub fn set_industry_share(&mut self, county: usize, share: i32) -> bool {
         if county == 0 || county > self.county_count {
             return false;
@@ -1615,10 +1643,14 @@ impl Kingdom {
             return false;
         }
         self.counties[county].industry_share = share;
-        for _ in 0..2 {
-            crate::labour::allocate(&mut self.counties[county]);
-            self.refresh_estimates(county);
-        }
+        crate::labour::allocate(&mut self.counties[county]);
+        let armies_eat = self.options.armies_eat;
+        // `Ration_Apply` records and does not spend — [`set_ration_wanted`] and
+        // [`toggle_army_foraging`] make the same substitution for the same
+        // reason. Calling the spending twin here would charge the county for a
+        // meal every time the player nudged the slider.
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+        self.refresh_estimates(county);
         true
     }
 

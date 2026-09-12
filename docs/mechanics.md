@@ -217,6 +217,13 @@ Legend:
   The shipped save checks it: seven of the nine floors are −1 in all fourteen counties, and
   wood's ceiling is exactly 100,000 in every owned county and exactly 0 in every unowned
   one. That one byte is the whole explanation of the save's labour split.
+
+  **Importing all three is not the same as computing all three, and for a long time this
+  entry read as if it were.** The cattle floor (`+0xD4`) arrived from a save and was never
+  recomputed by any pass, so it held zero in every game this engine played from a new start
+  and in every loaded one after its first season — and it is the *only* thing that draws an
+  understaffed herd red. Both words of `Herd_LabourEstimate` are computed now, `[V]` against
+  every save on the machine; `docs/decisions.md` C187.
 - ✅ **The labour allocator** — `Labour_Allocate` (`0x0044F6E7`), 2,147 bytes, the only
   writer of the nine records. It splits the population into a farm half and an industry half
   by county `+0x08`, gives each job `Pct(half, share)` people or as many as its ceiling

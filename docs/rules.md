@@ -242,6 +242,22 @@ reaches 34%.
 
 Crowding is also drawn on the map, so you can see it without opening a panel.
 
+**And the game does tell you when the herd is short-staffed — in four places at once.** The
+same search that finds the milkmaid ceiling also finds the **break-even staffing**: the
+fewest milkmaids at which births stop trailing deaths. Below it the county draws its milkmaid
+count **red**, the sidebar's cow swaps to its *short* frame, the village cluster grows extra
+unselectable icons for the people it wishes it had, and the minimap's labour overlay paints
+the shortage band. A herd that is quietly dying is never drawn in black.
+
+Two things about that number are worth knowing. It is capped by the population, so a county
+of 150 people with 80 head asks for all 149 the search may name and is short whatever you do
+— **the herd will shrink until the county can tend it**, and that is the design rather than a
+fault. And it is *not* the same as the ceiling: between break-even and the ceiling the herd is
+stable and growing, so a county sitting in that band is fine even with the slot not full. The
+two coincide only for a herd that cannot break even at all. `docs/decisions.md`
+C187, which is what a player asking *"I don't know why 16 cows are being lost
+this season"* was owed.
+
 **There is a ceiling on milkmaids, and for a small herd it is low.** A player: *"I had lots of
 milk maids with low herd crowding and we were only getting 1 cow, and if I added more milk
 maids they were idle."* Both halves are the same arithmetic. The dairy's labour ceiling is not

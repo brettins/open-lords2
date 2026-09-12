@@ -2610,11 +2610,20 @@ has already taken this season's animals, and the panel assumes next season takes
 again.
 
 The same function also searches `labour = 0 … population` for the worker count that best
-suits the herd, writing a suggestion to `+0xD4` and the growth-maximising figure to `+0xD8`
-— the second and third words of labour record 1, which the labour allocator then fills up
-to. `crates/l2-kingdom` does not reproduce the search (its labour is one integer a job), but
-the search is a full sweep of `FUN_0044DA99` over the labour domain and it lands on the
-stored bytes: 302 and 302 for county 1, **106 and 323** for county 2.
+suits the herd, writing the **break-even** staffing to `+0xD4` and the growth-maximising
+figure to `+0xD8` — the second and third words of labour record 1, which the labour
+allocator then fills up to. The search is a full sweep of `FUN_0044DA99` over the labour
+domain and it lands on the stored bytes: 302 and 302 for county 1, **106 and 323** for
+county 2.
+
+**Both words are reproduced now**, by `l2_kingdom::land::herd_labour_estimate`, which
+returns a `HerdEstimate` for the same reason grain's returns a `GrainEstimate`: one loop
+fills two words and they are not the same number. The sentence above used to read *"`crates/l2-kingdom`
+does not reproduce the search"*, which stopped being true for the ceiling long ago and for
+the floor at `docs/decisions.md` C187 — and while it stood, a player watched a
+sixth of his herd die a season with the milkmaid count drawn in black. **`[V]` on both
+words against every `.sav` on the machine**, not the two counties quoted here:
+`crates/l2-kingdom/tests/cattle.rs`.
 
 **What it cost.** `crates/l2-kingdom/tests/reproduction.rs` used to reproduce `herd` and
 `herd_eaten` and no longer does, and the reason is worth stating plainly: *they reproduced
@@ -2725,7 +2734,13 @@ staffing from nobody to everybody and taking the first that works:
 * `Herd_LabourEstimate` (`0x0044DD4D`) runs `Herd_BirthsAndDeaths` over the same range and
   stores the **first staffing at which births less deaths stops being negative** as the
   floor, and the staffing that **maximises** it as the ceiling. If the herd cannot break
-  even at any staffing it stores the least-bad count instead.
+  even at any staffing it stores the least-bad count instead — which is the argmax, so the
+  two words come out **equal** in that case and that is how the arm is recognised in a file.
+  **`[V]` on all of it**, against the stored `+0xD4` and `+0xD8` of every county of every
+  `.sav` this machine can open, including three positions that take the fallback arm
+  (302/302, 153/153, 173/173): `crates/l2-kingdom/tests/cattle.rs`. This paragraph described
+  the rule correctly for a long time while nothing in the tree computed it, and the cost is
+  `docs/decisions.md` C187.
 
 Everything else writes `-1` and a ceiling: `Field_ReclaimEstimate` the work left in the
 county's reclaimable fields, `Castle_BuildEstimate` the work the current build still needs,
