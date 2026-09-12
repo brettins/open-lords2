@@ -15,7 +15,7 @@
 # Generated. Do not hand-edit except to accept a single deliberate change.
 .github/workflows/ci.yml	C26	8ee8f43c4642	e8179d1f76a8
 CLAUDE.md	C124	9cf9ee1c286d	38723617b085
-CLAUDE.md	C133	ea1ee3c1202e	91fcca97cc98
+CLAUDE.md	C133	8ca6404191f1	91fcca97cc98
 CLAUDE.md	C143	d2376fb46498	2035c02750d9
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
 CLAUDE.md	C61	a9d344348780	60611046b40d
@@ -1180,7 +1180,7 @@ docs/symbols.md	C99	e60728affba9	b890db1f6d4a
 docs/symbols.md	C99	ebbc33755102	b890db1f6d4a
 docs/work.json	C159	6a91c77e5d87	e723705ade24
 docs/work.json	C163	8588023017d7	d043a04534f8
-docs/work.json	C166	fb8614d13a25	e426c5b6c94a
+docs/work.json	C166	f1925c6cd275	e426c5b6c94a
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611	35bf3a86555f
 tools/audit/rva.js	C14	99231cda993c	687f69afd1c6
 tools/audit/rva.js	C16	e4312831d7d6	2e6270fa32a9
