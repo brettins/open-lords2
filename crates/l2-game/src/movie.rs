@@ -445,11 +445,26 @@ pub enum Step {
 /// **`Smk_PlayLoop` (`0x0042DBC7`)** on our clock: the film, its decoder, and
 /// how long it has been up.
 ///
-/// `SmackWait` paces the original against the wall clock; this paces against
-/// ticks of [`crate::TICK_MS`], the application's only clock, which is the
-/// same clock at a coarser grain. A frame that falls due while the machine was
-/// busy is decoded and not shown, which is what `SmackWait` returning late does
-/// too.
+/// `Smk_PlayLoop` advances only when `SmackWait` (called at `0x0042DBF7`)
+/// answers 0, and `_SmackWait@4` is a `timeGetTime` comparison — `[V]`, it is
+/// the only import that function calls. So the original's film clock is **real
+/// milliseconds**, which is also what plays out its sound track; measured over
+/// the install's 45 films the track runs `frames × period` long to within 1 ms
+/// over 131 s, so the header's rate and the audio buffer are one clock.
+///
+/// This paces against ticks of [`crate::TICK_MS`] instead, which is the same
+/// clock at a coarser grain **only because [`crate::clock::Ticker`] makes a
+/// tick a true 16 ms**. It did not, and a film drifted two percent behind its
+/// own sound — `docs/decisions.md` C193. A frame that falls due while
+/// the machine was busy is decoded and not shown, which is what `SmackWait`
+/// returning late does too.
+///
+/// What remains, measured and left: a frame is shown at the first tick
+/// *at or after* it is due, as `Smk_PlayLoop` shows it at the first poll at or
+/// after — but our poll is 16 ms and the original's is microseconds, so ours
+/// is a mean 8 ms late; and the film's audio starts on the tick its screen
+/// reaches the stack while frame 0 is decoded on the next, one tick later.
+/// Both are constant, both under a quarter of a frame, and neither compounds.
 pub struct Player {
     smk: Smk,
     decoder: Decoder,

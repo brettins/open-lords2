@@ -18,10 +18,17 @@
 //! can present and makes wgpu reject the submission outright; the picture was a
 //! blank white window until it was throttled.
 //!
-//! So: the clock is consulted in exactly one place, [`TICK`], and it decides
-//! how often [`l2_game::Machine::update`] is called. `update` is not told how
-//! much time passed and cannot ask, which is what keeps the simulation
-//! reproducible (`docs/netcode.md`).
+//! So: the clock is consulted in exactly one place, [`App::about_to_wait`],
+//! and it decides how often [`l2_game::Machine::update`] is called. `update` is
+//! not told how much time passed and cannot ask, which is what keeps the
+//! simulation reproducible (`docs/netcode.md`).
+//!
+//! **How many ticks are owed is [`l2_game::clock::Ticker`], not this file.**
+//! The rule here was `next_tick = Instant::now() + TICK` read *after* the wait,
+//! which carried every overshoot forward and made a 16 ms tick 16.4 ms of wall
+//! clock — two percent slow, compounding, and audible the moment a film's sound
+//! track (played out by the device in real time) ran against a picture stepped
+//! by tick count. `docs/decisions.md` C193.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -46,12 +53,9 @@ use winit::window::{Window, WindowId};
 const CANVAS_W: u32 = l2_view::canvas::WIDTH as u32;
 const CANVAS_H: u32 = l2_view::canvas::HEIGHT as u32;
 
-/// One fixed simulation tick. The only clock in the application.
-///
-/// The number itself is [`l2_game::TICK_MS`], because a screen reproducing an
-/// animation quoted in milliseconds has to convert to ticks and there must be
-/// one place that says how long a tick is.
-const TICK: Duration = Duration::from_millis(l2_game::TICK_MS as u64);
+// One fixed simulation tick is `l2_game::TICK_MS`, and **when** one falls due
+// is `l2_game::clock::Ticker` — in the library, where a test can run it. This
+// file supplies the reading it works from and nothing else.
 
 /// How long after a left press a second one is a **double** click.
 ///
@@ -76,7 +80,11 @@ struct App {
     canvas: Canvas,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
-    next_tick: Instant,
+    /// What the monotonic readings handed to [`App::ticker`] are measured from.
+    /// One `Instant`, taken once, so that a reading is a `u64` of nanoseconds
+    /// and the scheduling arithmetic is integer and testable.
+    started: Instant,
+    ticker: l2_game::clock::Ticker,
     /// Where the pointer was last reported. A click carries no position of its
     /// own in `winit`, and asking the window again would be a second source of
     /// truth that could disagree with what the screen was last told.
@@ -281,20 +289,30 @@ impl ApplicationHandler for App {
     }
 
     /// The fixed tick. Nothing below this line learns how long it waited.
+    ///
+    /// **The deadline comes from the deadline before it**, not from the moment
+    /// the wait returned: that is [`l2_game::clock::Ticker`]'s whole job, and
+    /// the reason a tick is 16 ms of wall clock rather than 16 ms plus whatever
+    /// the timer overshot. A wake that came back late runs the ticks it owes,
+    /// up to `clock::MAX_CATCH_UP`, so that time the machine spent elsewhere is
+    /// repaid to the simulation instead of being lost from it.
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if self.machine.should_quit() {
             event_loop.exit();
             return;
         }
-        let now = Instant::now();
-        if now < self.next_tick {
-            event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
+        let owed = self.ticker.due(self.started.elapsed().as_nanos() as u64);
+        if let Some(next) = self.ticker.next_ns() {
+            let deadline = self.started + Duration::from_nanos(next);
+            event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+        }
+        if owed == 0 {
             return;
         }
-        self.next_tick = now + TICK;
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
 
-        self.tick();
+        for _ in 0..owed {
+            self.tick();
+        }
 
         if self.machine.take_dirty() {
             self.redraw();
@@ -514,7 +532,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         canvas: Canvas::screen(),
         window: None,
         pixels: None,
-        next_tick: Instant::now(),
+        started: Instant::now(),
+        ticker: l2_game::clock::Ticker::new(),
         last_cursor: (0, 0),
         ctrl: false,
         last_press: None,

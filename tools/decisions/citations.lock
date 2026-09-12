@@ -35,6 +35,7 @@ crates/l2-game/src/battlefield.rs	C61	9fa3719be417	60611046b40d
 crates/l2-game/src/battlefield.rs	C61	e5b8ebac6d3d	60611046b40d
 crates/l2-game/src/battlefield.rs	C79	76ceb5b70be2	7dc379494ecf
 crates/l2-game/src/build_id.rs	C107	357dac9ad6ce	eb231bef7ee5
+crates/l2-game/src/clock.rs	C193	75267061a51a	ded1409ebea0
 crates/l2-game/src/engagement.rs	C186	8ffe828ee44a	e4c22886df5f
 crates/l2-game/src/game.rs	C125	0acc6b430574	6084e87aec70
 crates/l2-game/src/game.rs	C180	9808d1a148fa	fea6f0ec7284
@@ -44,6 +45,8 @@ crates/l2-game/src/game.rs	C61	243e22401be3	60611046b40d
 crates/l2-game/src/game.rs	C62	1f489b238ce0	ebb6a7ec3711
 crates/l2-game/src/input.rs	C61	39c868ef7985	60611046b40d
 crates/l2-game/src/main.rs	C117	5d9721284057	b20f3a227f0f
+crates/l2-game/src/main.rs	C193	fa55c65b9590	ded1409ebea0
+crates/l2-game/src/movie.rs	C193	921629355a9c	ded1409ebea0
 crates/l2-game/src/save.rs	C113	292ef2506465	6fbe8ffeb1fb
 crates/l2-game/src/scenario.rs	C130	82b7defc561c	055c6c022450
 crates/l2-game/src/scenario.rs	C161	a38cec235b04	8b6af36909ef
@@ -371,6 +374,7 @@ crates/l2-sim/tests/oracle.rs	C12	7ec839366322	bb0dd488f9d2
 crates/l2-sim/tests/oracle.rs	C17	0f5dbd453b42	b9aaae4e270c
 crates/l2-sim/tests/oracle.rs	C20	d336abeab0e5	0ec8eeb4f874
 crates/l2-sim/tests/siege.rs	C99	7fb125cdbfcd	b890db1f6d4a
+crates/l2-smk/tests/corpus.rs	C193	b934b9c1462b	ded1409ebea0
 crates/l2-testkit/src/lib.rs	C1	365a5efbf069	6b7e8edb019e
 crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8	2e6270fa32a9
 crates/l2-testkit/tests/corrections_tool.rs	C1	0ab00b2c964b	6b7e8edb019e
@@ -902,6 +906,7 @@ docs/formats/maps-layers.md	C62	dfe3d7ab34b9	ebb6a7ec3711
 docs/formats/maps-layers.md	C72	dc9c27e0f1d9	e2bb936cf01c
 docs/formats/maps-layers.md	C77	d74664021785	94789f222b99
 docs/formats/pl8.md	C5	7da3bb460200	5751c743a83c
+docs/formats/smk.md	C193	b3c37d3085bf	ded1409ebea0
 docs/hypotheses.json	C153	e96398000b1c	c724d7afe0dd
 docs/hypotheses.json	C158	590dbc450861	3b5e22280a31
 docs/hypotheses.json	C158	626915dae2d8	3b5e22280a31
@@ -1068,6 +1073,7 @@ docs/symbols.json	C160	e260d9da717b	4c76a005bc3e
 docs/symbols.json	C163	ff117c58b3b2	d043a04534f8
 docs/symbols.json	C168	4004690ce9ff	981eac4d9b1d
 docs/symbols.json	C192	3e4ec2757e2d	b39ebc129fac
+docs/symbols.json	C193	8ce3363f2183	ded1409ebea0
 docs/symbols.json	C20	01f6f924103e	0ec8eeb4f874
 docs/symbols.json	C20	7ddb8e5c217a	0ec8eeb4f874
 docs/symbols.json	C22	936f7d5bda76	0364b53a921d
@@ -1145,6 +1151,7 @@ docs/symbols.md	C160	e260d9da717b	4c76a005bc3e
 docs/symbols.md	C163	ff117c58b3b2	d043a04534f8
 docs/symbols.md	C168	87dd002afbce	981eac4d9b1d
 docs/symbols.md	C192	da5ffbcd7cc0	b39ebc129fac
+docs/symbols.md	C193	2e7e3947ac87	ded1409ebea0
 docs/symbols.md	C20	d50fe7b21adc	0ec8eeb4f874
 docs/symbols.md	C20	f78855d335cd	0ec8eeb4f874
 docs/symbols.md	C22	76e2e999ec4b	0364b53a921d

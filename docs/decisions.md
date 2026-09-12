@@ -10331,3 +10331,70 @@ selector (`flags & 0x1C`) live in a byte `l2_sim::terrain::Cell` does not carry 
 the four rows visited is what `g_mapRedraw` makes the original do anyway, and the erase tile is
 one pass of a cell the next pass draws terrain on. Modelling `+2` would be a simulation change
 for no picture.
+
+---
+
+**C193 — the film ran on a tick, and the tick was two percent slow.**
+
+> *"The sound seems to be a bit desynced from the video"* — in ours, not the original.
+
+**What paces a film in the original, `[V]` on both halves.** `App_WinMain`'s message pump
+(`0x0040E9AB`) has **no throttle at all**: `PeekMessageA`, and when the queue is empty
+`App_IdleFrame` (`0x0040E8BB`) → `App_Draw` → `Battle_Frame`, straight round again. Its only
+`Sleep` is the 200 ms one taken when the window is inactive. So the original has no tick and
+no frame rate; it draws as fast as the machine allows, and anything paced reads a clock for
+itself. `Smk_PlayLoop` (`0x0042DBC7`) does exactly that — `if (SmackWait(g_smack) == 0) {
+…decode, blit, SmackNextFrame… }`, a poll that does nothing until the frame is due — so
+**the whole of the film's clock is inside `smackw32`**, and the question *"audio buffer,
+header rate, or the game's tick?"* is answered for the game's side before the DLL is opened:
+not the tick, because there is no tick.
+
+**And inside the DLL.** `_SmackWait@4` is 320 bytes at RVA `0x3170` of `Smackw32.dll`, and
+the only imported function it calls is `WINMM.dll!timeGetTime`, at `+0xB0` — `[V]`, by
+matching every `FF 15 <imm32>` in `BEGTEXT` against the import table and attributing each to
+the export it falls in. So the deadline is in real milliseconds. Whether the sound driver
+slews that deadline — the DirectSound path installs a `timeSetEvent` callback,
+`_TimerFunc@20`, which also reads `timeGetTime` — is not decidable from the call sites, and
+**it does not need to be**: measured over the install's 45 films, every sound track runs
+`frames × period` long to within **1 ms**, on films as long as 131 s. The audio buffer and
+the header's rate are the same clock. `crates/l2-smk/tests/corpus.rs`,
+`every_track_is_as_long_as_its_picture`.
+
+**Ours was neither.** `movie::Player` counts ticks of `TICK_MS` and converts, which is right
+if a tick is 16 ms. The event loop said:
+
+```rust
+let now = Instant::now();
+if now < self.next_tick { … return; }
+self.next_tick = now + TICK;        // measured from *after* the wait
+```
+
+`now` there is the deadline plus however far the wait overshot, and the next deadline is
+measured from it, so **the overshoot is kept rather than repaid and compounds once per
+tick**. It can only ever run slow: overshoot is never negative. Measured with winit 0.30's
+own wait primitive — `CreateWaitableTimerExW` with `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`
+and `WaitForSingleObject`, which is what `ControlFlow::WaitUntil` runs on Windows — a 16 ms
+tick came out at **16.31–16.42 ms**, +1.9 % to +2.6 %, with no work in the loop at all.
+
+**So the drift grows, and it is a rate rather than an amount.** 2.4 % of `intro.smk`'s
+131.5 s is over three seconds of picture behind sound by the end; 2.4 % of `bat_win5.smk`'s
+3.6 s is 71 ms, under one of its own frames. That is why the complaint is about the long
+films and why nobody saw it on a battle result.
+
+**The fix is `clock::Ticker`**: every deadline measured from the deadline before it, so an
+overshoot is repaid on the next tick, with a `MAX_CATCH_UP` of eight ticks past which a
+stall is written off rather than fast-forwarded. It is in the library and not in `main.rs`
+for the reason `audio::Director::listen` and `saves::run_pending` are — a binary's code
+cannot be called by a test — and it reads no clock itself: it is integer arithmetic over a
+monotonic reading the caller supplies, so `docs/netcode.md` D-12 is untouched.
+
+**This was never only about films.** Every animation, press timer and tip in the game is
+counted in ticks and every one of them was running two percent slow; the film is simply the
+only one with an independent clock beside it to disagree with.
+
+**What was measured and left alone.** Two constant offsets remain, and both are under a
+quarter of a frame: a frame is shown at the first tick *at or after* it is due, which at a
+16 ms poll is a mean 8 ms late where `Smk_PlayLoop`'s poll is microseconds; and a film's
+track starts on the tick its screen reaches the stack while frame 0 is decoded on the next,
+one tick later. Neither compounds, and closing either means either showing frames early or
+opening the film inside the transition that pushes it.

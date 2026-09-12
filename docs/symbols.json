@@ -1598,7 +1598,7 @@
       "section": "platform",
       "confidence": "verified",
       "signature": "void Smk_PlayLoop(void)",
-      "comment": "The movie's own frame loop: SmackWait, SmackDoFrame, SmackToBufferRect, SmackNextFrame, locking and unlocking the surface around each frame (\"ERR:DD surface lock error:\"), applying the movie's palette through Smk_ApplyPalette, and ending on \"OK :SMK natural end of \" into Smk_OnFinished."
+      "comment": "The movie's own frame loop: SmackWait, SmackDoFrame, SmackToBufferRect, SmackNextFrame, locking and unlocking the surface around each frame (\"ERR:DD surface lock error:\"), applying the movie's palette through Smk_ApplyPalette, and ending on \"OK :SMK natural end of \" into Smk_OnFinished. THE WHOLE BODY IS UNDER `if (SmackWait(g_smack) == 0)` - a poll that does nothing until the frame is due - so this is the ONLY pacing a film has: App_WinMain's pump is unthrottled and the original has no tick. And the clock behind it is real milliseconds: _SmackWait@4 is 320 bytes at RVA 0x3170 of Smackw32.dll and the only imported function it calls is WINMM.dll!timeGetTime, at +0xB0 [V, by matching every FF 15 site in BEGTEXT against the import table]. Every film's sound track is frames x period long to within 1 ms, so the audio buffer and the header rate are one clock. docs/decisions.md C193."
     },
     {
       "addr": "0x0042DF30",
