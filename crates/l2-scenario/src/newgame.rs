@@ -266,7 +266,8 @@ pub struct NewGame {
     /// **The colour the person picked on setup page 4**, 1 … 5 — red, yellow,
     /// black, magenta, blue.
     ///
-    /// The original keeps it twice: `g_playerNames + realm * 0x2C + 0x25`,
+    /// The original keeps it twice: `g_playerSlots + realm * 0x2C + 0x25` (the record
+    /// `g_playerNames` is the `+0x04` of, so four bytes lower than the name),
     /// which is what `Realms_AssignLords` reads, and `g_realms[p].shieldIndex`,
     /// which is what everything that *draws* reads. `FUN_00432FAB`
     /// (`0x00432FAB`) writes both from the clicked shield and `FUN_004978AD`
@@ -1085,9 +1086,10 @@ struct Assignment {
 /// # The arrow runs colour → lord, and no lord is ever consulted
 ///
 /// 1. Mark every **human's** chosen shield taken. The original reads
-///    `g_playerNames + realm * 0x2C + 0x25`, guarded by `+0x26 == 0` (a person
-///    rather than a slot the AI fills), and page 4's `FUN_00432FAB` is what
-///    wrote it.
+///    `g_playerSlots + realm * 0x2C + 0x25` — the six-slot record
+///    `g_playerNames` is the `+0x04` of, so four bytes lower than the name —
+///    guarded by `+0x26 == 0` (a person rather than a slot the AI fills), and
+///    page 4's `FUN_00432FAB` is what wrote it.
 /// 2. Walk realms **1 … 5 in realm order**, skipping humans and stopping when
 ///    `g_aiLordCount` lords have been handed out. Each AI takes **the lowest
 ///    shield nobody has taken**; a realm past the lord count gets no shield and

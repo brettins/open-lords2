@@ -398,14 +398,6 @@
       "caveat": "Name suggested by the coordinator at merge, not used or verified by the branch, which calls it by its address throughout. The address and the behaviour are the branch's; the name is a hypothesis."
     },
     {
-      "addr": "0x00553D50",
-      "name": "g_playerSlots",
-      "section": "diplomacy",
-      "confidence": "role",
-      "basis": "Mp_DropDepartedPlayers tests slot +0x00 for zero; Realm_Eliminate clears +0x00, +0x25, +0x26 and sets +0x27. Stride 0x2C, six entries, one per realm.",
-      "caveat": "A per-realm table whose first word means 'this realm is still attached' is the only reading that makes both functions work. What the table actually holds - a network peer, a save slot, a controller - is not established, and the name presumes the first."
-    },
-    {
       "addr": "0x00553F98",
       "name": "g_playerCount",
       "section": "diplomacy",

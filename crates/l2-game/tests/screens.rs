@@ -2123,6 +2123,13 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     // and not the realm id — see `sovereign_lines` below and C62.
     let shield = game.kingdom.realms[5].shield_index;
     let realm5 = l2_view::chrome::realm_pen(shield).expect("realm 5 flies a shield");
+    // **The lord's real name, out of the save.** This read `"REALM 5"` while
+    // nothing filled `g_playerNames`; the save's own player table does now, so
+    // the line says what the original's says. The near miss is another realm's
+    // lord rather than an adjacent number.
+    let lord5 = game.player_names[5].as_str().to_owned();
+    let lord4 = game.player_names[4].as_str().to_owned();
+    assert!(!lord5.is_empty() && lord5 != lord4, "the fixture names its lords: {lord5:?}");
     let name = county::county_name(&Ctx { game: &mut game, assets: &assets }, 1);
     assert_eq!(
         find_body(&canvas, &assets, &name, STRIP_INK).map(|p| p.1),
@@ -2131,13 +2138,17 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     );
     // **The third line is the lord, out of the game's own two sources.** It
     // read `REALM 5` — ours, invented — until the strip was put on
-    // `message::lord_name` with the court and the battle prompt: `g_playerNames`
-    // and then `L2.eng` group 7 by the realm's **lord**, which is the pair
-    // `Game_NewGame` seeds the array from. A `.sav` carries no names into this
-    // tree, so on this fixture it is the group that answers.
+    // `message::lord_name` with the court and the battle prompt: the save's
+    // player table (`Game::player_names`) first, then `L2.eng` group 7 by the
+    // realm's **lord**, which is the pair `Game_NewGame` seeds the array from.
+    // This fixture's save names its lords, so here it is the **table** that
+    // answers — which is what the equality below pins, and it is the seam
+    // between the shared accessor and the table that now fills it.
     let lord = l2_game::screens::message::lord_name(&Ctx { game: &mut game, assets: &assets }, 5);
-    assert!(!lord.starts_with("REALM "), "group 7 names realm 5's lord, and it said {lord:?}");
+    assert_eq!(lord, lord5, "the shared accessor answers realm 5 out of the save's table");
+    assert!(!lord.starts_with("REALM "), "realm 5's lord is named, and it said {lord:?}");
     assert!(find_body(&canvas, &assets, &lord, realm5).is_some(), "the strip names {lord:?}");
+    assert!(find_body(&canvas, &assets, &lord4, realm5).is_none(), "a near miss");
     assert!(find_body(&canvas, &assets, "REALM 5", realm5).is_none(), "and not a name of ours");
     assert!(find_body(&canvas, &assets, "693", STRIP_INK).is_none(), "no numbers at all");
 
@@ -5524,8 +5535,10 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
     let banner = if banner.is_empty() { "SOVEREIGN LAND".to_string() } else { banner };
     // The third line, and it is the game's own name for realm 5's lord rather
     // than a `REALM 5` of ours — `message::lord_name`, shared with the court,
-    // the battle prompt and the diplomacy screens.
+    // the battle prompt and the diplomacy screens, which answers out of the
+    // save's player table before it falls back to `L2.eng` group 7.
     let lord = l2_game::screens::message::lord_name(&Ctx { game: &mut game, assets: &assets }, 5);
+    assert!(!lord.is_empty(), "realm 5 is unnamed, so there is no third line to read a pen off");
 
     // Every shield in turn, on the *same* county and the *same* realm. Only the
     // shield moves, so only the key can explain the colour.

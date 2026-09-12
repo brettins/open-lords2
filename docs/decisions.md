@@ -10826,3 +10826,69 @@ change hands"* when what they were missing was two lines of neighbour data.
 adjacency is in `world()` and in `campaign.rs`'s `kingdom()` now, with the reason beside
 it, and county 3 is deliberately left with none — it is what the `else` branch is tested
 with.
+
+---
+
+**C198 — the lords' names were in the `.sav` all along, and the four
+bytes in front of them are a DirectPlay id.**
+
+> *"a loaded game forgets what the lords are called."*
+
+`g_saveBlocks` entry 2 is `{0x00553D50, 264}` and `264 = 6 × 0x2C`, so the names are saved.
+`l2_formats::save` did not read them: `Game::player_names` came back empty from every load,
+and every `"REALM n"` a player met was that. **The person's own name was the worst of it.**
+`screens::message::lord_name` falls back to `L2.eng` group 7 indexed by the realm's lord, and
+`Realms_AssignLords` (`0x0049CAAA`) writes `lord = 0` for a realm somebody is *playing* —
+group 7 index 0 is **`"No player"`**, which is what the court page and the diplomacy heading
+called the reader of them.
+
+**The four bytes had to be settled first, and they were the whole shape of the record.**
+`0x00553D50` is four lower than `g_playerNames` (`0x00553D54`), which reads as a block
+misaligned by a dword with realm 5's record hanging four bytes past its end. It is not: the
+block's base is the base of a **six-slot player table**, and the name is the slot's `+0x04`.
+`Player_SetHuman` (`0x0049BAE9`) writes both halves from one argument list at one stride —
+`FUN_00401136(name, &g_playerNames + realm * 0x2c, 0x1f)` and
+`*(int *)(&DAT_00553d50 + realm * 0x2c) = dpId` — and Ghidra's own view agrees: `0x00553D50`
+has **120 immediate references in the image and `0x00553D54` has none**, because every access
+to the record goes through the table base. So the block covers slots 0 … 5 exactly and
+nothing is truncated. **[V]**
+
+`+0x00` is the **DirectPlay player id** of the person driving the realm, 0 for nobody:
+`FUN_0043E9E2` clears realms 1 … 5 and writes `g_dpPlayerId` into the local player's;
+`FUN_0043E98B(id)` maps an id back to a realm; `Net_ReadField(&DAT_00553d50 + realm * 0x2c, 4)`
+puts it on the wire; `Player_SetHuman` writes it unless the caller passes the **999** sentinel;
+and `Mp_DropDepartedPlayers` (`0x0049B2A3`) eliminates a realm marked human whose copy *has
+gone to zero*. **That promotes a hypothesis rather than adding a name.** `g_playerSlots` was
+already in `docs/hypotheses.json` at `role` confidence with the caveat *"what the table
+actually holds — a network peer, a save slot, a controller — is not established"*. It is a
+network peer. The entry is moved to `docs/symbols.json` as verified.
+
+**Measured over eighteen saves** — eleven fixtures and every `.sav` in the two installs.
+`+0x00` is zero in all of them, which is a single-player game having no connection, and it is
+the assertion that will tell us when we finally have a multiplayer save. Two more fields agree
+at the same stride and are the reason the base is not four bytes out: the local player's
+`+0x25` equals `g_realms[p].shieldIndex` in every save (two fields written by different code,
+at two different strides, 1 in six of them and 5 in the other twelve), and every realm in play
+has a terminated name. **Ablated**: `PLAYER_BASE` moved up to `0x00553D54` and the id reads
+`0x79616C50` — `"Play"`.
+
+The names load in `l2_game::scenario::from_save`, raw and beside `realm_colour`, and the
+fallback stays where it is. **Nothing moves in the lockstep digest**: the digest is
+`Canonical::hash_of(kingdom)` and `player_names` is on `Game`, which is the reason it was put
+there. `l2_game::save` already carried it, so our own `.l2sav` needed no version bump.
+
+**Left alone, and named rather than fixed.** `screens/ratings.rs` still draws
+`format!("PLAYER {}", b + 1)` where `Screen_BattleMasterRatings` (`0x00421707`) draws
+`g_playerNames[g_localPlayer]` and `g_playerNames[DAT_0056D5CC]`: the block index it has is
+not a realm id, so wiring it is a change to `Ratings`, not a call swap.
+`screens/county.rs`'s `CountyStrip_Draw` arm keeps its own copy of the fallback — it now shows
+the real name like everything else, but it drops straight to `"REALM n"` where `lord_name`
+would try group 7 first.
+
+**And a `[V]` that was four bytes wrong, in the place `CLAUDE.md` warns about.**
+`l2_scenario::newgame` and `docs/rules.md` both said the human's shield is at
+`g_playerNames + realm * 0x2C + 0x25`. `Realms_AssignLords` reads `(&DAT_00553d75)[realm * 0x2c]`,
+which is the *table's* `+0x25` and the name's `+0x21`. Nothing was built on the wrong one —
+the colour is passed into `NewGame` rather than read out of a save — so this cost nothing, and
+it is exactly the sentence that would have cost the next person a day. `crates/l2-game/src/text.rs`
+had the record right the whole time and no reader used it.

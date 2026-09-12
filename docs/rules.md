@@ -694,8 +694,9 @@ Confirmed against `england-turn1.sav`: realms 2 … 5 hold shields 2 … 5 and l
 `Realms_AssignLords` (`0x0049CAAA`), in order:
 
 1. Mark every **human's** chosen shield as taken. The colour comes off setup page 4,
-   *"Choose your title and your shield"*, and is stored in the player-name record at
-   `g_playerNames + realm * 0x2C + 0x25`.
+   *"Choose your title and your shield"*, and is stored in the player record at
+   `g_playerSlots + realm * 0x2C + 0x25` — the six-slot table `g_playerNames`
+   (`0x00553D54`) is the `+0x04` of, so four bytes lower than the name.
 2. Walk realms **1 … 5 in realm order**. For each realm that is not human, and while there
    are AI lords left to hand out:
    - **give it the lowest shield 1 … 5 that nobody has taken yet**, and mark it taken;

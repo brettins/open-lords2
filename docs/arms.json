@@ -2909,7 +2909,7 @@
       "gesture": "left-release",
       "addr": "0x0049BAE9",
       "what": "Player_SetHuman -- where a typed name stops being a keystroke: `g_realms[p].isHuman = 1; g_playerNames[p].occupied = 1; Str_Copy(0x53F1E0, &g_playerNames + p * 0x2C, 0x1F);`. THIRTY-ONE bytes out of the settings block into the name array, and the player index IS the realm index -- the same argument selects both.\n\nThe AI half of the same array is a different width and a different source: Eng_Seek(7, realm.lord) and SIXTEEN bytes copied. L2.eng group 7 is 'The Knight, The Baron, The Countess, The Bishop, No player', and the index is the LORD, not the realm and not the colour.",
-      "note": "g_playerNames is a save block of its own (g_saveBlocks[2] = {0x00553D50, 264} = 6 x 0x2C), which is why ours is on Game beside realm_colour rather than on Kingdom: the lockstep digest is hash_of(kingdom) and a name cannot change a number.",
+      "note": "The six-slot player table g_playerNames is the +0x04 of is a save block of its own (g_saveBlocks[2] = {0x00553D50, 264} = 6 x 0x2C; +0x00 is the DirectPlay id, which is why the block base is four lower than the name), and l2_formats::save::Player now reads it on load. Ours is on Game beside realm_colour rather than on Kingdom: the lockstep digest is hash_of(kingdom) and a name cannot change a number.",
       "ours": "crates/l2-game/src/screens/setup.rs",
       "evidence": "V"
     },
