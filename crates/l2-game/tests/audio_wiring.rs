@@ -1140,6 +1140,15 @@ fn the_population_panel_speaks_the_countys_health_band() {
 /// the stall instead and the panel never opens on it. That hole is what this
 /// asserts hardest, because the easy mistake is to fill it.
 ///
+/// **And it is silence in the original, not a gap of ours** — it was reported
+/// as one (*"picking a merchant says nothing, where a unit or a castle
+/// speaks"*) and there is a third reading that settles it rather than merely
+/// failing to find an arm. `L2.eng` group 31 holds **five** unit descriptions;
+/// indices 13 … 16 are these four, in exactly the order `S031_01` … `04`, and
+/// index **12** is *"Merchants allow a county to buy needed supplies and raise
+/// revenue by selling goods."* — the one member of the run with prose and no
+/// recording. Only four `S031_*.wav` ship. `docs/audio.json` `FUN_004b37bc#1`.
+///
 /// **Ablations, run:** give `UnitKind::Merchant` a line and the silence goes
 /// red; drop the owner test on the army arm and the *theirs* case does.
 #[test]

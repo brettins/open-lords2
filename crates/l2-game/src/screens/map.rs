@@ -164,7 +164,7 @@ use crate::screens::county;
 use crate::screens::menubar;
 use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::turn;
-use crate::shell::font;
+use crate::shell::{font, Pen};
 use crate::widget;
 
 /// The menu bar: `Screen_DrawMenuBar`'s 640 × 24 strip at y 0.
@@ -3330,12 +3330,11 @@ fn unit_sprite(zoom: &Zoom, game: &crate::game::Game, id: usize, unit: &l2_kingd
 /// the unit that counter and nothing here read it, so every army jumped from
 /// tile to tile.
 ///
-/// **What is still ours** is the *selection* and the *state marks*: the
-/// original shows a selected army by flood-filling its reachable tiles, and it
-/// marks a besieger with `Flags1a.pl8` frame `0x82`. A garrisoned unit is drawn
-/// hollow because it is inside the castle rather than standing on the tile —
-/// the original draws it not at all and flies a flag over the castle instead
-/// (see [`draw_flags`]).
+/// **What is still ours** is the *selection*: the original shows a selected
+/// army by flood-filling its reachable tiles. A garrisoned unit is drawn hollow
+/// because it is inside the castle rather than standing on the tile — the
+/// original draws it not at all and flies a flag over the castle instead (see
+/// [`draw_flags`], which also carries the besieger's mark).
 ///
 /// The square marker is the fallback for an install with no `Sprite?a.pl8`, and
 /// for the placeholder assets the tests use. It says *there is something here*
@@ -3400,15 +3399,11 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
             let r = h + 3;
             widget::frame(canvas, Rect::new(cx - r, cy - r, r * 2 + 1, r * 2 + 1), ink.highlight);
         }
-        // A besieger carries a second, smaller mark: it is camped rather than
-        // standing, and clicking it opens the siege screen rather than ordering
-        // a march. The original's is `Flags1a.pl8` frame `0x82` with the seasons
-        // left printed under it (`FUN_00407F82`), over the *castle*; ours is a
-        // dot over the unit, where the original draws nothing, so it is debug
-        // overlay only and `FUN_00407F82` stays a missing draw.
-        if debug && unit.besieging_county != 0 {
-            fill_clipped(canvas, cx - 1, cy - h - 4, 3, ink.bad, clip);
-        }
+        // **A besieger's mark is not drawn here**, and the dot that used to be
+        // is gone. The original marks a siege over the *castle*, not over the
+        // army: `Flags1a.pl8` frame `0x82` with the seasons left under it,
+        // `FUN_00407F82` called from `Sprite_TopIt`'s castle arm. It is built,
+        // in [`draw_flags`], on the tile the original puts it on.
     }
 }
 
@@ -3506,17 +3501,73 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
         if county.castle_type == 0 || county.garrison_unit == 0 {
             continue;
         }
-        let garrison_shield =
-            k.campaign.units.get(county.garrison_unit).map_or(0, |u| u.shield);
-        let Some(frame) = campaign::flag_frame(garrison_shield, phase) else { continue };
         let castle = MapScreen::settlements(ctx, id as u8)
             .into_iter()
             .find(|&t| industry::map_toggle_for_graphic(k.campaign.map.terrain[t])
                 == Some(industry::MapToggle::Castle));
-        if let Some(tile) = castle.filter(lit) {
-            flag(screen, canvas, ctx, clip, tile, frame);
+        let Some(tile) = castle.filter(lit) else { continue };
+        // **The besieger's mark goes first, under the garrison's banner** —
+        // `Sprite_TopIt` calls `FUN_00407F82` before it sets the banner's frame,
+        // and it reads the *besieging* unit through the garrison:
+        //
+        // ```c
+        // besieger = g_units[county.garrisonUnit].besiegedBy;
+        // if (besieger != 0 && g_mapZoom == 0)
+        //     FUN_00407f82(g_units[besieger].siegeSeasonsLeft, 8, -0x38);
+        // ```
+        //
+        // So the count belongs to the army camped outside and is written on the
+        // castle it is camped outside of. Nothing here is drawn when the
+        // garrison is free.
+        let besieger = k.campaign.units.get(county.garrison_unit).map_or(0, |u| u.besieged_by);
+        if besieger != 0 {
+            let seasons =
+                k.campaign.units.get(besieger as usize).map_or(0, |u| u.siege_seasons_left);
+            draw_besieger_mark(screen, canvas, ctx, clip, tile, i32::from(seasons));
         }
+        let garrison_shield =
+            k.campaign.units.get(county.garrison_unit).map_or(0, |u| u.shield);
+        let Some(frame) = campaign::flag_frame(garrison_shield, phase) else { continue };
+        flag(screen, canvas, ctx, clip, tile, frame);
     }
+}
+
+/// **`FUN_00407F82`'s two draws** — the mark, then the count under it.
+///
+/// [`campaign::besieger_marker`] blits the frame and answers where the number
+/// goes; this puts the number there. The pen is the function's own:
+/// `&g_fontBody`, colour `0xF9`, and **flat** — `DAT_005AEA40 = 1` is set for
+/// the `Ui_DrawNumberRight` and cleared after it, which is the emboss kill, so
+/// this is not the map's ordinary shadowed body text.
+fn draw_besieger_mark(
+    screen: &MapScreen,
+    canvas: &mut Canvas,
+    ctx: &Ctx,
+    clip: Clip,
+    tile: usize,
+    seasons: i32,
+) {
+    let (x, y) = l2_kingdom::map::coords(tile);
+    let Some((nx, ny, w)) = campaign::besieger_marker(
+        canvas,
+        &ctx.assets.map,
+        screen.view,
+        &screen.zoom,
+        (x as usize, y as usize),
+        clip,
+    ) else {
+        return;
+    };
+    let pen = Pen {
+        assets: &ctx.assets.shell,
+        ink: &ctx.assets.ink,
+        chrome: ctx.assets.chrome.as_ref(),
+        shadow: None,
+        caps: None,
+    };
+    // `Ui_DrawNumberRight(seasons, ' ', " ", …)`, and both of those are the
+    // call site's: `DAT_004D2094` is a single space.
+    pen.number_centred(canvas, nx, ny, w, seasons, ' ', " ", campaign::BESIEGER_COUNT_INK);
 }
 
 /// **`FUN_004071A0`'s farm arm — the cattle in the pastures.**

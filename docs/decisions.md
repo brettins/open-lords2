@@ -10487,8 +10487,6 @@ arm is what `Game::multiplayer` being false already means everywhere else.
 
 ---
 
----
-
 **C195 — C124 fixed the wheat by reading one of `Grain_SeasonTick`'s three
 band calls, and wrote it down as all three.**
 
@@ -10620,3 +10618,121 @@ shifted trajectory is a claim nobody can ablate. So it is dealt deliberately ins
 `aim_tile` what the raid finder sees, then tramples one field and asks again. Three ablations,
 each one line, each red: C124's crop word in Spring, Summer and Autumn; `Aim::StandingCrop`'s
 `terrain > 2`; and the sowing's write of `+0x206`.
+
+---
+
+**C196 — a gated invention, a silence that is the original's, and two
+copies of one sentence. Three small holes, and each was hidden by something that
+had been written down truthfully.**
+
+Three reports, three different ways of not being findable.
+
+**1. A besieging army had no mark, and the marker we did draw was in the way of finding
+the one that exists.** `FUN_00407F82` (`0x00407F82`) blits `Flags1a.pl8` frame `0x82` —
+24 × 28, and the **last** frame in a sheet of 131 — at `(+8, −0x38)` from the *castle*
+tile's origin, then prints the besieger's `+0x19C`, siege seasons left, ten pixels lower.
+It is called from `Sprite_TopIt`'s castle arm, which reaches the besieger through the
+garrison: `units[county.garrisonUnit].besiegedBy`.
+
+Ours drew a red dot over the **army**. It carried an honest comment saying so — *"ours is a
+dot over the unit, where the original draws nothing, so it is debug overlay only and
+`FUN_00407F82` stays a missing draw"* — and C173 had gated it on that reading. **The gate
+is what kept it.** A visible invention gets reported by a player; a gated one is correct by
+construction and stops being looked at, and the missing draw was named two lines above the
+code that stood in for it. `docs/draws-map.md` §7 now says this where the dot used to be
+counted.
+
+Four details of the draw are decisions rather than transcription, and three of them would
+have been got wrong by reading the name:
+
+* **`Ui_DrawNumberRight` centres.** `docs/symbols.md` `0x004030C6` has carried that
+  correction since C119/C140 and the name is still the false one, deliberately. The count
+  is centred in **frame `0x82`'s own width** — `g_spriteWidth = *(short *)(g_flagsSheet +
+  0x828)`, which is `8 + 0x82 * 0x10`, the width field of that frame's record.
+* **The suffix is one space and it is inside the measure.** `DAT_004D2094` is `20 00 00 00`
+  at file offset `0xD0294`.
+* **The count is flat.** `DAT_005AEA40 = 1` brackets the `Ui_DrawNumberRight` and is cleared
+  after it, so it is not the map's ordinary shadowed body text.
+* **`if (0x18 < y)` is the count's only clip.** The blit is clipped by `Clip_Horizontal` /
+  `Clip_Vertical`; the number is not, and that test is all that keeps it off the menu bar.
+
+**And the arm is not reachable at the far zoom**, which is the original's own defect and is
+reproduced: `Sprite_TopIt` computes `(2, −0x28)` for `g_mapZoom == 2` and the whole body of
+`FUN_00407F82` is inside `if (g_mapZoom == 0)`. `docs/bugs.md` `D41`,
+verified from the shipped bytes rather than from the decompiler's C.
+
+**The audit's own note about this arm was wrong in a way worth keeping.**
+`docs/draws-map.md` §6 listed it as *"needs a live siege on the campaign map, which the
+battle triple does not carry"* — read as *wait for a fixture*. What the arm wants is **two
+bytes**, `+0x19A` on the garrison and `+0x19C` on the besieger, which is the same shape as
+the mercenary marker's one byte and was staged in a test in four lines. A list of things
+*"not observed"* that does not distinguish *needs a save we do not have* from *needs a
+field written by hand* will keep the second kind unobserved indefinitely.
+
+**2. Picking a merchant says nothing, and that is the original.** Nothing is built, and the
+finding is the point — `CLAUDE.md` rule 5's *"we could not find it" is a finding to report*.
+`FUN_004B37BC` (`0x004B37BC`) is the last statement of **both** functions that open screen
+`0x04`, and its ladder is kinds 1, 4 and 2 plus the castle branch; kind 3, the merchant,
+falls out of the bottom and returns.
+
+**The silence was already built, already asserted and already ablated**, in
+`tests/audio_wiring.rs` `the_information_panel_speaks_the_unit_it_opened_on` — *"that hole
+is what this asserts hardest, because the easy mistake is to fill it"*. What was open was
+the *question*, carried by a ledger row whose next step read *"find whether the original
+speaks for a merchant at all"*. Same shape as the other two: a green test that answers a
+question, and a written-down question that does not know about it.
+
+Three readings, and the third is the one that closes it rather than merely failing to open
+it:
+
+* **the ladder** has no arm;
+* **four `S031_*.wav` ship** and there is no fifth;
+* **`L2.eng` group 31 holds five unit descriptions and four of them have voices.** Indices
+  13 … 16 are *"These starving revolutionaries…"*, *"This transport is moving goods…"*,
+  *"This is an enemy army."* and *"This is one of your armies."* — the four, in exactly the
+  order `S031_01` … `04`. Index **12** is *"Merchants allow a county to buy needed supplies
+  and raise revenue by selling goods."*: the one member of the run with prose and no
+  recording.
+
+That third reading is rule 6 used as an *absence* test. A group with one consumer is that
+screen's vocabulary, so a word in the group with no voice beside it is evidence about the
+recording session and not about our search. Without it the answer would have been *"we
+looked and did not find one"*, which is a statement about the looking.
+
+`Map_Click` (`0x0043CE1A`) corroborates it from the third side: a left click on your own
+merchant sets `g_screenId = 8`, the stall, and on somebody else's enqueues group `0x70`. The
+information panel never opens on a merchant from the left button at all. `docs/audio.json`
+`FUN_004b37bc#1` carries the whole of this as its note; nothing about the inventory's
+numbers moves, and `sounds.js --check` still agrees with the corpus on all 143 sites.
+
+**3. Two screens still invented a lord's name, and C189 is why they were easy to miss.**
+C189 fixed the court and the battle prompt and named the rule — `g_playerNames`, then
+`L2.eng` group 7 indexed by the realm's **lord**, which is the pair `Game_NewGame` itself
+seeds the array from (`Eng_Seek(7, realm[+0x07])`, then sixteen bytes copied). It did not
+sweep for the other copies. There were three, in two files, and each had grown its own
+`REALM n`:
+
+| where | the original's draw |
+|---|---|
+| `county.rs`, the strip's third line | `CountyStrip_Draw` `0x0040F7D3` — `FUN_004025D7(&g_playerNames + owner * 0x2C, 0x1E0, 0x118, 0xA0, …)` |
+| `diplomacy.rs`, the screen and its cards | `Diplo_DrawScreen` `0x00416CF3` — `Ui_DrawText(… + g_diploTarget * 0x2C, 0xD0, 0x3D, heading)`; `Diplo_DrawLordCard` `0x004171EE` — `Ui_DrawText(… + realm * 0x2C, 0x20, slot * 100 + 0x83, body)` |
+| `diplomacy.rs`, the three compose dialogs | `Diplo_DrawGiftGold` `0x00417960`, `Diplo_DrawLetter` `0x00417AEF`, `Diplo_DrawCountyRequest` `0x00417CEF` — all `Ui_DrawText(… + g_diploTarget * 0x2C, g_penAdvance + …, body)` |
+
+All five are one draw in the original and are now one function, `screens::message::lord_name`.
+**Nothing changes for a game started through the front end** — the array is read first at
+every site, which is what the compose screen's own comment was protecting — and on a `.sav`,
+which carries no typed names into this tree, the county strip, the diplomacy screen, its
+lord cards and its three compose dialogs stop saying `REALM n` and start saying what group 7
+calls that realm's lord.
+
+**Two of the three copies were each documented as correct**, with the other cited as
+precedent: the compose screen's comment said *"`screens/county.rs` settled the same question
+the same way"*, and `county.rs` explained at length why its fallback was *"not decoration"*.
+Both sentences were true. Neither was the whole rule, and each made the other look reviewed.
+
+**What was left alone, and it is the real fix.** `g_saveBlocks` entry 2 is
+`{0x00553D50, 264}` — 6 × 0x2C, the player-name table — so **the names are in the `.sav`**
+and `l2_formats::save` does not read them. Every fallback above exists because of that one
+gap. It is not touched here: `crates/l2-formats/` is the lead's (`docs/agents.md`), and the
+four-byte discrepancy between the block's base and `g_playerNames` at `0x00553D54` wants
+settling against a real file before anything reads it.

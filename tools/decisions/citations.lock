@@ -72,6 +72,7 @@ crates/l2-game/src/screens/county.rs	C59	d92177ac30ca	37ab8ac1a2fc
 crates/l2-game/src/screens/county.rs	C61	888250e26eed	60611046b40d
 crates/l2-game/src/screens/court.rs	C110	4001eefdd973	a4ab43902f60
 crates/l2-game/src/screens/court.rs	C140	0f96dbb1757f	e3a1ede42a95
+crates/l2-game/src/screens/diplomacy.rs	C189	cd522ae61df6	a640e552a733
 crates/l2-game/src/screens/diplomacy.rs	C26	d7d30139b2b8	e8179d1f76a8
 crates/l2-game/src/screens/diplomacy.rs	C61	5aa0f88f789e	60611046b40d
 crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
@@ -103,6 +104,7 @@ crates/l2-game/src/screens/map.rs	C61	8273bcd877f2	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	e23b83e06409	60611046b40d
 crates/l2-game/src/screens/message.rs	C126	15170181ab5e	1b2c97c7731a
 crates/l2-game/src/screens/message.rs	C164	a4ab5ea66a65	68f38e5b4b46
+crates/l2-game/src/screens/message.rs	C189	83743da87d1f	a640e552a733
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28	37ab8ac1a2fc
@@ -196,6 +198,7 @@ crates/l2-game/tests/screens.rs	C140	227badb0235c	e3a1ede42a95
 crates/l2-game/tests/screens.rs	C140	e626e6be922d	e3a1ede42a95
 crates/l2-game/tests/screens.rs	C153	623b31365217	c724d7afe0dd
 crates/l2-game/tests/screens.rs	C180	7ba053c3b72d	fea6f0ec7284
+crates/l2-game/tests/screens.rs	C189	c97df222123f	a640e552a733
 crates/l2-game/tests/screens.rs	C21	1523306009a2	f7bf296341ff
 crates/l2-game/tests/screens.rs	C22	1d39d618c245	0364b53a921d
 crates/l2-game/tests/screens.rs	C42	34537294a71e	a2ac3547bb32
@@ -207,6 +210,7 @@ crates/l2-game/tests/screens.rs	C61	0666dfecda29	60611046b40d
 crates/l2-game/tests/shell.rs	C22	df2346f350a7	0364b53a921d
 crates/l2-game/tests/siege_battle.rs	C35	7b2f7bc2325e	193a1920e229
 crates/l2-game/tests/standings.rs	C26	9814e3a54839	e8179d1f76a8
+crates/l2-game/tests/text.rs	C189	173208b2add6	a640e552a733
 crates/l2-game/tests/tips.rs	C166	594d57b2ba61	e426c5b6c94a
 crates/l2-game/tests/turn.rs	C115	e1e6a0456501	085c9b771281
 crates/l2-game/tests/turn.rs	C134	e56871c4814a	d12cd2f96f79
@@ -574,6 +578,7 @@ docs/decisions.md	C119	9ebd8ae75e0d	306c4c740506
 docs/decisions.md	C119	a513b578b18d	306c4c740506
 docs/decisions.md	C119	a5cc00854c67	306c4c740506
 docs/decisions.md	C119	b878d200974c	306c4c740506
+docs/decisions.md	C119	e4ee063b0fa2	306c4c740506
 docs/decisions.md	C12	2fd0874b7e4b	bb0dd488f9d2
 docs/decisions.md	C12	4134e4bde263	bb0dd488f9d2
 docs/decisions.md	C12	439c2f1bab58	bb0dd488f9d2
@@ -589,11 +594,11 @@ docs/decisions.md	C124	0a9fb8196ae9	38723617b085
 docs/decisions.md	C124	0aaa7bfd0ebb	38723617b085
 docs/decisions.md	C124	1168fcc7f029	38723617b085
 docs/decisions.md	C124	3da686d519fd	38723617b085
-docs/decisions.md	C124	61c1e40122d9	38723617b085
 docs/decisions.md	C124	6be2439753c5	38723617b085
 docs/decisions.md	C124	806ee805fa29	38723617b085
 docs/decisions.md	C124	a6b3601f32ed	38723617b085
 docs/decisions.md	C124	a6ed3c913d46	38723617b085
+docs/decisions.md	C124	f090ac82ba32	38723617b085
 docs/decisions.md	C125	4a3bc312925c	6084e87aec70
 docs/decisions.md	C125	5b745e098dad	6084e87aec70
 docs/decisions.md	C125	91cc166c79af	6084e87aec70
@@ -654,6 +659,7 @@ docs/decisions.md	C140	911585df7be9	e3a1ede42a95
 docs/decisions.md	C140	a6467caca8ac	e3a1ede42a95
 docs/decisions.md	C140	a780de623e89	e3a1ede42a95
 docs/decisions.md	C140	b7b4a7e7ec56	e3a1ede42a95
+docs/decisions.md	C140	c687db294a2e	e3a1ede42a95
 docs/decisions.md	C142	0800e9b335b3	d13324698105
 docs/decisions.md	C142	0ff030d3046f	d13324698105
 docs/decisions.md	C142	19b387060801	d13324698105
@@ -712,6 +718,7 @@ docs/decisions.md	C173	d0de45012874	d5c09120ff4b
 docs/decisions.md	C173	d3eba13b50df	d5c09120ff4b
 docs/decisions.md	C173	d75425c8b671	d5c09120ff4b
 docs/decisions.md	C173	da0de0263c6b	d5c09120ff4b
+docs/decisions.md	C173	e51ea6a0727a	d5c09120ff4b
 docs/decisions.md	C176	ddfc00ae0561	4d47d841886c
 docs/decisions.md	C177	6716b47f3e3d	01cec2bb5b43
 docs/decisions.md	C178	4b727d2e551c	b903c3f9550e
@@ -726,6 +733,8 @@ docs/decisions.md	C183	9e4e4bfdf2f4	910aa7b8ce33
 docs/decisions.md	C184	186ec1e7d258	68993561dc7c
 docs/decisions.md	C184	b2af8a802fd4	68993561dc7c
 docs/decisions.md	C189	0b09be3d6777	a640e552a733
+docs/decisions.md	C189	cb3224233a9e	a640e552a733
+docs/decisions.md	C189	e6efefd0abf5	a640e552a733
 docs/decisions.md	C190	68f8ca643e9f	036491ce2ede
 docs/decisions.md	C195	168811bca0a3	f0bf50bfaad1
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874

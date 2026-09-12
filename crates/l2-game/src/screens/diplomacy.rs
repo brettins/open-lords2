@@ -106,6 +106,11 @@ use l2_view::Canvas;
 use crate::input::{Event, Key, Rect};
 use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+// **`Ui_DrawText(&g_playerNames + realm * 0x2C, …)`, once for the whole
+// crate.** This module had a copy that stopped at `g_playerNames` and printed
+// `REALM n` when it was empty; `docs/decisions.md` C189's pair of sources is
+// the whole rule and lives in one place.
+use crate::screens::message::lord_name;
 use crate::shell::{font, Pen};
 use crate::widget;
 
@@ -713,16 +718,6 @@ impl DiplomacyScreen {
     }
 }
 
-/// `Ui_DrawText(&g_playerNames + realm * 0x2C, …)`, with the fallback
-/// `screens/county.rs` and [`ComposeScreen`] already use for a world that never
-/// came through the front end.
-fn lord_name(ctx: &Ctx, realm: u8) -> String {
-    match ctx.game.player_names.get(realm as usize).map(|n| n.as_str()) {
-        Some(n) if !n.is_empty() => n.to_string(),
-        _ => format!("REALM {realm}"),
-    }
-}
-
 // ------------------------------------------------------------ the 0x1A screen
 
 /// `FUN_00436372` — the gift stepper's step, and it is ten crowns whichever
@@ -1202,17 +1197,12 @@ impl Screen for ComposeScreen {
             shadow: Some(font::SHADOW),
             caps: Some(1),
         };
-        // `Ui_DrawText(&g_playerNames + target * 0x2C, …)`. **Not `L2.eng`
-        // group 7.** This module drew the lord's *title* here — *"The Baron"* —
-        // which is what `Game_NewGame` copies into `g_playerNames` for an AI
-        // lord but is not what the field holds once a person has typed a name
-        // on setup page 4. `screens/county.rs` settled the same question the
-        // same way, and carries the same fallback for a world that never came
-        // through the front end.
-        let name = match ctx.game.player_names[self.target as usize].as_str() {
-            n if n.is_empty() => format!("REALM {}", self.target),
-            n => n,
-        };
+        // `Ui_DrawText(&g_playerNames + target * 0x2C, …)` — the typed name
+        // first, which is what this module once got wrong by drawing the lord's
+        // *title* unconditionally. [`lord_name`] keeps that order and puts the
+        // title back only where the field is empty, which is where the front
+        // end would have written it.
+        let name = lord_name(ctx, self.target);
 
         match self.kind {
             // ---------------------------------------- Diplo_DrawGiftGold

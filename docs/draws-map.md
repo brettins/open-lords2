@@ -15,7 +15,7 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 ## 0. The headline
 
 > **The campaign map makes 139 draw calls. 121 of them are live, 10 are behind debug
-> switches and 8 are dead code. We reproduce 69 of the 121, and we make about 29 draws the
+> switches and 8 are dead code. We reproduce 71 of the 121, and we make about 29 draws the
 > original does not.**
 
 **Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
@@ -23,19 +23,20 @@ draw*, not *at the original's coordinates*. §5a has the measurement that forced
 distinction: of the eighteen draws read back line-by-line against their call sites, **three
 were four pixels wrong** and every test in the tree passed.
 
-That is **57 %** — 54 % until C189 drew the far-zoom box's four words.
+That is **59 %** — 54 % until C189 drew the far-zoom box's four words, 57 % until the
+besieger's camp mark.
 `docs/arms.json` holds **25** input arms for the same two screen ids (`0x00` and `0x10`) and
 marks **20** of them reproduced — **80 %**. So on the screen a player spends most of the game
 looking at:
 
-> **We answer four gestures in five and we draw four pictures in seven.**
+> **We answer four gestures in five and we draw three pictures in five.**
 
 That gap is the whole argument for this audit existing. It is not visible from the input
 side, it is not visible from any test, and it is the shape both of the player's reports —
 *"I see placeholder shit everywhere"* and *"why do the pastures not have cows in them?"* —
 were about. Neither of those is an arm.
 
-The misses are not evenly spread. Three areas hold 42 of the 52, and each is one of
+The misses are not evenly spread. Three areas hold 42 of the 50, and each is one of
 `docs/draws.md` §3's three hiding places:
 
 | area | live | ours | missing | which hiding place |
@@ -43,7 +44,7 @@ The misses are not evenly spread. Three areas hold 42 of the 52, and each is one
 | `Sprite_TopIt`'s tile overlays | 18 | 4 | **14** | a ladder whose arms nobody enumerated |
 | the sidebar's produce and industry rows | 31 | 10 | **21** | a variable widget count |
 | drawn from `Battle_Frame`, not from a painter | 16 | 9 | **7** | outside the painter |
-| everything else | 56 | 46 | 10 | — |
+| everything else | 56 | 48 | 8 | — |
 
 ---
 
@@ -88,7 +89,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_0042A9AB` | `0x0042A9AB` | surround, right half | live | 1 | 1 |
 | `FUN_00405602` | `0x00405602` | a zoom-1 edge fill | live¹ | 1 | 0 |
 | **`Sprite_TopIt`** | `0x004071A0` | **six tile overlays** | live | **18** | **4** |
-| `FUN_00407F82` | `0x00407F82` | the besieger's banner and its count | live | 2 | 0 |
+| `FUN_00407F82` | `0x00407F82` | the besieger's banner and its count | live | 2 | 2 |
 | `Map_DrawPathMarker` | `0x004081A6` | a path ball | live | 2 | 1 |
 | `Map_DrawArmies` | `0x00408438` | a unit, and its banner | live | 3 | 1 |
 | `Screen_DrawMenuBar` | `0x00419C78` | the 640 × 24 bar | live | 8 | 4 |
@@ -872,8 +873,17 @@ That leaves these arms enumerated but not observed, and I have not inferred past
   reachable from it without staging: `total − totalSnapshot` is 0 before a season and 173
   after one. Only the two middle bands need a number written by hand. A true statement about
   one commodity, read as a statement about the map — `docs/agents.md`, *name the branch*;
-* **the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
-  campaign map, which the battle triple does not carry;
+* ~~**the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
+  campaign map, which the battle triple does not carry;~~ **Exercised, by staging one.**
+  `crates/l2-game/tests/screens.rs`
+  `a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left` writes the two fields
+  the game keeps — `+0x19A` on the *garrison* and `+0x19C` on the besieger — and asserts
+  frame `0x82` and the centred count pixel for pixel. **No fixture is needed and none would
+  have helped**: the bullet read as *wait for a save with a siege in it*, and what the arm
+  actually wants is two bytes, which is the same shape as the mercenary marker's one;
+* **the far zoom's dead besieger call** — `Sprite_TopIt` calls `FUN_00407F82(…, 2, -0x28)`
+  at `g_mapZoom == 2` and the callee's whole body is inside `if (g_mapZoom == 0)`, so it
+  draws nothing. Not observable because there is nothing to observe; `docs/bugs.md`;
 * **a garrison whose shield differs from the county's** — the case §4's missing guard is
   about;
 * **the multiplayer four** (chat, heartbeat, wait glyph, turn timer) — need a second peer;
@@ -900,13 +910,27 @@ panel's focus outline; the drop-down's recess and its status line (2); `NO MINIM
 > the brush there. And every remaining site above that a complete install reaches — the
 > marker and field squares, the far-zoom status line, `TURN n`, `COUNTIES n/m`, the sidebar
 > status line, focus frame and name, the unit banner, `NO COUNTY SELECTED`, and on the
-> unit layer the garrison marker, the selection ring and the besieger dot — is **drawn only
+> unit layer the garrison marker and the selection ring — is **drawn only
 > with the debug overlay on** (Ctrl+D, `Prefs::debug_overlay`, `docs/arms.json`
 > `ours/debug-overlay-toggle`). Two players reported them as *"debug squares still on the
 > town square"* and *"debug outlines and text for the 4 icons at the bottom right"*.
 > `crates/l2-game/tests/screens.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
 > asserts each absence at a pixel the overlay really draws. The sites are still counted,
 > because the audit counts source call sites and they are still in the source.
+>
+> **The besieger dot is gone from the source, and that is the one worth reading.** It was a
+> debug-gated invention over the *army*, under a comment saying `FUN_00407F82` stays a
+> missing draw. It was not that the original drew the same thing somewhere else and we had
+> missed the offset: the original draws it over the **castle**, which is a different tile, a
+> different pass and a different function, and the dot was standing in for a picture nobody
+> had gone and read. Gating an invention is not the same as finding the original's, and a
+> gate makes the miss harder to see — this dot survived C173's sweep *because* it had been
+> gated, with the missing draw named two lines above it.
+>
+> **The 29 above does not move, and the reason is a flaw in the count.** The enumerated list
+> is exactly 29 items and the three unit-layer marks — the garrison marker, the selection
+> ring and the dot — are named only in this note, so the hand count never held them. A list
+> and a total that were written at different times.
 
 Every one is marked in the source. Eleven of them exist because a thing the original draws is
 not drawn yet, so the number should fall as §2's right-hand column rises — which makes it the

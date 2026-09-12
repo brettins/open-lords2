@@ -26,6 +26,19 @@
 //! 4. the field onto the screen ([`the_name_and_its_caret_are_painted`]).
 //!
 //! Only (2) needs the install, because only *Start* needs a map to build.
+//!
+//! **There is a fifth, and it was not on this list while it was broken.**
+//! *The array onto a screen that is about the player*, which is how the court
+//! came to draw `LORD1` with all four of the above green
+//! ([`the_court_is_headed_with_the_name_the_player_typed`], `docs/decisions.md`
+//! C189). The list was the chain, and the end of the list was not the end of
+//! the chain. The fifth hand-off happens on **five** screens and every one of
+//! them now goes through one function, `screens::message::lord_name` — the
+//! court, the battle prompt, the county strip, the diplomacy screen and its
+//! compose dialogs. The three that were not on it drew a `REALM n` of their
+//! own; the county strip's and the diplomacy screen's are asserted in
+//! `tests/screens.rs`, where the install can supply the `L2.eng` group 7 that
+//! stands behind the array.
 
 use l2_game::game::{Assets, Game};
 use l2_game::input::{Event, Key};

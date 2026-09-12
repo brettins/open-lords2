@@ -21,6 +21,7 @@ use l2_game::input::{Event, Key};
 use l2_game::scenario;
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
 use l2_game::screens::county::{self as county, CountyScreen, Panel};
+use l2_game::screens::diplomacy::DiplomacyScreen;
 use l2_game::screens::map::{self, MapScreen};
 use l2_game::screens::menubar;
 use l2_game::screens::options::Page as OptionsPage;
@@ -2122,8 +2123,16 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
         Some(180),
         "the name sits lower on the 162 x 274 plate"
     );
-    assert!(find_body(&canvas, &assets, "REALM 5", realm5).is_some());
-    assert!(find_body(&canvas, &assets, "REALM 4", realm5).is_none(), "a near miss");
+    // **The third line is the lord, out of the game's own two sources.** It
+    // read `REALM 5` — ours, invented — until the strip was put on
+    // `message::lord_name` with the court and the battle prompt: `g_playerNames`
+    // and then `L2.eng` group 7 by the realm's **lord**, which is the pair
+    // `Game_NewGame` seeds the array from. A `.sav` carries no names into this
+    // tree, so on this fixture it is the group that answers.
+    let lord = l2_game::screens::message::lord_name(&Ctx { game: &mut game, assets: &assets }, 5);
+    assert!(!lord.starts_with("REALM "), "group 7 names realm 5's lord, and it said {lord:?}");
+    assert!(find_body(&canvas, &assets, &lord, realm5).is_some(), "the strip names {lord:?}");
+    assert!(find_body(&canvas, &assets, "REALM 5", realm5).is_none(), "and not a name of ours");
     assert!(find_body(&canvas, &assets, "693", STRIP_INK).is_none(), "no numbers at all");
 
     send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
@@ -3739,6 +3748,232 @@ fn a_garrisoned_castle_flies_the_garrisons_shield_and_an_empty_one_flies_nothing
     );
 }
 
+/// **A besieged castle carries the besieger's camp mark and the seasons he has
+/// left** — `FUN_00407F82` (`0x00407F82`), called from `Sprite_TopIt`'s castle
+/// arm before the garrison's banner.
+///
+/// The report was that a siege is invisible on the map. It was: we drew a dot
+/// over the *army*, gated as a debug overlay because the original draws nothing
+/// there, and nothing at all over the castle, where the original draws this.
+///
+/// ```c
+/// besieger = g_units[county.garrisonUnit].besiegedBy;
+/// if (besieger != 0 && g_mapZoom == 0)
+///     FUN_00407f82(g_units[besieger].siegeSeasonsLeft, 8, -0x38);
+/// ```
+///
+/// Two pictures, and the assertion is the pair: `Flags1a.pl8` frame `0x82`
+/// (24 × 28, the sheet's **last** frame — it holds 131) at `(+8, −0x38)` from
+/// the castle tile's origin, and the count centred in that frame's own width
+/// ten pixels lower, flat and in `0xF9`. Neither is reachable from a fixture,
+/// so the siege is staged here: the link the game keeps is on the *garrison*,
+/// `+0x19A`, and the number is on the besieger, `+0x19C`.
+///
+/// **Ablated**: dropping either draw, moving the mark to the flag's own
+/// `(+0x1A, −0x1C)`, putting the count on the garrison instead of the besieger,
+/// or centring it in anything but frame `0x82`'s width turns this red.
+#[test]
+fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
+    let (mut game, assets) = world!();
+    let county = game
+        .kingdom
+        .county_ids()
+        .find(|&id| game.is_players(id as u8))
+        .expect("the player holds a county");
+    game.select(county as u8);
+
+    // A built castle, an army inside it, and a second army camped outside with
+    // four seasons of work left.
+    let mut ids = game.kingdom.campaign.units.iter().map(|(id, _)| id);
+    let garrison = ids.next().expect("the fixture carries units");
+    let besieger = ids.next().expect("the fixture carries a second unit");
+    drop(ids);
+    const SEASONS: u8 = 4;
+    {
+        let c = &mut game.kingdom.counties[county];
+        c.castle_type = c.castle_type.max(1);
+        c.garrison_unit = garrison;
+    }
+    game.kingdom.campaign.units.get_mut(besieger).expect("the slot exists").siege_seasons_left =
+        SEASONS;
+
+    // The castle's own tile, found the way the painter finds it.
+    let castle = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        let terrain = ctx.game.kingdom.campaign.map.terrain.clone();
+        MapScreen::settlements_for_test(&ctx, county as u8)
+            .into_iter()
+            .find(|&t| {
+                l2_kingdom::industry::map_toggle_for_graphic(terrain[t])
+                    == Some(l2_kingdom::industry::MapToggle::Castle)
+            })
+            .expect("the county's castle plot is on the map")
+    };
+    let (cx, cy) = l2_kingdom::map::coords(castle);
+
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+    screen.centre_on_tile(cx as usize, cy as usize);
+    let free = draw(&mut screen, &mut game, &assets);
+
+    let mark = assets
+        .map
+        .flag_sheet(screen.zoom())
+        .and_then(|s| s.frame(campaign::BESIEGER_MARKER_FRAME))
+        .expect("Flags1a.pl8 frame 0x82");
+    assert_eq!((mark.width, mark.height), (24, 28), "frame 0x82 is the 24 x 28 camp mark");
+    assert!(
+        sprite_positions(&free, &mark).0.is_empty(),
+        "an unbesieged castle carries no camp mark"
+    );
+
+    // `+0x19A` on the *garrison* is the link, and it is what the arm reads.
+    game.kingdom.campaign.units.get_mut(garrison).expect("the slot exists").besieged_by =
+        besieger as u8;
+    let besieged = draw(&mut screen, &mut game, &assets);
+
+    let (row, col) = campaign::tile_to_cell(cx as usize, cy as usize);
+    let (sx, sy) = campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
+    let (mx, my) = (sx + screen.zoom().besieger_at.0, sy + screen.zoom().besieger_at.1);
+
+    // The whole frame, pixel for pixel, at the one place the two literals name.
+    let mut reference = free.clone();
+    reference.blit_clipped(&mark, mx, my, screen.map_clip());
+    // `Ui_DrawNumberRight(seasons, ' ', " ", x, y + 10, frameWidth, &g_fontBody,
+    // 0xF9)` — which centres, and is flat because `DAT_005AEA40` is set for it.
+    let count = format!(" {SEASONS} ");
+    let style = l2_game::shell::font::Style {
+        colour: campaign::BESIEGER_COUNT_INK,
+        shadow: None,
+        caps: None,
+    };
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8 is in the install");
+    let ny = my + campaign::BESIEGER_COUNT_DY;
+    assert!(campaign::BESIEGER_COUNT_TOP < ny, "the count clears the menu bar on this tile");
+    body.draw_centred(&mut reference, mx, ny, i32::from(mark.width), &count, &style);
+
+    let moved = |a: &Canvas, b: &Canvas| -> Vec<usize> {
+        a.pixels
+            .iter()
+            .zip(b.pixels.iter())
+            .enumerate()
+            .filter(|(_, (p, q))| p != q)
+            .map(|(i, _)| i)
+            .collect()
+    };
+    // A set of 640 x 480 indices is unreadable in a failure; its bounding box
+    // and its size say where the ink went and are what a reader needs.
+    let corner = |v: &[usize]| -> (usize, usize, usize, usize, usize) {
+        let xs = v.iter().map(|i| i % besieged.width);
+        let ys = v.iter().map(|i| i / besieged.width);
+        (
+            xs.clone().min().unwrap_or(0),
+            ys.clone().min().unwrap_or(0),
+            xs.max().unwrap_or(0),
+            ys.max().unwrap_or(0),
+            v.len(),
+        )
+    };
+    let (drawn, expected) = (moved(&besieged, &free), moved(&reference, &free));
+    assert!(!expected.is_empty(), "frame 0x82 writes nothing at the place the literals name");
+    assert_eq!(
+        corner(&drawn),
+        corner(&expected),
+        "the siege's ink (x0, y0, x1, y1, count) is not frame 0x82 at ({mx}, {my}) with the \
+         count centred in its 24 pixels at ({mx}, {ny})"
+    );
+    assert_eq!(drawn, expected, "the siege's ink is the right size in the right place and is not the same pixels");
+    // Independently of the set: the digits are findable where they were put.
+    let off = ((i32::from(mark.width) - body.width(&count)) / 2).max(0);
+    assert_eq!(
+        find_body(&besieged, &assets, &count, campaign::BESIEGER_COUNT_INK),
+        Some((mx + off, ny)),
+        "the seasons left are the besieger's `+0x19C`, centred in frame 0x82's own width"
+    );
+
+    // **The far zoom draws nothing, and that is the original's.**
+    // `Sprite_TopIt` calls `FUN_00407F82(…, 2, -0x28)` at `g_mapZoom == 2` and
+    // the whole of that function is inside `if (g_mapZoom == 0)`, so the call
+    // returns having drawn nothing. `docs/bugs.md`.
+    let mut far = MapScreen::new();
+    draw(&mut far, &mut game, &assets);
+    send(&mut far, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+    assert_eq!(far.zoom().id, campaign::FAR.id, "Z is the zoom toggle");
+    let zoomed = draw(&mut far, &mut game, &assets);
+    if let Some(far_mark) =
+        assets.map.flag_sheet(far.zoom()).and_then(|s| s.frame(campaign::BESIEGER_MARKER_FRAME))
+    {
+        assert!(
+            sprite_positions(&zoomed, &far_mark).0.is_empty(),
+            "the far zoom's call site is dead in the original and must be dead here"
+        );
+    }
+
+    // And the mark goes when the siege does.
+    game.kingdom.campaign.units.get_mut(garrison).expect("the slot exists").besieged_by = 0;
+    let lifted = draw(&mut screen, &mut game, &assets);
+    assert_eq!(lifted.diff_count(&free), 0, "no siege, no mark and no count");
+}
+
+/// **Every screen that names a lord reads the game's own two sources** —
+/// `g_playerNames` first, `L2.eng` group 7 by the realm's **lord** behind it.
+///
+/// `docs/decisions.md` C189 put the court and the battle prompt on
+/// `message::lord_name` and left three sites carrying a private copy that
+/// stopped at the array and printed `REALM n`: `CountyStrip_Draw`'s third line,
+/// `Diplo_DrawScreen`'s heading (`Ui_DrawText(&g_playerNames + g_diploTarget *
+/// 0x2C, 0xD0, 0x3D, &g_fontHeading, 0x3F)`) and `Diplo_DrawLordCard`'s caption
+/// (`… + realm * 0x2C, 0x20, slot * 100 + 0x83, &g_fontBody, 0x3F`). All five
+/// are one draw in the original and are one function here.
+///
+/// The fixture is a `.sav`, which carries no typed names into this tree, so on
+/// it the group is what answers — and that is precisely the case the private
+/// copies got wrong. **Ablated**: restore `format!("REALM {realm}")` at either
+/// site and the name it invents is not on the canvas.
+#[test]
+fn the_diplomacy_screen_names_a_lord_out_of_the_games_own_sources() {
+    let (mut game, assets) = world!();
+    if assets.shell.body.is_none() || assets.shell.heading.is_none() {
+        l2_testkit::skip!("no Fntl2_14/22.pl8, so there is nothing to read a name off");
+    }
+    let mut screen = DiplomacyScreen::new();
+    let (target, cards) = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        (screen.target(&ctx), DiplomacyScreen::cards(&ctx))
+    };
+    assert!(!cards.is_empty(), "the England fixture has rivals to draw cards for");
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    // The heading, in the heading font: the target's name and not `REALM n`.
+    let name = l2_game::screens::message::lord_name(
+        &Ctx { game: &mut game, assets: &assets },
+        target,
+    );
+    assert!(!name.starts_with("REALM "), "group 7 names realm {target}'s lord, not {name:?}");
+    assert_eq!(
+        find_heading(&canvas, &assets, &name, font::TEXT),
+        Some((0xD0, 0x3D)),
+        "the heading is `Ui_DrawText(&g_playerNames + target * 0x2C, 0xD0, 0x3D, heading)`"
+    );
+    assert!(
+        find_heading(&canvas, &assets, &format!("REALM {target}"), font::TEXT).is_none(),
+        "and it is not a name of ours"
+    );
+    // And every card caption, in the body font, at `(0x20, slot * 100 + 0x83)`.
+    for (slot, realm) in cards.iter().enumerate() {
+        let card = l2_game::screens::message::lord_name(
+            &Ctx { game: &mut game, assets: &assets },
+            *realm,
+        );
+        assert!(!card.starts_with("REALM "), "realm {realm}'s lord is named by group 7");
+        assert_eq!(
+            find_body(&canvas, &assets, &card, font::TEXT).map(|p| p.0),
+            Some(0x20),
+            "card {slot} names realm {realm} as {card:?} at x 0x20"
+        );
+    }
+}
+
 /// **The minimap tints by owner, and a realm's ramp is its own.**
 ///
 /// A player: *"the minimap had default colors, it didn't actually identify who
@@ -5281,6 +5516,10 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
     assert_eq!(game.kingdom.counties[1].owner, 5, "county 1 belongs to realm 5");
     let banner = assets.shell.text(15, 0).to_string();
     let banner = if banner.is_empty() { "SOVEREIGN LAND".to_string() } else { banner };
+    // The third line, and it is the game's own name for realm 5's lord rather
+    // than a `REALM 5` of ours — `message::lord_name`, shared with the court,
+    // the battle prompt and the diplomacy screens.
+    let lord = l2_game::screens::message::lord_name(&Ctx { game: &mut game, assets: &assets }, 5);
 
     // Every shield in turn, on the *same* county and the *same* realm. Only the
     // shield moves, so only the key can explain the colour.
@@ -5311,8 +5550,8 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
         // computes `colour` once and passes it to all three calls, so a
         // per-line pen would be ours and not its.
         assert!(
-            find_body(&canvas, &assets, "REALM 5", pen).is_some(),
-            "shield {shield}: the lord's name is not in the same pen as the banner"
+            find_body(&canvas, &assets, &lord, pen).is_some(),
+            "shield {shield}: the lord's name {lord:?} is not in the same pen as the banner"
         );
         seen.push(pen);
     }

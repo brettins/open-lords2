@@ -390,7 +390,23 @@ pub(crate) fn county_name(ctx: &Ctx, id: u8) -> String {
 /// `g_playerNames[realm]`, with `L2.eng` group 7 standing in for a realm whose
 /// name was never set — which is what `Game_NewGame` copies in in the first
 /// place.
-pub(crate) fn lord_name(ctx: &Ctx, realm: u8) -> String {
+///
+/// **Every screen that names a lord comes here**, and that is the point of it
+/// being one function. `Ui_DrawText(&g_playerNames + realm * 0x2C, …)` is the
+/// original's draw at all of them — the court, the battle prompt, the county
+/// strip's third line (`CountyStrip_Draw` `0x0040F7D3`, whose call is
+/// `FUN_004025D7(&g_playerNames + owner * 0x2C, 0x1E0, 0x118, 0xA0, …)`),
+/// `Diplo_DrawScreen`'s heading, `Diplo_DrawLordCard`'s caption and the three
+/// compose dialogs — so there is no screen where a different rule applies.
+/// Three of them carried their own copy and each invented `REALM n` for a world
+/// that never came through the front end; `docs/decisions.md` C189 fixed the
+/// first two and this is the rest.
+///
+/// **Group 7 is indexed by the `lord`, not by the realm.** `Eng_Seek(7,
+/// realm[+0x07])` is what new-game setup calls before copying sixteen bytes
+/// into `g_playerNames`, so falling back to it *is* reconstructing what the
+/// front end would have put there. **[V]**
+pub fn lord_name(ctx: &Ctx, realm: u8) -> String {
     let named = ctx.game.player_names.get(realm as usize).map(|n| n.as_str()).unwrap_or_default();
     if !named.is_empty() {
         return named;
