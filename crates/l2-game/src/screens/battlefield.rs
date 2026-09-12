@@ -173,6 +173,12 @@ pub struct BattlefieldScreen {
     /// `Battle_CheckOutcome` plays its film on.
     outcome_seen: bool,
     overview: Overview,
+    /// **Which tile sheets and which palette this battle runs under** —
+    /// `Battle_LoadAssets`' `g_battleIsSiege` / `DAT_0057C910` ladder, cached
+    /// because [`Screen::palette`] is handed no world. Written by
+    /// [`Screen::update`] and by [`Screen::draw`], both of which the presenter
+    /// runs before it asks for a palette.
+    ground: l2_view::scene::Ground,
 }
 
 /// **The overview panel's framebuffer and its row cursor.**
@@ -238,14 +244,27 @@ impl BattlefieldScreen {
             redraw: true,
             outcome_seen: false,
             overview: Overview::new(),
+            ground: l2_view::scene::Ground::Field,
         }
+    }
+
+    /// Re-read `g_battleIsSiege` and the castle level. Returns whether the
+    /// answer moved, which is a repaint *and* a palette change.
+    fn note_ground(&mut self, ctx: &Ctx) -> bool {
+        let was = self.ground;
+        self.ground = l2_view::scene::Ground::for_battle(
+            ctx.game.battle.as_ref().and_then(|b| b.castle_level),
+        );
+        was != self.ground
     }
 
     /// One `Battle_Frame` visit to the overview panel — see [`Overview`].
     /// Returns false when the install has no `t2_` sheets to paint it from.
     fn step_overview(&mut self, ctx: &Ctx) -> bool {
         let Some(live) = ctx.game.battle.as_ref() else { return false };
-        let Some(sheets) = ctx.assets.battle.as_ref().and_then(|a| a.overview.as_ref()) else {
+        let Some(sheets) =
+            ctx.assets.battle.as_ref().and_then(|a| a.ground(self.ground).overview.as_ref())
+        else {
             return false;
         };
         let rows =
@@ -360,19 +379,23 @@ impl Screen for BattlefieldScreen {
         }
     }
 
-    /// **`t32_bat1.256`, and it is not `Battle_LoadAssets`' read.**
-    /// `Res_LoadStatic` (`0x00499859`) preloads it into `0x00568EE0` at start-up,
-    /// and `Screen_DrawBattlefield` (`0x004233F7`) ends every repaint of `0x28`
-    /// … `0x2A` with `Palette_Set(0x568EE0)` — or `Palette_Set(0x5675A0)`,
-    /// `t32_stn1.256`, for a siege, which is not ported: see
-    /// [`crate::shell::PALETTES`]. `Palette_Set` (`0x004B0AB5`) is a plain
-    /// copy — no remap, no shade table — so the battle's colour is this file
-    /// and nothing else. **[V]**
+    /// **`t32_bat1.256`, or `t32_stn1.256` for a siege, and neither is
+    /// `Battle_LoadAssets`' read.** `Res_LoadStatic` (`0x00499859`) preloads
+    /// both — records 2 and 1 of `g_preloadTable` — and
+    /// `Screen_DrawBattlefield` (`0x004233F7`) ends every repaint of `0x28` …
+    /// `0x2A` with `Palette_Set(0x568EE0)`, or `Palette_Set(0x5675A0)` when
+    /// `g_battleIsSiege`. `Palette_Set` (`0x004B0AB5`) is a plain copy — no
+    /// remap, no shade table — so the battle's colour is that one file.
+    /// **[V]**
+    ///
+    /// The siege arm was a comment here for as long as the sheets were
+    /// unported. [`BattlefieldScreen::ground`] is the cached flag, because
+    /// this is handed no world.
     ///
     /// This comment used to say the battle "does not run under the campaign
     /// palette" while the name it returned was loaded by nobody, and so it did.
     fn palette(&self) -> Option<&'static str> {
-        Some(l2_view::scene::TILE_PALETTE)
+        Some(self.ground.palette())
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -522,6 +545,7 @@ impl Screen for BattlefieldScreen {
     }
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        self.redraw |= self.note_ground(ctx);
         // `Widget_Test`'s countdown loop, which runs whether or not anything is
         // under the pointer. Index 0 is the tick, index 1 the cross. The first
         // answer closes the box, and a table nobody walks fires nothing more.
@@ -596,13 +620,14 @@ impl Screen for BattlefieldScreen {
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        self.note_ground(ctx);
         // `Screen_DrawBattlefield` (`0x004233F7`) opens the screen with
         // `g_mapRedraw = 1; FUN_004bc1d1(0x50);` — the panel is whole before the
         // first frame is presented, even if no frame has run yet.
         let have_sheets = if self.overview.full {
             self.step_overview(ctx)
         } else {
-            ctx.assets.battle.as_ref().is_some_and(|a| a.overview.is_some())
+            ctx.assets.battle.as_ref().is_some_and(|a| a.ground(self.ground).overview.is_some())
         };
         let Some(live) = ctx.game.battle.as_ref() else { return };
         let ink = &ctx.assets.ink;
@@ -618,7 +643,7 @@ impl Screen for BattlefieldScreen {
         match ctx.assets.battle.as_ref() {
             Some(art) => {
                 let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
-                l2_view::scene::draw(canvas, &live.runner, art, cam);
+                l2_view::scene::draw(canvas, &live.runner, art, self.ground, cam);
             }
             None => draw_placeholder_field(canvas, live, ink),
         }

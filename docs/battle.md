@@ -1170,6 +1170,113 @@ The index space closes with no overlap and no overflow:
 **[V]** as arithmetic over the tables; the *appearance* of each range is
 **[I]** and has not been checked against a screenshot of the original.
 
+### 13.2a A siege has **two** tile sheets, and cell byte `+2` picks between them
+
+A field battle draws from one sheet. A siege draws from two, and which one a
+cell uses is bits `0x1C` of byte `+2` — `Battlefield_Draw32` (`0x004BCBDC`)
+takes slot 0 at `0`, slot 1 at `4`, and draws nothing at all for any other
+value. **[V]**
+
+`Battle_LoadAssets` (`0x004987B7`) fills the two slots from the asset table at
+`0x004DA550` with one ladder, run twice — once for the 32-pixel sheets at
+logical slots 0 and 1, once for the overview panel's 2-pixel sheets at `0x0B`
+and `0x0C`:
+
+```c
+if (g_battleIsSiege == 0)   { if (slot == 1) continue; entry = 0; }
+else if (DAT_0057C910 == 0) { entry = slot == 1 ? 5 : 4; }
+else                        { entry = slot == 1 ? 3 : 2; }
+```
+
+`DAT_0057C910` is `(uint)(1 < g_castleLevel)` — `Siege_LaunchAssault`
+(`0x004A8AAB`) — so **levels 0 and 1 are wooden and 2, 3 and 4 stone**; `FUN_00498DCB`, the skirmish loader, reads
+the same flag out of its copy `DAT_0057C96C`. The table's first six entries and
+`0x0B`…`0x10` are: **[V]**, read out of `Lords2.exe`.
+
+| entry | file | size | entry | file | size |
+|---:|---|---:|---:|---|---:|
+| 0 | `t32_bat1.pl8` | 263100 | `0x0B` | `t2_bat1.pl8` | 5100 |
+| 1 | `t32_bat2.pl8` | **0** | `0x0C` | `t2_bat2.pl8` | **0** |
+| 2 | `t32_stn1.pl8` | 220000 | `0x0D` | `t2_stn1.pl8` | 5200 |
+| 3 | `t32_stn2.pl8` | 215000 | `0x0E` | `t2_stn2.pl8` | 5200 |
+| 4 | `t32_wod1.pl8` | 218000 | `0x0F` | `t2_wod1.pl8` | 5200 |
+| 5 | `t32_wod2.pl8` | 225000 | `0x10` | `t2_wod2.pl8` | 5200 |
+
+**Slot 0 is the castle and slot 1 is the ground it stands on.** That is not a
+guess about the pictures; it is where the selector is written.
+`Battlefield_BuildCastle` copies each raster byte into `frame` with
+`flags2 &= 0xE3` — selector 0 — and only its three escape codes set it to 4:
+
+| raster byte | routine | what it writes |
+|---|---|---|
+| `0xEF` | `FUN_0047E1DC` | `frame = rand & 0x0F`, selector **4** — open ground, sixteen variants |
+| `0xEE` | `FUN_0047DCCE` | the 49-variant water auto-tile out of `0x004D7610`, selector **4**, `flags \|= 0x10`, `surface = 2` — the moat |
+| `0xED` | `FUN_0047DC9C` | `frame = 0xED`, selector 0 |
+
+and two routines later in the battle do the same: `Wall_Collapse`
+(`FUN_0047DFE0`) auto-tiles rubble out of `0x004D7930` on selector 4, and a
+siege tower docking stamps a 3 × 3 from `0x004D9DD0` on selector 4. So
+`t32_stn1.pl8` holds masonry, wall tops, towers, gates, doors, the keep and
+the drawbridge — `Siege_LowerDrawbridge` (`FUN_00496B9F`) also clears the
+selector when it lays its 7 × 4 patch of frames from `0x004D9E18` — and
+`t32_stn2.pl8` holds grass, water, rubble and debris. Confirmed by decoding
+both sheets. **[V]**
+
+**The palette does not split the same way.** `Screen_DrawBattlefield`
+(`0x004233F7`) ends on `Palette_Set(0x568EE0)` for a field battle and
+`Palette_Set(0x5675A0)` for *any* siege, and record 1 of `g_preloadTable` is
+`t32_stn1.256`. There is no `t32_wod1.256` — not in the table and not in the
+install — so a wooden castle is drawn in the stone castle's colours. **[V]**
+
+#### The second pass is **damage**, not terrain
+
+After the base tile, the same cell gets a transparent, clipped blit out of
+**slot 1** at frame `cell[+0] + 0x8B` (capped at `0x9A`), whenever `cell[+0]`
+is non-zero and `cell[+4]` is 1, 2 or 3. On a castle `cell[+0]` is not a
+terrain id but a counter, and both writers are damage:
+
+* `Missile_Step` (`0x00492C8B`): `if (cell.elevation < 4) { cell.terrain++; if (0xF <
+  cell.terrain) Wall_Collapse(cell); }` — a catapult shot.
+* `BattleMan_StateFillMoat` (`0x00483FE1`): the same byte, from the **11** the builder seeds a
+  ditch with up to `g_moatFillSteps` = 15, then zeroed and `Moat_Fill` run.
+
+Decoded, `t32_stn2.pl8` frames `0x8C`…`0x9A` are one rubble pile growing from a
+speck to a full tile. And the elevation gate is the shot's own — `Missile_Step`
+refuses to count a hit on a rampart 4 or more high, and the renderer refuses to
+draw damage on one, the same `1 ..= 3` from two unrelated functions. **[V]** on
+the formula and the gate; **[I]** on the word *damage*. `0x8B` is unreachable,
+because at `cell[+0] == 0` the pass does not run.
+
+#### The raster itself is still unread — and it is `stnfield.pl8`
+
+`Battlefield_BuildCastle` (`0x0047C4BA`) reads **two** 6400-byte layers per
+castle out of `stnfield.pl8` — `s_Q_Q_Qbatfield_pl8 + local_8 * 0x0E + 5`, a
+14-byte-stride string table whose four entries from `0x004D9108` are
+`batfield.pl8`, `stnfield.pl8`, `batfiel2.pl8`, `stnfiel2.pl8`, indexed 1 for
+a campaign castle and 3 for a skirmish one (`DAT_0057A0F0`) — through a
+32-byte directory entry per castle:
+
+* offset at `+0x0C`…`+0x0E` — the **frame** layer, which is `cell[+3]` directly,
+  with `0xED`/`0xEE`/`0xEF` as the escapes above and `0xEE` also setting
+  `terrain = 0x0B`;
+* offset at `+0x1C`…`+0x1E` — the **structure** layer, which `FUN_0047CEC1`
+  walks for the wall slots, approach lanes, staging points and gate positions.
+
+Every frame byte is then read through a 256-entry two-byte table —
+`0x004D7B80` for stone and `0x004D7D80` for wood, chosen by the same
+`DAT_0057C910` — whose first byte is a height 0…4 or a structure code 5…12 and
+whose second byte is passability. The codes are in
+`l2_sim::siege::code`. Two things the pair of tables says by itself: the stone
+table files four frames (`0xA4`…`0xA7`) under code 9, the drawbridge, and the
+wooden table files **none** — which is `Readme.txt`'s *"only the Stone and
+Royal castles have drawbridges"* from inside the art.
+
+Both tables are in-tree (`l2_sim::siege::STRUCTURE_STONE` / `_WOOD`) and
+`crates/l2-game/tests/siege_picture.rs` re-reads the player's own `Lords2.exe`
+at file offsets `0xD5D80` and `0xD5F80` to hold them there. **The layers are
+not read**: our siege battlefield is still `l2_sim::siege::our_castle`, whose
+arrangement is ours, and reading them is the `castle-battle-layout` work.
+
 ### 13.3 The variants are an auto-tiler, not a random pick
 
 `skr.md` records "49-variant set" and similar without saying what picks the
@@ -1395,7 +1502,7 @@ New, and not in section 2 or section 3:
 | figure `+0x19` | [V] | a **second** facing byte. `+0x18` drives the sub-cell offset and the **walk** frame; `+0x19` drives the **strike** frame and is the column of the knight table. `+0x0D` is a copy of it, written at the end of every animation handler. **Corrected:** this row used to attach `+0x18` to the attack and `+0x19` to the walk, which is the same swap §14.5 corrects in the frame layout — `Anim_WalkA2` reads `dirc`, `Anim_StrikeA2` reads `dirc2` |
 | cell `+2` bit `0x01` | [V] | dirty; the renderer clears it after drawing |
 | cell `+2` bit `0x02` | [V] | set on the viewport border |
-| cell `+2` bits `0x1C` | [V] | tileset selector: 0 picks `t32_bat1`, 4 picks `t32_bat2`. `Battlefield_BuildFromSkr` clears them, so a field battle only ever uses the first |
+| cell `+2` bits `0x1C` | [V] | tileset selector: 0 picks **slot 0** of the battle asset table and 4 picks **slot 1** — see §13.2a. A field battle's slot 1 is `t32_bat2.pl8` at size 0 and no cell ever asks for it; a siege's is `t32_stn2` / `t32_wod2` and most of the map does |
 | cell `+2` bit `0x80` | [D] | something is drawn on this cell this frame |
 
 Section 2.1's `+0x0C` — "animation phase, seeded as `(index*9 + x*16) & 0x3F +

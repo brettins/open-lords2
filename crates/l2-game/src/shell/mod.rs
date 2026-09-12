@@ -174,10 +174,12 @@ pub const PALETTES: &[&str] = &[
     // `BattlefieldScreen::palette` named it, so the lookup failed and the
     // presenter drew a battle in `base01.256` — *"blue grainy madness"*.
     //
-    // NOT PORTED: the siege arm, `Palette_Set(0x5675A0)` = `t32_stn1.256`. It
-    // belongs with `t32_stn1.pl8`, and `l2_view::scene` draws every battle
-    // from `T32_bat1.pl8`; one without the other would be wrong both ways.
     "T32_bat1.256",
+    // The siege arm of the same line, `Palette_Set(0x5675A0)` — record 1 of the
+    // preload table. **Both castle families use it**: there is no
+    // `t32_wod1.256` in the install or in that table. It arrives with
+    // `t32_stn1.pl8` / `t32_wod1.pl8`; see `l2_view::scene::Ground`.
+    "T32_stn1.256",
 ];
 
 /// The artwork and text a shell screen draws with.
@@ -1258,6 +1260,12 @@ mod tests {
     /// campaign's colours. It needs no install: both halves are names.
     ///
     /// Ablation: delete the `"T32_bat1.256"` line above — red.
+    ///
+    /// **Both of the screen's palettes**, not just the one a field battle
+    /// names: `Screen_DrawBattlefield` chooses on `g_battleIsSiege`, and the
+    /// siege arm went unloaded for as long as it was a comment.
+    /// Ablation, run: delete `"T32_stn1.256"` — red, *"Stone's palette
+    /// T32_stn1.256 is named by the battlefield and loaded by nobody"*.
     #[test]
     fn the_battlefields_palette_is_one_the_shell_loads() {
         let name = crate::screen::ScreenId::Battlefield.build().palette();
@@ -1266,6 +1274,13 @@ mod tests {
             PALETTES.iter().any(|p| key(p) == key(name)),
             "{name} is named by the battlefield and loaded by nobody"
         );
+        for g in l2_view::scene::Ground::ALL {
+            assert!(
+                PALETTES.iter().any(|p| key(p) == key(g.palette())),
+                "{g:?}'s palette {} is named by the battlefield and loaded by nobody",
+                g.palette()
+            );
+        }
     }
 
     #[test]

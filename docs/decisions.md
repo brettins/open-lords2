@@ -10967,3 +10967,65 @@ outright refusal.
 the arms count says *which* controls a screen answers, and a handler that does two things
 is one arm either way. `CLAUDE.md` rule 5's two measurements do not cover a third thing,
 and this is it.
+
+---
+
+**CNEW-siegesheet — a siege is two sheets, not one, and the byte that picks between
+them was filed as "not established".**
+
+Every battle here was painted from `T32_bat1.pl8` under `T32_bat1.256`, sieges
+included. `Battle_LoadAssets` (`0x004987B7`) picks the sheets from slots 0 and 1 of the
+asset table at `0x004DA550` on two flags — `g_battleIsSiege`, and
+`DAT_0057C910 = (uint)(1 < g_castleLevel)` — giving `t32_bat1` alone, `t32_stn1` over
+`t32_stn2`, or `t32_wod1` over `t32_wod2`; `Screen_DrawBattlefield` (`0x004233F7`) ends
+the repaint on the matching `Palette_Set`. `docs/battle.md` §13.2a has the ladder and the
+table's bytes.
+
+**What made this two jobs instead of one is cell byte `+2`.** `records.json` had bits
+`0x1C` as *"further flags … what they select is not established"* and `docs/battle.md`'s
+field table had them as *"0 picks `t32_bat1`, 4 picks `t32_bat2`"* — a file whose size in
+the asset table is **0** and which the install does not ship. Both readings are of the
+same three lines of `Battlefield_Draw32` (`0x004BCBDC`), and what they select is the
+**slot**, not the file: on a siege, slot 1 is `t32_stn2` and most of the map asks for it.
+So a second sheet that looks dead on a field battlefield is half the picture on a castle,
+and porting the first sheet without the selector would have painted a castle's grass,
+moat and rubble out of its masonry.
+
+**Which half is which is written by the builder, not inferred from the pictures.**
+`Battlefield_BuildCastle` (`0x0047C4BA`) clears the selector on every byte it copies out
+of the raster and sets it to 4 in exactly three escapes — `FUN_0047E1DC` (open ground,
+`rand & 0x0F`), `FUN_0047DCCE` (the moat, the same 49-variant water auto-tiler a field
+battle uses) and, later in the battle, `Wall_Collapse` (`FUN_0047DFE0`, rubble) and the
+siege tower's dock. Slot 0 is therefore the castle and slot 1 the ground it stands on,
+and decoding the two sheets agrees: `t32_stn1.pl8` is masonry, towers, gates, doors and
+wall tops, `t32_stn2.pl8` is sixteen grass variants, a 49-tile water set, rubble and
+debris.
+
+**And the second blit was damage all along.** The renderer draws each cell twice: the
+tile, then frame `cell[+0] + 0x8B` out of slot 1 whenever `cell[+0]` is non-zero and
+`cell[+4]` is 1…3. Read as a terrain id that is a puzzle; read as a counter it is the
+whole of the castle's wear. `Missile_Step` (`0x00492C8B`) increments `cell[+0]` on a catapult hit and
+collapses the cell past 15, `BattleMan_StateFillMoat` (`0x00483FE1`) increments the same byte from the
+11 a ditch is seeded with to 15, and frames `0x8C`…`0x9A` decode to one rubble pile
+growing from a speck to a full tile. The elevation gate is the shot's own: `Missile_Step`
+will not count a hit on a rampart 4 or more high, and the renderer will not draw damage on
+one — the same `1 ..= 3`, from two functions that share nothing else. A field battle
+reaches neither pass, because `Battlefield_BuildFromSkr` is the one builder that never
+writes `elevation`.
+
+**What is drawn now and what is not.** The sheets, the palette, the selector and the
+damage pass are built and tested against the install. The **arrangement** is still
+`l2_sim::siege::our_castle`'s and still ours: the two 6400-byte layers the original reads
+per castle out of `stnfield.pl8` are located, documented and unread. What our stand-in
+castle now takes from the binary is the *vocabulary* — the 256-entry structure tables at
+`0x004D7B80` and `0x004D7D80` say which frames are wall, keep door and drawbridge, and
+`frames_with_code` derives every tile laid rather than typing one. Where a code carries
+four frames, cycling between them is ours and says so. `castle-battle-layout` is the row
+that closes the rest.
+
+One check the tables paid for immediately: the stone table files four frames under code 9,
+the drawbridge, and the wooden table files none — `Readme.txt`'s *"only the Stone and
+Royal castles have drawbridges"*, arrived at from inside the art. And one thing the damage
+pass exposes that is ours: our runner keeps catapult hits in a side table
+(`BattleRunner::wall_hits`) where the original keeps them in `cell[+0]`, so a **ditch**
+being filled now animates and a **wall** being shot does not.
