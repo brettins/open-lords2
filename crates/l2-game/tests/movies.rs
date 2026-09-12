@@ -760,3 +760,91 @@ fn the_narrator_reads_an_ending_over_the_opening_of_its_film() {
         audio.heard()
     );
 }
+
+/// **The picture against the sound, on a wall clock that overshoots.**
+///
+/// `Smk_PlayLoop` (`0x0042DBC7`) steps a film only when `SmackWait` answers 0,
+/// and `_SmackWait@4` is a `timeGetTime` comparison — the original's film runs
+/// on real milliseconds, and so does the sound track a device plays out.
+/// Ours steps on ticks, which is only the same clock while a tick is a true
+/// 16 ms: [`l2_game::clock::Ticker`].
+///
+/// So this drives a real film's [`movie::Player`] over a synthetic wall clock
+/// whose every wake overshoots its deadline by 400 µs — measured, with winit
+/// 0.30's own waitable timer, as the middle of what a 16 ms wait really costs
+/// here — and asks where the picture is when the sound has reached a given
+/// sample. **One frame of tolerance**, which is 83 ms.
+///
+/// Ablation: schedule the ticks the way `main.rs` used to — a deadline of
+/// `now + TICK` measured after the wait — and the same film falls behind by
+/// **a fixed fraction of its own length**, which is the second half of this
+/// test and the shape of the defect. It is a rate, not an amount: `bat_win5`
+/// is 3.6 s long and ends 71 ms out, under one of its frames, while the intro
+/// is 131 s long and ends three seconds out. That is why the complaint was
+/// about the long films.
+#[test]
+fn a_film_keeps_step_with_its_own_sound_track() {
+    let (_p, a) = install!();
+    const OVER_NS: u64 = 400_000;
+    let tick_ns = l2_game::clock::TICK_NS;
+
+    for name in ["intro.smk", "credits.smk", "castle5.smk", "bat_win5.smk"] {
+        let Some(smk) = a.films.open(name) else { continue };
+        let track = smk.header().track(0).expect("every film here has track 0");
+        let samples = smk.audio(0).expect("track 0 decodes").len() / track.channels() as usize;
+        let sound_ns = samples as u64 * 1_000_000_000 / track.rate as u64;
+        let period_ns = smk.header().period_10us() as u64 * 10_000;
+        let frames = smk.frames() as u64;
+
+        // The clock, and the film on it.
+        let mut ticker = l2_game::clock::Ticker::new();
+        let mut player = movie::Player::open(smk, false).expect("frame 0");
+        let (mut now, mut wall_at_end) = (0u64, None);
+        while now <= sound_ns {
+            for _ in 0..ticker.due(now) {
+                if wall_at_end.is_none() && player.tick() == Ok(movie::Step::Finished) {
+                    wall_at_end = Some(now);
+                }
+            }
+            // Where the picture is, against where the sound is.
+            let shown = player.frame() as u64 * period_ns;
+            assert!(
+                shown.abs_diff(now.min((frames - 1) * period_ns)) <= period_ns,
+                "{name}: at {} ms of sound the picture was at {} ms",
+                now / 1_000_000,
+                shown / 1_000_000
+            );
+            now = ticker.next_ns().unwrap_or(now + tick_ns) + OVER_NS;
+        }
+        // `Smk_PlayLoop` decodes the last frame and does not draw it, so a film
+        // ends one frame short of its sound.
+        let end = wall_at_end.expect("the film ended");
+        assert!(
+            end.abs_diff(sound_ns) <= 2 * period_ns,
+            "{name}: picture ended at {} ms, sound at {} ms",
+            end / 1_000_000,
+            sound_ns / 1_000_000
+        );
+
+        // **The ablation**: the deadline measured from after the wait.
+        let smk = a.films.open(name).expect("still there");
+        let mut player = movie::Player::open(smk, false).expect("frame 0");
+        let (mut now, mut next) = (0u64, 0u64);
+        while now <= sound_ns {
+            if now >= next {
+                next = now + tick_ns;
+                let _ = player.tick();
+            }
+            now = next + OVER_NS;
+        }
+        let behind = (frames - 1 - player.frame() as u64) * period_ns;
+        // 400 µs lost per 16 ms tick is 2.4 % of every film; 1.5 % is the floor
+        // that survives the frame the drift is quantised to.
+        assert!(
+            behind * 1000 >= sound_ns * 15,
+            "{name}: the old rule was only {} ms behind {} ms of sound, so this test proves nothing",
+            behind / 1_000_000,
+            sound_ns / 1_000_000
+        );
+    }
+}

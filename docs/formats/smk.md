@@ -215,7 +215,7 @@ DLL does export names, so `tools/media/smkapi.js` joins the two and counts call 
 |---------|------|--------------|
 | `0x0042D91B` | `Smk_Play(path, x, y, mode, returnScreen)` | `Smk_Open`; on success `g_smkReturnScreen = returnScreen; g_screenId = 0x22`, on failure `g_screenId = returnScreen`. |
 | `0x0042DA18` | `Smk_Open(path, x, y, mode)` | Copies the name into a 16-byte buffer, the CD/hard-disk path dance, `SmackOpen(path, flags, -1)`, then `SmackToBuffer` and one `Smk_PlayLoop` — **the first frame is up before `Smk_Play` returns**. |
-| `0x0042DBC7` | `Smk_PlayLoop()` | Called once a frame from `Battle_Frame`. `SmackWait`; palette if changed; `FUN_0041A166(frame)` for `intro.smk` only; `SmackDoFrame`; `SmackToBuffer` **only while `frame < frames - 1`**, so the last frame is decoded and never drawn; `SmackNextFrame`, or close and `Smk_OnFinished`. |
+| `0x0042DBC7` | `Smk_PlayLoop()` | Called once a frame from `Battle_Frame`. **`if (SmackWait(g_smack) == 0)` guards the whole body** — a poll that does nothing until the frame is due; then palette if changed; `FUN_0041A166(frame)` for `intro.smk` only; `SmackDoFrame`; `SmackToBuffer` **only while `frame < frames - 1`**, so the last frame is decoded and never drawn; `SmackNextFrame`, or close and `Smk_OnFinished`. |
 | `0x0042DF30` | `Smk_Skip()` | *"OK :SMK user ends"* — close and `Smk_OnFinished`. |
 | `0x0042DFE2` | `Smk_CloseQuiet()` | Close without `Smk_OnFinished`; `WM_DESTROY` only. |
 | `0x0042E060` | `Smk_OnFinished()` | The start-up chain (below) while `g_appPhase == 1`; otherwise restore the screen, `Music_Play("setup.wav")` back on setup page 1, and `Music_StartCampaign()` if `g_battlePhase == 0`; over the battle banner, `DAT_00568470 = 5001`. |
@@ -227,6 +227,29 @@ DLL does export names, so `tools/media/smkapi.js` joins the two and counts call 
 `SmackOpen`'s flags are `0`, `0x2000` when DirectSound is up, and `0x2400` for `mode == 1`
 (no caller passes 1). `[I]` from RAD's published SDK constants: `0x2000` is `SMACKTRACK1`,
 play audio track 0, and `0x400` is `SMACKNOSKIP`.
+
+### What paces a film (verified)
+
+**Not the game.** `App_WinMain`'s pump (`0x0040E9AB`) has no throttle of any kind —
+`PeekMessageA`, else `App_IdleFrame` (`0x0040E8BB`) → `App_Draw` → `Battle_Frame`, round
+again; its only `Sleep` is the 200 ms taken when the window is inactive. The original has no
+tick and no frame rate, and `Smk_PlayLoop`'s body is entirely under
+`if (SmackWait(g_smack) == 0)`. So the film's clock is `smackw32`'s, polled.
+
+**And `SmackWait` reads `timeGetTime`.** `_SmackWait@4` is 320 bytes at RVA `0x3170` of
+`Smackw32.dll`, and the only imported function it calls is `WINMM.dll!timeGetTime`, at
+`+0xB0` — `[V]`, by matching every `FF 15 <imm32>` in `BEGTEXT` against the import table and
+attributing each site to the export it falls inside. The deadline is therefore real
+milliseconds. Whether the sound driver slews it is `[O]`: the DirectSound path installs a
+`timeSetEvent` callback, `_TimerFunc@20`, which also reads `timeGetTime`, and the call sites
+do not say what it writes.
+
+**It does not matter, and this is the measurement that settles it.** Every one of the 45
+films carries a track exactly `frames × period` long — **within 1 ms**, on films up to 131 s
+(`crates/l2-smk/tests/corpus.rs`, `every_track_is_as_long_as_its_picture`). "The audio
+buffer" and "the header's frame rate" are one clock to a part in 10⁵, so a player pacing the
+header's rate against a *real* clock gets the audio's answer. Ours does: `l2_game::clock`,
+and `docs/decisions.md` CNEW-filmclock for the two percent it used to lose instead.
 
 ## Every film the game plays
 
@@ -293,7 +316,10 @@ footprint of all 45 files; the size invariant; the absence of ring frames and ke
 every film's decoded pixels, palettes and samples against an independent decoder; the
 duplicate `Axemen`/`AXMEN` pair; the ten imported ordinals and their call sites; the playback
 loop; all seven `Smk_Play` callers, their files, positions and returns; `Smk_Skip`'s three
-callers; the start-up chain.
+callers; the start-up chain; **that nothing in the original throttles the frame loop, that
+`Smk_PlayLoop`'s body is under `SmackWait`, that `_SmackWait@4`'s only import call is
+`timeGetTime`, and that every film's track is `frames × period` long to within a
+millisecond**.
 
 **Inferred**: the meaning of `SmackOpen`'s `0x2000` / `0x400` bits (RAD's SDK constants);
 that a hard-disk install takes the slow-media ending layout (no `sierra.ini`, so
@@ -302,6 +328,9 @@ that a hard-disk install takes the slow-media ending layout (no `sierra.ini`, so
 
 **Open:**
 
+* **Whether `smackw32` slews `SmackWait`'s deadline to the sound buffer.** It reads
+  `timeGetTime`; `_TimerFunc@20` (a `timeSetEvent` callback the DirectSound path installs)
+  reads it too. Undecidable from the call sites, and moot here — see *What paces a film*.
 * **Y-scaling.** libsmacker calls flag `0x02` Y-double and `0x04` interlace; FFmpeg names
   them the other way round. Both make the picture twice as tall, which is certain from
   `Credits.smk` (640 × 240 on a 640 × 480 screen). Whether the second row of each pair is a

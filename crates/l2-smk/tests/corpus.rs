@@ -174,6 +174,50 @@ fn every_bitstream_is_read_to_its_padding_and_no_further() {
     }
 }
 
+/// **A film's sound track is exactly as long as its picture**, and that is
+/// what makes the two candidate clocks one clock.
+///
+/// `Smk_PlayLoop` (`0x0042DBC7`) advances a film only when `SmackWait` answers
+/// 0, and `_SmackWait@4` is 320 bytes at RVA `0x3170` of `Smackw32.dll` whose
+/// only import call is `WINMM.dll!timeGetTime` at `+0xB0` — `[V]`, by scanning
+/// the DLL's `FF 15` sites against its import table. So a film is paced against
+/// real milliseconds, and its track is played out by the device in real
+/// milliseconds too. Whether `smackw32` slews that deadline to the sound
+/// buffer — the DirectSound path installs a `timeSetEvent` callback,
+/// `_TimerFunc@20`, which reads `timeGetTime` as well — cannot be told apart
+/// here and **does not matter**, because:
+///
+/// every one of the 45 films carries `frames × period` of audio to within a
+/// millisecond, over films as long as 131 seconds. Ours therefore paces the
+/// header's rate against a real clock ([`l2_game`'s `clock::Ticker`]) and gets
+/// the audio's answer. `docs/decisions.md` CNEW-filmclock.
+///
+/// Ablation: tighten the tolerance to 0.1 ms and the first film goes red —
+/// *"AXMEN.SMK: 11665 ms of sound over 11666 ms of picture"*.
+#[test]
+fn every_track_is_as_long_as_its_picture() {
+    let _ = l2_testkit::install!();
+    let mut worst = (0i64, String::new());
+    for (name, s) in films!() {
+        let channels = if s.stereo { 2 } else { 1 };
+        let samples = (s.pcm / channels) as i64;
+        // Nanoseconds, both sides, integer throughout.
+        let sound = samples * 1_000_000_000 / s.rate as i64;
+        let picture = s.frames as i64 * s.period as i64 * 10_000;
+        let gap = sound - picture;
+        if gap.abs() > worst.0 {
+            worst = (gap.abs(), name.clone());
+        }
+        assert!(
+            gap.abs() <= 1_000_000,
+            "{name}: {} ms of sound over {} ms of picture",
+            sound / 1_000_000,
+            picture / 1_000_000
+        );
+    }
+    assert!(worst.0 > 0, "a corpus with no gap at all would mean nothing was measured");
+}
+
 /// The film the game opens with, field by field.
 #[test]
 fn the_intro_is_560_by_144_doubled_at_twelve_frames_a_second() {
