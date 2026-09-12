@@ -285,6 +285,7 @@ fn every_record_carries_the_verdict_it_claims() {
 /// |---|---|---|
 /// | `FUN_0040d6ad#1`, `FUN_0040d7b8#1` | the two arrows of a slider widget whose hit-tester `FUN_0040D3F5` has **no caller**: zero rel32 calls, zero jumps and zero absolute references in the image, against 36 rel32 callers for `Widget_Test` as the control | `D39` |
 /// | `Battle_PauseButton#1` | guarded on a word that alternates between 0 and −1; the only writer that could make it 1, `FUN_00434E68`, has no reference either | D38 |
+/// | `FUN_004b39e8#1` | the degraded castle's three lines: the thunk that plays them has **no caller** — zero rel32 calls, zero jumps and zero dword references in the image, against one rel32 caller for its sibling `FUN_004B3714` as the control | `D40` |
 ///
 /// **The third was already on the bug list and was filed `missing` here**, which
 /// is the inventory contradicting the document it should agree with — and it is
@@ -295,7 +296,7 @@ fn every_record_carries_the_verdict_it_claims() {
 /// the first did: say in `note` which guard can never hold and why, add it to
 /// `docs/bugs.md`, and add its id here.
 const DEAD_IN_THE_SHIPPED_GAME: &[&str] =
-    &["Battle_PauseButton#1", "FUN_0040d6ad#1", "FUN_0040d7b8#1"];
+    &["Battle_PauseButton#1", "FUN_0040d6ad#1", "FUN_0040d7b8#1", "FUN_004b39e8#1"];
 
 #[test]
 fn the_dead_triggers_are_the_three_on_the_bug_list() {
@@ -313,9 +314,11 @@ fn the_dead_triggers_are_the_three_on_the_bug_list() {
          a path the evidence missed, and bugs.md is wrong too.",
     );
     let text = std::fs::read_to_string(root.join("docs/bugs.md")).expect("docs/bugs.md");
-    for (id, entry) in
-        [("slider arrows", "D39"), ("Battle_PauseButton#1", "**D38**")]
-    {
+    for (id, entry) in [
+        ("slider arrows", "D39"),
+        ("Battle_PauseButton#1", "**D38**"),
+        ("FUN_004b39e8#1", "**D40**"),
+    ] {
         assert!(text.contains(entry), "{id} is dead here and {entry} is gone from docs/bugs.md");
     }
 }

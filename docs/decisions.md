@@ -9736,3 +9736,71 @@ blocks, measured by a new `max_blocks` census column, which is also what tells *
 split"* from *"the pass is not running"*. Not asserted, only measured: the mutiny fires again at
 turn 100 and a tax rate at or above 20 at turn 78, which C134's table in that test calls
 unreachable.
+
+
+**CNEW-vo-stops — the audio layer had no `stop`, and *"blocked on finding a caller"* was
+blocked on nothing.**
+
+Two player reports on `EE0CB9233`, and one root each.
+
+**"VO doesn't seem to stop when the dialogue that produces it is closed, eg tutorial it
+will finish the line."** `Msg_Dismiss` (`0x00476768`) is four statements of state and one
+that is not: `if (g_messageGroup != 0xc2) Sound_StopOneShot();`. `Opt_ToggleMusic`
+(`0x004349A4`) has the same call on the arm that turns music *off*, so the Music row
+silences speech as well. `Audio::stop_one_shot` had been written, documented against its
+address, and **called from nowhere in the workspace** — the verb existed and the two sites
+did not. The inventory could not see it: `tools/oracle/sounds.js` scans for the nine
+*play* primitives, so all sixteen `Sound_StopOneShot` sites are outside the census by
+construction, and `docs/audio.json` was green with every voice line `reproduced`. **A
+census of what the game asks for cannot tell you the answer goes on too long.**
+`docs/audio-triggers.md` now says so in the section that excludes them.
+
+Group `0xC2` — `L2.eng` 194, *"Foiled again."* — is the original's one exemption and is
+reproduced with it; the ablation that drops the guard is red.
+
+**"No VO for 'A band of scottish pikemen are available for hire, my lord' with a
+mercenary."** `docs/audio.json` filed eight sibling voice thunks `blocked`, all eight
+carrying one note: *each is one `Sound_PlayFile` behind one table index, so the work is
+finding the caller rather than the sound*. **Seven of the eight callers were one grep of
+`tools/oracle/decomp/` away**, and had been for as long as the corpus has existed. The
+note was written once and copied to eight records, and the copy is what made it look
+answered: nobody re-reads a sentence they have already read seven times.
+
+Three of them are now built — `Sidebar_Button` hotspot 1's mercenary offer
+(`FUN_004B3714`, `S016_01` … `S016_12`, and band 1 is the Scottish pikemen exactly),
+`Panel_OpenPopulation`'s health line (`FUN_004B3768`), and the map information panel's
+sentence about whatever it opened on (`FUN_004B37BC`, both openers of screen `0x04`).
+`reproduced` 86 → **89** of 143; `blocked` 23 → **19**; the non-voice files this engine can
+reach, 30 → **55**.
+
+**Three things the reading found that building would not have.**
+
+* **`g_screenId = 0x17` has two writers and only one speaks.** `Armoury_Button`
+  (`0x00435AE8`) id 2, *Change*, opens the same screen silently. Ours reaches it by
+  `Transition::Replace`, so the previous tick's stack is what tells the two arrivals apart
+  — without that gate a player toggling Change and Continue hears the band announced once
+  a second. Asserted both ways.
+* **The tables are not conventions.** `0x004E2058` reads `S020_01, _02, _03, _04, _04,
+  _05, …` — entries 3 and 4 are the *same file*. `healthBand` is `0 ..= 4`, so a
+  `format!("S020_{:02}", band + 1)` would have spoken `S020_05.wav` — a file that ships —
+  for the healthiest county in the game, and nothing would have gone red. It follows that
+  **`S020_05.wav` is named in the binary and unreachable in play**, `battle5.wav`'s
+  situation. `S246`'s table is out of order too (`_02, _04, _03, _01`). Every table here is
+  transcribed from `.data`.
+* **The eighth thunk has no caller, and that is a finding about the original.**
+  `FUN_004B39E8` plays the degraded castle's three lines, `S075_02`/`_03`/`_04`, all of
+  which ship. Zero `E8` rel32 calls, zero `E9` jumps and zero dword references anywhere in
+  the image reach it; its sibling `FUN_004B3714` scores exactly one (inside
+  `Sidebar_Button`) under the same scan. `docs/bugs.md` **D40**, `docs/audio.json` `dead`,
+  and the fourth entry in `tests/sfx.rs`'s pinned set. **"Blocked on finding a caller" and
+  "there is no caller" are different answers to the same question, and only one of them is
+  reachable by building.**
+
+**What stays blocked, with the real reason rather than the copied one.** `FUN_004B36C0`
+(`Ui_OpenConfirm`, `S010_*`) — the caller is known and we have one of its thirteen call
+sites, the battlefield's autocalc, which is a field on `BattlefieldScreen` and not a
+`ScreenId`; a confirm box that is a screen unlocks all thirteen at once. `FUN_004B3940`
+(`CastleBuild_Select`, `S071_*`) — the only one of the eight whose trigger is a click
+*inside* a screen, and the selection is that screen's own field. `FUN_004B3994` (`S035_*`)
+— screen `0x20`, a front-end page not in `ScreenId` at all. `FUN_004B3B92`
+(`Msg_DrawWindow` ×4, the lord sting) — needs `voice_tick` to return a list, unchanged.

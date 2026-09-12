@@ -379,6 +379,124 @@ pub mod speech {
     /// division screen. The refusal branch — an army that has already moved —
     /// is silent and raises message `0x95` instead.
     pub const SPLIT_ARMY: &str = "S017_01.wav";
+
+    /// **The mercenary offer, read aloud** — `0x004DF8B8`, `char[16][16]`,
+    /// indexed by `mercenaryOffer − 1`.
+    ///
+    /// `Sidebar_Button` (`0x0043AE30`) hotspot 1's tail, the statement after
+    /// the one that opens the raise-army screen:
+    ///
+    /// ```c
+    /// g_screenId = 0x17; … ;
+    /// if (g_counties[g_selectedCounty].mercenaryOffer != 0)
+    ///     FUN_004B3714(g_counties[g_selectedCounty].mercenaryOffer - 1);
+    /// ```
+    ///
+    /// and `FUN_004B3714` is `if (-1 < n && n < 0x10) Sound_PlayFile(table + n
+    /// * 0x10, 1, 0)`. `[V]` at both. **This is the line a player reported
+    /// missing** — *"A band of Scottish pikemen are available for hire, my
+    /// lord"* — and it is not text: the raise-army screen draws the band's
+    /// nationality out of `L2.eng` group 16 and says nothing about hiring, so
+    /// the offer is *announced* only here.
+    ///
+    /// Sixteen names for **twelve** nationalities: `l2_kingdom::mercenary::
+    /// ROSTER` is twelve long and only `S016_01` … `S016_12` ship, so the last
+    /// four entries of the table name files that do not exist. That is the
+    /// original's own over-allocation and not a gap of ours; a band outside
+    /// 1…12 is silent because [`super::super::Audio::load`] cannot find the
+    /// file, which is the same answer `mmioOpenA` gives.
+    pub const MERCENARY_OFFER: [&str; 16] = [
+        "S016_01.wav",
+        "S016_02.wav",
+        "S016_03.wav",
+        "S016_04.wav",
+        "S016_05.wav",
+        "S016_06.wav",
+        "S016_07.wav",
+        "S016_08.wav",
+        "S016_09.wav",
+        "S016_10.wav",
+        "S016_11.wav",
+        "S016_12.wav",
+        "S016_13.wav",
+        "S016_14.wav",
+        "S016_15.wav",
+        "S016_16.wav",
+    ];
+
+    /// **The population panel's health line** — `0x004E2058`, `char[8][16]`,
+    /// indexed by `county.healthBand` straight.
+    ///
+    /// `Panel_OpenPopulation` (`0x0043A8F2`) is three statements and the middle
+    /// one is this, which makes it the exact twin of [`RATION_NOT_MET`]'s site:
+    ///
+    /// ```c
+    /// g_screenId = 0x14;
+    /// FUN_004B3768((int)(char)g_counties[g_selectedCounty].healthBand);
+    /// Panel_Population();
+    /// ```
+    ///
+    /// **Entries 3 and 4 are the same file, and that is why this is a table
+    /// rather than a `format!`.** The bytes at `0x004E2058` read `S020_01`,
+    /// `_02`, `_03`, `_04`, `_04`, `_05`, `_06`, `_07` — so the two healthiest
+    /// of the five bands `l2_kingdom::tables::health_band` produces share one
+    /// clip, and a generated name would have spoken `S020_05.wav` (a real file,
+    /// and the wrong line) for band 4. `[V]` from the executable.
+    ///
+    /// `healthBand` is `0 ..= 4`, so the last three entries are unreachable in
+    /// a running game and `S020_06` / `S020_07` do not ship.
+    pub const POPULATION_HEALTH: [&str; 8] = [
+        "S020_01.wav",
+        "S020_02.wav",
+        "S020_03.wav",
+        "S020_04.wav",
+        "S020_04.wav",
+        "S020_05.wav",
+        "S020_06.wav",
+        "S020_07.wav",
+    ];
+
+    /// **What the map information panel says about a *unit*** — `0x004E20D8`,
+    /// `char[4][16]`. `FUN_004B37BC` picks by `g_units[picked].kind` and, for
+    /// an army, by its owner:
+    ///
+    /// ```c
+    /// kind 1 && owner == g_localPlayer  ->  S031_04.wav
+    /// kind 1                            ->  S031_03.wav
+    /// kind 4  (a transport)             ->  S031_02.wav
+    /// kind 2  (a peasant mob)           ->  S031_01.wav
+    /// ```
+    ///
+    /// **Kind 3, the merchant, is not in the ladder and is silent** — and it is
+    /// silent for a reason rather than by omission: `Map_Click` sends a click on
+    /// a merchant to screen `0x08`, the stall, so the information panel never
+    /// opens on one from the left button. `[V]`
+    pub const PICKED_UNIT: [&str; 4] = [
+        "S031_01.wav",
+        "S031_02.wav",
+        "S031_03.wav",
+        "S031_04.wav",
+    ];
+
+    /// **What it says about a *castle*** — `0x004E2118`, `char[5][16]`, indexed
+    /// by `county.castleType − 1`, so a wooden palisade and a fortress get
+    /// different sentences.
+    ///
+    /// `FUN_004B37BC`'s tile branch, with all three of its guards: the tile
+    /// carries plane-0 bit `0x80` (a settlement), its graphic is `0x15` or
+    /// above (the castle end of `Industry_ToggleFromMap`'s ladder, which is how
+    /// the original tells a keep from a mine without a second plane), and the
+    /// county's `castleType` is 1…5. `[V]`
+    ///
+    /// The table starts at `S071_02` — `S071_01.wav` does not ship and is named
+    /// nowhere.
+    pub const PICKED_CASTLE: [&str; 5] = [
+        "S071_02.wav",
+        "S071_03.wav",
+        "S071_04.wav",
+        "S071_05.wav",
+        "S071_06.wav",
+    ];
 }
 
 /// The fanfares, which are played by name rather than out of a bank —

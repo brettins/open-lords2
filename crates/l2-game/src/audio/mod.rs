@@ -979,6 +979,12 @@ pub struct Director {
     /// [`crate::screen::Machine::clicks`] at the previous tick — the widget
     /// click's edge. See [`Director::hear_the_click`].
     clicks: u32,
+    /// **The message record on screen at the previous tick**, so that a window
+    /// *closing* is an edge this can see — which is `Msg_Dismiss`
+    /// (`0x00476768`) and its `Sound_StopOneShot`. `None` both before the first
+    /// tick and whenever no window is up, and those two mean the same thing
+    /// here: nothing to have been dismissed.
+    message: Option<crate::message::Record>,
     /// Ticks this director has listened to — the clock `FUN_004B3ACD`'s
     /// `timeGetTime()` becomes. See [`Director::chain_takes`].
     ticks: u64,
@@ -1041,9 +1047,60 @@ impl Director {
             effects: game.prefs.effects,
             speech: game.prefs.speech,
         };
+        // **`Opt_ToggleMusic`'s second statement, and it is not about music.**
+        // `[V]`, the whole branch:
+        //
+        // ```c
+        // g_optMusic = (g_optMusic != 1);
+        // if (g_optMusic == 0) { Music_Stop(0); Sound_StopOneShot(); }
+        // ```
+        //
+        // So turning the Music row off **also cuts whoever is speaking**, which
+        // is not obvious from the row's label and is the only place in the
+        // binary where one switch reaches another channel. Read before the push
+        // because `audio.options()` is the previous tick's copy of `g_optMusic`
+        // — the push below is what makes it the current one.
+        let music_went_off = audio.options().music && !want.music;
         if want != audio.options() {
             audio.set_options(want);
         }
+        if music_went_off {
+            audio.stop_one_shot();
+        }
+
+        // **`Msg_Dismiss`'s (`0x00476768`) fourth statement** — the half of
+        // closing a message window that is not drawing:
+        //
+        // ```c
+        // if (g_messageGroup != 0xc2) Sound_StopOneShot();
+        // ```
+        //
+        // `[V]`. **This is the answer to *"VO doesn't seem to stop when the
+        // dialogue that produces it is closed"***: every narrated line in the
+        // game is put in the one one-shot buffer by `Msg_PlayVoice`, and
+        // closing the window is what empties it. Without this the narrator
+        // finishes the sentence over whatever the player opened next, and —
+        // worse — [`Audio::play_file`]'s drop-if-busy means the next window's
+        // own fanfare is swallowed by a line nobody is reading any more.
+        //
+        // **Group `0xC2` is exempt**, and it is the one group the original
+        // lets run on: `L2.eng` 194, *"Foiled again."*, the AI's lament.
+        //
+        // The edge is the open record *changing*, because `Msg_Dismiss` is a
+        // call and a director can only see state. Every route into it is
+        // covered — the OK button, `Msg_DismissUnlessQuestion`'s click on the
+        // map, `Msg_Pump`'s two timeouts, and the capture and ending branches
+        // that dismiss themselves before starting a film. `[D]` on one case it
+        // cannot see: two **identical** records back to back, where the window
+        // is replaced by its own twin and this stays quiet. That is one voice
+        // line too many, which is what the whole tick did before.
+        let open_now = game.messages.open().copied();
+        if let Some(was) = self.message {
+            if open_now != Some(was) && was.group != crate::message::group::FOILED_AGAIN {
+                audio.stop_one_shot();
+            }
+        }
+        self.message = open_now;
 
         // **Nine of the original's fourteen music sites, and not one of them is
         // a call site of ours.** [`Audio::follow`] re-derives the bed from the
@@ -1138,6 +1195,127 @@ impl Director {
         // sfx: Sidebar_Button#1
         if opened(&|id| matches!(id, ScreenId::Supplies(_))) {
             audio.play_file(names::speech::SUPPLIES, true);
+        }
+        // **The mercenary offer** — `Sidebar_Button`'s *other* voice, on
+        // hotspot 1, and the one a player reported missing: *"No VO for 'A band
+        // of Scottish pikemen are available for hire, my lord'."*
+        //
+        // ```c
+        // g_screenId = 0x17; …
+        // if (county.mercenaryOffer != 0) FUN_004B3714(county.mercenaryOffer - 1);
+        // ```
+        //
+        // `[V]`. Same shape as the supplies arm above — the ownership gate is
+        // the screen's, and the offer is a byte we already keep — with one
+        // difference that had to be looked for: **`g_screenId = 0x17` has two
+        // writers and only this one speaks.** `Armoury_Button` (`0x00435AE8`)
+        // id 2, *Change*, sets the same screen id with no sound at all, and
+        // ours is `Transition::Replace(RaiseArmy)` out of the armoury. So the
+        // previous tick's stack is what tells the two arrivals apart, and a
+        // player toggling Change / Continue does not hear the band announced
+        // once a second.
+        // sfx: FUN_004b3714#1
+        if opened(&|id| matches!(id, ScreenId::RaiseArmy(_)))
+            && !self.stack.iter().any(|id| matches!(id, ScreenId::Armoury(_)))
+        {
+            let band = now
+                .iter()
+                .find_map(|id| match id {
+                    ScreenId::RaiseArmy(c) => Some(*c as usize),
+                    _ => None,
+                })
+                .and_then(|c| game.kingdom.counties.get(c))
+                .map_or(0, |c| c.mercenary_offer);
+            // `FUN_004B3714`'s own guard is `-1 < n && n < 0x10` on the
+            // *decremented* band, which is this.
+            if let Some(name) =
+                (band != 0).then(|| names::speech::MERCENARY_OFFER.get(band as usize - 1)).flatten()
+            {
+                // Bare `Sound_PlayFile(…, 1, 0)`, so dropped over anything
+                // still sounding — a sidebar click is no more urgent than the
+                // line already playing.
+                audio.play_file(name, true);
+            }
+        }
+        // **The population panel's health line** — `Panel_OpenPopulation`
+        // (`0x0043A8F2`), whose middle statement is
+        // `FUN_004B3768(county.healthBand)`. The exact twin of
+        // `Panel_OpenRation`'s two arms above, on the panel next door, and the
+        // table is indexed straight rather than generated: see
+        // [`names::speech::POPULATION_HEALTH`], entries 3 and 4.
+        // sfx: FUN_004b3768#1
+        if opened(&|id| matches!(id, ScreenId::County(_, crate::screens::county::Panel::Population)))
+        {
+            let band = now
+                .iter()
+                .find_map(|id| match id {
+                    ScreenId::County(c, crate::screens::county::Panel::Population) => {
+                        Some(*c as usize)
+                    }
+                    _ => None,
+                })
+                .and_then(|c| game.kingdom.counties.get(c))
+                .map_or(0, |c| c.health_band);
+            if let Some(name) = names::speech::POPULATION_HEALTH.get(band as usize) {
+                audio.play_file(name, true);
+            }
+        }
+        // **The map information panel's own sentence** — `FUN_004B37BC`, called
+        // as the last statement of both functions that open screen `0x04`:
+        // `FUN_0043893C` (the sidebar's route in) and `FUN_0043CAF4` (the map
+        // click's). `[V]` Both are `… FUN_0041B032(); FUN_004B37BC();`, so the
+        // panel arriving is the trigger, which is the edge
+        // `TileInfo_Draw#1…#4` below already uses.
+        //
+        // The third writer of `g_screenId = 4`, `Army_SplitConfirm`
+        // (`0x00437AFB`), is silent — and is not a route of ours either: our
+        // division screen pops back to whatever opened it.
+        // sfx: FUN_004b37bc#1
+        if opened(&|id| matches!(id, ScreenId::Info(_))) {
+            use crate::screens::info::Target;
+            let target = now.iter().find_map(|id| match id {
+                ScreenId::Info(t) => Some(*t),
+                _ => None,
+            });
+            let line = match target {
+                // `g_pickedTileUnit != 0` — the unit ladder, which has no arm
+                // for a merchant. See [`names::speech::PICKED_UNIT`].
+                Some(Target::Unit(id)) => {
+                    game.kingdom.campaign.units.get(id).and_then(|u| match u.kind {
+                        l2_kingdom::UnitKind::Army => Some(if u.owner == game.player {
+                            names::speech::PICKED_UNIT[3]
+                        } else {
+                            names::speech::PICKED_UNIT[2]
+                        }),
+                        l2_kingdom::UnitKind::Transport => Some(names::speech::PICKED_UNIT[1]),
+                        l2_kingdom::UnitKind::PeasantMob => Some(names::speech::PICKED_UNIT[0]),
+                        l2_kingdom::UnitKind::Merchant => None,
+                    })
+                }
+                // The tile branch, all three guards: a settlement tile, its
+                // graphic at the castle end of the ladder, and a castle type
+                // in 1…5.
+                Some(Target::Tile(tile)) => {
+                    let map = &game.kingdom.campaign.map;
+                    let settlement = map
+                        .flags
+                        .get(tile)
+                        .is_some_and(|f| f & l2_kingdom::map::flags::SETTLEMENT != 0);
+                    let castle = map.terrain.get(tile).is_some_and(|&g| g >= 0x15);
+                    (settlement && castle)
+                        .then(|| map.county.get(tile))
+                        .flatten()
+                        .and_then(|&c| game.kingdom.counties.get(c as usize))
+                        .and_then(|c| {
+                            names::speech::PICKED_CASTLE.get(c.castle_type.checked_sub(1)? as usize)
+                        })
+                        .copied()
+                }
+                None => None,
+            };
+            if let Some(name) = line {
+                audio.play_file(name, true);
+            }
         }
         // `Panel_SplitButton` (`0x004378B3`), and `FUN_004376BB` is the same
         // sound from the move-order confirm's split-into-a-castle path, which

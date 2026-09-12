@@ -94,6 +94,19 @@ pub const MULTIPLAYER_TIMEOUT: i32 = 0x641;
 /// hand.
 pub const TIP_TIMER: i32 = 100;
 
+/// The `L2.eng` groups a *rule* names, rather than a painter.
+pub mod group {
+    /// **`0xC2` — `L2.eng` 194, *"Foiled again."***, the AI's lament on losing
+    /// ground, raised by `FUN_0049B42B`.
+    ///
+    /// It is here because it is the one group `Msg_Dismiss` (`0x00476768`)
+    /// tests: `if (g_messageGroup != 0xc2) Sound_StopOneShot();`. Closing any
+    /// other window cuts the narrator off mid-sentence; closing this one lets
+    /// him finish. `[V]` on the branch; `[I]` on why, which is presumably that
+    /// the line is short and self-contained.
+    pub const FOILED_AGAIN: u16 = 0xC2;
+}
+
 /// The message categories, `Msg_Enqueue`'s `+0x11` byte, as `Msg_DrawWindow`
 /// dispatches on them.
 ///
