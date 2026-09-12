@@ -10377,7 +10377,7 @@ and `FUN_0046965A` step it down whenever `fieldsGrain <= +0x206`, and nothing st
 down; `County_DestroyField` charges its crop share against it, with an `else 0` when more
 grain is painted than was sown. It is not derivable from the other two counts — destroy a
 field and then paint two, and the orders disagree — so it is a county field now,
-`County::fields_grain_standing`, imported, and in the save at version 21. **That `why` was
+`County::fields_grain_standing`, imported, and in the save at version 25. **That `why` was
 the same shape as C124's `[V]`: a true statement about one reader, promoted to a statement
 about the field.**
 
@@ -10444,11 +10444,30 @@ matches it. Terrain `2` is excluded. Under C124's reading every sown field sat a
 seasons in four, so **the AI's raids could not see a crop for most of the year** and fell back
 to the county anchor. With the band right they find the harvest, which is the binary's rule.
 
-`l2-game/tests/ai_war.rs::the_ai_realms_survive_forty_turns_of_a_world_built_by_hand` is red on
-this branch: realm 4 ends forty turns on one county with 2 people at health 0, and realm 3
-holds three counties. **Measured three ways.** C124's band put back → green. The current tree
-→ red. The current band with the raid finder blinded (never matching a farm tile) → green, with
-realm 4 at 183 people, health 57 and 19 grain fields. The old `destroy_field` put back does not
-turn it green. So realm 4 is raided out of its harvest, and the test was green only because the
-raid could not see the crop. **Not changed here:** whether *"fed"* should hold for a realm another
-AI is raiding is a judgement about that test's intent, and it belongs to whoever owns the AI.
+**And that is why the branch sat unmerged.**
+`l2-game/tests/ai_war.rs::the_ai_realms_survive_forty_turns_of_a_world_built_by_hand` was red
+on it: realm 4 ended forty turns on one county with 2 people at health 0. The branch measured
+three ablations — C124's band back → green; the raid finder blinded → green, realm 4 at 183
+people and health 57; the old `destroy_field` back → still red — and left the question open:
+is *"every surviving AI realm is fed"* a rule, or one trajectory's luck?
+
+**It is one trajectory's luck, and re-measuring on `main` is what shows it.** Battles, the
+clock, labour and the herd's break-even floor landed between `fb5c0ef` and this merge, and on
+the trajectory they produce the test is **green with the fix in**: realm 4 is *conquered* at
+turn 21 while at health 71 with 375 people, not starved, so assertion 2 — which only applies
+to a realm still holding counties — never looks at it. Traced turn by turn, the lowest health
+any surviving AI realm reaches in the forty turns is 45 (realm 2, turn 29) and it recovers.
+The green is not the raid going quiet: blinding the raid finder still moves that world (realm
+2 ends on 4 counties at health 67 rather than 3 at 85; realm 5 keeps 10 grain fields rather
+than 6), so the raids bite and the fix is live. On the England fixture the finder changes
+nothing in forty turns — blinded and live give identical scoreboards.
+
+So the assertion was never weakened and never had to be: it is not a rule — a realm raided
+off its harvest starves, and `Ai_FindStandingCropTile` exists so that it can — but it is also
+not in danger on this trajectory. What was wrong is that a long run was the **only** witness
+of the rule, which is C184's finding in another costume: a claim you can only observe as a
+shifted trajectory is a claim nobody can ablate. So it is dealt deliberately instead.
+`crates/l2-kingdom/tests/ai_raid.rs` sows a county, ticks it through the four seasons and asks
+`aim_tile` what the raid finder sees, then tramples one field and asks again. Three ablations,
+each one line, each red: C124's crop word in Spring, Summer and Autumn; `Aim::StandingCrop`'s
+`terrain > 2`; and the sowing's write of `+0x206`.
