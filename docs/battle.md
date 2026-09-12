@@ -1316,6 +1316,38 @@ Note the height term uses the sprite **width** for both axes, which is why a
 48-pixel man sits 8 pixels left of and 16 above his cell's corner. Reproduced
 rather than corrected.
 
+**`mapXY` is the cell he is walking *into*.** **[V]** `BattleMan_Step`
+(`0x0048F1DD`) tries the cell first and walks second: on `BattleMan_TryStepDir`
+→ `Cell_TryEnter` returning 1 it writes `dirc = dir; walking = 1` and calls
+`FUN_00491B1F`, which is the move — `mapX`/`mapY`/`cellOffset` stepped by the
+facing and the cell's figure byte re-seated. Every later tick adds 2 to
+`walking` and at 17 clears it and sets `stepFlags |= 1`. So the nine pictures of
+a crossing are the offsets 30, 26 … 2 behind the new cell, then the cell.
+
+**`l2_sim`'s runner crosses in the other order**: it counts `substep` 2 … 16 on
+the cell he is leaving and calls `enter` on the ninth sub-step. The renderer
+applied `g_walkOffset[facing][substep]` to `(x, y)` — the *old* cell — so every
+man was drawn up to 28 pixels behind his own square, walked back onto it, and
+jumped a cell: a player saw units *"reset on their square once as they move"*.
+`l2_view::scene::drawn_cell` now draws a walking man from the cell his facing
+points into with `walking = substep − 1`, the same nine pictures, and reads the
+runner without writing it — a battle's saved bytes are identical with and without
+painting (`crates/l2-game/tests/battle_picture.rs`).
+
+**What the drawing cannot hide, and what would.** A step the runner refuses
+*after* its eight sub-steps — a friend in the way, a swap, an enemy arriving —
+leaves the man at `substep 0` on the square he never left, so he is drawn
+snapping back. The original never shows that, because it refuses before it
+walks. And the runner re-chooses the man's direction on every tick of the
+count, so a man can turn toward a different neighbour mid-crossing and be drawn
+jumping sideways; the original fixes `dirc` for the crossing when it enters.
+The cure for both is the runner's order — enter, then count, with the direction
+held — and it changes the battle, which is why a presentation fix did not make
+it. Measured once with a throwaway probe over a 42-figure battle (1,096 ticks,
+18,690 walking figure-ticks): drawn jumps of 16 pixels or more went from 1,317
+to 504, and the 504 are 310 mid-crossing turns, 180 refusals after the walk, 12
+commits and 2 swaps.
+
 ### 13.7 Draw order
 
 **[V]** Per frame: terrain pass, then figures, then a second terrain pass for
@@ -1324,7 +1356,30 @@ cells flagged `0x04` on byte `+1` (tiles that overlap the men), then missiles.
 Figures are collected if they lie within one cell of the viewport
 (`0x004BD938`), **bubble-sorted by map y ascending** (`0x004BDA92`) and drawn in
 that order, so a man lower on the field overlaps one behind him. A stable sort
-by y reproduces it.
+by y reproduces it. Both read `mapX`/`mapY`, the cell a walking man is entering.
+
+**Every sprite is clipped to the viewport.** **[V]** `FUN_004BC020` stores
+`DAT_004E6564 = 0`, `DAT_004E5D54 = 480`, `DAT_004E5D48 = 24` and
+`DAT_004E5D6C = 472` beside the geometry, and `BattleFigure_Draw`, the horse
+(`FUN_004BE4DF`) and the tile overlay blit all call
+`Clip_Horizontal(DAT_004E6564, DAT_004E5D54)` / `Clip_Vertical(DAT_004E5D48,
+DAT_004E5D6C)` before blitting. A man in the top row is drawn 16 pixels above
+his cell and a man one cell outside the view is still collected, so the clip is
+what keeps them out of the menu bar, the right column and the strip under the
+field. **Ours had no clip**, and nothing on our battlefield screen repaints those
+pixels, so every man who passed an edge left his picture there: the *"ghosting"*.
+`l2_view::scene::FIELD_CLIP`.
+
+**The palette.** **[V]** `Res_LoadStatic` (`0x00499859`) preloads
+`t32_bat1.256` into `0x00568EE0` and `t32_stn1.256` into `0x005675A0` (records 2
+and 1 of `g_preloadTable`, `0x004D9F48`); `Screen_DrawBattlefield`
+(`0x004233F7`) ends with `Palette_Set(0x568EE0)` for a field battle and
+`Palette_Set(0x5675A0)` for a siege. `Palette_Set` (`0x004B0AB5`) copies the
+triples ×4 and forces entry 0 black; there is no remap, shade or dither table
+on this path. `Battle_LoadAssets` reads no `.256` at all. Ours named
+`T32_bat1.256` and loaded it into no table the presenter reads, so a battle was
+shown through `base01.256`: a grass index 77 is `(64, 85, 12)` in the first and
+`(0, 97, 190)` in the second.
 
 ### 13.8 Figure and cell fields this section adds
 

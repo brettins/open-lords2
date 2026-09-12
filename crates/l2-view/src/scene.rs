@@ -17,14 +17,29 @@
 //! Figures are drawn between the two terrain passes, sorted by map y ascending
 //! (`0x004BDA92`), which makes a man lower on the field overlap one behind him.
 //! **[V]**
+//!
+//! # Three things a player saw, and the functions they are
+//!
+//! * **Where a walking man is.** `BattleMan_Step` (`0x0048F1DD`) *enters* the
+//!   next cell before it walks — see [`drawn_cell`] — so the picture trails him
+//!   behind the cell he is in. Ours drew the trail behind the cell he was
+//!   leaving, and a player saw every man *"reset on their square once as they
+//!   move"*.
+//! * **The clip.** `FUN_004BC020` also stores the viewport as the rectangle
+//!   every battle sprite is clipped to — [`FIELD_CLIP`]. Ours blitted men
+//!   unclipped into the menu bar, the right column and the strip under the
+//!   field, where nothing repaints them: the *"ghosting"*.
+//! * **The palette** is not here: this crate draws indices, and which `.256`
+//!   they mean is the presenter's, which resolves [`TILE_PALETTE`] through
+//!   `l2_game::shell::PALETTES` like every other page's name.
 
 use l2_formats::Palette;
-use l2_sim::runner::BattleRunner;
+use l2_sim::runner::{BattleRunner, Fighter};
 use l2_sim::terrain::{Battlefield, DIM};
 use l2_sim::{Troop, SIDE_A};
 
-use crate::canvas::Canvas;
-use crate::figures::{self, Anim, Colour};
+use crate::canvas::{Canvas, Clip};
+use crate::figures::{self, Anim, Colour, FACING_DELTA};
 use crate::sheet::Sheet;
 
 pub const TILE: i32 = 32;
@@ -33,8 +48,36 @@ pub const VIEW_ROWS: usize = 14;
 pub const ORIGIN_X: i32 = 0;
 pub const ORIGIN_Y: i32 = 24;
 
+/// **The rectangle every man, horse and missile on the field is clipped to.**
+///
+/// `FUN_004BC020` (`0x004BC020`) stores it beside the geometry —
+/// `DAT_004E6564 = param_7`, `DAT_004E5D54 = param_9 * param_11 + param_7`,
+/// `DAT_004E5D48 = param_8`, `DAT_004E5D6C = param_10 * param_11 + param_8` —
+/// which for the battle's arguments is `x 0 … 480`, `y 24 … 472`. And
+/// `BattleFigure_Draw` (`0x004BDC31`), the horse under a knight
+/// (`FUN_004BE4DF`) and the tile renderer's overlay blit all call
+/// `Clip_Horizontal(DAT_004E6564, DAT_004E5D54)` and
+/// `Clip_Vertical(DAT_004E5D48, DAT_004E5D6C)` before they blit. **[V]**
+///
+/// A man in the top row is drawn sixteen pixels above his cell, and one a cell
+/// outside the view is still collected (`FUN_004BD938`), so without this the
+/// menu bar, the right column and the bottom strip took his pixels — and
+/// nothing on the battlefield screen repaints any of those.
+pub const FIELD_CLIP: Clip = Clip::new(
+    ORIGIN_X,
+    ORIGIN_Y,
+    ORIGIN_X + VIEW_COLS as i32 * TILE,
+    ORIGIN_Y + VIEW_ROWS as i32 * TILE,
+);
+
 /// The field-battle tileset and palette. `T32_stn1` / `T32_wod1` are the siege
 /// and wooded-castle variants and are not loaded here.
+///
+/// **The palette is not `Battle_LoadAssets`'.** `Res_LoadStatic` (`0x00499859`)
+/// preloads `t32_bat1.256` into `0x00568EE0` at start-up — record 2 of
+/// `g_preloadTable` (`0x004D9F48`) — and `Screen_DrawBattlefield`
+/// (`0x004233F7`) ends a field battle's repaint with `Palette_Set(0x568EE0)`,
+/// or `Palette_Set(0x5675A0)` (`t32_stn1.256`, record 1) for a siege. **[V]**
 pub const TILESET: &str = "T32_bat1.pl8";
 pub const TILE_PALETTE: &str = "T32_bat1.256";
 
@@ -138,6 +181,64 @@ pub fn draw_terrain(canvas: &mut Canvas, field: &Battlefield, tiles: &Sheet, cam
     }
 }
 
+/// **The cell a figure is drawn from, and the original's `walking` counter
+/// for it** — figure `+0x32`, the column of `g_walkOffset32`.
+///
+/// `BattleMan_Step` (`0x0048F1DD`) takes a step in this order:
+///
+/// ```c
+/// local_10 = BattleMan_TryStepDir(dir);          /* Cell_TryEnter: 1 = free */
+/// if (local_10 == 1) {
+///     man.dirc = dir;  man.walking = 1;
+///     FUN_00491B1F(man);                         /* mapX/mapY += the delta, cell byte moved */
+/// }
+/// …and every later tick: walking += 2; if (walking >= 17) { stepFlags |= 1; walking = 0; }
+/// ```
+///
+/// So the original's man is **in** the cell he is walking into for the whole
+/// crossing, and `BattleFigure_Draw` (`0x004BDC31`) trails him `32 − 2·walking`
+/// pixels behind it: 30, 26 … 2, then 0. **[V]**
+///
+/// `l2_sim`'s runner does the same crossing in the other order — it counts
+/// `substep` 2 … 16 on the cell he is leaving and enters on the ninth sub-step
+/// (`BattleRunner`'s mover, then `enter`). Drawing the trail from `(x, y)`
+/// therefore put a man up to 28 pixels *behind his own square*, walked him back
+/// onto it, and jumped him a whole cell: once a cell, which is what a player
+/// described. This reads the runner's state and changes none of it: while a
+/// man is walking with `substep` `s > 0` he is drawn from the cell his facing
+/// points into with `walking = s − 1`, which is the original's 1, 3 … 15, and
+/// the tick he commits he is on that cell at 0 — the same nine pictures.
+///
+/// **What the picture cannot hide**, because it is the runner's order and not
+/// the drawing: a step refused *after* the eight sub-steps — a friend in the
+/// way, a swap, an enemy — puts him back at `walking = 0` on the square he
+/// never left; and the runner re-chooses his direction every tick of the count,
+/// so a man who turns mid-crossing is drawn jumping to the new neighbour. The
+/// original tests the cell before it walks and holds `dirc` for the crossing,
+/// and shows neither. `docs/battle.md` §13.6 has the measurement.
+pub fn drawn_cell(f: &Fighter) -> ((i32, i32), u8) {
+    let s = f.progress.substep;
+    if f.anim == Anim::Walking && (1..=16).contains(&s) {
+        let (dx, dy) = FACING_DELTA[f.facing as usize % FACING_DELTA.len()];
+        ((f.x as i32 + dx, f.y as i32 + dy), (s - 1) as u8)
+    } else {
+        ((f.x as i32, f.y as i32), 0)
+    }
+}
+
+/// **The pixel a figure's cell corner is drawn at**, trail included —
+/// `BattleFigure_Draw`'s `(mapXY − cameraXY) · 32 + origin +
+/// g_walkOffset32[dirc][walking]`, before the sprite is centred on it. See
+/// [`drawn_cell`] for which cell and which `walking`.
+pub fn figure_origin(f: &Fighter, cam: Camera) -> (i32, i32) {
+    let ((cx, cy), walking) = drawn_cell(f);
+    let (ox, oy) = figures::walk_offset(f.facing, walking);
+    (
+        ORIGIN_X + (cx - cam.x as i32) * TILE + ox,
+        ORIGIN_Y + (cy - cam.y as i32) * TILE + oy,
+    )
+}
+
 /// Paint the figures, back to front by map y.
 ///
 /// Returns how many were drawn, which is what the headless tests assert on
@@ -148,39 +249,42 @@ pub fn draw_figures(
     assets: &BattleAssets,
     cam: Camera,
 ) -> usize {
-    // The original collects the visible figures, bubble-sorts them by map y and
-    // draws in that order. A stable sort by y reproduces it, ties resolving to
-    // figure index either way.
-    let mut order: Vec<usize> = (0..runner.fighters.len())
-        .filter(|&i| {
-            let f = &runner.fighters[i];
-            let (x, y) = (f.x as usize, f.y as usize);
-            x + 1 >= cam.x
-                && x <= cam.x + VIEW_COLS
-                && y + 1 >= cam.y
-                && y <= cam.y + VIEW_ROWS
+    // `FUN_004BD938` collects every man within one cell of the viewport,
+    // `FUN_004BDA92` bubble-sorts them by map y and `FUN_004BDB95` draws in
+    // that order. The cell both of them read is `mapX`/`mapY`, which is the
+    // cell a walking man is walking *into* — [`drawn_cell`]. A stable sort by y
+    // reproduces the bubble sort, ties resolving to figure index either way.
+    let (camx, camy) = (cam.x as i32, cam.y as i32);
+    let mut order: Vec<(i32, usize)> = (0..runner.fighters.len())
+        .filter_map(|i| {
+            let ((x, y), _) = drawn_cell(&runner.fighters[i]);
+            let inside = x >= camx - 1
+                && x <= camx + VIEW_COLS as i32
+                && y >= camy - 1
+                && y <= camy + VIEW_ROWS as i32;
+            inside.then_some((y, i))
         })
         .collect();
-    order.sort_by_key(|&i| (runner.fighters[i].y, i));
+    order.sort();
 
     let mut drawn = 0;
-    for i in order {
+    for (_, i) in order {
         let f = &runner.fighters[i];
         let Some(sheet) = assets.sheet_for(f.side, f.troop) else { continue };
 
-        let (ox, oy) = figures::walk_offset(f.facing, f.progress.substep as u8);
-        let cell_x = ORIGIN_X + (f.x as i32 - cam.x as i32) * TILE;
-        let cell_y = ORIGIN_Y + (f.y as i32 - cam.y as i32) * TILE;
+        let (cell_x, cell_y) = figure_origin(f, cam);
 
-        // A knight rides; the horse goes down first.
+        // A knight rides; the horse goes down first — `FUN_004BE4DF`, through
+        // the same clip.
         if f.troop == Troop::Knights {
             if let Some(horse) = &assets.horse {
                 if let Some(frame) = horse.frame(figures::horse_frame(f.facing, f.phase)) {
                     let w = frame.width as i32;
-                    canvas.blit(
+                    canvas.blit_clipped(
                         &frame,
-                        cell_x + ox + (TILE / 2 - w / 2),
-                        cell_y + oy - w / 2 + 8,
+                        cell_x + (TILE / 2 - w / 2),
+                        cell_y - w / 2 + 8,
+                        FIELD_CLIP,
                     );
                 }
             }
@@ -192,7 +296,7 @@ pub fn draw_figures(
         // both axes, which is why a 48-pixel man sits eight pixels left of and
         // sixteen above his cell's corner. Reproduced rather than corrected.
         let w = frame.width as i32;
-        canvas.blit(&frame, cell_x + ox + (TILE / 2 - w / 2), cell_y + oy - w / 2 + 8);
+        canvas.blit_clipped(&frame, cell_x + (TILE / 2 - w / 2), cell_y - w / 2 + 8, FIELD_CLIP);
         drawn += 1;
     }
     drawn
@@ -233,6 +337,7 @@ pub fn follow(runner: &BattleRunner) -> Camera {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use l2_sim::runner::Army;
 
     #[test]
     fn the_viewport_matches_the_original_and_fits_the_screen() {
@@ -242,11 +347,64 @@ mod tests {
         assert!(ORIGIN_Y + VIEW_ROWS as i32 * TILE <= crate::canvas::HEIGHT as i32);
     }
 
+    /// The clip, against `FUN_004BC020`'s four stores worked out by hand for the
+    /// battle's arguments `(…, 0, 0x18, 0xF, 0xE, 0x20)`.
+    #[test]
+    fn the_sprite_clip_is_the_one_fun_004bc020_stores() {
+        assert_eq!(FIELD_CLIP, Clip::new(0, 0x18, 0xF * 0x20, 0xE * 0x20 + 0x18));
+    }
+
     #[test]
     fn the_camera_never_lets_the_viewport_leave_the_map() {
         assert_eq!(Camera::clamped(-5, -5), Camera { x: 0, y: 0 });
         assert_eq!(Camera::clamped(500, 500), Camera { x: 65, y: 66 });
         let c = Camera::centred_on(40, 40);
         assert!(c.x + VIEW_COLS <= DIM && c.y + VIEW_ROWS <= DIM);
+    }
+
+    /// **A man walking east is drawn further east every tick, from the running
+    /// simulation** — the ungated half of `tests/battle_picture.rs`, which finds
+    /// him in the pixels.
+    ///
+    /// One maceman, ordered five cells east over open ground, stepped by the
+    /// real runner. The origin this module draws him at must never move west,
+    /// must move on at least eight sub-steps a cell, and must end exactly 160
+    /// pixels east — the original's `g_walkOffset32` column `walking` 1, 3 … 15
+    /// and then the cell.
+    ///
+    /// Ablation: `figures::walk_offset(f.facing, f.progress.substep as u8)` from
+    /// `(f.x, f.y)` in [`figure_origin`], which is what this file drew before —
+    /// red on the first sub-step, 28 pixels west.
+    #[test]
+    fn a_man_walking_east_is_drawn_further_east_every_tick() {
+        let mut layer = vec![0u8; l2_sim::terrain::CELLS];
+        layer[36 * DIM + 40] = 0x04;
+        layer[74 * DIM + 40] = 0x0F;
+        let field = l2_sim::terrain::build(&layer, 1);
+        let mut runner = BattleRunner::deploy_armies(
+            field,
+            0x5EED,
+            Army { troops: &[(Troop::Peasants, 1)], owner: 2, human: false },
+            Army { troops: &[(Troop::Macemen, 1)], owner: 1, human: true },
+        );
+        let man = runner.fighters.iter().position(|f| f.side == SIDE_A).unwrap();
+        let (x0, y0) = (runner.fighters[man].x, runner.fighters[man].y);
+        runner.order_side(SIDE_A, x0 + 5, y0);
+        let cam = Camera::clamped(x0 as i32 - 4, y0 as i32 - 6);
+
+        let mut xs = vec![figure_origin(&runner.fighters[man], cam).0];
+        for _ in 0..(5 * 18 + 40) {
+            runner.step();
+            let (x, y) = figure_origin(&runner.fighters[man], cam);
+            assert_eq!(y, ORIGIN_Y + (y0 as i32 - cam.y as i32) * TILE, "he left his row");
+            xs.push(x);
+        }
+        for (t, w) in xs.windows(2).enumerate() {
+            assert!(w[1] >= w[0], "tick {t}: drawn {} pixels west — {xs:?}", w[0] - w[1]);
+        }
+        assert_eq!(xs.last().unwrap() - xs[0], 5 * TILE, "{xs:?}");
+        let steps = xs.windows(2).filter(|w| w[1] > w[0]).count();
+        assert!(steps >= 5 * 8, "{steps} forward steps over five cells: {xs:?}");
+        assert_eq!((runner.fighters[man].x, runner.fighters[man].y), (x0 + 5, y0));
     }
 }
