@@ -9470,3 +9470,75 @@ full burns for good — `docs/bugs.md` `B102`.
 **The lesson is C140's, and the brief's.** A blocked row's note is a description written to
 explain why something could not be built, and it is read for that and nothing else. Two of these
 three were one clause short, and the missing clause was the caller.
+
+**CNEW-standing — a stand-in for an absent player was installed on the path a present player
+uses, and the player watched his own army charge without him.**
+
+A player on `ee0cb92`: *"my men in battle started moving before I clicked"*, then *"I actually
+didn't see the enemy's units moving hence me thinking enemy ai on my troops"*, then *"it might be
+that enemy ai is getting applied to my units"*. The first hypothesis — our battle AI runs on the
+wrong side — is **false, and was measured rather than argued**: `tests/military.rs`
+`the_battle_ai_thinks_for_the_enemys_units_and_not_the_players` passes unchanged on the base
+commit. `Battle_UpdateAllUnits`' guard is reproduced exactly, the attacker raises as army A on
+side 4 and the defender as army B on side 0 (`Battle_InitArmies`, `0x0047EFEE`), and no handler
+ever ran for a human unit.
+
+**What actually moved them was ours, in `l2-game`, and it was documented as a deliberate
+deviation.** `engagement::begin_fight` — *"`Battle_Start` minus the screen"* — ended with
+
+```rust
+for (side, human) in [(SIDE_B, a_human), (SIDE_A, d_human)] {
+    if human { let enemy = runner.home(other_side(side)); runner.order_side(side, enemy.0, enemy.1); }
+}
+```
+
+under the comment *"This is the click a player makes on the first frame."* It was written for the
+**headless** battle, where there is no player to click, and `begin_fight` is shared with the
+**watched** one, where there is.
+
+**`Battle_Start` (`0x004778A0`) orders nobody.** `[V]`: it runs `Battlefield_Build*`,
+`Battle_InitArmies`, `FUN_00480F8B`, `Battle_UpdateAllMen` and `Battle_UpdateStrengthAdvantage`
+and returns; there is no `Order_*` call in its 655 bytes. `Battle_RaiseSide` (`0x0047FEA7`) →
+`BattleUnit_Create` (`0x00480662`) gives every figure a `tg x`/`tg y` equal to the cell it stands
+on. And it writes `DAT_0053F238 = 0xFFFFFFFF`, so a battle opens **paused** — which is why this
+was visible at all: the player saw the first frames and could tell the movement was not his.
+
+**An unordered unit is not inert, which is the half worth naming.** `BattleMan_FireMissile`'s
+`Missile_FindTarget` arm carries no human guard, so a player's archer stands on its cell and
+shoots whatever comes inside its range. *Standing* is the behaviour; helplessness is not. The
+player's own testimony — *"units don't advance on their own"* — is the binary's arithmetic as
+well.
+
+**Fixed by moving the stand-in one level out**, into `engagement::fight`, the headless path, as
+`charge_for_the_absent_player`, with the reason on the function rather than in a comment on the
+line. `begin_fight` is now `Battle_Start` and nothing else. A headless battle is byte-for-byte
+what it was — `tests/seam.rs`' fought battle is still 3,100 ticks, 178 → 0 against 182 → 22 — so
+no lockstep digest moved.
+
+**The second report was true and was not a defect.** The enemy really did stand still.
+400 peasants against 200 puts `Battle_UpdateStrengthAdvantage` (`0x0047FC01`) near −50 against
+`g_aiAggressionThreshold` of 5, so every field handler takes its cautious branch; with no attacker
+in `hit_memory` and nothing inside a charge radius of 8 or 9 cells, the only movement left is
+`Order_ToRallyWaypoint` — and **a rally waypoint is the side's own deployment marker**. `[V]`:
+`Battlefield_BuildRandom` fills all three of a side's waypoints, both rally groups, from the tile
+it just found the marker on. A cautious AI orders itself to stand where it is. The player must
+come to it. `tests/military.rs` `an_outnumbered_ai_holds_its_ground_and_does_not_advance`.
+
+**Two measurements in the tree were this, and one attribution in a held branch was wrong.**
+The ledger's `ordered-army-always-dies` — seven seeds, the human side annihilated 24 to 0 while
+the AI lost 3–5 — was the ordered side walking into a standing, shooting defence; only the human
+side was ever ordered, so *"the ordered army"* and *"the player's army"* were the same set and
+nothing distinguished them. And `worktree-agent-a55ac6f31e368d8c9` was held on *"defending AI
+archers walk to 13 cells instead of standing and shooting"*. **That branch measured no AI unit.**
+Its only measurement of 13 cells is a unit test whose walking archer is `human: true` and moved by
+`order_unit`; its field evidence is a flipped verdict in `seam.rs`, which records no side, state
+or position. Its own `send_figure` fix routes `order_side` — that is, the very order `begin_fight`
+was injecting into the player's army — into `State::Shooting`, and its `close_to_attack_tick` has
+no side test on the walking arm. The archers that walked were as likely the player's. The branch
+is untouched and still held; what changes is that its premise now has to be re-measured against a
+`begin_fight` that orders nobody.
+
+**The rule this is under is rule 5, and the failure mode is the one rule 5 exists for.** The
+deviation was *declared* — the module header said `fight` issues *"the one order a player always
+issues"* — and declaring it is what made it invisible. A stand-in for a missing input belongs on
+the path that is missing the input, never on the one where the input arrives.

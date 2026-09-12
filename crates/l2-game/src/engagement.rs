@@ -36,10 +36,21 @@
 //!   builds one from the campaign tile the armies are standing on and is
 //!   `[I]`-level unread; [`l2_sim::runner::blank_field`] is used instead, so
 //!   terrain plays no part yet.
-//! * **Nobody clicks.** A human side gets no AI order handler in the original
-//!   either, so a battle with an unattended player would stand still forever.
-//!   [`fight`] issues the one order a player always issues — every unit at the
-//!   enemy's end of the field — and lets the AI side think for itself.
+//! * **Nobody clicks — but only where nobody is watching.** A human side gets
+//!   no AI order handler in the original either (`Battle_UpdateAllUnits`
+//!   (`0x00489401`) guards on `humanControlled`), and `Battle_Start`
+//!   (`0x004778A0`) issues no order to anybody, so an unordered unit there
+//!   stands on the cell it deployed on and shoots whatever comes into range —
+//!   `BattleMan_FireMissile`'s `Missile_FindTarget` arm carries no human guard.
+//!   [`begin_fight`] reproduces that exactly. [`fight`], the **headless** path,
+//!   then adds [`charge_for_the_absent_player`], because a battle nobody is at
+//!   the keyboard for has no other way to happen; a battle a player watches
+//!   gets no such order and his men stand until he moves them.
+//!
+//!   This used to be inside [`begin_fight`] and therefore in the watched path
+//!   too. A player reported *"my men in battle started moving before I
+//!   clicked"*. `tests/military.rs`
+//!   `a_raised_battle_gives_the_players_own_units_no_orders`.
 //!
 //! > This list used to carry a fourth entry: *"Missiles do not fly. `l2-sim`
 //! > resolves a missile hit but nothing drives reload and flight, so an army of
@@ -666,6 +677,9 @@ fn fight(
     seed: u64,
 ) -> Option<(l2_sim::CastleDamage, Verdict, Resolution)> {
     let mut runner = begin_fight(kingdom, attacker, defender, castle_level, seed)?;
+    // Nobody is watching, so nobody clicks. See the function's own header for
+    // why this is here and not inside `begin_fight`.
+    charge_for_the_absent_player(kingdom, &mut runner, attacker, defender);
     // The original's frame loop asks `FUN_00477DFC` every frame; asking every
     // hundredth costs at most ninety-nine ticks of a battle that is already
     // over, and no rule reads the tick count.
@@ -745,17 +759,38 @@ pub fn begin_fight(
         }
     }
 
-    // A human side gets no order handler — `Battle_UpdateAllUnits` guards on
-    // it — so without this it stands where it deployed until the other side
-    // walks into it. This is the click a player makes on the first frame.
-    for (side, human) in [(SIDE_B, a_human), (SIDE_A, d_human)] {
-        if human {
+    Some(runner)
+}
+
+/// **Nobody is at the keyboard**, so somebody has to be the player.
+///
+/// This exists only for [`fight`], the headless path, and it has no counterpart
+/// in the original: every `Answer::TakeTheField` there is a person on screen
+/// `0x29`. `Battle_UpdateAllUnits` runs no handler for a human unit, so a
+/// headless battle with a human side would stand where it deployed until the
+/// other side walked into it and then be cut down without ever having advanced
+/// — which is a stand-in for an absent player, not a battle.
+///
+/// It is deliberately **not** in [`begin_fight`]. `Battle_Start` (`0x004778A0`)
+/// issues no order to anybody — it builds the field, calls `Battle_InitArmies`,
+/// `FUN_00480F8B`, `Battle_UpdateAllMen` and `Battle_UpdateStrengthAdvantage`,
+/// and stops — and a player who watches a battle must get that and not this.
+/// Putting the stand-in here is what lets a watched battle open the way the
+/// original's does while a headless one still resolves. `docs/decisions.md`
+/// CNEW-standing.
+fn charge_for_the_absent_player(
+    kingdom: &Kingdom,
+    runner: &mut BattleRunner,
+    attacker: usize,
+    defender: usize,
+) {
+    let human = |id: usize| kingdom.campaign.units.get(id).is_some_and(|u| u.owner_is_human);
+    for (side, id) in [(SIDE_B, attacker), (SIDE_A, defender)] {
+        if human(id) {
             let enemy = runner.home(l2_sim::runner::other_side(side));
             runner.order_side(side, enemy.0, enemy.1);
         }
     }
-
-    Some(runner)
 }
 
 /// **The tail of a fought battle**: the write-back and the verdict.

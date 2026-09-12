@@ -171,6 +171,17 @@ impl AiField {
     ///
     /// `home` is each side's own marker; on a `.skr` map all three rally
     /// waypoints sit on it, which is what both field battlefield builders do.
+    ///
+    /// **[V]**, and it decides how a field battle opens. `Battlefield_BuildRandom`
+    /// writes `g_rallyWaypoints[i] = g_foundTileX` for `i` in `0..3`, for **both**
+    /// rally groups, out of the same tile it just read the deployment marker
+    /// from — in the terrain-`0x14` arm and again in the terrain-`0x1E` one. So
+    /// `Order_ToRallyWaypoint` sends a unit to where it already is, and the
+    /// cautious branch of `UnitOrder_FieldFoot` / `UnitOrder_FieldMelee` — the
+    /// branch every handler takes while `g_aiStrengthAdvantage` is under 5 — has
+    /// no way to advance at all. **An outnumbered AI stands on its marker and
+    /// waits**, and a player who gives no orders gets a battle in which nothing
+    /// happens. `docs/decisions.md` CNEW-standing.
     pub fn field(home_side0: (i16, i16), home_side4: (i16, i16)) -> Self {
         let mut f = AiField {
             rally: [[[(0, 0); 3]; 2]; 2],
