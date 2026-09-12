@@ -81,6 +81,61 @@ pub const FIELD_CLIP: Clip = Clip::new(
 pub const TILESET: &str = "T32_bat1.pl8";
 pub const TILE_PALETTE: &str = "T32_bat1.256";
 
+/// **The overview panel's two sheets.** `Battle_LoadAssets` (`0x004987B7`)
+/// registers them with
+///
+/// ```text
+/// FUN_004BC107(DAT_0053F044, DAT_0056D680, DAT_0056D5A0, 0x1E0, 0x18, 2)
+///              t2_bat1.pl8   t2_bat2.pl8   t2_spri.pl8   480    24    mode
+/// ```
+///
+/// and the three buffers are entries `0x0B`, `0x0C` and `0x11` of the battle
+/// asset table at `0x004DA550` — `t2_bat1.pl8`, `t2_bat2.pl8`, `t2_spri.pl8`
+/// for a field battle, `t2_stn1`/`t2_stn2` or `t2_wod1`/`t2_wod2` in place of
+/// the first two for a siege. **[V]** from the table's bytes and the loader's
+/// `local_10 → local_18` ladder.
+///
+/// **The second sheet is never drawn in a field battle.** `t2_bat2.pl8`'s size
+/// in that table is `0`, the file is not in the install, and the loader's
+/// non-siege arm jumps over its slot entirely; `FUN_004BC51A` reaches it only
+/// when a cell's flag byte has `flags & 0x1C == 4`. So the field's raster is
+/// `t2_bat1.pl8` alone. **[V]**
+pub const OVERVIEW_TILESET: &str = "T2_bat1.pl8";
+pub const OVERVIEW_SPRITES: &str = "T2_spri.pl8";
+
+/// Two pixels a cell, at `(0x1E0, 0x18)` — `FUN_004BC51A`'s
+/// `g_drawY = row * 2 + _DAT_004E5D60`, `g_drawX = DAT_004E5D68` then `+= 2`
+/// a column. 80 × 80 cells makes a 160 × 160 raster, which ends exactly where
+/// `Screen_DrawBattlefield` puts `Misc_bat.pl8` frame 0, at `(0x1E0, 0xB8)`.
+/// **[V]**
+pub const OVERVIEW_ORIGIN_X: i32 = 0x1E0;
+pub const OVERVIEW_ORIGIN_Y: i32 = 0x18;
+pub const OVERVIEW_SCALE: i32 = 2;
+pub const OVERVIEW_SIDE: usize = DIM * OVERVIEW_SCALE as usize;
+
+/// **Four rows a frame** — `Battle_Frame` (`0x004B99C0`) calls
+/// `FUN_004BC1D1(4)` once a frame while `g_battlePhase == 2` and the screen is
+/// `0x28 … 0x2A`, and `FUN_004BC1D1` advances a row cursor by its argument,
+/// wraps it to zero at `DAT_004E6570 − n` (the map's 80 rows), and paints
+/// `FUN_004BC51A(cursor, n)`. A full sweep of the panel therefore takes
+/// **20 frames**. **[V]**
+pub const OVERVIEW_ROWS_PER_FRAME: usize = 4;
+
+/// The two 2 × 2 sheets the overview panel is built from. Optional on
+/// [`BattleAssets`] because an install that lacks them still plays — the panel
+/// falls back to the flat fill.
+pub struct OverviewSheets {
+    /// `t2_bat1.pl8`: 252 frames of 2 × 2, one for each of `T32_bat1.pl8`'s 252
+    /// 32 × 32 tiles, so a cell's `gfx` byte indexes both. **[V]** from the two
+    /// files' headers.
+    pub tiles: Sheet,
+    /// `t2_spri.pl8`: seven frames of 2 × 2. Frame 0 is the erase tile
+    /// `FUN_004BC51A` stamps on a cell a man has just left; frames 1 … 6 are
+    /// flat colours, indexed by the owning realm's `shieldIndex` — or 6 for the
+    /// neutral owner. **[V]**
+    pub men: Sheet,
+}
+
 /// Where the camera's top-left tile is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Camera {
@@ -114,6 +169,8 @@ pub struct BattleAssets {
     side4: Vec<Option<Sheet>>,
     side0: Vec<Option<Sheet>>,
     horse: Option<Sheet>,
+    /// [`OverviewSheets`], when the install has both files.
+    pub overview: Option<OverviewSheets>,
 }
 
 /// The seven troop types with battlefield sprites, indexed by
@@ -151,8 +208,13 @@ impl BattleAssets {
         let a = load_side(side4)?;
         let b = load_side(side0)?;
         let horse = read(figures::HORSE_FILE).ok().and_then(|b| Sheet::new(b).ok());
+        let mut sheet = |name: &str| read(name).ok().and_then(|b| Sheet::new(b).ok());
+        let overview = match (sheet(OVERVIEW_TILESET), sheet(OVERVIEW_SPRITES)) {
+            (Some(tiles), Some(men)) => Some(OverviewSheets { tiles, men }),
+            _ => None,
+        };
 
-        Ok(BattleAssets { palette, tiles, side4: a, side0: b, horse })
+        Ok(BattleAssets { palette, tiles, side4: a, side0: b, horse, overview })
     }
 
     fn sheet_for(&self, side: l2_sim::Side, troop: Troop) -> Option<&Sheet> {
@@ -300,6 +362,79 @@ pub fn draw_figures(
         drawn += 1;
     }
     drawn
+}
+
+/// **The overview panel, `rows` rows of it starting at `row`** —
+/// `FUN_004BC51A(param_1, param_2)` (`0x004BC51A`), the painter
+/// `Battle_LoadAssets` registers and `Battle_Frame` schedules.
+///
+/// ```c
+/// DAT_004E6588 = stride * width * param_1;              /* the first cell   */
+/// g_drawY      = param_1 * 2 + _DAT_004E5D60;           /* 24 + 2 a row     */
+/// for (row = param_1; row < param_1 + param_2; row++) {
+///     g_drawX = DAT_004E5D68;                           /* 480              */
+///     for (col = 0; col < width; col++) {
+///         flags = cell[+2];  occupant = cell[+5];
+///         if (g_mapRedraw || (flags & 3)) {
+///             if (occupant == 0) {  /* terrain: frame cell[+3], sheet by flags & 0x1C */ }
+///             else {
+///                 colour = men[occupant].owner == 6 ? 6
+///                        : g_realms[men[occupant].owner].shieldIndex;
+///                 if (colour != 0) Pl8_DrawFrameHere(t2_spri, colour, …);
+///             }
+///         }
+///         g_drawX += 2;
+///     }
+///     g_drawY += 2;
+/// }
+/// ```
+///
+/// `occupants` is one byte a cell in the same order as the field: the
+/// `t2_spri.pl8` frame for the man standing there, `0` for empty ground — which
+/// is exactly the original's `shieldIndex`, with its `!= 0` guard folded in.
+/// The cell a walking man occupies is the one he is walking *into*
+/// ([`drawn_cell`]): `FUN_00491B1F` moves his cell byte at the start of the
+/// crossing, and `+5` is that byte.
+///
+/// **Three things the original does here and this does not**, each because our
+/// cells do not carry byte `+2`:
+///
+/// * the per-cell dirty bits, `flags & 3` — we repaint every cell of the rows
+///   we visit, which is what `g_mapRedraw` makes the original do anyway;
+/// * `flags & 0x1C == 4`, the second tileset, which a field battle never
+///   reaches (see [`OVERVIEW_TILESET`]);
+/// * the erase tile, `t2_spri` frame 0, drawn over a cell whose `flags & 2` is
+///   set and whose occupant has gone — one pass later that cell draws its
+///   terrain again, and repainting the whole row goes straight there.
+///
+/// **And one branch that is dead in a battle**: column 0 draws `t2_spri` frame
+/// 0 when `g_appPhase == 3`, and `g_appPhase` is past 8 by the time `App_Draw`
+/// runs, let alone a battle. **[V]** on `g_appPhase`'s two writes.
+///
+/// There is **no viewport rectangle** anywhere in `FUN_004BC51A`, and nothing
+/// else writes inside `(0x1E0, 0x18)`–`(0x280, 0xB8)`.
+pub fn draw_overview_rows(
+    raster: &mut Canvas,
+    field: &Battlefield,
+    occupants: &[u8],
+    sheets: &OverviewSheets,
+    row: usize,
+    rows: usize,
+) {
+    for y in row..(row + rows).min(DIM) {
+        for x in 0..DIM {
+            let (px, py) = (x as i32 * OVERVIEW_SCALE, y as i32 * OVERVIEW_SCALE);
+            let colour = occupants.get(y * DIM + x).copied().unwrap_or(0);
+            let frame = if colour == 0 {
+                sheets.tiles.frame(field.at(x, y).gfx as usize)
+            } else {
+                sheets.men.frame(colour as usize)
+            };
+            if let Some(frame) = frame {
+                raster.blit_opaque(&frame, px, py);
+            }
+        }
+    }
 }
 
 /// One whole frame: terrain, then figures.

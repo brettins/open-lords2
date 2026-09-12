@@ -86,6 +86,7 @@
 //! `Battle_SelectOutcomeBanner`'s four-way siege reading, [`outcome_banner`].
 
 use l2_sim::runner::Formation;
+use l2_sim::terrain::DIM;
 use l2_view::{text, Canvas};
 
 use crate::battlefield::{
@@ -171,11 +172,99 @@ pub struct BattlefieldScreen {
     /// Whether this screen has seen the battle reach `0x2B` — the edge
     /// `Battle_CheckOutcome` plays its film on.
     outcome_seen: bool,
+    overview: Overview,
+}
+
+/// **The overview panel's framebuffer and its row cursor.**
+///
+/// `FUN_004BC1D1` (`0x004BC1D1`) is the whole schedule:
+///
+/// ```c
+/// DAT_004E5D74 += param_1;                                  /* the cursor  */
+/// if (DAT_004E6570 - param_1 < DAT_004E5D74) DAT_004E5D74 = 0;   /* 80 rows */
+/// if (DAT_004E5D58 == 2) FUN_004BC51A(DAT_004E5D74, param_1);
+/// ```
+///
+/// and its two callers set the rhythm. `Screen_DrawBattlefield` (`0x004233F7`)
+/// enters the screen with `g_mapRedraw = 1; FUN_004bc1d1(0x50);` — a full
+/// eighty-row pass. `Battle_Frame` (`0x004B99C0`) then runs, once a frame while
+/// `g_battlePhase == 2` and `0x27 < g_screenId < 0x2B`:
+///
+/// ```c
+/// if (g_mapRedraw == 0) { FUN_004bc1d1(4);    Gfx_MarkSpriteDirty(0x1E0, 0x18, 10, 10, 1); }
+/// else                  { FUN_004bc1d1(0x50); Gfx_MarkAllDirty(); }
+/// FUN_004bc142(cameraX, cameraY);      /* …which ends `if (g_mapRedraw) g_mapRedraw--;` */
+/// ```
+///
+/// **So the panel is full only on the frame after it is entered, and four rows
+/// a frame — a twenty-frame sweep — for the rest of the battle.** `[V]`; that
+/// last decrement is what settles it, and without reading `FUN_004BC142` the
+/// obvious reading is that the full pass runs every frame.
+///
+/// The original paints into the back buffer and the seventy-six rows it did not
+/// visit keep the pixels they already had; ours keeps them in a raster of its
+/// own and blits the whole of it, because our canvas has a yes/no box and a film
+/// pushed over it and the original's screen has neither.
+///
+/// One difference that follows from that and is left: the original repeats the
+/// entry pass every time `Screen_DrawBattlefield` runs, which includes the
+/// return from an outcome film. The raster survives the push, so ours does not
+/// need to — it is up to twenty frames behind for that one moment instead of
+/// none.
+struct Overview {
+    raster: Canvas,
+    /// `DAT_004E5D74`.
+    row: usize,
+    /// `g_mapRedraw`, as this panel sees it: the next visit paints all eighty
+    /// rows. Set on entry, cleared by the visit itself.
+    full: bool,
+}
+
+impl Overview {
+    fn new() -> Overview {
+        Overview {
+            raster: Canvas::new(l2_view::scene::OVERVIEW_SIDE, l2_view::scene::OVERVIEW_SIDE),
+            row: 0,
+            full: true,
+        }
+    }
 }
 
 impl BattlefieldScreen {
     pub fn new() -> BattlefieldScreen {
-        BattlefieldScreen { confirm: None, press: Press::new(), redraw: true, outcome_seen: false }
+        BattlefieldScreen {
+            confirm: None,
+            press: Press::new(),
+            redraw: true,
+            outcome_seen: false,
+            overview: Overview::new(),
+        }
+    }
+
+    /// One `Battle_Frame` visit to the overview panel — see [`Overview`].
+    /// Returns false when the install has no `t2_` sheets to paint it from.
+    fn step_overview(&mut self, ctx: &Ctx) -> bool {
+        let Some(live) = ctx.game.battle.as_ref() else { return false };
+        let Some(sheets) = ctx.assets.battle.as_ref().and_then(|a| a.overview.as_ref()) else {
+            return false;
+        };
+        let rows =
+            if self.overview.full { DIM } else { l2_view::scene::OVERVIEW_ROWS_PER_FRAME };
+        self.overview.row += rows;
+        if DIM - rows < self.overview.row {
+            self.overview.row = 0;
+        }
+        let occupants = overview_occupants(ctx.game, live);
+        l2_view::scene::draw_overview_rows(
+            &mut self.overview.raster,
+            &live.runner.field,
+            &occupants,
+            sheets,
+            self.overview.row,
+            rows,
+        );
+        self.overview.full = false;
+        true
     }
 
     fn live<'a>(ctx: &'a mut Ctx) -> Option<&'a mut LiveBattle> {
@@ -459,6 +548,13 @@ impl Screen for BattlefieldScreen {
         live.edge_scroll();
         live.tick();
         let done = live.mode == Mode::Outcome && live.outcome_ticks > battlefield::OUTCOME_FRAMES;
+        // `Battle_Frame`'s own placement: after the tick, before the field is
+        // painted, once a frame whatever the pause word says. See [`Overview`].
+        {
+            let ctx = Ctx { game: &mut *ctx.game, assets: ctx.assets };
+            self.step_overview(&ctx);
+        }
+        let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
         let raised = live.mode == Mode::Outcome && !self.outcome_seen;
         let decides = live.choice_owner != 0;
         self.redraw |= live.take_redraw();
@@ -500,6 +596,14 @@ impl Screen for BattlefieldScreen {
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        // `Screen_DrawBattlefield` (`0x004233F7`) opens the screen with
+        // `g_mapRedraw = 1; FUN_004bc1d1(0x50);` — the panel is whole before the
+        // first frame is presented, even if no frame has run yet.
+        let have_sheets = if self.overview.full {
+            self.step_overview(ctx)
+        } else {
+            ctx.assets.battle.as_ref().is_some_and(|a| a.overview.is_some())
+        };
         let Some(live) = ctx.game.battle.as_ref() else { return };
         let ink = &ctx.assets.ink;
         let p = Pen {
@@ -550,7 +654,7 @@ impl Screen for BattlefieldScreen {
         }
 
         // --- the right column ---------------------------------------------
-        draw_overview(canvas, live, ink);
+        draw_overview(canvas, &self.overview, live, ink, have_sheets);
         draw_banners(canvas, live, ink);
         for b in Button::ALL {
             let r = b.rect();
@@ -755,9 +859,76 @@ fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view:
     }
 }
 
+/// **Cell byte `+5`, as `FUN_004BC51A` reads it, already turned into the
+/// `t2_spri.pl8` frame it picks.** One byte a cell: the man's owning realm's
+/// `shieldIndex`, `6` for the ownerless, `0` where there is no man — which is
+/// also the value the original's `if (DAT_005C9288 != 0)` guard drops.
+///
+/// ```c
+/// if (g_battleMen[cell[+5]].owner == 6) colour = 6;
+/// else colour = g_realms[g_battleMen[cell[+5]].owner].shieldIndex;
+/// ```
+///
+/// The cell is [`l2_view::scene::drawn_cell`]'s, not `(f.x, f.y)`: byte `+5`
+/// moves with `mapX`/`mapY`, and `FUN_00491B1F` moves those at the *start* of a
+/// crossing. A man walking east is on the minimap's next cell for the whole of
+/// it, as he is in the viewport. **[V]**
+fn overview_occupants(game: &crate::Game, live: &LiveBattle) -> Vec<u8> {
+    let mut occupants = vec![0u8; l2_sim::terrain::CELLS];
+    for i in 0..live.runner.fighters.len() {
+        if !live.runner.is_alive(i) {
+            continue;
+        }
+        let f = &live.runner.fighters[i];
+        let owner = live.runner.sim.figures[f.sim].owner;
+        let colour = if owner == l2_kingdom::levy::OWNERLESS {
+            l2_kingdom::levy::OWNERLESS
+        } else {
+            game.kingdom.realms.get(owner as usize).map_or(0, |r| r.shield_index)
+        };
+        if colour == 0 {
+            continue;
+        }
+        let ((cx, cy), _) = l2_view::scene::drawn_cell(f);
+        if (0..DIM as i32).contains(&cx) && (0..DIM as i32).contains(&cy) {
+            occupants[cy as usize * DIM + cx as usize] = colour;
+        }
+    }
+    occupants
+}
+
 /// The 80 × 80 field at two pixels a cell — the raster `BattleMap_Click` hit
-/// tests.
-fn draw_overview(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
+/// tests, painted by `FUN_004BC51A` (`0x004BC51A`) and scheduled by
+/// [`Overview`].
+///
+/// **The frame round the viewport is gone and was never the original's.**
+/// `FUN_004BC51A` draws two things and neither is a rectangle: a terrain tile
+/// per cell and a man over it. **[V]** That nothing *else* writes inside
+/// `(0x1E0, 0x18)`–`(0x280, 0xB8)` is **[I]**: `Screen_DrawBattlefield`'s three
+/// `Misc_bat.pl8` blits all start at `y 0xB8` or below, and the earliest banner
+/// in `DAT_004D31F4` is at `y 185`.
+///
+/// `have_sheets` is false on an install that does not ship `T2_bat1.pl8` beside
+/// the executable — the older DOS tree does not — and on
+/// [`crate::game::Assets::placeholder`]. Then the panel is a flat fill and a dot
+/// a side, which is ours and is marked as ours.
+fn draw_overview(
+    canvas: &mut Canvas,
+    panel: &Overview,
+    live: &LiveBattle,
+    ink: &l2_view::Ink,
+    have_sheets: bool,
+) {
+    if have_sheets {
+        canvas.blit_raster(
+            &panel.raster.pixels,
+            l2_view::scene::OVERVIEW_SIDE,
+            OVERVIEW.x,
+            OVERVIEW.y,
+            1,
+        );
+        return;
+    }
     canvas.fill_rect(OVERVIEW.x, OVERVIEW.y, OVERVIEW.w, OVERVIEW.h, ink.background);
     for i in 0..live.runner.fighters.len() {
         if !live.runner.is_alive(i) {
@@ -767,17 +938,6 @@ fn draw_overview(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
         let c = if f.side == l2_sim::SIDE_A { ink.highlight } else { ink.text };
         canvas.fill_rect(OVERVIEW.x + f.x as i32 * 2, OVERVIEW.y + f.y as i32 * 2, 2, 2, c);
     }
-    // Where the viewport is looking.
-    crate::widget::frame(
-        canvas,
-        Rect::new(
-            OVERVIEW.x + live.cam.0 * 2,
-            OVERVIEW.y + live.cam.1 * 2,
-            VIEW_COLS * 2,
-            VIEW_ROWS * 2,
-        ),
-        ink.border,
-    );
 }
 
 /// One banner per figure the player holds, in the layout the count picks.

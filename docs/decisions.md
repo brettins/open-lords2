@@ -10256,3 +10256,78 @@ and the recess had been drawn empty since C177. And `text::draw("THE SMITHY IS A
 is gone: `tools/draws/screens.json` had it under `literals_ours` and the draw audit's caption
 test is what noticed, which is the inventory doing the job it was built for rather than a
 person remembering.
+
+---
+
+**C192 — The battle overview panel was black, and the schedule that fills it is not
+the one a single function shows.**
+
+The player, on build `EE0CB9233`: *"battle is still a blue mess where the grass should be, a
+black minimap"*. The blue was C183's palette. The panel was a painter we did not have: ours was
+`fill_rect(ink.background)` — `ink.background` is the index nearest black in **every** palette,
+so no palette work could ever have touched it — with a dot a *side* on it and a rectangle round
+the camera.
+
+**What the original draws.** `Overview_DrawRows` (`0x004BC51A`), registered by
+`Battle_LoadAssets`' `Overview_SetSheets(t2_bat1.pl8, t2_bat2.pl8, t2_spri.pl8, 0x1E0, 0x18, 2)`
+— entries `0x0B`, `0x0C` and `0x11` of the asset table at `0x004DA550`. Two pixels a cell from
+`(480, 24)`, so the 80 × 80 field is a 160 × 160 raster ending exactly where
+`Screen_DrawBattlefield` puts `Misc_bat.pl8` frame 0, at `(0x1E0, 0xB8)`. Per cell: frame
+`cell[+3]` of `t2_bat1.pl8` — **252 frames of 2 × 2, one for each of `T32_bat1.pl8`'s 252
+32 × 32 tiles**, so the same `gfx` byte indexes both — or, over a cell holding a man, frame
+`g_realms[owner].shieldIndex` of `t2_spri.pl8`, which is seven 2 × 2 frames: an erase tile and
+six flat colours. **The men are coloured by realm, not by side**, and a `shieldIndex` of 0 draws
+no man at all. **There is no viewport rectangle.** `[V]`, and the file headers agree: 252 and 7,
+all 2 × 2. **C183's trace of this, written without building it, was right in every particular
+it stated** — the sheets, the 2 × 2 tiles, the shield colour, the absent rectangle, the four
+rows. Re-derived here from the decompilation because it was a trace and not a finding, and what
+it did not state is the two paragraphs below: how often the *full* pass runs, and that
+`t2_spri.pl8` frame 0 is an erase tile on the same sheet as the men.
+
+**Two dead branches, named so nobody builds them.** `flags & 0x1C == 4` reaches the second tile
+sheet, which for a field battle is `t2_bat2.pl8` — size `0` in the table, absent from the
+install, and skipped outright by the loader's non-siege arm. And column 0 draws the erase tile
+when `g_appPhase == 3`, which is a start-up phase; `App_Draw` has taken it past 8 long before a
+battle.
+
+**The schedule is the part that cannot be read off one function.** `Overview_Step`
+(`0x004BC1D1`) advances a row cursor, wraps it at `0x50 − n`, and paints `n` rows.
+`Screen_DrawBattlefield` enters the screen with `g_mapRedraw = 1` and `Overview_Step(0x50)`, and
+`Battle_Frame` then runs, once a frame while `g_battlePhase == 2` and `0x27 < g_screenId < 0x2B`:
+
+```c
+if (g_mapRedraw == 0) { Overview_Step(4);    Gfx_MarkSpriteDirty(0x1E0, 0x18, 10, 10, 1); }
+else                  { Overview_Step(0x50); Gfx_MarkAllDirty(); }
+FUN_004BC142(cameraX, cameraY);
+```
+
+Read that far and the honest reading is *"the full pass runs whenever `g_mapRedraw` is set, and
+who knows how often that is"*. **`FUN_004BC142` ends `if (g_mapRedraw != 0) g_mapRedraw--`** —
+so the full pass happens on the frame after entry and never again, and the rest of the battle is
+**four rows a frame: a twenty-frame sweep**. `[V]`, and it took the callee to settle it. **It is
+visible.** Eighty rows at four a frame means a man's dot appears at his new cell up to twenty
+frames after he is there and vanishes from his old one just as late, so the panel and the
+viewport disagree about where he is for as long as he walks. **How long that is in wall-clock
+time is not claimed** — nothing here measured the original's frame rate. It is reproduced, and
+`the_overview_panel_is_repainted_four_cell_rows_a_frame` asserts
+that exactly four cell rows and no more come back into agreement per frame, and that twenty
+frames sweep the panel.
+
+**Why ours keeps a raster of its own.** The original paints into the back buffer and the
+seventy-six rows it did not visit keep the pixels they already had. Our canvas has a yes/no box
+and an outcome film pushed over it and the original's screen has neither, so `BattlefieldScreen`
+holds the 160 × 160 raster and blits it whole. The schedule — which rows, in which order, how
+stale — is the original's.
+
+**And a screen nobody has: `Overview_SetSheets` has a second caller.** `FUN_00498DCB` registers
+the same painter at `(0x1D2, 0x0B)` over the `t2x*` sheets with `Misc_ske.PL8` beside it, and it
+is called by `Skirmish_Setup` (`0x0042B7F7`) and `Screen_BattleMasterRatings` (`0x00421707`).
+All seven of those files ship. Skirmish is `missing` in `docs/features.json` and this says what
+its sidebar is made of when somebody builds it. Found, not built.
+
+**Left alone: cell byte `+2`.** The original's per-cell dirty bits (`flags & 3`) and its sheet
+selector (`flags & 0x1C`) live in a byte `l2_sim::terrain::Cell` does not carry — it keeps `+0`,
+`+1`, `+3`, `+4` and `+7`, which is what a `.skr` field battle writes. Repainting every cell of
+the four rows visited is what `g_mapRedraw` makes the original do anyway, and the erase tile is
+one pass of a cell the next pass draws terrain on. Modelling `+2` would be a simulation change
+for no picture.

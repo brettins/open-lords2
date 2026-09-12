@@ -9994,6 +9994,27 @@
       "confidence": "verified",
       "signature": "int Battle_ReportTimedOut(void)",
       "comment": "Screen 0x13s auto-dismiss: 5000 ms after _DAT_005689A0, and immediately when two or more sieges are pending in a siege. Returns 0 unconditionally when g_multiplayer is clear."
+    },
+    {
+      "addr": "0x004BC107",
+      "name": "Overview_SetSheets",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Registers the battle overview panel - the 'minimap' at the top of the right column - with the six values Overview_DrawRows reads: two terrain sheets, a sprite sheet, an origin and a mode. Called twice in the binary. Battle_LoadAssets passes (t2_bat1.pl8, t2_bat2.pl8, t2_spri.pl8, 0x1E0, 0x18, 2) for screens 0x28..0x2A - entries 0x0B, 0x0C and 0x11 of the battle asset table at 0x004DA550, with t2_stn1/t2_stn2 or t2_wod1/t2_wod2 replacing the first two in a siege. FUN_00498DCB, the skirmish and battle-master loader, passes the t2x* sheets at origin (0x1D2, 0x0B) instead. The mode is the only thing Overview_Step tests, and both callers pass 2."
+    },
+    {
+      "addr": "0x004BC1D1",
+      "name": "Overview_Step",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The overview panel's schedule, and the whole of it: g_overviewRow += n; if (0x50 - n < g_overviewRow) g_overviewRow = 0; if (g_overviewMode == 2) Overview_DrawRows(g_overviewRow, n). Battle_Frame calls it with 4 once a frame while g_battlePhase == 2 and 0x27 < g_screenId < 0x2B, so the 80-row panel sweeps in TWENTY frames and lags the field by up to that; Screen_DrawBattlefield calls it with 0x50 on screen entry, for one whole pass. Which of the two Battle_Frame picks is g_mapRedraw, and FUN_004BC142 - called immediately after, in the same block - ends with 'if (g_mapRedraw != 0) g_mapRedraw--'. Without that decrement the obvious reading is that the full pass runs every frame."
+    },
+    {
+      "addr": "0x004BC51A",
+      "name": "Overview_DrawRows",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Paints param_2 rows of the battle overview panel starting at row param_1, two pixels a cell, from (DAT_004E5D68, _DAT_004E5D60 + 2*row) - the origin Overview_SetSheets stored. Per cell, on flags = cell[+2] and occupant = cell[+5], and only when g_mapRedraw or flags & 3: an empty cell draws frame cell[+3] of the first tile sheet (flags & 0x1C == 0) or of the second (== 4), or the sprite sheet's frame 0 when flags & 2 is set - the erase tile; an occupied cell draws the sprite sheet's frame g_realms[g_battleMen[occupant].owner].shieldIndex, or frame 6 when that owner is 6, and nothing at all when it is 0. It draws NO viewport rectangle. One branch is dead in a battle: column 0 draws frame 0 when g_appPhase == 3, and g_appPhase is past 8 long before a battle. docs/decisions.md C192."
     }
   ],
   "globals": [
@@ -11081,6 +11102,20 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Map_ScrollThrottle's last-accepted timestamp, from timeGetTime. Written only when a scroll step is accepted, and the excess elapsed time is discarded rather than carried - so the scroll rate quantises to the frame rate whenever a frame is longer than the interval."
+    },
+    {
+      "addr": "0x004E5D58",
+      "name": "g_overviewMode",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Written only by Overview_SetSheets and read only by Overview_Step, which paints nothing unless it holds 2. Both callers pass 2."
+    },
+    {
+      "addr": "0x004E5D74",
+      "name": "g_overviewRow",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The overview panel's row cursor, advanced and wrapped by Overview_Step and read by nothing else."
     },
     {
       "addr": "0x004E659C",
