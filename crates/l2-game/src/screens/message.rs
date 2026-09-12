@@ -65,7 +65,7 @@
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
-use crate::press::{Kind, Press, Widget};
+use crate::press::{Press, Widget};
 use crate::message::{self, category, Prompt, Record, Shape};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
@@ -128,12 +128,28 @@ pub struct MessageScreen {
 }
 
 /// The open prompt's two widgets as a table. Index 0 is **yes**, hotspot id 1.
+///
+/// **Each prompt is its own table with its own kind byte**, so each carries its
+/// own `arm!` — the marker for the handler behind it, and the kind it is
+/// answered with. The two ally answers share `FUN_004368FD`'s record.
 fn prompt_widgets(prompt: Prompt) -> [Widget; 2] {
     let [yes, no] = prompt.widgets();
     let side = Prompt::SIDE;
+    let kind = match prompt {
+        // `Diplo_PayHelpClicked`, `0x004DDA90`.
+        Prompt::PayForHelp => crate::arm!("0x004367FF/pay-for-help-prompt", Repeat),
+        // `FUN_00436872`, `0x004DDAC0`.
+        Prompt::AcceptAlliance => crate::arm!("0x00436872/accept-alliance-prompt", Repeat),
+        // `FUN_004368FD` at `0x004DDAF0` and `FUN_0043695D` at `0x004DDB20`.
+        Prompt::AnswerHelpRequest | Prompt::AnswerAttackRequest => {
+            crate::arm!("0x004368FD/answer-help-request", Repeat)
+        }
+        // `FUN_004376BB`, `0x004DDB50`.
+        Prompt::Garrison => crate::arm!("0x004376BB/garrison-split-prompt", Repeat),
+    };
     [
-        Widget::new(Rect::new(yes.0, yes.1, side, side), Kind::Repeat),
-        Widget::new(Rect::new(no.0, no.1, side, side), Kind::Repeat),
+        Widget::new(Rect::new(yes.0, yes.1, side, side), kind),
+        Widget::new(Rect::new(no.0, no.1, side, side), kind),
     ]
 }
 
@@ -164,6 +180,11 @@ impl Screen for MessageScreen {
     /// layer. See [`Screen::take_clicks`].
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
+    }
+
+    /// The prompt's thumb coming back up. See [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
     }
 
     fn title(&self, ctx: &Ctx) -> String {
@@ -238,6 +259,22 @@ impl Screen for MessageScreen {
             // and this is counted rather than hidden.
             // arm: ours/message-keyboard-dismiss key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => leave(ctx),
+            // **A double click answers a prompt and does nothing else here.**
+            // The five `Widget_Test` tables are kind 4, whose guard is
+            // `g_mouseLeftPressed || g_mouseLeftDoubleClick`, and a hit returns
+            // 1 and swallows the frame. The 48 × 48 corner opens
+            // `if (g_mouseLeftPressed == 0) { uVar1 = 0; }`, so a double click
+            // anywhere else returns 0 and `Screen_FrameInput` offers it to the
+            // screen underneath. `[V]` This screen passed every double click
+            // down, prompt or not.
+            Event::DoubleClick { .. } => {
+                if let Some(prompt) = record.answer_widgets() {
+                    if let Some(i) = self.press.event(&prompt_widgets(prompt), event) {
+                        return answer(ctx, prompt, i == 0);
+                    }
+                }
+                Transition::Pass
+            }
             Event::Pointer { x, y } => {
                 self.pointer = (x, y);
                 if let Some(prompt) = record.answer_widgets() {
@@ -270,7 +307,7 @@ impl Screen for MessageScreen {
         // `Widget_Test`'s countdown, which runs the pressed picture down. It
         // cannot fire: the prompts are kind 4, whose fire is on the press, and
         // the handler dismisses before a repeat could arrive.
-        self.press.tick();
+        let _ = self.press.tick();
         if !ctx.game.messages.is_open() {
             return Transition::Pop;
         }
@@ -327,7 +364,7 @@ impl Screen for MessageScreen {
         }
 
         if let Some(prompt) = record.answer_widgets() {
-            draw_prompt(&pen, canvas, prompt, self.press.pressed());
+            draw_prompt(&pen, canvas, prompt, &self.press);
         }
         if record.shape().has_ok_button() {
             let (x, y) = frame.ok_button();
@@ -695,11 +732,11 @@ pub fn repaint_clickables(ctx: &Ctx, canvas: &mut Canvas, record: &Record) {
         shadow: Some(font::SHADOW),
         caps: None,
     };
-    // `None`: this repaints what a FRESH frame would draw, and a press timer is
-    // per-screen state the caller does not have. The test that uses it compares
-    // an untouched draw with a second one, so both sides are up.
+    // A fresh `Press`: this repaints what a FRESH frame would draw, and a press
+    // timer is per-screen state the caller does not have. The test that uses it
+    // compares an untouched draw with a second one, so both sides are up.
     if let Some(prompt) = record.answer_widgets() {
-        draw_prompt(&pen, canvas, prompt, None);
+        draw_prompt(&pen, canvas, prompt, &Press::new());
     }
     if record.shape().has_ok_button() {
         if let Some(frame) = window_frame(ctx, record) {
@@ -775,11 +812,11 @@ fn draw_paragraphs(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, n
 
 /// `Widget_Draw(0, 0, table, 2)` — the two mailed hands, `System.pl8` frames 29
 /// and 31.
-fn draw_prompt(pen: &Pen, canvas: &mut Canvas, prompt: Prompt, down: Option<usize>) {
+fn draw_prompt(pen: &Pen, canvas: &mut Canvas, prompt: Prompt, press: &Press) {
     let [yes, no] = prompt.widgets();
     // `Widget_Draw` adds one to the frame while `+0x0D` runs.
     for (i, (at, frame)) in [(yes, Prompt::FRAME_YES), (no, Prompt::FRAME_NO)].into_iter().enumerate() {
-        let frame = if down == Some(i) { frame + 1 } else { frame };
+        let frame = if press.is_pressed(i) { frame + 1 } else { frame };
         if !pen.system_frame(canvas, frame, at.0, at.1) {
             crate::shell::button_recess(canvas, at.0, at.1, Prompt::SIDE, Prompt::SIDE);
         }
@@ -813,7 +850,7 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         //   Msg_Dismiss();
         //   if (hotspot != 0) Diplo_PayForHelp(myAlly, me, g_diploHelpCounty, g_diploHelpPrice);
         // **Declining does nothing at all** — not even a letter back.
-        // arm: 0x004367FF/pay-for-help-prompt left-press-repeat
+        // The five arms are declared on [`prompt_widgets`].
         Prompt::PayForHelp => {
             message::dismiss(ctx.game);
             if yes {
@@ -839,7 +876,6 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         // **The guard is the finding.** Declining an AI's offer in single player
         // runs *nothing*: no refusal, no grudge, no letter. The offer lapses
         // when the offering realm clears `offer_pending` on its next turn.
-        // arm: 0x00436872/accept-alliance-prompt left-press-repeat
         Prompt::AcceptAlliance => {
             let offerer = ctx.game.messages.open().map_or(0, |r| r.from);
             message::dismiss(ctx.game);
@@ -856,7 +892,6 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         // are network commands and not composer kinds, and `Net_SendCommand`
         // (`0x49`) is their only consumer. In a single-player game the two
         // handlers therefore do nothing but dismiss.
-        // arm: 0x004368FD/answer-help-request left-press-repeat
         Prompt::AnswerHelpRequest | Prompt::AnswerAttackRequest => {
             message::dismiss(ctx.game);
             Transition::Pop
@@ -870,7 +905,6 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         // without closing the window, so the prompt is still up and has to be
         // closed with the corner button or the right button. Reproduced;
         // `docs/bugs.md` B94.
-        // arm: 0x004376BB/garrison-split-prompt left-press-repeat
         Prompt::Garrison => {
             if !yes {
                 return Transition::Pass;

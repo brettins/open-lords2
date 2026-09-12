@@ -427,7 +427,7 @@ const ADVANCED: &[Row] = &[
         label_at: (0x60, 0xA0),
         state_x: 0x140,
         widget_at: (280, 156),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x00434556/opt-advanced-farming", Delayed),
         words: Words::YesNo,
         setting: Setting::AdvancedFarming,
     },
@@ -436,7 +436,7 @@ const ADVANCED: &[Row] = &[
         label_at: (0x60, 0xC0),
         state_x: 0x140,
         widget_at: (280, 188),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x004345D0/opt-army-foraging", Delayed),
         words: Words::YesNo,
         setting: Setting::ArmyForaging,
     },
@@ -445,7 +445,7 @@ const ADVANCED: &[Row] = &[
         label_at: (0x60, 0xE0),
         state_x: 0x140,
         widget_at: (280, 220),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x00434693/opt-exploration", Delayed),
         words: Words::YesNo,
         setting: Setting::Exploration,
     },
@@ -454,7 +454,7 @@ const ADVANCED: &[Row] = &[
         label_at: (0x60, 0x100),
         state_x: 0x140,
         widget_at: (280, 252),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x0043470D/opt-fight-humans-only", Delayed),
         words: Words::YesNo,
         setting: Setting::FightHumansOnly,
     },
@@ -476,7 +476,7 @@ const SOUND: &[Row] = &[
         label_at: (0x60, 0xA0),
         state_x: 0x140,
         widget_at: (280, 156),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x004349A4/opt-music", Delayed),
         words: Words::OnOff,
         setting: Setting::Music,
     },
@@ -485,7 +485,7 @@ const SOUND: &[Row] = &[
         label_at: (0x60, 0xC0),
         state_x: 0x140,
         widget_at: (280, 188),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x00434A29/opt-sound-effects", Delayed),
         words: Words::OnOff,
         setting: Setting::SoundEffects,
     },
@@ -494,7 +494,7 @@ const SOUND: &[Row] = &[
         label_at: (0x60, 0xE0),
         state_x: 0x140,
         widget_at: (280, 220),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x00434A9A/opt-speech", Delayed),
         words: Words::OnOff,
         setting: Setting::Speech,
     },
@@ -512,7 +512,7 @@ const DISPLAY: &[Row] = &[
         label_at: (0x60, 0xD0),
         state_x: 0x140,
         widget_at: (280, 204),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x00434AD5/opt-animations", Delayed),
         words: Words::OnOff,
         setting: Setting::Animations,
     },
@@ -521,7 +521,7 @@ const DISPLAY: &[Row] = &[
         label_at: (0x60, 0xF0),
         state_x: 0x140,
         widget_at: (280, 236),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x00434B10/opt-full-screen", Delayed),
         words: Words::YesNo,
         setting: Setting::FullScreen,
     },
@@ -538,7 +538,7 @@ const HELP: &[Row] = &[
         label_at: (0x80, 0xC0),
         state_x: 0x120,
         widget_at: (240, 188),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x00434787/opt-tip-screens", Delayed),
         words: Words::YesNo,
         setting: Setting::TipScreens,
     },
@@ -547,7 +547,7 @@ const HELP: &[Row] = &[
         label_at: (0x80, 0xE0),
         state_x: 0x120,
         widget_at: (240, 220),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x004347C7/opt-tool-tips", Delayed),
         words: Words::YesNo,
         setting: Setting::ToolTips,
     },
@@ -556,6 +556,9 @@ const HELP: &[Row] = &[
         label_at: (0x80, 0x100),
         state_x: 0x120,
         widget_at: (288, 252),
+        // No `arm!`: `docs/arms.json` files `Opt_GameHelpContents` `missing`,
+        // and a marker says an arm is in the tree. The kind is still the
+        // record's.
         kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::StartGameHelp,
@@ -726,39 +729,32 @@ pub fn toggle(setting: Setting, ctx: &mut Ctx) {
         value(setting, &read)
     };
     let o = &mut ctx.game.kingdom.options;
+    // **Each row's arm is declared on its row** — the `arm!` in [`ADVANCED`],
+    // [`SOUND`], [`DISPLAY`] and [`HELP`], beside the kind it is answered with
+    // — and that is where the handler addresses are.
     match setting {
-        // arm: 0x00434556/opt-advanced-farming left-press-delayed
         Setting::AdvancedFarming => o.advanced_farming = !on,
         // **Not a flip alone**: the ration pass and the forecasts are re-run
         // over every county. See `Kingdom::toggle_army_foraging`.
-        // arm: 0x004345D0/opt-army-foraging left-press-delayed
         Setting::ArmyForaging => ctx.game.kingdom.toggle_army_foraging(),
-        // arm: 0x00434693/opt-exploration left-press-delayed
         Setting::Exploration => o.exploration = !on,
-        // arm: 0x0043470D/opt-fight-humans-only left-press-delayed
         Setting::FightHumansOnly => o.fight_humans_only_byte = u8::from(on),
         // `Music_Stop` or the phase's bed follows from the flag on the next
         // tick: `audio::Director::listen` pushes it and `Audio::follow`
         // re-derives the bed, which is `Opt_ToggleMusic`'s two sound sites.
-        // arm: 0x004349A4/opt-music left-press-delayed
         Setting::Music => ctx.game.prefs.music = !on,
-        // arm: 0x00434A29/opt-sound-effects left-press-delayed
         Setting::SoundEffects => ctx.game.prefs.effects = !on,
-        // arm: 0x00434A9A/opt-speech left-press-delayed
         Setting::Speech => ctx.game.prefs.speech = !on,
-        // arm: 0x00434AD5/opt-animations left-press-delayed
         Setting::Animations => ctx.game.prefs.animations = !on,
         // `Opt_ToggleTipScreens` (`0x00434787`) is two statements, and the
         // second is `FUN_00476A5D()`: every tip unshown and twenty frames of
         // quiet, on the flip OFF as well as on.
-        // arm: 0x00434787/opt-tip-screens left-press-delayed
         Setting::TipScreens => {
             ctx.game.prefs.tip_screens = !on;
             ctx.game.tips.reset();
         }
         // Its second statement, `_DAT_004EA830 = 0`, belongs to the tooltip
         // layer this engine does not have.
-        // arm: 0x004347C7/opt-tool-tips left-press-delayed
         Setting::ToolTips => ctx.game.prefs.tool_tips = !on,
         Setting::FullScreen | Setting::StartGameHelp => {}
     }
@@ -918,13 +914,15 @@ impl OptionsScreen {
         self.page
     }
 
-    /// **Which row is drawn pressed**, as an index into [`Page::rows`].
+    /// **Which rows are drawn pressed**, as indices into [`Page::rows`], in
+    /// row order.
     ///
     /// `Widget_Draw` adds one to the record's frame while `+0x0D` is non-zero,
     /// which for a kind-5 row is the whole twenty frames between the press and
-    /// the toggle.
-    pub fn pressed(&self) -> Option<usize> {
-        self.press.pressed()
+    /// the toggle — and the timer is each record's own, so two rows pressed a
+    /// moment apart are both down.
+    pub fn pressed_rows(&self) -> Vec<usize> {
+        (0..self.page.rows().len()).filter(|&i| self.press.is_pressed(i)).collect()
     }
 
     /// **One row's handler, twenty ticks after its press.**
@@ -939,8 +937,8 @@ impl OptionsScreen {
             // desktop that is not 8bpp, takes its first branch:
             // `Msg_Enqueue(0, g_localPlayer, 0x104, …)`, *"Cannot change
             // display."*. The mode switch in its third branch is not reachable
-            // from a 32bpp desktop in the original either.
-            // arm: 0x00434B10/opt-full-screen left-press-delayed
+            // from a 32bpp desktop in the original either. Its arm is declared
+            // on its row in [`DISPLAY`].
             Setting::FullScreen => {
                 let player = ctx.game.player;
                 ctx.game.messages.enqueue(
@@ -1014,13 +1012,22 @@ impl Screen for OptionsScreen {
         self.press.take_clicks()
     }
 
+    /// A row's twentieth frame toggled it with no event. See
+    /// [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     /// **The countdown loop at the top of `Widget_Test`.** A row's handler runs
     /// here, on the twentieth tick after its press, and never from `handle`.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        match self.press.tick() {
-            Some(row) => self.fire(row, ctx),
-            None => Transition::Stay,
+        for row in self.press.tick() {
+            let t = self.fire(row, ctx);
+            if t != Transition::Stay {
+                return t;
+            }
         }
+        Transition::Stay
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -1168,7 +1175,7 @@ impl OptionsScreen {
 
             // `Widget_Draw`: the record's frame, plus one while `+0x0D` runs.
             let (wx, wy) = row.widget_at;
-            let frame = WIDGET_FRAME + usize::from(self.press.pressed() == Some(i));
+            let frame = WIDGET_FRAME + usize::from(self.press.is_pressed(i));
             if !pen.system_frame(canvas, frame, wx, wy) {
                 shell::button_recess(canvas, wx, wy, WIDGET, WIDGET);
             }

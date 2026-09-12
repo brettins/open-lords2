@@ -66,6 +66,30 @@ fn on(r: Rect) -> (i32, i32) {
     (r.centre_x(), r.y + r.h / 2)
 }
 
+/// **Press one of `g_castleBuildWidgets`' two thumbs and let its twenty frames
+/// run.** Both are `Widget_Test` kind 5, so the screen must still be up on
+/// every tick before the twentieth, and the press clicks exactly once.
+///
+/// Every castle order in this file goes through here, so all five are tests of
+/// the gesture. **Ablations, run:** declare the thumbs `Press` in their `arm!`s
+/// and all five go red at the screen's own debug assertion that both records
+/// are kind 5 — the press answers at once — and `tests/arms.rs` goes red too;
+/// delete `self.click()` from `Press::press_delayed` and all five go red at the
+/// click count, which reads 0.
+fn press_and_wait(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
+    let before = m.top_id();
+    let clicks = m.clicks();
+    click(m, g, a, at);
+    send(m, g, a, Event::Release { x: at.0, y: at.1 });
+    assert_eq!(m.clicks(), clicks + 1, "the thumb is Widget_Test's press, so it clicks");
+    for t in 1..l2_game::press::DELAYED_FRAMES as u32 {
+        tick(m, g, a);
+        assert_eq!(m.top_id(), before, "the castle thumb acted on tick {t}, before its twentieth");
+    }
+    tick(m, g, a);
+    assert_eq!(m.clicks(), clicks + 1, "and the order itself is silent");
+}
+
 fn pixel(x: u8, y: u8) -> Option<(i32, i32)> {
     let probe = map::MapScreen::new();
     campaign::tile_centre(probe.viewport(), probe.zoom(), x as usize, y as usize)
@@ -270,7 +294,7 @@ fn picking_a_castle_and_pressing_ok_starts_the_work() {
     // The third strip: a Norman keep. The five are the five castle pictures,
     // side by side, and their rectangles are the original's widget table.
     click(&mut m, &mut g, &a, on(castle::type_rect(2)));
-    click(&mut m, &mut g, &a, on(castle::OK));
+    press_and_wait(&mut m, &mut g, &a, on(castle::OK));
 
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the screen closes on the order");
     let c = &g.kingdom.counties[1];
@@ -309,7 +333,7 @@ fn the_ok_button_refuses_the_castle_you_have_and_anything_smaller() {
 
         click(&mut m, &mut g, &a, on(castle_button()));
         click(&mut m, &mut g, &a, on(castle::type_rect(pick)));
-        click(&mut m, &mut g, &a, on(castle::OK));
+        press_and_wait(&mut m, &mut g, &a, on(castle::OK));
 
         assert_eq!(m.top_id(), Some(ScreenId::Campaign), "{why}: the screen closes either way");
         assert_eq!(g.kingdom.counties[1].castle_degraded, 0, "{why}: no work was started");
@@ -351,7 +375,7 @@ fn a_county_with_its_mines_running_never_gets_round_to_the_castle() {
 
     click(&mut m, &mut g, &a, on(castle_button()));
     click(&mut m, &mut g, &a, on(castle::type_rect(0)));
-    click(&mut m, &mut g, &a, on(castle::OK));
+    press_and_wait(&mut m, &mut g, &a, on(castle::OK));
 
     for _ in 0..4 {
         end_turn(&mut m, &mut g, &a);
@@ -390,7 +414,7 @@ fn ending_turns_finishes_the_castle_and_it_arrives_with_a_garrison() {
 
     click(&mut m, &mut g, &a, on(castle_button()));
     click(&mut m, &mut g, &a, on(castle::type_rect(0))); // a wooden palisade, 200 man-seasons
-    click(&mut m, &mut g, &a, on(castle::OK));
+    press_and_wait(&mut m, &mut g, &a, on(castle::OK));
     assert_eq!(g.kingdom.counties[1].castle_degraded, 1);
     assert_eq!(g.kingdom.campaign.units.len(), 0, "nothing on the map yet");
 
@@ -656,7 +680,7 @@ fn a_castle_is_stamped_onto_the_map_and_changes_picture_as_it_goes_up() {
 
     click(&mut m, &mut g, &a, on(castle_button()));
     click(&mut m, &mut g, &a, on(castle::type_rect(2)));
-    click(&mut m, &mut g, &a, on(castle::OK));
+    press_and_wait(&mut m, &mut g, &a, on(castle::OK));
     let scaffold = {
         let ctx = Ctx { game: &mut g, assets: &a };
         map::MapScreen::town_graphics(&ctx).get(here.0 as usize, here.1 as usize)

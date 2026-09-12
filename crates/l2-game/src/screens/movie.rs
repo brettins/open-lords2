@@ -70,34 +70,33 @@ enum State {
 pub struct MovieScreen {
     film: Film,
     state: State,
-    /// Whether the next left release belongs to the click that started the
-    /// film. See [`MovieScreen::new`].
-    swallow_release: bool,
     redraw: bool,
 }
 
 impl MovieScreen {
     /// **`Smk_Play`.**
     ///
-    /// **One compensation, and it is for a divergence elsewhere.** The castle
-    /// chooser's tick is a kind-5 widget in the original — `Widget_Test` shows
-    /// it pressed and runs `CastleBuild_Confirm` **twenty frames after the
-    /// press**, by which time the button has normally been let go, and
-    /// `CastleBuild_Confirm`'s own first call (`FUN_004B18E3`) throws the click
-    /// away. `crates/l2-game/src/screens/castle.rs` confirms on the press
-    /// itself, so the release of that same click would arrive here and skip the
-    /// film it had just started. The castle film therefore ignores one left
-    /// release. `FUN_00432B05` shows the original guarding the same thing by
-    /// hand for the Lords of Magic trailer — `g_mouseLeftReleased = 0` on the
-    /// line before its `Smk_Play` — and ours needs no such guard there, because
-    /// the setup page fires that item on the release as the original does.
+    /// **No compensation, and there used to be one.** The castle chooser's tick
+    /// is a kind-5 widget — `Widget_Test` (`0x0040DA1E`) shows it pressed and
+    /// runs `CastleBuild_Confirm` (`0x00436B59`) **twenty frames after the
+    /// press** — so by the time `Smk_Play` runs, the button has been let go and
+    /// that release was answered by the chooser, nineteen frames before this
+    /// screen existed. `CastleBuild_Confirm`'s own first call (`FUN_004B18E3`)
+    /// throws the click away as well.
+    ///
+    /// `crates/l2-game/src/screens/castle.rs` confirmed on the press itself
+    /// until the press timers landed, so the release of the ordering click
+    /// arrived here and skipped the film it had just started, and a
+    /// `swallow_release` flag ate one left release to hide it. The gesture is
+    /// the original's now and the compensation is gone with it.
+    ///
+    /// `FUN_00432B05` shows the original guarding the same thing by hand for
+    /// the Lords of Magic trailer — `g_mouseLeftReleased = 0` on the line
+    /// before its `Smk_Play` — and ours needs no such guard there either,
+    /// because the setup page fires that item on the release as the original
+    /// does.
     pub fn new(film: Film) -> MovieScreen {
-        MovieScreen {
-            film,
-            state: State::Unopened,
-            swallow_release: matches!(film, Film::Castle(_)),
-            redraw: true,
-        }
+        MovieScreen { film, state: State::Unopened, redraw: true }
     }
 
     pub fn film(&self) -> Film {
@@ -187,13 +186,8 @@ impl Screen for MovieScreen {
         match event {
             // arm: 0x0042FF10/film-skip-right-release right-release
             Event::RightClick { .. } => self.skip(ctx),
-            Event::Release { .. } => {
-                if std::mem::take(&mut self.swallow_release) {
-                    return Transition::Stay;
-                }
-                // arm: 0x0042FF10/film-skip-left-release left-release
-                self.skip(ctx)
-            }
+            // arm: 0x0042FF10/film-skip-left-release left-release
+            Event::Release { .. } => self.skip(ctx),
             // `DAT_004EABB4` is set on every `WM_KEYDOWN`, whichever key.
             // arm: 0x0042FF10/film-skip-key key
             Event::KeyDown(_) => self.skip(ctx),

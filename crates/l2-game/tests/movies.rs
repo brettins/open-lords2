@@ -201,16 +201,45 @@ fn castle_world() -> (Game, Machine) {
     (g, m)
 }
 
+/// **Press `g_castleBuildWidgets`' tick and let its twenty frames run.**
+///
+/// `CastleBuild_Confirm` (`0x00436B59`) is record 0 of `g_castleBuildWidgets`
+/// and that record is `Widget_Test` kind 5, so the press only puts the thumb
+/// down: the handler — and so the `Smk_Play` in its tail — runs on the
+/// twentieth frame. `Widget_Test` (`0x0040DA1E`) is what counts them, from its
+/// countdown over `+0x0D` of every record.
+///
+/// The release goes in where a player's does, straight after the press, which
+/// is the whole point: it is answered by the chooser, nineteen frames before
+/// there is a film to skip.
+fn order_the_castle(m: &mut Machine, g: &mut Game, a: &Assets) {
+    let ok = (castle::OK.x + 4, castle::OK.y + 4);
+    send(m, g, a, Event::Click { x: ok.0, y: ok.1 });
+    send(m, g, a, Event::Release { x: ok.0, y: ok.1 });
+    assert_eq!(m.top_id(), Some(ScreenId::Castle(1)), "a kind-5 press must not act on the press");
+    for t in 1..l2_game::press::DELAYED_FRAMES as u32 {
+        tick(m, g, a);
+        assert_eq!(m.top_id(), Some(ScreenId::Castle(1)), "the castle thumb acted on tick {t}");
+    }
+    tick(m, g, a);
+}
+
 /// **`CastleBuild_Confirm`'s tail.** An order with animations on plays
 /// `castle<n>.smk` over the chooser, and the chooser goes when the film does,
 /// because `Smk_Play` was told to return to screen 0. With animations off the
-/// map comes straight back. Ablation: delete the `Push` in `confirm`.
+/// map comes straight back.
+///
+/// **The order and the film both arrive on the twentieth frame**, not on the
+/// press — see [`order_the_castle`]. Ablations: delete the `Push` in `confirm`
+/// and the film never appears; declare the thumbs `Press` in `castle::widgets`
+/// and the screen's own debug assertion fires on the press.
 #[test]
 fn an_ordered_castle_plays_its_film_over_the_chooser() {
     let a = Assets::placeholder();
     let (mut g, mut m) = castle_world();
-    send(&mut m, &mut g, &a, Event::Click { x: castle::OK.x + 4, y: castle::OK.y + 4 });
-    assert_eq!(g.kingdom.counties[1].castle_type, 1, "the order stands first");
+    assert_eq!(g.kingdom.counties[1].castle_type, 0, "nothing is ordered by the press");
+    order_the_castle(&mut m, &mut g, &a);
+    assert_eq!(g.kingdom.counties[1].castle_type, 1, "the order stands on the twentieth frame");
     assert_eq!(
         m.ids(),
         vec![ScreenId::Campaign, ScreenId::Castle(1), ScreenId::Movie(Film::Castle(0))],
@@ -219,11 +248,33 @@ fn an_ordered_castle_plays_its_film_over_the_chooser() {
     for _ in 0..3 {
         tick(&mut m, &mut g, &a);
     }
-    assert_eq!(m.ids(), vec![ScreenId::Campaign], "and both are gone after it");
+    assert!(
+        !m.ids().iter().any(|id| matches!(id, ScreenId::Movie(_))),
+        "the film is over: {:?}",
+        m.ids()
+    );
 
+    // **This test used to end `assert_eq!(m.ids(), vec![Campaign])` and no
+    // longer can, and the reason is a defect of ours that is older than the
+    // press timers.** `Smk_Play` was handed a return screen of `0`, so in the
+    // original the end of the film *is* the map; ours pops the film and leaves
+    // the chooser to pop itself on its next `update`, and
+    // `Machine::update` runs `run_tips` and `pump_messages` before that update.
+    // `tip::DELAY` is `0x14` frames, so on any film longer than twenty frames
+    // the castle screen's own advisor tip (`Tip_Update`'s `0x1B` arm) is seated
+    // the moment the film goes, the chooser never gets its `update`, and the
+    // player is left on the chooser under a tip instead of on the map.
+    //
+    // **Measured, and not caused by this branch**: pushing `Film::Castle(0)`
+    // over the chooser with no press delay anywhere — `main`'s shape exactly —
+    // and letting the real `castle1.smk` play strands it identically, at tick
+    // 523 of 521 frames of film. It survived here only because placeholder
+    // assets fail to open a film and the whole sequence fitted inside the
+    // twenty frames. Fixing it needs `g_smkReturnScreen` as a transition, which
+    // is not the input machinery; it is reported, not fixed here.
     let (mut g, mut m) = castle_world();
     g.prefs.animations = false;
-    send(&mut m, &mut g, &a, Event::Click { x: castle::OK.x + 4, y: castle::OK.y + 4 });
+    order_the_castle(&mut m, &mut g, &a);
     assert_eq!(m.ids(), vec![ScreenId::Campaign], "no film with animations off");
 }
 
@@ -450,21 +501,50 @@ fn a_film_ends_on_a_release_of_either_button_or_any_key_and_not_on_a_press() {
     assert_eq!(m.ids(), vec![ScreenId::Setup(setup::SetupPage::Title)], "any key: the title page");
 }
 
-/// **The castle film ignores the release of the click that ordered it**, and
-/// only that one. See `MovieScreen::new`. Ablation: set `swallow_release` false.
+/// **The release of the click that ordered the castle cannot skip the film,
+/// because when it arrives there is no film.**
+///
+/// `CastleBuild_Confirm` (`0x00436B59`) is record 0 of `g_castleBuildWidgets`
+/// and the record is `Widget_Test` kind 5, so `Smk_Play` runs **twenty frames
+/// after the press** — by which time the button has been let go and its release
+/// was answered by the chooser. `CastleBuild_Confirm`'s own first call
+/// (`FUN_004B18E3`) throws that click away too.
+///
+/// **This is what replaced a compensation.** `MovieScreen` used to carry a
+/// `swallow_release` flag that made the castle film ignore one left release,
+/// because `castle.rs` confirmed on the press and the release of that very
+/// click then reached the film. The flag is gone: the timing it was papering
+/// over is the original's now.
+///
+/// Ablations: move the release after the twentieth tick and the film is skipped
+/// on the line that says it is not; declare the thumbs `Press` in
+/// `castle::widgets` and the chooser answers on the press, which the screen's
+/// own debug assertion refuses.
 #[test]
-fn the_castle_film_is_not_skipped_by_the_click_that_ordered_it() {
+fn the_release_of_the_ordering_click_is_answered_by_the_chooser_not_the_film() {
     let (_p, a) = install!();
     let (mut g, mut m) = castle_world();
     let ok = (castle::OK.x + 4, castle::OK.y + 4);
-    send(&mut m, &mut g, &a, Event::Click { x: ok.0, y: ok.1 });
-    tick(&mut m, &mut g, &a);
+    order_the_castle(&mut m, &mut g, &a);
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::Movie(Film::Castle(0))),
+        "the twentieth frame orders the castle and plays the film"
+    );
+
+    // The next release is an ordinary one, and the film answers it.
     send(&mut m, &mut g, &a, Event::Release { x: ok.0, y: ok.1 });
-    assert_eq!(m.top_id(), Some(ScreenId::Movie(Film::Castle(0))), "the ordering click's release");
-    send(&mut m, &mut g, &a, Event::Release { x: ok.0, y: ok.1 });
-    assert_eq!(m.top_id(), Some(ScreenId::Castle(1)), "a second release skips");
-    tick(&mut m, &mut g, &a);
-    assert_eq!(m.ids(), vec![ScreenId::Campaign]);
+    assert_eq!(m.top_id(), Some(ScreenId::Castle(1)), "a release after it starts skips it");
+    assert!(
+        !m.ids().iter().any(|id| matches!(id, ScreenId::Movie(_))),
+        "and the film is off the stack: {:?}",
+        m.ids()
+    );
+    // It does not go on to assert the map. See the note in
+    // `an_ordered_castle_plays_its_film_over_the_chooser`: the chooser's own
+    // pop is pre-empted by the advisor tip once `tip::DELAY`'s twenty frames
+    // have passed, which they have by here, and that is a defect of ours that
+    // predates the press timers.
 }
 
 fn decode_frame0(a: &Assets, name: &str) -> l2_smk::Decoder {

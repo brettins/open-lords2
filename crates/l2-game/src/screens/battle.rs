@@ -171,7 +171,7 @@ use l2_view::{text, Canvas};
 
 use crate::engagement::{Answer, Roster};
 use crate::input::{Event, Rect};
-use crate::press::{Kind, Press, Widget};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 use crate::turn::{self, Question, TurnStep};
@@ -458,11 +458,19 @@ pub struct BattlePromptScreen {
 /// The repeat that comes with kind 4 never runs: `Battle_PromptAnswered`
 /// (`0x0043B593`) leaves screen `0x12` on the first fire, and a table that is no
 /// longer being walked cannot repeat. What the kind buys a player here is the
-/// **pressed picture** and the press edge.
+/// **pressed picture**, the press edge, and a double click being a press:
+/// `Widget_Test`'s kind-4 guard is `g_mouseLeftPressed ||
+/// g_mouseLeftDoubleClick`, and [`BattlePromptScreen::handle`] hands every
+/// event to [`Press::event`], so a double click on either thumb answers.
+///
+/// `DAT_004DDBB0[0]`, hotspot id 1, is `FUN_0043B593` → `Battle_Start`
+/// (`0x004778A0`); `DAT_004DDBB0[1]`, hotspot id 0, is `Battle_Decline`
+/// (`0x0043B622`). Both are hit-tested by `Screen_HandleInput`
+/// (`0x004BA9C8`), which is why the arms carry its address.
 fn prompt_widgets() -> [Widget; 2] {
     [
-        Widget::new(widget_rect(TAKE_THE_FIELD), Kind::Repeat),
-        Widget::new(widget_rect(DECLINE), Kind::Repeat),
+        Widget::new(widget_rect(TAKE_THE_FIELD), crate::arm!("0x004BA9C8/prompt-fight", Repeat)),
+        Widget::new(widget_rect(DECLINE), crate::arm!("0x004BA9C8/prompt-decline", Repeat)),
     ]
 }
 
@@ -512,6 +520,11 @@ impl Screen for BattlePromptScreen {
     /// layer. See [`Screen::take_clicks`].
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
+    }
+
+    /// The thumb's picture coming back up. See [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
     }
 
     fn title(&self, _ctx: &Ctx) -> String {
@@ -580,9 +593,8 @@ impl Screen for BattlePromptScreen {
         match fired {
             // `DAT_004DDBB0[0]`, hotspot id 1 → `FUN_0043B593` →
             // `Battle_Start` (`0x004778A0`). It raises the battlefield; it does
-            // **not** settle the battle.
-            //
-            // arm: 0x004BA9C8/prompt-fight left-press-repeat
+            // **not** settle the battle. Its arm is declared on
+            // [`prompt_widgets`].
             Some(0) => {
                 if turn::take_the_field(ctx.game) {
                     Transition::Replace(ScreenId::Battlefield)
@@ -595,8 +607,6 @@ impl Screen for BattlePromptScreen {
             }
             // `DAT_004DDBB0[1]`, hotspot id 0 → `Battle_Decline`
             // (`0x0043B622`), which is `Battle_AutoResolve` and the report.
-            //
-            // arm: 0x004BA9C8/prompt-decline left-press-repeat
             Some(_) => BattlePromptScreen::answer(ctx, Answer::Decline),
             None => Transition::Stay,
         }
@@ -605,7 +615,10 @@ impl Screen for BattlePromptScreen {
     /// The countdown at the top of `Widget_Test`, which runs the press timer
     /// down whether or not anything is under the pointer.
     fn update(&mut self, _ctx: &mut Ctx) -> Transition {
-        self.press.tick();
+        // Nothing can come back from it: both records are kind 4, which fires
+        // on the press, and [`BattlePromptScreen::handle`] ends the hold on
+        // that fire. It runs for the pressed picture.
+        let _ = self.press.tick();
         Transition::Stay
     }
 
@@ -653,9 +666,8 @@ impl Screen for BattlePromptScreen {
         if q.choice_owner == 1 {
             // `Widget_Draw`'s `base + 1` while `+0x0D` runs — the thumb goes
             // down when it is pressed.
-            let down = self.press.pressed();
             for (i, w) in [TAKE_THE_FIELD, DECLINE].into_iter().enumerate() {
-                let frame = if down == Some(i) { w.2 + 1 } else { w.2 };
+                let frame = if self.press.is_pressed(i) { w.2 + 1 } else { w.2 };
                 let drawn = ctx
                     .assets
                     .chrome

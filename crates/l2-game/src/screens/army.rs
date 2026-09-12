@@ -219,6 +219,7 @@ use l2_kingdom::unit::TroopType;
 use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::screens::armoury;
 use crate::shell::{self, font, Pen};
@@ -415,6 +416,27 @@ pub fn hire_no(offer: bool) -> Rect {
     Rect::new(400, 260 + widget_offset(offer), 32, 32)
 }
 
+/// **`DAT_004DD340` as a table: three kind-5 records**, and
+/// `DAT_00522F58` of them live — 3 on the affordable branch, 1 otherwise.
+///
+/// `node tools/oracle/kinds.js` files `RaiseArmy_Continue` and
+/// `RaiseArmy_HireToggle` under `widget 5`. `[V]` So Continue, the tick and the
+/// cross all go down on the press and act twenty frames later; this screen
+/// answered raw clicks, so all three acted at once with no picture and no
+/// click. Index 0 is Continue, 1 the tick, 2 the cross. Each `arm!` is the
+/// marker and the kind.
+fn widgets(offer: bool, affordable: bool) -> Vec<Widget> {
+    let mut out = vec![Widget::new(
+        continue_button(offer),
+        crate::arm!("0x00435CBF/raise-army-continue", Delayed),
+    )];
+    if offer && affordable {
+        out.push(Widget::new(hire_yes(offer), crate::arm!("0x00435C89/hire-yes", Delayed)));
+        out.push(Widget::new(hire_no(offer), crate::arm!("0x00435C89/hire-no", Delayed)));
+    }
+    out
+}
+
 /// `Eng_DrawString(18, 0 or 1, 0x1D0, base + 0x98)` — **not a button.** The
 /// word the flag prints, kept as a rectangle only so that the drawing code and
 /// the test that says nothing tests it can name the same thing.
@@ -448,6 +470,12 @@ pub struct RaiseArmyScreen {
     /// It is a *level*, and `Levy_SliderClick`'s track reads nothing else, so
     /// the knob follows the pointer for as long as the button is down.
     ///
+    /// **It is the global, not the widget table's business.** `WM_LBUTTONDOWN`
+    /// sets `DAT_004EABC2` whatever the press landed on, so a press that
+    /// `Widget_Test` consumed — Continue, the tick, the cross — still sets it,
+    /// and sliding from Continue onto the track moves the knob. That is why
+    /// this is written before the table is asked and not in its `else`.
+    ///
     /// **A double click does not set it.** The window procedure's
     /// `WM_LBUTTONDBLCLK` arm (`0x203`) sets only `DAT_004EADA1`, the
     /// double-click flag; the down bit in `DAT_004EABC2` is set by
@@ -457,11 +485,49 @@ pub struct RaiseArmyScreen {
     /// What ours cannot see: a button that went down on the screen that opened
     /// this one. The original's flag is global; ours starts clear.
     left_down: bool,
+    /// `DAT_004DD340`'s press timers. See [`widgets`].
+    press: Press,
 }
 
 impl RaiseArmyScreen {
     pub fn new(county: u8) -> RaiseArmyScreen {
-        RaiseArmyScreen { county, status: "DRAG THE SLIDER, THEN CONTINUE".into(), left_down: false }
+        RaiseArmyScreen {
+            county,
+            status: "DRAG THE SLIDER, THEN CONTINUE".into(),
+            left_down: false,
+            press: Press::new(),
+        }
+    }
+
+    /// The table as it stands: Continue, and the tick and cross only when the
+    /// band can be afforded.
+    fn table(&self, ctx: &Ctx) -> Vec<Widget> {
+        let offer = self.offer(ctx) != 0;
+        widgets(offer, offer && self.affordable(ctx))
+    }
+
+    /// **`Screen_HandleInput`'s `0x17` arm** — `Widget_Test(0, 0,
+    /// &DAT_004DD340, n)` over the three kind-5 records.
+    ///
+    /// The return is what the original's `if (Screen_HandleInput() == 0)`
+    /// tests: *did a record take this event*. It is not *did a handler run* —
+    /// every record here is kind 5, so a press consumes the event and runs
+    /// nothing, and [`Screen::update`] runs the handler twenty ticks later.
+    /// That distinction is the reason this is a hit test and not the
+    /// `Option<usize>` [`Press::event`] returns.
+    fn widget_press(&mut self, ctx: &mut Ctx, event: Event) -> bool {
+        let table = self.table(&Ctx { game: ctx.game, assets: ctx.assets });
+        let fired = self.press.event(&table, event);
+        debug_assert!(fired.is_none(), "every DAT_004DD340 record is kind 5");
+        // `Widget_Test`'s guard on both arms is `g_mouseLeftPressed ||
+        // g_mouseLeftDoubleClick`, so those are the two events a record can
+        // consume. A release, a move and a pointer leaving are bookkeeping:
+        // they go to `Press` above and consume nothing.
+        matches!(
+            event,
+            Event::Click { x, y } | Event::DoubleClick { x, y }
+                if table.iter().any(|w| w.rect.contains(x, y))
+        )
     }
 
     pub fn county(&self) -> u8 {
@@ -596,7 +662,29 @@ impl Screen for RaiseArmyScreen {
             ctx.game.seed_levy_basket();
             ctx.game.levy.hire = false;
         }
+        // `Widget_Test`'s countdown over `DAT_004DD340`.
+        for widget in self.press.tick() {
+            match widget {
+                // `RaiseArmy_Continue` (`0x00435CBF`): `g_screenId = 0x0A`.
+                0 => return self.open_armoury(ctx),
+                // `RaiseArmy_HireToggle` (`0x00435C89`):
+                // `DAT_0055446C = (g_uiHotspotId == 1)`.
+                1 => ctx.game.levy.hire = true,
+                _ => ctx.game.levy.hire = false,
+            }
+        }
         Transition::Stay
+    }
+
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio layer.
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
+    /// The tick or the cross changed the flag's word with no event. See
+    /// [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -630,6 +718,11 @@ impl Screen for RaiseArmyScreen {
             // `if (!Levy_SliderClick()) { … rightReleased … }` — the slider is
             // asked first, so on a frame the left button is still down on the
             // track it answers 1 and the right release is never read.
+            //
+            // **`Screen_HandleInput` is not in front of this one**, because it
+            // is left-button only: `docs/symbols.md` records that it names no
+            // right-button global anywhere. So the right release meets the
+            // slider first and the widget table never.
             Event::RightClick { x, y } => {
                 if self.left_down && self.slider_click(ctx, x, y, false, true) {
                     return Transition::Stay;
@@ -637,25 +730,6 @@ impl Screen for RaiseArmyScreen {
                 self.open_armoury(ctx)
             }
             Event::KeyDown(Key::Enter) => self.open_armoury(ctx),
-            // **The track follows the button's level.** See
-            // [`RaiseArmyScreen::slider_click`]: nothing but `g_mouseLeftDown`
-            // is read there, so every pointer position while the button is down
-            // is a new percentage, and a release ends it.
-            // arm: 0x00435CEF/levy-slider-track drag
-            Event::Pointer { x, y } if self.left_down => {
-                self.slider_click(ctx, x, y, false, true);
-                Transition::Stay
-            }
-            Event::Release { .. } => {
-                self.left_down = false;
-                Transition::Stay
-            }
-            // `WM_LBUTTONDBLCLK` sets `g_mouseLeftDoubleClick` and not the down
-            // bit, so a double click steps an arrow and leaves the track alone.
-            Event::DoubleClick { x, y } => {
-                self.slider_click(ctx, x, y, true, false);
-                Transition::Stay
-            }
             Event::KeyDown(Key::Left) => {
                 let p = ctx.game.levy.percent - 1;
                 ctx.game.set_levy_percent(p);
@@ -676,29 +750,57 @@ impl Screen for RaiseArmyScreen {
             // the button down, which is what the track reads.
             // arm: 0x00435CEF/levy-slider-step left-press
             Event::Click { x, y } => {
+                // `WM_LBUTTONDOWN` sets the down bit whatever the press landed
+                // on, so this is written before the table is asked and not in
+                // its `else`. See the field.
                 self.left_down = true;
+                if self.widget_press(ctx, event) {
+                    return Transition::Stay;
+                }
                 if self.slider_click(ctx, x, y, true, true) {
                     return Transition::Stay;
                 }
                 if OK.contains(x, y) {
                     return Transition::Pop;
                 }
-                if continue_button(offer).contains(x, y) {
-                    return self.open_armoury(ctx);
+                Transition::Stay
+            }
+            // **A double click is a press to a kind-5 record**, and restarts its
+            // twenty frames; `Widget_Test`'s guard is `g_mouseLeftPressed ||
+            // g_mouseLeftDoubleClick`. It sets no down bit, so past the table
+            // it steps an arrow and leaves the track alone.
+            Event::DoubleClick { x, y } => {
+                if self.widget_press(ctx, event) {
+                    return Transition::Stay;
                 }
-                // The tick and the cross only exist on the affordable branch —
-                // `DAT_00522F58` is 1 otherwise and `Widget_Test` never reaches
-                // records 1 and 2.
-                if offer && self.affordable(&Ctx { game: ctx.game, assets: ctx.assets }) {
-                    if hire_yes(offer).contains(x, y) {
-                        ctx.game.levy.hire = true;
-                        return Transition::Stay;
-                    }
-                    if hire_no(offer).contains(x, y) {
-                        ctx.game.levy.hire = false;
-                        return Transition::Stay;
-                    }
+                self.slider_click(ctx, x, y, true, false);
+                Transition::Stay
+            }
+            // The release ends the hold in both halves at once: it clears the
+            // record's `held` in `Press` and `g_mouseLeftDown` for the track.
+            // Neither consumes it — there is no kind-3 record on this screen
+            // and the slider reads a level, not an edge.
+            Event::Release { .. } => {
+                self.widget_press(ctx, event);
+                self.left_down = false;
+                Transition::Stay
+            }
+            // **The track follows the button's level.** See
+            // [`RaiseArmyScreen::slider_click`]: nothing but `g_mouseLeftDown`
+            // is read there, so every pointer position while the button is down
+            // is a new percentage, and a release ends it. The table is
+            // re-hit-tested first, exactly as `Widget_Test` re-runs every
+            // frame, so a pointer that has walked off a record drops its hold.
+            // arm: 0x00435CEF/levy-slider-track drag
+            Event::Pointer { x, y } => {
+                self.widget_press(ctx, event);
+                if self.left_down {
+                    self.slider_click(ctx, x, y, false, true);
                 }
+                Transition::Stay
+            }
+            Event::PointerLeft => {
+                self.widget_press(ctx, event);
                 Transition::Stay
             }
             _ => Transition::Stay,
@@ -888,10 +990,11 @@ impl Screen for RaiseArmyScreen {
                 let r = hire_readout(on);
                 pen.heading(canvas, r.x, r.y + 2, &label, font::TEXT);
                 let (yes, no) = (hire_yes(on), hire_no(on));
-                if !pen.system_frame(canvas, HIRE_YES_FRAME, yes.x, yes.y) {
+                let up = |i: usize| usize::from(self.press.is_pressed(i));
+                if !pen.system_frame(canvas, HIRE_YES_FRAME + up(1), yes.x, yes.y) {
                     widget::frame(canvas, yes, if levy.hire { ink.highlight } else { ink.border });
                 }
-                if !pen.system_frame(canvas, HIRE_NO_FRAME, no.x, no.y) {
+                if !pen.system_frame(canvas, HIRE_NO_FRAME + up(2), no.x, no.y) {
                     widget::frame(canvas, no, if levy.hire { ink.border } else { ink.highlight });
                 }
             }
@@ -913,7 +1016,8 @@ impl Screen for RaiseArmyScreen {
         pen.eng(canvas, GROUP, TOTAL_WEAPONS, x, fy, font::TEXT);
         pen.eng(canvas, GROUP, CONTINUE, CONTINUE_LABEL_X, fy, font::TEXT);
         let cont = continue_button(on);
-        if !pen.system_frame(canvas, CONTINUE_FRAME, cont.x, cont.y) {
+        let cont_frame = CONTINUE_FRAME + usize::from(self.press.is_pressed(0));
+        if !pen.system_frame(canvas, cont_frame, cont.x, cont.y) {
             widget::frame(canvas, cont, ink.highlight);
         }
 

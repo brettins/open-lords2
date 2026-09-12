@@ -17,6 +17,23 @@
 //! * **a marker with no record** is an arm nobody wrote down, which is the exact
 //!   failure C61 measured: behaviour that exists and is not in the inventory.
 //!
+//! # Two forms of marker, and why one of them is refused for three words
+//!
+//! A marker is a comment, `// arm: <id> <gesture>`, **or** a declaration,
+//! `crate::arm!("<id>", <Kind>)` — which *is* the `press::Kind` it names and
+//! nothing else. The declaration's gesture is not written anywhere: it is
+//! [`Kind::gesture`] of the identifier, so the kind a widget is answered with
+//! and the word its marker claims are one token.
+//!
+//! That form exists because the comment form was checked against the record
+//! and never against the code beside it. Every options row was once declared
+//! `Kind::Press` under a `left-press-delayed` comment, and this file stayed
+//! green; `tests/options.rs` caught it. **So a comment may not claim
+//! `left-press-repeat`, `left-press-delayed` or `left-press-held`**: those are
+//! answered by nothing but a `Kind` handed to `Press`, so a claim of one has to
+//! be that `Kind`. A plain press or a release can still be a comment, because
+//! hand-rolled hit tests answer those.
+//!
 //! # What it deliberately does not check
 //!
 //! That the *implementation* is right. Nothing mechanical can. What it buys is
@@ -27,6 +44,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+
+use l2_game::press::Kind;
 
 fn repo_root() -> PathBuf {
     // `CARGO_MANIFEST_DIR` is `<root>/crates/l2-game`.
@@ -72,12 +91,99 @@ struct Marker {
     gesture: String,
 }
 
-/// Every `// arm: <id>` in the workspace's Rust, with the file it is in.
+/// How a marker is written.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum How {
+    /// `// arm: <id> <gesture>` — the gesture is a word somebody typed.
+    Comment,
+    /// `arm!("<id>", <Kind>)` — the gesture is the `Kind`'s own.
+    Declared,
+}
+
+/// One marker, where it is, and how it is written.
+struct Site {
+    marker: Marker,
+    /// `path:line`, relative to the repository.
+    at: String,
+    how: How,
+}
+
+/// **Every `press::Kind` by its identifier**, read off the type rather than
+/// listed here.
+///
+/// `Kind::from_record` is how the original's kind bytes become kinds, and every
+/// kind is one of those bytes, so walking both testers' 256 values finds all
+/// five. A list in this file would be a second copy of the enum that nobody
+/// would remember to extend.
+fn kinds_by_name() -> BTreeMap<String, Kind> {
+    let mut out = BTreeMap::new();
+    for widget in [false, true] {
+        for byte in 0..=u8::MAX {
+            if let Some(k) = Kind::from_record(widget, byte) {
+                out.insert(format!("{k:?}"), k);
+            }
+        }
+    }
+    assert_eq!(out.len(), 5, "the five gesture kinds, by name: {:?}", out.keys());
+    out
+}
+
+/// The macro's name and its opening parenthesis, built so that this file's own
+/// source does not contain the sequence it scans for.
+const DECLARATION: &str = concat!("arm", "!(");
+
+/// Every `arm!("<id>", <Kind>)` in one file, with its line number.
+///
+/// **A declaration this cannot read is a failure, not a skip** — a marker the
+/// check cannot hold to its record is exactly the marker that drifts.
+/// Occurrences on a comment line are prose or a doc example and are not
+/// declarations, which is the same rule [`marker_on`] applies the other way
+/// round.
+fn declarations_in(text: &str, file: &str, kinds: &BTreeMap<String, Kind>) -> Vec<(usize, Marker)> {
+    let mut out = Vec::new();
+    let mut from = 0;
+    while let Some(off) = text[from..].find(DECLARATION) {
+        let at = from + off;
+        from = at + DECLARATION.len();
+        // `farm!(` is not this macro.
+        if text[..at].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let line_start = text[..at].rfind('\n').map_or(0, |i| i + 1);
+        if text[line_start..at].contains("//") {
+            continue;
+        }
+        let line = text[..at].matches('\n').count() + 1;
+        let rest = &text[from..];
+        let args = &rest[..rest.find(')').unwrap_or_else(|| {
+            panic!("{file}:{line}: an arm! declaration with no closing parenthesis")
+        })];
+        let parsed = args.split_once(',').and_then(|(id, kind)| {
+            let id = id.trim().strip_prefix('"')?.strip_suffix('"')?;
+            Some((id.to_string(), kind.trim().trim_end_matches(',').trim().to_string()))
+        });
+        let Some((id, name)) = parsed else {
+            panic!(
+                "{file}:{line}: arm! declaration `{}` is not `(\"<id>\", <Kind>)`, and a marker \
+                 this check cannot read is one it cannot hold to its record",
+                args.trim(),
+            );
+        };
+        let Some(kind) = kinds.get(&name) else {
+            panic!("{file}:{line}: `{name}` is not one of press::Kind's {:?}", kinds.keys());
+        };
+        out.push((line, Marker { id, gesture: kind.gesture().to_string() }));
+    }
+    out
+}
+
+/// Every marker in the workspace's Rust, of both forms, with where it is.
 ///
 /// A hand-rolled walk rather than a crate: this test must not add a dependency
 /// to build, and the tree is a few hundred files.
-fn markers(root: &Path) -> BTreeMap<Marker, Vec<String>> {
-    let mut out: BTreeMap<Marker, Vec<String>> = BTreeMap::new();
+fn sites(root: &Path) -> Vec<Site> {
+    let kinds = kinds_by_name();
+    let mut out = Vec::new();
     let mut stack = vec![root.join("crates")];
     while let Some(dir) = stack.pop() {
         let Ok(entries) = std::fs::read_dir(&dir) else { continue };
@@ -90,17 +196,26 @@ fn markers(root: &Path) -> BTreeMap<Marker, Vec<String>> {
                 stack.push(path);
             } else if path.extension().is_some_and(|x| x == "rs") {
                 let Ok(text) = std::fs::read_to_string(&path) else { continue };
-                for line in text.lines() {
-                    let Some(m) = marker_on(line) else { continue };
-                    let rel = path
-                        .strip_prefix(root)
-                        .unwrap_or(&path)
-                        .to_string_lossy()
-                        .replace('\\', "/");
-                    out.entry(m).or_default().push(rel);
+                let rel =
+                    path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+                for (n, line) in text.lines().enumerate() {
+                    let Some(marker) = marker_on(line) else { continue };
+                    out.push(Site { marker, at: format!("{rel}:{}", n + 1), how: How::Comment });
+                }
+                for (n, marker) in declarations_in(&text, &rel, &kinds) {
+                    out.push(Site { marker, at: format!("{rel}:{n}"), how: How::Declared });
                 }
             }
         }
+    }
+    out
+}
+
+/// Every marker, of either form, with the places it is written.
+fn markers(root: &Path) -> BTreeMap<Marker, Vec<String>> {
+    let mut out: BTreeMap<Marker, Vec<String>> = BTreeMap::new();
+    for s in sites(root) {
+        out.entry(s.marker).or_default().push(s.at);
     }
     out
 }
@@ -445,6 +560,53 @@ fn every_arm_names_a_gesture_from_the_closed_vocabulary() {
             m.gesture,
         );
     }
+}
+
+/// **A kind only `Press` answers is declared by that kind, never claimed by a
+/// comment.**
+///
+/// The three are `Widget_Test`'s kinds 4 and 5 and `Hotspot_Test`'s kind 2.
+/// Nothing in this engine answers them but a `press::Kind` handed to
+/// `press::Press`, so a marker claiming one is a claim about a `Kind` value —
+/// and the only marker that cannot disagree with that value is the value. A
+/// comment beside a table could say `left-press-delayed` over a row declared
+/// `Kind::Press`, and did, and the set check above was satisfied by the comment.
+///
+/// **Ablations, run:** declare `opt-music`'s row `Press` in its `arm!` and the
+/// set check above goes red, naming the arm and both words; replace the `arm!`
+/// with a bare `Kind::Press` and put the old comment back above it, and this
+/// one goes red naming the file and line.
+#[test]
+fn a_press_only_gesture_is_declared_by_its_kind_and_never_by_a_comment() {
+    let root = repo_root();
+    let press_only: BTreeSet<&'static str> = kinds_by_name()
+        .into_values()
+        .filter(|k| !matches!(k, Kind::Press | Kind::Release))
+        .map(Kind::gesture)
+        .collect();
+    assert_eq!(press_only.len(), 3, "repeat, delayed and held: {press_only:?}");
+
+    let all = sites(&root);
+    let typed: Vec<String> = all
+        .iter()
+        .filter(|s| s.how == How::Comment && press_only.contains(s.marker.gesture.as_str()))
+        .map(|s| format!("{}  // arm: {} {}", s.at, s.marker.id, s.marker.gesture))
+        .collect();
+    assert!(
+        typed.is_empty(),
+        "these markers claim a kind only press::Press answers, in a comment:\n  {}\n\
+         A comment can say `left-press-delayed` over a widget declared `Kind::Press`, and \
+         nothing would notice. Delete the comment and write the widget's kind as an \
+         arm! declaration — the id and `Delayed` as its two arguments — so the marker and \
+         the kind are one token.",
+        typed.join("\n  "),
+    );
+
+    // **And the declared half is not empty**, or the scanner went blind and the
+    // assertion above is vacuous. Thirty-four when this was written: every
+    // widget table in `screens/`, and the auto-repeat in `press.rs`.
+    let declared = all.iter().filter(|s| s.how == How::Declared).count();
+    assert!(declared >= 34, "only {declared} arm! declarations found; it was 34");
 }
 
 /// One marker per arm, so a record cannot silently mean two places.
