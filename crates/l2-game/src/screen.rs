@@ -257,6 +257,30 @@ pub enum Transition {
     /// It is deliberately not `Replace(self.id())`: that rebuilds the screen,
     /// and the campaign map's viewport is exactly what a re-centre is *about*.
     Reveal,
+    /// **Go to screen X, unwinding the stack** — `g_smkReturnScreen`.
+    ///
+    /// `Smk_Play` (`0x0042D91B`) stores its fifth argument and
+    /// `Smk_OnFinished` (`0x0042E060`) performs it as one statement,
+    /// `g_screenId = g_smkReturnScreen;`. That is a *destination*, and it is
+    /// neither of the two things our stack could already say: not [`Pop`], which
+    /// only knows what it is leaving, and not [`Replace`], which leaves
+    /// everything underneath standing.
+    ///
+    /// **Six of the seven `Smk_Play` call sites pass `g_screenId` itself or the
+    /// front end's `0x1F`, which in a stack is "come back where you were" —
+    /// [`Pop`]. One passes a literal: `CastleBuild_Confirm` (`0x00436B59`)
+    /// passes `0`, the campaign map.** `[V]`, read at each call site. So the end
+    /// of a castle film is the map, and the chooser that raised it is gone with
+    /// it, because the original has no stack to leave it on: `g_screenId` is one
+    /// byte.
+    ///
+    /// Applied as: truncate to the screen already on the stack, or — if it is
+    /// not there — clear and build it, which is the byte's behaviour when the
+    /// destination was never open.
+    ///
+    /// [`Pop`]: Transition::Pop
+    /// [`Replace`]: Transition::Replace
+    Goto(ScreenId),
 }
 
 /// What a screen is given. `game` is mutable through `handle` and `update`, and
@@ -320,6 +344,28 @@ pub trait Screen {
     /// approximation: the original's other tester plays no sound.
     fn take_clicks(&mut self) -> u8 {
         0
+    }
+
+    /// **Whether this screen has just reached a `Save_RotateAndWrite`
+    /// (`0x0049A453`)**, taken and forgotten.
+    ///
+    /// The original calls it from exactly two places, `[V]` — both of them
+    /// screens here:
+    ///
+    /// * `FUN_0049A3E6`, which fires on `g_screenId == 0x24` and is the bottom
+    ///   of the end-of-turn fade: reload the seasonal art, fade back up,
+    ///   autosave. [`crate::screens::map::MapScreen`] raises it there.
+    /// * `Game_NewGame` (`0x00497CED`), after `Season_Advance` and
+    ///   `Move_BuildCostMap`. [`crate::screens::setup::SetupScreen`] raises it
+    ///   there, which is why a fresh install's `lastturn.sav` reads Winter 1268.
+    ///
+    /// **It goes up, never down**, exactly as [`Screen::take_clicks`] does and
+    /// for the same reason: a screen may report that a turn came round, and may
+    /// not learn whether a file was written or where it went. Nothing here is on
+    /// [`Game`], so it is not in the save and not in the lockstep digest.
+    /// [`crate::saves::run_pending`] is the one place it becomes a file.
+    fn take_autosave(&mut self) -> bool {
+        false
     }
 
     /// **The original's `g_screenId`, where it is not a function of
@@ -532,6 +578,14 @@ pub struct Machine {
     tooltip_screens: Vec<ScreenId>,
     /// `g_optToolTips` as the last tick saw it, to see `Opt_ToggleToolTips`.
     tool_tips_seen: Option<bool>,
+    /// **A `Save_RotateAndWrite` (`0x0049A453`) is owed**, drained out of the
+    /// screens rather than read from them. See [`Screen::take_autosave`] and
+    /// [`crate::saves::run_pending`].
+    ///
+    /// A latch and not a counter, because two turns cannot come round between
+    /// two pumps: the request is raised in a tick and taken in the same tick's
+    /// tail by the application.
+    autosave: bool,
 }
 
 impl Machine {
@@ -546,7 +600,15 @@ impl Machine {
             tooltips: crate::tooltip::Tooltips::new(),
             tooltip_screens: Vec::new(),
             tool_tips_seen: None,
+            autosave: false,
         }
+    }
+
+    /// **The standing autosave request**, taken and cleared. The application
+    /// pumps it through [`crate::saves::run_pending`], which is its only caller
+    /// outside a test.
+    pub fn take_autosave(&mut self) -> bool {
+        core::mem::take(&mut self.autosave)
     }
 
     /// The tool-tip layer's state: which tip is up and where. See
@@ -683,6 +745,10 @@ impl Machine {
             // still heard. See [`Screen::take_clicks`].
             let clicked = self.stack[depth].take_clicks();
             self.clicks = self.clicks.wrapping_add(clicked as u32);
+            // Before the transition for the same reason the clicks are: a new
+            // game is started by a click, and the transition that starts it
+            // drops the screen that asked. See [`Screen::take_autosave`].
+            self.autosave |= self.stack[depth].take_autosave();
             if t == Transition::Pass {
                 continue;
             }
@@ -716,6 +782,11 @@ impl Machine {
             // release. The ablation that added a click to `Press::tick` stayed
             // green until this line existed.
             self.clicks = self.clicks.wrapping_add(top.take_clicks() as u32);
+            // `FUN_0049A3E6`'s `Save_RotateAndWrite()`, which is the bottom of
+            // the end-of-turn fade and reaches here through the map screen's
+            // `tick_fade`. Before the transition, because a turn that ended the
+            // game leaves for screen `0x1C` on the same frame.
+            self.autosave |= top.take_autosave();
             if t != Transition::Stay {
                 self.apply(t);
                 self.dirty = true;
@@ -1119,6 +1190,18 @@ impl Machine {
                 self.stack.clear();
                 self.quit = true;
             }
+            // `g_screenId = g_smkReturnScreen`. `depth` is deliberately not
+            // consulted: the original writes the byte whatever was up, and the
+            // destination may be *below* the screen that asked — which is the
+            // whole case this exists for, a castle film ending on the map with
+            // the chooser that raised it in between.
+            Transition::Goto(id) => match self.stack.iter().position(|s| s.id() == id) {
+                Some(at) => self.stack.truncate(at + 1),
+                None => {
+                    self.stack.clear();
+                    self.stack.push(id.build());
+                }
+            },
         }
     }
 }

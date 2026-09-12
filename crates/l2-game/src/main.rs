@@ -204,7 +204,22 @@ impl App {
         let App { game, assets, machine, .. } = self;
         let mut ctx = Ctx { game, assets };
         machine.update(&mut ctx);
+        self.autosave();
         self.listen();
+    }
+
+    /// **`Save_RotateAndWrite` (`0x0049A453`)**, which is
+    /// [`l2_game::saves::run_pending`] and nothing else.
+    ///
+    /// The body is in the library for [`Self::listen`]'s reason, stated below
+    /// it. What is here is the only thing that cannot be: a failed write is
+    /// **said out loud and does not stop the game**. A full disk at the turn
+    /// boundary must not end the session, and a silent failure would leave the
+    /// player believing there is a turn to go back to.
+    fn autosave(&mut self) {
+        if let Some(Err(e)) = l2_game::saves::run_pending(&mut self.machine, &self.game) {
+            eprintln!("autosave: {e}");
+        }
     }
 
     /// **Everything audible**, which is [`l2_game::audio::Director::listen`]

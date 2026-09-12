@@ -247,11 +247,41 @@ impl Film {
     /// * Otherwise `g_screenId = g_smkReturnScreen`: the screen that raised the
     ///   film — or, for an ending, the conquest screen `Msg_Dismiss` had
     ///   already entered.
+    ///
+    /// # What each call site actually passes, `[V]` at all eight
+    ///
+    /// | call site | `returnScreen` | here |
+    /// |---|---|---|
+    /// | `FUN_004B3571` intro | `g_screenId` | the start-up chain |
+    /// | `Smk_OnFinished` logo | `0x1F` | the start-up chain |
+    /// | `Smk_OnFinished` credits | `0x1F` | [`Transition::Pop`], onto the front end |
+    /// | `FUN_00432B05` trailer | `g_screenId` | [`Transition::Pop`] |
+    /// | **`CastleBuild_Confirm`** | **`0`** | **[`Transition::Goto`]`(Campaign)`** |
+    /// | `Msg_DrawWindow` capture | `g_screenId` | [`Transition::Pop`] |
+    /// | `Msg_DrawWindow` ending, both media layouts | `g_screenId`, read after `Msg_Dismiss` | [`Transition::Pop`], or [`Transition::Replace`]`(Conquest)` when that dismissal entered `0x1C` |
+    /// | `Battle_CheckOutcome` | `g_screenId` | [`Transition::Pop`] |
+    ///
+    /// **Only the castle film names a screen that is not the one it was raised
+    /// over**, and that is why it is the only arm that is not a pop:
+    /// `Smk_Play(s_castle1_smk + g_castleSelection * 0x10, 0x9E, 0x14, 0, 0)`.
+    /// Screen `0` is the campaign map, so the end of the film is the map and the
+    /// chooser that ordered the castle goes with it — the original has one
+    /// `g_screenId` byte and nothing to leave it on.
+    ///
+    /// Ours popped the film instead and left the chooser to pop itself on its
+    /// next `update`; [`crate::screen::Machine::update`] runs `run_tips` and
+    /// `pump_messages` first, and `tip::DELAY` is `0x14` frames, so on any film
+    /// longer than twenty frames the castle advisor tip seated itself and the
+    /// chooser never got that update. Measured at tick 523 of `castle1.smk`'s
+    /// 521 frames, and reported by a player as being stranded on the chooser
+    /// under a tip.
     pub fn then(&self) -> Transition {
         match self {
             Film::Intro => Transition::Replace(ScreenId::Movie(Film::ImpTitle)),
             Film::ImpTitle => Transition::Replace(ScreenId::Movie(Film::Credits)),
             Film::Ending { game_over: true, .. } => Transition::Replace(ScreenId::Conquest),
+            // `Smk_Play(…, 0, 0)` — the campaign map, unwinding the chooser.
+            Film::Castle(_) => Transition::Goto(ScreenId::Campaign),
             _ => Transition::Pop,
         }
     }
@@ -264,6 +294,11 @@ impl Film {
     pub fn on_failure(&self) -> Transition {
         match self {
             Film::Ending { game_over: true, .. } => Transition::Replace(ScreenId::Conquest),
+            // The same destination, because it is the same argument: `Smk_Play`
+            // failing writes `g_screenId = returnScreen` directly, and
+            // `CastleBuild_Confirm`'s own fail arm sets `g_screenId = 0` again
+            // right after it.
+            Film::Castle(_) => Transition::Goto(ScreenId::Campaign),
             _ => Transition::Pop,
         }
     }
