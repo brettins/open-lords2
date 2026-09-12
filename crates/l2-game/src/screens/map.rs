@@ -2983,10 +2983,10 @@ impl Screen for MapScreen {
             let read = Ctx { game: ctx.game, assets: ctx.assets };
             self.begin_move_selection(&read, unit);
         }
-        // **A turn left suspended by a battle screen is picked up here.** Only
-        // the top screen is given a tick, so this runs the moment `0x12` or
-        // `0x13` pops and not before — which is exactly when the campaign is
-        // allowed to move again.
+        // **The turn is not wound here** — [`MapScreen::wind_turn`] is, and
+        // the frame driver calls it whatever is on top. What is left below is
+        // `Screen_FrameInput`'s half: the animation counters and the scroll,
+        // which only run while this screen is the one being driven.
         // `Map_DrawFrame`: `if (0x7F < tick) tick = 0; phase = tick >> 4;`
         // Only a change of phase is a repaint, so a still map with flags on it
         // costs eight frames every 2.05 seconds rather than sixty a second.
@@ -3027,6 +3027,44 @@ impl Screen for MapScreen {
         // The season has turned and the screen is dark or on its way there.
         // Nothing else may run: the fade *is* the frame.
         if self.fading.is_some() {
+            return Transition::Stay;
+        }
+        // **`Map_ScrollThrottle` (`0x004BBBE3`)** — the map does not step on
+        // every frame the pointer is at the edge. See
+        // [`MapScreen::scroll_interval_ticks`].
+        let every = self.scroll_interval_ticks();
+        self.scroll_wait = self.scroll_wait.saturating_sub(1);
+        // `q >= 10` — speed 0 — is the original's own early return, and no
+        // amount of waiting satisfies it.
+        // arm: 0x00432221/map-edge-scroll hover-at-edge
+        if self.scroll_wait == 0 && every != u32::MAX {
+            if let Some(dir) = self.edge_direction() {
+                self.scroll_wait = every;
+                if self.scroll(dir) {
+                    self.scrolled = true;
+                }
+            }
+        }
+        Transition::Stay
+    }
+
+    /// **`Turn_Tick(); Units_Tick();`**, the frame loop's half of a frame.
+    ///
+    /// Everything here used to sit in [`MapScreen::update`], which the machine
+    /// runs for the top screen only — so a letter, a county panel or an open
+    /// menu stopped the campaign dead underneath it. `Battle_Frame`
+    /// (`0x004B99C0`) has no screen test on this call at all; see
+    /// [`Screen::wind_turn`] and [`crate::screen::Machine::wind_turn`].
+    ///
+    /// **The question the phase machine is waiting on is its own gate.**
+    /// [`MapScreen::resume_turn`] asks for screen `0x12` or `0x13` before it
+    /// ticks anything, so a turn suspended on a battle prompt does not advance
+    /// however many frames go by — which is the original's `g_turnPhaseStep`
+    /// waiting on an answer rather than a screen suppressing the call.
+    fn wind_turn(&mut self, ctx: &mut Ctx) -> Transition {
+        // The season has turned and the screen is dark or on its way there.
+        // Nothing else may run: the fade *is* the frame.
+        if self.fading.is_some() {
             return self.tick_fade();
         }
         // **The turn timer ran out.** `Turn_Tick`'s phase-4 arm called
@@ -3054,22 +3092,6 @@ impl Screen for MapScreen {
             // [`turn::tick_units_only`].
             if turn::tick_units_only(ctx.game) > 0 {
                 self.scrolled = true;
-            }
-        }
-        // **`Map_ScrollThrottle` (`0x004BBBE3`)** — the map does not step on
-        // every frame the pointer is at the edge. See
-        // [`MapScreen::scroll_interval_ticks`].
-        let every = self.scroll_interval_ticks();
-        self.scroll_wait = self.scroll_wait.saturating_sub(1);
-        // `q >= 10` — speed 0 — is the original's own early return, and no
-        // amount of waiting satisfies it.
-        // arm: 0x00432221/map-edge-scroll hover-at-edge
-        if self.scroll_wait == 0 && every != u32::MAX {
-            if let Some(dir) = self.edge_direction() {
-                self.scroll_wait = every;
-                if self.scroll(dir) {
-                    self.scrolled = true;
-                }
             }
         }
         Transition::Stay

@@ -2563,6 +2563,10 @@ fn the_end_of_a_turn_fades_the_screen_down_and_back_up() {
     let before = g.kingdom.turn_count;
     for n in 0..2_000u32 {
         let mut ctx = Ctx { game: &mut g, assets: &a };
+        // Both halves of a frame, in `Machine::update`'s order: `wind_turn` is
+        // `Battle_Frame`'s `Turn_Tick(); Units_Tick();` and `update` is
+        // `Screen_FrameInput`'s. The fade lives in the first.
+        s.wind_turn(&mut ctx);
         s.update(&mut ctx);
         if season_at.is_none() && g.kingdom.turn_count > before {
             season_at = Some(n);

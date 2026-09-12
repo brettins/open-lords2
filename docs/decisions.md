@@ -10736,3 +10736,93 @@ and `l2_formats::save` does not read them. Every fallback above exists because o
 gap. It is not touched here: `crates/l2-formats/` is the lead's (`docs/agents.md`), and the
 four-byte discrepancy between the block's base and `g_playerNames` at `0x00553D54` wants
 settling against a real file before anything reads it.
+
+---
+
+**C197 — the turn was a screen's job and it is the frame's,
+and the `else` branch nobody built gave away a county the original refuses.**
+
+Two defects the capture-letters branch found and left, and they are one entry because both
+were read out of the same two functions.
+
+### The turn stopped under an open letter, because we gave it to a screen
+
+`Battle_Frame` (`0x004B99C0`) ends its inner loop with
+
+```c
+if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }
+else if ((g_battlePhase == 2) && (ticksDue != 0)) { …the battle's passes… }
+```
+
+and **there is no `g_screenId` test on either arm** — `[V]`, read whole. Everything in the
+loop's tail that does dispatch on the screen (`Screen_Draw`, `Screen_FrameInput`, the
+cursor ladder) is drawing and input. So in the original the campaign winds on under a
+county panel, a village, an open menu and the message scroll alike, and the only thing
+that suspends it is a battle.
+
+Ours wound the turn out of `MapScreen::update`, and `Machine::update` gives `update` to
+the **top** screen only. The scroll is not a screen in the original at all — `g_screenId`
+does not change when a letter opens, which is exactly why `Msg_Pump`'s own ladder goes on
+treating the map as the screen — but it is one here, so the frame a letter arrived was the
+frame the campaign stopped on, for good: single player clamps the message timer, so the
+window waits for a click that the test never gives and a player might not either.
+
+**The absence is the finding, and an absence is not visible from the half of the function
+you already read.** The pump ladder, the turn clock and the tool tips were all lifted into
+the frame driver *because they had no screen*; the turn was left where it was because the
+map plainly owns it. It does not: `Screen::update` is `Screen_FrameInput`'s half of a
+frame and the new `Screen::wind_turn` is the loop's, and the campaign map is the one screen
+that has both. `Machine::wind_turn` calls it at whatever depth the map sits.
+
+Two things it does **not** change. A battle still suspends the turn, which is
+`g_battlePhase != 0` and here is `Game::battle` plus the battlefield screen. And a turn
+waiting on screen `0x12` or `0x13` still waits: `resume_turn` asks for the prompt before it
+ticks anything, so the phase machine is its own gate — the driver only refuses to put up a
+screen already on the stack, which it never had to before because it never ran there.
+
+### A county too far to govern goes independent, and ours handed it over
+
+`County_ChangeOwner` (`0x004A72FE`) is one `if` with two branches and we had built one:
+
+```c
+if (realm[new].countyCount == 0 || County_BordersRealm(new, county)) { …the capture… }
+else {
+    if (newOwner == g_localPlayer) Msg_Enqueue(0, g_localPlayer, 0x81, 0, 0, county, 0, 0);
+    County_MakeIndependent(county);
+}
+```
+
+The `else` was marked NOT PORTED and `Capture::governable` carried the test out so the
+letter layer could stay silent rather than post a letter the world contradicted. It is
+built now, and read whole rather than summarised: the branch does **not** increment
+`countyCount`, does not `Realm_RecountStrength` the loser, does not take the happiness
+penalty, does not write the shield and does not raise the peak. Its one letter is inside
+`if (newOwner == g_localPlayer)`, so **the loser is never told** — he finds out from the
+map.
+
+`County_MakeIndependent` (`0x004AC3C6`) already existed as a `Kingdom` method for
+secession, revolt and elimination; it is now `conquest::make_independent` and the kingdom
+delegates, because the fourth caller is inside `change_owner` where neither the tables nor
+`g_seasonNext`, `g_optAdvancedFarming`, `g_optArmiesEat` and `g_countyCount` reach.
+`conquest::Restore` carries those four and `Kingdom::restore()` builds it.
+
+**What moved in the lockstep digest.** Only on an ungovernable capture, and there: section
+`counties` — `owner` is 0 rather than the taker, all four `industry[].enabled` and
+`castle_switch` are off, `garrison_unit` is cleared, `happiness` and `shown_events` are
+*unchanged* because the penalty is in the other branch, and `Labour_Allocate`,
+`Ration_Apply`, `County_RefreshEstimates` and `Tax_RecomputePreview` move the `job`,
+`grain`, `herd`, `ration`, `food`, `field` and `tax` sub-sections; section `realms` —
+`county_count` does not rise and neither does `peak_counties`. A governable capture is
+byte-identical to before. The differential's four pairs did not move (932/913, 279/270)
+and `long_game`'s hundred- and four-hundred-turn sweeps are unchanged. The frame-driver
+half adds no state at all: it changes *which frame* a tick lands on, and it stops that
+being a function of which screen a peer has open.
+
+**And a trap the fix laid bare.** `County_BordersRealm` reads `county.neighbours`, so a
+test world without an adjacency list now sends every capture down the `else` branch: six
+tests in `conquest.rs` and one in `tests/campaign.rs` went red saying *"the county did not
+change hands"* when what they were missing was two lines of neighbour data.
+`tests/military.rs` had already recorded the same trap from the secession side. The
+adjacency is in `world()` and in `campaign.rs`'s `kingdom()` now, with the reason beside
+it, and county 3 is deliberately left with none — it is what the `else` branch is tested
+with.

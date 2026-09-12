@@ -979,46 +979,33 @@ impl Kingdom {
         }
     }
 
-    /// `County_MakeIndependent` (`0x004AC3C6`) — **the common ending of every
-    /// way a county stops being owned**: secession, revolt, and the elimination
-    /// of a realm all call it.
+    /// **What [`crate::conquest::make_independent`] and a capture need** that
+    /// neither takes a kingdom to read: `g_seasonNext`, `g_optAdvancedFarming`,
+    /// `g_optArmiesEat` and `g_countyCount`.
+    pub fn restore(&self) -> crate::conquest::Restore {
+        crate::conquest::Restore {
+            season_next: Season::from_index(self.season_next).unwrap_or(Season::Spring),
+            advanced_farming: self.options.advanced_farming,
+            armies_eat: self.options.armies_eat,
+            county_count: self.county_count,
+        }
+    }
+
+    /// `County_MakeIndependent` (`0x004AC3C6`) — secession, revolt, the
+    /// elimination of a realm and a conquest the taker cannot reach all end
+    /// here. The function is [`crate::conquest::make_independent`]; this is the
+    /// kingdom's arguments for it.
     ///
-    /// ```c
-    /// owner = 0; shieldIndex = 0;
-    /// for (i = 0; i < 4; i++) industry[i].enabled = 0;
-    /// castleSwitch = 0;
-    /// Labour_Allocate(county); Ration_Apply(county, season);
-    /// County_RefreshEstimates(county, seasonNext); Tax_RecomputePreview(county);
-    /// if (garrison) handOverGarrison(garrison, county);
-    /// ```
-    ///
-    /// **Switching all four industries off is the mechanism, not a flourish.**
-    /// It is what turns the county's four industry ceilings to zero, and the
-    /// re-allocation two lines later is what moves those people into *Idle
-    /// townsfolk* — the difference between the shipped save's
-    /// `[0, 218, 0, 0, 0, 0, 217, 0, 0]` and its `[0, 323, 0, 0, 0, 0, 0, 0,
-    /// 133]`.
-    ///
-    /// County `+0x07`, the owner's shield byte, is presentation and this crate
-    /// has no such field; the garrison hand-off is `FUN_00437535`, which lives
-    /// in the unit layer and is left to the caller.
+    /// The idle-townsfolk effect the industry switches produce is the
+    /// difference between the shipped save's `[0, 218, 0, 0, 0, 0, 217, 0, 0]`
+    /// and its `[0, 323, 0, 0, 0, 0, 0, 0, 133]`.
     pub fn make_county_independent(&mut self, county: usize) {
         if county == 0 || county > self.county_count {
             return;
         }
-        let armies_eat = self.options.armies_eat;
-        {
-            let c = &mut self.counties[county];
-            c.owner = 0;
-            for industry in c.industry.iter_mut() {
-                industry.enabled = false;
-            }
-            c.castle_switch = false;
-        }
-        crate::labour::allocate(&mut self.counties[county]);
-        crate::ration::apply(&self.tables, &mut self.counties[county], armies_eat);
-        self.refresh_estimates(county);
-        crate::tax::recompute_preview(&self.tables, &mut self.counties[county]);
+        let r = self.restore();
+        let Kingdom { counties, realms, campaign, tables, .. } = self;
+        crate::conquest::make_independent(tables, counties, realms, county as u8, &campaign.map, r);
     }
 
     /// One `Industry_Produce` run over every county.

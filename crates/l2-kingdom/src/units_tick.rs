@@ -464,6 +464,7 @@ impl Kingdom {
         // thing only the AI branch had, the mission reset that stops a lord
         // marching at a full castle for ever, now lives in that function.
         if let Some(county) = step.reached_castle {
+            let restore = self.restore();
             let outcome = conquest::attack_county(
                 &self.tables,
                 &self.campaign.map,
@@ -476,6 +477,7 @@ impl Kingdom {
                 self.options.difficulty,
                 self.year,
                 &mut self.campaign.explored,
+                restore,
             );
             // `County_ChangeOwner`'s letter, posted where the capture happens.
             if let Attack::Captured(capture) = outcome {

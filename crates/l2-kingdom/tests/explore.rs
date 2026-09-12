@@ -161,7 +161,11 @@ fn taking_a_county_shows_the_taker_the_county_and_a_border_round_it() {
     let mut explored = Explored::new();
     explored.set_seen(2, index(42, 31));
 
-    change_owner(&mut k.counties, &mut k.realms, &k.campaign.units, 1, 2, 0, &map, &mut explored);
+    let restore = k.restore();
+    change_owner(
+        &k.tables, &mut k.counties, &mut k.realms, &k.campaign.units, 1, 2, 0, &map,
+        &mut explored, restore,
+    );
 
     assert_eq!(k.counties[2].owner, 1);
     assert_eq!(explored.count(1), 42, "7 × 6");

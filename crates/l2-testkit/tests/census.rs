@@ -134,7 +134,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/newgame.rs", "install", 3),
     ("crates/l2-game/tests/newgame.rs", "other", 10),
     ("crates/l2-game/tests/overlay_palette.rs", "install", 1),
-    ("crates/l2-game/tests/pacing.rs", "england", 4),
+    ("crates/l2-game/tests/pacing.rs", "england", 5),
     ("crates/l2-game/tests/press.rs", "executable", 1),
     ("crates/l2-game/tests/right_column.rs", "executable", 1),
     ("crates/l2-game/tests/save.rs", "england", 1),
@@ -185,7 +185,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 514;
+const GATED_TOTAL: usize = 515;
 
 /// The workspace root, from this crate's manifest.
 fn repo_root() -> PathBuf {

@@ -70,8 +70,8 @@ pub mod group {
     pub const SHARE_TOP: u16 = 0x7D;
     /// 126 — *"The county is yours. May you rule it wisely."* — no new peak.
     pub const RULE_WISELY: u16 = 0x7E;
-    /// 129 — *"This county is too far from the heart of your lands…"*. **Not
-    /// posted**: see [`super::capture_record`].
+    /// 129 — *"This county is too far from the heart of your lands…"*. The
+    /// `else` branch, to the taker alone: see [`super::capture_record`].
     pub const TOO_FAR: u16 = 0x81;
 }
 
@@ -97,14 +97,33 @@ pub mod group {
 /// Lord of the Realm"* capture letter is dead text, and the ladder's rung for
 /// the last county is 125 or 126 like any other.
 ///
-/// **An ungovernable county posts nothing here.** The original sends its taker
-/// 129 and makes the county independent; the second half is not built
-/// (`l2_kingdom::conquest::change_owner`, NOT PORTED), so our world gives the
-/// taker the county, and either letter would contradict what the player then
-/// sees. Silence is the smaller lie and it is said here rather than chosen.
+/// **An ungovernable county is 129 to its taker and nothing to anybody else.**
+/// `County_ChangeOwner`'s `else` branch has one `Msg_Enqueue` and it is inside
+/// `if (newOwner == g_localPlayer)`, so the loser is never told his county went
+/// its own way — he finds out from the map. The county itself is made
+/// independent by [`l2_kingdom::conquest::change_owner`].
 pub fn capture_record(capture: &Capture, player: u8, county_count: usize) -> Option<Record> {
     if !capture.governable {
-        return None;
+        // ```c
+        // if (newOwner == g_localPlayer) Msg_Enqueue(0, g_localPlayer, 0x81, 0, '\0', county, '\0', 0);
+        // County_MakeIndependent(county);
+        // ```
+        // **Only the taker is told.** The loser is not: the county he lost is
+        // nobody's now and no letter in the ladder says so, which is the
+        // original's silence and not ours.
+        if capture.new_owner != player {
+            return None;
+        }
+        return Some(Record {
+            to: player,
+            from: 0,
+            group: group::TOO_FAR,
+            variant: 0,
+            category: category::NOTICE,
+            county: capture.county,
+            spare: 0,
+            payload: 0,
+        });
     }
     let from_the_taker = |group: u16, spare: u8| Record {
         to: player,
@@ -270,6 +289,13 @@ pub const TEXT: &[(u16, &[&str])] = &[
     (125, &["FREE", "Another county falls before you as your influence grows across the realm."]),
     (126, &["FREE", "The county is yours. May you rule it wisely."]),
     (
+        129,
+        &[
+            "FREE",
+            "This county is too far from the heart of your lands, my Lord. You cannot govern it.",
+        ],
+    ),
+    (
         130,
         &[
             "FREE",
@@ -406,13 +432,23 @@ mod tests {
         }
     }
 
-    /// Nothing for a county the original would not let the taker keep. See
-    /// [`capture_record`]'s last paragraph.
+    /// **129 to the taker, silence to everybody else** — the whole of the
+    /// `else` branch's one `Msg_Enqueue`, which sits inside
+    /// `if (newOwner == g_localPlayer)`. `from` is a literal 0 here and not the
+    /// taker, unlike the three notices above.
+    ///
+    /// Ablation: return `None` for `!governable`, as this did before the branch
+    /// was built, and the first assertion goes red.
     #[test]
-    fn an_ungovernable_county_posts_no_letter_here() {
-        let far = Capture { governable: false, ..taken(1, 0, 3, 3) };
-        assert_eq!(capture_record(&far, 1, 14), None);
-        assert_eq!(capture_record(&far, 2, 14), None);
+    fn an_ungovernable_county_tells_its_taker_and_nobody_else() {
+        let far = Capture { governable: false, ..taken(1, 4, 3, 3) };
+        let r = capture_record(&far, 1, 14).expect("the taker is told he cannot govern it");
+        assert_eq!(
+            (r.to, r.from, r.group, r.category, r.county, r.spare, r.variant),
+            (1, 0, group::TOO_FAR, category::NOTICE, 5, 0, 0),
+        );
+        assert_eq!(capture_record(&far, 4, 14), None, "the loser is not told");
+        assert_eq!(capture_record(&far, 2, 14), None, "nor is anybody else");
     }
 
     #[test]
