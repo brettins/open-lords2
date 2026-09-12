@@ -103,6 +103,7 @@ impl IndexScreen {
         // filed together on the strength of sitting next to each other in the
         // sidebar.
         push("0x18 SEND SUPPLIES".into(), Some(ScreenId::Supplies(1)));
+        push("0x20 THE STANDINGS".into(), Some(ScreenId::Nobles));
         push("0x25 ABOUT".into(), Some(ScreenId::About));
         push("0x2E BATTLE MASTER RATINGS".into(), Some(ScreenId::Ratings));
 

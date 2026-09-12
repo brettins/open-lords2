@@ -456,6 +456,36 @@ pub mod speech {
         "S020_07.wav",
     ];
 
+    /// **The standings page saying which category you are looking at** —
+    /// `0x004E2168`, `char[][16]`, indexed by `DAT_0055CE7C` straight.
+    ///
+    /// `FUN_004B3994` is `if (-1 < n && n < 9) Sound_PlayFile(table + n * 0x10,
+    /// 1, 0)`, and it has exactly **two callers**, both passing the category:
+    /// `FUN_004351C4`, the court's *Greatest nobles* button, and
+    /// `FUN_0043524E`, one of the page's seven tabs. So this is the spoken
+    /// half of `L2.eng` group 35, file named after group and index, and
+    /// `crates/l2-game/src/screens/nobles.rs` is the screen.
+    ///
+    /// **Two entries past the end of what can be reached, and they are not the
+    /// same mistake.** There are seven categories, so `S035_08.wav` — the
+    /// voice line for index 7, *"undecided."* — **ships and is played by
+    /// nothing**. And the guard admits **nine** where the table holds eight:
+    /// index 8 reads the next table along, whose first entry is
+    /// `S075_01.wav`. Both are read out of the executable; neither is
+    /// reachable from either caller, so this array stops at the seven that
+    /// are, and the eighth is carried only so that the shape of the original's
+    /// table is visible beside it.
+    pub const STANDINGS_CATEGORY: [&str; 8] = [
+        "S035_01.wav",
+        "S035_02.wav",
+        "S035_03.wav",
+        "S035_04.wav",
+        "S035_05.wav",
+        "S035_06.wav",
+        "S035_07.wav",
+        "S035_08.wav",
+    ];
+
     /// **What the map information panel says about a *unit*** — `0x004E20D8`,
     /// `char[4][16]`. `FUN_004B37BC` picks by `g_units[picked].kind` and, for
     /// an army, by its owner:

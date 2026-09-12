@@ -587,6 +587,22 @@ castle**, not four.
 separately — *Most counties, Most castles, Most troops, Most crowns, Happiest people, Most
 people* — and then *Greatest noble* for the overall winner, or *undecided* for a tie.
 
+**And the standings screen is not the score.** Reading it as a scoreboard is the mistake it
+invites: the *Greatest noble* tab is the only one that shows the weighted score above, and
+the other six show **one raw number each**, as a percentage of whoever is leading that one
+category. You can be flying the tallest banner under *Most troops* and be last overall.
+The categories are `+0x29` counties, `+0x4C` **finished** castles (a castle still being
+built does not count, `Castle_BuildTick`), `+0x54` men in armies, `+0x118` crowns in the
+treasury, `+0x0C` mean happiness and `+0x10` total population — six raw fields, none of
+them weighted against another. `GreatestNoble_Value` (`0x00415E42`).
+
+**Two years of it are a blank.** *Greatest noble* scores every lord a flat 2 while the year
+is under **1270**, so it reads *"Greatest noble, undecided."* for the first two years of
+every game whatever anyone has done — the categories beside it work from turn one. And a
+category where every lord is level does not pick a winner either: it draws all five banners
+at exactly half height and says *undecided*, which is what a turn-one game looks like on
+every tab. `crates/l2-game/src/screens/nobles.rs`.
+
 ---
 
 ## 7. The four AI lords

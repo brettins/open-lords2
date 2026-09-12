@@ -152,6 +152,14 @@ pub enum ScreenId {
     /// `g_screenId` `0x09` — **the court**, the realm's balance sheet. Not a
     /// diplomacy screen; see [`crate::screens::court`].
     Court,
+    /// `g_screenId` `0x20` — **the standings**, the court's one button.
+    ///
+    /// The category being looked at is **not** part of the identity, for
+    /// `ScreenId::Diplomacy`'s reason: `DAT_0055CE7C` is a global the original
+    /// keeps outside the screen, it survives the page being closed, and there
+    /// is only ever one of these open. It is [`Game::nobles_category`]. See
+    /// [`crate::screens::nobles`].
+    Nobles,
     /// `g_screenId` `0x18` — **send supplies**, from one county to another.
     /// The destination is part of the identity because the screen opens with it
     /// equal to the source and the player moves it with the minimap. See
@@ -518,6 +526,7 @@ impl ScreenId {
             }
             ScreenId::About => Box::new(crate::screens::about::AboutScreen::new()),
             ScreenId::Court => Box::new(crate::screens::court::CourtScreen::new()),
+            ScreenId::Nobles => Box::new(crate::screens::nobles::NoblesScreen::new()),
             // **`ScreenId::Diplomacy` was matched twice**, here and further up,
             // both arms constructing the same screen. It is the pilot's second
             // finding recurring — *a screen was in the index twice*

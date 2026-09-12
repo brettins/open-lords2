@@ -529,6 +529,12 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // any of the original's save blocks either; a loaded game starts both
         // rotations over, as the original's start-up does.
         films: crate::movie::Reel::default(),
+        // And a ninth and tenth: which page of the standings somebody had
+        // open, and the counter that makes the page speak. `DAT_0055CE7C` is
+        // in none of the original's save blocks either — `Game_NewGame` is its
+        // only writer outside the page itself.
+        nobles_category: 0,
+        nobles_spoken: 0,
     })
 }
 

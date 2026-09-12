@@ -649,7 +649,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 32 | 1 | `Battle Paused` | "Battle Paused" overlay. | `FUN_00423b4f` [V] |
 | 33 | 8 | `Send supplies` | The send-supplies screen. | `Screen_SendSupplies`, `FUN_0041aea2` [V] |
 | 34 | 2 | `Year` | Campaign-map header ("Year" / "Click on the county you wish to view."). | `Screen_DrawCampaign` [V] |
-| 35 | 8 | `Most counties,` | The seven "greatest noble" categories (most counties / castles / troops / crowns …). | `Screen_GreatestNoble` [V] |
+| 35 | 8 | `Most counties,` | The seven "greatest noble" categories (most counties / castles / troops / crowns / happiest people / most people / greatest noble), plus 7 *"undecided."*. **One consumer in the whole binary**, so this group *is* screen `0x20`'s vocabulary — and it is one line, not seven: the page draws `35/g_nobleCategory` at (328, 446) and then either the leading realm's name or 35/7. The **spoken** half is `S035_01.wav` … `S035_08.wav` through `Speech_PlayStandingsCategory` (`0x004B3994`), file named after group and index; `S035_08`, the line for *"undecided."*, is played by nothing. | `Screen_GreatestNoble`, `GreatestNoble_SelectCategory` [V] |
 | 36 | 19 | `Congratulations!!` | The Play Now!! conquest inter-map screen — `Readme.txt` calls it the eight-map campaign. | `Screen_DrawConquest` [V] |
 | 37 | 6 | `Battle Master ratings` | Battle Master ratings table headings. | `Screen_BattleMasterRatings`, `Screen_BattleMasterRank` [V] |
 | 38 | 12 | `Rank of Private` | The twelve Battle Master ranks (Private … ). | `Screen_BattleMasterRank` [V] |

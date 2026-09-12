@@ -2018,6 +2018,21 @@ decompiler's nesting alone. `docs/decisions.md` C33.
 `0x00565438` are the sentinel that makes that safe, and `Score_RankRealms` zeroes them
 explicitly two statements before the loop.
 
+**The screen that shows this is not showing this.** Screen `0x20`, the standings, has
+seven tabs and only the seventh — *Greatest noble* — reads `+0x2B`, the rank this function
+writes; the other six are single raw fields against the leader's, through
+`GreatestNoble_Value` (`0x00415E42`) rather than through the weighted sum above. A reader
+who takes *Most troops* for a score component in the ratio the bars show is reading a
+different mechanic. `crates/l2-game/src/screens/nobles.rs` and `docs/rules.md` §6.
+
+**One UI path calls both this and `Realm_UpdateTotals`, and it is the only one outside the
+AI turn.** `Court_OpenGreatestNoble` (`0x004351C4`), the court's single button, runs
+`Score_RankAndRefreshAll` (`0x00435211`) before screen `0x20` is painted — or, in a network
+game, sends command `0x3B`, whose deferred action does the same on every peer. Five of the
+six score inputs are what `Realm_UpdateTotals` writes and nothing else rebuilds them
+between AI turns, so without that call the page would show the standings as the last AI
+turn left them.
+
 **It also leaves three globals nothing else writes**: `g_rankLeader` and `g_rankTrailer`, the
 first and last entries of the sorted table that were not struck out for being eliminated, and
 `g_opponentsRemaining` (`0x0056D5D8`), the number of in-play realms that are not the local

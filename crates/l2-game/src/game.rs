@@ -708,6 +708,36 @@ pub struct Game {
     /// not-encoded: presentation, and one tick of it. Nothing in the kingdom
     /// reads it, and a loaded game's first sweep writes it afresh.
     pub unit_frames: UnitFrames,
+
+    /// **`DAT_0055CE7C`** — which of the standings page's seven categories is
+    /// being looked at, 0…6. See [`crate::screens::nobles`].
+    ///
+    /// Here rather than on the screen because **the original's is a global**:
+    /// `Game_NewGame` (`0x00497CED`) zeroes it, `FUN_0043524E` writes it from
+    /// the tab that was clicked, and `FUN_004351C4` — the court's button —
+    /// *reads* it on the way in, to speak the category's name before the page
+    /// is drawn. A screen that kept it to itself could not be read by that
+    /// button and could not be read by [`crate::audio::Director`], which is
+    /// exactly why `docs/audio.json` files the castle chooser's five spoken
+    /// names as `blocked`.
+    ///
+    /// not-encoded: presentation. Which page of a scoreboard somebody has open
+    /// cannot change a number in the world.
+    pub nobles_category: u8,
+    /// **How many times the standings page has been asked to say its category
+    /// out loud**, monotone.
+    ///
+    /// Ours, and it is a mechanism rather than state: `FUN_004B3994(category)`
+    /// has exactly two callers — `FUN_004351C4`, the court's button, and
+    /// `FUN_0043524E`, a tab — and *both* speak unconditionally, including
+    /// when the tab pressed is the one already showing. A diff on
+    /// [`Game::nobles_category`] would miss that press and would miss an open
+    /// that did not change the category, so the edge the director watches is
+    /// this counter and not the value. Same shape as
+    /// [`crate::screen::Machine::clicks`], for the same reason.
+    ///
+    /// not-encoded: presentation, and one tick of it.
+    pub nobles_spoken: u32,
 }
 
 /// **`+0x07` — the frame each unit's tick handler wrote, which is not the frame
@@ -904,6 +934,10 @@ impl Game {
             turn_clock: crate::turn_clock::TurnClock::default(),
             films: crate::movie::Reel::default(),
             unit_frames: UnitFrames::default(),
+            // `Game_NewGame` (`0x00497CED`) writes 0 into `DAT_0055CE7C`, so a
+            // new game opens the standings on *"Most counties,"*.
+            nobles_category: 0,
+            nobles_spoken: 0,
         }
     }
 

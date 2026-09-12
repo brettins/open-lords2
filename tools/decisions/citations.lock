@@ -18,7 +18,7 @@ CLAUDE.md	C124	9cf9ee1c286d	38723617b085
 CLAUDE.md	C133	8ca6404191f1	91fcca97cc98
 CLAUDE.md	C143	d2376fb46498	2035c02750d9
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
-CLAUDE.md	C61	a9d344348780	60611046b40d
+CLAUDE.md	C61	672ddb0445a1	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
 README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
@@ -101,6 +101,7 @@ crates/l2-game/src/screens/message.rs	C164	a4ab5ea66a65	68f38e5b4b46
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28	37ab8ac1a2fc
+crates/l2-game/src/screens/nobles.rs	C190	915c36f4ef8e	036491ce2ede
 crates/l2-game/src/screens/options.rs	C62	65a8bf182816	ebb6a7ec3711
 crates/l2-game/src/screens/ratings.rs	C140	86ed189821f1	e3a1ede42a95
 crates/l2-game/src/screens/ratings.rs	C61	4f4b84817209	60611046b40d
@@ -200,6 +201,7 @@ crates/l2-game/tests/screens.rs	C48	a3f70d784d36	9e81512f4c0d
 crates/l2-game/tests/screens.rs	C61	0666dfecda29	60611046b40d
 crates/l2-game/tests/shell.rs	C22	df2346f350a7	0364b53a921d
 crates/l2-game/tests/siege_battle.rs	C35	7b2f7bc2325e	193a1920e229
+crates/l2-game/tests/standings.rs	C26	9814e3a54839	e8179d1f76a8
 crates/l2-game/tests/tips.rs	C166	594d57b2ba61	e426c5b6c94a
 crates/l2-game/tests/turn.rs	C115	e1e6a0456501	085c9b771281
 crates/l2-game/tests/turn.rs	C134	e56871c4814a	d12cd2f96f79
@@ -494,9 +496,10 @@ docs/arms.json	C139	86c8a3f81ef8	d11336df05e7
 docs/arms.json	C148	0bc555f0651e	d3efa7d90685
 docs/arms.json	C148	af54a2d65605	d3efa7d90685
 docs/arms.json	C148	f74fa2b28467	d3efa7d90685
-docs/arms.json	C61	0625bd8a65f4	60611046b40d
+docs/arms.json	C190	772bd119bdcc	036491ce2ede
 docs/arms.json	C61	39d63dd72f38	60611046b40d
 docs/arms.json	C61	470ac14e79ae	60611046b40d
+docs/arms.json	C61	f3b7014eab2f	60611046b40d
 docs/arms.json	C62	2f99cfdc046d	ebb6a7ec3711
 docs/arms.json	C76	113584e50fba	53e207ae069e
 docs/audio-triggers.md	C116	a50aa306a537	1c49feddd496
@@ -695,6 +698,7 @@ docs/decisions.md	C181	5e051b644dd8	19c538abe1e9
 docs/decisions.md	C181	5f6049f98891	19c538abe1e9
 docs/decisions.md	C184	b2af8a802fd4	68993561dc7c
 docs/decisions.md	C189	0b09be3d6777	a640e552a733
+docs/decisions.md	C190	68f8ca643e9f	036491ce2ede
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
 docs/decisions.md	C21	7e1ce2bf6129	f7bf296341ff
@@ -1090,9 +1094,9 @@ docs/symbols.json	C59	f11936a4f0c9	37ab8ac1a2fc
 docs/symbols.json	C61	0cb272e734e6	60611046b40d
 docs/symbols.json	C61	35fbff189b88	60611046b40d
 docs/symbols.json	C61	4a0d8de27a2a	60611046b40d
-docs/symbols.json	C61	91b313ad7cad	60611046b40d
 docs/symbols.json	C61	91b9a67cd13d	60611046b40d
 docs/symbols.json	C61	a28b547baf57	60611046b40d
+docs/symbols.json	C61	aef17a4b5b29	60611046b40d
 docs/symbols.json	C62	09cc6d78ab1a	ebb6a7ec3711
 docs/symbols.json	C62	53b4e4dd20d4	ebb6a7ec3711
 docs/symbols.json	C62	5401a4657c0c	ebb6a7ec3711
@@ -1168,9 +1172,9 @@ docs/symbols.md	C59	b3fb94b553dd	37ab8ac1a2fc
 docs/symbols.md	C61	15679f4bca90	60611046b40d
 docs/symbols.md	C61	9df333f07613	60611046b40d
 docs/symbols.md	C61	a0e6f49e28e7	60611046b40d
+docs/symbols.md	C61	ccd6c1bee776	60611046b40d
 docs/symbols.md	C61	eaf814d44075	60611046b40d
 docs/symbols.md	C61	ee29ac8198f1	60611046b40d
-docs/symbols.md	C61	f7e9211f55d0	60611046b40d
 docs/symbols.md	C62	0292ea08add9	ebb6a7ec3711
 docs/symbols.md	C62	568230a0961e	ebb6a7ec3711
 docs/symbols.md	C62	5ed6305cb0fb	ebb6a7ec3711

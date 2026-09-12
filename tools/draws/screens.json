@@ -1669,21 +1669,16 @@
     "name": "The standings",
     "painter": "Screen_GreatestNoble",
     "addr": "0x0041593B",
-    "module": null,
+    "module": "nobles.rs",
     "reachable": true,
     "also_drawn_by": [],
     "original": 11,
     "original_reachable": 5,
-    "ours": 0,
-    "real": 0,
-    "placeholder": 0,
     "widget_records": {
       "original": 0,
       "ours": 0
     },
-    "missing": [
-      "the whole screen - it is not built; court.rs's own button says so on itself"
-    ],
+    "missing": [],
     "invented": [],
     "literals_ours": [],
     "excluded": "the three Blit_* inside Sprite_WGenSprite; the grtnoble.256 palette (768 bytes, no pixels); and the flags.pl8 read, which goes into scratch as a sheet rather than into the back buffer. FUN_00408FCB(\"grtnoble.pl8\", 0x1E0) IS counted as one draw.",
@@ -1704,18 +1699,18 @@
       {
         "sheet": "Grtnoble.pl8",
         "frames": [
-          "the ground"
+          "the ground - one 640 x 480 frame, read straight into the display buffer"
         ]
       },
       {
         "sheet": "Flags.pl8",
         "frames": [
-          "shieldIndex - 1, and frame 5 for the leader"
+          "shieldIndex - 1, the five 51 x 92 banners; and frame 5, the 23 x 60 marker under the SELECTED TAB"
         ]
       }
     ],
-    "notes": "SEVEN DRAW CALLS FOR A STANDINGS TABLE IS SUSPICIOUSLY FEW AND THE REASON IS THE DENOMINATOR, NOT A HELPER. Screen_DrawWidgets HAS NO 0x20 ARM (checked) and neither does anything else - the whole screen is in this one painter, called with firstFrame from Screen_Draw, and it reloads its background every frame. The rows the audit was looking for are FOUR FUN_00403A8F LINE DRAWS PER REALM inside the loop - x = base+0x17..0x1A, from (100 - pct)*2 + 0x89 down to 0x158, colours 0x10/0x12/0x14/0x12 - a four-pixel bar per realm. FUN_00403A8F IS NOT ONE OF THE 26 PRIMITIVES, so a bar chart of up to twenty lines counts as zero. The percentages come from FUN_00415BDC: it scores every realm on the current category with FUN_00415E42, then writes PctOf(score, leader) into DAT_00522C60[realm], clamped 0..100 - a percent-of-leader bar chart, and FUN_00415E42's seven scoring rules are undocumented anywhere. Group 35 verified against the words: 'Most counties,' ... 'Greatest noble,', 'undecided.'. Index 7 is drawn when DAT_00522C78 or DAT_00522C94 says the category is tied.",
-    "unexercised": "not built. And C26 bites hard here: every fixture is turn one with one county each, so every category is a five-way tie and index 7 'undecided.' is the only string the screen would ever show.",
+    "notes": "SEVEN DRAW CALLS FOR A STANDINGS TABLE IS SUSPICIOUSLY FEW AND THE REASON IS THE DENOMINATOR, NOT A HELPER. Screen_DrawWidgets HAS NO 0x20 ARM (checked) and neither does anything else - the whole screen is in this one painter, called with firstFrame from Screen_Draw, and it reloads its background every frame. The rows the audit was looking for are FOUR FUN_00403A8F LINE DRAWS PER REALM inside the loop - x = base+0x17..0x1A, from (100 - pct)*2 + 0x89 down to 0x158, colours 0x10/0x12/0x14/0x12 - a four-pixel bar per realm. FUN_00403A8F IS NOT ONE OF THE 26 PRIMITIVES, so a bar chart of up to twenty lines counts as zero. The percentages come from FUN_00415BDC: it scores every realm on the current category with FUN_00415E42, then writes PctOf(score, leader) into DAT_00522C60[realm], clamped 0..100 - a percent-of-leader bar chart, and FUN_00415E42's seven scoring rules are undocumented anywhere. Group 35 verified against the words: 'Most counties,' ... 'Greatest noble,', 'undecided.'. Index 7 is drawn when DAT_00522C78 or DAT_00522C94 says the category is tied. BUILT, and this record's own sheet line was wrong: flags.pl8 frame 5 is indexed by g_nobleTabX[DAT_0055CE7C], the CATEGORY's x, not by the leader - it is the marker under the tab you are looking at, and it is 23 x 60 where the banners are 51 x 92. CNEW-nobles-marker. FUN_00415E42's seven scoring rules are now written down: counties +0x29, castles +0x4C AS A BYTE, troops +0x54, crowns +0x118, happiness +0x0C, people +0x10, and the overall standing 6 - rank, which is a FLAT 2 for every realm while g_year < 0x4F6 so that the greatest noble is 'undecided.' until 1270. OURS COUNTS 6 AGAINST 11 AND NOTHING IS MISSING: the four FUN_00403A8F pole lines are one fill_rect loop here and fill_rect is not one of the counted primitives on either side, so the same four pixels-of-pole count 4 there and 0 here; and the name and 'undecided.' are two call sites in the original's if/else and two in ours, which is the only pair that lines up. That is C141's style term, not a gap.",
+    "unexercised": "C26 still bites: every fixture is turn one with one county each, so every category is a five-way tie and index 7 'undecided.' is the only line the page would show from a fixture. The tests build realms by hand instead, which is what makes the leader, the tie-at-the-top and the 1270 gate testable at all.",
     "roots": [
       "Screen_GreatestNoble"
     ]

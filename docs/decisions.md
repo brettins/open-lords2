@@ -10179,3 +10179,80 @@ return screen is `g_screenId` *read after `Msg_Dismiss` has already entered `0x1
 is no screen on the stack to unwind to and "become this" is what the byte is saying. And
 `DAT_00553260`, the guard that suppresses the rotation, is not built — it is raised only by
 `FUN_0049B973`, the multiplayer com-link-error resync, and we have no network game.
+
+**CNEW-nobles-marker — the standings page's own inventory row said the marker was
+the leader's, and it is the category's. A dead button, and the two documents that
+described the screen both described it wrong.**
+
+> *"I can't click the Greatest Nobles button in the treasury view."*
+
+The button was not the defect. `court.rs` answered it with `Transition::Stay` and said so
+in a comment — *"`0x20` is not built, so this is the arm and not the destination"* — which
+is the honest form of a gap and is still a live-looking button with nothing behind it.
+`docs/arms.json` had it on file as `missing` and `docs/features.json` had the screen on
+file as `missing`, so nothing was hidden; what was missing was the screen.
+
+**Two records described screen `0x20` before it was built, and both were wrong in the same
+place.** `docs/draws.md`'s inventory row said `flags.pl8` frame 5 was *"for the leader"*.
+`docs/symbols.json` said the painter *"walks the realms at stride 0x160 and labels each
+from `g_playerNames`"*. The painter draws **one** name, not five, and frame 5 is indexed by
+`g_nobleTabX[g_nobleCategory]` — the **tab you are looking at**, not the realm that is
+ahead. The file settles it without reading a line of code: frames 0…4 of `Flags.pl8` are
+51 × 92 and frame 5 is **23 × 60**. A sixth banner would be 51 × 92.
+
+Neither sentence was careless. Both were written by someone reading the painter *for a
+count* — how many draw calls, which sheet — and a draw-call audit has no column for *what
+is this frame of*. `CLAUDE.md`'s note on `[V]` is about exactly this shape: a true
+statement about one question, promoted to an answer to another. What makes it worth a
+number is that the audit's own note called seven draw calls for a standings table
+*"suspiciously few"* and resolved the surprise the wrong way — the denominator was right
+and the **noun** was wrong. It is not a table. It is a bar chart of five flagpoles.
+
+**What the page actually is.** `Screen_GreatestNoble` (`0x0041593B`) draws one banner per
+in-play realm, at `(g_nobleColumnX[slot], (100 - pct) * 2 + 0x2D)`, on a four-pixel pole
+running from the banner's bottom edge down to `y 0x158`. `g_nobleColumnRealm`
+(`0x004D2B58`) is `5, 3, 1, 2, 4`: **the seating order is not the realm order** and realm 1
+stands in the middle. The pole is four `FUN_00403A8F` line draws, which is not one of the
+audit's 26 primitives, which is why a chart of up to twenty lines counted as zero.
+
+**`FUN_00415E42`'s seven scoring rules were written down nowhere**, and two of them are
+behaviour rather than plumbing. Category 1, *Most castles*, reads realm `+0x4C` **as a
+byte**. Category 6, *Greatest noble* — the overall standing, the thing the screen is named
+after — returns a **flat 2 for every realm while `g_year < 0x4F6`**, so it reads
+*"Greatest noble, undecided."* until 1270 in every game ever played. Neither is
+discoverable from the painter; both are one `if` in a function the draw audit never
+opened, because it makes no draw calls.
+
+**The bars are a percentage of the leader, and a tie is not a lead.** `FUN_00415BDC` writes
+`PctOf(score, best)` clamped to 0…100, so the leader's pole is always full height; sets
+`g_nobleAllLevel` when every in-play realm scores the same, and then overwrites every bar
+with **50**, the one number the page draws that it did not compute; and otherwise sets
+`g_nobleTiedAtTop` when anybody else matches the leader. The name is printed only when
+neither flag is set. The leader itself is chosen by `if (best <= v)` — **`<=`, so a tie
+goes to the highest realm index** — which never shows, because the same function then calls
+the category undecided. It is reproduced anyway: it is what would be printed the day either
+flag stops being set, and a leader chosen the other way would be a different lord.
+
+**The sound was `blocked` for a reason that turned out to be a choice.**
+`docs/audio.json` files the castle chooser's five spoken names as blocked because *"the
+selection is `CastleScreen`'s own field rather than anything on the `Game`, so a click that
+changes it is invisible to the Director"*, and it filed `S035` the same way. But
+`DAT_0055CE7C` **is a global in the original** — `Game_NewGame` zeroes it and it outlives
+the page being closed — so keeping it on `Game::nobles_category` is the faithful placement
+and the one that unblocks the sound. The edge is a counter, not a diff: `FUN_004B3994` has
+exactly two callers, `Court_OpenGreatestNoble` and `GreatestNoble_SelectCategory`, and
+**both call it unconditionally**, so pressing the tab that is already showing speaks again
+and a diff on the category would swallow that press.
+
+Two entries of the voice table are past what either caller can reach, and they are
+different mistakes: `S035_08.wav` — the line for *"undecided."* — ships and is played by
+nothing, and `FUN_004B3994`'s guard admits **nine** where the table at `0x004E2168` holds
+eight, so index 8 would read `S075_01.wav` out of the next table along.
+
+**What was left alone.** `Ui_OkButtonClicked` on this page sets `g_screenId = 0` — the map,
+not the court it was opened from — and ours pops onto the court. That is `C190`'s
+`Transition::Goto` and it is deliberately not used here: the original throws the court away
+because one byte has nowhere to keep it, and the court is where the button was.
+`docs/arms.json` `0x0042FF10/standings-ok` carries the reasoning. The multiplayer arm,
+`Net_SendCommand(0x3B, 0)`, is not built; there is no network game, and the single-player
+arm is what `Game::multiplayer` being false already means everywhere else.

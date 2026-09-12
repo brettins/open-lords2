@@ -854,7 +854,23 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void Screen_GreatestNoble(int firstFrame)",
-      "comment": "Screen 0x20, the standings. Loads grtnoble.256 / grtnoble.pl8 and flags.pl8 - the filename is the identification - and draws L2.eng group 35, the seven 'Most counties,' / 'Most castles,' / ... / 'Greatest noble,' categories, with string 7 'undecided.' where no realm leads. Walks the realms at stride 0x160 and labels each from g_playerNames."
+      "comment": "Screen 0x20, the standings, and it is a BAR CHART OF FIVE FLAGPOLES rather than a table. Loads grtnoble.256 / grtnoble.pl8 - a raw 640 x 480 page read straight into the back buffer - and flags.pl8 as the sheet. GreatestNoble_Rank does the work; this walks g_nobleColumnRealm 1..5, skips a realm with strength == 0, draws flags.pl8 frame shieldIndex - 1 at (g_nobleColumnX[slot], (100 - g_nobleBarPct[realm]) * 2 + 0x2D) and four one-pixel FUN_00403A8F lines at +0x17..+0x1A from the banner's bottom edge down to y 0x158 - the pole, in colours 0x10 / 0x12 / 0x14 / 0x12. Then flags.pl8 frame 5, the 23 x 60 marker, at (g_nobleTabX[g_nobleCategory], 0x173) - THE CATEGORY'S x, NOT THE LEADER'S. Then one line at (0x148, 0x1BE): L2.eng 35/g_nobleCategory, and after it EITHER the leading realm's g_playerNames entry OR 35/7 'undecided.' when g_nobleAllLevel or g_nobleTiedAtTop is set. It labels ONE realm, not five. Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1) closes it."
+    },
+    {
+      "addr": "0x00415BDC",
+      "name": "GreatestNoble_Rank",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int GreatestNoble_Rank(void)",
+      "comment": "Screen 0x20's ranking, and it returns the leading realm. Scores every realm 1..5 with GreatestNoble_Value, keeps the LAST realm holding the maximum (the loop is `if (best <= v)`, not `<`), then writes PctOf(score, best) clamped 0..100 into g_nobleBarPct[realm] - so the bars are a percentage OF THE LEADER and the leader's pole is always full height. It then sets g_nobleAllLevel when every in-play realm's bar is equal, in which case every in-play bar is overwritten with 50; otherwise it sets g_nobleTiedAtTop when anybody but the leader matches the leader's bar. Screen_GreatestNoble prints the leader's name only when NEITHER flag is set, and L2.eng 35/7 'undecided.' otherwise."
+    },
+    {
+      "addr": "0x00415E42",
+      "name": "GreatestNoble_Value",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "unsigned int GreatestNoble_Value(int realm)",
+      "comment": "One realm's score in the standings category g_nobleCategory, and the seven rules were documented nowhere before this. A realm with strength == 0 scores 0 in every category. Otherwise: 0 counties +0x29, 1 castles +0x4C READ AS A BYTE (so a 256th castle reads as none), 2 troops +0x54, 3 crowns +0x118, 4 mean happiness +0x0C, 5 population +0x10, and 6 the overall standing, which is `6 - rank` (+0x2B) but a FLAT 2 for every realm while g_year < 0x4F6 - so 'Greatest noble,' reads 'undecided.' until 1270 in every game. Called only by GreatestNoble_Rank, twice per realm."
     },
     {
       "addr": "0x00415FB7",
@@ -2152,12 +2168,28 @@
       "comment": "Zooms in centred on the last picked tile, using the same col-4 / (row & ~1)-12 centring as Map_CentreOnTile."
     },
     {
+      "addr": "0x004351C4",
+      "name": "Court_OpenGreatestNoble",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Court_OpenGreatestNoble(void)",
+      "comment": "The handler of g_courtWidgets' single record - the 32 x 32 kind-5 button at (336, 340) on the court, System.pl8 frame 64, labelled by L2.eng 70/6 'Greatest nobles.'. g_screenId = 0x20; g_redrawRequest = 1; then Score_RankAndRefreshAll() in a single-player game or Net_SendCommand(0x3B, 0) in a network one; then Speech_PlayStandingsCategory(g_nobleCategory). THE RECOUNT IS THE HALF THAT MATTERS: five of the page's six score inputs are realm totals that nothing rebuilds between AI turns, so without it the standings are whatever the last AI turn left behind."
+    },
+    {
       "addr": "0x00435211",
       "name": "Score_RankAndRefreshAll",
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Score_RankAndRefreshAll(void)",
       "comment": "Score_RankRealms() then Realm_UpdateTotals(r) for r in 1..5 - the whole standings recount for every realm at once. [V] Two callers: NetAct_RankRealms (0x00448422), the deferred action opcode 0x3B schedules, which calls it and then sets g_redrawRequest = 2; and one UI path. It is the same PAIR of calls as AI_RunTurnStep's step-0 prologue, which is the evidence that the two always travel together: nothing in the binary ranks without first rebuilding the totals the score reads."
+    },
+    {
+      "addr": "0x0043524E",
+      "name": "GreatestNoble_SelectCategory",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void GreatestNoble_SelectCategory(void)",
+      "comment": "The handler of all seven records of g_nobleTabs, screen 0x20's tab row. Three statements: g_nobleCategory = g_uiHotspotId; g_redrawRequest = 2; Speech_PlayStandingsCategory(g_uiHotspotId). So a tab picks the category, repaints, and speaks the category's own name - unconditionally, including when the tab pressed is the one already showing."
     },
     {
       "addr": "0x00435673",
@@ -9600,6 +9632,14 @@
       "comment": "Maps an L2.eng group to a .wav filename in one of three tables. Groups 170..197 - the diplomatic letters - index g_msgVoiceLord by (group - 170) * 0x100 + variant * 0x10, giving Kt/Bn/Ct/Bp <group>_<1..4>.wav for the Knight, Baron, Countess and Bishop. Groups 100..169 and 200..284 have one system file each. All 448 lord files exist in the install."
     },
     {
+      "addr": "0x004B3994",
+      "name": "Speech_PlayStandingsCategory",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "void Speech_PlayStandingsCategory(int category)",
+      "comment": "if (-1 < n && n < 9) Sound_PlayFile(0x004E2168 + n * 0x10, 1, 0) - the spoken half of L2.eng group 35, S035_01..08, file named after group and index. Two callers, Court_OpenGreatestNoble and GreatestNoble_SelectCategory, both passing g_nobleCategory, which is 0..6. So TWO ENTRIES ARE UNREACHABLE AND THEY ARE DIFFERENT MISTAKES: S035_08.wav, the line for 'undecided.', ships and is played by nothing; and the guard admits NINE where the table holds eight, so index 8 would read S075_01.wav out of the next table along."
+    },
+    {
       "addr": "0x004B43B1",
       "name": "Blit_Unclipped",
       "section": "sprite",
@@ -10010,6 +10050,27 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "The job popup's height in 16-pixel cells, by 1-based job: 13 for grain and cattle, 11 for castle building, 9 for the rest. Ui_DrawBox(0x30, 0x60, 0x19, rows)."
+    },
+    {
+      "addr": "0x004D2B20",
+      "name": "g_nobleTabX",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Seven ints - 54, 92, 130, 168, 206, 244, 282 - the x Screen_GreatestNoble draws flags.pl8 frame 5 at, indexed by g_nobleCategory. Eight pixels inside each g_nobleTabs box, at the same 38-pixel pitch. Frame 5 is 23 x 60 where the five banners are 51 x 92: it is the marker under the SELECTED TAB and not a sixth realm, which docs/draws.md had recorded as 'for the leader'."
+    },
+    {
+      "addr": "0x004D2B40",
+      "name": "g_nobleColumnX",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Six ints, of which the loop reads 1..5: 39, 167, 294, 424, 552 - the x of each flagpole column on screen 0x20. Entry 0 is a zero nothing reads."
+    },
+    {
+      "addr": "0x004D2B58",
+      "name": "g_nobleColumnRealm",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Six ints, of which the loop reads 1..5: 5, 3, 1, 2, 4 - WHICH REALM STANDS IN WHICH COLUMN on screen 0x20, and it is not the realm order. Realm 1 is seated in the middle and the others fan out around it."
     },
     {
       "addr": "0x004D2B70",
@@ -10740,6 +10801,13 @@
       "comment": "The castle chooser's five picture buttons: kind-1 rectangles (x1,y1,x2,y2) at (17,270)-(95,415), (96,270)-(209,415), (210,270)-(290,415), (291,270)-(414,415) and (415,270)-(618,415), hotspot ids 0..4, all handled by CastleBuild_Select. They tile x 17..618 with no gap because each is as wide as its castle's picture in caspics.pl8 - 79, 114, 81, 124 and 204 pixels."
     },
     {
+      "addr": "0x004DC890",
+      "name": "g_nobleTabs",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x20's tab row: seven 24-byte Hotspot_Test records, tested at (0, 0) by Screen_HandleInput's 0x20 arm. All kind 1, all handler GreatestNoble_SelectCategory, ids 0..6, boxes {46, 428, 83, 463} and six more at a 38-pixel pitch. Screen_DrawWidgets has NO 0x20 arm, so nothing draws them - the tabs themselves are part of grtnoble.pl8 and the only thing painted over them is flags.pl8 frame 5 at g_nobleTabX[g_nobleCategory]."
+    },
+    {
       "addr": "0x004DC938",
       "name": "g_armouryHotspots",
       "section": "ui",
@@ -10794,6 +10862,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Four 24-byte widget records for screen 0x0D, 32 pixels square in a row at y 44 from x 176, drawn and tested at an offset of (0x60, 4). Frames 68, 66, 58 and 60, with handlers Levy_EquipOne, Levy_UnequipOne, Levy_UnequipAll and Levy_EquipAll in that order. [V] The name is kept for continuity and it is wrong about the verb: nothing on either armoury screen is bought. Weapons are made in a county and paid for in iron and wood; the armoury is where men pick them up. docs/decisions.md C61."
+    },
+    {
+      "addr": "0x004DD928",
+      "name": "g_courtWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The court's whole widget table: ONE 24-byte record, tested by Screen_HandleInput's 0x09 arm as Widget_Test(0, 0, &g_courtWidgets, DAT_00568468) with the count published as 1 by Court_Draw. x 336, y 340, System.pl8 frame 64, a 32-pixel square, handler Court_OpenGreatestNoble, kind 5, id 1. L2.eng 70/6 'Greatest nobles.' at (136, 348) is its label and Court_Draw does not draw the button itself - Widget_Draw does."
     },
     {
       "addr": "0x004DD940",
@@ -11641,6 +11716,27 @@
       "section": "sound",
       "confidence": "verified",
       "comment": "char[16] per streaming channel - the file name Music_Play copied in."
+    },
+    {
+      "addr": "0x00522C60",
+      "name": "g_nobleBarPct",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Five ints indexed by realm - each realm's bar on screen 0x20 as a percentage of the leader's score, 0..100, written by GreatestNoble_Rank and read only by Screen_GreatestNoble. The banner is drawn at y = (100 - pct) * 2 + 0x2D and its pole runs from + 0x89 down to 0x158, so the chart is two pixels of height per percent. Entry 0 is never written."
+    },
+    {
+      "addr": "0x00522C78",
+      "name": "g_nobleAllLevel",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Set by GreatestNoble_Rank when every in-play realm scores the same in the current category, in which case it also overwrites every in-play bar with 50 - the one number screen 0x20 draws that it did not compute. With g_nobleTiedAtTop it is what makes the page print L2.eng 35/7 'undecided.' instead of a lord's name."
+    },
+    {
+      "addr": "0x00522C94",
+      "name": "g_nobleTiedAtTop",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Set by GreatestNoble_Rank when some in-play realm other than the leader matches the leader's bar. Computed only when g_nobleAllLevel came out clear, so the two are exclusive: level is every realm equal, tied is a shared lead over somebody who is behind."
     },
     {
       "addr": "0x00522D30",
@@ -12936,6 +13032,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Flags1a.pl8 / Flags2a.pl8 - the county flags drawn over castle tiles."
+    },
+    {
+      "addr": "0x0055CE7C",
+      "name": "g_nobleCategory",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Which of screen 0x20's seven categories is being looked at, 0..6, indexing L2.eng group 35. Three writers and they are the whole life of it: Game_NewGame zeroes it, GreatestNoble_SelectCategory sets it from the tab clicked, and nothing else. Read by Screen_GreatestNoble (for the label and for g_nobleTabX), by GreatestNoble_Value (which metric to score on) and by Court_OpenGreatestNoble (which line to speak on the way in). NOT IN ANY SAVE BLOCK."
     },
     {
       "addr": "0x0055CEA0",
