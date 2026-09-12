@@ -669,7 +669,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "note": "The confirm box's prompt, S010_01..16 by L2.eng group 10 index. The caller IS known - Ui_OpenConfirm (0x0040E6F2), whose last statement it is - and the mechanic is what is missing: the original has thirteen call sites for that box and we have one, the battlefield's autocalc, which is a flag on BattlefieldScreen rather than a ScreenId, so the Director cannot see it open. A confirm box of our own that is a screen unlocks all thirteen at once."
     },
     {
       "id": "FUN_004b3714#1",
@@ -677,10 +677,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S016_01_wav_004df8b8 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The mercenary offer. Sidebar_Button calls FUN_004B3714(offer - 1) when the county has one, playing S016_01.wav + n*0x10; County::mercenary_offer exists but the raise-army screen does not read it and the Director cannot see a number that is not on a screen it can name."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S016_01 ... S016_12, the mercenary offer by nationality",
+      "note": "Sidebar_Button hotspot 1's tail. The arrival of ScreenId::RaiseArmy is the trigger, gated on the armoury not having been up the tick before - Armoury_Button id 2 writes the same g_screenId and is silent."
     },
     {
       "id": "FUN_004b3768#1",
@@ -688,10 +688,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S020_01_wav_004e2058 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S020_01 ... S020_05, the county's health band",
+      "note": "Panel_OpenPopulation's middle statement; the twin of Panel_OpenRation's two arms."
     },
     {
       "id": "FUN_004b37bc#1",
@@ -699,10 +699,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "local_8,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S031_01 ... S031_04 and S071_02 ... S071_06, the picked unit or castle",
+      "note": "The last statement of both functions that open screen 0x04, which is the edge TileInfo_Draw#1..#4 already uses."
     },
     {
       "id": "FUN_004b3940#1",
@@ -713,7 +713,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "note": "The castle chooser's five picture buttons speaking their own name, S071_02 + hotspot * 0x10. The caller IS known - CastleBuild_Select (0x00436B22), whose last statement it is - and what is missing is that the selection is CastleScreen's own field rather than anything on the Game, so a click that changes it is invisible to the Director (netcode D-3). Unlike every other site here the trigger is a click INSIDE a screen and not the screen arriving."
     },
     {
       "id": "FUN_004b3994#1",
@@ -724,7 +724,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "note": "S035_01..08 on screen 0x20, a front-end page we do not build: FUN_004351C4 opens it and FUN_0043524E is its hotspot handler, both passing DAT_0055CE7C. Screen 0x20 is not in ScreenId at all and its painter has not been read, so the mechanic is the screen rather than the sound."
     },
     {
       "id": "FUN_004b39e8#1",
@@ -732,10 +732,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "local_8,1,0",
-      "status": "blocked",
+      "status": "dead",
       "ours": null,
       "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "note": "The degraded castle's three lines, S075_02/03/04. FUN_004B39E8 HAS NO CALLER: zero rel32 calls and zero jumps reach 0x004B39E8 anywhere in the image, and no dword in any section holds that address, so it cannot be reached by pointer either. Measured with Widget_Test (0x0040DA1E, 36 rel32 callers) as the control, the same evidence D39 rests on. docs/bugs.md D40."
     },
     {
       "id": "FUN_004b3acd#1",

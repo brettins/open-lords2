@@ -117,6 +117,53 @@ fn the_message_fanfares_ship() {
     assert!(find(&dir, "ff_win.wav").is_some(), "ff_win.wav ships even so");
 }
 
+/// **The four screen-voice tables, and the one entry that is not a
+/// convention.**
+///
+/// `S016_*`, `S020_*`, `S031_*` and `S071_*` are read out of `.data` as
+/// `char[n][16]` rather than generated, and this is why: **entries 3 and 4 of
+/// the health table are the same file.** A `format!("S020_{:02}", band + 1)`
+/// would have produced `S020_05.wav` for band 4 — a file that ships, and the
+/// wrong line — so the defect would have been a health readout that speaks
+/// somebody else's sentence and nothing would have gone red.
+///
+/// The tables over-allocate in the original's own way and that is asserted
+/// rather than trimmed: only twelve mercenary nationalities exist, so
+/// `S016_13` … `S016_16` name files that do not ship, and `S020_06` /
+/// `S020_07` sit past the five bands `health_band` produces.
+#[test]
+fn the_screen_voices_ship_over_the_range_a_running_game_can_reach() {
+    let dir = l2_testkit::install!();
+    // `l2_kingdom::mercenary::ROSTER` has a dead slot 0 and twelve bands, so
+    // `mercenaryOffer` is 1..=12 and the table is indexed by `offer - 1`.
+    // Band 1 is the Scottish pikemen, which is the line that was reported
+    // missing and is therefore `MERCENARY_OFFER[0]`.
+    assert_eq!(l2_kingdom::mercenary::ROSTER[1].nationality, "Scottish");
+    assert_eq!(names::speech::MERCENARY_OFFER[0], "S016_01.wav");
+    for name in &names::speech::MERCENARY_OFFER[..l2_kingdom::mercenary::ROSTER.len() - 1] {
+        assert!(find(&dir, name).is_some(), "{name} is missing");
+    }
+    assert!(
+        find(&dir, names::speech::MERCENARY_OFFER[12]).is_none(),
+        "the table's last four entries name files the install does not have",
+    );
+    // `healthBand` is 0..=4.
+    for name in &names::speech::POPULATION_HEALTH[..5] {
+        assert!(find(&dir, name).is_some(), "{name} is missing");
+    }
+    assert_eq!(
+        names::speech::POPULATION_HEALTH[3], names::speech::POPULATION_HEALTH[4],
+        "the two healthiest bands share one clip at 0x004E2058, and generating the name \
+         instead of reading the bytes is what would silently swap it for S020_05",
+    );
+    for name in names::speech::PICKED_UNIT.iter().chain(names::speech::PICKED_CASTLE.iter()) {
+        assert!(find(&dir, name).is_some(), "{name} is missing");
+    }
+    // The table `PICKED_CASTLE` starts one past: `S071_01.wav` is named
+    // nowhere in the binary and is not in the install either.
+    assert!(find(&dir, "S071_01.wav").is_none(), "S071_01.wav does not ship");
+}
+
 #[test]
 fn every_shipped_sound_is_11khz_8_bit_pcm_or_is_one_of_the_two_we_never_open() {
     let dir = l2_testkit::install!();

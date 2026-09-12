@@ -1,11 +1,17 @@
 # Every place the original asks for a sound
 
-**143 trigger sites across 70 functions. We fire 80 of them, and they carry 674
+**143 trigger sites across 70 functions. We fire 89 of them, and they carry 703
 of the install's 771 sounds**, because the classes are wildly unequal in weight.
 (Two of the sites are the tip screens' first line and chained takes: forty files
 by name, thirty-five that anything can ask for — see *What `blocked` is blocked
 on*. Twenty-two are the battlefield's, from its event stream.)
-**Three are dead in the shipped game**, and they are named below.
+**Four are dead in the shipped game**, and they are named below.
+
+**These two numbers rot and the ones under them do not.** `docs/audio.json` is
+checked in both directions and this sentence is not, so it has twice been five
+sites behind the file it summarises; the count in the status table below comes
+out of `node tools/oracle/sounds.js --count` plus the file itself, and if this
+line and that table disagree, the table is right.
 
     node tools/oracle/sounds.js            # the table, by primitive
     node tools/oracle/sounds.js --count    # the totals
@@ -102,6 +108,29 @@ Calls that live *inside* one of those nine are the primitive's implementation
 and are not counted. `Sound_StopOneShot` (16 sites) and the two bank preloads
 (8) are excluded for the same reason: neither starts a sound.
 
+### **A sound that will not stop is a defect this inventory cannot count**
+
+`Sound_StopOneShot`'s sixteen sites are outside the census by construction, and
+a player found what that costs: *"VO doesn't seem to stop when the dialogue that
+produces it is closed, eg tutorial it will finish the line."* The inventory was
+green, every voice line was `reproduced`, and the engine had **no
+`stop_one_shot` call site at all** — the verb existed and nothing used it.
+
+Two of the sixteen are now built, and they are the two a player meets:
+
+| site | the statement | ours |
+|---|---|---|
+| `Msg_Dismiss` (`0x00476768`) | `if (g_messageGroup != 0xc2) Sound_StopOneShot();` — closing a window cuts the narrator, **except** group 194, *"Foiled again."* | `Director::listen`, on the open record changing |
+| `Opt_ToggleMusic` (`0x004349A4`) | `if (g_optMusic == 0) { Music_Stop(0); Sound_StopOneShot(); }` — the Music row silences speech too | `Director::listen`, on the switch going off |
+
+They carry no `// sfx:` marker because there is no record for them to claim:
+`tools/oracle/sounds.js` scans for the nine *play* primitives. That is the right
+denominator for *"what does the game ask for"* and the wrong one for *"does our
+audio behave like the game's"*, and the gap is worth stating rather than
+closing — adding stops to the census would put sixteen rows in it that no file
+depends on. `crates/l2-game/tests/audio_wiring.rs` is where the two are
+asserted.
+
 ## The three verdicts, and the count of each
 
 `docs/audio.json` gives every site one of four statuses, and three of them are
@@ -109,23 +138,30 @@ the verdicts a reader wants:
 
 | status | sites | means |
 |---|---:|---|
-| `reproduced` | **81** | we fire it; a `// sfx:` marker is on the line |
-| `blocked` | **28** | the mechanic behind it is not built, and `note` **names** it |
+| `reproduced` | **89** | we fire it; a `// sfx:` marker is on the line |
+| `blocked` | **19** | the mechanic behind it is not built, and `note` **names** it |
 | `missing` | **31** | reachable and unwired — no excuse, just not done |
-| `dead` | **3** | the shipped game cannot reach it; `note` is the evidence and `docs/bugs.md` has the entry |
+| `dead` | **4** | the shipped game cannot reach it; `note` is the evidence and `docs/bugs.md` has the entry |
 
-**Three are dead, and this section used to say none were.** `tests/sfx.rs` asserted
+**Four are dead, and this section used to say none were.** `tests/sfx.rs` asserted
 the `dead` list empty *so that the first entry costs a decision*, and these are that
-decision — it now pins the three by name, so the fourth costs the same:
+decision — it now pins them by name, so the fifth costs the same:
 
 | id | why it cannot run | `docs/bugs.md` |
 |---|---|---|
 | `FUN_0040d6ad#1`, `FUN_0040d7b8#1` | the arrows of a slider widget whose hit-tester `FUN_0040D3F5` has **no caller** — zero rel32 calls, zero jumps, zero absolute references in the image, against 36 rel32 callers for `Widget_Test` as the control | `D39` |
 | `Battle_PauseButton#1` | guarded `== 1` on a word that alternates between 0 and −1; the one writer that could make it 1, `FUN_00434E68`, is unreferenced too | D38 |
+| `FUN_004b39e8#1` | the degraded castle's three lines, `S075_02/03/04` — the thunk that plays them has no caller either, by the same scan, with its own sibling `FUN_004B3714` (one rel32 caller, inside `Sidebar_Button`) as the near control | **D40** |
 
 **The third was already on the bug list, and this file had it as `missing`.** The
 assertion of emptiness is what kept it there: the inventory could not say what the
 bug list already knew.
+
+**The fourth was found by looking for a *caller* rather than for a mechanic.** All
+eight of the sibling voice thunks were filed *blocked on finding the caller*, and
+seven of the callers were one `grep` of the corpus away. The eighth has none, which
+is a different answer to the same question, and no amount of building would have
+produced it.
 
 The unreachable audio on the *other* side of the question is unchanged: `Ff_win.wav`
 ships and **no call site names it** — a file with no trigger rather than a trigger
@@ -136,7 +172,8 @@ with no path.
 | mechanic | sites | files it would add |
 |---|---:|---:|
 | ~~Smacker playback~~ **built** (`crates/l2-smk`, `crate::movie`): 5 of its 8 now sound. What still blocks the other 3: `County_ChangeOwner`'s capture letters, which nothing posts (`#15`, `#16`), and the CD's fast-media branch (`#19`) | 3 | 0 — a bed and a voice already reachable |
-| the sibling voice tables' callers | 8 | ≈48 — `S010` 13, `S020` 5, `S035` 8, `S071` 6, the mercenary's `S016` 12, the lord sting's `S246` 4 `[I]` on the callers' index ranges |
+| ~~the sibling voice tables' callers~~ **five of the eight are gone.** Three are built — the mercenary offer (`FUN_004B3714`, `Sidebar_Button` hotspot 1, 12 files), the population panel's health line (`FUN_004B3768`, `Panel_OpenPopulation`, 4) and the information panel's picked unit or castle (`FUN_004B37BC`, both openers of screen `0x04`, 9) — and one is **dead**, `FUN_004B39E8` above. What is left: `S010`'s confirm box (`Ui_OpenConfirm`, and we have one of its thirteen call sites, as a flag rather than a screen), `S035` on screen `0x20`, a front-end page not in `ScreenId` at all, and the lord sting's `S246` | 3 | ≈25 — `S010` 13, `S035` 8, `S246` 4 |
+| `FUN_004B3940`, the castle chooser's five buttons speaking their own name — **the one site here whose trigger is a click *inside* a screen** rather than the screen arriving, and the selection is `CastleScreen`'s own field rather than anything on the `Game` | 1 | 0 — `S071_02`…`06` already sound from `FUN_004B37BC` |
 | a channel from a click to the audio layer (the field brush) | 5 | 3 |
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
 | the two delegated message painters (categories `0x0C`, `0x14`) | 2 | 0 — both `ff_msg.wav` |
