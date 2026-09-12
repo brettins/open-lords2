@@ -432,7 +432,7 @@ impl BattleRunner {
     /// assert_eq!(r.men(SIDE_A), 182);
     /// ```
     pub fn deploy_muster(field: Battlefield, seed: u64, army_a: Muster, army_b: Muster) -> Self {
-        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, None)
+        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, None, None)
     }
 
     /// **Deploy a siege** — army A besieging a castle of `castle_level` held by
@@ -454,7 +454,31 @@ impl BattleRunner {
         army_b: Muster,
         castle_level: u8,
     ) -> Self {
-        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, Some(castle_level))
+        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, Some(castle_level), None)
+    }
+
+    /// **Deploy a siege of the castle the layout file describes** — the same
+    /// call with `FUN_0047CEC1`'s tables instead of the ring
+    /// [`crate::siege::our_castle_ai_field`] invents.
+    ///
+    /// `field` should be [`crate::castle::build`]'s and `tables`
+    /// [`crate::castle::tables`]'s, from the same [`crate::CastleSheet`].
+    pub fn deploy_siege_on_sheet(
+        field: Battlefield,
+        tables: &crate::CastleTables,
+        seed: u64,
+        army_a: Muster,
+        army_b: Muster,
+        castle_level: u8,
+    ) -> Self {
+        BattleRunner::deploy_muster_on(
+            field,
+            seed,
+            army_a,
+            army_b,
+            Some(castle_level),
+            Some(tables),
+        )
     }
 
     fn deploy_muster_on(
@@ -463,6 +487,7 @@ impl BattleRunner {
         army_a: Muster,
         army_b: Muster,
         castle_level: Option<u8>,
+        tables: Option<&crate::CastleTables>,
     ) -> Self {
         let total = army_a.men() + army_b.men();
         let class = MEN_PER_FIGURE_TABLE[size_class(total)];
@@ -478,7 +503,10 @@ impl BattleRunner {
         if let Some(level) = castle_level {
             runner.siege = crate::siege::SiegeState::castle(level);
             runner.ai.is_siege = true;
-            runner.ai_field = crate::siege::our_castle_ai_field(&runner.field, level);
+            runner.ai_field = match tables {
+                Some(t) => crate::castle::ai_field(&runner.field, level, t),
+                None => crate::siege::our_castle_ai_field(&runner.field, level),
+            };
             // **A fresh siege opens with the approach score at 500 on a dry
             // castle and 0 on a moated one** —
             // [`crate::siege::APPROACH_SCORE_START`] has the three writes and

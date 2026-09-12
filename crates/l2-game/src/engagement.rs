@@ -754,16 +754,29 @@ pub fn begin_fight(
     let a = Muster { troops: &a_troops, owner: a_owner, human: a_human };
     let d = Muster { troops: &d_troops, owner: d_owner, human: d_human };
     let mut runner = match castle_level {
-        // **The castle layout is ours, not the original's**, and
-        // `l2_sim::siege::our_castle` says so in its name. See its module
-        // header: `Battlefield_BuildCastle` reads a raster we have not read.
-        Some(level) => BattleRunner::deploy_siege(
-            l2_sim::siege::our_castle(level),
-            seed,
-            a,
-            d,
-            level,
-        ),
+        // **`Battlefield_BuildCastle` (`0x0047C4BA`), from the layout file the
+        // player's own install ships.** `crate::castle` holds the two 6,400-byte
+        // layers of each castle, because the original's builder reaches for
+        // them through a global rather than through its caller.
+        //
+        // Without the install there is no raster, and the stand-in ring
+        // `l2_sim::siege::our_castle` takes over — a castle whose wall stands
+        // one high, which is exactly what boiling oil and a siege tower's dock
+        // cannot happen against.
+        Some(level) => match crate::castle::sheet(level) {
+            Some(sheet) => {
+                let field = l2_sim::castle::build(level, sheet);
+                let tables = l2_sim::castle::tables(sheet);
+                BattleRunner::deploy_siege_on_sheet(field, &tables, seed, a, d, level)
+            }
+            None => BattleRunner::deploy_siege(
+                l2_sim::siege::our_castle(level),
+                seed,
+                a,
+                d,
+                level,
+            ),
+        },
         None => BattleRunner::deploy_muster(blank_field(), seed, a, d),
     };
 
