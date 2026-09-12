@@ -9801,6 +9801,11 @@ box and is gated, so at the far zoom the box is now **empty**. Neither picture i
 the box wants the map's name, the season and the year out of `L2.eng` groups 101 and 34. Filed
 rather than invented.
 
+> **Closed by C189**, which also corrects this paragraph: there is **no season** in
+> that box. The painter makes three heading draws — the map's name, *"Year"* and `Ui_DrawYear` —
+> and a fourth in the body face, and none of them is a season. A hole filed from prose rather
+> than from the listing carries the prose's errors into whoever closes it.
+
 **The lesson.** *"Nothing was found drawing it"* is a statement about a search, and C173 spent it
 as a statement about the binary. The two differ by exactly the strength of the search, and this
 search was by name in a corpus where the painter carries a screen id and not a name. Rule 5's
@@ -10036,3 +10041,81 @@ sites, the battlefield's autocalc, which is a field on `BattlefieldScreen` and n
 *inside* a screen, and the selection is that screen's own field. `FUN_004B3994` (`S035_*`)
 — screen `0x20`, a front-end page not in `ScreenId` at all. `FUN_004B3B92`
 (`Msg_DrawWindow` ×4, the lord sting) — needs `voice_tick` to return a list, unchanged.
+
+---
+
+**C189 — three screens each drew a comment instead of a field, and all three
+comments had been true when they were written.**
+
+Three unrelated player reports, one shape. Every one of them is a *stale premise* left in the
+source as a sentence, still read as a fact after the thing it denied had been built.
+
+**1. *"When I attacked and it asked me to decide it said I had 0 men, I think it's because it
+was just mercenaries."*** `FUN_004224E7`, the roster painter screens `0x12` and `0x13` share,
+ends both of its modes with `Ui_DrawCount(g_units[p].menTotal, 0x48, …)` — the unit record's
+`+0x168` — and folds the band into its own row on every one of its seven rows,
+`if (g_units[p].mercTroop == local_c) local_10 += g_units[p].mercMen`. It has to, because
+`Mercenary_Hire` (`0x004AC7F3`) adds the band's men to `menTotal` and **never touches `+0x16C`**:
+
+```c
+g_units[unit].mercMen  = (&DAT_00568dc8)[band * 0x14];
+g_units[unit].menTotal = g_units[unit].menTotal + *(int *)(&DAT_00568dc8 + band * 0x14);
+```
+
+So an army raised with nothing but a hired band carries seven zero counts and a real total, and
+the two numbers are *not* interchangeable. Ours summed the seven counts for the total and passed
+`Unit::troops` raw for the rows. The right number was already on the question —
+`turn::Question::attacker_men`, read from `u.men` — and was **never drawn by anything**. Fixed by
+passing the two totals into `draw_roster` and by folding the band in one named place,
+`engagement::roster_of`, which both the question and the report now read.
+`tests/military.rs` `a_mercenary_only_army_is_not_drawn_as_no_men_at_all` asserts the two ways of
+holding two hundred pikemen paint the identical prompt.
+
+**2. The box at the far zoom was empty, and C173 is the correction that emptied it.** C173's own
+closing note filed this and did not close it. `Screen_DrawCampaign`'s (`0x0040F5FD`) zoom-2 arm:
+
+```c
+Ui_DrawBox(0, 0x19C, 0x1E, 4);
+DAT_0058FE2C = 1;  g_penAdvance = 0;
+Eng_DrawString(0x65, g_scenarioIndex, 0x40, 0x1A8, &g_fontHeading, 0x3F);
+Eng_DrawString(0x22, 0,  g_penAdvance + 0x50, 0x1A8, &g_fontHeading, 0x3F);
+Ui_DrawYear(g_year,      g_penAdvance + 0x60, 0x1A8, 1);
+DAT_0058FE2C = 0;
+Eng_DrawString(0x22, 1, 0x50, 0x1C6, &g_fontBody, 0x3F);
+```
+
+Drawn, from the player's own file, with our transcription only as the fallback. **Group 34 has
+exactly one consumer in the whole binary and it is this arm**, which is rule 6's test, not a
+naming lead: its two strings *are* this box's vocabulary, and the second of them — *"Click on
+the county you wish to view."* — is the game saying what the far zoom is for.
+
+**And the correction that filed it described it wrong.** C173's note and `docs/screens.md` §7
+both say the box wants *"the map's name, the season and the year"*. **There is no season in this
+box.** The painter makes three heading draws and a season is not one of them; the season is on
+the menu bar, out of group 29. A hole filed from prose rather than from the listing carries the
+prose's errors forward — this one would have had an agent hunting for a season draw that does
+not exist.
+
+**3. *"It says Court of LORD1 even though I wrote a name when I started the game."*** `LORD1` is
+not in `L2.eng`. A scan of all 317 groups for a lord-plus-digit returns nothing, and group 7 —
+the only default-name group there is — holds *"No player"*, *"The Knight"*, *"The Baron"*, *"The
+Countess"*, *"The Bishop"*, indexed by the **lord** and not by the realm. So it was not a
+fallback showing through: it was ours. **One defect, not two** — the typed name reaches
+`Game::player_names` correctly (`Player_SetHuman`, `0x0049BAE9`, and `tests/text.rs`
+`start_puts_the_typed_name_into_the_realm` has asserted it all along) and `court.rs` ignored it,
+under this comment:
+
+> The original draws `g_playerNames + realm * 0x2C` here; **nothing in this tree carries them
+> yet** and `screens/battle.rs` has the same hole.
+
+True when written. False from the moment hand-off 2 existed, and the comment is why nobody
+looked again. `screens/battle.rs` had the same line for the same reason and is fixed with it;
+both now go through `message::lord_name`, which is `g_playerNames` with group 7 behind it — the
+original's own two sources, in the original's own order.
+
+**What the three have in common is the thing worth keeping.** `tests/text.rs` enumerates four
+hand-offs a typed name has to survive and tests each one; all four were green while the court
+drew `LORD1`, because the fifth — *the array onto a screen that is about the player* — was not on
+the list. A chain of hand-offs is only as long as somebody wrote down, and the end of the list is
+not the end of the chain. The same is true of the battle prompt: `attacker_men` existed, was
+correct, was covered by a test that read the field, and **no test read the pixels**.

@@ -279,11 +279,16 @@ impl Screen for CourtScreen {
         // "Court of" and the player's name after it, both in the 22-pixel font.
         let court_of = a.text(GROUP, COURT_OF).to_string();
         let w = pen.heading(canvas, HEADING_AT.0, HEADING_AT.1, &court_of, font::TEXT);
-        // **The lord names are somebody else's.** The original draws
-        // `g_playerNames + realm * 0x2C` here; nothing in this tree carries
-        // them yet and `screens/battle.rs` has the same hole, so this is the
-        // same stand-in it uses rather than a second invention.
-        let name = format!("LORD {player}");
+        // `Ui_DrawText(&g_playerNames + realm * 0x2C, …)`. `Player_SetHuman`
+        // (`0x0049BAE9`) copies the typed name in for the person and
+        // `Eng_Seek(7, realm.lord)` names the AIs, which is exactly
+        // [`super::message::lord_name`]'s pair of sources.
+        //
+        // **This drew `format!("LORD {player}")`** on a comment that said
+        // *"nothing in this tree carries them yet"* — true when it was written
+        // and false since `Game::player_names` existed, so a player who typed
+        // his name on the setup screen was greeted by *"Court of LORD1"*.
+        let name = super::message::lord_name(ctx, player);
         // **`NAME_X - HEADING_AT.0`, not `NAME_X`.** The original is
         // `Ui_DrawText(name, g_penAdvance + 0x52, 0x44, heading)`, and
         // `g_penAdvance` is the width the label advanced — a *relative* number.

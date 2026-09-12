@@ -14,6 +14,7 @@
 use std::path::PathBuf;
 
 use l2_game::game::Assets;
+use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Screen};
 use l2_game::screens::map::MapScreen;
 use l2_game::screens::setup::{SetupPage, SetupScreen};
@@ -1014,6 +1015,79 @@ fn the_unit_panel_says_the_year_an_army_was_formed_in_ad() {
         find_on_row_from(&canvas, body, &ad, font::TEXT, y, year_x),
         Some(year_x + LEAD + body.width(&digits) + SPACE + TRAILER),
         "{ad:?} is not after \" {digits} \" on the Formed line"
+    );
+}
+
+// ------------------------------------------------ the far zoom's box of words
+
+/// **The box at the far zoom was empty, and the original fills it.**
+///
+/// `Screen_DrawCampaign`'s (`0x0040F5FD`) zoom-2 arm, whole:
+///
+/// ```c
+/// Ui_DrawBox(0, 0x19C, 0x1E, 4);
+/// DAT_0058FE2C = 1;  g_penAdvance = 0;
+/// Eng_DrawString(0x65, g_scenarioIndex, 0x40, 0x1A8, &g_fontHeading, 0x3F);
+/// Eng_DrawString(0x22, 0,  g_penAdvance + 0x50, 0x1A8, &g_fontHeading, 0x3F);
+/// Ui_DrawYear(g_year,      g_penAdvance + 0x60, 0x1A8, 1);
+/// DAT_0058FE2C = 0;
+/// Eng_DrawString(0x22, 1, 0x50, 0x1C6, &g_fontBody, 0x3F);
+/// ```
+///
+/// We drew the box and, inside it, a status line of our own — which C173 then
+/// gated behind the debug overlay, leaving the box blank. Group 34 has exactly
+/// one consumer in the binary and it is this arm, so its two strings *are* this
+/// box's vocabulary (`CLAUDE.md` rule 6), and the second of them is the game
+/// saying what the far zoom is for.
+///
+/// **Ablated, one draw at a time:** removing any of the four turns exactly one
+/// of the assertions below red.
+#[test]
+fn the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction() {
+    let (mut game, assets) = world!();
+    let heading = assets.shell.heading.as_ref().expect("Fntl2_22.pl8 is in the install");
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8 is in the install");
+    let mut screen = MapScreen::new();
+    // `Map_ToggleZoom` — the box exists only at zoom 2.
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        screen.handle(Event::KeyDown(Key::Char('Z')), &mut ctx);
+    }
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    // The three heading draws run with `DAT_0058FE2C` set: capitals come out in
+    // colour 1 whatever the caller passed, which is why the probe carries the
+    // mode as well as the face.
+    let caps = Style { colour: font::TEXT, shadow: Some(font::SHADOW), caps: Some(1) };
+
+    let name = assets.shell.text(101, game.map_slot).to_string();
+    assert!(!name.is_empty(), "L2.eng group 101 has the sixty map names");
+    let (nx, ny) = find_styled(&canvas, heading, &name, &caps)
+        .unwrap_or_else(|| panic!("{name:?} is not in the far-zoom box"));
+    assert_eq!((nx, ny), (0x40, 0x1A8), "Eng_DrawString(0x65, g_scenarioIndex, 0x40, 0x1A8)");
+
+    let label = assets.shell.text(34, 0).to_string();
+    assert_eq!(label, "Year", "L2.eng 34/0");
+    let (lx, ly) = find_styled(&canvas, heading, &label, &caps).expect("{label:?} is not drawn");
+    assert_eq!(ly, 0x1A8, "the label shares the map name's row");
+    assert!(lx > nx + heading.width(&name), "the label is at {lx}, not after the name");
+
+    // `Ui_DrawYear(…, 1)` puts group 26's era *before* the digits, both in the
+    // heading face, and lifts an AD year by one pixel — `year < 0 ? y : y - 1`.
+    // Finding the digits is the claim that the year was drawn.
+    let digits = format!(" {} ", game.kingdom.year);
+    let (yx, yy) = find_styled(&canvas, heading, &digits, &caps).expect("the year is not drawn");
+    assert_eq!(yy, 0x1A8 - 1, "an AD year sits one pixel above its row");
+    assert!(yx > lx, "the year is at {yx} and the label at {lx}");
+
+    // And the instruction, in the body face with the drop capitals off again.
+    let advice = assets.shell.text(34, 1).to_string();
+    assert!(!advice.is_empty(), "L2.eng 34/1");
+    let flat = Style { colour: font::TEXT, shadow: Some(font::SHADOW), caps: None };
+    assert_eq!(
+        find_styled(&canvas, body, &advice, &flat),
+        Some((0x50, 0x1C6)),
+        "Eng_DrawString(0x22, 1, 0x50, 0x1C6, &g_fontBody, 0x3F): {advice:?}"
     );
 }
 

@@ -74,7 +74,10 @@
 //! **The mercenary band is folded into its troop type before the row is drawn**
 //! — `if (unit.mercTroop == row) count += unit.mercMen` — in both modes, and it
 //! is the stashed value too, so a mercenary company shows up inside the
-//! swordsmen rather than beside them.
+//! swordsmen rather than beside them. **This listing described the fold from
+//! the day it was written and neither screen did it**, and neither drew
+//! `menTotal` either — both are [`crate::engagement::roster_of`] and
+//! `draw_roster`'s `totals` now. C189.
 //!
 //! Three transcription slips came out of writing this listing: the noun column
 //! is `0x3E + 0x7D` = **187** and this module had 185, the parenthesised
@@ -90,10 +93,11 @@
 //!
 //! # Two things the original draws that are not here, and one it does not
 //!
-//! * **The lords' names.** `g_playerNames` is not modelled; a realm has no name
-//!   in this tree. Each side is drawn as its realm number, in our own font,
-//!   which `docs/decisions.md` C21 is the rule for: where we cannot establish
-//!   what the original drew, it is visibly ours. The one name we *can* draw is
+//! * **The lords' names.** `g_playerNames` **is** modelled — `Game::player_names`,
+//!   filled by `Player_SetHuman` (`0x0049BAE9`) for the person and by
+//!   `Eng_Seek(7, realm.lord)` for the AIs — and [`side_name`] reads it. It drew
+//!   `"LORD {owner}"` until C189, on a sentence that said the names were not
+//!   modelled and stopped being true when they were. The other name here is
 //!   the original's own — `L2.eng` group 99, the single string
 //!   `"The people."`, which it draws for an ownerless army. A county levy is
 //!   exactly that. **The original's test is `owner == 6`**, because 6 is the
@@ -305,7 +309,7 @@ fn county_name(ctx: &Ctx, id: u8) -> String {
 
 /// What to write over a side. The original draws a lord's name from
 /// `g_playerNames`, and `L2.eng` group 99 — *"The people."* — for an ownerless
-/// army. We have the second and not the first.
+/// army. Both, now: the same hole the court screen had, with the same fix.
 fn side_name(ctx: &Ctx, owner: u8) -> String {
     if owner == 0 {
         let s = ctx.assets.shell.text(GROUP_OWNERLESS, 0);
@@ -314,7 +318,7 @@ fn side_name(ctx: &Ctx, owner: u8) -> String {
         }
         return "THE PEOPLE".into();
     }
-    format!("LORD {owner}")
+    super::message::lord_name(ctx, owner)
 }
 
 /// The realm's shield frame, with `Battle_ChooseSettlement`'s own substitution
@@ -376,11 +380,15 @@ fn draw_frame(
 /// one column, and mode 1 reads them back as the parenthesised figure beside
 /// what is left. Here the recording is [`BattleReport::attacker_roster`] and
 /// there is no global.
+///
+/// `totals` is the pair the original reads **out of the unit record** rather
+/// than off the rows — see the loop at the end of this function.
 fn draw_roster(
     ctx: &Ctx,
     canvas: &mut Canvas,
     a: (&Roster, Option<&Roster>),
     b: (&Roster, Option<&Roster>),
+    totals: (i32, i32),
 ) {
     let p = pen(ctx);
     let ink = &ctx.assets.ink;
@@ -421,9 +429,16 @@ fn draw_roster(
             p.number_in(face, canvas, COL_B_BEFORE, y, was[row], '(', ")", font::TEXT);
         }
     }
-    let total = |r: &Roster| r.iter().sum::<i32>();
-    for (x, r) in [(TOTAL_A_X, a.0), (TOTAL_B_X, b.0)] {
-        let n = total(r);
+    // **The total is `+0x168`, not the sum of the seven rows**, and the two are
+    // not the same number. `Mercenary_Hire` (`0x004AC7F3`) adds the band's men
+    // to `menTotal` and never touches `+0x16C`, so an army raised with nothing
+    // but a hired band has seven zero counts and a real total. Summing the rows
+    // printed *"0 Total men"* under a prompt asking whether to fight with them
+    // — reported as *"when I attacked and it asked me to decide it said I had 0
+    // men, I think it's because it was just mercenaries"*. The band is folded
+    // into its own row by [`crate::engagement::roster_of`], which is what makes
+    // the rows add up to this figure again.
+    for (x, n) in [(TOTAL_A_X, totals.0), (TOTAL_B_X, totals.1)] {
         // `FUN_004224E7`: `Ui_DrawCount(unit.menTotal, 0x48, x + 0x14, …, font)`
         // — group 8's *"Total man"* / *"Total men"* **as the file spells it**,
         // singular at ±1. We upper-cased it, which in `Fntl2_14.pl8` is a line of
@@ -660,6 +675,7 @@ impl Screen for BattlePromptScreen {
             canvas,
             (&q.attacker_roster, None),
             (&q.defender_roster, None),
+            (q.attacker_men, q.defender_men),
         );
 
         // The two thumbs, and only when the choice is the local player's.
@@ -778,6 +794,9 @@ impl Screen for BattleResultScreen {
             canvas,
             (&r.attacker_roster.1, Some(&r.attacker_roster.0)),
             (&r.defender_roster.1, Some(&r.defender_roster.0)),
+            // Mode 1 ends with the same two `Ui_DrawCount(menTotal, …)` calls
+            // as mode 0, and by this point `menTotal` is what the fight left.
+            (r.attacker_men.1, r.defender_men.1),
         );
 
         let drawn = ctx
