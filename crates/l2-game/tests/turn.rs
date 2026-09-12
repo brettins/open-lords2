@@ -545,10 +545,15 @@ fn an_army_crossing_a_foreign_field_wrecks_it_during_the_turn() {
         g.kingdom.campaign.map.set_terrain(x, 20, 8);
     }
     assert_eq!(g.kingdom.counties[2].owner, 2, "somebody else's fields");
-    // `County_DestroyField` takes the tile's share of the standing crop, so
-    // the county has to have one: with `fields_grain` at 0 it returns without
-    // repainting the tile and nothing is destroyed.
+    // `County_DestroyField` takes the tile's share of the standing crop, and it
+    // charges the grain arm against `+0x206` — the sown fields still standing,
+    // which a sowing writes beside `fields_grain`. This comment used to say that
+    // with `fields_grain` at 0 the function returns without repainting; that was
+    // our port, not the original, whose `Terrain_Set(tile, 0)` is outside the
+    // `if` (`docs/decisions.md` CNEW-wheat-season). A county with a standing
+    // crop has sown it, so it carries both numbers.
     g.kingdom.counties[2].fields_grain = 4;
+    g.kingdom.counties[2].fields_grain_standing = 4;
     g.kingdom.counties[2].crop[1] = 400;
 
     let id = army(&mut g, 1, 5, 20);

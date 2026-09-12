@@ -339,6 +339,9 @@ fn furnished(seed: u64) -> Kingdom {
         c.grain = 100 + n * 5;
         c.crop = [n + 1, n * 2 + 1, n * 3 + 1];
         c.fields_grain_sown = 5;
+        // `+0x206`, VERSION 25: one below the sown count, as a trampled field
+        // leaves it, so a codec that wrote one into the other is caught.
+        c.fields_grain_standing = 4;
         c.sow_shortfall = id % 2 == 1;
 
         c.herd = 60 + n * 3;
@@ -694,7 +697,9 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +6 at version 24 for realm `+0x2A`, `Realm::peak_counties` — one byte a
     // realm over 6 realm slots. `County_ChangeOwner` reads it to choose the
     // capture letter and raises it.
-    assert_eq!(c.finish().len, 62_964, "the state encoding changed - bump VERSION?");
+    // +68 at version 25 for `County::fields_grain_standing` (`+0x206`), four
+    // bytes over 17 county slots — the divisor of the wheat picture.
+    assert_eq!(c.finish().len, 63_032, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

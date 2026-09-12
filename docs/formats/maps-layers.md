@@ -608,10 +608,28 @@ otherwise, and `base` and `layer` come from a ladder on the new terrain:
   passes `'\0'` and **`Grain_SeasonTick` does not**:
 
   ```c
-  band    = FUN_0044CF6F(county.crop[2], county.fieldsGrain);   /* 2, 3, 7 or 11 */
-  variant = band < 3 ? 0 : (band - 3) / 4 + 1;                  /* 0, 1, 2 or 3  */
+  /* Spring, Summer, Autumn — after sowing or growing */
+  band    = FUN_0044CF6F(county.crop[1], (byte)county.field_0x206);
+  /* Winter — after the harvest */
+  band    = FUN_0044CF6F(county.crop[2], (byte)county.field_0x206);   /* 2, 3, 7 or 11 */
+  variant = band < 3 ? 0 : (band - 3) / 4 + 1;                          /* 0, 1, 2 or 3  */
   FUN_00469D21(county, band, variant, 2, 0xE);   /* every grain tile of the county */
   ```
+
+  > **This block was wrong a second time, and the second error was also a picture a player
+  > saw.** It read `band = FUN_0044CF6F(county.crop[2], county.fieldsGrain)` — one line for
+  > all four seasons, and it is neither argument. `Grain_SeasonTick` (`0x0044C8AE`) calls
+  > `FUN_0044CF6F` **three times**, once in each arm: the sowing and growing arms pass
+  > `crop[1]`, the standing crop, and only the harvest arm passes `crop[2]`. All three divide
+  > by the byte at `+0x206`, not `fieldsGrain` (`+0x201`). `crop[2]` is cleared at the top of
+  > every season, so the one-line reading bands a zero for three seasons in four, and the fix
+  > built on it drew every wheat field at variant 0 until the harvest. *"Wheat fields still
+  > not showing the different stages of wheat growth."* **[V]** against the decompilation at
+  > all three call sites; `docs/decisions.md` CNEW-wheat-season.
+  >
+  > `+0x206` is not a copy of `+0x202`. Both are written by the sowing arm, but
+  > `County_DestroyField` (`0x00469E5B`) and `FUN_0046965A` step `+0x206` down whenever
+  > `fieldsGrain <= +0x206`, and nothing steps `+0x202` down.
 
   `FUN_0044CF6F` is four sacks-per-field bands, `< 1` → 2, `< 0x29` → 3, `< 0x51` → 7, else
   11. **All four bands fall in `2 … 0x12`, so all four share base 88** — the `content` byte
