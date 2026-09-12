@@ -107,7 +107,7 @@
     {"id": "standings", "area": "screens", "name": "Standings: the greatest nobles", "status": "missing", "evidence": ["arms:0x004351C4/court-greatest-nobles"], "gap": "", "rows": ["standings-screen"]},
     {"id": "help-file", "area": "screens", "name": "Game help", "status": "missing", "evidence": ["arms:0x00434942/opt-game-help-contents"], "gap": "", "rows": ["game-help"]},
     {"id": "music", "area": "sound", "name": "Music", "status": "partial", "evidence": ["C116", "crates/l2-game/tests/audio_wiring.rs"], "gap": "credits, ending and conquest music", "rows": ["music-credits-ending-conquest"]},
-    {"id": "narrator", "area": "sound", "name": "Narrator and lords' voices", "status": "partial", "evidence": ["C126", "audio:FUN_004b3714#1", "crates/l2-game/src/audio/names.rs"], "gap": "confirm box, castle chooser and screen 0x20 lines", "rows": ["sibling-voice-tables"]},
+    {"id": "narrator", "area": "sound", "name": "Narrator and lords' voices", "status": "partial", "evidence": ["C126", "audio:FUN_004b3714#1", "crates/l2-game/src/audio/names.rs"], "gap": "confirm box, castle chooser, screen 0x20", "rows": ["sibling-voice-tables"]},
     {"id": "battle-speech", "area": "sound", "name": "Speech before a battle", "status": "missing", "evidence": ["audio:Siege_LaunchAssault#1"], "gap": "", "rows": ["battle-speech"]},
     {"id": "battle-sounds", "area": "sound", "name": "Battle sounds", "status": "partial", "evidence": ["C166", "C181", "crates/l2-game/tests/audio_battle.rs"], "gap": "closing archers; mid-battle wipe-out", "rows": ["battle-close-attack-and-elimination"]},
     {"id": "clicks", "area": "sound", "name": "Button clicks", "status": "done", "evidence": ["C156", "crates/l2-game/tests/click.rs"], "gap": "", "rows": []},
