@@ -76,6 +76,7 @@ crates/l2-game/src/screens/info.rs	C110	610d3cd4e224	a4ab43902f60
 crates/l2-game/src/screens/info.rs	C25	81871fcedfac	5d466f0cb89c
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/map.rs	C132	3a974c32854e	84bc50c0ddbe
+crates/l2-game/src/screens/map.rs	C134	414ddf907651	d12cd2f96f79
 crates/l2-game/src/screens/map.rs	C138	3ac5e2071333	7724e6665b90
 crates/l2-game/src/screens/map.rs	C152	0572ee1cacc9	582988651236
 crates/l2-game/src/screens/map.rs	C158	12f4c2311571	3b5e22280a31
@@ -161,6 +162,7 @@ crates/l2-game/tests/labour_move.rs	C180	34491beeff6b	fea6f0ec7284
 crates/l2-game/tests/long_game.rs	C134	7b2b965b84f1	d12cd2f96f79
 crates/l2-game/tests/long_game.rs	C26	8f66e1f9a1a8	e8179d1f76a8
 crates/l2-game/tests/long_game.rs	C26	b81c294dcd29	e8179d1f76a8
+crates/l2-game/tests/long_game.rs	C27	6ea7b19c7eea	1db64332cb22
 crates/l2-game/tests/long_game.rs	C27	7ceabf7fa8c1	1db64332cb22
 crates/l2-game/tests/long_game.rs	C27	b651893267c8	1db64332cb22
 crates/l2-game/tests/long_game.rs	C27	c0900980b820	1db64332cb22
@@ -404,6 +406,7 @@ crates/l2-testkit/tests/quirks_catalogue.rs	C62	6e16796702fc	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	bb3cf267d3c1	ebb6a7ec3711
 crates/l2-testkit/tests/work_ledger.rs	C1	3f8c8bf0f873	6b7e8edb019e
 crates/l2-testkit/tests/work_ledger.rs	C1	d0ededac0b63	6b7e8edb019e
+crates/l2-view/src/campaign.rs	C134	976c35888d40	d12cd2f96f79
 crates/l2-view/src/campaign.rs	C49	38f05e43397f	4ce32e6c42e0
 crates/l2-view/src/campaign.rs	C57	cc211f4ea532	3b42b65157bf
 crates/l2-view/src/campaign.rs	C58	f81f70509bd8	2a1ff4d5966d
@@ -460,6 +463,7 @@ docs/agents.md	C71	51a864225631	3d674af30522
 docs/armies.md	C12	107ce66c22f6	bb0dd488f9d2
 docs/armies.md	C13	01136a71a801	006e7d0b71a7
 docs/armies.md	C164	c7aa8fd2f735	68f38e5b4b46
+docs/armies.md	C184	c507433f782a	68993561dc7c
 docs/armies.md	C25	0e1a3d3b6e2c	5d466f0cb89c
 docs/armies.md	C25	1e8e9e32f5d7	5d466f0cb89c
 docs/armies.md	C25	79909c3b39f9	5d466f0cb89c
@@ -554,6 +558,7 @@ docs/decisions.md	C120	7c9b703bcdc3	e96a6897511c
 docs/decisions.md	C120	e3304840f5e5	e96a6897511c
 docs/decisions.md	C121	ed5cd895601c	865148ccac2a
 docs/decisions.md	C123	1262cc0f058c	3a5cc2fec37d
+docs/decisions.md	C123	27b5befee410	3a5cc2fec37d
 docs/decisions.md	C123	59a89116ad95	3a5cc2fec37d
 docs/decisions.md	C124	1168fcc7f029	38723617b085
 docs/decisions.md	C125	4a3bc312925c	6084e87aec70
@@ -587,6 +592,9 @@ docs/decisions.md	C133	ca0e15ab5416	91fcca97cc98
 docs/decisions.md	C133	d0f6772c2a0f	91fcca97cc98
 docs/decisions.md	C133	d1b998eebb52	91fcca97cc98
 docs/decisions.md	C133	edf25f8ff042	91fcca97cc98
+docs/decisions.md	C134	0505b9063a14	d12cd2f96f79
+docs/decisions.md	C134	66c86fae1a4a	d12cd2f96f79
+docs/decisions.md	C134	cf95a6cc2b71	d12cd2f96f79
 docs/decisions.md	C135	b671ddf7d3d9	39859e3b9368
 docs/decisions.md	C136	6d12b0ebe9a1	724c11b1e475
 docs/decisions.md	C136	8e1c5d41f14b	724c11b1e475
@@ -669,6 +677,7 @@ docs/decisions.md	C181	01475f51491a	19c538abe1e9
 docs/decisions.md	C181	20e69e717a14	19c538abe1e9
 docs/decisions.md	C181	5e051b644dd8	19c538abe1e9
 docs/decisions.md	C181	5f6049f98891	19c538abe1e9
+docs/decisions.md	C184	b2af8a802fd4	68993561dc7c
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
 docs/decisions.md	C21	7e1ce2bf6129	f7bf296341ff
@@ -700,6 +709,7 @@ docs/decisions.md	C26	8f6a35ed9d62	e8179d1f76a8
 docs/decisions.md	C27	12183fbed103	1db64332cb22
 docs/decisions.md	C27	251c3e5931bb	1db64332cb22
 docs/decisions.md	C27	6c197dcf7e68	1db64332cb22
+docs/decisions.md	C27	882e89b25671	1db64332cb22
 docs/decisions.md	C27	95bf59280ccd	1db64332cb22
 docs/decisions.md	C27	d8fd9b6745ad	1db64332cb22
 docs/decisions.md	C28	86890c8b2fbc	df5936ad8492
@@ -991,7 +1001,9 @@ docs/screens-county.md	C59	aec4d2276a51	37ab8ac1a2fc
 docs/screens-county.md	C61	675bbac0eace	60611046b40d
 docs/screens-county.md	C76	982107e9770f	53e207ae069e
 docs/screens-county.md	C97	6fb9495168cb	f5f75acd2cda
+docs/screens.md	C134	a3bc8eedfa5b	d12cd2f96f79
 docs/screens.md	C139	af83add24e4f	d11336df05e7
+docs/screens.md	C184	77040505b6a6	68993561dc7c
 docs/screens.md	C22	29997cfa2796	0364b53a921d
 docs/screens.md	C25	6e23d74e76ec	5d466f0cb89c
 docs/screens.md	C48	63058cefc7e7	9e81512f4c0d
