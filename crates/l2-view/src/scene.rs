@@ -70,8 +70,13 @@ pub const FIELD_CLIP: Clip = Clip::new(
     ORIGIN_Y + VIEW_ROWS as i32 * TILE,
 );
 
-/// The field-battle tileset. `T32_stn1` / `T32_wod1` are the siege and
-/// wooded-castle variants and are not loaded here.
+/// The field-battle tileset and palette. [`Ground`] has the siege pair.
+///
+/// **The palette is not `Battle_LoadAssets`'.** `Res_LoadStatic` (`0x00499859`)
+/// preloads `t32_bat1.256` into `0x00568EE0` at start-up — record 2 of
+/// `g_preloadTable` (`0x004D9F48`) — and `Screen_DrawBattlefield`
+/// (`0x004233F7`) ends a field battle's repaint with `Palette_Set(0x568EE0)`,
+/// or `Palette_Set(0x5675A0)` (`t32_stn1.256`, record 1) for a siege. **[V]**
 pub const TILESET: &str = "T32_bat1.pl8";
 
 /// **The two battle palettes**, records 2 and 1 of `g_preloadTable`
@@ -83,13 +88,126 @@ pub const TILESET: &str = "T32_bat1.pl8";
 /// `if (g_battleIsSiege == 0) Palette_Set(0x568ee0); else
 /// Palette_Set(0x5675a0);`. **[V]**
 ///
-/// The siege one is the palette of a screen we draw from the *field* tileset,
-/// because `T32_stn1.pl8` is not ported. That is the original's colour over
-/// the wrong tiles, which is what the original's own siege men and walls are
-/// drawn in; the alternative measured worse — a whole siege in the field's
-/// colours.
+/// C200 loaded the siege one over the *field* tileset, because `T32_stn1.pl8`
+/// was not ported — the original's colour over the wrong tiles, which still
+/// measured better than a whole siege in the field's colours. **C201 ported
+/// the tiles**, so the pairing is no longer a compromise: a siege is drawn
+/// from its castle's own sheets in its own palette. One palette serves both
+/// castle families; there is no `t32_wod1.256`. See [`Ground`].
 pub const TILE_PALETTE: &str = "T32_bat1.256";
 pub const SIEGE_PALETTE: &str = "T32_stn1.256";
+
+/// **Which ground a battle is fought on, and therefore which sheets and which
+/// palette** — `Battle_LoadAssets` (`0x004987B7`), slots 0/1 and 0x0B/0x0C of
+/// the battle asset table at `0x004DA550`:
+///
+/// ```c
+/// if (slot < 2) {                                  /* the 32-pixel tiles */
+///   if (g_battleIsSiege == 0)      { if (slot == 1) continue; entry = 0;   }
+///   else if (DAT_0057C910 == 0)    { entry = slot == 1 ? 5 : 4;            }
+///   else                           { entry = slot == 1 ? 3 : 2;            }
+/// }
+/// ```
+///
+/// and the same ladder again at slots `0x0B`/`0x0C` with entries
+/// `0x0B / 0x0D,0x0E / 0x0F,0x10` for the overview panel. The table's entries
+/// 0…5 are `t32_bat1, t32_bat2, t32_stn1, t32_stn2, t32_wod1, t32_wod2` and
+/// `0x0B`…`0x10` the matching `t2_*`. **[V]** — read out of `Lords2.exe`.
+///
+/// `DAT_0057C910` is `Siege_LaunchAssault`'s `(uint)(1 < g_castleLevel)`
+/// (`0x004A8AAB`), so **levels 0 and 1 are the wooden sheets and 2, 3 and 4 the
+/// stone ones**. `FUN_00498DCB`, the skirmish loader, picks the same two
+/// families from `DAT_0057C96C`, its copy of the same flag. **[V]**
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ground {
+    /// `t32_bat1.pl8`. Slot 1 is skipped: `t32_bat2.pl8`'s size in the table is
+    /// **0** and the install does not ship the file. **[V]**
+    Field,
+    /// Castle levels 2, 3 and 4 — `t32_stn1` over `t32_stn2`.
+    Stone,
+    /// Castle levels 0 and 1 — `t32_wod1` over `t32_wod2`.
+    Wood,
+}
+
+impl Ground {
+    pub const ALL: [Ground; 3] = [Ground::Field, Ground::Stone, Ground::Wood];
+
+    /// `g_battleIsSiege` and `DAT_0057C910`, as the loader reads them.
+    pub fn for_battle(castle_level: Option<u8>) -> Ground {
+        match castle_level {
+            None => Ground::Field,
+            Some(level) if level > 1 => Ground::Stone,
+            Some(_) => Ground::Wood,
+        }
+    }
+
+    pub fn index(self) -> usize {
+        match self {
+            Ground::Field => 0,
+            Ground::Stone => 1,
+            Ground::Wood => 2,
+        }
+    }
+
+    /// Table entry 0, 2 or 4 — **the castle**: masonry, towers, gates, doors,
+    /// the keep and the wall tops. See [`Ground::tileset2`].
+    pub fn tileset(self) -> &'static str {
+        match self {
+            Ground::Field => TILESET,
+            Ground::Stone => "T32_stn1.pl8",
+            Ground::Wood => "T32_wod1.pl8",
+        }
+    }
+
+    /// Table entry 3 or 5 — **the ground the castle stands on**: sixteen grass
+    /// variants at 0…15, the moat's 49-variant water set and the rubble a
+    /// collapsed wall leaves. **Not** the drawbridge:
+    /// `Siege_LowerDrawbridge` (`FUN_00496B9F`) clears the selector when it
+    /// lays its patch, so that is the castle sheet.
+    ///
+    /// That split is the builder's, not a guess: `Battlefield_BuildCastle`'s
+    /// three escape codes all write this sheet's selector —
+    /// `FUN_0047E1DC` (`0xEF`, open ground) takes `rand & 0x0F`,
+    /// `FUN_0047DCCE` (`0xEE`, moat) auto-tiles water out of the same 49-entry
+    /// table `0x004D7610` a field battle uses, and `Wall_Collapse`
+    /// (`FUN_0047DFE0`) auto-tiles rubble out of `0x004D7930` — while every
+    /// cell taken straight from the raster keeps selector 0 and the castle
+    /// sheet. **[V]**
+    pub fn tileset2(self) -> Option<&'static str> {
+        match self {
+            Ground::Field => None,
+            Ground::Stone => Some("T32_stn2.pl8"),
+            Ground::Wood => Some("T32_wod2.pl8"),
+        }
+    }
+
+    /// `Screen_DrawBattlefield` (`0x004233F7`): `Palette_Set(0x568EE0)` for a
+    /// field battle and `Palette_Set(0x5675A0)` for a siege. **Both castle
+    /// families use `t32_stn1.256`** — there is no `t32_wod1.256`, in the
+    /// preload table or in the install. **[V]**
+    pub fn palette(self) -> &'static str {
+        match self {
+            Ground::Field => TILE_PALETTE,
+            Ground::Stone | Ground::Wood => "T32_stn1.256",
+        }
+    }
+
+    pub fn overview_tileset(self) -> &'static str {
+        match self {
+            Ground::Field => OVERVIEW_TILESET,
+            Ground::Stone => "T2_stn1.pl8",
+            Ground::Wood => "T2_wod1.pl8",
+        }
+    }
+
+    pub fn overview_tileset2(self) -> Option<&'static str> {
+        match self {
+            Ground::Field => None,
+            Ground::Stone => Some("T2_stn2.pl8"),
+            Ground::Wood => Some("T2_wod2.pl8"),
+        }
+    }
+}
 
 /// **The overview panel's two sheets.** `Battle_LoadAssets` (`0x004987B7`)
 /// registers them with
@@ -139,6 +257,11 @@ pub struct OverviewSheets {
     /// 32 × 32 tiles, so a cell's `gfx` byte indexes both. **[V]** from the two
     /// files' headers.
     pub tiles: Sheet,
+    /// The second 2 × 2 sheet, `t2_stn2` / `t2_wod2`, reached by the same cell
+    /// selector the 32-pixel renderer uses — `FUN_004BC51A` takes it when
+    /// `cell[+2] & 0x1C == 4`. `None` for a field battle, whose slot is empty.
+    /// **[V]**
+    pub tiles2: Option<Sheet>,
     /// `t2_spri.pl8`: seven frames of 2 × 2. Frame 0 is the erase tile
     /// `FUN_004BC51A` stamps on a cell a man has just left; frames 1 … 6 are
     /// flat colours, indexed by the owning realm's `shieldIndex` — or 6 for the
@@ -169,18 +292,37 @@ impl Camera {
     }
 }
 
-/// Everything a battle needs to draw. Sheets are loaded once and their frames
-/// decoded on demand.
-pub struct BattleAssets {
+/// One [`Ground`]'s three sheets and its palette — what `Battle_LoadAssets`
+/// puts in slots 0, 1, `0x0B`, `0x0C` and the palette
+/// `Screen_DrawBattlefield` ends on.
+pub struct GroundArt {
     pub palette: Palette,
     pub tiles: Sheet,
+    /// Slot 1. `None` for a field battle; see [`Ground::tileset2`].
+    pub tiles2: Option<Sheet>,
+    /// [`OverviewSheets`], when the install has the files.
+    pub overview: Option<OverviewSheets>,
+}
+
+/// Everything a battle needs to draw. Sheets are loaded once and their frames
+/// decoded on demand.
+///
+/// The three [`Ground`]s are all loaded up front because the original loads
+/// one *per battle* — `Battle_LoadAssets` runs from `Battle_Start` — and we
+/// have no per-battle load step. The troop sheets are shared across them,
+/// which is what the original's table does too: slots `0x12`…`0x1F` do not
+/// move with the siege flag.
+pub struct BattleAssets {
+    /// Indexed by [`Ground::index`]. `Field` is always present — [`load`] fails
+    /// without it; the siege pair is `None` on an install that lacks them.
+    ///
+    /// [`load`]: BattleAssets::load
+    grounds: [Option<GroundArt>; 3],
     /// One sheet per troop type that has one, for each side. `None` for the
     /// siege engines, which are drawn from other files entirely.
     side4: Vec<Option<Sheet>>,
     side0: Vec<Option<Sheet>>,
     horse: Option<Sheet>,
-    /// [`OverviewSheets`], when the install has both files.
-    pub overview: Option<OverviewSheets>,
 }
 
 /// The seven troop types with battlefield sprites, indexed by
@@ -202,9 +344,35 @@ impl BattleAssets {
     where
         F: FnMut(&str) -> Result<Vec<u8>, String>,
     {
-        let palette = Palette::from_bytes(&read(TILE_PALETTE)?)
-            .map_err(|e| format!("{TILE_PALETTE}: {e}"))?;
-        let tiles = Sheet::new(read(TILESET)?).map_err(|e| format!("{TILESET}: {e}"))?;
+        let mut grounds: [Option<GroundArt>; 3] = [None, None, None];
+        for g in Ground::ALL {
+            let palette = match read(g.palette()).and_then(|b| {
+                Palette::from_bytes(&b).map_err(|e| format!("{}: {e}", g.palette()))
+            }) {
+                Ok(p) => p,
+                Err(e) if g == Ground::Field => return Err(e),
+                Err(_) => continue,
+            };
+            let tiles = match read(g.tileset())
+                .and_then(|b| Sheet::new(b).map_err(|e| format!("{}: {e}", g.tileset())))
+            {
+                Ok(s) => s,
+                Err(e) if g == Ground::Field => return Err(e),
+                Err(_) => continue,
+            };
+            let mut opt = |name: &str| read(name).ok().and_then(|b| Sheet::new(b).ok());
+            let tiles2 = g.tileset2().and_then(&mut opt);
+            let over_tiles = opt(g.overview_tileset());
+            let over_two = g.overview_tileset2().and_then(&mut opt);
+            let men = opt(OVERVIEW_SPRITES);
+            let overview = match (over_tiles, men) {
+                (Some(tiles), Some(men)) => {
+                    Some(OverviewSheets { tiles, tiles2: over_two, men })
+                }
+                _ => None,
+            };
+            grounds[g.index()] = Some(GroundArt { palette, tiles, tiles2, overview });
+        }
 
         let mut load_side = |colour: Colour| -> Result<Vec<Option<Sheet>>, String> {
             let mut out: Vec<Option<Sheet>> = (0..11).map(|_| None).collect();
@@ -218,13 +386,38 @@ impl BattleAssets {
         let a = load_side(side4)?;
         let b = load_side(side0)?;
         let horse = read(figures::HORSE_FILE).ok().and_then(|b| Sheet::new(b).ok());
-        let mut sheet = |name: &str| read(name).ok().and_then(|b| Sheet::new(b).ok());
-        let overview = match (sheet(OVERVIEW_TILESET), sheet(OVERVIEW_SPRITES)) {
-            (Some(tiles), Some(men)) => Some(OverviewSheets { tiles, men }),
-            _ => None,
-        };
 
-        Ok(BattleAssets { palette, tiles, side4: a, side0: b, horse, overview })
+        Ok(BattleAssets { grounds, side4: a, side0: b, horse })
+    }
+
+    /// The art for one ground, falling back to the field's on an install that
+    /// has no siege sheets — which is the placeholder case and looks it,
+    /// rather than a battle that cannot be drawn at all.
+    pub fn ground(&self, g: Ground) -> &GroundArt {
+        self.grounds[g.index()]
+            .as_ref()
+            .or(self.grounds[Ground::Field.index()].as_ref())
+            .expect("the field ground is required by BattleAssets::load")
+    }
+
+    /// Whether this install supplied `g`'s own sheets, or [`BattleAssets::ground`]
+    /// is falling back to the field's.
+    pub fn has_ground(&self, g: Ground) -> bool {
+        self.grounds[g.index()].is_some()
+    }
+
+    /// The field ground's palette and tiles, for the callers that never fight
+    /// a siege.
+    pub fn palette(&self) -> &Palette {
+        &self.ground(Ground::Field).palette
+    }
+
+    pub fn tiles(&self) -> &Sheet {
+        &self.ground(Ground::Field).tiles
+    }
+
+    pub fn overview(&self) -> Option<&OverviewSheets> {
+        self.ground(Ground::Field).overview.as_ref()
     }
 
     fn sheet_for(&self, side: l2_sim::Side, troop: Troop) -> Option<&Sheet> {
@@ -233,22 +426,79 @@ impl BattleAssets {
     }
 }
 
-/// Paint the terrain viewport. Tiles are blitted opaque: the original's tile
-/// path does not test for index 0, and no frame of `T32_bat1.pl8` contains one.
-pub fn draw_terrain(canvas: &mut Canvas, field: &Battlefield, tiles: &Sheet, cam: Camera) {
+/// **The damage overlay** — `Battlefield_Draw32`'s second pass over the same
+/// cell, `frame = cell[+0] + 0x8B` out of slot 1, capped at `0x9A`, drawn
+/// transparently and clipped whenever `cell[+0]` is non-zero and `cell[+4]` is
+/// 1, 2 or 3.
+///
+/// **On a castle, cell byte `+0` is not a terrain id — it is a damage
+/// counter**, and the two writers say so:
+///
+/// * `Missile_Step` (`0x00492C8B`) — *"if (cell.elevation < 4) { cell.terrain++; if (0xF <
+///   cell.terrain) Wall_Collapse(cell); }"*. A catapult shot chips the byte up
+///   to 15.
+/// * `BattleMan_StateFillMoat` (`0x00483FE1`) — *"if (cell.terrain <
+///   g_moatFillSteps) { … cell.terrain++; } else { cell.terrain = 0;
+///   Moat_Fill(cell); }"*. A shovelled load raises the same byte, from the 11
+///   the castle builder seeds a ditch with to 15.
+///
+/// So `0x8C`…`0x9A` is one growing pile of rubble, and the sheet's sixteen
+/// frames are a wall being knocked down and a ditch being filled in, animated
+/// by the same addition. `0x8B` is unreachable: at `cell[+0] == 0` the pass
+/// does not run.
+///
+/// **The elevation gate is the shot's own.** `Missile_Step` refuses to count a
+/// hit on a rampart 4 or more high, and this refuses to draw damage on one —
+/// the same `1 ..= 3`, from two unrelated functions. **[V]** on the formula
+/// and the gate; `[I]` that "damage" is the right word for the picture.
+///
+/// A `.skr` field battlefield never reaches any of it: `elevation` is the one
+/// cell byte `Battlefield_BuildFromSkr` never writes, which is also why the
+/// field's empty slot-1 pointer is never dereferenced. **[V]**
+pub const OVERLAY_BASE: usize = 0x8B;
+pub const OVERLAY_CAP: usize = 0x9A;
+pub const OVERLAY_ELEVATIONS: std::ops::RangeInclusive<u8> = 1..=3;
+
+/// Paint the terrain viewport — `Battlefield_Draw32` (`0x004BCBDC`).
+///
+/// Tiles are blitted opaque: the original's tile path does not test for index
+/// 0, and no frame of `T32_bat1.pl8` contains one. `two` is slot 1 —
+/// [`Ground::tileset2`] — which a cell asks for through [`Cell::tileset`];
+/// pass `None` for a field battle, where no cell ever does.
+///
+/// [`Cell::tileset`]: l2_sim::terrain::Cell::tileset
+pub fn draw_terrain(
+    canvas: &mut Canvas,
+    field: &Battlefield,
+    tiles: &Sheet,
+    two: Option<&Sheet>,
+    cam: Camera,
+) {
     for row in 0..VIEW_ROWS {
         for col in 0..VIEW_COLS {
             let (mx, my) = (cam.x + col, cam.y + row);
             if mx >= DIM || my >= DIM {
                 continue;
             }
-            let gfx = field.at(mx, my).gfx as usize;
-            let Some(frame) = tiles.frame(gfx) else { continue };
-            canvas.blit_opaque(
-                &frame,
-                ORIGIN_X + col as i32 * TILE,
-                ORIGIN_Y + row as i32 * TILE,
-            );
+            let cell = field.at(mx, my);
+            let (x, y) = (ORIGIN_X + col as i32 * TILE, ORIGIN_Y + row as i32 * TILE);
+            let sheet = match cell.tileset() {
+                0 => Some(tiles),
+                _ => two,
+            };
+            if let Some(frame) = sheet.and_then(|s| s.frame(cell.gfx as usize)) {
+                canvas.blit_opaque(&frame, x, y);
+            }
+            // The second pass of the same cell, always out of slot 1.
+            if cell.terrain != 0 && OVERLAY_ELEVATIONS.contains(&cell.elevation) {
+                let idx = match cell.terrain {
+                    t if t < 0x10 => OVERLAY_BASE + t as usize,
+                    _ => OVERLAY_CAP,
+                };
+                if let Some(frame) = two.and_then(|s| s.frame(idx)) {
+                    canvas.blit_clipped(&frame, x, y, FIELD_CLIP);
+                }
+            }
         }
     }
 }
@@ -398,16 +648,19 @@ pub fn draw_figures(
 /// ([`drawn_cell`]): `FUN_00491B1F` moves his cell byte at the start of the
 /// crossing, and `+5` is that byte.
 ///
-/// **Three things the original does here and this does not**, each because our
-/// cells do not carry byte `+2`:
+/// **Two things the original does here and this does not**, both the dirty
+/// bits of byte `+2`, which our cells do not carry:
 ///
 /// * the per-cell dirty bits, `flags & 3` — we repaint every cell of the rows
 ///   we visit, which is what `g_mapRedraw` makes the original do anyway;
-/// * `flags & 0x1C == 4`, the second tileset, which a field battle never
-///   reaches (see [`OVERVIEW_TILESET`]);
 /// * the erase tile, `t2_spri` frame 0, drawn over a cell whose `flags & 2` is
 ///   set and whose occupant has gone — one pass later that cell draws its
 ///   terrain again, and repainting the whole row goes straight there.
+///
+/// The third, `flags & 0x1C == 4`, **is** honoured now: it is
+/// [`Cell::tileset`](l2_sim::terrain::Cell::tileset), and a siege's ground,
+/// moat and rubble come from the second sheet here exactly as they do at 32
+/// pixels.
 ///
 /// **And one branch that is dead in a battle**: column 0 draws `t2_spri` frame
 /// 0 when `g_appPhase == 3`, and `g_appPhase` is past 8 by the time `App_Draw`
@@ -427,8 +680,12 @@ pub fn draw_overview_rows(
         for x in 0..DIM {
             let (px, py) = (x as i32 * OVERVIEW_SCALE, y as i32 * OVERVIEW_SCALE);
             let colour = occupants.get(y * DIM + x).copied().unwrap_or(0);
+            let cell = field.at(x, y);
             let frame = if colour == 0 {
-                sheets.tiles.frame(field.at(x, y).gfx as usize)
+                match cell.tileset() {
+                    0 => sheets.tiles.frame(cell.gfx as usize),
+                    _ => sheets.tiles2.as_ref().and_then(|s| s.frame(cell.gfx as usize)),
+                }
             } else {
                 sheets.men.frame(colour as usize)
             };
@@ -440,8 +697,15 @@ pub fn draw_overview_rows(
 }
 
 /// One whole frame: terrain, then figures.
-pub fn draw(canvas: &mut Canvas, runner: &BattleRunner, assets: &BattleAssets, cam: Camera) -> usize {
-    draw_terrain(canvas, &runner.field, &assets.tiles, cam);
+pub fn draw(
+    canvas: &mut Canvas,
+    runner: &BattleRunner,
+    assets: &BattleAssets,
+    ground: Ground,
+    cam: Camera,
+) -> usize {
+    let art = assets.ground(ground);
+    draw_terrain(canvas, &runner.field, &art.tiles, art.tiles2.as_ref(), cam);
     draw_figures(canvas, runner, assets, cam)
 }
 

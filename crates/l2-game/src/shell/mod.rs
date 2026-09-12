@@ -174,15 +174,16 @@ pub const PALETTES: &[&str] = &[
     // `BattlefieldScreen::palette` named it, so the lookup failed and the
     // presenter drew a battle in `base01.256` — *"blue grainy madness"*.
     //
+    "T32_bat1.256",
     // And the siege arm, `Palette_Set(0x5675A0)` = `t32_stn1.256`, record 1 of
     // the same table. This list said it was NOT PORTED because it *"belongs
-    // with `t32_stn1.pl8`"* and we draw every battle from `T32_bat1.pl8` —
-    // but the palette colours the whole screen, not only the tiles, so
-    // withholding it painted a siege's walls, men, banners and panel in the
-    // field's colours. The tileset is still the field's, and the two files
-    // differ on 3 of 256 entries — `docs/decisions.md` C200 has the
-    // measurement and what it is worth.
-    "T32_bat1.256",
+    // with `t32_stn1.pl8`"* and we drew every battle from `T32_bat1.pl8` — but
+    // the palette colours the whole screen, not only the tiles, so withholding
+    // it painted a siege's walls, men, banners and panel in the field's
+    // colours (C200). C201 then gave the siege its own tiles, so the two now
+    // arrive together. **Both castle families use this one palette**: there is
+    // no `t32_wod1.256` in the install or in that table, and it serves
+    // `t32_stn1.pl8` and `t32_wod1.pl8` alike — see `l2_view::scene::Ground`.
     "T32_stn1.256",
 ];
 
@@ -1263,19 +1264,31 @@ mod tests {
     /// fell through to `base01.256`, and a player saw the battle in the
     /// campaign's colours. It needs no install: both halves are names.
     ///
-    /// **Both of them**, because `Screen_DrawBattlefield` picks between two on
-    /// `g_battleIsSiege` and a siege that names a palette nobody loads falls
-    /// back to `base01.256` exactly as the field battle did.
+    /// **Both of the screen's palettes**, not just the one a field battle
+    /// names: `Screen_DrawBattlefield` chooses on `g_battleIsSiege`, and the
+    /// siege arm went unloaded for as long as it was a comment, falling back
+    /// to `base01.256` exactly as the field battle had.
     ///
-    /// Ablation: delete either `"T32_bat1.256"` or `"T32_stn1.256"` above — red.
+    /// The loop walks `Ground::ALL` rather than a pair written out here, so a
+    /// ground added later cannot bring a palette nobody loads: that is C201's
+    /// form, kept over C200's two-name list.
+    ///
+    /// Ablation, run: delete `"T32_bat1.256"` or `"T32_stn1.256"` above — red,
+    /// *"… is named by the battlefield and loaded by nobody"*.
     #[test]
-    fn both_battlefield_palettes_are_ones_the_shell_loads() {
-        let field = crate::screen::ScreenId::Battlefield.build().palette();
-        assert_eq!(field, Some(l2_view::scene::TILE_PALETTE), "a fresh screen is a field battle");
-        for name in [l2_view::scene::TILE_PALETTE, l2_view::scene::SIEGE_PALETTE] {
+    fn the_battlefields_palette_is_one_the_shell_loads() {
+        let name = crate::screen::ScreenId::Battlefield.build().palette();
+        let name = name.expect("the battlefield names a palette of its own");
+        assert_eq!(name, l2_view::scene::TILE_PALETTE, "a fresh screen is a field battle");
+        assert!(
+            PALETTES.iter().any(|p| key(p) == key(name)),
+            "{name} is named by the battlefield and loaded by nobody"
+        );
+        for g in l2_view::scene::Ground::ALL {
             assert!(
-                PALETTES.iter().any(|p| key(p) == key(name)),
-                "{name} is named by the battlefield and loaded by nobody"
+                PALETTES.iter().any(|p| key(p) == key(g.palette())),
+                "{g:?}'s palette {} is named by the battlefield and loaded by nobody",
+                g.palette()
             );
         }
     }

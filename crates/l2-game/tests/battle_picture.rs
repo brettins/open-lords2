@@ -586,7 +586,13 @@ fn walk_off(assets: &Assets, at: (i32, i32), (dx, dy): (i32, i32)) {
         if away >= 2 {
             let cam = l2_view::scene::Camera::clamped(live(&g).cam.0, live(&g).cam.1);
             let mut ground = Canvas::screen();
-            l2_view::scene::draw_terrain(&mut ground, &live(&g).runner.field, &art.tiles, cam);
+            l2_view::scene::draw_terrain(
+                &mut ground,
+                &live(&g).runner.field,
+                art.tiles(),
+                None,
+                cam,
+            );
             let (sx, sy) = (start.0 as i32 - cam.x as i32, start.1 as i32 - cam.y as i32);
             for y in 0..32 {
                 for x in 0..32 {

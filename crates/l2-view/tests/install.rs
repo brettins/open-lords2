@@ -383,7 +383,7 @@ fn the_sample_battlefield_renders_with_no_holes() {
         for cam_x in (0..terrain::DIM - scene::VIEW_COLS).step_by(7) {
             canvas.clear(0);
             let cam = Camera { x: cam_x, y: cam_y };
-            scene::draw_terrain(&mut canvas, &field, &tiles, cam);
+            scene::draw_terrain(&mut canvas, &field, &tiles, None, cam);
             for row in 0..scene::VIEW_ROWS as i32 * scene::TILE {
                 for col in 0..scene::VIEW_COLS as i32 * scene::TILE {
                     let y = (scene::ORIGIN_Y + row) as usize;
@@ -461,7 +461,7 @@ fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
         }
         let cam = scene::follow(&runner);
         let mut canvas = Canvas::screen();
-        let drawn = scene::draw(&mut canvas, &runner, &assets, cam);
+        let drawn = scene::draw(&mut canvas, &runner, &assets, scene::Ground::Field, cam);
         assert!(drawn > 0, "frame {frame} drew no figures at all");
         shots.push(canvas);
     }
@@ -478,8 +478,8 @@ fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
     let cam = scene::follow(&runner);
     let mut a = Canvas::screen();
     let mut b = Canvas::screen();
-    scene::draw(&mut a, &runner, &assets, cam);
-    scene::draw(&mut b, &runner, &assets, cam);
+    scene::draw(&mut a, &runner, &assets, scene::Ground::Field, cam);
+    scene::draw(&mut b, &runner, &assets, scene::Ground::Field, cam);
     assert_eq!(a.diff_count(&b), 0, "the renderer is not deterministic");
     eprintln!(
         "battle: {} figures, {} ticks, {} alive",
@@ -505,7 +505,7 @@ fn figures_are_visible_against_the_terrain_behind_them() {
     let cam = scene::follow(&runner);
 
     let mut terrain_only = Canvas::screen();
-    scene::draw_terrain(&mut terrain_only, &runner.field, &assets.tiles, cam);
+    scene::draw_terrain(&mut terrain_only, &runner.field, assets.tiles(), None, cam);
 
     let mut with_men = terrain_only.clone();
     let drawn = scene::draw_figures(&mut with_men, &runner, &assets, cam);

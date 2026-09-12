@@ -102,7 +102,10 @@ pub struct Cell {
     pub terrain: u8,
     /// Byte `+1`.
     pub flags: u8,
-    /// Byte `+3` — the PL8 frame index in the tileset.
+    /// Byte `+2` — **which of the two tile sheets byte `+3` indexes**, in bits
+    /// `0x1C`. See [`tileset`].
+    pub flags2: u8,
+    /// Byte `+3` — the PL8 frame index in the tileset [`tileset`] selects.
     pub gfx: u8,
     /// Byte `+4` — elevation. Read by the missile model, by
     /// `movement::can_step_elevation` and by `Formation_RectIsClear`, and
@@ -118,6 +121,44 @@ impl Cell {
     pub fn impassable(&self) -> bool {
         self.flags & flag::NO_ENTRY != 0
     }
+
+    /// **Which sheet byte `+3` indexes: 0 the first, 1 the second.**
+    ///
+    /// `Battlefield_Draw32` (`0x004BCBDC`) masks cell byte `+2` with `0x1C`
+    /// and dispatches on the result:
+    ///
+    /// ```c
+    /// bVar2 = cell[+2] & 0x1c;
+    /// if (bVar2 == 0) { psVar3 = tileset  + cell[+3] * 0x10 + 8; … FUN_004B5333(tileset);  }
+    /// else if (bVar2 == 4)
+    ///                 { psVar3 = tileset2 + cell[+3] * 0x10 + 8; … FUN_004B5333(tileset2); }
+    /// ```
+    ///
+    /// and no other value of the field draws anything at all. `tileset` and
+    /// `tileset2` are `FUN_004BC020`'s first two arguments, which
+    /// `Battle_LoadAssets` (`0x004987B7`) fills from slots 0 and 1 of the
+    /// battle asset table — `t32_bat1` alone for a field battle,
+    /// `t32_stn1`/`t32_stn2` or `t32_wod1`/`t32_wod2` for a siege. **[V]**
+    ///
+    /// `records.json` called these bits *"what they select is not
+    /// established"*; this is what they select.
+    ///
+    /// **A field battle is always sheet 0.** `Battlefield_BuildFromSkr` clears
+    /// the bits on every cell it writes and never sets them, and slot 1 of the
+    /// table is `t32_bat2.pl8` at size **0** — a file the install does not
+    /// even ship. **[V]**
+    pub fn tileset(&self) -> usize {
+        usize::from(self.flags2 & tileset::MASK == tileset::SECOND)
+    }
+}
+
+/// Cell byte `+2`'s tile-sheet selector. See [`Cell::tileset`].
+pub mod tileset {
+    /// The bits `Battlefield_Draw32` masks with and every builder clears with
+    /// `flags2 &= 0xE3`.
+    pub const MASK: u8 = 0x1C;
+    /// The one non-zero value the renderer has an arm for: the second sheet.
+    pub const SECOND: u8 = 0x04;
 }
 
 /// The twelve `(dx, dy)` deployment offsets at `0x004D9578`, clamped to
@@ -389,6 +430,37 @@ fn neighbour_mask(terrain: &[u8], x: usize, y: usize, want: u8, edge: bool) -> [
         if x == 0 { edge } else { get(-1, 0) },
         if x == 0 || y == 0 { edge } else { get(-1, -1) },
     ]
+}
+
+/// **The moat's tile, cell by cell** — `FUN_0047DCCE`, the castle builder's
+/// `0xEE` arm, which is the same auto-tiler a field battle's water runs:
+/// `FUN_0047D816(0x0B, 1)` for the eight-neighbour mask, then
+/// `FUN_0046C2DE(0x4D7610, 0x31)` — the 49-entry table and its rotating
+/// counters. **[V]**
+///
+/// `terrain` is the 6400-byte terrain-id plane; the answer is a parallel plane
+/// holding the frame for every [`id::WATER`] cell and 0 elsewhere. Walked
+/// row-major, because the counters make the order matter.
+///
+/// Two differences from the field's water, both the builder's: the frame it
+/// leaves comes out of **slot 1**, `t32_stn2` / `t32_wod2`, and a no-match
+/// cell keeps frame 0 rather than the id's own default.
+pub fn moat_autotile(terrain: &[u8]) -> Vec<u8> {
+    assert_eq!(terrain.len(), CELLS);
+    let mut counters = Counters::new();
+    let mut out = vec![0u8; CELLS];
+    for y in 0..DIM {
+        for x in 0..DIM {
+            if terrain[y * DIM + x] != id::WATER {
+                continue;
+            }
+            let mask = neighbour_mask(terrain, x, y, id::WATER, true);
+            if let Some(h) = match_table(&WATER, &mut counters.water, mask) {
+                out[y * DIM + x] = h.base.wrapping_add(h.counter);
+            }
+        }
+    }
+    out
 }
 
 /// Build the battlefield from one 80 x 80 `.skr` terrain layer.
