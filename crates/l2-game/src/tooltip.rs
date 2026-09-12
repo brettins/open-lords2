@@ -188,6 +188,7 @@ pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
         S::DiploCompose(..) => Some(0x1A),
         S::Castle(_) => Some(0x1B),
         S::Conquest => Some(0x1C),
+        S::Nobles => Some(0x20),
         S::Siege(_) => Some(0x1D),
         // The front end's menu is `0x1F` page 1 (`screens::menu`).
         S::Menu | S::Setup(_) => Some(0x1F),

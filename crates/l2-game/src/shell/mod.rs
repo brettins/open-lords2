@@ -137,6 +137,10 @@ pub const SHEETS: &[&str] = &[
     "Cas_bits.pl8",
     // 0x2E the ratings
     "Score1.pl8",
+    // 0x20 the standings: the page, and the six-frame banner sheet on it —
+    // five 51 x 92 shields and one 23 x 60 tab marker.
+    "Grtnoble.pl8",
+    "Flags.pl8",
     // 0x1D siege preparations
     "Sgeplans.pl8",
     // 0x11 army division
@@ -162,6 +166,7 @@ pub const PALETTES: &[&str] = &[
     "Armoury.256",
     "Cas_back.256",
     "Score1.256",
+    "Grtnoble.256",
     // 0x29 … 0x2B, the battlefield. Not a painter's own read: `Res_LoadStatic`
     // (`0x00499859`) preloads it into `0x00568EE0` as record 2 of
     // `g_preloadTable`, and `Screen_DrawBattlefield` (`0x004233F7`) sets it

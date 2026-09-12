@@ -343,6 +343,7 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         | S::MenuBar(_)
         | S::About
         | S::Court
+        | S::Nobles
         | S::Supplies(_)
         | S::Ratings
         | S::Info(_) => None,

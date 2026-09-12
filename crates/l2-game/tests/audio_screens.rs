@@ -462,3 +462,57 @@ fn a_line_or_a_fanfare_over_the_one_shot_buffer_is_dropped_and_after_it_plays() 
     assert!(audio.heard().contains(&"ff_batl.wav"), "heard {:?}", audio.heard());
     assert!(audio.one_shot_busy(), "and the fanfare holds it in turn");
 }
+
+/// **The standings page says which category you are looking at** —
+/// `FUN_004B3994(DAT_0055CE7C)`, whose two callers are the court's *Greatest
+/// nobles* button (`FUN_004351C4`) and one of the page's seven tabs
+/// (`FUN_0043524E`). Both are unconditional, and that is the whole design of
+/// the edge: `Game::nobles_spoken` is a counter both bump, so a tab pressed
+/// twice speaks twice.
+///
+/// **Ablation, run:** make the director diff `game.nobles_category` instead of
+/// the counter and the third assertion goes red — the second press of the same
+/// tab is silent, where the original speaks.
+#[test]
+fn the_standings_page_speaks_its_category_every_time_it_is_asked() {
+    let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
+    let mut game = world();
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    let mut director = audio::Director::new();
+    listen(&mut director, &mut audio, &machine, &game);
+
+    // The button, which is `FUN_004351C4`: the page opens on category 0 and
+    // the line is *"Most counties,"*.
+    machine.push(ScreenId::Nobles);
+    game.nobles_spoken += 1;
+    listen(&mut director, &mut audio, &machine, &game);
+    let first = names::speech::STANDINGS_CATEGORY[0];
+    assert!(audio.is_playing(first), "heard {:?}", audio.heard());
+    drain(&mut audio, first);
+
+    // A tab: the category moves and so does the file.
+    game.nobles_category = 3;
+    game.nobles_spoken += 1;
+    listen(&mut director, &mut audio, &machine, &game);
+    let crowns = names::speech::STANDINGS_CATEGORY[3];
+    assert!(audio.is_playing(crowns), "heard {:?}", audio.heard());
+    drain(&mut audio, crowns);
+
+    // The **same** tab again. The category has not moved; the original plays
+    // anyway, because `FUN_0043524E`'s call has no guard on it.
+    game.nobles_spoken += 1;
+    listen(&mut director, &mut audio, &machine, &game);
+    assert!(
+        audio.is_playing(crowns),
+        "pressing the tab that is already showing must speak again - heard {:?}",
+        audio.heard()
+    );
+    drain(&mut audio, crowns);
+
+    // And sixty ticks of a page nobody has touched are silent.
+    for _ in 0..60 {
+        listen(&mut director, &mut audio, &machine, &game);
+    }
+    assert!(!audio.one_shot_busy(), "the page repeated its line with nothing pressed");
+}

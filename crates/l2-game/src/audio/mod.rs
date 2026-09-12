@@ -969,6 +969,10 @@ pub struct Director {
     /// `g_mapZoom == 2` at the previous tick — `Map_ZoomOut`'s edge. `None`
     /// until the first tick, so starting zoomed out is not an event.
     zoom_far: Option<bool>,
+    /// [`crate::game::Game::nobles_spoken`] at the previous tick —
+    /// `FUN_004B3994`'s edge. `None` until the first tick, so a loaded game
+    /// does not announce a category nobody asked for.
+    nobles_spoken: Option<u32>,
     /// **Where every unit stood at the last tick**, so that a unit *entering a
     /// tile* can be noticed without the simulation reporting it. See
     /// [`Director::hear_the_march`].
@@ -1438,6 +1442,32 @@ impl Director {
             audio.play_file(names::speech::ZOOM_OUT, true);
         }
         self.zoom_far = Some(game.map_zoom_far);
+
+        // **The standings page saying its category out loud** —
+        // `FUN_004B3994(DAT_0055CE7C)`, whose two callers are the court's
+        // button (`FUN_004351C4`) and one of the page's seven tabs
+        // (`FUN_0043524E`). Both speak unconditionally, so the edge is
+        // [`crate::game::Game::nobles_spoken`] — a counter both call sites
+        // bump — and **not** a diff on the category, which would swallow a
+        // tab pressed twice and an open that did not change it.
+        //
+        // This is the sibling of the castle chooser's five, still `blocked`
+        // for the reason this one no longer is: `docs/audio.json` says a
+        // selection a screen keeps to itself is invisible here, and the
+        // original keeps this one in the data segment.
+        // sfx: FUN_004b3994#1
+        if self.nobles_spoken != Some(game.nobles_spoken) {
+            if self.nobles_spoken.is_some() {
+                if let Some(name) =
+                    names::speech::STANDINGS_CATEGORY.get(game.nobles_category as usize)
+                {
+                    // Bare `Sound_PlayFile(…, 1, 0)`, so dropped over anything
+                    // still sounding.
+                    audio.play_file(name, true);
+                }
+            }
+            self.nobles_spoken = Some(game.nobles_spoken);
+        }
 
         self.hear_the_march(audio, game);
 
@@ -2008,6 +2038,9 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         | S::MenuBar(_)
         | S::About
         | S::Court
+        // The standings, `0x20`: reachable only through the court's button,
+        // so only ever over a running game.
+        | S::Nobles
         | S::Supplies(_)
         | S::Ratings
         | S::Info(_) => false,

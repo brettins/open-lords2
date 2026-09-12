@@ -721,10 +721,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S035_01_wav_004e2168 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "S035_01..08 on screen 0x20, a front-end page we do not build: FUN_004351C4 opens it and FUN_0043524E is its hotspot handler, both passing DAT_0055CE7C. Screen 0x20 is not in ScreenId at all and its painter has not been read, so the mechanic is the screen rather than the sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S035_01..07.wav",
+      "note": "The standings page (screen 0x20, crates/l2-game/src/screens/nobles.rs) saying which of its seven categories is being looked at - the spoken half of L2.eng group 35, file named after group and index. TWO CALLERS, both passing DAT_0055CE7C and both unconditional: FUN_004351C4, the court button, and FUN_0043524E, one of the seven tabs. So the edge is a counter both call sites bump (Game::nobles_spoken) and not a diff on the category, which would swallow a tab pressed twice. The category is on the Game and not on the screen for exactly the reason the S071 row below is still blocked. TWO ENTRIES PAST WHAT IS REACHABLE: there are seven categories, so S035_08.wav - the line for \"undecided.\" - ships and is played by nothing, and the guard admits nine where the table at 0x004E2168 holds eight, so index 8 would read S075_01.wav out of the next table. Neither is reachable from either caller."
     },
     {
       "id": "FUN_004b39e8#1",

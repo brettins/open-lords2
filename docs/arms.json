@@ -245,6 +245,11 @@
       "what": "g_screenId 0x22 -- a film is playing -- and 0x44, the Smacker test page. Every way a film ends early, and the input of the one screen that exists to play films.",
       "complete": true,
       "note": "Enumerated from the far end, which cannot miss one: Smk_Skip (0x0042DF30) is the only function that ends a film early -- Smk_CloseQuiet is WM_DESTROY's teardown and runs no Smk_OnFinished -- and it has exactly three callers: Screen_FrameInput's 0x22 arm (four ifs, four records), FUN_0043AD25 from Turn_Tick's end-of-season phase, and Net_LeaveGame. The start of a film is not an arm of this group: each of Smk_Play's seven callers is filed with the screen that raised it (front-end-pages, messages, battlefield) or not at all (CastleBuild_Confirm, whose module castle.rs is one of the unenumerated nine). Screen 0x44's two widget handlers are dead: an image-wide scan for `mov byte ptr [g_screenId], imm8` finds 52 immediates and no 0x44, and the other 48 stores copy a remembered screen, which cannot hold a value nothing wrote."
+    },
+    "standings": {
+      "what": "g_screenId 0x20 -- the standings, the court button that opens it, and its seven category tabs",
+      "complete": true,
+      "note": "Enumerated from all three passes at once: Screen_FrameInput's 0x20 arm (the turn-end force-close, the right release and Ui_OkButtonClicked, and nothing else), Screen_HandleInput's Hotspot_Test(0, 0, &g_nobleTabs, 7), and Screen_DrawWidgets, which has NO 0x20 arm -- so the seven tabs are drawn by grtnoble.pl8 and hit-tested by records that are never painted. The table at 0x004DC890 was decoded out of the player's own Lords2.exe: seven 24-byte records, all kind 1, all handler FUN_0043524E, ids 0..6."
     }
   },
   "arms": [
@@ -1015,6 +1020,18 @@
       "ours": "crates/l2-game/src/screens/ratings.rs"
     },
     {
+      "id": "0x0042FF10/minimap-under-the-standings",
+      "status": "reproduced",
+      "group": "standings",
+      "screen": "0x20",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "A press in the minimap raster with this screen open drops it and selects the county.",
+      "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12. The standings is a full 640 x 480 page, so nothing of the minimap is visible under it - and the epilogue runs on the screen id all the same, which is why the arm is here rather than assumed away.",
+      "ours": "crates/l2-game/src/screens/nobles.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/move-order-confirm",
       "status": "reproduced",
       "group": "campaign-map",
@@ -1114,6 +1131,29 @@
       "addr": "0x0042FF10",
       "what": "A right release sets DAT_00568470 = 0x1389 -- 5001, one past the limit Battle_CheckOutcome counts it up to -- so it SKIPS the outcome banner rather than dismissing it. The whole of 0x2B's arm.",
       "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/standings-ok",
+      "status": "reproduced",
+      "group": "standings",
+      "screen": "0x20",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Ui_OkButtonClicked() in the 24 x 24 box at (612, 452) - Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1), mode 1, so System.pl8 frame 0x10 - sets g_screenId = 0 and g_redrawRequest = 1.",
+      "note": "THE ORIGINAL GOES TO THE MAP, NOT BACK TO THE COURT, because g_screenId is one byte and it has nowhere to keep what the page was opened over. Ours pops, which lands on the court. Recorded rather than reproduced with Transition::Goto(Campaign): the court is where the button was, and docs/decisions.md C190 exists for the cases where the original names a destination it MEANS rather than one it can afford.",
+      "ours": "crates/l2-game/src/screens/nobles.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/standings-right",
+      "status": "reproduced",
+      "group": "standings",
+      "screen": "0x20",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "g_mouseRightReleased anywhere on the page sets g_screenId = 0. Tested before the OK box, exactly as on the county panels.",
+      "ours": "crates/l2-game/src/screens/nobles.rs",
       "evidence": "V"
     },
     {
@@ -1538,13 +1578,26 @@
     },
     {
       "id": "0x004351C4/court-greatest-nobles",
-      "status": "missing",
+      "status": "reproduced",
       "group": "panels",
       "screen": "0x09",
       "gesture": "left-press-delayed",
       "addr": "0x004351C4",
-      "what": "Widget_Test(0, 0, &g_courtWidgets, 1) - one 32 x 32 button at (336, 340), System.pl8 frame 64 - runs g_screenId = 0x20; Score_RankRealms(); FUN_0049D1E0(1..5), or Net_SendCommand(0x3B, 0) in multiplayer. It opens Screen_GreatestNoble (0x0041593B), the standings. L2.eng 70/6 \"Greatest nobles.\" at (136, 348) is its label.",
-      "note": "KIND 5, so Widget_Test defers the handler by 20 frames. Screen 0x20 is not built, so the button is drawn and inert and the screen says so.",
+      "what": "Widget_Test(0, 0, &g_courtWidgets, 1) - one 32 x 32 button at (336, 340), System.pl8 frame 64 - runs g_screenId = 0x20; g_redrawRequest = 1; then FUN_00435211() in a single-player game or Net_SendCommand(0x3B, 0) in a network one; then FUN_004B3994(DAT_0055CE7C), the category speaking its own name. It opens Screen_GreatestNoble (0x0041593B), the standings. L2.eng 70/6 \"Greatest nobles.\" at (136, 348) is its label.",
+      "note": "KIND 5, so Widget_Test defers the handler by 20 frames; it is a Press here and the picture goes down on the press. FUN_00435211 is Score_RankAndRefreshAll - Score_RankRealms() then Realm_UpdateTotals(r) for r in 1..5 - and it is the half that matters: five of the page's six score inputs are realm totals that nothing rebuilds between AI turns, so without it the standings are whatever the last AI turn left behind. A player reported this button as dead and it was, because screen 0x20 did not exist.",
+      "ours": "crates/l2-game/src/screens/court.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043524E/standings-category",
+      "status": "reproduced",
+      "group": "standings",
+      "screen": "0x20",
+      "gesture": "left-press",
+      "addr": "0x0043524E",
+      "what": "Hotspot_Test(0, 0, &g_nobleTabs, 7) - seven 38 x 35 boxes along y 428..463, x 46, 84, 122, 160, 198, 236, 274 - all one handler, FUN_0043524E, which is three statements: DAT_0055CE7C = g_uiHotspotId; g_redrawRequest = 2; FUN_004B3994(g_uiHotspotId). So a tab picks the category, repaints, and speaks the category's own name out of S035_01..07.",
+      "note": "ONE RECORD AND ONE FUNCTION, per this file's counted-per-implementation rule: the seven records differ only in x and in the id at +0x10. Screen_DrawWidgets has no 0x20 arm, so nothing draws them - the tabs are part of grtnoble.pl8 and the marker over the selected one is flags.pl8 frame 5, at g_nobleTabX[category], which is the category's x and not the leader's. The category is kept on the Game and not on the screen so that the spoken name can be reproduced at all; see docs/audio.json FUN_004b3994#1.",
+      "ours": "crates/l2-game/src/screens/nobles.rs",
       "evidence": "V"
     },
     {
@@ -3469,6 +3522,17 @@
       "gesture": "left-press",
       "what": "A left click anywhere on a shell closed it.",
       "why": "There is no screen in the game where a click on the middle of a panel dismisses it: all 26 of Screen_FrameInput's close tests are Ui_OkButtonClicked's 24x24 corner box. The comment above it read 'Every one of these closes and nothing else. That is the whole truth about a shell' -- an admission that it was a choice, which docs/decisions.md C61 says is not a flag. Replaced by the corner box."
+    },
+    {
+      "id": "ours/standings-keyboard-close",
+      "status": "invention",
+      "removed": false,
+      "group": "standings",
+      "screen": "0x20",
+      "gesture": "key",
+      "what": "Escape and Enter close the page.",
+      "why": "The 0x20 arm has no keyboard test at all. Same reason as ours/about-keyboard-close.",
+      "ours": "crates/l2-game/src/screens/nobles.rs"
     },
     {
       "id": "ours/supplies-keyboard-close",

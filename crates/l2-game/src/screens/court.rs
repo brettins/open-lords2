@@ -100,8 +100,29 @@
 //! **Kind 5 is a deferred button.** `Widget_Test` plays a sound, sets a
 //! twenty-frame timer and returns *consumed* without calling the handler; the
 //! handler fires when the timer reaches zero. Every button on this screen and
-//! on the diplomacy screen behaves that way. We fire immediately and record it
-//! as ours — see [`DEFERRED_FRAMES`].
+//! on the diplomacy screen behaves that way. It is a [`Press`] here, so the
+//! picture goes down on the press and the page opens twenty ticks later.
+//!
+//! # What the button does, in full — `FUN_004351C4` (`0x004351C4`)
+//!
+//! ```c
+//! g_screenId = 0x20; g_redrawRequest = 1;
+//! if (g_multiplayer == 0) FUN_00435211();        /* Score_RankAndRefreshAll */
+//! else                    Net_SendCommand(0x3B, 0);
+//! FUN_004B3994(DAT_0055CE7C);                   /* say the category's name */
+//! ```
+//!
+//! **Three statements and the recount is the one that matters.** The page
+//! reads five of its six score inputs out of the realm totals, and nothing
+//! rebuilds them between AI turns, so without `FUN_00435211` the standings are
+//! whatever the last AI turn left behind. Ours calls
+//! [`crate::screens::nobles::recount`] on the same edge.
+//!
+//! The multiplayer arm sends network command `0x3B`, whose deferred action
+//! `NetAct_RankRealms` (`0x00448422`) is the same recount on every peer. We
+//! have no network game, and calling the single-player arm is what
+//! [`crate::game::Game::multiplayer`] being false already means everywhere
+//! else.
 //!
 //! # How it is reached
 //!
@@ -113,6 +134,7 @@
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
 
@@ -184,8 +206,15 @@ pub const NOBLES_BUTTON: Rect = Rect::new(336, 340, 32, 32);
 pub const NOBLES_FRAME: usize = 64;
 
 /// How long `Widget_Test`'s kind-5 press timer runs before the handler fires.
-/// **We do not reproduce it** — see the module docs.
+/// [`Press`] is what counts it; this is the original's number, beside the
+/// table it belongs to.
 pub const DEFERRED_FRAMES: u8 = 0x14;
+
+/// `g_courtWidgets` as a table: **one kind-5 record**, hotspot id 1. The
+/// `arm!` is the marker and the kind at once.
+fn widgets() -> [Widget; 1] {
+    [Widget::new(NOBLES_BUTTON, crate::arm!("0x004351C4/court-greatest-nobles", Delayed))]
+}
 
 /// **`FUN_0044BA35`** — the empire-wide sum of `County::tax_shown`, which the
 /// original caches in realm `+0x15C` and we recompute.
@@ -196,11 +225,25 @@ pub fn tax_expected(ctx: &Ctx, realm: u8) -> i32 {
     ctx.game.kingdom.tax_expected(realm)
 }
 
-pub struct CourtScreen;
+pub struct CourtScreen {
+    /// `g_courtWidgets`' one press timer.
+    press: Press,
+}
 
 impl CourtScreen {
     pub fn new() -> CourtScreen {
-        CourtScreen
+        CourtScreen { press: Press::new() }
+    }
+
+    /// **`FUN_004351C4`** — the handler, twenty frames after the press.
+    fn open_the_standings(&mut self, ctx: &mut Ctx) -> Transition {
+        // `if (g_multiplayer == 0) FUN_00435211(); else Net_SendCommand(0x3B, 0);`
+        crate::screens::nobles::recount(ctx.game);
+        // `FUN_004B3994(DAT_0055CE7C)` — the category speaks its own name on
+        // the way in, whether or not it changed. See
+        // [`crate::game::Game::nobles_spoken`].
+        ctx.game.nobles_spoken = ctx.game.nobles_spoken.wrapping_add(1);
+        Transition::Push(ScreenId::Nobles)
     }
 }
 
@@ -223,6 +266,24 @@ impl Screen for CourtScreen {
         true
     }
 
+    /// `Widget_Test`'s kind-5 countdown over `g_courtWidgets`.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        if self.press.tick().next().is_some() {
+            return self.open_the_standings(ctx);
+        }
+        Transition::Stay
+    }
+
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio layer.
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
+    /// The button coming back up. See [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         match event {
             // `Screen_FrameInput`'s epilogue, which runs on every screen but
@@ -240,11 +301,15 @@ impl Screen for CourtScreen {
             // `Widget_Test(0, 0, &g_courtWidgets, 1)` — the *Greatest nobles*
             // button, `FUN_004351C4`, which is `g_screenId = 0x20`.
             //
-            // **`0x20` is not built**, so this is the arm and not the
-            // destination: it is recorded `missing` rather than reproduced, and
-            // the screen says so on itself rather than doing nothing when a
-            // player presses a button that visibly exists.
-            Event::Click { x, y } if NOBLES_BUTTON.contains(x, y) => Transition::Stay,
+            // **Kind 5**, so the press only starts the timer: the picture goes
+            // down here and [`Screen::update`] opens the page twenty ticks
+            // later. A player reported this button as dead; it was, because
+            // `0x20` did not exist.
+            Event::Click { x, y } if NOBLES_BUTTON.contains(x, y) => {
+                let fired = self.press.event(&widgets(), event);
+                debug_assert!(fired.is_none(), "the court's one widget is kind 5");
+                Transition::Stay
+            }
             // `Ui_OkButtonClicked()` — left release in the 24 x 24 corner box.
             // arm: 0x0042FF10/court-ok left-release
             Event::Click { x, y } if OK.contains(x, y) => Transition::Pop,
@@ -254,6 +319,17 @@ impl Screen for CourtScreen {
             // **Ours**: the arm has no keyboard test.
             // arm: ours/court-keyboard-close key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
+            // The kind-5 record's other edges: a double click is a press to
+            // it, and the release and the pointer are what let the picture
+            // come back up. Nothing here can fire a handler.
+            Event::DoubleClick { .. }
+            | Event::Release { .. }
+            | Event::Pointer { .. }
+            | Event::PointerLeft => {
+                let fired = self.press.event(&widgets(), event);
+                debug_assert!(fired.is_none(), "the court's one widget is kind 5");
+                Transition::Stay
+            }
             _ => Transition::Stay,
         }
     }
@@ -395,12 +471,9 @@ impl Screen for CourtScreen {
             font::TEXT,
         );
 
-        // The widget the painter does not draw, and the note that its
-        // destination is not built.
-        pen.system_frame(canvas, NOBLES_FRAME, NOBLES_BUTTON.x, NOBLES_BUTTON.y);
-        // Debug overlay only.
-        if ctx.game.prefs.debug_overlay {
-            l2_view::text::draw(canvas, 4, 470, "0x20 THE STANDINGS IS NOT BUILT", ink.dim);
-        }
+        // The widget the painter does not draw — `Widget_Draw` does, and it
+        // adds one to the frame while the press timer is running.
+        let frame = if self.press.is_pressed(0) { NOBLES_FRAME + 1 } else { NOBLES_FRAME };
+        pen.system_frame(canvas, frame, NOBLES_BUTTON.x, NOBLES_BUTTON.y);
     }
 }
