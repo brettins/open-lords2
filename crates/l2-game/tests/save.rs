@@ -856,20 +856,23 @@ fn the_autosave_lands_where_every_other_save_of_ours_lands() {
 /// **The end of a turn asks for one, and `Game_NewGame` asks for one** —
 /// `Save_RotateAndWrite`'s only two call sites, driven through the machine.
 ///
-/// The request is what is asserted, not the file: nothing in the simulation
-/// writes one, so a test that ends a turn cannot rotate the person's own
-/// autosaves out from under them. [`saves::run_pending`] is the seam, and it is
-/// exercised here on the request it takes.
+/// **The whole chain, pumped through [`saves::run_pending`]** — the fade raises
+/// it, the machine drains it, and that one function is the only thing in the
+/// workspace that turns it into a file. `main.rs` is these lines and a line that
+/// prints a failure, which is why they are here and not there.
 ///
 /// **It must be raised in the dark, not on the button and not on the far side
 /// of the light.** `FUN_0049A3E6` runs on `g_screenId == 0x24`, after the fade
 /// has bottomed out and the seasonal art has been reloaded, so what the file
-/// holds is the *opening* of the turn that just began.
+/// holds is the *opening* of the turn that just began — which is what the last
+/// assertion reads back.
 ///
 /// Ablations: delete the `self.autosave = true` in `tick_fade` and the turn
-/// never asks; move it out of the `is_darkest` guard and it asks many times.
+/// never asks; move it out of the `is_darkest` guard and it asks many times;
+/// drop the `take_autosave` drain from `Machine::update` and no file appears.
 #[test]
 fn ending_a_turn_asks_for_exactly_one_autosave_and_asks_in_the_dark() {
+    let own = Saves::new("autosave-turn");
     let (mut game, assets) = bare();
     // **Tip screens: No.** A new game's tips hold the campaign map's input on
     // screen `0x27`, which is `tests/tips.rs`'s subject and not this one's.
@@ -877,7 +880,10 @@ fn ending_a_turn_asks_for_exactly_one_autosave_and_asks_in_the_dark() {
     let mut m = Machine::new(ScreenId::Campaign);
     let end = l2_game::screens::map::END_TURN_BUTTON;
     drive(&mut m, &mut game, &assets, &[Event::Click { x: end.centre_x(), y: end.y + 4 }]);
-    assert!(!m.take_autosave(), "the button itself does not autosave");
+    assert!(
+        saves::run_pending(&mut m, &game).is_none() && own.files().is_empty(),
+        "the button itself does not autosave"
+    );
 
     let before = game.kingdom.turn_count;
     let mut asked = Vec::new();
@@ -885,7 +891,9 @@ fn ending_a_turn_asks_for_exactly_one_autosave_and_asks_in_the_dark() {
     for t in 0..l2_game::turn::MAX_TICKS {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         m.update(&mut ctx);
-        if m.take_autosave() {
+        // `main.rs`'s tick, after `Machine::update` and before the audio.
+        if let Some(r) = saves::run_pending(&mut m, &game) {
+            r.expect("the autosave is written");
             asked.push(t);
         }
         if came_round.is_none() && game.kingdom.turn_count != before {
@@ -900,4 +908,10 @@ fn ending_a_turn_asks_for_exactly_one_autosave_and_asks_in_the_dark() {
         .unwrap_or_else(|| panic!("the End Turn button ends a turn; stack {:?}", m.ids()));
     assert_eq!(asked.len(), 1, "one turn, one autosave: asked on ticks {asked:?}");
     assert!(asked[0] > round, "the autosave is written after the turn, not before it");
+    assert_eq!(own.files(), vec![file("lastturn")], "one turn, one file");
+    // **The opening of the turn that just began**, not the end of the one that
+    // finished: `Season_FinishFade` writes after `Season_Advance`.
+    let back = saves::read("lastturn", Tables::DEFAULT).expect("readable");
+    assert_eq!(digest(&back.kingdom), digest(&game.kingdom));
+    assert_ne!(back.kingdom.turn_count, before, "the turn on disk is the new one");
 }
