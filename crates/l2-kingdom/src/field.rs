@@ -444,8 +444,14 @@ pub fn refresh_estimates(
     // `docs/decisions.md` C123.
     crate::land::grain_preview(tables, county, season_next, advanced_farming);
     if county.pop_band != 0 {
-        county.labour_useful[JOB_CATTLE_FARMING] =
-            crate::land::herd_labour_estimate(tables, county, season_next.index());
+        // **Both words of labour record 1.** `Herd_LabourEstimate` writes the
+        // break-even staffing to `+0xD4` and the growth-maximising one to
+        // `+0xD8` out of one loop; ours took only the second for a long time,
+        // so the milkmaid count never went red however far the herd was from
+        // being tended. `docs/decisions.md` CNEW-cattle-floor.
+        let herd = crate::land::herd_labour_estimate(tables, county, season_next.index());
+        county.labour_wanted[JOB_CATTLE_FARMING] = herd.wanted;
+        county.labour_useful[JOB_CATTLE_FARMING] = herd.useful;
     }
     // **`Herd_LabourEstimate`'s tail, and the same split as grain's above.**
     //

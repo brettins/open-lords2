@@ -1247,7 +1247,7 @@ pub struct GrainEstimate {
     pub useful: i32,
 }
 
-/// `Herd_LabourEstimate` (`0x0044DD4D`) — the **cattle** ceiling.
+/// `Herd_LabourEstimate` (`0x0044DD4D`) — the **cattle** floor *and* ceiling.
 ///
 /// A search too, over the same `births − deaths` the season's own tick
 /// computes:
@@ -1256,12 +1256,40 @@ pub struct GrainEstimate {
 /// for (workers = 0; workers < population; workers++) {
 ///     Herd_BirthsAndDeaths(county, herd - herdEaten, workers, crowding, season);
 ///     net = births - deaths;
+///     if (net >= 0 && floor unset) floor = workers;      /* break-even */
 ///     if (bestNet < net) { ceiling = workers; bestNet = net; }
 /// }
+/// wanted[1] = (floor unset) ? ceiling : floor;   /* the least-bad count */
 /// useful[1] = ceiling;                 /* 999999 when the loop never ran */
 /// ```
 ///
-/// **`[D]`.** Three things about it are worth keeping.
+/// # The floor is the herd's only distress signal, and we did not compute it
+///
+/// A player: *"I don't know why 16 cows are being lost this season."* His county
+/// had 80 head, 114 milkmaids and a population of 150 — 47 % staffing, which
+/// adds 17 points to the death rate in [`herd_growth`], and there is no
+/// arrangement of 150 people that would have tended 80 cows. **The game's one
+/// way of saying so is this floor**: `Panel_JobDetail` colours the worker count
+/// red when `labour < labour_wanted` and `Village_RebuildIcons` draws the
+/// shortfall as extra unselectable icons, and [`County::minimap_bands`]'s
+/// labour band reads it too. Nothing wrote it, so the count was drawn in black
+/// and the herd died without comment. `docs/decisions.md` CNEW-cattle-floor.
+///
+/// **`[V]` on the whole of it, including the fallback arm**, against the stored
+/// `+0xD4` of every county of every original save this machine can open — see
+/// `crates/l2-kingdom/tests/cattle.rs`. The fallback is not a cosmetic corner:
+/// `lastturn.sav`'s county 1 stores 302 and 302, and two other saves store
+/// 153/153 and 173/173, which is a herd that cannot break even at *any*
+/// staffing its county could supply and therefore falls back to the argmax.
+///
+/// **`[I]`, and the one thing the saves cannot settle:** what the floor holds
+/// when the loop never runs at all. The ceiling's 999,999 is visible in the
+/// data; no save has a county with no people, so the floor's initial value is
+/// unobserved. [`crate::county::LABOUR_NO_FLOOR`] is used, because that is what
+/// every *other* job's estimate writes for "no requirement" and because the
+/// alternative would paint an empty county's zero milkmaids red.
+///
+/// **`[D]`.** Three things about the ceiling are worth keeping.
 ///
 /// The herd is the post-ration one (`herd − herdEaten`) and the crowding is the
 /// **stored** band, not a freshly derived one — which is why `Field_SetType`
@@ -1287,19 +1315,48 @@ pub struct GrainEstimate {
 /// [`crate::county::LABOUR_UNSET`] — the loop never runs and 999,999 is its
 /// initial value. That is where the sentinel comes from, and `Labour_Allocate`
 /// reads it back as 0.
-pub fn herd_labour_estimate(t: &Tables, county: &County, season: u8) -> i32 {
+pub fn herd_labour_estimate(t: &Tables, county: &County, season: u8) -> HerdEstimate {
     let herd = county.herd - county.herd_eaten;
     let mut best = -1_000_000;
     let mut ceiling = crate::county::LABOUR_UNSET;
+    let mut floor: Option<i32> = None;
     for workers in 0..county.population {
         let g = herd_growth(t, herd, county.fields_cattle, workers, county.herd_crowding, season);
         let net = g.births - g.deaths;
+        if net >= 0 && floor.is_none() {
+            floor = Some(workers);
+        }
         if best < net {
             ceiling = workers;
             best = net;
         }
     }
-    ceiling
+    // Break-even if the herd can reach it, otherwise the least-bad staffing —
+    // which is the argmax, and therefore the ceiling. The loop never having run
+    // at all is the `[I]` arm above.
+    let wanted = match floor {
+        Some(w) => w,
+        None if ceiling == crate::county::LABOUR_UNSET => crate::county::LABOUR_NO_FLOOR,
+        None => ceiling,
+    };
+    HerdEstimate { wanted, useful: ceiling }
+}
+
+/// What [`herd_labour_estimate`] writes into labour record 1 — the same shape
+/// as [`GrainEstimate`], and for the same reason: one search fills two words of
+/// the twelve-byte record and they are not the same number.
+///
+/// Unlike grain's, these two differ in the *common* case: `wanted` is the
+/// staffing at which the herd stops shrinking and `useful` the staffing that
+/// grows it fastest, so a county between them has a stable herd and a slot with
+/// room in it. They coincide only for a herd that can never break even.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HerdEstimate {
+    /// `+0xD4` — the break-even staffing, below which the count is drawn red.
+    pub wanted: i32,
+    /// `+0xD8` — the growth-maximising staffing, the only one
+    /// `Labour_Allocate` reads.
+    pub useful: i32,
 }
 
 /// `Field_ReclaimEstimate` (`0x0044C278`) — the **reclamation** ceiling: the

@@ -615,7 +615,7 @@ fn the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd() {
         c.herd = herd;
         c.herd_crowding = herd_crowding(t, herd, fields);
         for season in 1..=4u8 {
-            let ceiling = herd_labour_estimate(t, &c, season);
+            let ceiling = herd_labour_estimate(t, &c, season).useful;
             assert!(
                 ceiling <= herd * per_head * 2,
                 "herd {herd} season {season}: ceiling {ceiling} is more than six a head",
@@ -634,7 +634,7 @@ fn the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd() {
     // sixteenth milkmaid is idle and so is the twentieth.
     c.herd = 5;
     c.herd_crowding = herd_crowding(t, 5, fields);
-    let small = herd_labour_estimate(t, &c, 2);
+    let small = herd_labour_estimate(t, &c, 2).useful;
     assert_eq!(small, 5 * per_head, "a herd of five uses three milkmaids a head, not six");
     assert_eq!(
         herd_growth(t, 5, fields, small, c.herd_crowding, 2).net(),
@@ -645,7 +645,7 @@ fn the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd() {
     // 3 — and the season is one of the inputs, which is what he asked.
     c.herd = 74;
     c.herd_crowding = herd_crowding(t, 74, fields);
-    let hands = herd_labour_estimate(t, &c, 1);
+    let hands = herd_labour_estimate(t, &c, 1).useful;
     let spring = herd_growth(t, 74, fields, hands, c.herd_crowding, 1);
     let summer = herd_growth(t, 74, fields, hands, c.herd_crowding, 2);
     assert_eq!(
@@ -699,7 +699,7 @@ fn a_smaller_herd_outbreeds_a_larger_one_at_each_bonus_step() {
         c.herd = herd;
         c.fields_cattle = fields;
         c.herd_crowding = herd_crowding(t, herd, fields);
-        let hands = herd_labour_estimate(t, &c, spring);
+        let hands = herd_labour_estimate(t, &c, spring).useful;
         herd_growth(t, herd, fields, hands, c.herd_crowding, spring).births
     };
 

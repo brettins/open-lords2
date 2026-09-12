@@ -9736,3 +9736,88 @@ blocks, measured by a new `max_blocks` census column, which is also what tells *
 split"* from *"the pass is not running"*. Not asserted, only measured: the mutiny fires again at
 turn 100 and a tax rate at or above 20 at turn 78, which C134's table in that test calls
 unreachable.
+
+**CNEW-cattle-floor — Two cattle reports, one defect and one faithful quirk, and the
+difference was only decidable because both saves were read.**
+
+Two reports arrived together and looked like one bug:
+
+> *"I don't know why 16 cows are being lost this season."*
+> *"It shows idle and +8 cows, then I click the slider towards industry, then suddenly
+> +12 cows, should be less since I moved toward industry instead of farming."*
+
+**They are not one bug, and establishing that was most of the work.** Both saves were loaded
+and diffed field by field. The first county holds 80 head on eight pastures with 114
+milkmaids and 150 people; the second holds 99 head with 259 milkmaids, 48 idle and a cattle
+ceiling of 303. Those are different diseases with the same presenting symptom — a cattle
+forecast the player could not account for.
+
+**The defect: `Herd_LabourEstimate` (`0x0044DD4D`) fills two words and we took one.** The
+loop over `workers = 0 … population` writes the growth-maximising staffing to `+0xD8`, which
+`Labour_Allocate` fills up to and which we had, *and* the **first staffing at which births
+stop trailing deaths** to `+0xD4`, which we never wrote at all. `County::labour_wanted[1]`
+held `County::new`'s zero in every county of every game this engine has ever played.
+
+That word is the herd's only distress signal, and it has **four** readers, all interface:
+`Panel_JobDetail`'s red worker count (`screens/info.rs`, `screens/job.rs`), the county
+strip's *short* produce frame (`screens/county.rs`), `Village_RebuildIcons`' unselectable
+shortfall icons (`screens/village.rs`) and the minimap's labour overlay band
+(`County::minimap_bands`). All four were reading a zero, so all four said *nothing is wrong*.
+His county wanted **149** milkmaids and had 114 — 47 % staffing, which
+`land::herd_growth` turns into seventeen extra points of death rate, and there is no
+arrangement of 150 people that would have tended 80 cows. The game had a way of telling him
+that and we had disabled it.
+
+**`[V]`, and not against one save.** Every original save stores `+0xD4` for every county, so
+the search runs against the game's own answers with nothing inverted.
+`crates/l2-kingdom/tests/cattle.rs` sweeps **every `.sav` this machine can open** — twelve
+positions, both words, every county — and the fallback arm is live in three of them:
+`lastturn.sav`'s county 1 stores 302 and 302 because its herd cannot break even at any
+staffing its county could supply, and the least-bad count *is* the argmax, so floor and
+ceiling coincide. Two other positions store 153/153 and 173/173. One arm was `[I]` and stays
+so: no save holds a county with no people, so what the floor reads when the loop never runs
+is unobserved; `LABOUR_NO_FLOOR` is used because that is what every other job writes for
+*no requirement*.
+
+**This moves the lockstep digest.** `labour_wanted` is inside `l2_kingdom::save`'s canonical
+encoding (VERSION 5 put it there), so `counties[id].labour_wanted[1]` moves from 0 to the
+break-even staffing on every county with `pop_band != 0`, at both of `Herd_LabourEstimate`'s
+call sites. Nothing in the simulation reads it — `Labour_Allocate` reads `+0xCC + slot*0x0C`
+and never `+0xC8 + slot*0x0C`, verified by exhaustion — so no rule changes; the digest moves
+because the field is state and is hashed.
+
+**And that is why one ablation had to be run a different way.** Deleting the write from
+`Kingdom::herd_season_tick` and running a whole season is **green**: `Panels_RefreshAll`
+rewrites the record afterwards and nothing downstream reads it in between, so the two call
+sites are indistinguishable from the end of a season. The test that distinguishes them runs
+`Pass::HerdSeasonTick` **alone**. Writing only half of a two-word record is the deviation
+whether or not anything can see it, but *"the ablation is green"* is a fact about the test
+and is written beside it rather than quietly not mentioned.
+
+**The second report is the original's, and the branch left it alone.** The mechanism is
+`[V]` off `Season_Advance`'s call list (`docs/kingdom.md` §3.4): `Population_UpdateAll`,
+then `Labour_AllocateAll`, then `Panels_RefreshAll` — and `County_RefreshEstimates` lives
+inside that last one. The cattle ceiling is bounded by the loop's `workers < population`, so
+on a county that wants everybody on cattle it **rises with the population** — and it rises
+one pass *after* the allocator has already dealt the newborns out. They land in Idle, and
+the next `Labour_Allocate` to run for any reason hires them. Traced on his save: the ceiling
+goes 305 → 344 across `RefreshEstimates` while the labour stays at 305, leaving 53 idle; the
+slider click re-allocates and the forecast rises. Moving towards industry really does buy
+him milkmaids. `docs/bugs.md` **BNEW-idle-newborns**.
+
+**One thing on that arm was ours.** `Kingdom::set_industry_share` named `FUN_00439122` — the
+*drag* handler — and county `+0x2C`, and ran `Labour_Allocate; County_RefreshEstimates`
+**twice** with no ration pass. `Labour_SetIndustryShare` (`0x0043933B`) writes `+0x08` and
+runs `Labour_Allocate; Ration_Apply; County_RefreshEstimates`, once each. The omitted
+`Ration_Apply` is the one that bites: `herd_eaten` sizes the herd the estimate that follows
+searches over, and the forecast subtracts it twice. `Ration_Apply` is
+`ration::preview` here for the reason `Kingdom::set_ration_wanted` gives — it records and
+does not spend, and a slider dragged a hundred times in one gesture would otherwise eat the
+county. Fixing it does not change his number and the correction says so.
+
+**The finding under both of them.** The two spare words of the twelve-byte labour record were
+imported as nothing at all, and C151 already recorded the *ceiling* half of that — three
+sidebar forecasts that were the tail of an estimate pass ported without it. This is the same
+omission one word to the left, found four hundred turns later, in the same function. **A
+partially ported function does not announce the part that is missing**, and the part that
+was missing here was the only one a player could see.
