@@ -475,7 +475,7 @@ pub fn tick_turn(game: &mut Game) -> TurnStep {
 /// Returns how many tiles were entered, so a caller can decide whether the
 /// frame needs repainting.
 pub fn tick_units_only(game: &mut Game) -> usize {
-    let moved = game.kingdom.tick_units();
+    let moved = game.sweep_units();
     game.tips.note_incursions(&moved.incursions, game.player);
     // `Unit_EnterCounty`'s and `County_ChangeOwner`'s letters, onto this peer's
     // ring. See `crate::arrival`.
@@ -833,7 +833,8 @@ fn run_phase_tick(game: &mut Game) {
 
     // `Units_Tick`, immediately after `Turn_Tick` and outside the phase
     // machine entirely. See the module documentation.
-    let moved = game.kingdom.tick_units();
+    // `Game::sweep_units` also holds the frame each tick handler writes first.
+    let moved = game.sweep_units();
     // `DAT_00553210`, the invasion tip's flag. See `crate::tip`.
     game.tips.note_incursions(&moved.incursions, game.player);
     // The same sweep's letters, the same door as `tick_units_only`'s.

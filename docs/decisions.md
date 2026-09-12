@@ -8999,7 +8999,8 @@ realm the original sets it for *when that realm is the local player*, and the vi
 is exactly the original's. It is simulation-written, in the save (version 20) and in the
 digest. **And one ordering, disclosed:** our walker marks an army stopped on the commit that
 empties its path, where the original stops after crossing into the last tile, so the
-destination's square is revealed on the commit — same tiles, one crossing earlier.
+destination's square is revealed on the commit — same tiles, one crossing earlier. *(Gone:
+CNEW-walk stops the walker where the original does, and the reveal is at the edge again.)*
 
 ---
 
@@ -9470,3 +9471,81 @@ full burns for good — `docs/bugs.md` `B102`.
 **The lesson is C140's, and the brief's.** A blocked row's note is a description written to
 explain why something could not be built, and it is read for that and nothing else. Two of these
 three were one clause short, and the missing clause was the caller.
+
+---
+
+**CNEW-walk — C134 gave every unit a sub-tile counter and nothing drew it; a march ended a
+tile early; and the gold ball of action had never been built.**
+
+Two player reports against the same screen. On `A5B112C2B`: *"The army marching animation is
+jumping from square to square, I remember there being an animation and some interpolation
+between walking squares."* On `73DF34969`: *"The balls of the army movement are missing the
+gold ball of action, it's just a grey ball like I can't get there when I attack a town."*
+
+**The walk.** `Map_DrawArmies` (`0x00408438`) adds `table[zoom][facing][+0x149]` to a
+unit's anchor, out of six 8 × 16 `i8` tables at `0x004D8108` … `0x004D8388` — carried now,
+generated from the file and asserted against the user's copy. The unit's tile is already the
+destination (`Unit_MoveInFacing` runs at the commit), so the offset drags the figure back;
+the commit writes `+0x149 = 1` and admissions add 2, so a crossing is drawn at the eight odd
+indices; and index 1 is 28 against a pitch of 30, so the figure hops two pixels at each
+commit. **[V]** on the bytes, twice (the file, and our projection agreeing with every
+heading); **[D]** on which indices are drawn. **The frame is one tick behind**: all four tick
+handlers write `+0x07` before `Unit_Step`, which we reproduce outside the kingdom
+(`l2_game::game::UnitFrames`) because a frame index is not the world's. `+0x1B` is not
+stored: `Unit_StepOnce` is its only writer and moves it with `+0x149`, so it is always
+`+0x149 / 2`.
+
+**What ours said, and why nobody looked.** `campaign::draw_unit`'s doc said the tables had
+nothing to index with — true until C134 — and that *"a unit mid-step would sit at its
+destination tile in the original for the same reason it does here"*, which was never true.
+The second clause is what made the gap look like fidelity. **A correct explanation of why
+something is absent keeps being read after its premise has gone** — the same shape as
+C123's comment above an unported tail.
+
+**A march ended one tile early, in the simulation.** `movement::step` wrote `moving = false`
+on the commit that emptied the path. `Unit_Step` (`0x00465D28`) does not: the commit returns
+1, `moving` stays 2, the unit crosses the last tile, and the latched arm stops it at that
+tile's edge. Drawn, ours left every finished army parked at `+0x149 = 1`, a whole tile back,
+and re-walked that tile on its next order. **Fixed in the simulation**, which moves the
+digest: a march now ends 8 road ticks (32 open) later. Three tests went red, and two were
+asserting the defect's numbers — `the_wait_follows_the_units` (17, now 25) and
+`a_unit_loaded_with_no_allowance_still_walks` (49, now 57). The third was this correction's own
+presentation field reaching `Game`'s equality, now excluded from it. **[D]**
+
+**The ball.** `Map_DrawPathMarker` (`0x004081A6`) tests `local_14 = flags & 0x50`, or `0x80`
+with terrain other than `0x14`, *before* the cost, and draws `0x4E` — no owner, no reach, no
+unit. Ours had only the cost arm, and a town's cost (100) is always past the budget. Its
+placement was ours too, centred where the function adds `(0x14, 6)` and never centres. **An
+enemy army is not an action tile**; the report's *"attack"* is narrower in the binary than in
+the word.
+
+**Still not done:** `Map_DrawArmies(mode)`'s two-pixel shift on the first cell of an offset
+row; `SUBTILE_STEP_NET`; and our painter still draws every unit in one pass after every tile,
+where the original draws each in its tile's lattice slot, so a figure walking back over a
+later-drawn tile's overlay is on top in ours.
+
+**The moved trajectory took a test with it, and that assertion was asserting an accident.**
+`long_game.rs`'s `four_hundred_turns_of_england_reaches_the_rules_nothing_else_can` claimed
+`Realm_SecedeIsolatedCounties` (`0x0044AE3C`) is reached in 600 turns of England. On the new
+trajectory the human realm falls on turn 28, one realm ends with 13 of the 14 counties, nobody
+is ever cut in two, and `SECESSION` never fires. The pass takes a county only from a realm
+holding two or more contiguity blocks, and contiguity is the county neighbour list at `+0x5C`
+and nothing else (`docs/kingdom.md` §6.1). Measured off the fixture's own lists — fourteen
+counties, 39 undirected edges — **county 2 is the only cut vertex on the map**: county 1's list
+holds nothing but county 2, and removing any other county leaves the remaining thirteen
+connected. **[V]** So the pass can fire here only when a realm holds county 1 and something past
+a county 2 that is not its own — enemy or neutral alike, `Territory_ExtendBlock` joining through
+`County_IsNeighbour` (`0x00467E2C`) on same-owner adjacency. That is a fact about where the
+armies went, not about a rule: a reachability assertion resting on one articulation point of one
+map is a trajectory assertion wearing C27's clothes, and it had already survived two trajectory
+changes by luck.
+
+So the claim moved rather than being stretched or deleted.
+`a_realm_cut_in_two_loses_the_far_half_through_the_turn_machine` deals the split in one line and
+plays it through `l2_game::turn::end_turn` — the part `crates/l2-kingdom/tests/secession.rs`
+never covered, that file driving the pass over synthetic chains only. What stays in the long run
+is the invariant the pass maintains: after every one of 600 turns no realm is left holding two
+blocks, measured by a new `max_blocks` census column, which is also what tells *"nobody was
+split"* from *"the pass is not running"*. Not asserted, only measured: the mutiny fires again at
+turn 100 and a tax rate at or above 20 at turn 78, which C134's table in that test calls
+unreachable.

@@ -248,6 +248,38 @@ fn va_to_offset(exe: &[u8], va: u32) -> Option<usize> {
     None
 }
 
+/// **The campaign map's walk tables are the bytes in the user's own
+/// `Lords2.exe`** — `Map_DrawArmies` (`0x00408438`) reads `[facing * 16 +
+/// +0x149]` out of `0x004D8108`/`0x004D8188` at the near zoom and
+/// `0x004D8308`/`0x004D8388` at the far one, as `i8`.
+///
+/// `campaign::walk_offset`'s tables were generated from a copy of the file
+/// rather than typed; this is what says that copy was the user's, all 256
+/// entries of both zooms. The unit test beside the tables checks them against
+/// the projection instead, which is the second source.
+#[test]
+fn the_campaign_walk_tables_are_the_bytes_in_the_binary() {
+    use l2_view::campaign;
+    let exe = l2_testkit::executable!();
+    for (zoom, xs, ys) in [(campaign::NEAR, 0x004D_8108u32, 0x004D_8188u32), (campaign::FAR, 0x004D_8308, 0x004D_8388)] {
+        let (tx, ty) = (l2_testkit::pe::Table::at(&exe, xs), l2_testkit::pe::Table::at(&exe, ys));
+        for facing in 0..8u8 {
+            for step in 0..16u8 {
+                let i = facing as usize * 16 + step as usize;
+                let want = (tx.u8_at(i) as i8 as i32, ty.u8_at(i) as i8 as i32);
+                assert_eq!(
+                    campaign::walk_offset(&zoom, facing, step),
+                    want,
+                    "zoom {}, facing {facing}, +0x149 = {step}: {:#010X} / {:#010X}",
+                    zoom.id,
+                    xs,
+                    ys
+                );
+            }
+        }
+    }
+}
+
 /// `walk_offset` is a formula standing in for an 8 x 17 table of `(i32, i32)`
 /// pairs at `0x004E4030`. This reads that table out of the binary and checks
 /// the formula reproduces all 136 entries exactly.

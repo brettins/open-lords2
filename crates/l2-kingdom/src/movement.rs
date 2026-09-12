@@ -793,10 +793,6 @@ pub fn step(
         u.county = tile_county;
         out.entered_county = Some(tile_county);
     }
-    if u.path.is_empty() {
-        u.moving = false;
-        u.needs_destination = true;
-    }
     Some(out)
 }
 
@@ -819,6 +815,18 @@ pub fn march(
         steps.push(s);
         if stop {
             break;
+        }
+    }
+    // **Where the walk stops.** [`step`] does not stop a unit on the commit
+    // that empties its path, because `Unit_Step` (`0x00465D28`) does not: the
+    // unit crosses into its last tile and the latched arm finds `field_0x1c ==
+    // 0` at that tile's edge. `march` has no sub-tile counter, so the end of the
+    // loop *is* that edge, and the stop is written here — the same two writes
+    // [`crate::Kingdom::tick_units`] makes when the edge is really reached.
+    if let Some(u) = units.get_mut(id) {
+        if u.moving && u.path.is_empty() {
+            u.moving = false;
+            u.needs_destination = true;
         }
     }
     steps

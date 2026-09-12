@@ -56,6 +56,10 @@ struct Census {
     max_gold: i32,
     /// The largest bankruptcy stage reached.
     max_bankrupt_stage: u8,
+    /// The most contiguity blocks any realm held at the **end** of a turn.
+    /// `Realm_SecedeIsolatedCounties` runs inside the season, so 2 here means
+    /// the pass did not run. `docs/kingdom.md` §6.1.
+    max_blocks: usize,
 }
 
 impl Census {
@@ -140,6 +144,18 @@ impl Census {
             }
         }
 
+        // `Realm_SecedeIsolatedCounties` (`0x0044AE3C`) leaves every realm one
+        // block a season. Two after a turn means the pass did not run; no
+        // `SECESSION` means only that nobody was ever split.
+        let blocks = l2_kingdom::territory::build_blocks(&k.counties, k.county_count);
+        for r in 1..l2_kingdom::MAX_REALMS {
+            let held = blocks.of_realm(r as u8).count();
+            self.max_blocks = self.max_blocks.max(held);
+            if held > 1 {
+                self.fire("a realm left cut in two", turn);
+            }
+        }
+
         for r in 1..l2_kingdom::MAX_REALMS {
             let realm = &k.realms[r];
             if !realm.in_play {
@@ -194,8 +210,12 @@ impl Census {
         }
         eprintln!(
             "  max counties held by one realm: {}   max tax rate: {}   max treasury: {}   \
-             max bankruptcy stage: {}",
-            self.max_counties, self.max_tax_rate, self.max_gold, self.max_bankrupt_stage
+             max bankruptcy stage: {}   max blocks held by one realm: {}",
+            self.max_counties,
+            self.max_tax_rate,
+            self.max_gold,
+            self.max_bankrupt_stage,
+            self.max_blocks
         );
     }
 }
@@ -498,7 +518,7 @@ fn a_hundred_turns_of_england() {
 ///
 /// | rule | first fires on | reachable anywhere else? |
 /// |---|---:|---|
-/// | secession — `Realm_SecedeIsolatedCounties` | turn 116 | no |
+/// | secession — `Realm_SecedeIsolatedCounties` | never, now — see below | **yes, on purpose**: [`a_realm_cut_in_two_loses_the_far_half_through_the_turn_machine`] |
 /// | bankruptcy, through to the mutiny | turn 144 | no |
 /// | a tax rate above 19, so `TAX_HAPPINESS_OTHER` is not its first row | turn 136 | no |
 ///
@@ -542,6 +562,25 @@ fn a_hundred_turns_of_england() {
 /// need a *dealt* board — `england_with_an_empire` below already deals one for
 /// the tax term — and that is a real gap, recorded here rather than hidden by
 /// an assertion nobody can satisfy.
+///
+/// # Red a second time, and that assertion was wrong
+///
+/// `CNEW-walk` moved the trajectory again and `SECESSION` stopped firing.
+/// `Realm_SecedeIsolatedCounties` (`0x0044AE3C`) takes a county only from a
+/// realm holding two or more contiguity blocks, and contiguity is the county
+/// neighbour list at `+0x5C` and nothing else (`docs/kingdom.md` §6.1). On this
+/// fixture — 14 counties, 39 undirected edges — **county 2 is the only cut
+/// vertex**: county 1's list holds nothing but county 2, and removing any other
+/// county leaves the rest connected. So the pass can fire here only when a realm
+/// holds county 1 and something past a county 2 that is not its own — enemy or
+/// neutral alike, the partition being same-owner adjacency. That is a fact about
+/// where the armies went, not about a rule.
+///
+/// The reachability claim therefore moved to
+/// [`a_realm_cut_in_two_loses_the_far_half_through_the_turn_machine`], which
+/// deals the cut. What stays here is the invariant: nobody is left holding two
+/// blocks. Measured, not asserted: the mutiny fires again at turn 100 and a tax
+/// rate ≥ 20 at turn 78, which the table above calls unreachable.
 #[test]
 fn four_hundred_turns_of_england_reaches_the_rules_nothing_else_can() {
     let save = l2_testkit::england!();
@@ -563,10 +602,74 @@ fn four_hundred_turns_of_england_reaches_the_rules_nothing_else_can() {
          `Wages_PayAll` has never executed",
         census.max_bankrupt_stage
     );
+    // The invariant, not the trajectory: `SECESSION` firing needs this map's
+    // one cut vertex to be dealt, so its absence says nothing about the pass.
+    assert!(
+        census.max_blocks <= 1,
+        "a realm ended a turn holding {} contiguity blocks — \
+         `Realm_SecedeIsolatedCounties` did not take the outlying one, so the \
+         pass is not running at all, which is `docs/decisions.md` C27's shape",
+        census.max_blocks
+    );
+}
+
+/// **A realm cut in two, dealt on purpose.** County 1's neighbour list holds
+/// nothing but county 2, so handing county 1's owner a second county past it
+/// splits the realm into `{1}` and `{3}`. County 2 need not be an enemy's:
+/// `Territory_ExtendBlock` joins through `County_IsNeighbour` (`0x00467E2C`) on
+/// **same-owner** adjacency, so a neutral county is a gap too. Which block is
+/// kept depends on populations the season moves, so nothing below names one.
+fn england_cut_in_two() -> Option<Game> {
+    let save = match l2_testkit::england_turn1() {
+        l2_testkit::FixtureState::Ready(s) => *s,
+        _ => return None,
+    };
+    let mut game =
+        l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+    let owner_of_1 = game.kingdom.counties[1].owner;
+    assert_ne!(owner_of_1, 0, "the fixture's county 1 is owned by somebody");
+    assert_eq!(game.kingdom.counties[3].owner, 0, "and its county 3 is neutral");
+    game.kingdom.counties[3].owner = owner_of_1;
+    l2_kingdom::conquest::recount_realm_counties(&game.kingdom.counties, &mut game.kingdom.realms);
+    Some(game)
+}
+
+/// **`Realm_SecedeIsolatedCounties` (`0x0044AE3C`) out of a played turn.**
+/// `crates/l2-kingdom/tests/secession.rs` drives the pass over synthetic chains;
+/// nothing drove it through `l2_game::turn::end_turn` on the real map except the
+/// run above, by accident. One county going raises `L2.eng` group 127.
+#[test]
+fn a_realm_cut_in_two_loses_the_far_half_through_the_turn_machine() {
+    let Some(mut game) = england_cut_in_two() else {
+        l2_testkit::skip!("no England fixture");
+    };
+    let realm = game.kingdom.counties[1].owner;
+    let census = play(&mut game, 2, "a realm cut in two");
+    census.print("a realm cut in two, 2 turns");
+
     assert!(
         census.fired("SECESSION"),
-        "a hundred and fifty years and nobody's lands were ever cut in two — \
-         `Realm_SecedeIsolatedCounties` has never taken a county"
+        "realm {realm} held county 1 and county 3 with county 2 between them and \
+         kept both — `Realm_SecedeIsolatedCounties` did not run, or \
+         `Territory_BuildBlocks` joined two counties that are not neighbours"
+    );
+    let kept: Vec<usize> =
+        [1usize, 3].into_iter().filter(|&id| game.kingdom.counties[id].owner == realm).collect();
+    assert_eq!(kept.len(), 1, "exactly one of the two blocks is kept, and it kept {kept:?}");
+    let gone = if kept[0] == 1 { 3 } else { 1 };
+    assert_eq!(
+        game.kingdom.counties[gone].owner, 0,
+        "and the other declared independence rather than changing hands"
+    );
+    // `County_MakeIndependent` leaves it a *consistent* neutral county, which is
+    // the half of the rule a test that only reads `owner` would miss.
+    assert!(
+        game.kingdom.counties[gone].industry.iter().all(|i| !i.enabled),
+        "every industry switched off"
+    );
+    assert_eq!(
+        census.max_blocks, 1,
+        "and nobody is left holding two blocks once the pass has run"
     );
 }
 

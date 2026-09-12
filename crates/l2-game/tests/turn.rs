@@ -640,11 +640,15 @@ fn a_unit_loaded_with_no_allowance_still_walks() {
     g.order_unit_move(id, (12, 10)).unwrap();
     g.kingdom.campaign.units.get_mut(id).unwrap().move_allowance = 0;
 
-    // Seven road tiles is 49 ticks and no phase waits on it — see [`march`].
+    // Seven road tiles is 57 ticks and no phase waits on it — see [`march`].
     // The allowance is rebuilt inside the unit sweep, so `march` exercises the
     // subject just as `end_turn` did; what it no longer does is race it.
+    //
+    // **This was 49**, which is the tick the seventh tile was *entered*.
+    // `Unit_Step` (`0x00465D28`) keeps the unit walking through that tile and
+    // stops it at the tile's edge, eight road ticks later.
     let ticks = march(&mut g);
-    assert_eq!(ticks, 49, "seven road tiles: the first free and eight for each of the six");
+    assert_eq!(ticks, 57, "seven road tiles: the first free, eight for each of the six, eight to cross the last");
 
     turn::end_turn(&mut g).unwrap();
 
