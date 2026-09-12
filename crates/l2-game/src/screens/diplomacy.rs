@@ -104,7 +104,7 @@ use l2_kingdom::realm::MAX_REALMS;
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
-use crate::press::{Kind as Kind5, Press, Widget};
+use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
 use crate::widget;
@@ -302,6 +302,28 @@ pub fn menu_widget(slot: usize) -> Rect {
     Rect::new(400, 102 + slot as i32 * 50, 32, 32)
 }
 
+/// `g_diploWidgets` holds six records; the allied layout uses all six.
+const MENU_SLOTS: usize = 6;
+
+/// **`g_diploWidgets` as a table** — one record per row the layout draws,
+/// every one **kind 5**, read out of `+0x0F` of `0x004DD940` … `0x004DD9B8`.
+/// The dispatched layout has none: `g_diploWidgetCount = 0`.
+///
+/// The `arm!` is the six handlers' one marker — `Diplo_OpenGift`,
+/// `…Compliment`, `…Insult`, `…Alliance`, `…AskHelp`, `…AskAttack` differ only
+/// in the `g_diploKind` they set and in which draft buffer they clear — and the
+/// kind they are answered with.
+fn menu_widgets(menu: Menu) -> Vec<Widget> {
+    if menu == Menu::Dispatched {
+        return Vec::new();
+    }
+    (0..menu.rows().len().min(MENU_SLOTS))
+        .map(|slot| {
+            Widget::new(menu_widget(slot), crate::arm!("0x00436141/diplo-open-compose", Delayed))
+        })
+        .collect()
+}
+
 /// The label beside a menu widget. `FUN_0040328E(72, row, 0xE0, y, 0xA0, 100)`
 /// puts the text at x = 0xE0 and the first row at y = 0x70, 50 apart — so the
 /// text sits 32 pixels above its own widget, which is the original's layout and
@@ -322,14 +344,28 @@ pub struct DiplomacyScreen {
     /// out of `+0x0F` of `0x004DD940` … `0x004DD9B8`: the button goes down and
     /// the dialog opens twenty frames later.
     press: Press,
-    /// Which menu row the delayed press is for, since the table is built per
-    /// frame from the menu the target's state selects.
-    pending_row: Option<usize>,
+    /// **Which menu row each slot's delayed press is for**, since the table is
+    /// built per frame from the menu the target's state selects. One per slot,
+    /// because each record's twenty frames are its own (`crate::press`).
+    pending_rows: [Option<usize>; MENU_SLOTS],
 }
 
 impl DiplomacyScreen {
     pub fn new() -> DiplomacyScreen {
-        DiplomacyScreen { target: None, press: Press::new(), pending_row: None }
+        DiplomacyScreen { target: None, press: Press::new(), pending_rows: [None; MENU_SLOTS] }
+    }
+
+    /// **A press or a double click on the verb buttons.** True when one went
+    /// down; the dialog opens from [`Screen::update`] twenty ticks later.
+    fn press_menu(&mut self, ctx: &Ctx, event: Event) -> bool {
+        let menu = Menu::of(ctx, self.target(ctx));
+        let table = menu_widgets(menu);
+        let fired = self.press.event(&table, event);
+        debug_assert!(fired.is_none(), "every verb button is kind 5");
+        let (Event::Click { x, y } | Event::DoubleClick { x, y }) = event else { return false };
+        let Some(slot) = table.iter().position(|w| w.rect.contains(x, y)) else { return false };
+        self.pending_rows[slot] = Some(menu.rows()[slot]);
+        true
     }
 
     /// `Diplo_DrawScreen`'s first two lines: **a target that has been knocked
@@ -374,6 +410,13 @@ impl Screen for DiplomacyScreen {
         self.press.take_clicks()
     }
 
+    /// A countdown or a held stepper changed the screen with no event: the
+    /// gift stepper's `FUN_00436372` sets `g_redrawRequest = 2`. See
+    /// [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     fn title(&self, _ctx: &Ctx) -> String {
         "Diplomacy".into()
     }
@@ -385,16 +428,35 @@ impl Screen for DiplomacyScreen {
 
     /// `Widget_Test`'s countdown over `g_diploWidgets`: the verb button the
     /// player pressed opens its dialog when its twenty frames run out.
+    ///
+    /// A second verb button whose twenty frames are still running when the
+    /// first opens its dialog **waits under the dialog**: the machine ticks the
+    /// top screen only, as the original's dispatcher walks `g_diploWidgets` on
+    /// `0x0B` only, and it opens its own dialog when this screen is back on top.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        let Some(_) = self.press.tick() else { return Transition::Stay };
-        let Some(row) = self.pending_row.take() else { return Transition::Stay };
-        let Some(kind) = Menu::kind_of_row(row) else { return Transition::Stay };
-        let read = Ctx { game: ctx.game, assets: ctx.assets };
-        let target = self.target(&read);
-        Transition::Push(ScreenId::DiploCompose(target, kind.byte()))
+        for slot in self.press.tick() {
+            let Some(row) = self.pending_rows.get_mut(slot).and_then(Option::take) else {
+                continue;
+            };
+            let Some(kind) = Menu::kind_of_row(row) else { continue };
+            let read = Ctx { game: ctx.game, assets: ctx.assets };
+            let target = self.target(&read);
+            return Transition::Push(ScreenId::DiploCompose(target, kind.byte()));
+        }
+        Transition::Stay
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        // **A double click reaches the verb buttons and nothing else.** They
+        // are `Widget_Test` kind 5, whose guard reads `g_mouseLeftPressed ||
+        // g_mouseLeftDoubleClick`, so it puts the button down and restarts its
+        // twenty frames; the card pick `FUN_004369BD` opens
+        // `if (g_mouseLeftPressed != 0)` and the corner is `Ui_OkButtonClicked`,
+        // a release. `[V]` This screen dropped it.
+        if let Event::DoubleClick { .. } = event {
+            self.press_menu(ctx, event);
+            return Transition::Stay;
+        }
         let Event::Click { x, y } = event else {
             return match event {
                 // arm: 0x0042FF10/diplo-right-exit right-release
@@ -425,31 +487,15 @@ impl Screen for DiplomacyScreen {
         // **after** the widget test, so a click that lands on both belongs to
         // the menu — which cannot happen, since the menu is at x = 400 and the
         // cards end at 0x30 + 0x52 = 130.
-        let target = self.target(ctx);
-        let menu = Menu::of(ctx, target);
-        for (slot, row) in menu.rows().iter().enumerate() {
-            if menu == Menu::Dispatched {
-                break;
-            }
-            if !menu_widget(slot).contains(x, y) {
-                continue;
-            }
-            // arm: 0x00436141/diplo-open-compose left-press-delayed
-            //
-            // The six widget handlers — `Diplo_OpenGift`, `…Compliment`,
-            // `…Insult`, `…Alliance`, `…AskHelp`, `…AskAttack` — are one arm
-            // here because they differ only in the `g_diploKind` they set and
-            // in which draft buffer they clear. `Diplo_OpenAlliance` is the one
-            // with a decision in it, and [`Menu::kind_of_row`] is that
-            // decision: row 6 is only drawn when the target is already my ally.
-            //
-            // **Kind 5**, so this does not open the dialog: it puts the button
-            // down and [`Screen::update`] opens it twenty ticks later.
-            if Menu::kind_of_row(*row).is_none() {
-                break;
-            }
-            self.press.press_delayed(slot);
-            self.pending_row = Some(*row);
+        //
+        // The six widget handlers are one arm, declared on [`menu_widgets`].
+        // `Diplo_OpenAlliance` is the one with a decision in it, and
+        // [`Menu::kind_of_row`] is that decision: row 6 is only drawn when the
+        // target is already my ally.
+        //
+        // **Kind 5**, so this does not open the dialog: it puts the button
+        // down and [`Screen::update`] opens it twenty ticks later.
+        if self.press_menu(ctx, event) {
             return Transition::Stay;
         }
         for (slot, realm) in DiplomacyScreen::cards(ctx).iter().enumerate() {
@@ -540,8 +586,7 @@ impl Screen for DiplomacyScreen {
             let w = menu_widget(slot);
             // Kind 5, so `Widget_Draw` shows `base + 1` for the twenty frames
             // between the press and the dialog opening.
-            let frame =
-                if self.press.pressed() == Some(slot) { MENU_FRAME + 1 } else { MENU_FRAME };
+            let frame = if self.press.is_pressed(slot) { MENU_FRAME + 1 } else { MENU_FRAME };
             if !pen.system_frame(canvas, frame, w.x, w.y) {
                 widget::frame(canvas, w, ink.border);
             }
@@ -937,29 +982,35 @@ impl ComposeScreen {
     /// `+` walks the gold up on the ramp.
     ///
     /// Index 0 is send, 1 is cancel, 2 is `+` and 3 is `−`.
+    ///
+    /// Each `arm!` is the marker and the kind in one token. The gift stepper's
+    /// two records share one handler and one arm, so they share one
+    /// declaration.
     fn widgets(&self) -> Vec<Widget> {
+        const GIFT_STEP: crate::press::Kind = crate::arm!("0x00436372/diplo-gift-step", Repeat);
         let (send, cancel) = self.buttons();
-        let mut out =
-            vec![Widget::new(send, Kind5::Delayed), Widget::new(cancel, Kind5::Delayed)];
+        let mut out = vec![
+            Widget::new(send, crate::arm!("0x00436408/diplo-send", Delayed)),
+            Widget::new(cancel, crate::arm!("0x00436408/diplo-cancel", Delayed)),
+        ];
         if self.kind == Kind::Gift {
-            out.push(Widget::new(GIFT_MORE, Kind5::Repeat));
-            out.push(Widget::new(GIFT_LESS, Kind5::Repeat));
+            out.push(Widget::new(GIFT_MORE, GIFT_STEP));
+            out.push(Widget::new(GIFT_LESS, GIFT_STEP));
         }
         out
     }
 
-    /// One widget's handler, whichever way it was reached.
+    /// One widget's handler, whichever way it was reached. The arms are
+    /// declared on [`ComposeScreen::widgets`].
     fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
-            // arm: 0x00436408/diplo-send left-press-delayed
+            // `Diplo_SendClicked` (`0x00436408`), hotspot 1.
             0 => self.send(ctx),
-            // arm: 0x00436408/diplo-cancel left-press-delayed
-            //
             // Hotspot 0 of the same handler, and it is the whole of the
             // function's first statement: `g_screenId = 0xB`, back to the lord
             // cards.
             1 => Transition::Pop,
-            // arm: 0x00436372/diplo-gift-step left-press-repeat
+            // `FUN_00436372`, the gift stepper.
             i => {
                 let read: &Ctx = ctx;
                 self.step_gift(read, if i == 2 { GIFT_STEP } else { -GIFT_STEP });
@@ -989,7 +1040,7 @@ impl ComposeScreen {
     /// press timer at `+0x0D` runs, and `index` says which record this is in
     /// [`ComposeScreen::widgets`].
     fn widget(&self, pen: &Pen, canvas: &mut Canvas, frame: usize, r: Rect, index: usize) {
-        let frame = if self.press.pressed() == Some(index) { frame + 1 } else { frame };
+        let frame = if self.press.is_pressed(index) { frame + 1 } else { frame };
         if !pen.system_frame(canvas, frame, r.x, r.y) {
             crate::shell::button_recess(canvas, r.x, r.y, WIDGET_DIM, WIDGET_DIM);
         }
@@ -1050,6 +1101,13 @@ impl Screen for ComposeScreen {
         self.press.take_clicks()
     }
 
+    /// A countdown or a held stepper changed the screen with no event: the
+    /// gift stepper's `FUN_00436372` sets `g_redrawRequest = 2`. See
+    /// [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
     fn title(&self, _ctx: &Ctx) -> String {
         "Dispatch a message".into()
     }
@@ -1078,6 +1136,16 @@ impl Screen for ComposeScreen {
                     debug_assert!(fired.is_none(), "no compose widget is kind 3");
                     Transition::Stay
                 }
+                // **A double click reaches the four widgets and nothing else.**
+                // Send and cancel are kind 5 and the gift stepper kind 4, both
+                // guarded by `g_mouseLeftPressed || g_mouseLeftDoubleClick`; the
+                // county picker `FUN_0043B4CB` opens `else if
+                // (g_mouseLeftPressed == 0) return 0` and the corner is
+                // `Ui_OkButtonClicked`, a release. `[V]` This screen dropped it.
+                Event::DoubleClick { .. } => match self.press.event(&self.widgets(), event) {
+                    Some(i) => self.fire(ctx, i),
+                    None => Transition::Stay,
+                },
                 _ => Transition::Stay,
             };
         };
@@ -1107,10 +1175,13 @@ impl Screen for ComposeScreen {
     /// `Widget_Test`'s per-frame pass: the gauntlets' countdown and the gift
     /// stepper's ramp.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        match self.press.tick() {
-            Some(i) => self.fire(ctx, i),
-            None => Transition::Stay,
+        for i in self.press.tick() {
+            let t = self.fire(ctx, i);
+            if t != Transition::Stay {
+                return t;
+            }
         }
+        Transition::Stay
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {

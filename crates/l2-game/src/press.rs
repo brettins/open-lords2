@@ -29,8 +29,8 @@
 //! machines. **Not** here: the artwork. The pressed frame is `base + 1` on the
 //! same sheet — `Widget_Draw` (`0x0040CFD2`) adds one to the frame at `+0x04`
 //! whenever the press timer at `+0x0D` is non-zero — so it is a fact about a
-//! *sprite index*, and the painters own it. [`Press::pressed`] is what a
-//! painter asks.
+//! *sprite index*, and the painters own it. [`Press::is_pressed`] is what a
+//! painter asks, one record at a time.
 //!
 //! # Determinism
 //!
@@ -211,14 +211,37 @@ impl Kind {
     }
 }
 
+/// **The marker and the declaration, as one token.**
+///
+/// `arm!("0x00437AFB/divide-confirm", Delayed)` *is* `Kind::Delayed` — it
+/// expands to nothing else — and it is also the `docs/arms.json` marker for
+/// that arm. `crates/l2-game/tests/arms.rs` reads the id out of the first
+/// argument and the gesture out of the second, through [`Kind::gesture`], so
+/// the word the marker claims and the kind the widget is answered with are
+/// the same identifier and cannot drift apart.
+///
+/// That check used to compare a comment's word with a record's word and never
+/// look at the `Kind` beside it: every options row was once declared
+/// `Kind::Press` under a `left-press-delayed` comment and `arms.rs` stayed
+/// green. **So a comment marker may not name the three kinds only this module
+/// answers** — `left-press-repeat`, `left-press-delayed`, `left-press-held` —
+/// and `arms.rs` refuses one that does. A plain press or a release can still
+/// be marked by comment, because hand-rolled tests answer those.
+#[macro_export]
+macro_rules! arm {
+    ($id:literal, $kind:ident $(,)?) => {
+        $crate::press::Kind::$kind
+    };
+}
+
 /// **One record of a screen's input table** — a rectangle and the kind of
 /// gesture it answers.
 ///
 /// The original's record carries the geometry, the sprite frame, the handler
 /// pointer, three counters and the kind, in 24 bytes. Ours carries the geometry
 /// and the kind: the handler is the arm of the `match` the screen writes around
-/// the index this returns, the counters live in [`Press`] because only one
-/// widget can be down at a time, and the frame belongs to the painter.
+/// the index this returns, the counters live in [`Press`] — indexed by the same
+/// index, one press timer per record — and the frame belongs to the painter.
 ///
 /// **The hit box is a square in the original and a rectangle here.**
 /// `Widget_Test` reads `+0x06` as the side of a square — it uses `table[3]` for
@@ -253,12 +276,65 @@ pub fn fires_on_step(step: u8) -> bool {
     REPEAT_GATE[step as usize] != 0
 }
 
-/// **A held button**, for one widget table.
+/// **How many records one [`Press`] can time.** An index into a screen's
+/// table must be below this.
+///
+/// The largest table a screen of ours hands to [`Press`] is the army-division
+/// screen's eighteen (`g_splitWidgets`). The bound is a bitmask's width
+/// ([`Fired`]), and it is asserted on every press rather than wrapped, so a
+/// bigger table fails its first test instead of timing the wrong button.
+pub const MAX_WIDGETS: usize = 32;
+
+/// **The handlers one tick owes a screen**, in the order `Widget_Test` calls
+/// them.
+///
+/// First every kind-5 record whose countdown reached zero, in record order —
+/// the loop at the top of `Widget_Test` (`0x0040DA1E`) walks the whole table
+/// and **does not return after a fire**, so two can expire in one call. Then
+/// the held record's repeat, which is the hit test below that loop.
+///
+/// In the original two kind-5 records cannot expire on the same frame, because
+/// the hit test returns on its first hit and so arms one record per frame. Ours
+/// can receive two `Event::Click`s between ticks, and would lose the second if
+/// this were an `Option`.
+#[must_use = "a fire that is not run is a button that did nothing"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Fired {
+    /// Bit `i` set: record `i`'s twenty frames ran out on this tick.
+    delayed: u32,
+    /// The held record's auto-repeat step or flat pulse.
+    held: Option<usize>,
+}
+
+impl Iterator for Fired {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<usize> {
+        if self.delayed != 0 {
+            let i = self.delayed.trailing_zeros() as usize;
+            self.delayed &= self.delayed - 1;
+            return Some(i);
+        }
+        self.held.take()
+    }
+}
+
+/// **One widget table's input state**: the held button, and a press timer for
+/// every record.
 ///
 /// Ours in shape and the original's in behaviour. `Widget_Test` keeps this
-/// state *per record*, in the record; a screen module here keeps one of these
-/// and names the widget it is holding, because our screens hit-test their own
-/// rectangles rather than walking a table.
+/// state *per record*, in the record; a screen module here keeps one of these,
+/// indexed by the same index as the table it hands to [`Press::event`],
+/// because our screens hit-test their own rectangles rather than walking a
+/// table.
+///
+/// **One press timer per record, not one per table.** `+0x0D` is a byte of
+/// each 24-byte record, and the countdown loop at the top of `Widget_Test`
+/// decrements every record's timer on every call, so two gauntlets pressed a
+/// few frames apart are both down and **both** act, each twenty frames after
+/// its own press. This struct held one timer and one pending widget until
+/// that was measured; the second press overwrote the first, and the first
+/// button did nothing.
 ///
 /// Drive it with the three things a screen already hears —
 /// [`Press::press`] from `Event::Click`, [`Press::pointer`] from
@@ -267,7 +343,7 @@ pub fn fires_on_step(step: u8) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Press {
     /// Which widget is down, if any. An index into whatever the screen calls
-    /// its buttons.
+    /// its buttons. Only one can be: there is one left button.
     held: Option<usize>,
     /// **How the held widget repeats.** [`Kind::Repeat`] walks
     /// [`REPEAT_GATE`]; [`Kind::Held`] is a flat [`HELD_PULSE_MS`] pulse off a
@@ -280,21 +356,23 @@ pub struct Press {
     /// decremented, because `FUN_004B20ED` sets its timestamp to *now* on a
     /// step and leaves it alone otherwise.
     since_step: u32,
-    /// `+0x0D`, the press timer, in frames. Non-zero means the pressed frame is
-    /// showing.
-    frames: u8,
-    /// Kind 5 only: the widget whose handler runs when [`Press::frames`]
-    /// reaches zero.
-    pending: Option<usize>,
-    /// Which widget the press timer belongs to.
+    /// **`+0x0D` of every record**, the press timer, in frames. Non-zero means
+    /// that record's pressed frame is showing.
     ///
-    /// The original does not need this: the timer lives *in* the record, so
-    /// "which button is drawn down" and "which button's timer is running" are
-    /// the same question by construction. A screen that owns its rectangles has
-    /// to say which one, and it is not the held one — a kind-4 button stays
-    /// down for three frames **after** the release, which is the whole reason
-    /// `rec[0x0D]` is set to 3 rather than to 1.
-    showing: Option<usize>,
+    /// Indexed by widget, which is what makes *"which button is drawn down"*
+    /// and *"which button's timer is running"* the same question — as they are
+    /// in the original, where the timer lives in the record. A kind-4 button
+    /// stays down for three frames **after** the release, which is the whole
+    /// reason `rec[0x0D]` is set to 3 rather than to 1, so the held widget is
+    /// not the answer to either.
+    timers: [u8; MAX_WIDGETS],
+    /// **Bit `i` set: record `i` is kind 5 and its countdown is running**, so
+    /// its handler runs when its timer reaches zero.
+    ///
+    /// The original tests `rec[0x0F] == 5` at that moment. Ours has no table in
+    /// [`Press::tick`], so the kind is noted on the press instead; a screen's
+    /// table does not change kind between a press and its twentieth frame.
+    delayed: u32,
     /// **How many times this table has played the click**, drained by
     /// [`Press::take_clicks`].
     ///
@@ -311,6 +389,16 @@ pub struct Press {
     /// rather than wraps so that "some clicks happened" can never round to
     /// "none".
     clicks: u8,
+    /// **A tick changed what the table's screen shows**, drained by
+    /// [`Press::take_redraw`].
+    ///
+    /// Set when [`Press::tick`] fires a handler or brings a pressed picture back
+    /// up. An event repaints on its own — `Machine::handle` marks the machine
+    /// dirty for every one — so a press never needs this; the auto-repeat and
+    /// the delayed fire arrive with **no** event, and until this existed a held
+    /// arrow stepped the number on every pulse and the screen showed it only
+    /// when the button came up.
+    redraw: bool,
 }
 
 impl Default for Press {
@@ -326,11 +414,60 @@ impl Press {
             held_kind: Kind::Repeat,
             step: 0,
             since_step: 0,
-            frames: 0,
-            pending: None,
-            showing: None,
+            timers: [0; MAX_WIDGETS],
+            delayed: 0,
             clicks: 0,
+            redraw: false,
         }
+    }
+
+    /// **Whether a tick changed what the screen shows**, and forget it.
+    ///
+    /// The original repaints on the frame a handler runs, by one of two roads,
+    /// and both are `[V]`:
+    ///
+    /// * **the handler paints.** `Tax_IncreaseCounty` (`0x0043AA83`) ends
+    ///   `Panel_Tax()`; `FUN_00436372`, the gift stepper, and `SaveLoad_Scroll`
+    ///   (`0x00434346`) set `g_redrawRequest = 2`, which `Battle_Frame` turns
+    ///   into `Screen_Draw` on the same frame;
+    /// * **the frame loop paints.** `SplitScreen_ToParent` (`0x00437D65`),
+    ///   `FUN_0043B27A` and `FUN_00435339` change a number and paint nothing,
+    ///   and `Battle_Frame` calls `Screen_DrawWidgets` (`0x004BA26E`) every
+    ///   frame, whose `0x11`, `0x18` and `0x0C` arms run
+    ///   `Screen_SplitArmyRows`, `FUN_0041AEA2` and `Trade_DrawPanel` — the
+    ///   number and the widgets — before `Widget_Draw`.
+    ///
+    /// Either way the number a held arrow steps is on screen on the frame it
+    /// stepped. Ours repaints when the machine is dirty, so a screen that owns
+    /// one of these hands this up through [`crate::screen::Screen::take_redraw`].
+    pub fn take_redraw(&mut self) -> bool {
+        core::mem::take(&mut self.redraw)
+    }
+
+    /// **`DAT_00591554` — the repeat counter the handler is called with.**
+    ///
+    /// `Widget_Test` publishes `0` on the press and `rec[0x0E]` — the step,
+    /// clamped at `0x2F` — on every repeat fire, just before the call. Only one
+    /// family of handlers reads it: the trade panel's up and down,
+    /// `FUN_00435339` and `FUN_0043543D`, which step by one below `0x2C` and by
+    /// **ten** from there. So a held arrow on that panel walks one at a time
+    /// for 1.3 s and then ten at a time. `[V]`
+    pub fn repeat_step(&self) -> u8 {
+        if self.held.is_some() {
+            self.step
+        } else {
+            0
+        }
+    }
+
+    /// The record's slot, refusing an index past [`MAX_WIDGETS`] loudly.
+    fn slot(widget: usize) -> usize {
+        assert!(
+            widget < MAX_WIDGETS,
+            "widget {widget} is past press::MAX_WIDGETS ({MAX_WIDGETS}); raise it rather than \
+             letting a table time the wrong button",
+        );
+        widget
     }
 
     /// **Take the clicks this table owes the audio layer**, and forget them.
@@ -389,23 +526,34 @@ impl Press {
                     Kind::Release => None,
                 }
             }
-            // **`g_mouseLeftDoubleClick` is a press for kinds 2 and 4 only.**
-            // `Widget_Test`'s kind-4 arm tests
-            // `g_mouseLeftPressed || g_mouseLeftDoubleClick` and `Hotspot_Test`'s
-            // kind-2 arm the same; kinds 1, 3 and 5 do not — well, kind 5 does,
-            // and it is the one below. Kinds 1 and 3 read one flag each. Since
-            // Windows sends the double click *instead of* the second press,
-            // that is the difference between a spinner that steps twice on a
-            // fast double click and a button that steps once.
+            // **`g_mouseLeftDoubleClick` is a press for kinds 2, 4 and 5, and
+            // not for 1 or 3.** `Widget_Test` (`0x0040DA1E`) guards both of its
+            // arms with `g_mouseLeftPressed || g_mouseLeftDoubleClick`, and
+            // `Hotspot_Test` (`0x0040E3EE`) its kind-2 arm; kind 1 reads
+            // `g_mouseLeftPressed` alone and kind 3 `g_mouseLeftReleased`
+            // alone. Since Windows sends the double click *instead of* the
+            // second press, that is the difference between a spinner that steps
+            // twice on a fast double click and a box that answers once. `[V]`
+            //
+            // **And a double click does not hold the button down.**
+            // `App_WndProc` (`0x004B29BE`) handles `0x203` by setting bit 0 of
+            // `DAT_004EADA1` and nothing else — `0x201` is the only message that
+            // sets the down bit — so `g_mouseLeftDown` stays 0 for as long as
+            // the second press is held, and `Widget_Test`'s hold branch returns
+            // at `if (g_mouseLeftDown == 0) return 0;`. A double click on a
+            // spinner steps once and **does not auto-repeat**, however long the
+            // button stays down after it. `[V]`
             Event::DoubleClick { x, y } => {
                 let i = table.iter().position(|w| w.rect.contains(x, y))?;
                 match table[i].kind {
                     Kind::Held => {
                         self.press_held(i);
+                        self.release();
                         Some(i)
                     }
                     Kind::Repeat => {
                         self.press(i);
+                        self.release();
                         Some(i)
                     }
                     Kind::Delayed => {
@@ -437,16 +585,25 @@ impl Press {
 
     /// **A kind-4 press.** Fires immediately — the return is *"run the handler
     /// now"* — and starts the hold.
+    ///
+    /// **It touches no other record.** A kind-5 button pressed a moment
+    /// earlier keeps counting down and still acts: `Widget_Test`'s kind-4 arm
+    /// writes `+0x0C`, `+0x0D` and `+0x0E` of its own record and nothing else.
+    /// This used to clear the one pending delayed press, so pressing a spinner
+    /// straight after the supplies thumb cancelled the dispatch.
     pub fn press(&mut self, widget: usize) -> bool {
+        let w = Press::slot(widget);
         // sfx: Widget_Test#1
         self.click();
-        self.held = Some(widget);
-        self.held_kind = Kind::Repeat;
+        self.held = Some(w);
+        // `Widget_Test`'s hold branch: `rec[0x0E]++` every 30 ms step while
+        // this record stays under a held button, firing on `REPEAT_GATE`'s
+        // ramp. Every kind-4 widget in the game repeats through this one line.
+        self.held_kind = crate::arm!("0x0040DA1E/widget-auto-repeat", Repeat);
         self.step = 0;
         self.since_step = 0;
-        self.frames = PRESS_FRAMES;
-        self.pending = None;
-        self.showing = Some(widget);
+        self.timers[w] = PRESS_FRAMES;
+        self.delayed &= !(1 << w);
         true
     }
 
@@ -456,32 +613,36 @@ impl Press {
     /// **No pressed frame.** `Hotspot_Test` sets the record's `+0x0D` exactly as
     /// `Widget_Test` does, and nothing ever draws a hotspot record — the whole
     /// difference between the two testers is that one owns the visible buttons.
-    /// So this leaves [`Press::pressed`] empty, which is what
+    /// So this leaves [`Press::is_pressed`] false for it, which is what
     /// [`Kind::has_pressed_frame`] says out loud.
     pub fn press_held(&mut self, widget: usize) -> bool {
-        self.held = Some(widget);
+        let w = Press::slot(widget);
+        self.held = Some(w);
         self.held_kind = Kind::Held;
         self.step = 0;
         self.since_step = 0;
-        self.frames = 0;
-        self.pending = None;
-        self.showing = None;
         true
     }
 
-    /// **A kind-5 press.** Does *not* fire. Puts the pressed frame up and
-    /// arms the handler for [`DELAYED_FRAMES`] ticks' time; [`Press::tick`]
-    /// returns the widget on the tick it expires.
+    /// **A kind-5 press.** Does *not* fire. Puts this record's pressed frame
+    /// up and arms its handler for [`DELAYED_FRAMES`] ticks' time;
+    /// [`Press::tick`] returns the widget on the tick it expires.
+    ///
+    /// **Every other record's countdown carries on**, so a second gauntlet
+    /// pressed before the first has acted does not cancel it. **The same
+    /// record pressed again restarts its own**: the kind-5 arm is
+    /// `rec[0x0D] = 0x14` whatever the timer held, so a button pressed twice
+    /// within twenty frames — a double click, usually — acts once, twenty
+    /// frames after the second press. `[V]`, `Widget_Test` (`0x0040DA1E`).
     pub fn press_delayed(&mut self, widget: usize) {
+        let w = Press::slot(widget);
         // sfx: Widget_Test#2
         self.click();
         self.held = None;
-        self.held_kind = Kind::Repeat;
         self.step = 0;
         self.since_step = 0;
-        self.frames = DELAYED_FRAMES;
-        self.pending = Some(widget);
-        self.showing = Some(widget);
+        self.timers[w] = DELAYED_FRAMES;
+        self.delayed |= 1 << w;
     }
 
     /// The pointer moved. `over` is the widget under it, or `None`.
@@ -504,41 +665,64 @@ impl Press {
         self.step = 0;
     }
 
-    /// One fixed tick. Returns the widget whose handler should run, if any.
+    /// One fixed tick. Returns every widget whose handler should run, in the
+    /// order `Widget_Test` runs them — see [`Fired`].
     ///
-    /// At most one fire per tick, which is what the original gets too: its
-    /// counter advances at most once per frame.
-    pub fn tick(&mut self) -> Option<usize> {
-        // The countdown loop at the top of `Widget_Test`, which runs whether or
-        // not anything is under the pointer.
-        if self.frames > 0 {
-            self.frames -= 1;
-            if self.frames == 0 {
-                self.showing = None;
-                if let Some(w) = self.pending.take() {
-                    return Some(w);
+    /// A screen runs them in turn and stops at the first that leaves the
+    /// screen, because a table nobody walks any more fires nothing: the
+    /// original's handler writes `g_screenId`, and the next frame's dispatcher
+    /// no longer calls `Widget_Test` on that table. Its remaining timers are
+    /// not lost — ours freezes with the screen underneath, exactly as the
+    /// record's bytes sit untouched in `.data` until the screen comes back.
+    pub fn tick(&mut self) -> Fired {
+        let mut fired = Fired::default();
+        // **The countdown loop at the top of `Widget_Test`**, over every
+        // record, whether or not anything is under the pointer:
+        //
+        //   if (rec[0x0D] != 0 && --rec[0x0D] == 0 && rec[0x0F] == 5) call it;
+        //
+        // and it goes on to the next record after a call.
+        let mut came_up = false;
+        for (i, t) in self.timers.iter_mut().enumerate() {
+            if *t == 0 {
+                continue;
+            }
+            *t -= 1;
+            if *t == 0 {
+                came_up = true;
+                if self.delayed & (1 << i) != 0 {
+                    self.delayed &= !(1 << i);
+                    fired.delayed |= 1 << i;
                 }
             }
         }
-        let held = self.held?;
+        let fired = self.hold(fired);
+        if came_up || fired != Fired::default() {
+            self.redraw = true;
+        }
+        fired
+    }
+
+    /// The hit-test half of [`Press::tick`]: the held record's repeat or pulse.
+    fn hold(&mut self, mut fired: Fired) -> Fired {
+        let Some(held) = self.held else { return fired };
         // **The flat pulse, which is a different tester on a different clock.**
         // `Hotspot_Test`'s kind-2 arm consults `DAT_0057D3C8` — one of
         // `Tick_Pulses`' eight dividers, every fourth 80 ms pulse — and there is
         // no table, no ramp and no pressed picture in it.
         if self.held_kind == Kind::Held {
             self.since_step += TICK_MS;
-            if self.since_step < HELD_PULSE_MS {
-                return None;
+            if self.since_step >= HELD_PULSE_MS {
+                self.since_step = 0;
+                fired.held = Some(held);
             }
-            self.since_step = 0;
-            return Some(held);
+            return fired;
         }
         // `rec[0x0D] = 3` — the hold keeps the pressed frame up.
-        self.frames = PRESS_FRAMES;
-        self.showing = Some(held);
+        self.timers[held] = PRESS_FRAMES;
         self.since_step += TICK_MS;
         if self.since_step < REPEAT_STEP_MS {
-            return None;
+            return fired;
         }
         self.since_step = 0;
         self.step = self.step.saturating_add(1);
@@ -546,22 +730,31 @@ impl Press {
         if self.step > REPEAT_CLAMP {
             self.step = REPEAT_CLAMP;
         }
-        fires.then_some(held)
-    }
-
-    /// **Is the pressed frame showing?** A painter adds one to its sprite index
-    /// when this is true, which is all `Widget_Draw` does.
-    pub fn pressed(&self) -> Option<usize> {
-        if self.frames == 0 {
-            return None;
+        if fires {
+            fired.held = Some(held);
         }
-        self.showing
+        fired
     }
 
-    /// Whether anything is waiting — a kind-5 press mid-delay. A screen that
-    /// must not accept a second press while one is running asks this.
+    /// **Is this record's pressed frame showing?** A painter adds one to that
+    /// record's sprite index when this is true, which is all `Widget_Draw`
+    /// does — for every record, so two buttons can be down at once.
+    ///
+    /// This replaced a `pressed() -> Option<usize>`, which could name one
+    /// button and so drew the first of two pressed gauntlets back up while its
+    /// handler was still waiting.
+    pub fn is_pressed(&self, widget: usize) -> bool {
+        self.timers.get(widget).is_some_and(|&t| t != 0)
+    }
+
+    /// Whether any record of the table is drawn down.
+    pub fn any_pressed(&self) -> bool {
+        self.timers.iter().any(|&t| t != 0)
+    }
+
+    /// Whether anything is waiting — a kind-5 press mid-delay, on any record.
     pub fn busy(&self) -> bool {
-        self.pending.is_some()
+        self.delayed != 0
     }
 }
 
@@ -599,7 +792,7 @@ mod tests {
         let mut p = Press::new();
         assert!(p.press(3));
         p.release();
-        assert_eq!((0..200).filter_map(|_| p.tick()).count(), 0, "no repeat after the release");
+        assert_eq!((0..200).map(|_| p.tick().count()).sum::<usize>(), 0, "no repeat after the release");
     }
 
     /// The whole gesture, in ticks, with the numbers a player would feel.
@@ -610,7 +803,7 @@ mod tests {
         // 16 ms ticks against a 30 ms step, so a step every other tick.
         let mut fires = Vec::new();
         for t in 1..=120 {
-            if p.tick() == Some(3) {
+            if p.tick().any(|w| w == 3) {
                 fires.push(t);
             }
         }
@@ -632,10 +825,10 @@ mod tests {
         let mut p = Press::new();
         p.press(1);
         for _ in 0..40 {
-            p.tick();
+            let _ = p.tick();
         }
         p.pointer(Some(2));
-        assert_eq!((0..200).filter_map(|_| p.tick()).count(), 0);
+        assert_eq!((0..200).map(|_| p.tick().count()).sum::<usize>(), 0);
     }
 
     /// **Kind 5: the press does not fire, and twenty ticks later it does.**
@@ -644,14 +837,14 @@ mod tests {
     fn a_delayed_button_shows_the_pressed_frame_first_and_acts_afterwards() {
         let mut p = Press::new();
         p.press_delayed(0);
-        assert_eq!(p.pressed(), Some(0), "the gauntlet goes down at once");
+        assert!(p.is_pressed(0), "the gauntlet goes down at once");
         assert!(p.busy());
         for t in 1..DELAYED_FRAMES as u32 {
-            assert_eq!(p.tick(), None, "nothing has happened yet at tick {t}");
-            assert_eq!(p.pressed(), Some(0), "and it is still down");
+            assert_eq!(p.tick().next(), None, "nothing has happened yet at tick {t}");
+            assert!(p.is_pressed(0), "and it is still down");
         }
-        assert_eq!(p.tick(), Some(0), "the handler runs on the twentieth tick");
-        assert_eq!(p.pressed(), None, "and the button comes back up");
+        assert_eq!(p.tick().collect::<Vec<_>>(), vec![0], "the handler runs on the twentieth tick");
+        assert!(!p.is_pressed(0), "and the button comes back up");
         assert!(!p.busy());
     }
 
@@ -661,12 +854,133 @@ mod tests {
     fn a_repeating_button_shows_the_pressed_frame_for_three_frames() {
         let mut p = Press::new();
         p.press(7);
-        assert_eq!(p.pressed(), Some(7));
+        assert!(p.is_pressed(7));
         p.release();
-        p.tick();
-        p.tick();
-        assert_eq!(p.pressed(), Some(7), "still down two frames after the release");
-        p.tick();
-        assert_eq!(p.pressed(), None, "and up on the third");
+        let _ = p.tick();
+        let _ = p.tick();
+        assert!(p.is_pressed(7), "still down two frames after the release");
+        let _ = p.tick();
+        assert!(!p.is_pressed(7), "and up on the third");
+    }
+
+    /// The tick each widget fires on, over `ticks` ticks, with an optional
+    /// press of a kind-5 widget injected before a given tick.
+    fn run(p: &mut Press, ticks: u32, presses: &[(u32, usize)]) -> Vec<(u32, usize)> {
+        let mut out = Vec::new();
+        for t in 1..=ticks {
+            for &(at, w) in presses {
+                if at == t {
+                    p.press_delayed(w);
+                }
+            }
+            out.extend(p.tick().map(|w| (t, w)));
+        }
+        out
+    }
+
+    /// **Two gauntlets pressed five ticks apart both act, each on its own
+    /// twentieth tick** — `+0x0D` is a byte of each record, and the countdown
+    /// loop walks every record.
+    ///
+    /// **Ablation, run:** make `press_delayed` zero every other record's timer
+    /// — the one-pending-press model this replaced — and this goes red with
+    /// only the second widget firing.
+    #[test]
+    fn two_delayed_presses_five_ticks_apart_both_fire_each_on_its_own_twentieth_tick() {
+        let mut p = Press::new();
+        // Pressed before ticks 1 and 6, so their twentieth ticks are 20 and 25.
+        let fired = run(&mut p, 40, &[(1, 0), (6, 1)]);
+        assert_eq!(fired, vec![(20, 0), (25, 1)]);
+    }
+
+    /// **Both are drawn down while both wait**, which is `Widget_Draw` reading
+    /// each record's own timer.
+    #[test]
+    fn two_waiting_gauntlets_are_both_drawn_down() {
+        let mut p = Press::new();
+        p.press_delayed(0);
+        for _ in 0..5 {
+            let _ = p.tick();
+        }
+        p.press_delayed(1);
+        assert!(p.is_pressed(0) && p.is_pressed(1));
+    }
+
+    /// **The same gauntlet pressed twice acts once, twenty ticks after the
+    /// second press**: the kind-5 arm writes `rec[0x0D] = 0x14` whatever the
+    /// timer held.
+    #[test]
+    fn the_same_delayed_widget_pressed_twice_restarts_and_acts_once() {
+        let mut p = Press::new();
+        let fired = run(&mut p, 60, &[(1, 2), (8, 2)]);
+        assert_eq!(fired, vec![(27, 2)]);
+    }
+
+    /// **A spinner pressed while a thumb is waiting does not cancel the thumb.**
+    /// `Widget_Test`'s kind-4 arm writes its own record's bytes and no other.
+    ///
+    /// **Ablation, run:** zero `self.delayed` in `Press::press` and this goes
+    /// red — the thumb never acts.
+    #[test]
+    fn a_kind_four_press_does_not_cancel_a_waiting_kind_five_press() {
+        let mut p = Press::new();
+        p.press_delayed(6);
+        let _ = p.tick();
+        assert!(p.press(0), "the spinner fires on its press");
+        p.release();
+        let fired: Vec<usize> = (0..40).flat_map(|_| p.tick().collect::<Vec<_>>()).collect();
+        assert_eq!(fired, vec![6], "and the thumb still acts");
+    }
+
+    /// **The countdown and the repeat can fall on one tick**, and both come
+    /// back — the delayed fire first, because the countdown loop runs before the
+    /// hit test.
+    #[test]
+    fn a_countdown_and_a_repeat_on_one_tick_both_fire_countdown_first() {
+        // The thumb before tick 1 acts on tick 20. The spinner pressed before
+        // tick 5 and held makes its first repeat on the sixteenth tick after
+        // its press — step 8 of 30 ms steps at 16 ms a tick — which is also
+        // tick 20.
+        let mut p = Press::new();
+        let mut on = Vec::new();
+        for t in 1..=20u32 {
+            if t == 1 {
+                p.press_delayed(5);
+            }
+            if t == 5 {
+                assert!(p.press(0));
+            }
+            on.push(p.tick().collect::<Vec<_>>());
+        }
+        assert_eq!(on[19], vec![5, 0], "tick 20: {:?}", on);
+        assert!(on[..19].iter().all(Vec::is_empty), "{on:?}");
+    }
+
+    /// **`DAT_00591554` is 0 on the press and the clamped counter on each repeat
+    /// fire** — the value the trade arrows read to decide between one and ten.
+    /// The two numbers are pinned from `Widget_Test`'s body, not from the
+    /// constants: the first repeat is step 8 and the clamp writes `0x2F`.
+    #[test]
+    fn the_published_repeat_step_is_zero_on_the_press_and_the_counter_on_a_repeat() {
+        let mut p = Press::new();
+        p.press(0);
+        assert_eq!(p.repeat_step(), 0, "published as 0 before the press's call");
+        let mut seen = Vec::new();
+        for _ in 0..200 {
+            if p.tick().next().is_some() {
+                seen.push(p.repeat_step());
+            }
+        }
+        assert_eq!(seen.first(), Some(&8), "the first repeat is step 8");
+        assert_eq!(seen.last(), Some(&0x2F), "and the counter clamps at 0x2F");
+        p.release();
+        assert_eq!(p.repeat_step(), 0);
+    }
+
+    /// Every record past the table's end is refused, loudly.
+    #[test]
+    #[should_panic(expected = "MAX_WIDGETS")]
+    fn a_widget_past_the_bound_is_refused() {
+        Press::new().press_delayed(MAX_WIDGETS);
     }
 }

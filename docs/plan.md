@@ -164,8 +164,8 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->196<!--/fig--> of
-   <!--fig:arms-live-->227<!--/fig--> live arms (<!--fig:arms-pct-->86<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->210<!--/fig--> of
+   <!--fig:arms-live-->241<!--/fig--> live arms (<!--fig:arms-pct-->87<!--/fig-->%)** — so
    **<!--fig:arms-missing-->31<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->9<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
@@ -182,14 +182,14 @@ the goal is not met — not "mostly met".
 
    **The other <!--fig:draws-screens-->51<!--/fig--> screens** make
    <!--fig:draws-original-->1,012<!--/fig--> draw calls and we make
-   <!--fig:draws-ours-->446<!--/fig-->: <!--fig:draws-pct-->44<!--/fig-->%.
+   <!--fig:draws-ours-->447<!--/fig-->: <!--fig:draws-pct-->44<!--/fig-->%.
    <!--fig:draws-missing-->51<!--/fig--> things the original draws are enumerated as missing,
    and **<!--fig:draws-inventions-->37<!--/fig--> things we draw that it does not** — the
    figure that answers row 2 for pictures rather than gestures, and the one nobody had.
    `docs/draws.md`, via `tools/draws/screendraws.js` and `tools/draws/screens.json`.
 
    Set either beside the input measurement, where `arms.json` marks
-   <!--fig:arms-pct-->86<!--/fig--> % of arms reproduced:
+   <!--fig:arms-pct-->87<!--/fig--> % of arms reproduced:
 
    > **We answer four gestures in five and we draw two pictures in five.**
 
@@ -198,7 +198,7 @@ the goal is not met — not "mostly met".
    them?"*, *"the title screen is illegible"* — **none of which is an arm.**
 
    **And the half a call count cannot see.** Of our marks on those 51 screens,
-   <!--fig:draws-real-->470<!--/fig--> go through the game's own artwork and
+   <!--fig:draws-real-->471<!--/fig--> go through the game's own artwork and
    <!--fig:draws-placeholder-->72<!--/fig--> are our 5 × 7 debug font and our own rectangles
    — <!--fig:draws-real-pct-->87<!--/fig-->% real — with
    <!--fig:draws-literals-->18<!--/fig--> English captions written in our own source where the
@@ -948,7 +948,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,479<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,497<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

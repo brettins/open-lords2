@@ -9470,3 +9470,107 @@ full burns for good — `docs/bugs.md` `B102`.
 **The lesson is C140's, and the brief's.** A blocked row's note is a description written to
 explain why something could not be built, and it is read for that and nothing else. Two of these
 three were one clause short, and the missing clause was the caller.
+
+---
+
+**CNEW-press-records — The press timer is one per widget record, the marker is now the kind
+itself, a double click never holds the button down, and four yes/no boxes answered raw
+clicks.**
+
+Three gaps C148 and C165 left in `crates/l2-game/src/press.rs`, and two more a player
+reported while they were being closed. All of it is `[V]` from `Widget_Test` (`0x0040DA1E`),
+`App_WndProc` (`0x004B29BE`), the per-frame latch `FUN_004B191E`, `Screen_FrameInput`'s arms,
+`Screen_DrawWidgets` and the exe's own kind bytes (`node tools/oracle/kinds.js`).
+
+**One pending press was one too few.** `Press` held a single timer and a single pending
+widget. `Widget_Test`'s countdown loop walks **every** record, decrements each one's `+0x0D`,
+and calls each kind-5 handler that reaches zero without returning — so two gauntlets pressed
+a few frames apart both act, each on its own twentieth frame, and the same record pressed
+twice restarts its own count and acts once. Ours dropped the first of two, drew only one of
+them down, and a spinner pressed while a thumb waited **cancelled the thumb**. `Press` now
+keeps a timer per record; `tick()` returns every handler owed, countdown first; `pressed()`
+is gone and `is_pressed(i)` is per record, so the compiler found every painter.
+
+**`arms.rs` could not see the declared kind, and now there is nothing separate to see.** C165
+measured it: every options row declared `Kind::Press` under a `left-press-delayed` comment,
+and `arms.rs` green. A widget's kind is now written `crate::arm!("<id>", Delayed)` — which
+expands to `Kind::Delayed` and nothing else — and `arms.rs` reads that token as the marker,
+taking the gesture from the identifier through `Kind::gesture`. A comment marker may not claim
+`left-press-repeat`, `left-press-delayed` or `left-press-held`, since only a `Kind` handed to
+`Press` answers those. Both ablations run: the row declared `Press` in its `arm!` turns the set
+check red; a bare `Kind::Press` under the old comment turns the new rule red, naming the line.
+**What remains possible**: a record filed `left-press` over a widget declared bare
+`Kind::Repeat` with its own comment marker; the exe-gated kind-byte check is what catches that
+one.
+
+**A double click does not hold the button down.** `App_WndProc` answers `0x203` with
+`DAT_004EADA1 |= 1` and nothing else, so `g_mouseLeftDown` stays clear however long the second
+press is held, and its `WM_LBUTTONUP` raises no release. A kind-4 widget fires once and never
+repeats; ours started the auto-repeat. And `docs/input.md` counted six screens that dropped
+`Event::DoubleClick`: five did — diplomacy and its compose dialog, divide, the information
+panel, the message scroll, supplies — and the battle prompt never had. Each now answers where
+the original's guards do and nowhere else; `docs/input.md` §5 has the table. The county panel's
+C156 double click still sets `slider_held`, which by the same fact the original would not —
+**not changed here, recorded**.
+
+**A held arrow did not repaint.** *"The click and hold seems to increase the value but it is
+not visually shown until release."* The original paints on the frame the handler runs —
+`Tax_IncreaseCounty` ends `Panel_Tax()`; the gift stepper and `SaveLoad_Scroll` set
+`g_redrawRequest = 2`; `Battle_Frame` runs `Screen_DrawWidgets` every frame for the divide
+rows, the supplies numbers and the trade panel. Ours repaints when dirty and a repeat is not
+an event. `Press::take_redraw`, handed up by every screen that owns a `Press`.
+
+**Four yes/no boxes answered raw clicks** — found by enumerating every exe record drawn with
+frames 29 and 31, after a player met two of them (*"no sound on clicking the yes/no on save,
+and it is still on mousedown instead of mouseup"*):
+
+| box | kind | what ours did |
+|---|---|---|
+| save/load, `g_saveLoadWidgets` | 4 | saved on the click, no click, no picture — and **no 150-frame wait**: `FUN_004342F3` only sets a latch, `SaveLoad_Tick` writes `0x96` frames later |
+| castle build, `g_castleBuildWidgets` | 5 | acted on the click |
+| raise army, `DAT_004DD340` | 5 | Continue, tick and cross acted on the click |
+| trade panel, `DAT_004DD838` | 4 | no click, no picture, no repeat — and the arrows step **ten** from repeat step `0x2C` |
+
+The player's *"mousedown instead of mouseup"* on the save box is the one report here that the
+gesture does not answer: kind 4 **is** the press. What he remembered is the wait.
+
+**And one crash nobody had reached.** `supplies.rs`' `THUMB_UP_INDEX` was the literal 6, from
+three rows of spinners, over a `ROWS` of two: either thumb fell into the spinner arm and
+indexed a third row, twenty ticks after the press. It is `ROWS.len() * 2` now. Nothing had
+fired a thumb through the screen until a double-click test did.
+
+Fourteen `docs/arms.json` records. The ablations are in four groups and every one went red
+where its test says; the list is in each test's own doc comment.
+
+**The slider and the widget table share one `handle`, in the original's order.** C179 gave the
+recruitment slider its own `DoubleClick` and `Release` arms, and when this branch's table arrived
+they matched in front of it and the compiler called the widgets unreachable. The order is not a
+matter of taste: `Screen_FrameInput` (`0x0042FF10`) is
+`if ((Msg_HandleInput() == 0) && (Screen_HandleInput() == 0)) { …the fifty arms… }`, and
+`Screen_HandleInput` (`0x004BA9C8`) is the per-screen **widget** pass while `Levy_SliderClick`
+(`0x00435CEF`) lives in the `0x17` **arm**. So `DAT_004DD340`'s three kind-5 records are asked
+first and the slider gets only what they did not take — not the other way round.
+`RaiseArmyScreen::widget_press` is that hit test and its `bool` is the original's
+`Screen_HandleInput() == 0`. Three consequences fall out of the same reading and each is now
+written where it happens: `left_down` is set by **every** press, because `WM_LBUTTONDOWN` sets
+`g_mouseLeftDown` whatever the press landed on, so sliding off Continue onto the track still moves
+the knob; the right release meets the slider with no widget pass in front of it, because
+`Screen_HandleInput` is left-button only; and a release reaches both halves, ending the record's
+hold and clearing the level in one event. The two never collide geometrically — the band is
+x `0x80…0x176` by y `base+0x10…base+0x40` and the records sit at (480, 336), (352, 256) and
+(400, 260) — which is why nothing caught the order being wrong.
+
+**Found and not fixed: the castle chooser is stranded by its own film, and it predates this
+branch.** `CastleBuild_Confirm` hands `Smk_Play` a return screen of `0`, so in the original the
+end of the film *is* the map. Ours pushes the film over the chooser and leaves the chooser to pop
+itself on its next `update` — and `Machine::update` runs `run_tips` and `pump_messages` **before**
+that update. `tip::DELAY` is `0x14` frames, so on any film longer than twenty frames the castle
+screen's own advisor tip (`Tip_Update`'s `0x1B` arm) is seated the instant the film goes, the
+chooser never gets its `update`, and the player is left on the chooser under a tip. **Measured
+without this branch's timing anywhere**: pushing `Film::Castle(0)` over the chooser directly, as
+`main`'s `confirm` did, and letting the real `castle1.smk` play strands it at tick 523 of 521
+frames of film. `movies.rs` asserted the clean end state only because placeholder assets fail to
+open a film and the whole sequence fitted inside twenty frames; the two tests now assert the film
+is off the stack and say in full why they stop there. The fix is `g_smkReturnScreen` as a
+transition — *"go to screen X"*, unwinding the stack — which is the machine's vocabulary and not
+the input model's, so it is reported rather than smuggled in here.

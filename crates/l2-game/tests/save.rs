@@ -472,6 +472,66 @@ fn click_widget(w: (i32, i32, usize, i32)) -> Event {
     Event::Click { x: w.0 + w.3 / 2, y: w.1 + w.3 / 2 }
 }
 
+fn release_widget(w: (i32, i32, usize, i32)) -> Event {
+    Event::Release { x: w.0 + w.3 / 2, y: w.1 + w.3 / 2 }
+}
+
+/// **`SaveLoad_Tick`'s 150 frames**, run through the machine until the screen
+/// has closed or the count is spent.
+fn settle(m: &mut Machine, game: &mut Game, assets: &Assets) {
+    for _ in 0..=l2_game::screens::saveload::WORK_FRAMES {
+        if m.depth() == 0 || m.should_quit() {
+            return;
+        }
+        let mut ctx = Ctx { game, assets };
+        m.update(&mut ctx);
+    }
+}
+
+/// **The thumb up clicks on the press, writes nothing on it, and the save runs
+/// 150 frames later.**
+///
+/// A player, twice: *"no sound on clicking the yes/no on save, and it is still
+/// on mousedown instead of mouseup"*. Both halves are the binary's:
+/// `g_saveLoadWidgets`' records are `Widget_Test` **kind 4**, which plays
+/// `Sound_RestartSlot(1)` and calls the handler on the press, and the handler,
+/// `FUN_004342F3`, is only `DAT_005CD41C = 100` — `SaveLoad_Tick` sets
+/// `DAT_0057D3C4 = 0x96` and writes when that runs out. Ours answered a raw
+/// click and wrote on the spot.
+///
+/// **Ablations, run:** make `SaveLoadScreen::begin` arm a one-frame wait and
+/// *"written on frame 1, before SaveLoad_Tick's 150"* goes red; delete
+/// `self.click()` from `Press::press` and the first click count reads 0.
+#[test]
+fn the_save_thumb_clicks_on_the_press_and_writes_a_hundred_and_fifty_frames_later() {
+    use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};
+
+    let own = Saves::new("latch");
+    let (mut game, assets) = bare();
+    game.prefs.tip_screens = false;
+    let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
+    let mut events: Vec<Event> = "LATCH".chars().map(Event::Text).collect();
+    // Pressed and let go. **A thumb held down never saves**: it is kind 4, its
+    // repeat runs `FUN_004342F3` again, and each run restarts the 150 frames.
+    events.push(click_widget(CONFIRM));
+    events.push(release_widget(CONFIRM));
+    drive(&mut m, &mut game, &assets, &events);
+
+    assert_eq!(m.clicks(), 1, "Widget_Test kind 4 plays Sound_RestartSlot(1) on the press");
+    assert!(own.files().is_empty(), "nothing is written on the press");
+    assert_eq!(m.depth(), 1, "and the box is still up");
+    for t in 1..WORK_FRAMES {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+        assert!(own.files().is_empty(), "written on frame {t}, before SaveLoad_Tick's {WORK_FRAMES}");
+    }
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    m.update(&mut ctx);
+    assert_eq!(own.files(), vec![file("latch")], "written on frame {WORK_FRAMES}");
+    assert!(m.should_quit() || m.depth() == 0, "and the box closed");
+    assert_eq!(m.clicks(), 1, "the save itself is silent");
+}
+
 #[test]
 fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     use l2_game::screens::saveload::{CONFIRM, LIST};
@@ -496,6 +556,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     let name = "screen test";
 
     let (mut game, assets) = bare();
+    game.prefs.tip_screens = false;
     let before = digest(&game.kingdom);
     assert_ne!(digest(&decoy.kingdom), before);
 
@@ -513,7 +574,9 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
     let mut typed: Vec<Event> = typed_name.chars().map(Event::Text).collect();
     typed.push(click_widget(CONFIRM));
+    typed.push(release_widget(CONFIRM));
     drive(&mut m, &mut game, &assets, &typed);
+    settle(&mut m, &mut game, &assets);
     assert!(m.should_quit() || m.depth() == 0, "the save screen closes when it has saved");
     let mut expected: Vec<String> = decoys.iter().map(|n| file(n)).collect();
     expected.push(file(name));
@@ -521,6 +584,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
 
     // Now change the world, and load it back.
     let mut game2 = furnished(0xDEAD);
+    game2.prefs.tip_screens = false;
     assert_ne!(digest(&game2.kingdom), before);
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Load));
     // **Row 4, and it is a literal.** The directory holds exactly the five
@@ -538,8 +602,9 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
         &mut m,
         &mut game2,
         &assets,
-        &[Event::Click { x: r.x + 2, y: r.y + 2 }, click_widget(CONFIRM)],
+        &[Event::Click { x: r.x + 2, y: r.y + 2 }, click_widget(CONFIRM), release_widget(CONFIRM)],
     );
+    settle(&mut m, &mut game2, &assets);
     assert_eq!(digest(&game2.kingdom), before, "the loaded game is the saved one");
     assert_eq!(LIST.1, r.y - (ROW / 3) as i32 * 16, "the row geometry is the painter's");
 }
@@ -573,7 +638,16 @@ fn a_click_on_the_load_screen_means_the_row_it_drew_even_if_a_save_arrived_since
     let r = SaveLoadScreen::row_rect(0);
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     l2_game::Screen::handle(&mut screen, Event::Click { x: r.x + 2, y: r.y + 2 }, &mut ctx);
-    let t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    // Enter is `Edit_Confirm`, the same latch as the thumb up: the load runs when
+    // `SaveLoad_Tick`'s count has run out.
+    l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    let mut t = l2_game::Transition::Stay;
+    for _ in 0..=l2_game::screens::saveload::WORK_FRAMES {
+        t = l2_game::Screen::update(&mut screen, &mut ctx);
+        if t != l2_game::Transition::Stay {
+            break;
+        }
+    }
     assert_eq!(t, l2_game::Transition::Pop, "the load went through");
     assert_eq!(
         digest(&game.kingdom),
@@ -670,7 +744,11 @@ fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     // The name field cannot hold a separator — `Key::Char` never carries one —
     // so the refusal is reached the way a player would reach it: an empty name.
-    let t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    // Enter arms `SaveLoad_Tick`'s latch, and the refusal comes when it runs out.
+    let mut t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
+        t = l2_game::Screen::update(&mut screen, &mut ctx);
+    }
     assert_eq!(t, l2_game::Transition::Stay, "a refused save leaves the screen open");
     assert!(matches!(screen.status(), Status::Failed(_)), "and it says so");
     assert_eq!(own.files(), Vec::<String>::new(), "and nothing was written");
@@ -694,7 +772,11 @@ fn the_load_screen_refuses_a_file_it_cannot_read_and_stays_open() {
     let r = SaveLoadScreen::row_rect(row);
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     l2_game::Screen::handle(&mut screen, Event::Click { x: r.x + 2, y: r.y + 2 }, &mut ctx);
-    let t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    // Enter arms `SaveLoad_Tick`'s latch; the load is attempted when it runs out.
+    let mut t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
+        t = l2_game::Screen::update(&mut screen, &mut ctx);
+    }
 
     assert_eq!(t, l2_game::Transition::Stay, "a refused load leaves the screen open");
     assert!(matches!(screen.status(), Status::Failed(_)));
