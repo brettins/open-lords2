@@ -533,7 +533,12 @@ impl Screen for BattlefieldScreen {
             }
         }
 
-        // The rubber band, while one is being drawn.
+        // **The rubber band, while one is being drawn** — `Battlefield_DrawBand`
+        // (`0x0041298A`), the twin of the village's `Village_DrawBand`. Both
+        // normalise the box against the live pointer and hand it to
+        // `Ui_DrawRectOutline` (`0x00403CF4`) in colour `0x20`; this one clamps
+        // to x < `0x1E0` and y `0x18 … 0x1D8`. Ours is un-clamped and in our own
+        // ink, which is all that is left of the difference.
         if let Some(d) = live.drag {
             let r = Rect::new(
                 d.anchor_px.0.min(d.px.0),

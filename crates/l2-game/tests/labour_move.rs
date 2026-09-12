@@ -267,6 +267,90 @@ fn a_drop_on_a_switched_off_mine_switches_it_on_and_both_rows_redraw() {
     assert!(drawn_in_row(&after, &assets, iron_now, 1, 2), "the iron row appears with +{iron_now}");
 }
 
+/// **The drag selection box is drawn with the debug overlay OFF**, because
+/// `Village_DrawBand` (`0x00412795`) is the original's and not ours.
+///
+/// C173 put our outline behind Ctrl+D on the strength of not having found this
+/// function, and the player reported the result: *"the drag selection box has
+/// disappeared, it was probably a debug thing that you removed with other debug
+/// boxes."* The assertion is the whole rectangle in the original's own colour —
+/// `Ui_DrawRectOutline`'s literal `0x20` — read off the canvas at the four
+/// edges, with the overlay left at its default.
+#[test]
+fn the_drag_selection_box_is_drawn_without_the_debug_overlay() {
+    let assets = assets!();
+    let save = l2_testkit::england!();
+    let mut game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+    game.prefs.tip_screens = false;
+    assert!(!game.prefs.debug_overlay, "the default session, which is the point");
+
+    let county = 8u8;
+    game.select(county);
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Village(county));
+
+    // A press and a drag with no release: screen `0x05`, the band state.
+    let top = vill::SCENE_Y;
+    let (x0, y0) = (vill::SCENE_X + 20, top + 40);
+    let (x1, y1) = (x0 + 60, y0 + 30);
+    handle(&mut m, &mut game, &assets, Event::Click { x: x0, y: y0 });
+    handle(&mut m, &mut game, &assets, Event::Pointer { x: x1, y: y1 });
+    let canvas = draw_stack(&mut m, &mut game, &assets);
+
+    // `FUN_00403cf4(x, y, w, h, 0x20)` — top, bottom, left and right.
+    const BAND_INK: u8 = 0x20;
+    let at = |x: i32, y: i32| canvas.at(x as usize, y as usize);
+    for x in x0..=x1 {
+        assert_eq!(at(x, y0), BAND_INK, "the band's top edge at x {x}");
+        assert_eq!(at(x, y1), BAND_INK, "the band's bottom edge at x {x}");
+    }
+    for y in y0..=y1 {
+        assert_eq!(at(x0, y), BAND_INK, "the band's left edge at y {y}");
+        assert_eq!(at(x1, y), BAND_INK, "the band's right edge at y {y}");
+    }
+
+    // And it is the band that drew it, not the village: released, it is gone.
+    handle(&mut m, &mut game, &assets, Event::Release { x: x1, y: y1 });
+    let after = draw_stack(&mut m, &mut game, &assets);
+    assert!(
+        (x0..=x1).any(|x| after.at(x as usize, y0 as usize) != BAND_INK),
+        "the outline goes with the release"
+    );
+}
+
+/// **The clamp is `Village_DrawBand`'s own** — a band dragged below the
+/// picture stops at `g_villageTopY + 0x178` and not at the pointer.
+#[test]
+fn the_drag_selection_box_stops_where_the_original_clamps_it() {
+    let assets = assets!();
+    let save = l2_testkit::england!();
+    let mut game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+    game.prefs.tip_screens = false;
+
+    let county = 8u8;
+    game.select(county);
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Village(county));
+
+    let top = vill::SCENE_Y;
+    let (x0, y0) = (vill::SCENE_X + 20, top + 40);
+    // Past the bottom of the band area, which `Village_BandStart` also refuses
+    // to arm in: the pointer keeps going, the outline does not.
+    let (x1, y1) = (x0 + 60, top + vill::BAND_H + 10);
+    handle(&mut m, &mut game, &assets, Event::Click { x: x0, y: y0 });
+    handle(&mut m, &mut game, &assets, Event::Pointer { x: x1, y: y1 });
+    let canvas = draw_stack(&mut m, &mut game, &assets);
+
+    const BAND_INK: u8 = 0x20;
+    let bottom = top + vill::BAND_H - 1;
+    assert_eq!(canvas.at(x0 as usize, bottom as usize), BAND_INK, "the clamped bottom edge");
+    assert_ne!(
+        canvas.at(x0 as usize, y1 as usize),
+        BAND_INK,
+        "and nothing at the pointer, ten rows past the band area"
+    );
+}
+
 // ------------------------------------------------------------ across a season
 
 /// **The split a player drags is the split the season deals him back.**
