@@ -735,9 +735,28 @@ pub struct County {
     /// runs at the top of both `Grain_Grow` and `Grain_Harvest`. Repainting a
     /// grain field as pasture in July therefore costs a share of the standing
     /// crop, and repainting *more* land as grain does nothing until next
-    /// year's sowing. `+0x206` is a second copy of the same number, read only
-    /// by the tile graphic.
+    /// year's sowing.
+    ///
+    /// **`+0x206` is not a second copy of this**, which is what this comment
+    /// used to say. The two are written together, once, by the sowing clause,
+    /// but only `+0x206` is ever stepped down again — see
+    /// [`County::fields_grain_standing`].
     pub fields_grain_sown: i32,
+    /// `+0x206` — **the grain fields sown this year that are still standing**,
+    /// and the divisor of the picture on every grain tile.
+    ///
+    /// `Grain_SeasonTick` (`0x0044C8AE`) writes it beside `+0x202` at sowing,
+    /// `fieldsGrain` or `1` on a shortfall. Unlike `+0x202` it is then
+    /// **decremented** by `County_DestroyField` (`0x00469E5B`) and by
+    /// `FUN_0046965A` whenever `fieldsGrain <= +0x206`, and it is the byte
+    /// all three of `Grain_SeasonTick`'s `FUN_0044CF6F` calls divide the crop
+    /// by — so it decides which of the four wheat pictures a county's fields
+    /// show. `docs/stored-fields.json` filed it as *"a second copy of +0x202
+    /// that only the tile graphic reads"*; three functions read it and two
+    /// write it. `[D]`, and not derivable from `+0x202` and `fieldsGrain`:
+    /// destroy a field, then paint two more, and the two orders disagree.
+    /// `docs/decisions.md` C195.
+    pub fields_grain_standing: i32,
     /// `+0x1A7` — `Grain_Sow` could not afford one sack a field and fell back
     /// to sowing a token handful.
     ///
@@ -1011,6 +1030,7 @@ impl County {
             grain: 0,
             crop: [0; 3],
             fields_grain_sown: 0,
+            fields_grain_standing: 0,
             sow_shortfall: false,
             herd: 0,
             // The lowest band: density 0 is at the bottom of it, and a county

@@ -886,12 +886,10 @@ impl Kingdom {
             // counterpart until a player said the wheat never grows. It writes
             // the crop-density band onto every grain tile of the county, and
             // that byte is what `l2_view::campaign::field_variant` reads back.
-            land::grain_repaint_fields(id, &self.counties[id], &mut self.campaign.map);
-            // **The repaint  ends with**, which had no
-            // counterpart until a player said the wheat never grows. It writes
-            // the crop-density band onto every grain tile of the county, and
-            // that byte is what  reads back.
-            land::grain_repaint_fields(id, &self.counties[id], &mut self.campaign.map);
+            // It was called twice here, the second under a copy of this
+            // comment with its two names stripped; the repaint is idempotent,
+            // so the copy changed no pixel and hid nothing but itself.
+            land::grain_repaint_fields(id, &self.counties[id], season, &mut self.campaign.map);
             if let Some(grain) = land::grain_labour_estimate(
                 &self.tables,
                 &self.counties[id],

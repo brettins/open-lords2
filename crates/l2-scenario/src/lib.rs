@@ -439,6 +439,9 @@ mod stored {
     pub const EVENT_GRAIN_PCT: u32 = 0x1FC;
     pub const EVENT_HERD_PCT: u32 = 0x1FD;
     pub const FIELDS_GRAIN_SOWN: u32 = 0x202;
+    /// The sown fields still standing — `County_DestroyField` steps it down
+    /// and `Grain_SeasonTick`'s wheat picture divides by it.
+    pub const FIELDS_GRAIN_STANDING: u32 = 0x206;
     pub const RECLAIM_FIELDS_FINISHING: u32 = 0x20C;
     pub const RECLAIM_SEASONS_TO_NEXT: u32 = 0x214;
     pub const ALE_HAPPINESS_GIVEN: u32 = 0x219;
@@ -800,6 +803,7 @@ pub struct CountyState {
     pub siege_scars: l2_kingdom::siege::SiegeScars,
     pub crop: [i32; 3],
     pub fields_grain_sown: i32,
+    pub fields_grain_standing: i32,
     pub sow_shortfall: bool,
     /// `+0x290` — which weapon the blacksmith makes, and the frame the weapons
     /// row draws.
@@ -1382,6 +1386,7 @@ impl Scenario {
                     save.i32_at(at(stored::CROP + 8))?,
                 ],
                 fields_grain_sown: save.u8_at(at(stored::FIELDS_GRAIN_SOWN))? as i32,
+                fields_grain_standing: save.u8_at(at(stored::FIELDS_GRAIN_STANDING))? as i32,
                 sow_shortfall: save.u8_at(at(stored::SOW_SHORTFALL))? != 0,
                 weapon_type: save.u8_at(at(stored::WEAPON_TYPE))? as usize,
                 mercenary_offer: save.u8_at(at(stored::MERCENARY_OFFER))?,
@@ -1723,6 +1728,7 @@ impl Scenario {
                 siege_scars,
                 crop,
                 fields_grain_sown,
+                fields_grain_standing,
                 sow_shortfall,
                 weapon_type,
                 mercenary_offer,
@@ -1809,6 +1815,7 @@ impl Scenario {
             c.siege_scars = *siege_scars;
             c.crop = *crop;
             c.fields_grain_sown = *fields_grain_sown;
+            c.fields_grain_standing = *fields_grain_standing;
             c.sow_shortfall = *sow_shortfall;
             c.weapon_type = *weapon_type;
             // The band on offer, beside the table it names — `skeleton` carried

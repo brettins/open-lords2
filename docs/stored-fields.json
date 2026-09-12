@@ -142,7 +142,7 @@
     {"id": "County+0x203", "name": "fieldsWaste", "type": "u8", "status": "derived", "why": "County_RecountFields' count, recomputed from the twenty field tiles on load"},
     {"id": "County+0x204", "name": "fieldsReclaiming", "type": "u8", "status": "derived", "why": "County_RecountFields' count, recomputed from the twenty field tiles on load"},
     {"id": "County+0x205", "name": "startingFields", "type": "u8", "status": "excluded", "why": "the count of used g_countyFieldTiles slots, which the scenario carries, in every county of every save; the bound of the three field cursors"},
-    {"id": "County+0x206", "name": "fieldsGrainSownCopy", "type": "u8", "status": "excluded", "why": "a sown-field count County_DestroyField and FUN_0046965A decrement apart from +0x202, and read to size a razed field's crop; equal to +0x202 in every save, and movement::destroy_field divides by fields_grain instead"},
+    {"id": "County+0x206", "name": "fieldsGrainStanding", "type": "u8", "status": "imported"},
     {"id": "County+0x208", "name": "fertility", "type": "i32", "status": "imported"},
     {"id": "County+0x20C", "name": "reclaimFieldsFinishing", "type": "i32", "status": "imported"},
     {"id": "County+0x210", "name": "reclaimLeadSlot", "type": "i32", "status": "excluded", "why": "Field_ReclaimLeadSlot's cached answer, 99 (none) in every county of every save; not a field of County"},

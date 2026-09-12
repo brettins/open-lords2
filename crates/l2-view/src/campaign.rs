@@ -1306,15 +1306,15 @@ impl Overrides {
 /// `0x20`/roads **frame 80 only**, with boundary twins 81 … 83 — which is
 /// `base = 80` and its four variants exactly (`maps-layers.md` §1.2).
 ///
-/// # `variant` is dead
+/// # `variant` is not dead
 ///
 /// The third parameter is `variant * 4` — a whole sub-block shift on top of the
-/// base. **All sixteen call sites in the shipped binary pass zero**, including
-/// the two that forward a parameter (`FUN_00469D21`, whose only callers are
-/// `Grain_SeasonTick` and `Herd_UpdateCrowding`, and both pass `'\0'`). So the
-/// term contributes nothing to any picture the game draws and this function
-/// omits it. If it ever mattered it would move a field into the *next* state's
-/// frame block, which is presumably why nothing uses it.
+/// base. This heading used to say it was dead, *"all sixteen call sites pass
+/// zero"*, and C124 found the twenty-fourth that does not: `Grain_SeasonTick`'s
+/// forward through `FUN_00469D21`. That paragraph stood here, above the table,
+/// for the whole life of the fix that refuted it — **a claim that produced a
+/// defect once, left in the one place a person reads before touching this
+/// table.** [`field_variant`] is the term.
 pub const FIELD_BASES: [(u8, u8, u8); 10] = [
     // (terrain, first frame of the four, plane-1 bank byte for the layer)
     (0x00, 80, BANK_ROADS),  // wild
@@ -1384,6 +1384,13 @@ pub fn field_base(terrain: u8) -> (u8, u8) {
 /// crate has no such blitter, so it is carried rather than acted on:
 /// [`Overrides`] stores the plane-1 byte and a caller reading it back should
 /// see what the game's own tile record would hold.
+pub fn field_graphic(terrain: u8, stored_frame: u8) -> (u8, u8) {
+    let (_, layer) = field_base(terrain);
+    let bank = ((((BANK_ROADS | 1) & 0xE3) | layer) & 0x7F)
+        | if (0x0F..0x17).contains(&terrain) { 0x80 } else { 0 };
+    (bank, field_frame(terrain, stored_frame))
+}
+
 /// **`Terrain_Set`'s third parameter, and it is not dead.** This is the wheat.
 ///
 /// A player: *"The wheat fields don't show the wheat growing."* He is right, and
@@ -1394,10 +1401,11 @@ pub fn field_base(terrain: u8) -> (u8, u8) {
 /// `'\0'`)."*
 ///
 /// **`Herd_UpdateCrowding` passes `'\0'`. `Grain_SeasonTick` does not.** Its
-/// last three lines:
+/// three arms each band the crop, and its last lines paint the result:
 ///
 /// ```c
-/// band = FUN_0044CF6F(county.crop[2], county.fieldsGrain);   /* 2, 3, 7 or 11 */
+/// /* Spring, Summer, Autumn */ band = FUN_0044CF6F(county.crop[1], (byte)county.field_0x206);
+/// /* Winter, the harvest   */ band = FUN_0044CF6F(county.crop[2], (byte)county.field_0x206);
 /// variant = band < 3 ? 0 : (band - 3) / 4 + 1;               /* 0, 1, 2 or 3  */
 /// FUN_00469D21(county, band, variant, 2, 0xE);   /* every grain tile of the county */
 /// ```
@@ -1405,6 +1413,13 @@ pub fn field_base(terrain: u8) -> (u8, u8) {
 /// and `FUN_0044CF6F` is four sacks-per-field bands — `< 1` field or crop → 2,
 /// `< 0x29` → 3, `< 0x51` → 7, else 11. So a growing crop moves the tile's
 /// `content` through **2, 3, 7, 11** and its variant through **0, 1, 2, 3**.
+///
+/// **This snippet used to read `FUN_0044CF6F(county.crop[2], county.fieldsGrain)`
+/// for every season**, and the kingdom crate was written to it: `crop[2]` is
+/// zero outside Winter, so the fix that added this function drew variant 0 for
+/// three seasons in four and a player reported the wheat *still* did not grow.
+/// `l2_kingdom::land::grain_stage_band` is the other half now.
+/// `docs/decisions.md` C195.
 ///
 /// **The content byte alone carries none of that.** All four values fall in
 /// `2 … 0x12`, whose base is 88 — so `base + (stored & 3)` is the same four
@@ -1435,13 +1450,6 @@ pub fn field_variant(terrain: u8) -> u8 {
     } else {
         0
     }
-}
-
-pub fn field_graphic(terrain: u8, stored_frame: u8) -> (u8, u8) {
-    let (base, layer) = field_base(terrain);
-    let bank = ((((BANK_ROADS | 1) & 0xE3) | layer) & 0x7F)
-        | if (0x0F..0x17).contains(&terrain) { 0x80 } else { 0 };
-    (bank, field_frame(terrain, stored_frame))
 }
 
 /// The frame alone, for a caller that already knows the bank.
