@@ -160,13 +160,15 @@
 //! the player's own `L2.eng`, with our transcription only where the file has
 //! none (`CLAUDE.md` rule 6).
 //!
-//! **Two figures are not carried and are not drawn**, said here rather than
-//! discovered: county `+0x278` and `+0x274`, the grain and herd a random event
-//! took or gave, and `+0x24C` and `+0x270`, what the weather did (advanced
-//! farming only). `docs/stored-fields.json` has all four as *excluded*, so an
-//! event season's first report line and the weather line are missing draws.
-//! The *"no outside factors"* sentence is drawn exactly when the original's
-//! figure is provably zero — see [`draw_grain_report`].
+//! **The four weather and event figures are drawn** — `docs/decisions.md`
+//! correction CNEW-tile-panel-castle-and-weather. County `+0x278` and
+//! `+0x274` are the grain and herd a random event took or gave, `+0x24C` and
+//! `+0x270` what the weather did (advanced farming only), and all four are
+//! **imported** in `docs/stored-fields.json` — this comment claimed they were
+//! excluded, which was true when it was written and two corrections out of
+//! date by the time a player met the panel. They are `grain_event_change`,
+//! `herd_event_change`, `grain_weather_change` and `herd_weather_change`, the
+//! same four `Panel_JobGrain` and `Panel_JobCattle` draw on the job page.
 
 use l2_view::Canvas;
 
@@ -368,6 +370,23 @@ pub const MERC_LINE_AT: (i32, i32) = (0x38, 0x130);
 pub const COUNTY_TOWN_HEADING: usize = 7;
 pub const COUNTY_TOWN_BODY: usize = 0x1B;
 pub const COUNTY_TOWN_ICON: usize = 0x1B;
+
+/// **The castle arm's three headings and its icon.** `TileInfo_Draw`'s `0x80`
+/// branch at `0x0C < graphic < 0x1A`: 30/8 *"Castle."*, or 30/14 and 30/15
+/// while `castleDegraded` is 1 or 2, and `Icon_tmp.pl8` frame `0x1C`. The body
+/// is 30/`graphic + 7` and so is not a constant. See [`draw_castle`].
+pub const CASTLE_HEADING: usize = 8;
+pub const CASTLE_HEADING_BUILDING: usize = 0x0E;
+pub const CASTLE_HEADING_REPAIR: usize = 0x0F;
+pub const CASTLE_ICON: usize = 0x1C;
+/// 71/16 *"Boosts tax revenues by"*, 71/11 *"Barracks for"* + 71/12
+/// *"troops."*, 71/13 *"currently stationed here."*, 71/19 *"Enemy troops are
+/// barracked here."* — `TileInfo_DrawCastle`'s own indices.
+pub const CASTLE_TAX_BONUS: usize = 0x10;
+pub const CASTLE_BARRACKS: usize = 0x0B;
+pub const CASTLE_TROOPS: usize = 0x0C;
+pub const CASTLE_STATIONED: usize = 0x0D;
+pub const CASTLE_ENEMY_BARRACKED: usize = 0x13;
 
 /// **The mercenary tail — the words the marker on the map does not carry.**
 ///
@@ -582,6 +601,9 @@ pub fn words(a: &crate::shell::ShellAssets, group: usize, index: usize) -> Strin
         TILE_GROUP => TILE_WORDS.iter().find(|&&(i, _)| i == index).map(|&(_, s)| s),
         REPORT_GROUP => REPORT_WORDS.get(index).copied(),
         FERTILITY_GROUP => FERTILITY_WORDS.get(index).copied(),
+        // `TileInfo_DrawCastle` and `Castle_DrawStatusBlock` draw the same
+        // group on two screens; the transcription lives with the other one.
+        CASTLE_GROUP => Some(super::job::ours(group, index)),
         _ => None,
     };
     ours.unwrap_or("").to_string()
@@ -653,14 +675,13 @@ impl InfoScreen {
     /// .garrisonUnit`, and `TileInfo_DrawCastle` is what decides the widget
     /// exists at all: a **castle tile** whose county has a garrison. Any owner.
     pub fn garrison(&self, ctx: &Ctx) -> Option<usize> {
-        let Target::Tile(tile) = self.target else { return None };
-        let map = &ctx.game.kingdom.campaign.map;
-        if map.flags[tile] & l2_kingdom::map::flags::SETTLEMENT == 0
-            || map.terrain[tile] <= l2_kingdom::map::terrain::CASTLE_PLOT
-        {
-            return None;
-        }
-        let county = map.county[tile] as usize;
+        // **[`InfoScreen::castle_tile`], not `terrain > CASTLE_PLOT`.**
+        // `DAT_00568474` is written by `TileInfo_DrawCastle`, which runs for
+        // the whole `0x0C < graphic < 0x1A` range — the bare plot included —
+        // so the widget the press arm answers and the widget the painter draws
+        // have to agree on one predicate. They did not.
+        let tile = self.castle_tile(ctx)?;
+        let county = ctx.game.kingdom.campaign.map.county[tile] as usize;
         let unit = ctx.game.kingdom.counties.get(county).map_or(0, |c| c.garrison_unit);
         (unit != 0).then_some(unit)
     }
@@ -694,6 +715,29 @@ impl InfoScreen {
             .counties
             .get(county as usize)
             .is_some_and(|c| c.mercenary_offer != 0)
+    }
+
+    /// **The castle tile this panel describes**, or `None`.
+    ///
+    /// `TileInfo_Draw`'s and `FUN_0041BEFE`'s `0x80` arm, split the same way in
+    /// both: `g_pickedTileGraphic < 0x0D` is a resource site and
+    /// `0x0C < graphic < 0x1A` is the castle plot ([`terrain::CASTLE_PLOT`]) or
+    /// a castle standing on it. The bit is reached only after `0x20`, `0x04`,
+    /// `0x10` and `0x40` have all failed, which is the order kept here.
+    ///
+    /// [`terrain::CASTLE_PLOT`]: l2_kingdom::map::terrain::CASTLE_PLOT
+    pub fn castle_tile(&self, ctx: &Ctx) -> Option<usize> {
+        use l2_kingdom::map::flags;
+        let Target::Tile(tile) = self.target else { return None };
+        let map = &ctx.game.kingdom.campaign.map;
+        let f = map.flags[tile];
+        if f & (flags::FARMLAND | flags::NO_COUNTY | flags::PLOT | flags::CASTLE) != 0
+            || f & flags::SETTLEMENT == 0
+        {
+            return None;
+        }
+        let g = map.terrain[tile];
+        (g > 0x0C && g < 0x1A).then_some(tile)
     }
 
     /// **The farm tile this panel describes**, or `None` — `TileInfo_Draw`'s
@@ -773,6 +817,37 @@ impl InfoScreen {
                         .get(county as usize)
                         .is_some_and(|c| c.mercenary_offer != 0);
                     return Layout { row: if offer { 0x0F } else { 0x11 }, headroom: 2 };
+                }
+                // **The castle, `FUN_0041BEFE`'s `0x80` arm.** Three rows by
+                // the county's castle state, and the resource sites below
+                // `0x0D` fall through to the `0x11` fallback that ends this
+                // ladder:
+                //
+                // ```c
+                // if (g_pickedTileGraphic < 0xd)                    DAT_00553d2c = 0x11;
+                // else if (county.castleDegraded == 0)
+                //      if (county.field_0x1c2 == '\0')              DAT_00553d2c = 0xe;
+                //      else                                         DAT_00553d2c = 0x11;
+                // else if (g_localPlayer == g_pickedCountyOwner)    DAT_00553d2c = 10;
+                // else                                             DAT_00553d2c = 0x11;
+                // ```
+                //
+                // `0x0A` is the tallest tile layout in the game, and it is
+                // tall because `Castle_DrawStatusBlock` needs five lines.
+                if self.castle_tile(ctx).is_some() {
+                    let c = ctx.game.kingdom.counties.get(county as usize);
+                    let row = match c {
+                        Some(c) if c.castle_degraded == 0 => {
+                            if c.castle_ruined {
+                                0x11
+                            } else {
+                                0x0E
+                            }
+                        }
+                        Some(_) if mine => 0x0A,
+                        _ => 0x11,
+                    };
+                    return Layout { row, headroom: 2 };
                 }
                 // `FUN_0041BEFE`'s `0x20` arm tests the blighted pair **before**
                 // the owner: a flooded or parched field is row `0x11` on anybody's
@@ -1356,26 +1431,12 @@ impl Screen for InfoScreen {
                         font::TEXT,
                     );
                 }
-                // **`TileInfo_DrawCastle`'s widget** — 71/14 *"View these
-                // troops?"* over `Widget_Draw(8, 0x20, &g_tilePanelWidgets, …)`,
-                // whose count is 1 exactly when the county has a garrison.
-                if self.garrison(ctx).is_some() {
-                    pen.eng(
-                        canvas,
-                        CASTLE_GROUP,
-                        VIEW_THESE_TROOPS,
-                        BODY_X,
-                        l.y(0xC4),
-                        font::TEXT,
-                    );
-                    // `System.pl8` frame 25 is the tick, which is what the
-                    // record's `+4` carries; our own button is the fallback for
-                    // an install with no artwork. `Widget_Draw` adds one to it
-                    // while the press timer at `+0x0D` runs.
-                    let frame = if self.press.is_pressed(0) { 26 } else { 25 };
-                    if !pen.system_frame(canvas, frame, GARRISON_WIDGET.x, GARRISON_WIDGET.y) {
-                        crate::widget::frame(canvas, GARRISON_WIDGET, ink.highlight);
-                    }
+                // **`TileInfo_Draw`'s castle arm and `TileInfo_DrawCastle`
+                // under it.** See [`draw_castle`], which also draws 71/14
+                // *"View these troops?"* and its widget — the one place the
+                // original puts either.
+                if let Some(castle) = self.castle_tile(ctx) {
+                    draw_castle(ctx, &pen, canvas, l, castle, self.press.is_pressed(0), ink);
                 }
                 // **The county-town arm, and the one line of English the
                 // mercenary has anywhere in the game.** The map's marker
@@ -1422,10 +1483,13 @@ impl Screen for InfoScreen {
                             font::TEXT,
                         );
                     }
-                } else if self.farmland(ctx).is_none() && ctx.game.prefs.debug_overlay {
+                } else if self.farmland(ctx).is_none()
+                    && self.castle_tile(ctx).is_none()
+                    && ctx.game.prefs.debug_overlay
+                {
                     // Ours, debug overlay only: the rest of the ladder — road,
-                    // sea, village, mountain, wood, industry, castle — is not
-                    // drawn yet.
+                    // sea, village, mountain, wood and the resource sites — is
+                    // not drawn yet.
                     l2_view::text::draw(
                         canvas,
                         4,
@@ -1442,6 +1506,151 @@ impl Screen for InfoScreen {
         if ctx.game.prefs.debug_overlay && !self.status.is_empty() {
             l2_view::text::draw(canvas, 12, 452, &self.status, ink.highlight);
         }
+    }
+}
+
+/// **`TileInfo_Draw` (`0x0041C208`) for a `0x80` castle tile, and
+/// `TileInfo_DrawCastle` (`0x0041DA2F`) under it.**
+///
+/// The outer painter's four literals:
+///
+/// ```c
+/// else if (g_pickedTileGraphic < 0x1a) {
+///   if      (county.castleDegraded == 1) local_20 = 0xe;   /* under construction */
+///   else if (county.castleDegraded == 2) local_20 = 0xf;   /* under repair       */
+///   else                                 local_20 = 8;     /* a castle           */
+///   local_1c = g_pickedTileGraphic + 7;  local_8 = 0x1c;  local_c = 0;
+/// }
+/// ```
+///
+/// — heading 30/8, 30/14 or 30/15, body 30/`graphic + 7` (so the bare plot's
+/// `0x14` takes 30/27 and a royal castle's `0x19` takes 30/32), and
+/// `Icon_tmp.pl8` frame `0x1C`. **The body goes through the same
+/// `FUN_0040328E(30, local_1c, 0x68, row*16 + 100, 0x130, …)` every other
+/// non-farmland arm uses**, both sides of the owner test being one call.
+///
+/// Then `TileInfo_DrawCastle`, which is two arms and a shared tail:
+///
+/// ```c
+/// DAT_00568474 = (county.garrisonUnit != 0);
+/// if (county.castleDegraded == 0) {
+///   if (county.field_0x1c2 != 0) return;                 /* ruined: nothing at all */
+///   71/0x10 (0x68, R+0x88) + Ui_DrawNumber(taxBonus[type], ' ', " %", pen + 0x68)
+///   71/0x0B (0x68, R+0x98) + Ui_DrawNumber(barracks[type], ' ', " ", pen + 0x68) + 71/0x0C
+///   if (garrison) {
+///     owner == local ? Ui_DrawNumber(unit.menTotal, ' ', " ", 0x68, R+0xa8) + 71/0x0D
+///                    : 71/0x13 (0x68, R+0xa8)
+///     71/0x0E (0x68, R+0xc4); Widget_Draw(8, 0x20, &g_tilePanelWidgets, 1)
+///   }
+/// } else {
+///   if (county.owner == g_localPlayer) {
+///     Ui_DrawCount(labour[3].workers, 0x26, 0x68, R+0x88)
+///     Castle_DrawStatusBlock(county, 8, 0x30, R)
+///   }
+///   if (garrison) { 71/0x0E (0x68, R+0x104); Widget_Draw(…) }
+/// }
+/// ```
+///
+/// **Note what the two arms do not share.** The intact arm's tax and barracks
+/// lines are `Castle_DrawStatusBlock`'s first two written out again at a
+/// different y, and the degraded arm reaches the block itself — so a county
+/// building its first castle is the one that shows the stone and wood owed and
+/// the seasons left. And the ruined county (`+0x1C2`) draws **nothing**: the
+/// heading above it says *"Castle."* and the block below is empty, which is
+/// the original's, not a gap of ours.
+///
+/// The tax and barracks words come from
+/// [`super::job::castle_word`]'s run, one word low at type 0 — `docs/bugs.md`'s
+/// *"Barracks for 2500 troops."* on a county with no castle is reproduced here
+/// too, because it is the same two table reads.
+fn draw_castle(
+    ctx: &Ctx,
+    pen: &Pen,
+    canvas: &mut Canvas,
+    l: Layout,
+    tile: usize,
+    pressed: bool,
+    ink: &l2_view::ink::Ink,
+) {
+    let k = &ctx.game.kingdom;
+    let a = pen.assets;
+    let map = &k.campaign.map;
+    let graphic = map.terrain[tile] as usize;
+    let Some(c) = k.counties.get(map.county[tile] as usize) else { return };
+    let say = |canvas: &mut Canvas, group: usize, index: usize, x: i32, y: i32| {
+        pen.body(canvas, x, y, &words(a, group, index), font::TEXT)
+    };
+
+    // The heading, in `&g_fontHeading` like every other arm's.
+    let heading = match c.castle_degraded {
+        1 => CASTLE_HEADING_BUILDING,
+        2 => CASTLE_HEADING_REPAIR,
+        _ => CASTLE_HEADING,
+    };
+    pen.heading(canvas, HEADING_X, l.y(HEADING_DY), &words(a, TILE_GROUP, heading), font::TEXT);
+    let body = words(a, TILE_GROUP, graphic + 7);
+    pen.body_wrapped(canvas, BODY_X, l.y(BODY_DY), TILE_BODY_WRAP, &body, font::TEXT);
+    // `Sprite_WGenSprite(0x1C, 0x28, row*16 + 0x60)`. The original draws it
+    // *after* `TileInfo_DrawCastle` returns, which matters only in that the
+    // ruined arm below returns early and the icon is still drawn.
+    if let Some(f) = a.sheet(ICON_SHEET).and_then(|s| s.frame(CASTLE_ICON)) {
+        canvas.blit(&f, ICON_AT.0, l.y(ICON_AT.1));
+    }
+
+    // `DAT_00568474`, and the widget it counts.
+    let garrison = k.campaign.units.get(c.garrison_unit).filter(|_| c.garrison_unit != 0);
+    let widget = |canvas: &mut Canvas, y: i32| {
+        say(canvas, CASTLE_GROUP, VIEW_THESE_TROOPS, BODY_X, y);
+        // `System.pl8` frame 25 is the tick, which is what the record's `+4`
+        // carries; our own button is the fallback for an install with no
+        // artwork. `Widget_Draw` adds one to it while the press timer at
+        // `+0x0D` runs.
+        let frame = if pressed { 26 } else { 25 };
+        if !pen.system_frame(canvas, frame, GARRISON_WIDGET.x, GARRISON_WIDGET.y) {
+            crate::widget::frame(canvas, GARRISON_WIDGET, ink.highlight);
+        }
+    };
+
+    if c.castle_degraded == 0 {
+        if c.castle_ruined {
+            return;
+        }
+        let t = &k.tables;
+        let type_index = usize::from(c.castle_type);
+        let at = say(canvas, CASTLE_GROUP, CASTLE_TAX_BONUS, BODY_X, l.y(0x88));
+        let bonus = super::job::castle_word(t, super::job::CASTLE_TAX_BONUS_BASE + type_index);
+        pen.number_in(Face::Body, canvas, at, l.y(0x88), bonus, ' ', " %", font::TEXT);
+        let at = say(canvas, CASTLE_GROUP, CASTLE_BARRACKS, BODY_X, l.y(0x98));
+        let cap = super::job::castle_word(t, super::job::CASTLE_BARRACKS_BASE + type_index);
+        let at = pen.number_in(Face::Body, canvas, at, l.y(0x98), cap, ' ', " ", font::TEXT);
+        say(canvas, CASTLE_GROUP, CASTLE_TROOPS, at, l.y(0x98));
+        if let Some(u) = garrison {
+            // **No ownership gate on the widget** — somebody else's garrison
+            // gets 71/19 instead of the count and the same button under it.
+            if u.owner == ctx.game.player {
+                let at =
+                    pen.number_in(Face::Body, canvas, BODY_X, l.y(0xA8), u.men, ' ', " ", font::TEXT);
+                say(canvas, CASTLE_GROUP, CASTLE_STATIONED, at, l.y(0xA8));
+            } else {
+                say(canvas, CASTLE_GROUP, CASTLE_ENEMY_BARRACKED, BODY_X, l.y(0xA8));
+            }
+            widget(canvas, l.y(0xC4));
+        }
+        return;
+    }
+    if c.owner == ctx.game.player {
+        pen.count(
+            canvas,
+            BODY_X,
+            l.y(0x88),
+            c.labour[l2_kingdom::tables::JOB_CASTLE_BUILDING],
+            0x26,
+            font::TEXT,
+        );
+        super::job::castle_status_block(pen, ctx, canvas, c, 8, 0x30, l.row);
+    }
+    if garrison.is_some() {
+        widget(canvas, l.y(0x104));
     }
 }
 
@@ -1471,7 +1680,7 @@ pub fn draw_farmland(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, tile:
 
     match (mode, county) {
         (mode::WHEAT, Some(c)) if mine => draw_grain_report(ctx, pen, canvas, l, c),
-        (mode::CATTLE, Some(c)) if mine => draw_herd_report(pen, canvas, l, c),
+        (mode::CATTLE, Some(c)) if mine => draw_herd_report(ctx, pen, canvas, l, c),
         // Somebody else's wheat or cattle: the heading and the icon, and the
         // table's description is **not** drawn — `local_1c` goes unread.
         (mode::WHEAT | mode::CATTLE, _) => {}
@@ -1532,27 +1741,49 @@ fn report_value(pen: &Pen, canvas: &mut Canvas, y: i32, value: i32) {
     pen.number_in(body, canvas, next, y, value.abs(), lead, " ", colour);
 }
 
+/// **The weather's line**, which `TileInfo_DrawGrain` and `TileInfo_DrawHerd`
+/// both write out in full at `row * 0x10 + 0xA4`, advanced farming only:
+///
+/// ```c
+/// g_penAdvance = 0;
+/// if (v < 1) {
+///   if (v < 0) { Ui_DrawCount(-v, noun, 0x28, y); Eng_DrawString(77, 0x11, pen + 0x28, y); }
+///   else       { Eng_DrawString(77, 0x12, 0x28, y); }
+/// } else       { Ui_DrawCount(v, noun, 0x28, y);  Eng_DrawString(77, 0x10, pen + 0x28, y); }
+/// ```
+///
+/// The same three arms `job::weather_line` draws at `0xC0` from column `0x40`.
+fn weather_line(pen: &Pen, canvas: &mut Canvas, y: i32, v: i32, noun: usize) {
+    const X: i32 = 0x28;
+    let a = pen.assets;
+    let say = |canvas: &mut Canvas, x: i32, index: usize| {
+        pen.body(canvas, x, y, &words(a, REPORT_GROUP, index), font::TEXT)
+    };
+    if v == 0 {
+        say(canvas, X, 0x12);
+        return;
+    }
+    let shown = if v < 0 { v.wrapping_neg() } else { v };
+    let at = pen.count(canvas, X, y, shown, noun, font::TEXT);
+    say(canvas, at, if v < 0 { 0x11 } else { 0x10 });
+}
+
 /// **`TileInfo_DrawGrain` (`0x0041CB3A`)** — the wheat field's report, owner only.
 ///
-/// # The store line, and why it is drawn only sometimes
+/// # The store line and the weather line
 ///
 /// ```c
 /// if (county.field_0x278 == 0) Eng_DrawString(77, 0x18, 0x28, row*16 + 0x94);   /* no outside factors */
-/// else { Ui_DrawCount(county.field_0x278, 2, …); /* then 77/0x19 rats or 77/0x1A surplus */ }
+/// else { Ui_DrawCount(county.field_0x278, 2, 0x28, …);  /* then 77/0x19 rats (0x87) or 77/0x1A surplus (0x8B) */ }
+/// if (g_optAdvancedFarming == 1) { … the +0x24C line at row*16 + 0xa4 … }
 /// ```
 ///
-/// `Grain_SeasonTick` zeroes `+0x278` and writes it only from
-/// `eventGrainPct`, and the only handlers that set that byte are *Rats* (`0x87`)
-/// and *Grain found* (`0x8B`); `Event_RollAll` runs before the grain tick in
-/// the season pipeline, so the county's `event_id` at the time the panel is
-/// drawn is the event the last tick applied. **So any other event id means
-/// `+0x278` is zero and the sentence is exact.** With one of those two the
-/// figure is the grain that event moved, which this workspace does not carry
-/// (`docs/stored-fields.json`, *excluded*), and the line is **not drawn** rather
-/// than drawn wrong.
-///
-/// The weather line under it (`+0x24C`, advanced farming only) is the same kind
-/// of figure and is not drawn at all: NOT PORTED.
+/// `+0x278` is `grain_event_change` and `+0x24C` is `grain_weather_change`;
+/// both are **imported** (`docs/stored-fields.json`), and the module doc's
+/// claim that they were excluded was two corrections out of date. The words
+/// are group 77's — 0x19/0x1A after the figure, and 0x10/0x11/0x12 on the
+/// weather line — and [`weather_line`] is the shape `Panel_JobGrain` and
+/// `Panel_JobCattle` share with this painter at a different y.
 fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
     let k = &ctx.game.kingdom;
     let a = pen.assets;
@@ -1567,11 +1798,27 @@ fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l
         let band = ((c.fertility + 100) / 0x1D).clamp(0, 6) as usize;
         pen.body(canvas, 0x68, l.y(0x78), &words(a, FERTILITY_GROUP, band), font::TEXT);
     }
-    // NOT PORTED: the `+0x278` figure — see the doc above.
-    if !matches!(c.event_id, 0x87 | 0x8B) {
+    // `+0x278` — what last season's random event did to the store. *Rats*
+    // (`0x87`) and *Grain found* (`0x8B`) are the only two ids that write it,
+    // and any other id leaves the figure with no words after it.
+    if c.grain_event_change == 0 {
         say(canvas, 0x28, l.y(0x94), 0x18);
+    } else {
+        let at = pen.count(canvas, 0x28, l.y(0x94), c.grain_event_change, 2, font::TEXT);
+        match c.event_id {
+            0x87 => {
+                say(canvas, at, l.y(0x94), 0x19);
+            }
+            0x8B => {
+                say(canvas, at, l.y(0x94), 0x1A);
+            }
+            _ => {}
+        }
     }
-    // NOT PORTED: `if (g_optAdvancedFarming == 1)` the `+0x24C` weather line.
+    // `if (g_optAdvancedFarming == 1)` — the `+0x24C` weather line.
+    if k.options.advanced_farming {
+        weather_line(pen, canvas, l.y(0xA4), c.grain_weather_change, 2);
+    }
 
     if k.season_next == 1 {
         // Facing Spring: the seed and what it will yield.
@@ -1602,13 +1849,13 @@ fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l
 
 /// **`TileInfo_DrawHerd` (`0x0041D299`)** — the pasture's report, owner only.
 ///
-/// The event line has [`draw_grain_report`]'s shape: `+0x274` is written by
-/// `Herd_SeasonTick` only from `eventHerdPct`, whose setters are *Mad cows*
-/// (`0x88`), *Wolves* (`0x89`), *Bad cattle* (`0x8C`) and *Cow bonanza*
-/// (`0x8D`) — *No bull*'s 99 zeroes it — so any other id is the exact
-/// *"No outside events affected the herd"*, and those four are the missing
-/// figure. The weather line (`+0x270`) is NOT PORTED.
-fn draw_herd_report(pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
+/// The event line has [`draw_grain_report`]'s shape: `+0x274`
+/// (`herd_event_change`) is written by `Herd_SeasonTick` only from
+/// `eventHerdPct`, whose setters are *Mad cows* (`0x88`), *Wolves* (`0x89`),
+/// *Bad cattle* (`0x8C`) and *Cow bonanza* (`0x8D`) — *No bull*'s 99 zeroes it
+/// — so any other id leaves the figure with no words after it. The weather
+/// line is `+0x270`, `herd_weather_change`.
+fn draw_herd_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
     let a = pen.assets;
     let say = |canvas: &mut Canvas, x: i32, y: i32, index: usize| {
         pen.body(canvas, x, y, &words(a, REPORT_GROUP, index), font::TEXT)
@@ -1625,11 +1872,26 @@ fn draw_herd_report(pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::C
         };
         say(canvas, 0x68, l.y(0x78), crowding);
     }
-    // NOT PORTED: the `+0x274` figure — see the doc above.
-    if !matches!(c.event_id, 0x88 | 0x89 | 0x8C | 0x8D) {
+    // `+0x274` — what last season's random event did to the herd.
+    if c.herd_event_change == 0 {
         say(canvas, 0x28, l.y(0x94), 0x13);
+    } else {
+        let at = pen.count(canvas, 0x28, l.y(0x94), c.herd_event_change, 4, font::TEXT);
+        let word = match c.event_id {
+            0x88 => Some(0x14),
+            0x89 => Some(0x15),
+            0x8C => Some(0x16),
+            0x8D => Some(0x17),
+            _ => None,
+        };
+        if let Some(index) = word {
+            say(canvas, at, l.y(0x94), index);
+        }
     }
-    // NOT PORTED: `if (g_optAdvancedFarming == 1)` the `+0x270` weather line.
+    // `if (g_optAdvancedFarming == 1)` — the `+0x270` weather line.
+    if ctx.game.kingdom.options.advanced_farming {
+        weather_line(pen, canvas, l.y(0xA4), c.herd_weather_change, 4);
+    }
 
     say(canvas, 0x28, l.y(0xC0), 5);
     pen.count(canvas, 0x108, l.y(0xC0), c.herd_births_expected, 4, font::TEXT);

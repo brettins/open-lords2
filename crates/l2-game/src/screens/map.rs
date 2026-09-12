@@ -2534,6 +2534,47 @@ impl Screen for MapScreen {
                         }
                     })
                     .unwrap_or(crate::screens::info::Target::Tile(0));
+                // **`FUN_0043CAF4`'s extra step, between the pick and the
+                // panel — the right button also selects a county.**
+                // `docs/decisions.md` correction
+                // CNEW-tile-panel-castle-and-weather.
+                //
+                // ```c
+                // Map_ResolvePick();
+                // ...
+                // if (g_pickedTileCounty != 0 && g_pickedTileCounty != g_selectedCounty
+                //     && g_pickedTileUnit == 0) {
+                //   DAT_0053f0dc = g_counties[g_pickedTileCounty].townTile;
+                //   if (DAT_0053f0dc != 0) {
+                //     g_selectedCounty = g_pickedTileCounty;
+                //     Map_CentreOnTile(DAT_0053f0dc);
+                //   }
+                //   DAT_004eb260 = 1; FUN_004050c0();
+                // }
+                // FUN_0041b032();
+                // ```
+                //
+                // Three guards, and the third is the one nobody would guess:
+                // **right-clicking a unit selects nothing**, because the panel
+                // that comes up is about the army and not about the ground.
+                // The town is fetched before the selection and the selection
+                // is inside `townTile != 0`, so a county with no town square
+                // shows its panel and leaves the sidebar where it was — the
+                // same shape `Map_Click`'s industry arm has, without that
+                // arm's outright refusal.
+                //
+                // The redraw and `FUN_004050C0` outside the inner `if` are the
+                // sidebar repaint, which we do every frame.
+                if let crate::screens::info::Target::Tile(tile) = target {
+                    let county = ctx.game.kingdom.campaign.map.county[tile];
+                    if county != 0 && county != ctx.game.selected {
+                        if let Some(&town) = Self::town(ctx, county).first() {
+                            let (tx, ty) = l2_kingdom::map::coords(town);
+                            ctx.game.select(county);
+                            self.centre_on_tile(tx as usize, ty as usize);
+                        }
+                    }
+                }
                 // arm: 0x0042FF10/map-right-opens-info right-release
                 return Transition::Push(ScreenId::Info(target));
             }
