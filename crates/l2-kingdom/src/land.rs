@@ -473,6 +473,9 @@ pub fn sow(t: &Tables, county: &mut County, advanced_farming: bool) {
     // count — so if it later loses a grain field the ratio still reads 1.
     county.fields_grain_sown =
         if county.sow_shortfall { 1 } else { county.fields_grain };
+    // `+0x206`, written in the same two statements as `+0x202` and then left to
+    // `County_DestroyField` to step down. The wheat picture divides by this one.
+    county.fields_grain_standing = county.fields_grain_sown;
     county.grain -= county.crop[0];
 }
 
@@ -954,15 +957,50 @@ fn reclaim_lead_slot(county: &County, map: &crate::map::CampaignMap) -> Option<u
 ///
 /// Four bands at 41 and 81 sacks a field, and the value **is** the terrain byte
 /// `Grain_SeasonTick` then writes onto every grain tile of the county. `[D]`
-pub fn grain_crop_band(crop: i32, fields_grain: i32) -> u8 {
-    if crop < 1 || fields_grain < 1 {
+///
+/// `fields` is the second argument as the original passes it, which is **not**
+/// `fieldsGrain` — see [`grain_stage_band`].
+pub fn grain_crop_band(crop: i32, fields: i32) -> u8 {
+    if crop < 1 || fields < 1 {
         return 2;
     }
-    match crop / fields_grain {
+    match crop / fields {
         d if d < 0x29 => 3,
         d if d < 0x51 => 7,
         _ => 11,
     }
+}
+
+/// **Which band a county's wheat is drawn at this season** — the three
+/// `FUN_0044CF6F` calls in `Grain_SeasonTick` (`0x0044C8AE`), one per arm.
+///
+/// ```c
+/// if (g_season == 1) { … sow …;    band = FUN_0044CF6F(crop[1], (byte)+0x206); }
+/// else if (2 or 3)   { … grow …;   band = FUN_0044CF6F(crop[1], (byte)+0x206); }
+/// else if (4)        { … harvest …; band = FUN_0044CF6F(crop[2], (byte)+0x206); }
+/// ```
+///
+/// **This is the second time the wheat was fixed, and the first fix read
+/// neither argument.** C124 transcribed the call as
+/// `FUN_0044CF6F(county.crop[2], county.fieldsGrain)` — one line, stated for all
+/// four seasons — and it is the Winter arm's first argument with a divisor
+/// none of the three arms use. `crop[2]` is cleared at the top of every
+/// season and filled only by the harvest, so in Spring, Summer and Autumn it
+/// is always `0`, `FUN_0044CF6F` returns `2` for a zero crop, and every grain
+/// field on the map was drawn at variant 0 for three seasons in four. A player,
+/// on the build that carried that fix: *"wheat fields still not showing the
+/// different stages of wheat growth."*
+///
+/// The divisor is `+0x206`, [`County::fields_grain_standing`]: the fields
+/// sown this year less those since destroyed. `docs/decisions.md`
+/// C195. `[D]`
+pub fn grain_stage_band(county: &County, season: Season) -> u8 {
+    let crop = match season {
+        Season::Spring | Season::Summer | Season::Autumn => county.crop[1],
+        Season::Winter => county.crop[2],
+    };
+    // `(uint)(byte)county.field_0x206` — a byte in the original.
+    grain_crop_band(crop, county.fields_grain_standing & 0xFF)
 }
 
 /// **`Grain_SeasonTick`'s last two lines (`0x0044C8AE`), which had no
@@ -974,10 +1012,12 @@ pub fn grain_crop_band(crop: i32, fields_grain: i32) -> u8 {
 /// season pass this project believes it has read.
 ///
 /// ```c
-/// band = FUN_0044CF6F(county.crop[2], county.fieldsGrain);
+/// band = FUN_0044CF6F(<this season's crop word>, (byte)county.field_0x206);
 /// variant = band < 3 ? 0 : (band - 3) / 4 + 1;
 /// FUN_00469D21(county, band, variant, 2, 0xE);
 /// ```
+///
+/// **The first argument changes with the season** — [`grain_stage_band`].
 ///
 /// `FUN_00469D21(county, terrain, variant, lo, hi)` sweeps the whole tile array
 /// in index order and calls `Terrain_Set(tile, terrain, variant)` on every tile
@@ -1001,10 +1041,19 @@ pub fn grain_crop_band(crop: i32, fields_grain: i32) -> u8 {
 /// repainted bare.** That is the game showing a failed sowing as one green field
 /// among the empty ones, and it is a picture that is a rule — the same shape as
 /// the pasture herd and the mine's animation rate. `[D]`
-pub fn grain_repaint_fields(county_id: usize, county: &County, map: &mut crate::map::CampaignMap) {
-    let band = grain_crop_band(county.crop[2], county.fields_grain);
-    let variant = if band < 3 { 0 } else { (band - 3) / 4 + 1 };
-    let _ = variant; // carried by the terrain byte; see `field_variant`.
+///
+/// `season` is `g_season`, the season whose clause just ran, because that is
+/// what chose the crop word the band is read from.
+pub fn grain_repaint_fields(
+    county_id: usize,
+    county: &County,
+    season: Season,
+    map: &mut crate::map::CampaignMap,
+) {
+    // The variant `band < 3 ? 0 : (band - 3) / 4 + 1` is not stored: it is
+    // recoverable from the band, which is the terrain byte, and
+    // `l2_view::campaign::field_variant` recovers it.
+    let band = grain_stage_band(county, season);
     let mut seen = false;
     for tile in 0..map.terrain.len() {
         if map.county[tile] as usize != county_id {
@@ -1629,6 +1678,106 @@ mod tests {
         grain_season_tick(T, &mut c, Season::Winter, true, Q);
         assert_eq!(c.crop[2], 720, "and this is the harvest");
         assert_eq!(c.grain, 860, "140 + 720");
+    }
+
+    /// **The wheat picture reads the standing crop for three seasons and the
+    /// harvest for one, and divides by `+0x206`** — `Grain_SeasonTick`'s three
+    /// `FUN_0044CF6F` calls (`0x0044C8AE`).
+    ///
+    /// The expected bands are literals from `FUN_0044CF6F`'s thresholds (41 and
+    /// 81 sacks a field), not recomputed through [`grain_crop_band`]. The case
+    /// that fails the first fix is the first one: `crop[2]` is always zero in
+    /// Spring, so banding it answers 2 for a crop of 480 sacks on 6 fields.
+    #[test]
+    fn the_wheat_is_banded_by_this_seasons_crop_word_over_the_fields_still_standing() {
+        let mut c = County::new();
+        c.fields_grain = 6;
+        c.fields_grain_standing = 6;
+        c.crop = [40, 480, 0];
+        // 480 / 6 = 80 a field: under 81, so band 7.
+        for season in [Season::Spring, Season::Summer, Season::Autumn] {
+            assert_eq!(grain_stage_band(&c, season), 7, "{season:?} reads crop[1]");
+        }
+        assert_eq!(grain_stage_band(&c, Season::Winter), 2, "Winter reads crop[2], and it is 0");
+        c.crop[2] = 486;
+        // 486 / 6 = 81: the top band.
+        assert_eq!(grain_stage_band(&c, Season::Winter), 11);
+
+        // **The divisor is `+0x206`, not `fieldsGrain`.** Paint two more grain
+        // fields after sowing: `fieldsGrain` rises, `+0x206` does not, and the
+        // picture is unchanged. Banded by `fieldsGrain` it would fall to 3.
+        c.fields_grain = 8;
+        assert_eq!(grain_stage_band(&c, Season::Summer), 7, "480 / 6, not 480 / 8");
+        // And a trampled field steps it down: 480 / 5 = 96, the top band.
+        c.fields_grain_standing = 5;
+        assert_eq!(grain_stage_band(&c, Season::Summer), 11);
+        // A byte, as the original reads it.
+        c.fields_grain_standing = 0x100 + 6;
+        assert_eq!(grain_stage_band(&c, Season::Summer), 7);
+    }
+
+    /// Sowing writes `+0x206` beside `+0x202`, including the shortfall's `1`.
+    #[test]
+    fn sowing_writes_the_standing_count_beside_the_sown_one() {
+        let mut c = County::new();
+        c.fields_grain = 6;
+        c.grain = 200;
+        c.labour[T.job.grain_farming] = 10_000;
+        c.weather = Weather::Cloudy;
+        grain_season_tick(T, &mut c, Season::Spring, true, Q);
+        assert_eq!((c.fields_grain_sown, c.fields_grain_standing), (6, 6));
+
+        let mut poor = County::new();
+        poor.fields_grain = 6;
+        poor.grain = 3; // not one sack a field
+        poor.labour[T.job.grain_farming] = 10_000;
+        poor.weather = Weather::Cloudy;
+        grain_season_tick(T, &mut poor, Season::Spring, true, Q);
+        assert!(poor.sow_shortfall, "the token handful");
+        assert_eq!((poor.fields_grain_sown, poor.fields_grain_standing), (1, 1));
+    }
+
+    /// **`FUN_00469D21`'s shortfall arm (`0x00469D21`)**: with `+0x1A7` set, the
+    /// first grain tile of the county in tile-index order takes the crop's band
+    /// and every later one is repainted `2`. A tile of another county, and a
+    /// pasture of this one, are outside the sweep's tests and keep their bytes.
+    ///
+    /// The screen test's year never sows short, so this is the only test that
+    /// can see the arm.
+    #[test]
+    fn a_short_sowing_paints_the_crop_on_the_first_grain_tile_and_bare_on_the_rest() {
+        use crate::map::{flags, index, CampaignMap};
+        let mut map = CampaignMap::empty();
+        // Index order is `y * 64 + x`: (10, 10) comes before (11, 10) and (10, 11).
+        let grain = [index(10, 10), index(11, 10), index(10, 11)];
+        for &t in &grain {
+            map.county[t] = 3;
+            map.flags[t] = flags::FARMLAND;
+            map.terrain[t] = 2;
+        }
+        let foreign = index(12, 12);
+        map.county[foreign] = 4;
+        map.flags[foreign] = flags::FARMLAND;
+        map.terrain[foreign] = 2;
+        let pasture = index(13, 13);
+        map.county[pasture] = 3;
+        map.flags[pasture] = flags::FARMLAND;
+        map.terrain[pasture] = 0x14;
+
+        let mut c = County::new();
+        c.crop = [5, 60, 0];
+        c.fields_grain_standing = 1; // the shortfall records one field
+        c.sow_shortfall = true;
+        grain_repaint_fields(3, &c, Season::Spring, &mut map);
+        // 60 sacks over one field: under 81, so band 7.
+        assert_eq!(map.terrain[grain[0]], 7, "the first grain tile takes the crop");
+        assert_eq!((map.terrain[grain[1]], map.terrain[grain[2]]), (2, 2), "the rest are bare");
+        assert_eq!(map.terrain[foreign], 2, "another county's field is not swept");
+        assert_eq!(map.terrain[pasture], 0x14, "a pasture is outside 2 ..= 0x0E");
+
+        c.sow_shortfall = false;
+        grain_repaint_fields(3, &c, Season::Spring, &mut map);
+        assert_eq!(grain.map(|t| map.terrain[t]), [7, 7, 7], "without the flag every one does");
     }
 
     /// **The labour cap, which is the whole reason the grain ceiling exists.**

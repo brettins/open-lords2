@@ -911,17 +911,18 @@ pub const DWELLING_BURN_OFFENCE: i32 = 20;
 /// what it was carrying.
 ///
 /// ```c
-/// if (terrain < 0x0F && fieldsSown != 0) {                  /* a grain field */
-///     share = (fieldsGrain <= fieldsSown) ? PctOf(1, fieldsSown) : 0;
+/// if (terrain < 0x0F && (byte)+0x206 != 0) {                     /* a grain field */
+///     share = (fieldsGrain <= +0x206) ? PctOf(1, +0x206) : 0;
 ///     lost  = Pct(crop, min(share, 100));
 ///     crop -= lost;   cropLost += lost;
-///     if (fieldsGrain <= fieldsSown) fieldsSown--;
+///     if (fieldsGrain <= +0x206) +0x206--;
 ///     fieldsGrain--;
-/// } else if (terrain >= 0x0F && fieldsCattle != 0 && herd != 0) {   /* a pasture */
+/// } else if (terrain > 0x0E && fieldsCattle != 0 && herd != 0) {   /* a pasture */
 ///     lost = Pct(herd, PctOf(1, fieldsCattle));
 ///     herd -= lost;   herdLost += lost;
 ///     fieldsCattle--;
 /// }
+/// Terrain_Set(tile, 0, 0);                                        /* always */
 /// ```
 ///
 /// **`PctOf(1, n)` is `100 / n`** — what share of the county's fields this one
@@ -929,37 +930,44 @@ pub const DWELLING_BURN_OFFENCE: i32 = 20;
 /// wrecking one of eight grain fields costs an eighth of the standing crop, and
 /// the crop that goes is `+0x244`, the middle of the three growth stages.
 ///
-/// > **Two divergences from the original, both stated rather than hidden.**
-/// > The original keeps a *second* field counter at `+0x206` — the fields
-/// > actually **sown** this season, snapshotted from `fields_grain` by the
-/// > sowing pass — and divides by that one while decrementing both.
-/// > [`County`] has no such field, so this divides by `fields_grain`. They are
-/// > set equal at sowing and only drift if the player reassigns fields
-/// > mid-year, so the two agree for the season a crop is actually standing,
-/// > which is the only season this function can fire. The original also
-/// > accumulates what was lost into two display fields (`+0x234` and `+0x27C`)
-/// > that [`County`] does not carry; the loss is returned instead.
+/// **`+0x206` is [`County::fields_grain_standing`]**, and until it existed this
+/// divided by `fields_grain` and said so. The difference is the `else 0`: a
+/// county that has painted *more* grain than it sowed loses no crop at all
+/// when one field is wrecked, because the share is only charged while
+/// `fieldsGrain` is within the sown count. And the step-down is what
+/// `Grain_SeasonTick`'s picture divides by, so a trampled field moves the
+/// wheat on every other tile of the county. `docs/decisions.md`
+/// C195.
+///
+/// **The repaint is unconditional**, which this used to get wrong as well:
+/// both arms returned early when their guard failed and left the tile
+/// standing. `Terrain_Set(tile, 0)` is outside the `if`. `[D]`
+///
+/// The original also accumulates what was lost into two display fields
+/// (`+0x234` and `+0x27C`) that [`County`] does not carry; the loss is
+/// returned instead.
 pub fn destroy_field(county: &mut County, map: &mut CampaignMap, x: u8, y: u8) -> i32 {
     use crate::math::{pct, pct_of};
     let terrain_byte = map.terrain_at(x, y);
-    let lost = if terrain_byte < terrain::PASTURE_FROM {
-        if county.fields_grain <= 0 {
-            return 0;
-        }
-        let share = pct_of(1, county.fields_grain).min(100);
+    let standing = county.fields_grain_standing & 0xFF;
+    let lost = if terrain_byte < terrain::PASTURE_FROM && standing != 0 {
+        let within = county.fields_grain <= standing;
+        let share = if within { pct_of(1, standing).min(100) } else { 0 };
         let lost = pct(county.crop[1], share);
         county.crop[1] -= lost;
+        if within {
+            county.fields_grain_standing -= 1;
+        }
         county.fields_grain -= 1;
         lost
-    } else {
-        if county.fields_cattle <= 0 || county.herd <= 0 {
-            return 0;
-        }
+    } else if terrain_byte >= terrain::PASTURE_FROM && county.fields_cattle != 0 && county.herd != 0 {
         let share = pct_of(1, county.fields_cattle);
         let lost = pct(county.herd, share);
         county.herd -= lost;
         county.fields_cattle -= 1;
         lost
+    } else {
+        0
     };
     // The tile is repainted as bare ground, which also takes its cost back down
     // from 6 to 3.
@@ -1057,6 +1065,43 @@ mod tests {
 
     fn blank() -> ([County; MAX_COUNTIES], [Realm; MAX_REALMS]) {
         (core::array::from_fn(|_| County::new()), core::array::from_fn(|_| Realm::new()))
+    }
+
+    /// **`County_DestroyField` (`0x00469E5B`) charges against `+0x206` and
+    /// steps it down**, and the tile goes bare whatever the guards say.
+    ///
+    /// Literals throughout: `PctOf(1, 4)` is 25, and a quarter of 400 is 100.
+    #[test]
+    fn a_wrecked_grain_field_charges_and_steps_down_the_fields_still_standing() {
+        let mut map = open_map();
+        let mut c = County::new();
+        c.fields_grain = 4;
+        c.fields_grain_standing = 4;
+        c.crop[1] = 400;
+        map.set_flags(3, 3, flags::FARMLAND);
+        map.set_terrain(3, 3, 7);
+        assert_eq!(destroy_field(&mut c, &mut map, 3, 3), 100);
+        assert_eq!((c.crop[1], c.fields_grain, c.fields_grain_standing), (300, 3, 3));
+        assert_eq!(map.terrain_at(3, 3), 0);
+
+        // More grain painted than was sown: `fieldsGrain > +0x206`, so the share
+        // is 0 and `+0x206` stays — the original's `else 0`.
+        let mut c = County::new();
+        c.fields_grain = 6;
+        c.fields_grain_standing = 4;
+        c.crop[1] = 400;
+        map.set_terrain(3, 3, 7);
+        assert_eq!(destroy_field(&mut c, &mut map, 3, 3), 0);
+        assert_eq!((c.crop[1], c.fields_grain, c.fields_grain_standing), (400, 5, 4));
+
+        // Nothing sown: neither arm fires, and the tile is **still** repainted —
+        // `Terrain_Set(tile, 0)` is outside the `if`.
+        let mut c = County::new();
+        c.fields_grain = 2;
+        map.set_terrain(3, 3, 7);
+        assert_eq!(destroy_field(&mut c, &mut map, 3, 3), 0);
+        assert_eq!(c.fields_grain, 2, "the grain arm is guarded on +0x206");
+        assert_eq!(map.terrain_at(3, 3), 0, "and the repaint is not guarded at all");
     }
 
     fn army_at(units: &mut Units, owner: u8, x: u8, y: u8) -> usize {
@@ -1346,6 +1391,9 @@ mod tests {
         let (mut counties, realms) = blank();
         counties[1].owner = 1;
         counties[1].fields_grain = 4;
+        // A standing crop was sown, and sowing writes `+0x206` beside the count;
+        // `County_DestroyField` charges the crop against it.
+        counties[1].fields_grain_standing = 4;
         counties[1].crop[1] = 400;
 
         // Mine: crossed, charged, untouched.

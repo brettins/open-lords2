@@ -5449,6 +5449,13 @@ variant = band < 3 ? 0 : (band - 3) / 4 + 1;                  /* 0, 1, 2 or 3  *
 FUN_00469D21(county, band, variant, 2, 0xE);
 ```
 
+> **The first line of that block is wrong, and it is why the fix below did not reach the
+> player.** `Grain_SeasonTick` calls `FUN_0044CF6F` once in each of its three arms: `crop[1]`
+> in Spring, Summer and Autumn, `crop[2]` only in Winter, and all three divide by the byte at
+> `+0x206`, not `fieldsGrain`. Built as written, the wheat drew variant 0 until the harvest.
+> The block is left as it was so this entry still reads as what was believed;
+> `docs/decisions.md` C195 has the three calls.
+
 **And the two halves of this bug are not independent, which is the part worth keeping.** All
 four density bands fall in `2 … 0x12`, whose base is 88 — so the `content` byte carries *no*
 information about the crop's stage and the variant carries all of it. Our season pass also had
@@ -10477,6 +10484,140 @@ because one byte has nowhere to keep it, and the court is where the button was.
 `docs/arms.json` `0x0042FF10/standings-ok` carries the reasoning. The multiplayer arm,
 `Net_SendCommand(0x3B, 0)`, is not built; there is no network game, and the single-player
 arm is what `Game::multiplayer` being false already means everywhere else.
+
+---
+
+**C195 — C124 fixed the wheat by reading one of `Grain_SeasonTick`'s three
+band calls, and wrote it down as all three.**
+
+> *"wheat fields still not showing the different stages of wheat growth."*
+
+**"Still."** C124 found `Terrain_Set`'s live variant and built both halves — the repaint and
+the frame term — and a test at the pixel. The player's build carried all of it. What it
+carried was this, in `maps-layers.md` §5.5, in C124 above, in `campaign::field_variant`'s
+doc and in `land::grain_repaint_fields`:
+
+```c
+band = FUN_0044CF6F(county.crop[2], county.fieldsGrain);
+```
+
+`Grain_SeasonTick` (`0x0044C8AE`) calls `FUN_0044CF6F` **three times, once in each arm**, and
+that line is neither argument of any of them. **[V]**, all three call sites:
+
+| `g_season` | the arm | the band reads |
+|---|---|---|
+| 1, Spring | `Grain_Sow`, weather cut, `crop[1] = crop[0] * 12` | `FUN_0044CF6F(crop[1], (byte)+0x206)` |
+| 2, 3, Summer and Autumn | `Grain_Grow`, weather | `FUN_0044CF6F(crop[1], (byte)+0x206)` |
+| 4, Winter | `Grain_Harvest`, weather | `FUN_0044CF6F(crop[2], (byte)+0x206)` |
+
+`crop[2]` is cleared at the top of every season and refilled only by the harvest arm. So the
+transcribed line banded a **zero** for three seasons in four, `FUN_0044CF6F` returns `2` for a
+zero crop, and every grain field on the map drew variant 0 — the sparsest of the four crops —
+from sowing until the harvest. The C124 test could not see it: it wrote the terrain byte by
+hand and asserted what the painter made of it, and nothing asked what a season writes there.
+
+**And the divisor is a field this project had filed as a duplicate.** `+0x206` is written
+beside `+0x202` by the sowing arm — `fieldsGrain`, or `1` on a shortfall — and
+`docs/stored-fields.json` excluded it as *"a second copy of +0x202 that only the tile graphic
+reads"*. **Three functions read it and two write it.** `County_DestroyField` (`0x00469E5B`)
+and `FUN_0046965A` step it down whenever `fieldsGrain <= +0x206`, and nothing steps `+0x202`
+down; `County_DestroyField` charges its crop share against it, with an `else 0` when more
+grain is painted than was sown. It is not derivable from the other two counts — destroy a
+field and then paint two, and the orders disagree — so it is a county field now,
+`County::fields_grain_standing`, imported, and in the save at version 25. **That `why` was
+the same shape as C124's `[V]`: a true statement about one reader, promoted to a statement
+about the field.**
+
+**What a wheat field passes through, all `[V]` against the decompilation.** Frames are
+`Terrain_Set`'s, `+ (stored & 3)` for the tile's own variation; `Roads1a … d.pl8` by season at
+the near zoom (§1.1c), `Roads2a.pl8` in every season at the far one (§1.1b):
+
+| terrain | frame | written by, and when |
+|---|---|---|
+| `0` wild | 80 | `Map_PlaceStartingFields` at setup; the brush's *abandon*; `County_DestroyField` when an army tramples it; `FUN_0046942C` at the next weather pass after a flood or drought |
+| `0x19 … 0x1C` reclaiming | 108, 112, 116, 120 | the brush starts it; `Field_ReclaimTick` (`0x0044C093`) at 200/400/600/800 progress, then `1` |
+| `1` fallow | 84 | setup; the brush; the end of reclamation |
+| `2` sown, variant 0 | 88 | the brush; every season's band for a crop under one sack a field, or zero |
+| `3`, `7`, `0xB`, variants 1–3 | 92, 96, 100 | `Grain_SeasonTick` → `FUN_00469D21`, **every season**, at under 41, under 81, and 81 sacks or more a field |
+| `0x17` flooded, `0x18` parched | 130, 134, *base* bank | `Weather_UpdateAll` (`0x00449889`) → `FUN_00469A9C`, one field a county in weather 5 or 1 |
+
+**There is no harvested stage.** The harvest repaints the band like any other season, from
+what was reaped; the field stays grain through Winter and the next Spring sows over it. And
+**the four crops are densities, not a growth timeline**: a county that sows 60 sacks a field
+and tends it fully draws variant 2 in all four seasons, in the original as in ours. What
+changes the picture through a year is the *seasonal sheet* the whole roads bank is swapped to,
+and the band moving when the labour cap, fertility, the weather, a trampled field or a thin
+harvest moves the crop per field.
+
+**Four more things, found on the way.**
+
+* **`kingdom.rs` called the repaint twice**, the second under a copy of the first's comment
+  with both of its names stripped out. The repaint is idempotent, so it changed no pixel.
+* **`County_DestroyField`'s repaint is unconditional** and ours returned early from both arms
+  when the guard failed, leaving the tile standing. Ported now, with the `+0x206` arm.
+* **The flood and drought damage is not built.** `Weather_UpdateAll` repaints one field a
+  county to `0x17`/`0x18` through a round-robin cursor at `+0x15B` bounded by `+0x205`, before
+  its *Advanced Farming* override — and `FUN_0046942C` turns every such field to **wild** the
+  next season, so a flood costs a field for good. `l2_kingdom::weather::update_all` does
+  neither. It is a simulation rule with saved state of its own (the cursor), outside a picture
+  fix; recorded rather than built.
+* **The England turn-one county's granary is empty**, so on that position nothing can be sown
+  until seed is bought, and a field painted *before* the seed arrives gets no farmers until
+  the next estimate round — `Field_SetType`'s own `Labour_Allocate` sizes the grain ceiling
+  from the store. Both are the original's.
+
+**The test is a year, through the screens.** `crates/l2-game/tests/wheat.rs` sows with the
+brush's handler, presses End Turn four times through the machine with the fog on, and after
+each turn paints the campaign map and requires the inner diamond of a lit field to equal the
+terrain pass drawn with the **literal** frame `0x58 + (stored & 3) + 4v` — `v` transcribed from
+the three calls above, not asked of `l2_kingdom` — and to differ from the other three, at both
+zooms. Our field markers are over the selected county's tiles and cover a far-zoom tile
+entirely; the test looks with another county selected, and says why.
+
+**Ablated line by line**, and three of the ablations left the screen test green. Banding
+`crop[2]` outside Winter, dropping the repaint call, dropping the variant term and fogging
+the field each turn it red. Dividing by `fieldsGrain`, reading `crop[1]` in Winter and
+deleting the shortfall arm do not: in that year no field is lost after sowing, the harvest
+equals the standing crop and the seed covers a sack a field, so the screen cannot tell those
+lines from their ablations. Each is pinned by a unit test in `l2_kingdom::land` that goes red.
+**One more green was the test's own fault**: it first read `+0x206` back from the county to
+compute what to expect, so deleting the write moved the expectation with the picture. It
+pins the divisor from what it sowed now, and that ablation is red.
+
+**The band is not only a picture, and one test went red for it.** `Ai_FindStandingCropTile`
+(`0x004A689D`), the tile an AI raiding party (mission 7) marches at, accepts a plane-0 `0x20`
+tile only when `2 < content && content < 0x17` **[V]**, the literal, and `ai_army::Aim::StandingCrop`
+matches it. Terrain `2` is excluded. Under C124's reading every sown field sat at `2` for three
+seasons in four, so **the AI's raids could not see a crop for most of the year** and fell back
+to the county anchor. With the band right they find the harvest, which is the binary's rule.
+
+**And that is why the branch sat unmerged.**
+`l2-game/tests/ai_war.rs::the_ai_realms_survive_forty_turns_of_a_world_built_by_hand` was red
+on it: realm 4 ended forty turns on one county with 2 people at health 0. The branch measured
+three ablations — C124's band back → green; the raid finder blinded → green, realm 4 at 183
+people and health 57; the old `destroy_field` back → still red — and left the question open:
+is *"every surviving AI realm is fed"* a rule, or one trajectory's luck?
+
+**It is one trajectory's luck, and re-measuring on `main` is what shows it.** Battles, the
+clock, labour and the herd's break-even floor landed between `fb5c0ef` and this merge, and on
+the trajectory they produce the test is **green with the fix in**: realm 4 is *conquered* at
+turn 21 while at health 71 with 375 people, not starved, so assertion 2 — which only applies
+to a realm still holding counties — never looks at it. Traced turn by turn, the lowest health
+any surviving AI realm reaches in the forty turns is 45 (realm 2, turn 29) and it recovers.
+The green is not the raid going quiet: blinding the raid finder still moves that world (realm
+2 ends on 4 counties at health 67 rather than 3 at 85; realm 5 keeps 10 grain fields rather
+than 6), so the raids bite and the fix is live. On the England fixture the finder changes
+nothing in forty turns — blinded and live give identical scoreboards.
+
+So the assertion was never weakened and never had to be: it is not a rule — a realm raided
+off its harvest starves, and `Ai_FindStandingCropTile` exists so that it can — but it is also
+not in danger on this trajectory. What was wrong is that a long run was the **only** witness
+of the rule, which is C184's finding in another costume: a claim you can only observe as a
+shifted trajectory is a claim nobody can ablate. So it is dealt deliberately instead.
+`crates/l2-kingdom/tests/ai_raid.rs` sows a county, ticks it through the four seasons and asks
+`aim_tile` what the raid finder sees, then tramples one field and asks again. Three ablations,
+each one line, each red: C124's crop word in Spring, Summer and Autumn; `Aim::StandingCrop`'s
+`terrain > 2`; and the sowing's write of `+0x206`.
 
 ---
 
