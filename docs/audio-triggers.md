@@ -1,6 +1,6 @@
 # Every place the original asks for a sound
 
-**143 trigger sites across 70 functions. We fire 89 of them, and they carry 699
+**143 trigger sites across 70 functions. We fire 89 of them, and they carry 703
 of the install's 771 sounds**, because the classes are wildly unequal in weight.
 (Two of the sites are the tip screens' first line and chained takes: forty files
 by name, thirty-five that anything can ask for — see *What `blocked` is blocked

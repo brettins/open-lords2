@@ -9771,7 +9771,7 @@ Three of them are now built — `Sidebar_Button` hotspot 1's mercenary offer
 `Panel_OpenPopulation`'s health line (`FUN_004B3768`), and the map information panel's
 sentence about whatever it opened on (`FUN_004B37BC`, both openers of screen `0x04`).
 `reproduced` 86 → **89** of 143; `blocked` 23 → **19**; the non-voice files this engine can
-reach, 30 → **55**.
+reach, 30 → **55**, and the install total this engine can reach, 678 → **703** of 771.
 
 **Three things the reading found that building would not have.**
 

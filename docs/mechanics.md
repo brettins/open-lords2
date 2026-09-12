@@ -640,7 +640,7 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   `Audio` is not in `Ctx`, so no screen can reach it, and the event loop derives what
   should be audible from what already happened.
 
-  **The number that keeps this row honest is 678 of 771.** 643 of them are measured
+  **The number that keeps this row honest is 703 of 771.** 668 of them are measured
   rather than typed — `crates/l2-game/tests/audio_wiring.rs` and `tests/audio_battle.rs`
   drive the real paths and read back what was actually opened — and the other **35 are
   the tip screens**, of which `crates/l2-game/tests/tips.rs` drives one tip's three clips
@@ -649,6 +649,14 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   tip takes — because 646 of the install's 771 files, **84 %**, are somebody speaking;
   66 more are the troop cries and 17 the fighting. A player: *"that guy's voice acting is
   half the personality of the game."* By file count he understates it.
+
+  **The last 25 are the narrator too, and they are not `Msg_PlayVoice`'s**: the screen
+  voices, played by name from the function that opens the screen rather than looked up by
+  an `L2.eng` group — the mercenary offer a county is holding, the population panel's
+  health line, and what the information panel says about the unit or castle it opened on.
+  A player reported the first of them missing by quoting it. See `docs/decisions.md`
+  CNEW-vo-stops; **and the same correction is where the narrator learned to *stop*,** which
+  no count of files can show.
 
   It was **0 of 771** from the day the layer landed until a player said he heard
   nothing — `audio::scene` derived the music from the *bottom* of the screen stack, and
