@@ -458,7 +458,7 @@ pub fn button_box(i: usize) -> Rect {
 /// same one number in `main.rs`; they are separate because neither module may
 /// depend on the other and `docs/netcode.md` forbids either from reading a
 /// clock instead.
-const TICK_MS: u32 = 16;
+pub const TICK_MS: u32 = 16;
 
 /// **`Tick_Pulses` (`0x004BBC80`) is the interface's animation clock**, and the
 /// armoury takes two of its eight pulses.

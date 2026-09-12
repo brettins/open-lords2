@@ -405,26 +405,24 @@
       "Screen_DrawWidgets 0x0F arm: if (g_jobPanelJob == 8) FUN_00413526() — the forge fire, 1 draw call"
     ],
     "original": 114,
-    "ours": 14,
-    "real": 13,
-    "placeholder": 1,
+    "ours": 28,
+    "real": 28,
+    "placeholder": 0,
     "widget_records": 0,
     "missing": [
-      "Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69) — the job's picture from iconvill.pl8, which l2-view does not load. Frames 0, 2, 3, 5, 6, 7, 8, 9 and 0x10 for jobs 1..9",
-      "Panel_JobBlacksmith (0x00413155), 21 — a full-screen page over smithy.pl8 and hearth.pl8 with a 480 x 96 footer",
-      "FUN_00413526, 1 — the forge fire, hearth.pl8 frames 0..10 at (88, 157), advanced on g_pulse80"
+      "Gfx_MarkAllDirty, 1 — Panel_JobBlacksmith's last statement. Our canvas is repainted whole, so there is no dirty box to raise and no counterpart to write"
     ],
     "invented": [
-      "text::draw \"THE SMITHY IS A FULL PAGE\", on job 8 only"
+      "Pen::outline x 6 over the six weapon hotspots, drawn only when Smithy.pl8 is missing — the page without its picture is a page of invisible controls"
     ],
-    "literals_ours": [
-      "THE SMITHY IS A FULL PAGE — an honest diagnostic of ours; job 8 is a different page in the original and we draw the small window for it"
-    ],
+    "literals_ours": [],
     "excluded": "Panel_JobDetail does NOT call FUN_004050C0 — it is the one screen in this group that does not repaint the map beneath, so there is nothing excluded on that count. Widget_Draw has no 0x0F arm.",
     "eng": {
       "groups": [
         74,
-        8
+        8,
+        75,
+        76
       ],
       "indices": [
         1,
@@ -442,12 +440,20 @@
       ],
       "verified_against_words": true
     },
-    "sheets": [],
+    "sheets": [
+      "Iconvill.pl8",
+      "Smithy.pl8",
+      "Hearth.pl8"
+    ],
     "constants_added": [
       "JOB_GROUP = 74, COUNT_NOUN_GROUP = 8, WORKER_NOUN_0 = 32, WORKER_NOUN_STRIDE = 2",
       "ICON_BOX (was ICON_RECESS), ICON_BOX_INK = 0x3F",
       "BLACKSMITH = 7, BLACKSMITH_OK = (0x1C0, 0x1C0, 24, 24)",
-      "COUNT_RIGHT = 0x3F, COUNT_SHORT = 0xF9, COUNT_WASTED = 0xFC"
+      "COUNT_RIGHT = 0x3F, COUNT_SHORT = 0xF9, COUNT_WASTED = 0xFC",
+      "ICON_SHEET = Iconvill.pl8, ICON_AT = (0x41, 0x69), JOB_ICON = DAT_004D2974 with job 9's 0x10 override",
+      "WEAPON_HOTSPOTS = DAT_004DCA10 x 6, HOTSPOT_ORIGIN = (0, 0x18)",
+      "SMITHY_GROUP = 75, HEARTH_LIFT = DAT_004D29E0, WEAPON_NOUN = DAT_004D29C8",
+      "FORGE_FRAMES = 11, FORGE_AT = (0x58, 0x9D), FLOOR_BAND, COST_WELL"
     ],
     "notes": "**This is nine panels sharing one painter and the number that says so is 5 against 113.** Per frame the original makes 5 (4 that run) plus whichever body painter the job selects: job 3 is 11 draws, job 2 is 34. The 113 is the union over all nine and is the wrong denominator for any one of them; `original` here is 113 + the Screen_DrawWidgets fire. **Job 8 is the blacksmith** (L2.eng 74/8) and it takes the other branch of every `if`: no Ui_DrawBox at (48, 96), no icon box, no group-74 title, no worker count — instead Screen_DrawMenuBar(), fire.wav, and a full-screen page. **The forge fire is self-verifying**: FUN_00413526 cycles frames 0..10 of whatever is in the scratch buffer, which at that moment is hearth.pl8, and Hearth.pl8 has exactly 17 frames — eleven 69 x 52 fire frames at 0..10 and six hearth pictures at 11..16, which is exactly the `weapon + 0xB` Panel_JobBlacksmith draws. The sheet's own frame table checks both halves. **The two Ui_OkButton call sites are the two arms of one if**, not two buttons, so the \"only the last call is clickable\" quirk in Ui_OkButton's symbol comment does not bite here; we now put the corner at (448, 448) for the blacksmith. Also corrected: FUN_00403CF4 is four line calls in colour 0x3F, an outline with no fill, not the recess this module drew; and the title and the worker noun now come from L2.eng rather than from JOB_NAMES and a table of ours.",
     "unexercised": "Only jobs with peasants on them are reachable from the sidebar, and the shipped fixture has three farm rows and no industry. Jobs 4 through 8 have never been opened against real data, so neither the Wasted colour (0xFC) nor the blacksmith branch has been exercised.",

@@ -141,6 +141,15 @@ pub const SHEETS: &[&str] = &[
     "Sgeplans.pl8",
     // 0x11 army division
     "Icon_tmp.pl8",
+    // 0x0F job 8 — the blacksmith page. `Panel_JobBlacksmith` (`0x00413155`)
+    // `File_ReadChunk`s both into the same scratch buffer, one after the other,
+    // which is why the forge fire is drawn out of whatever the *second* read
+    // left there. `Smithy.pl8` is one frame of 480 x 400; `Hearth.pl8` is 17 —
+    // eleven 69 x 52 fire frames and six hearths, one per weapon.
+    "Smithy.pl8",
+    "Hearth.pl8",
+    // 0x0F, every job — `Panel_JobDetail`'s icon recess. 17 frames of 48 x 48.
+    "Iconvill.pl8",
 ];
 
 /// The `.256` files those screens set as the display palette.

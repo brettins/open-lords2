@@ -996,6 +996,12 @@ pub struct Director {
     /// `None` until it has been, which is the original's zero against a
     /// `timeGetTime()` that has been running since the machine booted.
     take_busy_at: Option<u64>,
+    /// **Every county's `weapon_type` at the previous tick**, so that a smithy
+    /// being *reassigned* is an edge this can see. See
+    /// [`Director::hear_the_smithy`].
+    ///
+    /// Empty until the first tick, which is what makes the first tick silent.
+    weapons: Vec<usize>,
     /// **The live battle's [`l2_sim::Cues`] at the previous tick**, so that an
     /// event inside the tick since is an edge this can see. `None` while no
     /// battle is up. See [`Director::hear_the_battle`].
@@ -1435,6 +1441,8 @@ impl Director {
 
         self.hear_the_march(audio, game);
 
+        self.hear_the_smithy(audio, game);
+
         self.hear_the_battle(audio, game);
 
         // **The message window, which is where nearly all of the game's audio
@@ -1578,6 +1586,44 @@ impl Director {
     /// buffer, which is [`Audio::play_effect`] — and is also why two presses
     /// inside one tick are one sound here and would have been one in the
     /// original.
+    /// **The hammer when the smithy is given a new weapon.**
+    /// `FUN_0043A997` (`0x0043A997`) closes with
+    ///
+    /// ```c
+    /// if (g_localPlayer == g_counties[county].owner) {
+    ///     Panel_JobBlacksmith();          /* the page repaints in place */
+    ///     Sound_RestartSlot(8);           /* stonecut.wav, the quarry's */
+    /// }
+    /// ```
+    ///
+    /// so the sound is the *setter's*, not the page's, and it is gated on the
+    /// county being the local player's rather than on any screen being up.
+    /// [`names::blacksmith::SLOT`] is the same slot the page opens with.
+    ///
+    /// **Found rather than reported**, for [`Director::hear_the_march`]'s
+    /// reason: a "the weapon changed" flag on [`crate::Game`] would be in the
+    /// save and in the lockstep digest, for a sound. `[D]` that the diff is the
+    /// same occasion — the *only* writer of `weapon_type` outside this setter is
+    /// `AI_ChooseIndustry`'s rota, which never runs on a county the local player
+    /// owns, so the guard below is the original's owner test and the diff is its
+    /// call.
+    // sfx: FUN_0043a997#1
+    fn hear_the_smithy(&mut self, audio: &mut Audio, game: &crate::Game) {
+        let now: Vec<usize> = game.kingdom.counties.iter().map(|c| c.weapon_type).collect();
+        if self.weapons.len() == now.len() {
+            let local = game.player;
+            let changed = now.iter().zip(&self.weapons).enumerate().any(|(id, (a, b))| {
+                a != b && game.kingdom.counties.get(id).is_some_and(|c| c.owner == local)
+            });
+            if changed {
+                if let Some(name) = names::slot(names::Bank::Kingdom, names::blacksmith::SLOT) {
+                    audio.play_effect(name);
+                }
+            }
+        }
+        self.weapons = now;
+    }
+
     fn hear_the_click(&mut self, audio: &mut Audio, machine: &crate::screen::Machine) {
         let now = machine.clicks();
         if now != self.clicks {

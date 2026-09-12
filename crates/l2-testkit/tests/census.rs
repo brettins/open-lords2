@@ -119,7 +119,8 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/ground.rs", "install", 7),
     ("crates/l2-game/tests/industry.rs", "england", 4),
     ("crates/l2-game/tests/job_bodies.rs", "england", 6),
-    ("crates/l2-game/tests/job_bodies.rs", "fixture", 4),
+    ("crates/l2-game/tests/job_bodies.rs", "executable", 1),
+    ("crates/l2-game/tests/job_bodies.rs", "fixture", 5),
     ("crates/l2-game/tests/labour_move.rs", "england", 5),
     ("crates/l2-game/tests/labour_move.rs", "fixture", 1),
     ("crates/l2-game/tests/long_game.rs", "england", 4),
@@ -159,6 +160,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-kingdom/tests/oracle.rs", "executable", 6),
     ("crates/l2-kingdom/tests/reproduction.rs", "england", 25),
     ("crates/l2-kingdom/tests/siege.rs", "fixture", 5),
+    ("crates/l2-kingdom/tests/weapon_choice.rs", "fixture", 1),
     ("crates/l2-mods/tests/corpus.rs", "install", 6),
     ("crates/l2-scenario/tests/explored.rs", "england", 2),
     ("crates/l2-scenario/tests/explored.rs", "fixture", 1),
@@ -180,7 +182,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 500;
+const GATED_TOTAL: usize = 503;
 
 /// The workspace root, from this crate's manifest.
 fn repo_root() -> PathBuf {
