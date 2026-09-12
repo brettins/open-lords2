@@ -44,6 +44,12 @@ subagent, so it stays short. Read the linked document before working in that are
    reading the painter without reading the group is reading half the function.**
    `docs/decisions.md` C133.
 
+7. **Write short.** The player asked for it in as many words: *"less wordy in comments and
+   talking… we're eating context window on blabby bullshit."* A comment carries the
+   function, the address and the fact — not the retelling. A report carries findings,
+   numbers and what you left alone — not the search. This is density, never omission:
+   keep every piece of evidence and drop the prose around it.
+
 ## Where to look
 
 | Before you… | Read |
