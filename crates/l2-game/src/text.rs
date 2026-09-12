@@ -97,8 +97,13 @@ pub const DEFAULT_PLAYER_NAME: &str = "Player1";
 /// 44-byte slots at `0x00553D50` and one save block of its own
 /// (`g_saveBlocks[2] = {0x00553D50, 264}`); the name is 31 bytes at `+4`, the
 /// banner colour is `+0x25` and `+0x27` is the "a person drives this" byte
-/// `Player_SetHuman` sets. A `String` here would put a length prefix and an
-/// allocation into something the original writes as a fixed run of bytes.
+/// `Player_SetHuman` sets. `+0x00` — the four bytes the name sits after — is
+/// the DirectPlay player id, which is what makes the block's base four lower
+/// than `g_playerNames` without anything being misaligned;
+/// [`l2_formats::save::Player`] reads the slot and
+/// [`crate::scenario::from_save`] fills this array from it. A `String` here
+/// would put a length prefix and an allocation into something the original
+/// writes as a fixed run of bytes.
 ///
 /// **Latin-1 in, Latin-1 out** — `docs/formats/eng.md` — so a byte here is a
 /// `char` under `0x100` and the two are the same thing.

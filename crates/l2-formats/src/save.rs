@@ -55,6 +55,38 @@ pub const REALM_BASE: u32 = 0x0057_BF00;
 pub const REALM_STRIDE: usize = 0x160;
 pub const REALM_RECORDS: usize = 6;
 
+/// **`g_players` — the six 44-byte player slots, of which `g_playerNames`
+/// (`0x00553D54`) is the *name member*, not an array of its own.**
+///
+/// `g_saveBlocks` entry 2 is `{0x00553D50, 264}` and `264 = 6 × 0x2C`, which
+/// invites the reading that six 44-byte names begin four bytes before
+/// `g_playerNames` — a block misaligned by a dword, with realm 5's record
+/// running past its end. It is neither. `0x00553D50` is the base of a six-slot
+/// **player table** whose name lives at `+0x04`, so the block covers slots
+/// 0 … 5 exactly and nothing is truncated.
+///
+/// **[V]** — `Player_SetHuman` (`0x0049BAE9`) writes both halves of one slot
+/// from one argument list, at the same stride:
+///
+/// ```c
+/// g_realms[realm].isHuman = 1;
+/// (&DAT_00553d77)[realm * 0x2c] = 1;                      /* +0x27 */
+/// FUN_00401136(name, (int)(&g_playerNames + realm * 0x2c), 0x1f);
+/// if (dpId != 999) *(int *)(&DAT_00553d50 + realm * 0x2c) = dpId;  /* +0x00 */
+/// if (g_multiplayer == 0)
+///     (&DAT_00553d75)[realm * 0x2c] = g_realms[realm].shieldIndex; /* +0x25 */
+/// ```
+pub const PLAYER_BASE: u32 = 0x0055_3D50;
+pub const PLAYER_STRIDE: usize = 0x2C;
+/// Slot 0 is never a realm, and nothing writes its name: `Realms_AssignLords`
+/// (`0x0049CAAA`) walks `1 … 5` and `Player_SetHuman` is never called for 0.
+pub const PLAYER_RECORDS: usize = 6;
+/// `+0x04 …` — `FUN_00401136(src, dst, 0x1F)`'s width where a person's typed
+/// name is copied in. The AI half copies **sixteen**, `Eng_Seek(7, lord)` then
+/// `FUN_00401136(g_engCursor, …, 0x10)`, which is why an AI lord's record
+/// carries the three or five bytes of `L2.eng` that follow its title.
+pub const PLAYER_NAME_LEN: usize = 0x1F;
+
 /// The neighbour ids live at county `+0x5C`, and the next identified field is
 /// `anchorX` at `+0x6C`. That is sixteen bytes, so sixteen slots is what the
 /// record affords — a layout fact rather than a count anyone has observed used.
@@ -540,6 +572,29 @@ impl Save {
         (0..UNIT_RECORDS).map(|i| self.unit(i)).collect()
     }
 
+    /// One player slot, by realm index. Slot 0 is never a realm.
+    pub fn player(&self, index: usize) -> Result<Player, SaveError> {
+        if index >= PLAYER_RECORDS {
+            return Err(SaveError::OutOfRange { index, count: PLAYER_RECORDS });
+        }
+        let base = PLAYER_BASE + (index * PLAYER_STRIDE) as u32;
+        let mut name = [0u8; PLAYER_NAME_LEN];
+        for (n, slot) in name.iter_mut().enumerate() {
+            *slot = self.u8_at(base + 0x04 + n as u32)?;
+        }
+        Ok(Player {
+            index,
+            dp_player_id: self.i32_at(base)?,
+            name,
+            shield: self.u8_at(base + 0x25)?,
+            human_flag: self.u8_at(base + 0x27)?,
+        })
+    }
+
+    pub fn players(&self) -> Result<Vec<Player>, SaveError> {
+        (0..PLAYER_RECORDS).map(|i| self.player(i)).collect()
+    }
+
     /// `g_merchantRoutes` — six rows of sixteen county ids, zero-padded.
     pub fn merchant_routes(
         &self,
@@ -657,6 +712,59 @@ impl Realm {
     /// A realm somebody is playing. Realm 0 is an array slot.
     pub fn in_play(&self) -> bool {
         self.index != 0 && self.strength != 0
+    }
+}
+
+/// One slot of the six-slot player table — `0x00553D50 + realm * 0x2C`.
+///
+/// **The four bytes at `+0x00` are the whole reason this is a record and not a
+/// name array.** They are the DirectPlay id of the person driving the realm,
+/// and `0` means nobody is connected:
+///
+/// * `FUN_0043E9E2` clears `1 … 5` and then writes
+///   `*(int *)(&DAT_00553d50 + g_localPlayer * 0x2c) = g_dpPlayerId`;
+/// * `FUN_0043E98B(id)` walks `1 … 5` and returns the realm whose `+0x00`
+///   equals `id` — the id → realm lookup the network read path needs;
+/// * `Mp_DropDepartedPlayers` (`0x0049B2A3`) eliminates a realm marked human
+///   whose `+0x00` **has gone to zero**;
+/// * `Player_SetHuman` writes it only when the caller passes something other
+///   than `999`, which is the single-player sentinel;
+/// * `Net_ReadField(&DAT_00553d50 + realm * 0x2c, 4)` puts it on the wire.
+///
+/// So every single-player save has it zero in all six slots, which is what the
+/// eleven fixtures and the installs' own saves show.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Player {
+    pub index: usize,
+    /// `+0x00` — the DirectPlay player id, or 0 for nobody.
+    pub dp_player_id: i32,
+    /// `+0x04` — the lord's name. A person's is what was typed on setup page 4
+    /// and an AI's is `L2.eng` group 7 indexed by the **lord**.
+    pub name: [u8; PLAYER_NAME_LEN],
+    /// `+0x25` — the shield the slot holds. Written from
+    /// `g_realms[realm].shieldIndex` by `Player_SetHuman` and by the colour
+    /// picker, and read back by `Realms_AssignLords` to mark a colour taken.
+    pub shield: u8,
+    /// `+0x27` — 1 from `Player_SetHuman`, 0 from `FUN_0049BB9D`, its opposite
+    /// number. **Not a clean "a person drives this"**: `Realm_Eliminate` also
+    /// leaves 1 behind, so read it as the byte those three write and take
+    /// `g_realms[realm].isHuman` for the question itself.
+    pub human_flag: u8,
+}
+
+impl Player {
+    /// The name as text, stopping at the terminator the way every reader in the
+    /// binary does.
+    ///
+    /// The trailing spaces a typed name is padded with are kept: the original
+    /// draws the bytes it stored.
+    pub fn name(&self) -> String {
+        self.name.iter().take_while(|b| **b != 0).map(|b| *b as char).collect()
+    }
+
+    /// Whether anything ever wrote a name here. Slot 0 never has one.
+    pub fn is_named(&self) -> bool {
+        self.name[0] != 0
     }
 }
 

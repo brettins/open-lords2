@@ -2116,14 +2116,21 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     // and not the realm id — see `sovereign_lines` below and C62.
     let shield = game.kingdom.realms[5].shield_index;
     let realm5 = l2_view::chrome::realm_pen(shield).expect("realm 5 flies a shield");
+    // **The lord's real name, out of the save.** This read `"REALM 5"` while
+    // nothing filled `g_playerNames`; the save's own player table does now, so
+    // the line says what the original's says. The near miss is another realm's
+    // lord rather than an adjacent number.
+    let lord5 = game.player_names[5].as_str();
+    let lord4 = game.player_names[4].as_str();
+    assert!(!lord5.is_empty() && lord5 != lord4, "the fixture names its lords: {lord5:?}");
     let name = county::county_name(&Ctx { game: &mut game, assets: &assets }, 1);
     assert_eq!(
         find_body(&canvas, &assets, &name, STRIP_INK).map(|p| p.1),
         Some(180),
         "the name sits lower on the 162 x 274 plate"
     );
-    assert!(find_body(&canvas, &assets, "REALM 5", realm5).is_some());
-    assert!(find_body(&canvas, &assets, "REALM 4", realm5).is_none(), "a near miss");
+    assert!(find_body(&canvas, &assets, &lord5, realm5).is_some());
+    assert!(find_body(&canvas, &assets, &lord4, realm5).is_none(), "a near miss");
     assert!(find_body(&canvas, &assets, "693", STRIP_INK).is_none(), "no numbers at all");
 
     send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
@@ -5281,6 +5288,10 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
     assert_eq!(game.kingdom.counties[1].owner, 5, "county 1 belongs to realm 5");
     let banner = assets.shell.text(15, 0).to_string();
     let banner = if banner.is_empty() { "SOVEREIGN LAND".to_string() } else { banner };
+    // The third line is the lord's name, out of the save's player table; it
+    // read `"REALM 5"` while nothing filled `Game::player_names`.
+    let lord5 = game.player_names[5].as_str();
+    assert!(!lord5.is_empty(), "realm 5 is unnamed, so there is no third line to read a pen off");
 
     // Every shield in turn, on the *same* county and the *same* realm. Only the
     // shield moves, so only the key can explain the colour.
@@ -5311,7 +5322,7 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
         // computes `colour` once and passes it to all three calls, so a
         // per-line pen would be ours and not its.
         assert!(
-            find_body(&canvas, &assets, "REALM 5", pen).is_some(),
+            find_body(&canvas, &assets, &lord5, pen).is_some(),
             "shield {shield}: the lord's name is not in the same pen as the banner"
         );
         seen.push(pen);

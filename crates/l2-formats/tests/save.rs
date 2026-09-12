@@ -113,6 +113,81 @@ fn the_arrays_are_the_shape_the_executable_gives_them() {
     }
 }
 
+/// **The six 44-byte player slots, and the four bytes that are not a name.**
+///
+/// `g_saveBlocks[2] = {0x00553D50, 264}` reads as six `0x2C` names starting a
+/// dword before `g_playerNames` (`0x00553D54`), which would mean a block
+/// misaligned by four bytes with realm 5's record running past its end. It is
+/// a **player table** instead: `0x00553D50` is slot 0, the name is `+0x04`, and
+/// the four bytes at `+0x00` are the DirectPlay player id
+/// (`FUN_0043E9E2` writes `g_dpPlayerId` there; `Mp_DropDepartedPlayers`
+/// eliminates a human realm whose copy has gone to zero).
+///
+/// Three things say the base is right rather than four bytes out, and each
+/// fails loudly under the wrong reading:
+///
+/// * `+0x00` is **zero** in every save — a single-player game has no
+///   connection. Read four bytes later and it is the first four characters of
+///   a name, which is never zero for a realm in play.
+/// * the local player's `+0x25` is the shield `g_realms[p].shieldIndex` holds,
+///   two fields at two different strides agreeing. `Player_SetHuman` writes
+///   both.
+/// * every realm in play has a name, and none of them fills all 31 bytes:
+///   `FUN_00401136` copies a terminated string.
+///
+/// **A multiplayer save would legitimately carry a non-zero id**, and this is
+/// the assertion that would tell us we finally had one. Every save this
+/// machine can reach is somebody's solo game.
+#[test]
+fn the_player_table_names_every_realm_in_play_and_holds_no_connection() {
+    use l2_formats::save::{PLAYER_NAME_LEN, PLAYER_RECORDS};
+    let saves = saves!();
+    for s in &saves {
+        let players = s.save.players().expect("players");
+        let realms = s.save.realms().expect("realms");
+        let local = s.save.globals().expect("globals").local_player as usize;
+        assert_eq!(players.len(), PLAYER_RECORDS, "{}", s.label());
+        assert_eq!(players.len(), 6, "{}", s.label());
+
+        assert!(!players[0].is_named(), "{}: slot 0 is an array slot", s.label());
+
+        for p in players.iter() {
+            assert_eq!(
+                p.dp_player_id,
+                0,
+                "{}: slot {} carries a DirectPlay id, so either this is the first \
+                 multiplayer save we have seen or +0x00 is not where we think",
+                s.label(),
+                p.index,
+            );
+        }
+
+        for r in realms.iter().filter(|r| r.in_play()) {
+            let p = &players[r.index];
+            assert!(p.is_named(), "{}: realm {} is in play and unnamed", s.label(), r.index);
+            assert!(
+                p.name.contains(&0),
+                "{}: realm {}'s name fills all {PLAYER_NAME_LEN} bytes and is unterminated",
+                s.label(),
+                r.index,
+            );
+        }
+
+        assert!((1..PLAYER_RECORDS).contains(&local), "{}: g_localPlayer {local}", s.label());
+        assert_eq!(
+            players[local].shield, realms[local].shield_index,
+            "{}: the local player's +0x25 and g_realms[{local}].shieldIndex disagree",
+            s.label(),
+        );
+        eprintln!(
+            "{}: realm {local} is {:?}, flying shield {}",
+            s.label(),
+            players[local].name(),
+            players[local].shield,
+        );
+    }
+}
+
 /// `g_counties` counts exactly the records that read as counties, and the
 /// counties are the low records with the slots above them.
 ///

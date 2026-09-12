@@ -12768,11 +12768,18 @@
       "comment": "The 0/1 toggle picking battle1 or battle2 for a field battle. Stepped before use, so the first battle of a session gets battle2."
     },
     {
+      "addr": "0x00553D50",
+      "name": "g_playerSlots",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "Six 0x2C player slots, indexed by realm - the record g_playerNames (+0x04) is the name member of. PROMOTED from a hypothesis whose caveat was exactly this question: \"what the table actually holds - a network peer, a save slot, a controller - is not established\". It is a network peer. +0x00 is the DirectPlay player id: FUN_0043E9E2 clears realms 1..5 and writes g_dpPlayerId into the local player's, FUN_0043E98B maps an id back to a realm, Net_ReadField puts four bytes of it on the wire, Player_SetHuman writes it unless the caller passes the 999 sentinel, and Mp_DropDepartedPlayers eliminates a human realm whose copy has gone to zero. So it is 0 in every single-player save - eighteen of them checked, where reading the name array four bytes high would give 0x79616C50, \"Play\". +0x25 is the shield the slot holds, +0x27 the byte Player_SetHuman sets and FUN_0049BB9D clears. One save block: g_saveBlocks[2] = {0x00553D50, 264} = 6 x 0x2C, which covers all six records exactly."
+    },
+    {
       "addr": "0x00553D54",
       "name": "g_playerNames",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Six 0x2C-byte player names. g_saveBlocks entry 2 is {0x00553D50, 264}, which is 6 x 0x2C."
+      "comment": "The name member at +0x04 of g_players, 0x1F bytes: FUN_00401136(src, &g_playerNames + realm * 0x2C, 0x1F) for a person and 0x10 bytes of L2.eng group 7 through Eng_Seek for an AI lord. NOT an array of its own - the six 0x2C records begin four bytes lower, at g_players, which is why g_saveBlocks entry 2 is {0x00553D50, 264} and covers all six exactly."
     },
     {
       "addr": "0x00553E64",

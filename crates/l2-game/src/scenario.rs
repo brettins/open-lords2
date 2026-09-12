@@ -57,6 +57,11 @@ const REALM_BASE: u32 = l2_formats::save::REALM_BASE;
 const REALM_STRIDE: u32 = l2_formats::save::REALM_STRIDE as u32;
 const REALM_COLOUR: u32 = 0x0A;
 
+/// The two crates read the same `0x1F` out of the same two `FUN_00401136`
+/// calls, and [`from_save`] moves one array into the other by value. If they
+/// ever disagree this fails to compile rather than truncating a name.
+const _: () = assert!(l2_formats::save::PLAYER_NAME_LEN == crate::text::PLAYER_NAME_LEN);
+
 /// The seed the kingdom's generator starts on.
 ///
 /// **Ours, not the original's, and it could not be otherwise.** The original
@@ -140,6 +145,29 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
     for (id, slot) in game.realm_colour.iter_mut().enumerate() {
         let va = REALM_BASE + id as u32 * REALM_STRIDE + REALM_COLOUR;
         *slot = save.u8_at(va).unwrap_or(0);
+    }
+
+    // **`g_playerNames` — the lords' names, and they were in the file all
+    // along.**
+    //
+    // `g_saveBlocks[2] = {0x00553D50, 264}` is the six-slot player table and
+    // the name is each slot's `+0x04` (`l2_formats::save::Player`, which also
+    // says what the four bytes before it are). Nothing here read it, so a
+    // loaded game had `Game::player_names` empty, and every screen that draws a
+    // lord fell through `screens::message::lord_name` to `L2.eng` group 7 and
+    // then to `REALM n`. `Realms_AssignLords` (`0x0049CAAA`) and
+    // `Player_SetHuman` (`0x0049BAE9`) are what filled it before the save was
+    // written; this is the reading half.
+    //
+    // Raw and unfixed, like `realm_colour` above: a slot the original never
+    // wrote stays empty and `lord_name` is the one place the fallback lives.
+    // **Nothing moves in the lockstep digest** — the digest is
+    // `Canonical::hash_of(kingdom)` and this is on `Game`, beside
+    // `realm_colour`, for exactly that reason. `docs/decisions.md` CNEW-lord-names.
+    for (id, slot) in game.player_names.iter_mut().enumerate() {
+        if let Ok(p) = save.player(id) {
+            *slot = crate::text::PlayerName::from_bytes(p.name);
+        }
     }
 
     for id in scenario.county_ids() {
