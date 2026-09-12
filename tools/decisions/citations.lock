@@ -135,6 +135,7 @@ crates/l2-game/src/shell/font.rs	C155	b2daf0637f13	03caee7e7f69
 crates/l2-game/src/shell/mod.rs	C140	ac3b5990aa16	e3a1ede42a95
 crates/l2-game/src/shell/mod.rs	C155	c841635f22d7	03caee7e7f69
 crates/l2-game/src/shell/mod.rs	C155	d741267a7948	03caee7e7f69
+crates/l2-game/src/shell/mod.rs	C200	6ec1fb08dd8b	264da18555bd
 crates/l2-game/src/shell/mod.rs	C61	4852635e7bff	60611046b40d
 crates/l2-game/src/shell/mod.rs	C61	bf7c15012e16	60611046b40d
 crates/l2-game/src/turn.rs	C115	42714a7de34c	085c9b771281
@@ -375,9 +376,11 @@ crates/l2-sim/src/ai.rs	C186	a4386483ca52	e4c22886df5f
 crates/l2-sim/src/ai.rs	C71	4fa25e346302	3d674af30522
 crates/l2-sim/src/ai.rs	C71	9a7d14ae22d0	3d674af30522
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab	bb0dd488f9d2
+crates/l2-sim/src/movement.rs	C200	8dc4d33f9c4c	264da18555bd
 crates/l2-sim/src/pathfind.rs	C103	62f78ee316b4	7f535dce1087
 crates/l2-sim/src/pathfind.rs	C103	82fc499e9bf3	7f535dce1087
 crates/l2-sim/src/runner.rs	C100	0b67e8835502	c490b4875689
+crates/l2-sim/src/runner.rs	C200	a0976d2da606	264da18555bd
 crates/l2-sim/src/runner.rs	C81	195b94310c14	3f7941714d12
 crates/l2-sim/src/siege.rs	C3	0f9889cc0837	35bf3a86555f
 crates/l2-sim/src/siege.rs	C82	7bd5548a0133	0eb5947031fe
@@ -447,6 +450,7 @@ crates/l2-view/src/chrome.rs	C135	1638dc1c9112	39859e3b9368
 crates/l2-view/src/chrome.rs	C50	d9471b57f9d8	85416be0b69b
 crates/l2-view/src/fade.rs	C49	538f7940f33a	4ce32e6c42e0
 crates/l2-view/src/ink.rs	C112	b767057058d1	0dbcd00423ed
+crates/l2-view/src/scene.rs	C200	19239c5a5be7	264da18555bd
 crates/l2-view/src/text.rs	C107	b6697db1fac7	eb231bef7ee5
 crates/l2-view/src/village.rs	C22	4b0da6199195	0364b53a921d
 crates/l2-view/src/village.rs	C57	fbc575f34d82	3b42b65157bf
@@ -543,6 +547,7 @@ docs/battle.md	C103	df841d2b59bb	7f535dce1087
 docs/battle.md	C105	ab6c82446dfc	c2e0145299b3
 docs/battle.md	C12	c0753f7ef8f6	bb0dd488f9d2
 docs/battle.md	C181	06d66b320c10	19c538abe1e9
+docs/battle.md	C200	63cdeff510ca	264da18555bd
 docs/battle.md	C3	4a58ff6915b0	35bf3a86555f
 docs/battle.md	C3	d55c548092ec	35bf3a86555f
 docs/battle.md	C61	09767b006ebe	60611046b40d
@@ -734,8 +739,11 @@ docs/decisions.md	C181	01475f51491a	19c538abe1e9
 docs/decisions.md	C181	20e69e717a14	19c538abe1e9
 docs/decisions.md	C181	5e051b644dd8	19c538abe1e9
 docs/decisions.md	C181	5f6049f98891	19c538abe1e9
+docs/decisions.md	C183	0bb4efd0be64	910aa7b8ce33
 docs/decisions.md	C183	51a3b32420dc	910aa7b8ce33
+docs/decisions.md	C183	5c3cc6f2b188	910aa7b8ce33
 docs/decisions.md	C183	9e4e4bfdf2f4	910aa7b8ce33
+docs/decisions.md	C183	b91780683fb8	910aa7b8ce33
 docs/decisions.md	C184	186ec1e7d258	68993561dc7c
 docs/decisions.md	C184	b2af8a802fd4	68993561dc7c
 docs/decisions.md	C189	0b09be3d6777	a640e552a733
@@ -821,6 +829,7 @@ docs/decisions.md	C36	77721e6dffe1	4367c93c1b02
 docs/decisions.md	C38	8adae0dd7352	cd66a8ec76e7
 docs/decisions.md	C39	4c573c6aebc6	9a04e88ad74b
 docs/decisions.md	C39	6a5f6cc77f33	9a04e88ad74b
+docs/decisions.md	C39	a1f20175dd3a	9a04e88ad74b
 docs/decisions.md	C39	b900cd987da2	9a04e88ad74b
 docs/decisions.md	C39	bafbbde7c92a	9a04e88ad74b
 docs/decisions.md	C40	dd07d41c363e	d344563abef8
@@ -1171,8 +1180,8 @@ docs/symbols.md	C100	3cede658071f	c490b4875689
 docs/symbols.md	C101	2d4307e2edc7	fb385b3247be
 docs/symbols.md	C102	36cc489ab4e3	e01ce233d22a
 docs/symbols.md	C102	5f63b7e4c754	e01ce233d22a
-docs/symbols.md	C105	1b589a0615a6	c2e0145299b3
 docs/symbols.md	C105	c425aadeeece	c2e0145299b3
+docs/symbols.md	C105	f7e7849dbc51	c2e0145299b3
 docs/symbols.md	C119	2f30d338494e	306c4c740506
 docs/symbols.md	C119	e81dc4b37eec	306c4c740506
 docs/symbols.md	C127	2e512f4df12d	537ace9eca06

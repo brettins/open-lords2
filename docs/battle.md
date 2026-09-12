@@ -757,27 +757,55 @@ Traced and absent, as far as this investigation went:
 
 ## 7. Movement
 
-`BattleMan_Step` (`0x0048F1DD`), once per frame per figure:
+`BattleMan_Step` (`0x0048F1DD`), once per frame per figure. **It moves first and counts
+afterwards**, and bit 0 of `stepFlags` (`+0x34`) is the gate:
 
-```
-+0x33 ++ ;  if (+0x33 <= moveDelay) return          # moveDelay+1 ticks per sub-step
-+0x33 = 0 ;  +0x32 += 2 ;  if (+0x32 < 17) return   # 9 sub-steps to cross a cell
-commit to the next cell
+```c
+if ((stepFlags & 1) == 0) {                 /* mid-crossing: count, decide nothing */
+    if (++moveTick <= moveDelay) return 1;  /* +0x33, moveDelay+1 ticks a sub-step */
+    moveTick = 0;  walking += 2;            /* +0x32 */
+    if (walking < 17) return 1;
+    stepFlags |= 1;  walking = 0;           /* landed */
+    if (noInterrupt == 1) return 1;         /* …and fall through to decide */
+} else { walking = 0;  moveTick = 0; }
+/* --- the decision: Melee_AdjacentEnemyDir, then the direction, then --- */
+if (BattleMan_TryStepDir(dir) == 1) {
+    barred = 0;  holdIt = 0;  stepFlags &= ~1;
+    dirc = dir;  walking = 1;  FUN_00491b1f(man);   /* mapX/mapY/cellOffset step HERE */
+}
 ```
 
-so one cell costs `9 * (moveDelay + 1)` ticks:
+so `walking` runs **1, 3 … 15 — eight sub-steps, not nine** — and one cell costs
+`8 * (moveDelay + 1)` ticks, the landing tick being the next cell's commit:
 
 | troop | moveDelay | ticks per cell |
 |---|---|---|
-| Knights | **0** | **9** |
-| Macemen | 1 | 18 |
-| Peasants, Crossbowmen, Archers | 2 | 27 |
-| Swordsmen | 3 | 36 |
-| Pikemen | 4 | 45 |
-| Catapults, towers, rams, oil | 5 | 54 |
+| Knights | **0** | **8** |
+| Macemen | 1 | 16 |
+| Peasants, Crossbowmen, Archers | 2 | 24 |
+| Swordsmen | 3 | 32 |
+| Pikemen | 4 | 40 |
+| Catapults, towers, rams, oil | 5 | 48 |
 
-**[V]** — `g_troopBattleStats[t][4]`, and the manual: *"macemen are second only to knights
-in speed"*, *"pikemen move very slowly"*. Knight to pikeman is exactly 1 : 5.
+**[V]** — `g_troopBattleStats[t][4]` for the delay column, and the manual for the order:
+*"macemen are second only to knights in speed"*, *"pikemen move very slowly"*. Knight to
+pikeman is exactly 1 : 5.
+
+**Corrected.** This section read `walking += 2; if (walking < 17) return; commit`, counting
+2, 4 … 18 from zero, and gave `9 * (moveDelay + 1)`. `walking` is never zero during a
+crossing — the commit seeds it at 1 — so the ninth increment does not exist, and the
+commit is at the *start* of the crossing rather than the end. `docs/symbols.json`'s entry
+for `BattleMan_Step` carried the same reading. Every relative speed the manual states is a
+ratio and is unchanged; what changed is that a figure is on the cell it is walking into for
+the whole crossing, which is what §13.6 draws.
+
+**Two consequences a player can see.** A man who has committed *cannot be interrupted*: the
+mid-crossing return is above `Melee_AdjacentEnemyDir`, above the direction choice and above
+`Cell_TryEnter`, so `dirc` is fixed for the crossing and there is no refusal half-way
+through one. And `BattleMan_StateMelee` (`0x004831D8`) says the same from the other side —
+a figure locked into a duel mid-crossing runs `if ((stepFlags & 1) == 0 &&
+BattleMan_Step(1)) Anim_Walk();`, finishing the crossing before it strikes. **[V]**
+`docs/decisions.md` C200.
 
 Direction each cell:
 
@@ -1317,36 +1345,37 @@ Note the height term uses the sprite **width** for both axes, which is why a
 rather than corrected.
 
 **`mapXY` is the cell he is walking *into*.** **[V]** `BattleMan_Step`
-(`0x0048F1DD`) tries the cell first and walks second: on `BattleMan_TryStepDir`
-→ `Cell_TryEnter` returning 1 it writes `dirc = dir; walking = 1` and calls
-`FUN_00491B1F`, which is the move — `mapX`/`mapY`/`cellOffset` stepped by the
-facing and the cell's figure byte re-seated. Every later tick adds 2 to
-`walking` and at 17 clears it and sets `stepFlags |= 1`. So the nine pictures of
-a crossing are the offsets 30, 26 … 2 behind the new cell, then the cell.
+(`0x0048F1DD`) tries the cell first and walks second — §7 has the whole
+function. The nine pictures of a crossing are the offsets 30, 26 … 2 behind the
+new cell, then the cell.
 
-**`l2_sim`'s runner crosses in the other order**: it counts `substep` 2 … 16 on
-the cell he is leaving and calls `enter` on the ninth sub-step. The renderer
-applied `g_walkOffset[facing][substep]` to `(x, y)` — the *old* cell — so every
-man was drawn up to 28 pixels behind his own square, walked back onto it, and
-jumped a cell: a player saw units *"reset on their square once as they move"*.
-`l2_view::scene::drawn_cell` now draws a walking man from the cell his facing
-points into with `walking = substep − 1`, the same nine pictures, and reads the
-runner without writing it — a battle's saved bytes are identical with and without
-painting (`crates/l2-game/tests/battle_picture.rs`).
+**`l2_sim`'s runner crosses in that order now**, and `drawn_cell` is a plain
+read of `mapX`/`mapY` and `walking` with nothing to compensate for. It used to
+count `substep` 2 … 16 on the cell being left and call `enter` on the last one;
+the renderer applied `g_walkOffset[facing][substep]` to the *old* cell, so every
+man was drawn up to 28 pixels behind his own square and jumped a cell — units
+*"reset on their square once as they move"*. C183 fixed the picture by drawing
+from the cell the facing pointed into; **a compensation cannot fix an order**,
+and two faults survived it:
 
-**What the drawing cannot hide, and what would.** A step the runner refuses
-*after* its eight sub-steps — a friend in the way, a swap, an enemy arriving —
-leaves the man at `substep 0` on the square he never left, so he is drawn
-snapping back. The original never shows that, because it refuses before it
-walks. And the runner re-chooses the man's direction on every tick of the
-count, so a man can turn toward a different neighbour mid-crossing and be drawn
-jumping sideways; the original fixes `dirc` for the crossing when it enters.
-The cure for both is the runner's order — enter, then count, with the direction
-held — and it changes the battle, which is why a presentation fix did not make
-it. Measured once with a throwaway probe over a 42-figure battle (1,096 ticks,
-18,690 walking figure-ticks): drawn jumps of 16 pixels or more went from 1,317
-to 504, and the 504 are 310 mid-crossing turns, 180 refusals after the walk, 12
-commits and 2 swaps.
+* a step refused *after* the count put the man back on the square he never
+  left — the original refuses before it walks;
+* the runner re-chose his direction every tick of the count, so he could turn
+  mid-crossing and be drawn jumping sideways — the original's `dirc` is fixed
+  at the commit and the mid-crossing return is above the direction choice.
+
+Measured over a 42-figure battle, 1,200 ticks, ~7,000–9,000 walking figure-ticks
+(`no_drawn_man_ever_jumps_half_a_cell_in_one_tick`, in
+`crates/l2-game/tests/battle_picture.rs`): drawn jumps of 16 pixels or more went
+**1,317 → 504 → 324 → 0**. The 504 and the 324 are the same defect measured on
+two scenarios; the last step is the runner taking `BattleMan_Step`'s order, and
+the last fifteen of the 324 were figures engaged mid-crossing, which
+`BattleMan_StateMelee` (`0x004831D8`) lets finish the crossing and we did not.
+No `BattleMen_SwapPlaces` fires in that battle — a swap *is* a teleport in the
+original, and one would have shown as a 32-pixel jump.
+
+The drawing still reads the runner without writing it: a battle's saved bytes
+are identical with and without painting.
 
 ### 13.7 Draw order
 

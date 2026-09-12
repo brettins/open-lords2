@@ -39,7 +39,7 @@ use l2_sim::terrain::{Battlefield, DIM};
 use l2_sim::{Troop, SIDE_A};
 
 use crate::canvas::{Canvas, Clip};
-use crate::figures::{self, Anim, Colour, FACING_DELTA};
+use crate::figures::{self, Anim, Colour};
 use crate::sheet::Sheet;
 
 pub const TILE: i32 = 32;
@@ -70,16 +70,26 @@ pub const FIELD_CLIP: Clip = Clip::new(
     ORIGIN_Y + VIEW_ROWS as i32 * TILE,
 );
 
-/// The field-battle tileset and palette. `T32_stn1` / `T32_wod1` are the siege
-/// and wooded-castle variants and are not loaded here.
-///
-/// **The palette is not `Battle_LoadAssets`'.** `Res_LoadStatic` (`0x00499859`)
-/// preloads `t32_bat1.256` into `0x00568EE0` at start-up — record 2 of
-/// `g_preloadTable` (`0x004D9F48`) — and `Screen_DrawBattlefield`
-/// (`0x004233F7`) ends a field battle's repaint with `Palette_Set(0x568EE0)`,
-/// or `Palette_Set(0x5675A0)` (`t32_stn1.256`, record 1) for a siege. **[V]**
+/// The field-battle tileset. `T32_stn1` / `T32_wod1` are the siege and
+/// wooded-castle variants and are not loaded here.
 pub const TILESET: &str = "T32_bat1.pl8";
+
+/// **The two battle palettes**, records 2 and 1 of `g_preloadTable`
+/// (`0x004D9F48`) — the filenames are the table's own bytes.
+///
+/// **Neither is `Battle_LoadAssets`'.** `Res_LoadStatic` (`0x00499859`)
+/// preloads both at start-up, into `0x00568EE0` and `0x005675A0`, and
+/// `Screen_DrawBattlefield` (`0x004233F7`) ends every repaint with
+/// `if (g_battleIsSiege == 0) Palette_Set(0x568ee0); else
+/// Palette_Set(0x5675a0);`. **[V]**
+///
+/// The siege one is the palette of a screen we draw from the *field* tileset,
+/// because `T32_stn1.pl8` is not ported. That is the original's colour over
+/// the wrong tiles, which is what the original's own siege men and walls are
+/// drawn in; the alternative measured worse — a whole siege in the field's
+/// colours.
 pub const TILE_PALETTE: &str = "T32_bat1.256";
+pub const SIEGE_PALETTE: &str = "T32_stn1.256";
 
 /// **The overview panel's two sheets.** `Battle_LoadAssets` (`0x004987B7`)
 /// registers them with
@@ -261,31 +271,23 @@ pub fn draw_terrain(canvas: &mut Canvas, field: &Battlefield, tiles: &Sheet, cam
 /// crossing, and `BattleFigure_Draw` (`0x004BDC31`) trails him `32 − 2·walking`
 /// pixels behind it: 30, 26 … 2, then 0. **[V]**
 ///
-/// `l2_sim`'s runner does the same crossing in the other order — it counts
-/// `substep` 2 … 16 on the cell he is leaving and enters on the ninth sub-step
-/// (`BattleRunner`'s mover, then `enter`). Drawing the trail from `(x, y)`
-/// therefore put a man up to 28 pixels *behind his own square*, walked him back
-/// onto it, and jumped him a whole cell: once a cell, which is what a player
-/// described. This reads the runner's state and changes none of it: while a
-/// man is walking with `substep` `s > 0` he is drawn from the cell his facing
-/// points into with `walking = s − 1`, which is the original's 1, 3 … 15, and
-/// the tick he commits he is on that cell at 0 — the same nine pictures.
+/// `l2_sim`'s runner now crosses in that order too, so this is a plain read of
+/// `mapX`/`mapY` and `walking` with no compensation in it.
 ///
-/// **What the picture cannot hide**, because it is the runner's order and not
-/// the drawing: a step refused *after* the eight sub-steps — a friend in the
-/// way, a swap, an enemy — puts him back at `walking = 0` on the square he
-/// never left; and the runner re-chooses his direction every tick of the count,
-/// so a man who turns mid-crossing is drawn jumping to the new neighbour. The
-/// original tests the cell before it walks and holds `dirc` for the crossing,
-/// and shows neither. `docs/battle.md` §13.6 has the measurement.
+/// **It used to compensate, and a compensation cannot fix an order.** The
+/// runner counted `substep` 2 … 16 on the cell it was leaving and entered on
+/// the last one, so this returned the cell the facing pointed into with
+/// `walking = substep − 1`. That got the trail right and left two faults the
+/// drawing cannot reach: a step refused *after* the count put the man back on
+/// the square he never left, and the runner re-chose his direction every tick,
+/// so he could turn mid-crossing and be drawn jumping sideways. 324 drawn
+/// jumps of half a cell or more over a 42-figure battle; 0 once
+/// `BattleRunner::step_one` took `BattleMan_Step`'s order. `docs/battle.md`
+/// §13.6, `docs/decisions.md` C200.
 pub fn drawn_cell(f: &Fighter) -> ((i32, i32), u8) {
     let s = f.progress.substep;
-    if f.anim == Anim::Walking && (1..=16).contains(&s) {
-        let (dx, dy) = FACING_DELTA[f.facing as usize % FACING_DELTA.len()];
-        ((f.x as i32 + dx, f.y as i32 + dy), (s - 1) as u8)
-    } else {
-        ((f.x as i32, f.y as i32), 0)
-    }
+    let walking = if f.anim == Anim::Walking { s.min(16) as u8 } else { 0 };
+    ((f.x as i32, f.y as i32), walking)
 }
 
 /// **The pixel a figure's cell corner is drawn at**, trail included —
@@ -507,9 +509,10 @@ mod tests {
     /// pixels east — the original's `g_walkOffset32` column `walking` 1, 3 … 15
     /// and then the cell.
     ///
-    /// Ablation: `figures::walk_offset(f.facing, f.progress.substep as u8)` from
-    /// `(f.x, f.y)` in [`figure_origin`], which is what this file drew before —
-    /// red on the first sub-step, 28 pixels west.
+    /// Ablation: return `(f.x + dx, f.y + dy)` with `walking = substep − 1`
+    /// from [`drawn_cell`], the compensation this file carried while the
+    /// runner crossed in the other order — red on the first sub-step, a whole
+    /// cell east of where he is.
     #[test]
     fn a_man_walking_east_is_drawn_further_east_every_tick() {
         let mut layer = vec![0u8; l2_sim::terrain::CELLS];

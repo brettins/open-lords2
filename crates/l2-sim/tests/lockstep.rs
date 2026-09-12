@@ -718,6 +718,13 @@ impl Simulation for RunnerNetBattle {
             // exchanged before that agreed.
             out.u32(f.progress.tick_counter);
             out.u32(f.progress.substep);
+            // **And whether he is free to decide** — `stepFlags` bit 0. Two
+            // peers that disagreed about it would have one man finishing a
+            // crossing while the other re-chose his direction, so they would
+            // disagree about which cell he is on a tick later. `substep` does
+            // not cover it: a figure that has just landed and one that has
+            // just been ordered both read 0.
+            out.bool(f.progress.free);
             // **The moat.** Which cell a figure is shovelling into, and how far
             // through the current load it is, decide when a ditch stops being
             // water — and a filled ditch changes what the pathfinder can reach
@@ -1042,16 +1049,35 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
     ];
 
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let encoder = std::fs::read_to_string(root.join("tests/lockstep.rs")).expect("this file");
+    let src = std::fs::read_to_string(root.join("tests/lockstep.rs")).expect("this file");
+    // **`encode_state`'s body, not the whole file.** Scanning the file let any
+    // `.name` anywhere in it stand for a hashed field: dropping
+    // `Progress::free` from the encoder stayed green because
+    // `emptied.missiles.free(slot)`, in an unrelated test below, matches
+    // `.free`. A check a deliberate ablation cannot turn red is not a check.
+    // Three types in this file carry an `encode_state`; the one under test is
+    // the only one that opens the "runner" section.
+    let head = "fn encode_state(&self, out: &mut Canonical) {\n        out.section(\"runner\");";
+    let at = src.find(head).expect("the encoder");
+    let rest = &src[at..];
+    let end = rest.find("\n    }\n").expect("the encoder's closing brace");
+    let encoder = rest[..end].to_string();
     let mut all: Vec<(String, String)> = Vec::new();
-    for (file, want) in [
-        ("src/missile.rs", "Missile"),
-        ("src/runner.rs", "Fighter"),
-        ("src/siege.rs", "SiegeState"),
+    // The third column is the fewest fields the struct is known to have: a
+    // parser that silently returns nothing is what this catches.
+    for (file, want, least) in [
+        ("src/missile.rs", "Missile", 5),
+        ("src/runner.rs", "Fighter", 5),
+        ("src/siege.rs", "SiegeState", 5),
+        // **Nested structs were outside the walk.** `Fighter::progress` is one
+        // name in the census and three fields in the digest, so `free` could
+        // have been added and hashed by nobody with this test green — which is
+        // exactly C39's failure, one level down.
+        ("src/movement.rs", "Progress", 3),
     ] {
         let src = std::fs::read_to_string(root.join(file)).expect(file);
         let fields = fields_of(&src, want);
-        assert!(fields.len() >= 5, "{want} parsed as {} fields - the parser broke", fields.len());
+        assert!(fields.len() >= least, "{want} parsed as {} fields - the parser broke", fields.len());
         all.extend(fields.into_iter().map(|f| (want.to_string(), f)));
     }
 
