@@ -11102,3 +11102,108 @@ Royal castles have drawbridges"*, arrived at from inside the art. And one thing 
 pass exposes that is ours: our runner keeps catapult hits in a side table
 (`BattleRunner::wall_hits`) where the original keeps them in `cell[+0]`, so a **ditch**
 being filled now animates and a **wall** being shot does not.
+
+---
+
+**C202 — the battlefield's last two invisible things: `A2_miss.pl8`
+and `Engine.pl8`. Six painters, two of them nobody had looked for, and a frame map
+that closes against the shipped art on all four files.**
+
+`docs/battle.md` §13.9 listed *"missiles, siege engines and the panel"* as located and
+undrawn. The panel landed with C192; these are the other two. Sixty men fought with
+nothing in the air between them and four of the eleven troop types were not on the
+screen at all.
+
+**One sheet for every missile and one for every engine, and neither is a colour.**
+`FUN_00480F8B` (`0x00480F8B`) writes `DAT_00566518` into all hundred missile records'
+`+0x00` and hands troop types **7, 8, 9 and 10 the same `DAT_00553250` in both banks** —
+slots 6 and 8 of the battle asset table at `0x004DA550`, `a2_miss.pl8` and `engine.pl8`.
+A siege engine has no side colour; the eight branches that say so are one assignment
+written eight times.
+
+**The six painters.**
+
+| function | draws | from |
+|---|---|---|
+| `FUN_004BEED4` (`0x004BEED4`) | every missile in flight | `A2_miss.pl8` |
+| `FUN_004BDC31`'s engine arms | the carriage of a catapult, tower, ram or pot | `Engine.pl8` |
+| `FUN_004BE7BE` (`0x004BE7BE`) | the catapult's **arm**, a second sprite over the carriage | `Catarm1/2.pl8` |
+| `FUN_004BEAB9` (`0x004BEAB9`) | a ram's beam, two strips 0x66 pixels apart, only in state 14 | `Engine.pl8` |
+| `FUN_004BD759` (`0x004BD759`) | a docked tower's stair, over the men | `Engine.pl8` |
+| `FUN_004BD574` (`0x004BD574`) | an animated banner — **not built**, see below | `A2_miss.pl8` |
+
+All six hang off `FUN_004BD355` (`0x004BD355`), the pass after the men: collect, sort,
+draw the figures, then per cell the overlap sprite and then that cell's missile list.
+
+**The frame map closes on all four files, and the physical frame sizes are a second
+witness.** `Engine.pl8` holds 46 frames: 0 the ram (88 × 122), 1 … 4 the tower
+(96 × 96), 5 … 12 the catapult (128 × 120), 13 … 21 and 22 … 30 the ram's two beam
+strips (48 × 35 and 48 × 22), 31 … 34 the docked stair (96 × 96), 35 … 40 a pot idling
+and 42 … 45 a pot pouring (32 × 32). The arithmetic's highest index is 45 and **41 is
+the only frame nothing reaches**. `Catarm1.pl8` and `Catarm2.pl8` hold 20 each and four
+facings of five arm poses is twenty. `A2_miss.pl8` holds 81: 0 … 7 arrows, 8 … 15 bolts,
+16 the catapult shot, 17 … 24 debris, 25 … 40 fire, and `0x21 + shield × 8 + 0 … 7` the
+banner, whose sixth shield ends on frame 80. Every block was derived from the code and
+then found to be one sprite size in the file, which no wrong base reproduces.
+
+**Two things the reading corrected in `docs/battle.md`.**
+
+* §2.3's `missileSprite` (`+0x16E`) was `[D]`, *"added to the flight direction"*. It is
+  `[V]` — `BattleMan_FireMissile` writes `(ushort)missile[+0x2E] + missile[+0x34]` — and
+  it is **not always added**: `BattleMan_StateEngineFire` (`0x004843BC`) writes the base
+  alone, so a catapult shot has one picture and not eight. Column 4 of `g_missileStats`
+  (`0x004D97B0`) is 0, 8, 16.
+* §13.7 said the pass after the figures redraws *"cells flagged `0x04` on byte `+1`"*.
+  The test is byte **`+2`** bit **`0x80`**, and what it draws is not a terrain tile.
+
+**A missile's position is already in pixels, and it is not centred.** `+0x0A`/`+0x0C` are
+thirty-seconds of a cell, a battle tile is 32 pixels, so the sub-cell unit and the screen
+pixel are one unit. `FUN_004BEED4` adds `DAT_004E5D44` — `tileSize / 2`, stored by
+`FUN_004BC020` — and **no sprite-width term**, where every figure on the field has one.
+
+**Class 7 is never drawn**, which is the function that makes §17.2's *"invisible to the
+renderer"* true: what a player sees of a pour is the fire it leaves. And **ten to a cell**:
+`Missile_LinkToCell` and the renderer both give up after ten.
+
+**Three shapes of state our simulation does not have, and what each cost.**
+
+* **The fire's shimmer.** `DAT_004E5B1C` is a render-side global, pre-incremented once
+  per fire *drawn* and never reset, indexing sixteen `(i32, i32)` offsets at
+  `0x004E4470`. A counter that survives between frames would make `l2-view` stateful, and
+  the test that draws one state twice and demands an identical canvas is that rule
+  enforced. The tick stands in for it: same offsets, same wrap, one advance a frame
+  instead of one a drawn fire.
+* **The catapult's arm swings for eighty ticks *after* the shot.**
+  `BattleMan_StateEngineFire` counts `swingTimer` to 100, looses, and wraps at 179;
+  `FUN_0048895E` steps `animPhase` only above 100 and reads `g_horseWalkCycle`
+  (`0x004D9C08`) — the **horse's** curve, reused. `l2_sim`'s `reload_counter` resets *at*
+  the loose and climbs to 100, so the zero point is the same and the window is shorter;
+  ours is clamped at eighty rather than walking into the tail, which belongs to a horse.
+* **The ram's two strips need state 14 and the pot's pour needs state 2.** Our nearest are
+  `Motion::Attacking` on a ram — which `strike_castle` sets on exactly the step the
+  original refuses into `BattleMan_StateRamGate` — and `Motion::Dying` on a pot, which
+  `pour_oil` sets in the same statement that turns it to face the pour. Both marked `[I]`
+  beside the code.
+
+**`FUN_004BD759`'s gate is a cell byte we do not carry, and the gate is not optional.**
+`FUN_00491492` stamps `DAT_004D9DD0[k + polarDirc × 9]` over a docked tower's 3 × 3 and
+sets byte `+2` bit `0x80` on the **centre**; the four centre codes read out of that table
+are `0x49`, `0x4C`, `0x61`, `0x64`, exactly the four `FUN_004BD759` answers. Our
+`Battlefield` has no byte `+2`, so ours reads `flags & 1`, which `lay_tower_ramp` sets on
+those nine cells and nothing else in `l2_sim` sets at all. Without *some* gate the tileset
+sinks it: the field's hills occupy graphic indices 64 … 111, and 73, 76, 97 and 100 are
+ordinary hillsides.
+
+**Found and not built, each for a stated reason.** `FUN_004BD574`'s banner — eight frames
+cycling on `g_pulse80`, `shield × 8 + 0x21`, on a `0x80` cell whose graphic index is 0 —
+needs the same missing byte and nothing in our field produces the cell. The `a3` bank's
+engine frames, which are unreachable code (§14.4). And the two the simulation owes rather
+than the renderer: a corpse's eighty frames, so a spent pot stops pouring rather than
+holding its last picture, and `Missile_UpdateAll`'s class-4 alternation of `+0x31`, which
+is how fast debris falls and not what it looks like.
+
+**Nothing added is hashed.** Every line of this is in `l2-view`, which reads
+`BattleRunner` and writes a canvas; `crates/l2-game/tests/battle_picture.rs`'s
+`painting_the_battlefield_with_its_artwork_does_not_change_the_battle` plays 1,500 ticks
+with and without painting and compares the saved bytes. The one piece of renderer state
+this could have introduced — the fire jitter counter — was kept out for that reason.

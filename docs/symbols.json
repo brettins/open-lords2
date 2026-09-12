@@ -10055,6 +10055,54 @@
       "section": "battle",
       "confidence": "verified",
       "comment": "Paints param_2 rows of the battle overview panel starting at row param_1, two pixels a cell, from (DAT_004E5D68, _DAT_004E5D60 + 2*row) - the origin Overview_SetSheets stored. Per cell, on flags = cell[+2] and occupant = cell[+5], and only when g_mapRedraw or flags & 3: an empty cell draws frame cell[+3] of the first tile sheet (flags & 0x1C == 0) or of the second (== 4), or the sprite sheet's frame 0 when flags & 2 is set - the erase tile; an occupied cell draws the sprite sheet's frame g_realms[g_battleMen[occupant].owner].shieldIndex, or frame 6 when that owner is 6, and nothing at all when it is 0. It draws NO viewport rectangle. One branch is dead in a battle: column 0 draws frame 0 when g_appPhase == 3, and g_appPhase is past 8 long before a battle. docs/decisions.md C192."
+    },
+    {
+      "addr": "0x004BD355",
+      "name": "Battle_DrawFiguresAndOverlay",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_DrawFiguresAndOverlay(void)",
+      "comment": "The battle frame after the terrain: FUN_004BD938 collects every figure within one cell of the viewport, FUN_004BDA92 bubble-sorts them by map y and FUN_004BDB95 draws them, then a per-cell sweep of the viewport plus a one-cell ring. Per cell: byte +2 bit 0x80 dispatches on the graphic byte +3 - 0 to BattleBanner_Draw, anything else to TowerStair_Draw - and then byte +6, the missile list head, to Missiles_DrawCellList. docs/battle.md 13.7 and 13.11; 13.7 used to give this test as byte +1 bit 0x04."
+    },
+    {
+      "addr": "0x004BD574",
+      "name": "BattleBanner_Draw",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void BattleBanner_Draw(void)",
+      "comment": "Eight frames of a2_miss.pl8 cycling on g_pulse80, frame g_units[g_battleArmyB].shield * 8 + counter + 0x21 - the block that runs to that sheet's last frame, 80, and so closes its 81. Drawn over a cell whose byte +2 has 0x80 and whose graphic byte +3 is zero. Not reproduced: crates/l2-view carries no cell byte +2."
+    },
+    {
+      "addr": "0x004BD759",
+      "name": "TowerStair_Draw",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void TowerStair_Draw(int graphicCode)",
+      "comment": "A docked siege tower's stair, drawn AFTER the men so its top overlaps them. Answers exactly four graphic codes - 0x49, 0x4C, 0x61, 0x64 - with engine.pl8 frames 0x1F..0x22, and returns for anything else. Those four are the centre entries of DAT_004D9DD0, the 4 x 9 table FUN_00491492 stamps over a docked tower's 3 x 3 while setting byte +2 bit 0x80 on the centre. Centred (0x10 - width/2) on BOTH axes, unlike every figure. docs/battle.md 13.11."
+    },
+    {
+      "addr": "0x004BE7BE",
+      "name": "CatapultArm_Draw",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void CatapultArm_Draw(int figure)",
+      "comment": "The catapult's arm, a second sprite over the carriage: catarm1.pl8 for dirc < 4 and catarm2.pl8 otherwise, frame = figure +0x11, at the same walk offset and centring as the body. Four facings of five poses is each file's twenty frames exactly. docs/battle.md 13.11."
+    },
+    {
+      "addr": "0x004BEAB9",
+      "name": "RamBeam_Draw",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void RamBeam_Draw(int figure)",
+      "comment": "Two more engine.pl8 frames for a battering ram, and only while its state is 14 (BattleMan_StateRamGate): +0x11 + 0x16 at y - 0x10 and +0x11 + 0x0D at y + 0x56, both from the unnudged cell corner and neither carrying the + 8 every other battle sprite has. Nine pictures each, walked downward by FUN_0048895E (Anim_EngineWork in docs/hypotheses.json). docs/battle.md 13.11."
+    },
+    {
+      "addr": "0x004BEED4",
+      "name": "Missiles_DrawCellList",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Missiles_DrawCellList(int head)",
+      "comment": "Every missile standing on one cell, walking cell byte +6 through missile +0x04 and giving up after ten - the same ten Missile_LinkToCell walks. Screen position is origin + (missile +0x0A, +0x0C) - camera * 0x20 + tileSize/2, with NO sprite-width centring: a missile's position is in thirty-seconds of a cell and a battle tile is 32 pixels, so the two units are one. Frame is missile +0x12, from g_missileSheet. Class 7, the boiling-oil stream, is stepped over and never drawn; class 5 takes one of g_fireJitter's sixteen offsets first. docs/battle.md 13.11."
     }
   ],
   "globals": [
@@ -10612,6 +10660,20 @@
       "comment": "Melee attack value by troop type and strength band, 11 rows of 4 shorts. Peasant/crossbow/archer 5,4,3,2; mace and sword 15,12,10,6; pike 10,8,6,5; knight 20,15,11,6; siege engines all zero."
     },
     {
+      "addr": "0x004D9950",
+      "name": "g_debrisFrames",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "a2_miss.pl8 frames for catapult debris, indexed by the missile record's +0x3C countdown >> 1. 61 reachable entries, running 17 to 24 as the rubble settles. Missile_UpdateAll's class-4 arm."
+    },
+    {
+      "addr": "0x004D99A8",
+      "name": "g_fireFrames",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "a2_miss.pl8 frames for a burning cell, indexed by +0x3C >> 4. 41 reachable entries over two eight-frame groups, 25..32 and 33..40. Missile_UpdateAll's class-5 arm, which links the record to its cell only while the frame is positive."
+    },
+    {
       "addr": "0x004D9A00",
       "name": "g_strikeCycleMace",
       "section": "battle",
@@ -10701,6 +10763,13 @@
       "section": "battle",
       "confidence": "verified",
       "comment": "Five cell-offset deltas per direction, stride 0x14, read by Cell_TryEnterEngineDiag with directions 1, 3, 5 and 7. Five and not three because a 3x3 footprint stepping diagonally exposes an L of five new cells where an orthogonal step exposes three - a second statement of the footprint 3 that g_troopBattleStats gives every siege engine."
+    },
+    {
+      "addr": "0x004D9DD0",
+      "name": "g_towerRampFrames",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Nine graphic codes per polar facing at offset polarDirc * 9 (rows 0, 18, 36, 54), written over a docked siege tower's 3 x 3 by FUN_00491492. Ghidra types it as the string \"@ABHIJPQR\". The centre of each row - 0x49, 0x4C, 0x61, 0x64 - is what TowerStair_Draw answers."
     },
     {
       "addr": "0x004D9F48",
@@ -11137,6 +11206,13 @@
       "comment": "64 dwords indexed by g_screenId, holding the cursor KIND Battle_Frame hands to Cursor_Set on every screen outside the battle range 0x28..0x2A. Only five rows are non-zero: 0x02 the village idle -> 2 (the question mark), 0x06 the village carrying a selection -> 12 (the peasant), 0x07 -> 13, 0x0E -> 2, 0x10 army movement -> 14 (the scythe). Every other screen, the help screen 0x31 included, gets 0, the plain arrow. This table is the whole of the game's non-battle cursor policy. docs/screens.md section 9."
     },
     {
+      "addr": "0x004E4470",
+      "name": "g_fireJitter",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Sixteen (i32, i32) offsets Missiles_DrawCellList adds to a class-5 record's screen position, so a burning cell shimmers."
+    },
+    {
       "addr": "0x004E59DC",
       "name": "g_mobCountyCursor",
       "section": "units",
@@ -11177,6 +11253,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Map_ScrollThrottle's last-accepted timestamp, from timeGetTime. Written only when a scroll step is accepted, and the excess elapsed time is discarded rather than carried - so the scroll rate quantises to the frame rate whenever a frame is longer than the interval."
+    },
+    {
+      "addr": "0x004E5B1C",
+      "name": "g_fireJitterIndex",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The cursor into g_fireJitter: pre-incremented once per fire DRAWN, wrapped at 16, and never reset, so the offset a given cell takes changes every frame."
     },
     {
       "addr": "0x004E5D58",
@@ -11842,6 +11925,13 @@
       "section": "battleai",
       "confidence": "verified",
       "comment": "Y of the enemy unit that attacked the melee unit which raised g_aiRallyRequest."
+    },
+    {
+      "addr": "0x00522F78",
+      "name": "g_catapultArmSheetFar",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "catarm2.pl8, slot 10 - the catapult arm for dirc >= 4."
     },
     {
       "addr": "0x00522F7C",
@@ -12649,6 +12739,13 @@
       "comment": "This machine hosts the session. Cleared by Net_ConnectWizard when the player picks join (dialog 0x6C returning 0x3EA). It is what decides master.rec against slave.rec in the journal dump, and Net_JoinGame skips the whole connect handshake when it is set."
     },
     {
+      "addr": "0x00553250",
+      "name": "g_engineSheet",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "engine.pl8, slot 8. FUN_00480F8B gives it to troop types 7, 8, 9 and 10 in BOTH banks, so a siege engine has no side colour."
+    },
+    {
       "addr": "0x00553254",
       "name": "g_mapViewBottom",
       "section": "ui",
@@ -12929,6 +13026,13 @@
       "comment": "The crown total of the trade line being composed on the merchant screen - negative when selling. Ale_PreviewGain runs the ale ladder on it, which is how the panel can show the happiness a purchase would buy before it is made."
     },
     {
+      "addr": "0x00553F6C",
+      "name": "g_catapultArmSheetNear",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "catarm1.pl8, slot 9 - the catapult arm for dirc < 4. CatapultArm_Draw."
+    },
+    {
       "addr": "0x00553F74",
       "name": "g_aiMenTotal",
       "section": "battleai",
@@ -13172,6 +13276,13 @@
       "section": "diplomacy",
       "confidence": "inferred",
       "comment": "Set by Msg_Enqueue when something has been queued, cleared by Msg_Reset."
+    },
+    {
+      "addr": "0x00566518",
+      "name": "g_missileSheet",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "a2_miss.pl8, slot 6 of the battle asset table at 0x004DA550. FUN_00480F8B writes it into all hundred missile records' +0x00 and Missile_Spawn writes it again per shot, so every missile in the game comes off this one sheet."
     },
     {
       "addr": "0x00566520",

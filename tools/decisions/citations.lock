@@ -447,8 +447,10 @@ crates/l2-view/src/campaign.rs	C58	f81f70509bd8	2a1ff4d5966d
 crates/l2-view/src/campaign.rs	C63	3a082e1b8c33	34cab2e30849
 crates/l2-view/src/chrome.rs	C135	1638dc1c9112	39859e3b9368
 crates/l2-view/src/chrome.rs	C50	d9471b57f9d8	85416be0b69b
+crates/l2-view/src/engines.rs	C202	19c236254e89	1e1898bc86a5
 crates/l2-view/src/fade.rs	C49	538f7940f33a	4ce32e6c42e0
 crates/l2-view/src/ink.rs	C112	b767057058d1	0dbcd00423ed
+crates/l2-view/src/missiles.rs	C202	8c6c9cd6adaf	1e1898bc86a5
 crates/l2-view/src/scene.rs	C200	19239c5a5be7	264da18555bd
 crates/l2-view/src/text.rs	C107	b6697db1fac7	eb231bef7ee5
 crates/l2-view/src/village.rs	C22	4b0da6199195	0364b53a921d
@@ -547,6 +549,7 @@ docs/battle.md	C105	ab6c82446dfc	c2e0145299b3
 docs/battle.md	C12	c0753f7ef8f6	bb0dd488f9d2
 docs/battle.md	C181	06d66b320c10	19c538abe1e9
 docs/battle.md	C200	63cdeff510ca	264da18555bd
+docs/battle.md	C202	ab6ccac04ac3	1e1898bc86a5
 docs/battle.md	C3	4a58ff6915b0	35bf3a86555f
 docs/battle.md	C3	d55c548092ec	35bf3a86555f
 docs/battle.md	C61	09767b006ebe	60611046b40d
@@ -749,6 +752,7 @@ docs/decisions.md	C189	0b09be3d6777	a640e552a733
 docs/decisions.md	C189	cb3224233a9e	a640e552a733
 docs/decisions.md	C189	e6efefd0abf5	a640e552a733
 docs/decisions.md	C190	68f8ca643e9f	036491ce2ede
+docs/decisions.md	C192	de1973c3ff09	b39ebc129fac
 docs/decisions.md	C195	168811bca0a3	f0bf50bfaad1
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
@@ -1117,7 +1121,7 @@ docs/symbols.json	C160	20f63ddc5dd5	4c76a005bc3e
 docs/symbols.json	C160	e260d9da717b	4c76a005bc3e
 docs/symbols.json	C163	ff117c58b3b2	d043a04534f8
 docs/symbols.json	C168	4004690ce9ff	981eac4d9b1d
-docs/symbols.json	C192	3e4ec2757e2d	b39ebc129fac
+docs/symbols.json	C192	84abc48c6dad	b39ebc129fac
 docs/symbols.json	C193	8ce3363f2183	ded1409ebea0
 docs/symbols.json	C20	01f6f924103e	0ec8eeb4f874
 docs/symbols.json	C20	7ddb8e5c217a	0ec8eeb4f874
@@ -1195,7 +1199,7 @@ docs/symbols.md	C160	20f63ddc5dd5	4c76a005bc3e
 docs/symbols.md	C160	e260d9da717b	4c76a005bc3e
 docs/symbols.md	C163	ff117c58b3b2	d043a04534f8
 docs/symbols.md	C168	87dd002afbce	981eac4d9b1d
-docs/symbols.md	C192	da5ffbcd7cc0	b39ebc129fac
+docs/symbols.md	C192	f169a455e1d8	b39ebc129fac
 docs/symbols.md	C193	2e7e3947ac87	ded1409ebea0
 docs/symbols.md	C20	d50fe7b21adc	0ec8eeb4f874
 docs/symbols.md	C20	f78855d335cd	0ec8eeb4f874
