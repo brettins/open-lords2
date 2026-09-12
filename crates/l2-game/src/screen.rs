@@ -1013,8 +1013,9 @@ impl Machine {
     ///
     /// **The nearest screen that names one, looking down through overlays.**
     /// The original has one display palette and only a *painter* writes it —
-    /// `Screen_Armoury` ends with `Palette_Set(armoury.256)`, `Battle_LoadAssets`
-    /// sets `T32_bat1.256` — and nothing that draws over a page touches it.
+    /// `Screen_Armoury` ends with `Palette_Set(armoury.256)`,
+    /// `Screen_DrawBattlefield` (`0x004233F7`) sets `T32_bat1.256` — and nothing
+    /// that draws over a page touches it.
     /// `Tip_Show` (`0x00476DA9`) saves `g_screenId`, writes `0x27` and posts a
     /// message; `FUN_00476E21` puts the byte back; `Msg_DrawWindow`
     /// (`0x0047309E`) has no `Palette_Set` anywhere in its 10,915 bytes. So a

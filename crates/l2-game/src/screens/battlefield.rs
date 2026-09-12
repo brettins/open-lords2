@@ -271,8 +271,17 @@ impl Screen for BattlefieldScreen {
         }
     }
 
-    /// `Battle_LoadAssets` reads `T32_bat1.256` and `Palette_Set`s it: the
-    /// battlefield does not run under the campaign palette.
+    /// **`t32_bat1.256`, and it is not `Battle_LoadAssets`' read.**
+    /// `Res_LoadStatic` (`0x00499859`) preloads it into `0x00568EE0` at start-up,
+    /// and `Screen_DrawBattlefield` (`0x004233F7`) ends every repaint of `0x28`
+    /// … `0x2A` with `Palette_Set(0x568EE0)` — or `Palette_Set(0x5675A0)`,
+    /// `t32_stn1.256`, for a siege, which is not ported: see
+    /// [`crate::shell::PALETTES`]. `Palette_Set` (`0x004B0AB5`) is a plain
+    /// copy — no remap, no shade table — so the battle's colour is this file
+    /// and nothing else. **[V]**
+    ///
+    /// This comment used to say the battle "does not run under the campaign
+    /// palette" while the name it returned was loaded by nobody, and so it did.
     fn palette(&self) -> Option<&'static str> {
         Some(l2_view::scene::TILE_PALETTE)
     }
@@ -513,9 +522,12 @@ impl Screen for BattlefieldScreen {
         // The selection markers. The original draws a coloured tick over a
         // picked man (`selctd seen`, figure `+0x0A`); ours is a box, and it is
         // ours because that sprite has not been located.
+        // It follows the man where he is *drawn* — `l2_view::scene::figure_origin`
+        // — so it walks with him instead of waiting on the square he is leaving.
+        let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
         for f in live.runner.selected_fighters(live.owner) {
             let fig = &live.runner.fighters[f];
-            let (sx, sy) = cell_to_screen(live, fig.x, fig.y);
+            let (sx, sy) = l2_view::scene::figure_origin(fig, cam);
             if VIEW.contains(sx, sy) {
                 crate::widget::frame(canvas, Rect::new(sx, sy, TILE, TILE), ink.highlight);
             }
@@ -705,18 +717,15 @@ fn outcome_banner(game: &crate::Game, live: &LiveBattle) -> usize {
     }
 }
 
-/// Where a battlefield cell's top-left pixel is, or off-screen.
-fn cell_to_screen(live: &LiveBattle, x: u8, y: u8) -> (i32, i32) {
-    (
-        VIEW.x + (x as i32 - live.cam.0) * TILE,
-        VIEW.y + (y as i32 - live.cam.1) * TILE,
-    )
-}
-
 /// **Ours**, and it looks it: flat cells and a block per man, for an install
 /// with no `T32_bat1.pl8`. `docs/decisions.md` C21 — a stub that is visibly ours
 /// beats one that looks finished.
+///
+/// The blocks stand where the artwork's men would —
+/// `l2_view::scene::figure_origin`, `BattleMan_Step`'s cell and trail — so the
+/// placeholder walks the way the picture does rather than a cell at a time.
 fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
+    let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
     canvas.fill_rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h, ink.background);
     for row in 0..VIEW_ROWS {
         for col in 0..VIEW_COLS {
@@ -732,7 +741,7 @@ fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view:
             continue;
         }
         let f = &live.runner.fighters[i];
-        let (sx, sy) = cell_to_screen(live, f.x, f.y);
+        let (sx, sy) = l2_view::scene::figure_origin(f, cam);
         if !VIEW.contains(sx, sy) {
             continue;
         }

@@ -54,7 +54,7 @@ crates/l2-game/src/screens/army.rs	C45	056ecffec256	4d770bef92bd
 crates/l2-game/src/screens/army.rs	C61	cda5b05eea52	60611046b40d
 crates/l2-game/src/screens/battle.rs	C21	1405d686a5df	f7bf296341ff
 crates/l2-game/src/screens/battle.rs	C21	6031699e7f6a	f7bf296341ff
-crates/l2-game/src/screens/battlefield.rs	C21	16e47176d6c1	f7bf296341ff
+crates/l2-game/src/screens/battlefield.rs	C21	b92233f26400	f7bf296341ff
 crates/l2-game/src/screens/castle.rs	C27	e6bab7a842a1	1db64332cb22
 crates/l2-game/src/screens/county.rs	C112	f88ab6b616c3	0dbcd00423ed
 crates/l2-game/src/screens/county.rs	C135	a8a8cbf37bb0	39859e3b9368
@@ -660,8 +660,15 @@ docs/decisions.md	C169	c5ce93a241fa	4f087d2d4d89
 docs/decisions.md	C17	f0ab9c80c1a8	b9aaae4e270c
 docs/decisions.md	C170	59ae0f7705e2	2bbb0887e7d4
 docs/decisions.md	C171	dd8413c6c098	8915b523a9ad
+docs/decisions.md	C171	e3bf5494e5a3	8915b523a9ad
 docs/decisions.md	C176	ddfc00ae0561	4d47d841886c
+docs/decisions.md	C178	4b727d2e551c	b903c3f9550e
+docs/decisions.md	C178	b3f23768cd22	b903c3f9550e
 docs/decisions.md	C179	7d124cb73915	852ec3e69f4e
+docs/decisions.md	C181	01475f51491a	19c538abe1e9
+docs/decisions.md	C181	20e69e717a14	19c538abe1e9
+docs/decisions.md	C181	5e051b644dd8	19c538abe1e9
+docs/decisions.md	C181	5f6049f98891	19c538abe1e9
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
 docs/decisions.md	C21	7e1ce2bf6129	f7bf296341ff

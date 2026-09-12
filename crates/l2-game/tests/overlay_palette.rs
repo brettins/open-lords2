@@ -11,8 +11,9 @@
 //! It's blue grainy madness."*
 //!
 //! The original has one display palette and only a **painter** writes it —
-//! `Screen_Armoury` ends with `Palette_Set(armoury.256)`, `Battle_LoadAssets`
-//! sets `T32_bat1.256`. Nothing drawn over a page touches it: `Tip_Show`
+//! `Screen_Armoury` ends with `Palette_Set(armoury.256)`,
+//! `Screen_DrawBattlefield` (`0x004233F7`) sets `T32_bat1.256`. Nothing drawn
+//! over a page touches it: `Tip_Show`
 //! (`0x00476DA9`) saves `g_screenId`, writes `0x27` and posts; `FUN_00476E21`
 //! puts the byte back; `Msg_DrawWindow` (`0x0047309E`) calls no `Palette_Set`.
 //! There is no dim, no shade table and no remap in any of the three, so the

@@ -9574,3 +9574,86 @@ open a film and the whole sequence fitted inside twenty frames; the two tests no
 is off the stack and say in full why they stop there. The fix is `g_smkReturnScreen` as a
 transition — *"go to screen X"*, unwinding the stack — which is the machine's vocabulary and not
 the input model's, so it is reported rather than smuggled in here.
+
+---
+
+**C183 — the battlefield was "blue grainy", ghosted and snapping, all three had
+separate causes, and the test that held the merge up for a day was the *films*, not the siege.**
+
+A player reported three things on one battlefield: the colours were *"blue grainy madness"*, men
+*"reset on their square once as they move"*, and they left *"ghosting"*.
+
+**Colours.** `Res_LoadStatic` (`0x00499859`) preloads `t32_bat1.256` and `t32_stn1.256`, and
+`Screen_DrawBattlefield` (`0x004233F7`) ends with `Palette_Set` (`0x004B0AB5`) for a field battle
+or a siege. That is a plain copy with no remap or shade table. Ours named `T32_bat1.256`, but
+`shell::PALETTES` never registered it, so the presenter silently fell back to `base01.256`: 209,925
+of 215,040 field pixels were wrong. Grass index 77 came out `(0, 97, 190)` instead of
+`(64, 85, 12)`. It is registered now, and a message or tip over the battlefield resolves to it
+through the same overlay rule as every other page. **Not the same cause as the tip backdrop.** The
+siege arm (`t32_stn1.256`) is not ported, because its tileset is not loaded either.
+
+**Ghosting.** The original clips men and horses to x 0–480, y 24–472 (`FUN_004BC020`).
+`BattleFigure_Draw` and `FUN_004BE4DF` clip every sprite to that rectangle. Ours drew them unclipped
+into the menu bar, the right column and the bottom strip, which nothing on the battlefield repaints.
+`scene::FIELD_CLIP` is that rectangle.
+
+**Snapping.** `BattleMan_Step` (`0x0048F1DD`) enters the next cell first (`FUN_00491B1F` moves the
+map position), then counts `walking` 1, 3 … 15, and `BattleFigure_Draw` draws the man trailing
+behind the cell he is already in. Ours drew the offset from the old cell, so each man was drawn up to
+28 px behind his own square and then jumped a cell. A walking man is now drawn from the cell his
+facing points into. Jumps of 16 px or more fell from 1,317 to 504. **The remaining 504 come from our
+simulation stepping before entering and re-choosing direction every tick**, which the original never
+does. That is left alone, because it changes battle outcomes, and it is documented in
+`docs/battle.md` §13.6.
+
+**Drawing does not change the battle.** `LiveBattle` is equal every tick, and `save::encode` is
+equal: on `main` at `8a1b094` the painted and the unpainted play both fingerprint
+`fnv1a dbe6c8fd57b4994a` (63,308 bytes). The honest limit of that second half, stated because the
+first reading of it was too generous: `l2_game::save` is `l2_kingdom::save` plus a ten-field prefix
+and holds **no `LiveBattle`**, so those bytes say the campaign around the battle came through
+untouched, and the battle itself is carried by the per-tick `LiveBattle` equality and nothing else.
+`tests/battle_picture.rs` drives a real battle through the screen stack and asserts pixels: the
+palette's colours against the install's own `.256`, the man found by exact frame match advancing
+every tick, nothing outside the field written, and the square he left equal to a fresh terrain pass.
+Registration ablated is red.
+
+**The red test was C171's films, not C181's siege work, and the suspicion is refuted by
+measurement.** `painting_the_battlefield_with_its_artwork_does_not_change_the_battle` panicked with
+*"a live battle"*: it read its casualty count off `g.battle` after 1,500 painted ticks and the
+battle had been handed back. Built against `3774de3^1` — `main` the commit before C181 — that
+battle ends at the same tick 655 with the same `Conclusion { winner: SIDE_B, cause: Annihilation }`
+and is handed back at the same tick 902. C181 cannot be the cause: with no woodland, bridge, wall,
+pot or engine on the field, every arm it added is unreachable here. The films landed *after* this
+branch's base (`522bd8d`). `Battle_CheckOutcome` (`0x00477DFC`) ends a field battle the frame a
+side's man count reaches zero, then counts `DAT_00568470` to 5000 behind the banner;
+`Smk_OnFinished` sets that to 5001 when the outcome film ends. No film on the base meant the banner
+kept its 5000 frames and 1,500 ticks still had a battle to read; on `main` the film opens and
+`turn::finish_battle` takes it at 902. **The expectation was wrong and the simulation was right**:
+the test keeps its claim — the two copies equal every tick — and counts casualties while there is
+still a battle to count them from. The placeholder run, whose film cannot open, holds its battle
+for all 3,000 ticks, which is the same rule seen from the other side.
+
+**Measured and left alone: the ordered army always dies.** Seven seeds of that scenario — three
+swordsmen and three archers ordered onto three crossbowmen and three macemen over eight cells of
+open ground — annihilate the human side every time, 24 men to 0, the AI losing three or five with
+only two or ten of those deaths in melee. Unchanged before C181 and on this branch's base, so it is
+neither's; no claim is made here about what the original would do with the same twelve figures.
+Written down because the determinism test is built on that battle.
+
+**At merge.** The branch reverted its own presenter change so as not to collide with the overlay
+palette's `Machine::present` (C178); what remains is the registration, which composes with that
+rule. **C178's sentence that `Battle_LoadAssets` sets `T32_bat1.256` is wrong by the same reading:**
+`Battle_LoadAssets` (`0x004987B7`) hands the tile renderer its geometry, and the palette is
+`Screen_DrawBattlefield`'s `Palette_Set`. The two comments that repeated it, beside
+`Machine::palette_name` and at the head of `tests/overlay_palette.rs`, are corrected here.
+
+**Found and not built: the black overview panel is a missing painter, not a palette fault.** A
+player on `main` without this branch also reported *"a black minimap"*. Registering the palette
+cannot touch it — `ink.background` is the index nearest black, so our `fill_rect` is black in every
+palette. The original paints the panel in `FUN_004BC51A` (`0x004BC51A`), registered by
+`Battle_LoadAssets`' `FUN_004bc107(…, 0x1E0, 0x18, 2)` and scheduled four rows a frame by
+`FUN_004BC1D1` out of `Battle_Frame`: a terrain raster of 2 × 2 tiles from `t2_bat1.pl8` (252
+frames, one per `T32_bat1.pl8` tile), a 2 × 2 man from `t2_spri.pl8` over each occupied cell in the
+**owning realm's shield colour**, and no viewport rectangle. Neither `t2_` sheet is loaded in this
+tree; ours fills flat, colours by side, and draws a frame the original does not. `[V]`, from the
+decompilation; left for a row of its own.
