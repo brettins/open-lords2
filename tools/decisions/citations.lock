@@ -35,6 +35,7 @@ crates/l2-game/src/battlefield.rs	C61	9fa3719be417	60611046b40d
 crates/l2-game/src/battlefield.rs	C61	e5b8ebac6d3d	60611046b40d
 crates/l2-game/src/battlefield.rs	C79	76ceb5b70be2	7dc379494ecf
 crates/l2-game/src/build_id.rs	C107	357dac9ad6ce	eb231bef7ee5
+crates/l2-game/src/engagement.rs	C186	8ffe828ee44a	e4c22886df5f
 crates/l2-game/src/game.rs	C125	0acc6b430574	6084e87aec70
 crates/l2-game/src/game.rs	C180	9808d1a148fa	fea6f0ec7284
 crates/l2-game/src/game.rs	C27	89e1a09cb732	1db64332cb22
@@ -342,6 +343,7 @@ crates/l2-scenario/tests/newgame.rs	C142	690b3d3b4d32	d13324698105
 crates/l2-scenario/tests/newgame.rs	C23	4b471e07b88e	6ac2f322c3bd
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8	2a3830f6d22a
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2	2e6270fa32a9
+crates/l2-sim/src/ai.rs	C186	a4386483ca52	e4c22886df5f
 crates/l2-sim/src/ai.rs	C71	4fa25e346302	3d674af30522
 crates/l2-sim/src/ai.rs	C71	9a7d14ae22d0	3d674af30522
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab	bb0dd488f9d2
