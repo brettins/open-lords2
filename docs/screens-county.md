@@ -91,7 +91,7 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x00 | `Screen_DrawCampaign` `0x0040F5FD` | the campaign map | group 34 — season and year |
 | 0x02 | `Village_Draw` `0x00412143` | **the village** — the county's own picture, and where peasants are moved. **An inset over the campaign map**, 363 × 320 at (64, 64) — §3.1 | groups 22 (fertility), 66 (weather); `villani1/villani2/vill/villtops.pl8` |
 | 0x04 | `0x0041B032` | the map information panel: `UnitPanel_Draw` when a unit is picked, `FUN_0041BEFE` otherwise. **Reached by right-clicking the map** — §2.6 — and `Readme.txt`'s "right-click an army for its county of origin" errata is `UnitPanel_Draw`'s group 31 index 9 line | group 31 index 9, *"An army from"*, then group 100 at `homeCounty + scenarioIndex*20` |
-| 0x05 | *(no painter)* | **the village's rubber band** — §6.4 | `Village_BandStart` / `Village_BandRelease` |
+| 0x05 | `Village_DrawBand` `0x00412795` | **the village's rubber band** — §6.4. It **does** have a painter: the guard admits `0x02`, `0x05` and `0x06` and then rejects `0x02` and `0x06`, so the outline is `0x05`'s alone. `Ui_DrawRectOutline` (`0x00403CF4`) in colour `0x20` | `Village_BandStart` / `Village_BandRelease` |
 | 0x06 | *(no painter)* | **the village carrying a selection** — §6.4 | `Village_Drop` |
 | 0x08 | `Screen_Merchant` `0x00415FB7` | the merchant | `merchant.256` + `merchant.pl8`, `mercgrid.pl8` |
 | 0x09 | `Court_Draw` `0x00416925` | **the court** — the realm's treasury and stores | group 70 |
@@ -1304,7 +1304,7 @@ gesture actually is rather than leaving it to be guessed:
 | id | what | leaves when |
 |---|---|---|
 | `0x02` | the village, idle | `Village_BandStart` (`0x004393EB`) sees the pointer **9 pixels** from where the button went down → `0x05` |
-| `0x05` | the band | `Village_BandRelease` (`0x00439541`) sees the button **released**: `0x06` if anything is selected, back to `0x02` if not |
+| `0x05` | the band | `Village_BandRelease` (`0x00439541`) sees the button **released**: `0x06` if anything is selected, back to `0x02` if not. **The outline is `Village_DrawBand` (`0x00412795`)**, the original's own — `Ui_DrawRectOutline(x, y, w, h, 0x20)`, clamped to x `0 … 0x1FF` and y `g_villageTopY … +0x178` with both clamps written as `else if`, so a band that starts left of 0 is never clamped on the right |
 | `0x06` | carrying | `Village_Drop` (`0x004399B0`) sees the next **press**, and drops there |
 
 So: **press, drag, release, then a second click** — not drag-and-drop. A press that never

@@ -96,6 +96,15 @@ use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::widget;
 
+/// **The rubber band's colour, `FUN_00412795`'s literal fifth argument.**
+///
+/// `FUN_00403cf4(x, y, w, h, 0x20)`, and `0x20` in `Base01.256` — the palette
+/// `Screen_DrawCampaign` sets and the village never replaces, because
+/// `Village_Draw` paints over the campaign screen rather than clearing it — is
+/// `rgb(255, 255, 255)`. Read out of the player's own install; the file is one
+/// 768-byte table of 6-bit VGA triples.
+const BAND_INK: u8 = 0x20;
+
 /// Which of the original's three screen ids the drag is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {
@@ -255,6 +264,50 @@ impl VillageScreen {
         let (ax, ay) = self.anchor?;
         let (px, py) = self.pointer;
         Some((ax.min(px), ay.min(py), ax.max(px), ay.max(py)))
+    }
+
+    /// **`Village_DrawBand` (`0x00412795`)** — the rubber band's own outline,
+    /// clamped the way the original clamps it.
+    ///
+    /// The whole body is `if (screen == 0x05)`: the guard reads
+    /// `g_screenId == 5 || g_screenId == 6 || g_screenId == 2` and then
+    /// `g_screenId != 2 && (FUN_004120E0(), g_screenId != 6)`, so `0x02` and
+    /// `0x06` fall out and only the band state draws. Then, with
+    /// `(x0, w)` and `(y0, h)` normalised from `DAT_005530FC` / `DAT_005530F4`
+    /// and the live pointer:
+    ///
+    /// ```c
+    /// if      (x0 < 0)                  { w += x0; x0 = 0; }
+    /// else if (0x1FF < x0 + w)          { w = 0x200 - x0; }
+    /// if      (y0 < g_villageTopY)      { h -= g_villageTopY - y0; y0 = g_villageTopY; }
+    /// else if (g_villageTopY + 0x178 <= y0 + h) { h = (g_villageTopY + 0x178) - y0; }
+    /// FUN_00403cf4(x0, y0, w, h, 0x20);
+    /// ```
+    ///
+    /// Both branches are `else if`, so a band that starts off the left edge is
+    /// never clamped on the right. That is the original's, kept.
+    ///
+    /// `FUN_00403CF4` is the four-line rectangle outline — it draws top,
+    /// bottom, left and right through `FUN_00403A8F` in one colour — and the
+    /// colour here is the literal `0x20`, which is `rgb(255, 255, 255)` in
+    /// `Base01.256`, the palette `Screen_DrawCampaign` leaves set.
+    fn band_rect(&self, top: i32) -> Option<Rect> {
+        let (x0, y0, x1, y1) = self.band()?;
+        let (mut x, mut w) = (x0, x1 - x0 + 1);
+        let (mut y, mut h) = (y0, y1 - y0 + 1);
+        if x < 0 {
+            w += x;
+            x = 0;
+        } else if x + w > vill::BAND_X_MAX {
+            w = vill::BAND_X_MAX + 1 - x;
+        }
+        if y < top {
+            h -= top - y;
+            y = top;
+        } else if y + h >= top + vill::BAND_H {
+            h = top + vill::BAND_H - y;
+        }
+        (w > 0 && h > 0).then(|| Rect::new(x, y, w, h))
     }
 
     /// `Village_BoxSelect` (`0x0043958A`).
@@ -694,18 +747,30 @@ impl Screen for VillageScreen {
             widget::button(canvas, ink, ok, "CLOSE", false);
         }
 
-        // OURS. `Village_BandStart`'s hit region is read out of the binary and
-        // is wider than the picture — x 0 … 0x1FF, y top … top + 0x178 — but
-        // nothing in the decompiled corpus was found *drawing* the band, so the
-        // outline is ours and so is its colour. It can therefore reach outside
-        // the 480 x 320 region the original saves and restores; that costs
-        // nothing here because the map underneath is repainted every frame,
-        // where the original would have had to restore it.
+        // **`Village_DrawBand` (`0x00412795`) — the drag selection box, and it
+        // is the original's.**
         //
-        // Debug overlay only, with the captions below.
+        // C173 put it behind the debug overlay on the strength of *"nothing in
+        // the decompiled corpus was found drawing the band"*, and a player
+        // found the hole in a minute: *"the drag selection box has disappeared,
+        // it was probably a debug thing that you removed with other debug
+        // boxes."* It was not. `FUN_00412795` runs on screen `0x05` and nothing
+        // else, clamps the box to the band area and calls the rectangle outline
+        // at `0x00403CF4` in colour `0x20`. See [`VillageScreen::band_rect`] for
+        // the clamp and the colour.
+        //
+        // The captions below are still ours, and still debug overlay only.
         let debug = ctx.game.prefs.debug_overlay;
-        if let Some((x0, y0, x1, y1)) = self.band().filter(|_| debug && self.phase == Phase::Band) {
-            widget::frame(canvas, Rect::new(x0, y0, x1 - x0 + 1, y1 - y0 + 1), ink.highlight);
+        if self.phase == Phase::Band {
+            if let Some(r) = self.band_rect(top) {
+                // The literal index is right only on the original's palette, so
+                // an install with no chrome falls back to our own ink — the
+                // rule `county::draw_strip` already follows for
+                // `CountyStrip_Draw`'s black `0x3F`.
+                let band_ink =
+                    if ctx.assets.chrome.is_some() { BAND_INK } else { ink.highlight };
+                widget::frame(canvas, r, band_ink);
+            }
         }
 
         // OURS: the original's village carries no text at all. Ours goes

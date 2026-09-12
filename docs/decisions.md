@@ -9470,3 +9470,73 @@ full burns for good — `docs/bugs.md` `B102`.
 **The lesson is C140's, and the brief's.** A blocked row's note is a description written to
 explain why something could not be built, and it is read for that and nothing else. Two of these
 three were one clause short, and the missing clause was the caller.
+
+---
+
+**CNEW-band-is-not-debug — the drag selection box is `Village_DrawBand`, and *"we could not find it drawing"* was spent as *"the original does not draw it"*.**
+
+A player on `ee0cb92`: *"the drag selection box has disappeared, it was probably a debug thing
+that you removed with other debug boxes."* It was not a debug thing. C173 put every marker,
+outline and line of ours that the original does not draw behind `Prefs::debug_overlay`, and the
+village's rubber band went with them on this sentence, which was in the source beside it:
+
+> `Village_BandStart`'s hit region is read out of the binary and is wider than the picture — x 0
+> … 0x1FF, y top … top + 0x178 — but **nothing in the decompiled corpus was found *drawing* the
+> band**, so the outline is ours and so is its colour.
+
+**`Village_DrawBand` (`0x00412795`) is the corpus drawing the band**, forty lines below
+`Village_DrawCluster` in the same region. It was missed because it is not reached from
+`Village_Draw`: it is a per-frame painter that opens on a **screen-id guard** rather than on a
+name that says *village*. The body, whole:
+
+```c
+/* admits 0x02, 0x05 and 0x06, then rejects 0x02 and — after FUN_004120E0
+   restores the saved 480 x 320 band — 0x06. So only 0x05, the band, draws. */
+if      (x0 < 0)                          { w += x0; x0 = 0; }
+else if (0x1FF < x0 + w)                  { w = 0x200 - x0; }
+if      (y0 < g_villageTopY)              { h -= g_villageTopY - y0; y0 = g_villageTopY; }
+else if (g_villageTopY + 0x178 <= y0 + h) { h = (g_villageTopY + 0x178) - y0; }
+FUN_00403cf4(x0, y0, w, h, 0x20);
+```
+
+`FUN_00403CF4` is now `Ui_DrawRectOutline` — four `FUN_00403A8F` lines in one colour, twenty-two
+call sites — and `0x20` is `rgb(255, 255, 255)` in `Base01.256`, the palette
+`Screen_DrawCampaign` sets and the village never replaces, because `Village_Draw` paints over the
+campaign screen rather than clearing it. So the band is **white** and ours was amber; and the
+clamp is the original's, both branches written as `else if`, so a band that starts left of zero
+is never clamped on the right. All of it is reproduced, with the install's index used where the
+install's chrome is loaded and our own ink where it is not — the rule `county::draw_strip`
+already follows for `CountyStrip_Draw`'s black `0x3F`.
+
+**Its twin was already right, by luck.** `0x0041298A` — now `Battlefield_DrawBand` — is the same
+routine for `g_screenId == 0x2A`, and `battlefield.rs` draws that band ungated because that
+screen was written after C173. One band gated and its identical twin not is the shape of the
+error: the gate was applied per *call site*, from a search for the painter by name, and the
+search missed one of the two.
+
+**What stays gated, checked one at a time.** The other twenty-odd sites C173 gated are ours: the
+county-anchor and field squares on the map (`Sprite_TopIt`'s farm arm is the pasture herd and
+nothing else, and the crop is the tile's own artwork, which `MapScreen::field_graphics` now
+paints — so those are the *"a lot of the little orange/brown squares around icons"* the same
+player also noticed going, and they are the *"debug squares still on the town square on map and
+the fields"* an earlier report asked for); the garrison marker, whose banner `draw_flags` flies
+from `FUN_004071A0`; the selection ring, against which the original's answer is the flood fill;
+the besieger dot, whose original is `Flags1a.pl8` frame `0x82` over the *castle* and is still a
+missing draw; the sidebar focus outline, which a player asked for by name; the End Turn hover
+colour, which `Screen_DrawEndTurn` passes as `0x16` whatever the pointer does; the county strip's
+quadrant outline, over quadrants the original leaves invisible; and eighteen status lines and
+*not built* stubs, in our own font, on screens whose originals carry no such words.
+
+**One hole this opened and did not close.** `Screen_DrawCampaign`'s far-zoom arm is
+`Ui_DrawBox(0, 0x19C, 0x1E, 4)` and then four draws into it — `Eng_DrawString(0x65,
+g_scenarioIndex, …)`, `Eng_DrawString(0x22, 0, …)`, `Ui_DrawYear(g_year, …)` and
+`Eng_DrawString(0x22, 1, …)`, in `&g_fontHeading` at colour `0x3F`. Our status line sat in that
+box and is gated, so at the far zoom the box is now **empty**. Neither picture is the original's:
+the box wants the map's name, the season and the year out of `L2.eng` groups 101 and 34. Filed
+rather than invented.
+
+**The lesson.** *"Nothing was found drawing it"* is a statement about a search, and C173 spent it
+as a statement about the binary. The two differ by exactly the strength of the search, and this
+search was by name in a corpus where the painter carries a screen id and not a name. Rule 5's
+*"we could not find it"* is a finding to report — and a finding is a thing to hold at arm's
+length, not a licence to switch a draw off.
