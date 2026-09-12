@@ -176,12 +176,11 @@ pub const PALETTES: &[&str] = &[
     //
     // And the siege arm, `Palette_Set(0x5675A0)` = `t32_stn1.256`, record 1 of
     // the same table. This list said it was NOT PORTED because it *"belongs
-    // with `t32_stn1.pl8`"* and we draw every battle from `T32_bat1.pl8` —
-    // but the palette colours the whole screen, not only the tiles, so
-    // withholding it painted a siege's walls, men, banners and panel in the
-    // field's colours. The tileset is still the field's, and the two files
-    // differ on 3 of 256 entries — `docs/decisions.md` C200 has the
-    // measurement and what it is worth.
+    // with `t32_stn1.pl8`"* — but the palette colours the whole screen, not
+    // only the tiles, so withholding it painted a siege's walls, men, banners
+    // and panel in the field's colours. `docs/decisions.md` C200.
+    // **Both castle families use it**: there is no `t32_wod1.256` in the
+    // install or in that table. See `l2_view::scene::Ground`.
     "T32_bat1.256",
     "T32_stn1.256",
 ];
@@ -1267,15 +1266,18 @@ mod tests {
     /// `g_battleIsSiege` and a siege that names a palette nobody loads falls
     /// back to `base01.256` exactly as the field battle did.
     ///
-    /// Ablation: delete either `"T32_bat1.256"` or `"T32_stn1.256"` above — red.
+    /// Ablation, run: delete either `"T32_bat1.256"` or `"T32_stn1.256"`
+    /// above — red, *"Stone's palette T32_stn1.256 is named by the
+    /// battlefield and loaded by nobody"*.
     #[test]
     fn both_battlefield_palettes_are_ones_the_shell_loads() {
         let field = crate::screen::ScreenId::Battlefield.build().palette();
         assert_eq!(field, Some(l2_view::scene::TILE_PALETTE), "a fresh screen is a field battle");
-        for name in [l2_view::scene::TILE_PALETTE, l2_view::scene::SIEGE_PALETTE] {
+        for g in l2_view::scene::Ground::ALL {
             assert!(
-                PALETTES.iter().any(|p| key(p) == key(name)),
-                "{name} is named by the battlefield and loaded by nobody"
+                PALETTES.iter().any(|p| key(p) == key(g.palette())),
+                "{g:?}'s palette {} is named by the battlefield and loaded by nobody",
+                g.palette()
             );
         }
     }

@@ -383,7 +383,7 @@ crates/l2-sim/src/runner.rs	C100	0b67e8835502	c490b4875689
 crates/l2-sim/src/runner.rs	C200	a0976d2da606	264da18555bd
 crates/l2-sim/src/runner.rs	C81	195b94310c14	3f7941714d12
 crates/l2-sim/src/siege.rs	C3	0f9889cc0837	35bf3a86555f
-crates/l2-sim/src/siege.rs	C82	7bd5548a0133	0eb5947031fe
+crates/l2-sim/src/siege.rs	C82	b41f2c73b018	0eb5947031fe
 crates/l2-sim/src/siege.rs	C99	b31d647a1682	b890db1f6d4a
 crates/l2-sim/src/troop.rs	C11	f3ee142fc544	07dfad15821c
 crates/l2-sim/tests/drawbridge.rs	C26	f6ed5dd293d3	e8179d1f76a8

@@ -1003,7 +1003,14 @@ pub fn our_castle(level: u8) -> Battlefield {
     // reaches from the two map corners, and it is what everything that is not
     // the castle ends up as.
     let mut cells = vec![
-        Cell { terrain: id::OPEN, flags: 0, gfx: 0, elevation: 0, surface: SURFACE_FIELD };
+        Cell {
+            terrain: id::OPEN,
+            flags: 0,
+            flags2: 0,
+            gfx: 0,
+            elevation: 0,
+            surface: SURFACE_FIELD
+        };
         DIM * DIM
     ];
     let at = |x: i32, y: i32| (y as usize) * DIM + (x as usize);
@@ -1128,6 +1135,8 @@ pub fn our_castle(level: u8) -> Battlefield {
     cells[at(cx, cy)].flags |= FLAG_KEEP;
     cells[at(cx, cy)].surface = SURFACE_KEEP;
 
+    paint_our_castle(&mut cells, level);
+
     let mut field = Battlefield {
         cells,
         deploy_side0: [(0, 0); 12],
@@ -1149,6 +1158,214 @@ pub fn our_castle(level: u8) -> Battlefield {
             (clamp(field.home_side4.0 as i32 + dx), clamp(field.home_side4.1 as i32 + dy));
     }
     field
+}
+
+// ---------------------------------------------------------------------------
+// What a siege's cells are *drawn* with
+// ---------------------------------------------------------------------------
+
+/// **The structure table `Battlefield_BuildCastle` reads every raster byte
+/// through** — `0x004D7B80` for a stone castle and `0x004D7D80` for a wooden
+/// one, 256 entries of two bytes, indexed by the frame index itself:
+///
+/// ```c
+/// cell.frame = b;                                  /* the raster byte */
+/// cell.elevation = table[b * 2];                   /* height, or a structure code */
+/// if (table[b * 2 + 1] == 0) cell.flags |= 0x10;   /* and impassable */
+/// ```
+///
+/// The first byte is a height 0…4 for an ordinary tile and one of the codes
+/// 5…12 for a structure, which the builder then expands into a surface, flags
+/// and a real elevation — [`code`] lists them. The second is passability.
+/// **[V]**, read out of `Lords2.exe` at file offsets `0xD5D80` and `0xD5F80`;
+/// `crates/l2-game/tests/siege_picture.rs` re-reads the player's own copy and
+/// fails if these bytes drift.
+///
+/// **Which castle gets which is `DAT_0057C910`**, `(uint)(1 < g_castleLevel)`
+/// — the same flag that picks `t32_stn1` over `t32_wod1`, so the table and
+/// the sheet always agree. **[V]**
+///
+/// Two things the pair of tables says on its own: the stone table has four
+/// entries at code **9**, the drawbridge, at `0xA4`…`0xA7`, and the wooden
+/// table has **none** — which is the Readme's *"only the Stone and Royal
+/// castles have drawbridges"* from inside the art. And code 8, the wall, is
+/// `0xAC`…`0xAF` in stone and `0x76`…`0x79` in wood: four tiles either way.
+pub const STRUCTURE_STONE: [u8; 512] = [
+    6, 1, 0, 1, 0, 1, 0, 1, 3, 1, 4, 0, 4, 0, 0, 1, //
+    4, 0, 4, 0, 4, 0, 4, 0, 0, 1, 2, 0, 0, 1, 4, 0, //
+    5, 1, 5, 1, 0, 1, 0, 1, 3, 1, 4, 0, 0, 1, 4, 0, //
+    4, 1, 4, 1, 4, 1, 4, 1, 4, 0, 0, 1, 4, 0, 0, 1, //
+    5, 1, 5, 1, 0, 1, 0, 1, 3, 1, 4, 0, 4, 0, 4, 1, //
+    4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 0, 0, 1, 0, 1, //
+    7, 0, 7, 0, 7, 0, 7, 0, 3, 1, 4, 0, 4, 0, 4, 1, //
+    4, 1, 4, 0, 4, 0, 4, 1, 4, 1, 4, 0, 0, 1, 0, 1, //
+    7, 0, 7, 0, 7, 0, 7, 0, 0, 1, 0, 1, 4, 0, 4, 1, //
+    4, 1, 4, 0, 4, 0, 4, 1, 4, 1, 4, 0, 0, 1, 0, 1, //
+    2, 0, 2, 1, 2, 0, 2, 0, 2, 0, 0, 1, 4, 0, 4, 1, //
+    4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 0, 0, 1, 0, 1, //
+    2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 4, 0, //
+    4, 1, 4, 1, 4, 1, 4, 1, 4, 0, 0, 1, 0, 1, 0, 1, //
+    2, 0, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1, 0, 1, //
+    4, 0, 4, 0, 4, 0, 4, 0, 0, 1, 0, 1, 0, 1, 0, 1, //
+    2, 0, 2, 1, 2, 1, 2, 1, 2, 0, 2, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, //
+    2, 0, 2, 0, 2, 1, 2, 1, 2, 0, 4, 0, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, //
+    2, 1, 2, 1, 2, 1, 0, 1, 9, 1, 9, 1, 9, 1, 9, 1, //
+    4, 1, 4, 0, 4, 0, 4, 0, 8, 1, 8, 1, 8, 1, 8, 1, //
+    1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 4, 1, //
+    4, 1, 4, 1, 4, 1, 4, 1, 0, 1, 0, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 4, 0, //
+    4, 1, 4, 1, 4, 1, 4, 1, 0, 1, 0, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 4, 0, //
+    4, 1, 4, 1, 4, 1, 4, 0, 11, 0, 11, 0, 11, 0, 11, 0, //
+    12, 1, 12, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 0, 1, //
+    4, 0, 4, 1, 4, 1, 4, 0, 0, 1, 0, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, //
+];
+
+/// The wooden castles' half of [`STRUCTURE_STONE`], `0x004D7D80`.
+pub const STRUCTURE_WOOD: [u8; 512] = [
+    6, 1, 0, 1, 0, 1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 0, //
+    2, 0, 2, 0, 0, 1, 0, 1, 0, 1, 7, 0, 7, 0, 7, 0, //
+    0, 1, 0, 1, 2, 0, 2, 0, 2, 1, 2, 1, 2, 1, 2, 1, //
+    2, 1, 2, 1, 2, 0, 2, 0, 0, 1, 7, 0, 7, 0, 7, 0, //
+    0, 1, 2, 0, 2, 0, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, //
+    1, 1, 2, 1, 2, 1, 2, 0, 2, 0, 7, 0, 7, 0, 7, 0, //
+    0, 1, 2, 0, 2, 1, 2, 1, 1, 1, 0, 1, 0, 1, 0, 1, //
+    0, 1, 1, 1, 2, 1, 2, 1, 2, 0, 0, 1, 0, 1, 0, 1, //
+    2, 0, 2, 0, 2, 1, 1, 1, 0, 1, 4, 0, 4, 1, 4, 0, //
+    2, 0, 2, 0, 1, 1, 2, 1, 2, 0, 2, 0, 0, 1, 0, 1, //
+    2, 0, 2, 1, 1, 1, 0, 1, 3, 1, 4, 0, 4, 1, 4, 0, //
+    2, 0, 2, 0, 2, 0, 1, 1, 2, 1, 2, 0, 0, 1, 0, 1, //
+    2, 0, 2, 1, 1, 1, 0, 1, 2, 1, 4, 0, 4, 0, 4, 0, //
+    2, 1, 2, 0, 2, 0, 1, 1, 2, 1, 2, 0, 0, 1, 0, 1, //
+    2, 0, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 8, 1, 8, 1, //
+    8, 1, 8, 1, 0, 1, 1, 1, 2, 1, 2, 0, 0, 1, 0, 1, //
+    2, 0, 2, 1, 1, 1, 2, 1, 2, 1, 2, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 1, 1, 2, 1, 2, 0, 0, 1, 0, 1, //
+    2, 0, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 1, 1, 2, 1, 2, 1, 2, 0, 0, 1, 0, 1, //
+    0, 1, 2, 0, 2, 1, 2, 1, 1, 1, 1, 1, 2, 0, 2, 0, //
+    2, 0, 1, 1, 2, 1, 2, 1, 2, 0, 0, 1, 0, 1, 0, 1, //
+    0, 1, 2, 0, 2, 0, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, //
+    1, 1, 2, 1, 2, 1, 2, 0, 2, 0, 0, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 2, 0, 2, 0, 2, 1, 2, 1, 2, 1, 2, 1, //
+    2, 1, 2, 1, 2, 0, 2, 0, 0, 1, 0, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 0, //
+    2, 0, 2, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, //
+    4, 0, 4, 0, 4, 0, 4, 0, 0, 1, 0, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, //
+    0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, //
+    2, 1, 2, 1, 2, 1, 2, 1, 2, 0, 2, 0, 2, 0, 2, 0, //
+];
+
+/// The structure codes [`STRUCTURE_STONE`]'s first byte carries above 4, and
+/// what `Battlefield_BuildCastle` turns each into. **[V]** — its ladder, in
+/// order.
+pub mod code {
+    /// `flags = 4; elevation = 3`.
+    pub const RAISED_3: u8 = 5;
+    /// The keep's door: `surface = 6`, `flags = 8`, `flags2 |= 0x80`, and
+    /// `elevation` **1 for a wooden castle and 4 for a stone one**.
+    pub const KEEP: u8 = 6;
+    /// `surface = 7`, `elevation = 2`.
+    pub const SEVEN: u8 = 7;
+    /// The curtain wall: `surface = 8`, `flags = 0x20 | 4`, `elevation = 1`.
+    pub const WALL: u8 = 8;
+    /// The drawbridge: `surface = 0x0B`, `flags = 0x40`, `elevation = 0`.
+    /// Stone castles only.
+    pub const DRAWBRIDGE: u8 = 9;
+    /// `surface = 0x0E`, `flags |= 4`, `elevation = 0`.
+    pub const TEN: u8 = 10;
+    /// `flags = 4`, `elevation = 1` — the wall walk's height with no wall flag.
+    pub const RAISED_1: u8 = 11;
+    /// `flags = 4`, `elevation = 2`.
+    pub const RAISED_2: u8 = 12;
+}
+
+/// Every frame index the level's structure table files under `want`, in index
+/// order. The lists are short — four, usually — and this is how the tile a
+/// structure is drawn with is *derived* rather than typed.
+pub fn frames_with_code(level: u8, want: u8) -> Vec<u8> {
+    let table = if level > 1 { &STRUCTURE_STONE } else { &STRUCTURE_WOOD };
+    (0..256u16).filter(|&f| table[f as usize * 2] == want).map(|f| f as u8).collect()
+}
+
+/// **Give [`our_castle`]'s cells something to be drawn with**, and say exactly
+/// how much of it is the game's.
+///
+/// * **The ground and the ditch are the game's.** `Battlefield_BuildCastle`'s
+///   escape codes `0xEF` and `0xEE` — `FUN_0047E1DC` and `FUN_0047DCCE` —
+///   put open ground on `rand & 0x0F` and the moat on the 49-variant water
+///   auto-tiler, both with the cell's tileset selector set to **slot 1**,
+///   `t32_stn2` / `t32_wod2`. Reproduced exactly, including the selector.
+///   **[V]**
+/// * **The castle's tiles are the game's; its shape is not.** Which of
+///   `t32_stn1`'s 256 frames is a wall, a keep door or a drawbridge plank is
+///   [`frames_with_code`], read out of the binary — but *where* those go is
+///   [`our_castle`]'s ring, and the original's is a raster in `stnfield.pl8`
+///   we have not read. Where a code carries several frames they are cycled by
+///   position; which one the original's raster picks is the raster's. `[I]`
+///   on the cycling, `[V]` on the set.
+/// * **The bailey takes ground tiles**, because no structure code describes an
+///   open courtyard and inventing masonry for one would be inventing the
+///   castle. The rampart walk takes code 11, whose expansion —
+///   `flags = 4, elevation = 1` — is exactly what the walk is.
+///
+/// The LFSR is seeded with a constant and stepped once a cell, which is what
+/// the original does; the seed it starts a battle from is untraced — the same
+/// note `terrain::build` carries.
+fn paint_our_castle(cells: &mut [Cell], level: u8) {
+    use crate::terrain::{tileset, Lfsr};
+
+    let wall = frames_with_code(level, code::WALL);
+    let keep = frames_with_code(level, code::KEEP);
+    let bridge = frames_with_code(level, code::DRAWBRIDGE);
+    // Code 11 is `flags = 4, elevation = 1` with no wall flag, which is
+    // exactly the shape of our rampart walk. The stone table files four; the
+    // wooden table files none, and a palisade's walk then stays on the ground
+    // tiles — which is the right answer for a palisade anyway.
+    let walk = frames_with_code(level, code::RAISED_1);
+
+    // The moat first: the auto-tiler wants the whole terrain plane, and its
+    // rotating counters make the walk order part of the answer.
+    let terrain: Vec<u8> = cells.iter().map(|c| c.terrain).collect();
+    let moat = crate::terrain::moat_autotile(&terrain);
+
+    let mut rng = Lfsr::new(0x5EED);
+    for (i, cell) in cells.iter_mut().enumerate() {
+        let r = rng.next();
+        let (x, y) = (i % DIM, i / DIM);
+        let pick = |list: &[u8]| -> Option<u8> {
+            (!list.is_empty()).then(|| list[(x + y) % list.len()])
+        };
+        let structure = if cell.surface == SURFACE_WALL {
+            pick(&wall)
+        } else if cell.surface == SURFACE_KEEP {
+            pick(&keep)
+        } else if cell.flags & FLAG_DRAWBRIDGE != 0 {
+            bridge.get(x % bridge.len().max(1)).copied()
+        } else if cell.surface == SURFACE_RAMPART_WALK {
+            pick(&walk)
+        } else {
+            None
+        };
+        match structure {
+            // Slot 0 — the castle sheet — and the selector stays clear, which
+            // is what every cell taken from the raster does.
+            Some(frame) => cell.gfx = frame,
+            None if cell.surface == SURFACE_WATER => {
+                cell.flags2 = (cell.flags2 & !tileset::MASK) | tileset::SECOND;
+                cell.gfx = moat[i];
+            }
+            None => {
+                cell.flags2 = (cell.flags2 & !tileset::MASK) | tileset::SECOND;
+                cell.gfx = r & 0x0F;
+            }
+        }
+    }
 }
 
 /// The positional tables the siege handlers read, derived from [`our_castle`]'s
