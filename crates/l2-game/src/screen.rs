@@ -1030,12 +1030,14 @@ impl Machine {
     ///    `MapScreen::update` carries it out through the End Turn button's own
     ///    door.
     ///
-    /// **Two differences, said rather than left to be found.** The original runs
-    /// the turn behind a screen the guard does not close — the job popup, an open
-    /// menu, the About box — and ours waits for the person to close it. And
-    /// `0x13`, the battle report, is closed by the guard there and not here:
-    /// popping it would leave the report unseen on the suspended turn and the map
-    /// would put it straight back.
+    /// **One difference left, and the other one is gone.** The original runs
+    /// the turn behind a screen the guard does not close — the job popup, an
+    /// open menu, the About box — and so do we now: that used to wait for the
+    /// person to close it, because the map wound the turn and only the top
+    /// screen was ticked. [`Machine::wind_turn`] is where that stopped being
+    /// true. What remains is `0x13`, the battle report, which is closed by the
+    /// guard there and not here: popping it would leave the report unseen on
+    /// the suspended turn and the map would put it straight back.
     // arm: 0x0049A010/turn-time-limit timer
     fn run_turn_clock(&mut self, ctx: &mut Ctx) {
         // `2 < g_appPhase` — a game is up, which here is a campaign map on the
