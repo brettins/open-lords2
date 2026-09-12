@@ -1459,6 +1459,85 @@ impl Kingdom {
         }
     }
 
+    /// **`FUN_0043A997(county, weaponType)` (`0x0043A997`) — what the blacksmith
+    /// page's six hotspots do**, and the one thing a player could not tell this
+    /// simulation: *"I can't choose what type of weapon my blacksmiths are
+    /// making."*
+    ///
+    /// ```c
+    /// county[+0x290] = weaponType;                 /* County::weapon_type */
+    /// Industry_LabourEstimate(county, 2, 7, 0xF, 4);   /* weapons, the blacksmith */
+    /// Labour_Allocate(county);
+    /// County_RefreshEstimates(county, g_seasonNext);
+    /// FUN_00448648(owner);                         /* every blacksmith of the realm */
+    /// DAT_005530D0 = 1;                            /* a redraw */
+    /// if (g_localPlayer == owner) { Panel_JobBlacksmith(); Sound_RestartSlot(8); }
+    /// ```
+    ///
+    /// **Five statements and four of them are the recompute**, which is the
+    /// whole reason this is a method here rather than a field write in the
+    /// screen. The type is a divisor in three places at once:
+    /// [`industry::weapon_shares`] sums `g_weaponCost[type]` over the realm's
+    /// staffed smithies, so **changing one county's weapon moves every other
+    /// county's ceiling in the same realm** — the Readme's *"turning a
+    /// blacksmith on will reduce the resources available to other
+    /// blacksmiths"*, reached from the other side. That is what the closing
+    /// [`Kingdom::refresh_blacksmiths`] is for, and it is the original's own
+    /// last line.
+    ///
+    /// **The estimate comes before the allocation**, which is the opposite way
+    /// round from [`Kingdom::toggle_industry`] and is the original's order:
+    /// `Industry_LabourEstimate` writes `labour_useful[7]`, the ceiling the
+    /// allocator then deals against, so a cheaper weapon can take more smiths
+    /// on the same click. There is **no `Ration_Apply` and no second
+    /// allocation** here; `docs/decisions.md` C177 and
+    /// [`Kingdom::set_ration_wanted`] on why that asymmetry is not tidied.
+    ///
+    /// **No owner guard, and that is the original's too.** `Screen_HandleInput`'s
+    /// `0x0F` arm hit-tests the six hotspots on `g_jobPanelJob == 8` alone; the
+    /// only `g_localPlayer` test in the function is the one that decides whether
+    /// to repaint and play the hammer. What keeps a player out of an AI's smithy
+    /// is that the job popup opens on `g_selectedCounty`.
+    ///
+    /// Returns `false` for a county out of range or a weapon out of
+    /// [`crate::tables::WEAPON_TYPE_COUNT`], and does nothing in that case. The
+    /// original indexes `g_weaponCost` with the byte unchecked; the hotspot
+    /// table can only ever publish 0…5, so the clamp is unreachable from the
+    /// screen and is here because this is a public method.
+    pub fn set_weapon_type(&mut self, county: usize, weapon: usize) -> bool {
+        if county == 0 || county > self.county_count || self.counties.len() <= county {
+            return false;
+        }
+        if weapon >= crate::tables::WEAPON_TYPE_COUNT {
+            return false;
+        }
+        self.counties[county].weapon_type = weapon;
+        // `Industry_LabourEstimate(county, 2, 7, 0xF, 4)` — the weapons row
+        // alone, with the realm share as it stands *before* the county-wide
+        // refresh below. `industry::refresh` is that function whole: the search
+        // loop's two words into `labour[7]` and the tail's forecast.
+        let advanced = self.options.advanced_farming;
+        let owner = self.counties[county].owner;
+        let share =
+            industry::weapon_shares(&self.tables, &self.counties, self.county_count, owner);
+        let neutral = Realm::new();
+        {
+            let realm = self.realms.get(owner as usize).unwrap_or(&neutral);
+            industry::refresh(
+                &self.tables,
+                &mut self.counties[county],
+                Commodity::Weapons,
+                realm,
+                share,
+                advanced,
+            );
+        }
+        crate::labour::allocate(&mut self.counties[county]);
+        self.refresh_estimates(county);
+        self.refresh_blacksmiths(owner);
+        true
+    }
+
     /// **`Labour_Move` (`0x00439B52`) — the village's drag and its double
     /// click, whole.**
     ///

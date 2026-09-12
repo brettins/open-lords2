@@ -2992,13 +2992,14 @@
     },
     {
       "id": "0x004BA9C8/blacksmith-weapon-choice",
-      "status": "missing",
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/job.rs",
       "group": "village",
       "screen": "0x0F",
       "gesture": "left-press",
       "addr": "0x004BA9C8",
       "what": "THE JOB POPUP HAS SIX HOTSPOTS AND ONLY WHEN THE JOB IS THE BLACKSMITH. Screen_HandleInput opens `if (g_screenId == 0x0F && g_jobPanelJob == 8) Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)` -- six large irregular rectangles over the smithy picture, ids 0..5, all dispatching to FUN_0043A950, which writes the id into DAT_005530B8 and calls FUN_0043A997(g_selectedCounty, id). That is WHICH WEAPON THE SMITHY MAKES, and it is the only control on any job popup. The overlay pass has the matching arm: Screen_DrawWidgets draws FUN_00413526 for the same job and nothing for the other eight.",
-      "note": "Found by looking OUTSIDE Screen_FrameInput, which is the shape the text-entry agent named: 0x0F's arm in the dispatcher is Ui_OkButtonClicked and a right-release test, so an enumeration of that function alone scores this zero without it ever appearing as a miss. One arm and not six by this file's counting rule -- a table of N identical widgets hit-tested in one call.",
+      "note": "Found by looking OUTSIDE Screen_FrameInput, which is the shape the text-entry agent named: 0x0F's arm in the dispatcher is Ui_OkButtonClicked and a right-release test, so an enumeration of that function alone scores this zero without it ever appearing as a miss. One arm and not six by this file's counting rule -- a table of N identical widgets hit-tested in one call. BUILT, and the player asked for it by name: 'I can't choose what type of weapon my blacksmiths are making.' The record that was here named the table and NOT Hotspot_Test's two OFFSETS -- the call is Hotspot_Test(0, 0x18, ...) and 0x18 is exactly where Sprite_WGenSprite puts the smithy picture, so the rects are in the PICTURE's coordinates; read as screen coordinates every weapon sits 24 pixels high and a click on the pike lands on the bow. l2_kingdom::Kingdom::set_weapon_type is FUN_0043A997, whose four recompute statements are the whole of it.",
       "evidence": "V"
     },
     {

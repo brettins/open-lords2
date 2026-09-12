@@ -689,7 +689,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 72 | 25 | `Diplomacy.` | The diplomacy screen and its four action layouts. | `Diplo_DrawScreen`, `Diplo_DrawGiftGold`, `Diplo_DrawLetter`, `Diplo_DrawCountyRequest` [V] |
 | 73 | 12 | `Population in` | The population panel (last season / births / deaths / migration). | `Panel_Population` [V] |
 | 74 | 10 | `Idle people.` | The nine labour jobs, index = job id — the job popup title. | `Panel_JobDetail`, `Panel_JobBlacksmith` [V] |
-| 75 | 3 | `Click on a weapon to change production.` | The armoury/blacksmith production panel ("Click on a weapon to change production", wood needed, iron needed). | `Panel_JobBlacksmith` [V] |
+| 75 | 3 | `Click on a weapon to change production.` | **The blacksmith's job page, and this group has exactly one consumer** — so it is that page's specification, not a naming lead (rule 6). Index 0 is the sentence that tells a player the smithy picture is a control; **1 and 2, *"wood needed."* and *"iron needed."*, are drawn by nothing at all** — the two cost figures pass `&DAT_004D3E9C` and `&DAT_004D3EA0`, both the empty string, and the iron and wood icons carry the meaning. | `Panel_JobBlacksmith` [V] |
 | 76 | 9 | `Working with an efficiency of` | Industry efficiency and output forecast lines. | `Panel_JobIndustry`, `Panel_JobBlacksmith` [V] |
 | 77 | 31 | `from` | Grain, herd and reclamation forecast vocabulary — the four grain stages and the calf/cow birth-and-death lines. | `Panel_JobGrain`, `Panel_JobCattle`, `Panel_JobReclamation`, `TileInfo_DrawGrain`, `TileInfo_DrawHerd`, `Msg_DrawWindow` [V] |
 | 78 | 0 | — | Empty. | [I] empty |

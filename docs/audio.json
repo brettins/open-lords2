@@ -468,10 +468,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "8",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Slot 8 when the blacksmith’s weapon type is set. screens/armoury.rs has the rack; the setter is not wired to a sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "stonecut.wav",
+      "note": "Slot 8 when the blacksmith's weapon type is set, gated on the county being the local player's -- the setter's sound, not the page's. Director::hear_the_smithy diffs County::weapon_type across the tick rather than taking a report, for hear_the_march's reason: a flag on Game would be in the save and in the lockstep digest, for a sound. The only other writer of weapon_type is AI_ChooseIndustry's rota, which never runs on a county the local player owns."
     },
     {
       "id": "FUN_00477c89#1",

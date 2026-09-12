@@ -748,3 +748,142 @@ fn the_reclamation_popup_draws_its_two_lines_on_a_county_reclaiming_nothing() {
     word_at(&canvas, &assets, 77, 0x0D, 0x40 + 4 + advance(f, "0"), 0xB8);
     word_at(&canvas, &assets, 77, 0x0F, 0x40, 200);
 }
+
+// -------------------------------------------------------------- blacksmith
+
+/// Our zero-based job 7, the blacksmith — `g_jobPanelJob == 8`.
+const JOB_BLACKSMITH: usize = 7;
+/// `g_weaponCost[5]` — armour, **4 wood and 18 iron**, the only row whose two
+/// costs differ enough to tell a transposed pair apart at a glance.
+const ARMOUR: usize = 5;
+/// `DAT_004D29C8[5]` — group 8's singular index for armour, whose plural at 29
+/// is *"Armour"* again.
+const ARMOUR_NOUN: usize = 28;
+
+/// **`Panel_JobBlacksmith` (`0x00413155`) — its words, its two figures and its
+/// two costs**, on a county whose smithy is staffed.
+///
+/// The line that matters most is `Ui_DrawCentred(75, 0, 0, 0x1CC, 0x1CC)` —
+/// *"Click on a weapon to change production."* **`Panel_JobBlacksmith` is group
+/// 75's only consumer in the whole binary**, so this is the page's own
+/// vocabulary rather than a naming lead (rule 6), and it is the sentence a
+/// player reported missing by reporting the control: *"I can't choose what type
+/// of weapon my blacksmiths are making."*
+///
+/// The centred line is asserted for **its row and its ink** and not its x,
+/// because `Ui_DrawCentred`'s x is `(width - measure) / 2` over the whole string
+/// and re-deriving it here would be re-deriving `FUN_004025D7`. Every other
+/// piece is at a literal out of the painter or chained from one.
+///
+/// Advanced Farming is off in every save on this machine, so the `76/4` + `76/5`
+/// branch is **only ever unexercised** and `76/8` — *"Smiths working."* — is the
+/// one that runs. Said here rather than left to be discovered.
+///
+/// Ablations, run: the two cost numbers swapped → `"18"` is at 440 and not at
+/// `0x16A + 4`; 76/6's `SMITHY_ROW_OUTPUT` → `SMITHY_ROW_WORKERS` → the smiths
+/// figure goes red first, because the moved word is drawn over it;
+/// `WEAPON_NOUN[weapon]` → a constant `0x12` (Pike) → *"Armour"* is on no row at
+/// all.
+#[test]
+fn the_blacksmith_page_draws_group_75_and_the_weapon_it_forges() {
+    let (mut game, assets) = fixture_world!("siege-lastturn.sav");
+    let player = game.player;
+    let id = county_where(&game.kingdom, "the player's with a smithy site", |c| {
+        c.owner == player && c.industry[Commodity::Weapons.index()].has_resource && c.pop_band > 0
+    });
+    // **No save on this machine has a staffed smithy**, so the state is reached
+    // by the two roads a player reaches it by: the map click that switches the
+    // site on (`Industry_ToggleFromMap`) and the village drag that staffs it
+    // (`Labour_Move`). A hand-set `labour[7]` would have drawn a page whose
+    // forecast nothing computed.
+    if !game.kingdom.counties[id].industry[Commodity::Weapons.index()].enabled {
+        game.kingdom.toggle_industry(id, l2_kingdom::industry::MapToggle::Industry(Commodity::Weapons));
+    }
+    let spare = game.kingdom.counties[id].labour[JOB_WOOD_CUTTING] / 2;
+    game.kingdom.move_labour(id, JOB_WOOD_CUTTING, JOB_BLACKSMITH, spare);
+    assert!(game.kingdom.set_weapon_type(id, ARMOUR), "the click the page answers");
+    assert!(game.kingdom.counties[id].labour[JOB_BLACKSMITH] > 0, "setup: the smithy is staffed");
+    assert!(
+        !game.kingdom.options.advanced_farming,
+        "setup: this fixture has Advanced Farming off, so 76/8 is the workers line"
+    );
+    let c = game.kingdom.counties[id].clone();
+
+    let canvas = draw_job(&mut game, &assets, id, JOB_BLACKSMITH);
+    let f = body(&assets);
+    let h = heading(&assets);
+
+    // `Eng_DrawString(74, 8, 0x10, 0x186, &g_fontHeading, 0x3F)` — the page's
+    // title, in the heading face and not the body's.
+    expect_at(&canvas, h, &eng(&assets, 74, 8), INK, 0x10, 0x186);
+
+    // `Ui_DrawCentred(75, 0, 0, 0x1CC, 0x1CC, &g_fontBody, 0x3F)`.
+    let say = eng(&assets, 75, 0);
+    assert!(
+        !xs_on_row(&canvas, f, &say, INK, 0x1CC).is_empty(),
+        "{say:?} — the only string of group 75 anything draws — is not on row 0x1CC"
+    );
+
+    // `Ui_DrawNumber(labour[7], '@', " ", 0x10, 0x1A4)` then 76/8. The `'@'`
+    // lead has no glyph and advances four; the `" "` suffix is a space.
+    let smiths = c.labour[JOB_BLACKSMITH].to_string();
+    expect_at(&canvas, f, &smiths, INK, 0x10 + 4, 0x1A4);
+    word_at(&canvas, &assets, 76, 8, 0x10 + advance(f, &format!("@{smiths} ")), 0x1A4);
+
+    // 76/6, the count in the weapon's own noun, 76/7.
+    let at = word_at(&canvas, &assets, 76, 6, 0x10, 0x1B4);
+    let made = c.industry[Commodity::Weapons.index()].next_season;
+    let at = count_at(&canvas, &assets, made, ARMOUR_NOUN, at, 0x1B4);
+    word_at(&canvas, &assets, 76, 7, at, 0x1B4);
+
+    // The cost well. **Iron is drawn first**, at 0x16A, and it is `g_weaponCost`'s
+    // *second* word: armour is 4 wood and 18 iron, so these two are the check
+    // that the pair is not read the wrong way round.
+    expect_at(&canvas, f, "18", INK, 0x16A + 4, 0x18E);
+    expect_at(&canvas, f, "4", INK, 0x1B4 + 4, 0x18E);
+}
+
+/// **The six weapon hotspots are the player's own exe's**, `DAT_004DCA10` read
+/// at a 24-byte stride, plus `Hotspot_Test`'s two offsets.
+///
+/// `Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)` **adds** its first two arguments to
+/// every record before the test, and `0x18` is exactly where
+/// `Sprite_WGenSprite(0, 0, 0x18)` puts the smithy picture — so the table is in
+/// the picture's coordinates. Read as screen coordinates every weapon sits 24
+/// pixels high, and a click a player aims at the pike lands on the bow. That is
+/// the defect this test exists to make impossible.
+///
+/// The record is `{x0, y0, x1, y1}` as `i16`s at `+0x00`, `+0x02`, `+0x04`,
+/// `+0x06`, and `Hotspot_Test` is **half-open** on both axes: `x0 <= mx < x1`.
+/// `docs/input.md` §1.
+///
+/// Ablation, run: `HOTSPOT_ORIGIN` → `(0, 0)` turns the two corner claims red.
+#[test]
+fn the_weapon_hotspots_are_the_exes_own_table_at_the_pictures_origin() {
+    use l2_game::screens::job::{weapon_at, HOTSPOT_ORIGIN, WEAPON_HOTSPOTS};
+
+    let exe = l2_testkit::executable!();
+    let table = l2_testkit::pe::Table::at(&exe, 0x004D_CA10);
+    let (dx, dy) = HOTSPOT_ORIGIN;
+    assert_eq!((dx, dy), (0, 0x18), "Hotspot_Test's two offsets, and 0x18 is the picture's y");
+
+    for (w, &(x0, y0, x1, y1)) in WEAPON_HOTSPOTS.iter().enumerate() {
+        // Twelve `i16`s a record.
+        let at = |field: usize| i32::from(table.u16_at(w * 12 + field) as i16);
+        assert_eq!((at(0), at(1), at(2), at(3)), (x0, y0, x1, y1), "weapon {w}'s rectangle");
+        // The kind byte at `+0x0F` — 1, the down edge, for all six.
+        assert_eq!(table.u8_at(w * 24 + 0x0F), 1, "weapon {w} is kind 1");
+        // And `g_uiHotspotId` at `+0x10` is the weapon type itself, which is
+        // what makes table order weapon order.
+        assert_eq!(table.i32_at(w * 6 + 4), w as i32, "weapon {w}'s g_uiHotspotId");
+
+        // Inside the rectangle, in screen coordinates, is this weapon; the far
+        // corner itself is not, because the test is half-open.
+        assert_eq!(weapon_at(x0 + dx, y0 + dy), Some(w), "weapon {w}'s near corner");
+        assert_eq!(weapon_at(x1 + dx - 1, y1 + dy - 1), Some(w), "weapon {w}'s last pixel");
+        assert_ne!(weapon_at(x1 + dx, y1 + dy), Some(w), "weapon {w}'s far corner is past it");
+    }
+    // The corner picture at (448, 448) is below every one of them, so the OK
+    // button and the weapons cannot collide.
+    assert_eq!(weapon_at(0x1C0, 0x1C0), None, "the OK button is on no weapon");
+}

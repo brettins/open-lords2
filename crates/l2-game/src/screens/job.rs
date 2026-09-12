@@ -144,8 +144,31 @@
 //! The sheet's own frame table is the check on both. **[V]**
 //!
 //! So screen `0x0F` is really *two* pages that happen to share an id, and this
-//! module draws the small one for all nine jobs. The blacksmith is recorded
-//! missing rather than approximated.
+//! module draws both: the small window for eight jobs and [`blacksmith`] for the
+//! ninth.
+//!
+//! # The weapon choice, which is the only control on any of the nine
+//!
+//! A player: *"I can't choose what type of weapon my blacksmiths are making."*
+//!
+//! `Screen_HandleInput` (`0x004BA9C8`) hit-tests six hotspots over the smithy
+//! picture and only when the job is the blacksmith —
+//! `Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)` — all six dispatching to
+//! `FUN_0043A950` and thence to `FUN_0043A997(g_selectedCounty, id)`, which is
+//! [`l2_kingdom::Kingdom::set_weapon_type`]. [`WEAPON_HOTSPOTS`] is the table and
+//! [`HOTSPOT_ORIGIN`] the two offsets; **the offsets are half the fact**, because
+//! `0x18` is the picture's own y and reading the rects as screen coordinates puts
+//! every weapon 24 pixels high.
+//!
+//! It is dispatched from `Screen_HandleInput` and not from `Screen_FrameInput`,
+//! which is why an enumeration of the dispatcher alone scored this zero without
+//! it ever appearing as a miss — `docs/decisions.md` C61's denominator note.
+//!
+//! And the page says so in words, from the player's own file:
+//! **`Panel_JobBlacksmith` is `L2.eng` group 75's only consumer in the whole
+//! binary**, and index 0 is *"Click on a weapon to change production."* A group
+//! with one consumer *is* that screen's vocabulary (`CLAUDE.md` rule 6); this is
+//! the sentence that tells a player the picture is a control at all.
 //!
 //! **The two `Ui_OkButton` call sites are an if/else, not two buttons.** Worth
 //! saying because `Ui_OkButton` (`0x0040D1BC`) stashes only the last call's
@@ -167,10 +190,13 @@
 //! | 2 reclamation | [`reclamation`] = `Panel_JobReclamation` (`0x004140F3`) | 6 | 77, 8 |
 //! | 3 castle | [`castle_status_block`] = `Castle_DrawStatusBlock` (`0x0041DEDB`) via `FUN_00414220` | 13 | 71, 8 |
 //! | 4, 5, 6 industry | [`industry`] = `Panel_JobIndustry` (`0x00412E6B`) | 12 | 76, 8 |
+//! | 7 blacksmith | [`blacksmith`] = `Panel_JobBlacksmith` (`0x00413155`) | 21 | **75**, 74, 76, 8 |
 //!
 //! **Group 77 has six consumers, 76 two and 71 four**, so none of them is this
 //! popup's alone; what makes them its vocabulary is that the popup draws them
-//! and nothing of ours drew them before. `docs/formats/eng.md` §5.
+//! and nothing of ours drew them before. **Group 75 is the exception and has
+//! exactly one**, [`blacksmith`], which makes it that page's specification
+//! rather than a lead. `docs/formats/eng.md` §5.
 //!
 //! Every `Ui_DrawCount` here is `'@'` and `""` (C155), and the three suffixes
 //! that are not were read out of the shipped exe: `Panel_JobIndustry`'s
@@ -194,15 +220,13 @@
 //!
 //! # What is still not drawn here
 //!
-//! * **The blacksmith**, job 7: `Panel_JobBlacksmith` is a full-screen page over
-//!   `smithy.pl8` and `hearth.pl8`, 21 calls, and it is recorded above.
-//!   [`smithy_stub`] says so on screen.
-//! * **The job's picture**, `Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)`:
-//!   `iconvill.pl8` is not a sheet this crate loads.
+//! * **`Gfx_MarkAllDirty`**, `Panel_JobBlacksmith`'s last statement. Our canvas
+//!   is repainted whole, so there is no dirty box to raise.
 //! * **`Castle_DrawStatusBlock`'s other caller**, `TileInfo_DrawCastle`
 //!   (`0x0041DA2F`), which draws it at `(8, 0x30, row)` for a castle under
 //!   construction on the player's own tile. `screens/info.rs`'s layout ladder
 //!   has no castle arm to call it from — it returns row `0x0A` for nothing.
+//!   **Not this module's** — it is `info.rs`'s, and it is left alone here.
 
 use l2_kingdom::county::County;
 use l2_kingdom::tables::{
@@ -210,7 +234,7 @@ use l2_kingdom::tables::{
     JOB_GRAIN_FARMING, JOB_IRON_MINING, JOB_NAMES, JOB_STONE_QUARRYING, JOB_WOOD_CUTTING,
 };
 use l2_view::chrome::system;
-use l2_view::{text, Canvas, Ink};
+use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
@@ -233,6 +257,18 @@ const BOX_ROWS: [i32; JOB_COUNT] = [13, 13, 9, 11, 9, 9, 9, 9, 9];
 const ICON_BOX: Rect = Rect::new(64, 104, 50, 50);
 /// The outline's colour, which is the painter's own fifth argument.
 const ICON_BOX_INK: u8 = 0x3F;
+
+/// `Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)` — the job's picture, one
+/// pixel inside [`ICON_BOX`]. `Iconvill.pl8` is 17 frames of 48 × 48 and this
+/// panel is its only consumer.
+const ICON_SHEET: &str = "Iconvill.pl8";
+const ICON_AT: (i32, i32) = (0x41, 0x69);
+
+/// `DAT_004D2974`, the frame per job, **1-based in the original** and shifted
+/// here. The last entry is the painter's own override: the table says 10 for
+/// job 9 and `if (g_jobPanelJob == 9) local_c = 0x10;` says 16. Read out of the
+/// shipped exe; the sheet's 17 frames are the check on the 16.
+const JOB_ICON: [usize; JOB_COUNT] = [0, 2, 3, 5, 6, 7, 8, 9, 16];
 
 /// `Eng_DrawString(0x4A, job, 0x80, 0x6A, …)` and
 /// `Ui_DrawCount(n, job*2+30, 0x80, 0x88, …)`.
@@ -276,6 +312,180 @@ pub const BLACKSMITH: usize = 7;
 /// where the other eight put theirs.
 const BLACKSMITH_OK: Rect = Rect::new(0x1C0, 0x1C0, system::OK_DIM, system::OK_DIM);
 
+// ------------------------------------------------------ the weapon choice
+
+/// **`DAT_004DCA10` — the six hotspots over the smithy picture**, `(x0, y0, x1,
+/// y1)` in table order, which is also weapon-type order: crossbow, mace, sword,
+/// pike, bow, armour.
+///
+/// `Screen_HandleInput` (`0x004BA9C8`) opens with them and nothing else on this
+/// screen:
+///
+/// ```c
+/// if (g_screenId == 0x0F && g_jobPanelJob == 8) {
+///     if (DAT_0055CD78 != 0) g_redrawRequest = 2;
+///     if (Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)) return 1;
+/// }
+/// ```
+///
+/// **This is the only control on any of the nine job popups**, and it is
+/// dispatched from `Screen_HandleInput` rather than from `Screen_FrameInput`,
+/// which is why an enumeration of the dispatcher scored it zero without it ever
+/// appearing as a miss. `docs/decisions.md` C61's denominator note.
+///
+/// Every record's kind byte at `+0x0F` is **1** — [`Kind::Press`], the down
+/// edge, no pressed picture and no repeat — and every one dispatches to
+/// `FUN_0043A950`, which publishes `g_uiHotspotId` (0…5) and calls
+/// `FUN_0043A997(g_selectedCounty, id)`. Read out of the player's own exe by
+/// `node tools/oracle/widgets.js widgets 4dca10 6`; asserted against it in
+/// `crates/l2-game/tests/arms.rs`.
+pub const WEAPON_HOTSPOTS: [(i32, i32, i32, i32); l2_kingdom::tables::WEAPON_TYPE_COUNT] = [
+    (354, 10, 479, 97),  // 0 crossbow
+    (296, 63, 354, 198), // 1 mace
+    (368, 97, 479, 219), // 2 sword
+    (158, 53, 233, 225), // 3 pike
+    (9, 38, 87, 211),    // 4 bow
+    (233, 82, 296, 246), // 5 armour
+];
+
+/// `Hotspot_Test(0, 0x18, …)`'s two offsets, which are **added to every record**
+/// before the test: `x0 + dx <= mx < x1 + dx`, half-open on both axes
+/// (`Hotspot_Test`, `0x0040E3EE`).
+///
+/// `0x18` is 24, which is exactly where `Sprite_WGenSprite(0, 0, 0x18)` puts the
+/// smithy picture — so the table is in the *picture's* coordinates and the
+/// offset is the picture's origin. Reading the table as screen coordinates puts
+/// every weapon 24 pixels high, and a player clicking a pike gets a bow.
+pub const HOTSPOT_ORIGIN: (i32, i32) = (0, 0x18);
+
+/// The weapon under a point, or `None`. Table order, first match wins — the six
+/// rectangles do not overlap, so the order is the original's rather than a
+/// tie-break.
+pub fn weapon_at(x: i32, y: i32) -> Option<usize> {
+    let (dx, dy) = HOTSPOT_ORIGIN;
+    WEAPON_HOTSPOTS.iter().position(|&(x0, y0, x1, y1)| {
+        x0 + dx <= x && x < x1 + dx && y0 + dy <= y && y < y1 + dy
+    })
+}
+
+/// `Sprite_WGenSprite(0, 0, 0x18)` — `Smithy.pl8`'s single 480 × 400 frame.
+const SMITHY_SHEET: &str = "Smithy.pl8";
+const SMITHY_AT: (i32, i32) = (0, 0x18);
+
+/// `Hearth.pl8`: frames 0…10 are the forge fire, 11…16 the six hearths.
+/// `Pl8_DrawFrameClipped(scratch, weapon + 0xB, 0, …)` is the second block and
+/// [`FORGE_FRAMES`] the first — the sheet's own 17 frames are the check on both.
+const HEARTH_SHEET: &str = "Hearth.pl8";
+const HEARTH_FIRST: usize = 0x0B;
+
+/// `DAT_004D29E0[weapon]` — how far the hearth picture is lifted off
+/// [`HEARTH_FLOOR`]: `y = 0x1A8 - lift[weapon]`. Every one is a different height
+/// because every weapon hangs differently. Read out of the shipped exe.
+const HEARTH_LIFT: [i32; l2_kingdom::tables::WEAPON_TYPE_COUNT] = [136, 142, 119, 125, 124, 182];
+/// `0x1A8`, the y the hearth is bottom-aligned to and the top of the black band.
+const HEARTH_FLOOR: i32 = 0x1A8;
+
+/// `g_spriteWidth = 0x1E; g_spriteHeight = 0x38; FUN_004B414A(0, 0x1A8, 0)` —
+/// **a fill, not a sprite.** `FUN_004B414A` (`0x004B414A`) writes
+/// `g_spriteWidth` dwords-times-four across and `g_spriteHeight` rows down from
+/// `(x, y)`, so this is 480 × 56 of palette index 0 under the hearth.
+const FLOOR_BAND: Rect = Rect::new(0, HEARTH_FLOOR, 0x1E * 16, 0x38);
+
+/// `FUN_00413526` (`0x00413526`) — **the forge fire**, and the whole of
+/// `Screen_DrawWidgets`'s `0x0F` arm:
+///
+/// ```c
+/// if (g_pulse80 == 0) return;
+/// DAT_004E59BC = (DAT_004E59BC + 1) % 11;
+/// Pl8_DrawFrameClipped(scratch, DAT_004E59BC, 0x58, 0x9D);
+/// Gfx_MarkSpriteDirty(0x58, 0x9D, 8, 8, 1);
+/// ```
+///
+/// `scratch` still holds `Hearth.pl8` from the painter's second read, which is
+/// why the fire frames and the hearth pictures are one file.
+pub const FORGE_FRAMES: usize = 11;
+const FORGE_AT: (i32, i32) = (0x58, 0x9D);
+
+/// `Ui_DrawBox(0, 0x180, 0x1E, 6)` — the footer, 480 × 96 at the foot of the page.
+const FOOTER_X: i32 = 0;
+const FOOTER_Y: i32 = 0x180;
+const FOOTER_COLS: i32 = 0x1E;
+const FOOTER_ROWS: i32 = 6;
+
+/// **`L2.eng` group 75, and `Panel_JobBlacksmith` is its only consumer in the
+/// whole binary** — so it is this page's vocabulary rather than a lead
+/// (`CLAUDE.md` rule 6, `docs/formats/eng.md` §5).
+///
+/// Index 0 is *"Click on a weapon to change production."*, drawn by
+/// `Ui_DrawCentred(0x4B, 0, 0, 0x1CC, 0x1CC, body, 0x3F)` — **the sentence that
+/// tells a player the picture is a control at all**, and the one a player said
+/// was missing: *"I can't choose what type of weapon my blacksmiths are
+/// making."* Indices 1 and 2, *"wood needed."* and *"iron needed."*, are in the
+/// group and **nothing in the binary draws them**: the two cost figures below
+/// take `&DAT_004D3E9C` and `&DAT_004D3EA0`, which are both the empty string,
+/// and the icons carry the meaning instead.
+pub const SMITHY_GROUP: usize = 75;
+/// `Ui_DrawCentred(75, 0, x = 0, y = 0x1CC, width = 0x1CC)`. The width is 460 in
+/// a 480-wide page, so the sentence sits ten pixels left of the page's centre.
+const SMITHY_LINE: (i32, i32, i32) = (0, 0x1CC, 0x1CC);
+
+/// `Eng_DrawString(74, 8, 0x10, 0x186, heading, 0x3F)` — *"Blacksmith."*
+const SMITHY_TITLE_AT: (i32, i32) = (0x10, 0x186);
+/// The two text rows of the footer's left column.
+const SMITHY_ROW_WORKERS: i32 = 0x1A4;
+const SMITHY_ROW_OUTPUT: i32 = 0x1B4;
+const SMITHY_TEXT_X: i32 = 0x10;
+
+/// `Ui_DrawInsetRect(0x140, 0x186, 0x8E, 0x20)` and the two `Pl8_DrawFrame`
+/// icons and `Ui_DrawNumber`s inside it. `Misc_cty` frame `0x2C` is the iron
+/// bar and `0x2E` the log; the numbers are `g_weaponCost[weapon]`'s **iron
+/// first** (`&DAT_004D8994`, the pair's second word) and wood second
+/// (`&g_weaponCost`, its first).
+const COST_WELL: Rect = Rect::new(0x140, 0x186, 0x8E, 0x20);
+const COST_IRON_ICON: (usize, i32, i32) = (0x2C, 0x146, 0x187);
+const COST_IRON_AT: (i32, i32) = (0x16A, 0x18E);
+const COST_WOOD_ICON: (usize, i32, i32) = (0x2E, 0x189, 0x18A);
+const COST_WOOD_AT: (i32, i32) = (0x1B4, 0x18E);
+
+/// `DAT_004D29C8[weapon]` — the group-8 **singular** noun index for what this
+/// smithy makes: 24 Crossbow, 22 Mace, 26 Sword, 18 Pike, 20 Bow, 28 Armour.
+/// `Ui_DrawCount` takes the pair's second string for anything but ±1, and
+/// group 8 index 29 is *"Armour"* again, so armour never pluralises.
+const WEAPON_NOUN: [usize; l2_kingdom::tables::WEAPON_TYPE_COUNT] = [24, 22, 26, 18, 20, 28];
+
+/// Our transcription of those six pairs is in [`ours`], with the rest of the
+/// group-8 fallbacks, because [`count`] reaches them through one lookup.
+
+/// **The forge fire's clock**, which is `Tick_Pulses`' 80 ms pulse — the same
+/// one the armoury's torches run on, so the divider chain is
+/// [`super::armoury`]'s and not a second copy. See [`super::armoury::Anim`] for
+/// why a 20 ms gate on a 16 ms tick is 32 ms and not 20.
+#[derive(Debug, Default)]
+struct Forge {
+    acc_ms: u32,
+    div: u8,
+    /// `DAT_004E59BC`, 0…10.
+    frame: usize,
+}
+
+impl Forge {
+    /// One fixed tick; `true` when the fire moved.
+    fn tick(&mut self) -> bool {
+        self.acc_ms += super::armoury::TICK_MS;
+        if self.acc_ms < super::armoury::PULSE_MS {
+            return false;
+        }
+        self.acc_ms = 0;
+        self.div += 1;
+        if self.div < super::armoury::PULSE80_DIVIDER {
+            return false;
+        }
+        self.div = 0;
+        self.frame = (self.frame + 1) % FORGE_FRAMES;
+        true
+    }
+}
+
 /// The three colours `Panel_JobDetail` passes to `Ui_DrawCount`, as literal
 /// palette indices rather than as [`Ink`](l2_view::Ink) choices of ours.
 const COUNT_RIGHT: u8 = 0x3F;
@@ -309,11 +519,21 @@ pub fn staffing(c: &County, job: usize) -> Staffing {
 pub struct JobScreen {
     county: u8,
     job: usize,
+    /// The blacksmith page's fire. Ticks on every job and is only drawn on
+    /// job 7, exactly as `DAT_004E59BC` is stepped by a draw arm that runs on
+    /// one `g_jobPanelJob`.
+    forge: Forge,
+    redraw: bool,
 }
 
 impl JobScreen {
     pub fn new(county: u8, job: usize) -> JobScreen {
-        JobScreen { county, job: job.min(JOB_COUNT - 1) }
+        JobScreen {
+            county,
+            job: job.min(JOB_COUNT - 1),
+            forge: Forge::default(),
+            redraw: false,
+        }
     }
 
     pub fn job(&self) -> usize {
@@ -357,7 +577,7 @@ impl Screen for JobScreen {
         true
     }
 
-    fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
+    fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
             // **The minimap is live under this popup**, and it is the one thing
             // from the right-hand column that is: `0x0F`'s arm runs
@@ -388,8 +608,47 @@ impl Screen for JobScreen {
             Event::Click { x, y } if JobScreen::ok_button(self.job).contains(x, y) => {
                 Transition::Pop
             }
+            // **The weapon choice, and the only control on any job popup.**
+            // `Screen_HandleInput`'s (`0x004BA9C8`) `0x0F` arm:
+            // `if (g_jobPanelJob == 8) Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)`,
+            // six kind-1 records dispatching to `FUN_0043A950`:
+            //
+            // ```c
+            // DAT_005530B8 = g_uiHotspotId;
+            // if (g_multiplayer == 0) FUN_0043A997(g_selectedCounty, id);
+            // else                    Net_SendCommand(0x21, 0);
+            // ```
+            //
+            // The multiplayer arm sends the *command* and lets the handler at
+            // `0x00447E5B` run `FUN_0043A997(g_selectedCounty, DAT_005530B8)` on
+            // every machine — which is this crate's lockstep model already, so
+            // the branch is one call here and the `Kingdom` method is the
+            // command. `docs/netcode.md`.
+            //
+            // It is tested **after** the OK button because the corner picture at
+            // (448, 448) is below every hotspot; the original's order is the
+            // other way and cannot collide either.
+            // arm: 0x004BA9C8/blacksmith-weapon-choice left-press
+            Event::Click { x, y } if self.job == BLACKSMITH => {
+                match weapon_at(x, y) {
+                    Some(w) => {
+                        ctx.game.kingdom.set_weapon_type(self.county as usize, w);
+                        Transition::Stay
+                    }
+                    None => Transition::Stay,
+                }
+            }
             _ => Transition::Stay,
         }
+    }
+
+    fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+        self.redraw |= self.forge.tick();
+        Transition::Stay
+    }
+
+    fn take_redraw(&mut self) -> bool {
+        core::mem::take(&mut self.redraw)
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
@@ -402,47 +661,62 @@ impl Screen for JobScreen {
             caps: None,
         };
         let w = JobScreen::window(self.job);
-        // `Ui_DrawBox(0x30, 0x60, 0x19, g_jobPanelRows[job])`, border set 0.
-        pen.window(canvas, w.x, w.y, BOX_COLS, BOX_ROWS[self.job], 0);
+        let face = crate::shell::Face::Body;
 
-        // `FUN_00403CF4(0x40, 0x68, 0x32, 0x32, 0x3F)` — **four lines in colour
-        // 0x3F, no fill.** `iconvill.pl8` is loaded only by this panel and
-        // `l2-view` does not carry that sheet, so the box stays empty and looks
-        // it; the frame the original puts in it is `DAT_004D2974[job + 1]`,
-        // one pixel inside at (65, 105).
-        for (x, y, w2, h) in [
-            (ICON_BOX.x, ICON_BOX.y, ICON_BOX.w, 1),
-            (ICON_BOX.x, ICON_BOX.y + ICON_BOX.h - 1, ICON_BOX.w, 1),
-            (ICON_BOX.x, ICON_BOX.y, 1, ICON_BOX.h),
-            (ICON_BOX.x + ICON_BOX.w - 1, ICON_BOX.y, 1, ICON_BOX.h),
-        ] {
-            canvas.fill_rect(x, y, w2, h, ICON_BOX_INK);
+        // **`Panel_JobDetail`'s `if (g_jobPanelJob == 8)` is the whole head of
+        // the painter, not one line of it.** The blacksmith takes the other
+        // branch of every `if`: no window, no icon recess, no group-74 title in
+        // the window and no worker count — `Screen_DrawMenuBar()` and
+        // `Panel_JobBlacksmith` instead.
+        if self.job != BLACKSMITH {
+            // `Ui_DrawBox(0x30, 0x60, 0x19, g_jobPanelRows[job])`, border set 0.
+            pen.window(canvas, w.x, w.y, BOX_COLS, BOX_ROWS[self.job], 0);
+
+            // `FUN_00403CF4(0x40, 0x68, 0x32, 0x32, 0x3F)` — **four lines in
+            // colour 0x3F, no fill** — and then
+            // `Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)`, the job's
+            // `Iconvill.pl8` picture one pixel inside it.
+            for (x, y, w2, h) in [
+                (ICON_BOX.x, ICON_BOX.y, ICON_BOX.w, 1),
+                (ICON_BOX.x, ICON_BOX.y + ICON_BOX.h - 1, ICON_BOX.w, 1),
+                (ICON_BOX.x, ICON_BOX.y, 1, ICON_BOX.h),
+                (ICON_BOX.x + ICON_BOX.w - 1, ICON_BOX.y, 1, ICON_BOX.h),
+            ] {
+                canvas.fill_rect(x, y, w2, h, ICON_BOX_INK);
+            }
+            if let Some(f) =
+                ctx.assets.shell.sheet(ICON_SHEET).and_then(|s| s.frame(JOB_ICON[self.job]))
+            {
+                canvas.blit(&f, ICON_AT.0, ICON_AT.1);
+            }
+
+            // `Eng_DrawString(74, job + 1, 0x80, 0x6A, heading, 0x3F)`.
+            let title = eng(ctx, JOB_GROUP, self.job + 1, JOB_NAMES[self.job]);
+            pen.heading(canvas, NAME_X, NAME_Y, &title, COUNT_RIGHT);
         }
 
-        // `Eng_DrawString(74, job + 1, 0x80, 0x6A, heading, 0x3F)`.
-        let title = eng(ctx, JOB_GROUP, self.job + 1, JOB_NAMES[self.job]);
-        pen.heading(canvas, NAME_X, NAME_Y, &title, COUNT_RIGHT);
-
         let Some(c) = ctx.game.kingdom.counties.get(self.county as usize) else { return };
-        let n = c.labour[self.job];
-        let colour = match staffing(c, self.job) {
-            Staffing::Short => COUNT_SHORT,
-            Staffing::Wasted => COUNT_WASTED,
-            Staffing::Right => COUNT_RIGHT,
-        };
-        // `Ui_DrawCount(labour[job].workers, job * 2 + 0x1E, 0x80, 0x88, body,
-        // colour)` — the number, then group 8's singular or plural. The
-        // original takes the **singular** at ±1 and the plural everywhere else,
-        // zero included: *"0 Farmers"*.
-        let (one, many) = WORKER_NOUN[self.job];
-        let singular = n.abs() == 1;
-        let index = WORKER_NOUN_0 + self.job * WORKER_NOUN_STRIDE + usize::from(!singular);
-        let ours = if singular { one } else { many };
-        // Through `Pen::count_with_noun` for `Ui_DrawCount`'s `'@'` lead and empty
-        // suffix. Built by hand as `"{n} "`, the digits sat four pixels left.
-        let noun = eng(ctx, COUNT_NOUN_GROUP, index, ours);
-        let face = crate::shell::Face::Body;
-        pen.count_with_noun(face, canvas, NAME_X, COUNT_Y, i32::from(n), &noun, colour);
+        if self.job != BLACKSMITH {
+            let n = c.labour[self.job];
+            let colour = match staffing(c, self.job) {
+                Staffing::Short => COUNT_SHORT,
+                Staffing::Wasted => COUNT_WASTED,
+                Staffing::Right => COUNT_RIGHT,
+            };
+            // `Ui_DrawCount(labour[job].workers, job * 2 + 0x1E, 0x80, 0x88,
+            // body, colour)` — the number, then group 8's singular or plural.
+            // The original takes the **singular** at ±1 and the plural
+            // everywhere else, zero included: *"0 Farmers"*.
+            let (one, many) = WORKER_NOUN[self.job];
+            let singular = n.abs() == 1;
+            let index = WORKER_NOUN_0 + self.job * WORKER_NOUN_STRIDE + usize::from(!singular);
+            let ours = if singular { one } else { many };
+            // Through `Pen::count_with_noun` for `Ui_DrawCount`'s `'@'` lead and
+            // empty suffix. Built by hand as `"{n} "`, the digits sat four
+            // pixels left.
+            let noun = eng(ctx, COUNT_NOUN_GROUP, index, ours);
+            pen.count_with_noun(face, canvas, NAME_X, COUNT_Y, i32::from(n), &noun, colour);
+        }
 
         // `Panel_JobDetail`'s dispatch on `g_jobPanelJob`, zero-based here:
         // one-based 5, 6 and 7 take `Panel_JobIndustry`, 9 takes nothing.
@@ -456,12 +730,7 @@ impl Screen for JobScreen {
             JOB_IRON_MINING | JOB_STONE_QUARRYING | JOB_WOOD_CUTTING => {
                 industry(&pen, ctx, canvas, c, self.job)
             }
-            // Ours: debug overlay only, as every "not built" stub is (C173).
-            BLACKSMITH => {
-                if ctx.game.prefs.debug_overlay {
-                    smithy_stub(canvas, ink, w)
-                }
-            }
+            BLACKSMITH => blacksmith(&pen, ctx, canvas, c, self.forge.frame),
             _ => {}
         }
 
@@ -486,12 +755,114 @@ fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
     }
 }
 
-/// **Ours, and it looks like it.** The blacksmith is `Panel_JobBlacksmith`, a
-/// full-screen page, and this module draws the small window for it instead —
-/// so the window says so, in our own 5 × 7 font, where a screenshot cannot
-/// mistake it for the original's page.
-fn smithy_stub(canvas: &mut Canvas, ink: &Ink, w: Rect) {
-    text::draw(canvas, w.x + 16, w.y + 80, "THE SMITHY IS A FULL PAGE", ink.bad);
+/// **`Panel_JobBlacksmith` (`0x00413155`), call for call** — the one job that is
+/// a full-screen page rather than a window, and the one that has a control.
+///
+/// ```text
+/// File_ReadChunk("smithy.pl8", scratch, 200000, 0)
+/// Sprite_WGenSprite(0, 0, 0x18)
+/// g_spriteWidth = 0x1E; g_spriteHeight = 0x38; FUN_004B414A(0, 0x1A8, 0)
+/// File_ReadChunk("hearth.pl8", scratch, 200000, 0)
+/// Pl8_DrawFrameClipped(scratch, weapon + 0xB, 0, 0x1A8 - DAT_004D29E0[weapon])
+/// Ui_DrawBox(0, 0x180, 0x1E, 6)
+/// Eng_DrawString(74, 8, 0x10, 0x186, heading, 0x3F)
+/// Ui_DrawCentred(75, 0, 0, 0x1CC, 0x1CC, body, 0x3F)
+/// if (advancedFarming) { N " " 76/4 eff "%" 76/5 }  else { N " " 76/8 }
+/// 76/6  Ui_DrawCount(industry[2].next_season, DAT_004D29C8[weapon])  76/7
+/// Ui_DrawInsetRect(0x140, 0x186, 0x8E, 0x20)
+/// Pl8_DrawFrame(Misc_cty, 0x2C, 0x146, 0x187); Ui_DrawNumber(cost.iron, '@', "", 0x16A, 0x18E)
+/// Pl8_DrawFrame(Misc_cty, 0x2E, 0x189, 0x18A); Ui_DrawNumber(cost.wood, '@', "", 0x1B4, 0x18E)
+/// ```
+///
+/// **Both `Ui_DrawNumber` suffixes are the empty string** — `DAT_004D3E9C` and
+/// `DAT_004D3EA0` are two NULs in a run of zero bytes — which is why group 75's
+/// *"wood needed."* and *"iron needed."* are in the file and on no screen.
+///
+/// `forge` is [`Forge::frame`], drawn last because `Screen_DrawWidgets`'s `0x0F`
+/// arm runs after the painter.
+fn blacksmith(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County, forge: usize) {
+    let a = &ctx.assets.shell;
+    let face = crate::shell::Face::Body;
+    let weapon = c.weapon_type.min(l2_kingdom::tables::WEAPON_TYPE_COUNT - 1);
+
+    // `Sprite_WGenSprite(0, 0, 0x18)` — the shop.
+    if let Some(f) = a.sheet(SMITHY_SHEET).and_then(|s| s.frame(0)) {
+        canvas.blit(&f, SMITHY_AT.0, SMITHY_AT.1);
+    } else {
+        // Ours, and it looks like it: the page without its picture is a page of
+        // invisible hotspots, so the six are outlined where the weapons hang.
+        // `docs/plan.md`'s rule that a stub is visibly ours.
+        for &(x0, y0, x1, y1) in &WEAPON_HOTSPOTS {
+            let (dx, dy) = HOTSPOT_ORIGIN;
+            pen.outline(canvas, x0 + dx, y0 + dy, x1 - x0, y1 - y0, ctx.assets.ink.border);
+        }
+    }
+    // `FUN_004B414A(0, 0x1A8, 0)` — 480 × 56 of palette index 0.
+    canvas.fill_rect(FLOOR_BAND.x, FLOOR_BAND.y, FLOOR_BAND.w, FLOOR_BAND.h, 0);
+    // `Pl8_DrawFrameClipped(scratch, weapon + 0xB, 0, 0x1A8 - lift[weapon])`.
+    if let Some(f) = a.sheet(HEARTH_SHEET).and_then(|s| s.frame(HEARTH_FIRST + weapon)) {
+        canvas.blit(&f, 0, HEARTH_FLOOR - HEARTH_LIFT[weapon]);
+    }
+
+    // `Ui_DrawBox(0, 0x180, 0x1E, 6)`, border set 0.
+    pen.window(canvas, FOOTER_X, FOOTER_Y, FOOTER_COLS, FOOTER_ROWS, 0);
+    // `Eng_DrawString(74, 8, …, heading)` — *"Blacksmith."*
+    let title = eng(ctx, JOB_GROUP, BLACKSMITH + 1, JOB_NAMES[BLACKSMITH]);
+    pen.heading(canvas, SMITHY_TITLE_AT.0, SMITHY_TITLE_AT.1, &title, COUNT_RIGHT);
+    // `Ui_DrawCentred(75, 0, …)` — **the sentence that says the picture is a
+    // control**, which is what the player could not find.
+    let (x, y, width) = SMITHY_LINE;
+    let s = eng(ctx, SMITHY_GROUP, 0, ours(SMITHY_GROUP, 0));
+    pen.body_centred(canvas, x, y, width, &s, BODY_INK);
+
+    // The workers line. Advanced Farming splits it in two and names the
+    // efficiency; plain says only how many smiths. Both lead `'@'`; the first
+    // number's suffix is `" "` (`&DAT_004D3E90`, `&DAT_004D3E98`) and the
+    // efficiency's is `"%"` (`&DAT_004D3E94`).
+    let workers = i32::from(c.labour[BLACKSMITH]);
+    let x = pen.number_in(
+        face,
+        canvas,
+        SMITHY_TEXT_X,
+        SMITHY_ROW_WORKERS,
+        workers,
+        '@',
+        " ",
+        BODY_INK,
+    );
+    if ctx.game.kingdom.options.advanced_farming {
+        let x = say(pen, ctx, canvas, INDUSTRY_GROUP, 4, x, SMITHY_ROW_WORKERS);
+        let efficiency = i32::from(c.industry[Commodity::Weapons.index()].efficiency);
+        let x =
+            pen.number_in(face, canvas, x, SMITHY_ROW_WORKERS, efficiency, '@', "%", BODY_INK);
+        say(pen, ctx, canvas, INDUSTRY_GROUP, 5, x, SMITHY_ROW_WORKERS);
+    } else {
+        say(pen, ctx, canvas, INDUSTRY_GROUP, 8, x, SMITHY_ROW_WORKERS);
+    }
+
+    // *"Will produce"* N *"next season."* — the weapons record's own forecast at
+    // `+0x2A8 + 2*0x18`, which is `Industry::next_season`.
+    let x = say(pen, ctx, canvas, INDUSTRY_GROUP, 6, SMITHY_TEXT_X, SMITHY_ROW_OUTPUT);
+    let made = c.industry[Commodity::Weapons.index()].next_season;
+    let x = count(pen, ctx, canvas, made, WEAPON_NOUN[weapon], x, SMITHY_ROW_OUTPUT);
+    say(pen, ctx, canvas, INDUSTRY_GROUP, 7, x, SMITHY_ROW_OUTPUT);
+
+    // The cost well: the iron bar and the log, each with the weapon's own price
+    // out of `g_weaponCost`. **Iron is drawn first and is the pair's second
+    // word**; reading the two `Ui_DrawNumber`s in address order gets them the
+    // wrong way round for every weapon but the mace.
+    pen.inset(canvas, COST_WELL);
+    let row = ctx.game.kingdom.tables.weapon[weapon];
+    pen.misc_frame(canvas, COST_IRON_ICON.0, COST_IRON_ICON.1, COST_IRON_ICON.2);
+    pen.number_in(face, canvas, COST_IRON_AT.0, COST_IRON_AT.1, row.iron, '@', "", BODY_INK);
+    pen.misc_frame(canvas, COST_WOOD_ICON.0, COST_WOOD_ICON.1, COST_WOOD_ICON.2);
+    pen.number_in(face, canvas, COST_WOOD_AT.0, COST_WOOD_AT.1, row.wood, '@', "", BODY_INK);
+
+    // `FUN_00413526` — the fire, out of the sheet the painter's second read
+    // left in the scratch buffer.
+    if let Some(f) = a.sheet(HEARTH_SHEET).and_then(|s| s.frame(forge % FORGE_FRAMES)) {
+        canvas.blit(&f, FORGE_AT.0, FORGE_AT.1);
+    }
 }
 
 // ------------------------------------------------------------ the five bodies
@@ -574,6 +945,16 @@ const OURS_76: [&str; 9] = [
     "Smiths working.",
 ];
 
+/// **Group 75, whose only consumer in the binary is `Panel_JobBlacksmith`.**
+/// Indices 1 and 2 are in the file and on no screen; they are transcribed
+/// anyway, because the group is the page's vocabulary and a later painter that
+/// wants them should not have to find them again.
+const OURS_75: [&str; 3] = [
+    "Click on a weapon to change production.",
+    "wood needed.",
+    "iron needed.",
+];
+
 /// Group 71, the same.
 const OURS_71: [&str; 20] = [
     "Select a castle to build",
@@ -616,6 +997,7 @@ fn ours(group: usize, index: usize) -> &'static str {
         INDUSTRY_GROUP => &OURS_76,
         CASTLE_GROUP => &OURS_71,
         FERTILITY_GROUP => &OURS_22,
+        SMITHY_GROUP => &OURS_75,
         COUNT_NOUN_GROUP => {
             return match index {
                 2 => "Sack",
@@ -624,6 +1006,19 @@ fn ours(group: usize, index: usize) -> &'static str {
                 5 => "Animals",
                 0x0C | 0x0E | 0x10 => "Tonne",
                 0x0D | 0x0F | 0x11 => "Tonnes",
+                // The six weapons, `DAT_004D29C8`'s indices and their plurals.
+                // 29 is *"Armour"* again: armour never pluralises.
+                0x12 => "Pike",
+                0x13 => "Pikes",
+                0x14 => "Bow",
+                0x15 => "Bows",
+                0x16 => "Mace",
+                0x17 => "Maces",
+                0x18 => "Crossbow",
+                0x19 => "Crossbows",
+                0x1A => "Sword",
+                0x1B => "Swords",
+                0x1C | 0x1D => "Armour",
                 0x26 => "Builder",
                 0x27 => "Builders",
                 0x42 => "Season",

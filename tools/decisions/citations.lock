@@ -76,6 +76,8 @@ crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
 crates/l2-game/src/screens/info.rs	C110	610d3cd4e224	a4ab43902f60
 crates/l2-game/src/screens/info.rs	C25	81871fcedfac	5d466f0cb89c
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
+crates/l2-game/src/screens/job.rs	C61	640e90a8620c	60611046b40d
+crates/l2-game/src/screens/job.rs	C61	b7fd3ff19ef4	60611046b40d
 crates/l2-game/src/screens/map.rs	C132	3a974c32854e	84bc50c0ddbe
 crates/l2-game/src/screens/map.rs	C134	414ddf907651	d12cd2f96f79
 crates/l2-game/src/screens/map.rs	C138	3ac5e2071333	7724e6665b90
@@ -230,6 +232,7 @@ crates/l2-kingdom/src/field.rs	C187	8983863e59e2	55fad83033cd
 crates/l2-kingdom/src/industry.rs	C123	37f6e80213ab	3a5cc2fec37d
 crates/l2-kingdom/src/industry.rs	C136	4fca8a2eb88c	724c11b1e475
 crates/l2-kingdom/src/kingdom.rs	C121	cdcff25710df	865148ccac2a
+crates/l2-kingdom/src/kingdom.rs	C177	9b3725f4dcad	01cec2bb5b43
 crates/l2-kingdom/src/kingdom.rs	C26	952c32e6e678	e8179d1f76a8
 crates/l2-kingdom/src/kingdom.rs	C62	24c0c9697884	ebb6a7ec3711
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992	68e4eb2d2a1f
@@ -637,6 +640,7 @@ docs/decisions.md	C142	a0b5ea7d9b27	d13324698105
 docs/decisions.md	C146	e83c475249f2	97ed604f7efd
 docs/decisions.md	C147	cb863e5fc623	02e99ae849d5
 docs/decisions.md	C148	4a4eeea01aa4	d3efa7d90685
+docs/decisions.md	C148	4f21e07ba7d5	d3efa7d90685
 docs/decisions.md	C148	9a1cd44ee8b2	d3efa7d90685
 docs/decisions.md	C148	deba52697c3b	d3efa7d90685
 docs/decisions.md	C149	343974a9c489	138117948441
@@ -651,6 +655,7 @@ docs/decisions.md	C151	f4e9d215993c	0701a5ebd6fc
 docs/decisions.md	C152	c3db7544bcee	582988651236
 docs/decisions.md	C153	9cf14b8ea09c	c724d7afe0dd
 docs/decisions.md	C153	ac7061e1082a	c724d7afe0dd
+docs/decisions.md	C153	d991bd16e8a2	c724d7afe0dd
 docs/decisions.md	C156	baeca982aa40	fa263059c4e9
 docs/decisions.md	C157	69ea745904c8	c5258d1ad957
 docs/decisions.md	C157	a35667c0ef98	c5258d1ad957
@@ -682,6 +687,7 @@ docs/decisions.md	C173	d0de45012874	d5c09120ff4b
 docs/decisions.md	C173	d3eba13b50df	d5c09120ff4b
 docs/decisions.md	C173	da0de0263c6b	d5c09120ff4b
 docs/decisions.md	C176	ddfc00ae0561	4d47d841886c
+docs/decisions.md	C177	6716b47f3e3d	01cec2bb5b43
 docs/decisions.md	C178	4b727d2e551c	b903c3f9550e
 docs/decisions.md	C178	b3f23768cd22	b903c3f9550e
 docs/decisions.md	C179	7d124cb73915	852ec3e69f4e
@@ -812,6 +818,7 @@ docs/decisions.md	C59	f8f78fa7b192	37ab8ac1a2fc
 docs/decisions.md	C6	6af905f28c2d	a00215d4f4b1
 docs/decisions.md	C60	5f4562a8144d	2f31848557d2
 docs/decisions.md	C61	072b0a786f93	60611046b40d
+docs/decisions.md	C61	09ebc151fc64	60611046b40d
 docs/decisions.md	C61	1c9ef25a9ccd	60611046b40d
 docs/decisions.md	C61	324c3ac59d0a	60611046b40d
 docs/decisions.md	C61	33bb2b912640	60611046b40d
@@ -897,8 +904,7 @@ docs/hypotheses.json	C3	80313a1ef950	35bf3a86555f
 docs/kingdom.md	C12	ea411ce7f8a2	bb0dd488f9d2
 docs/kingdom.md	C142	95890825b7a9	d13324698105
 docs/kingdom.md	C149	e18921e5ea82	138117948441
-docs/kingdom.md	C153	aa71562eb809	c724d7afe0dd
-docs/kingdom.md	C153	e5a5c4932ef8	c724d7afe0dd
+docs/kingdom.md	C153	4fec6d8ee536	c724d7afe0dd
 docs/kingdom.md	C16	b5ee9c5eb7a2	2e6270fa32a9
 docs/kingdom.md	C169	d5af712c9d5b	4f087d2d4d89
 docs/kingdom.md	C187	2ec3082e8bcc	55fad83033cd

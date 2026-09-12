@@ -9967,3 +9967,80 @@ sidebar forecasts that were the tail of an estimate pass ported without it. This
 omission one word to the left, found four hundred turns later, in the same function. **A
 partially ported function does not announce the part that is missing**, and the part that
 was missing here was the only one a player could see.
+
+---
+
+**CNEW-blacksmith-weapon-choice — the only control on any job popup, and the sentence that
+says it is one. Both were filed as missing, and the *table* was filed without half of its
+own call.**
+
+A player: *"I can't choose what type of weapon my blacksmiths are making."*
+
+**Everything the choice does to the simulation was already here.** `County::weapon_type`
+(`+0x290`) has been a field since C153; `industry::weapon_shares` is `Industry_WeaponShares`
+(`0x0044F15B`); `WEAPON_COST` is `g_weaponCost` (`0x004D8990`); the AI's rota writes the byte
+every season. What did not exist was **a way for a person to write it**, and there is exactly
+one in the original: six hotspots over the smithy picture, `Hotspot_Test(0, 0x18,
+&DAT_004DCA10, 6)`, dispatched from `Screen_HandleInput` (`0x004BA9C8`) and not from
+`Screen_FrameInput`. That placement is why C61's denominator note exists: an enumeration of
+the dispatcher scores this zero without it ever appearing as a miss.
+
+**The record in `docs/arms.json` named the table and not the call, and that is the finding.**
+`Hotspot_Test`'s first two arguments are **offsets added to every record before the test**,
+and the call passes `(0, 0x18)` — which is exactly where `Sprite_WGenSprite(0, 0, 0x18)` puts
+`Smithy.pl8`. So the six rectangles are in the **picture's** coordinates. Read as screen
+coordinates, as a careful person reading only the table would read them, every weapon sits
+twenty-four pixels high: a click a player aims at the pike lands on the bow, and it lands
+*silently*, because the county still changes what it forges. `crates/l2-game/tests/job_bodies.rs`
+asserts both corners of all six against the player's own exe so that reading cannot recur.
+It is the same shape as `docs/arms.json`'s gesture field (C148): the record carried the
+address that would have answered the question and nobody read the rest of the line.
+
+**`FUN_0043A997` (`0x0043A997`) is five statements and four of them are the recompute**, now
+`l2_kingdom::Kingdom::set_weapon_type`:
+
+```c
+county[+0x290] = weaponType;
+Industry_LabourEstimate(county, 2, 7, 0xF, 4);
+Labour_Allocate(county);
+County_RefreshEstimates(county, g_seasonNext);
+FUN_00448648(owner);
+```
+
+The order of the middle three is load-bearing and is **the opposite way round from
+`Industry_ToggleFromMap`**: the estimate writes `labour_useful[7]`, the ceiling, and the
+allocator deals against it, so a cheaper weapon takes more smiths *on the click*. Deleting
+the leading estimate leaves the ceiling right — the two refreshes below it put it back — and
+the **headcount** wrong, which is why the test reads the headcount. And the closing
+`FUN_00448648` is the realm-wide half: a blacksmith's ceiling is a share of the realm's
+stockpile split across every staffed smithy it owns, so **what one county forges changes what
+another one can**. That is the Readme's *"turning a blacksmith on will reduce the resources
+available to other blacksmiths"* seen from the other side, and England turn one cannot test
+it at all — every realm there owns exactly one county, so the fixture is `siege-lastturn.sav`,
+whose realm 1 holds three.
+
+**Rule 6 again, and this time the group is a group of one.** `Panel_JobBlacksmith`
+(`0x00413155`) is `L2.eng` **group 75's only consumer in the whole binary**, and index 0 is
+*"Click on a weapon to change production."* — the sentence that tells a player the picture is
+a control. A page of six invisible hotspots with that line missing is not a page with a
+cosmetic gap; it is a control nobody can find, which is what the report was. Indices 1 and 2,
+*"wood needed."* and *"iron needed."*, are in the file and **on no screen**: the two cost
+figures pass `&DAT_004D3E9C` and `&DAT_004D3EA0` as their suffixes and both are the empty
+string, so the iron bar and the log carry the meaning instead. Transcribed anyway, because
+the group is the page's specification.
+
+**What moves in the lockstep digest.** `County::weapon_type` is already inside
+`l2_kingdom::save`'s canonical encoding, so nothing new is hashed — but the setter now moves
+it, and with it `labour[7]`, `labour_wanted[7]`, `labour_useful[7]` and
+`industry[2].next_season` **on every county of the acting realm**. No season pass changed and
+the End Turn differential does not move: this is a player command, and it is a command in the
+lockstep sense too — the original's own multiplayer arm is `Net_SendCommand(0x21, 0)` with
+`FUN_0043A997` run on every machine, which is this crate's model already.
+
+**Two smaller things went in beside it and one was a five-line stub of ours.** The job icon —
+`Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)` out of `Iconvill.pl8`, whose job-9 frame is
+overridden to `0x10` by the painter itself — was the last of the nine panels' missing draws,
+and the recess had been drawn empty since C177. And `text::draw("THE SMITHY IS A FULL PAGE")`
+is gone: `tools/draws/screens.json` had it under `literals_ours` and the draw audit's caption
+test is what noticed, which is the inventory doing the job it was built for rather than a
+person remembering.
