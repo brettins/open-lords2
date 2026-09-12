@@ -1263,6 +1263,21 @@ mod tests {
         }
     }
 
+    /// `OVERVIEW` and `l2_view::scene`'s overview constants are the same four
+    /// numbers out of `FUN_004BC107(…, 0x1E0, 0x18, 2)` and `FUN_004BC020(…,
+    /// 0x50, 0x50, …)`, so they may not drift apart: the painter uses one and
+    /// `BattleMap_Click` uses the other.
+    #[test]
+    fn the_overview_rect_is_the_raster_the_painter_fills() {
+        use l2_view::scene::{OVERVIEW_ORIGIN_X, OVERVIEW_ORIGIN_Y, OVERVIEW_SCALE, OVERVIEW_SIDE};
+        assert_eq!((OVERVIEW.x, OVERVIEW.y), (OVERVIEW_ORIGIN_X, OVERVIEW_ORIGIN_Y));
+        assert_eq!((OVERVIEW.w, OVERVIEW.h), (OVERVIEW_SIDE as i32, OVERVIEW_SIDE as i32));
+        assert_eq!(OVERVIEW_SCALE * l2_sim::terrain::DIM as i32, OVERVIEW_SIDE as i32);
+        // And it ends exactly where `Screen_DrawBattlefield` puts `Misc_bat.pl8`
+        // frame 0, at `(0x1E0, 0xB8)`.
+        assert_eq!(OVERVIEW.y + OVERVIEW.h, 0xB8);
+    }
+
     #[test]
     fn only_the_nine_digit_keys_are_control_groups() {
         assert_eq!(group_slot(b'1'), Some(0));
