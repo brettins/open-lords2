@@ -39,7 +39,9 @@ use l2_sim::terrain::{Battlefield, DIM};
 use l2_sim::{Troop, SIDE_A};
 
 use crate::canvas::{Canvas, Clip};
+use crate::engines;
 use crate::figures::{self, Anim, Colour};
+use crate::missiles;
 use crate::sheet::Sheet;
 
 pub const TILE: i32 = 32;
@@ -175,10 +177,19 @@ pub struct BattleAssets {
     pub palette: Palette,
     pub tiles: Sheet,
     /// One sheet per troop type that has one, for each side. `None` for the
-    /// siege engines, which are drawn from other files entirely.
+    /// siege engines, which are drawn from `engine` instead.
     side4: Vec<Option<Sheet>>,
     side0: Vec<Option<Sheet>>,
     horse: Option<Sheet>,
+    /// `A2_miss.pl8` — every missile in the game, both sides, all five drawn
+    /// classes. [`crate::missiles`].
+    missiles: Option<Sheet>,
+    /// `Engine.pl8` — troop types 7 … 10, **colourless**: `FUN_00480F8B`
+    /// hands all four the same buffer in both banks. [`crate::engines`].
+    engine: Option<Sheet>,
+    /// `Catarm1.pl8` and `Catarm2.pl8`, the near and far halves of the
+    /// catapult's arm.
+    catarm: [Option<Sheet>; 2],
     /// [`OverviewSheets`], when the install has both files.
     pub overview: Option<OverviewSheets>,
 }
@@ -223,11 +234,32 @@ impl BattleAssets {
             (Some(tiles), Some(men)) => Some(OverviewSheets { tiles, men }),
             _ => None,
         };
+        let missiles = sheet(missiles::MISSILE_SHEET);
+        let engine = sheet(engines::ENGINE_SHEET);
+        let catarm = [sheet(engines::ARM_SHEETS[0]), sheet(engines::ARM_SHEETS[1])];
 
-        Ok(BattleAssets { palette, tiles, side4: a, side0: b, horse, overview })
+        Ok(BattleAssets {
+            palette,
+            tiles,
+            side4: a,
+            side0: b,
+            horse,
+            missiles,
+            engine,
+            catarm,
+            overview,
+        })
     }
 
+    /// The sheet a figure's body is drawn from.
+    ///
+    /// `FUN_00480F8B` (`0x00480F8B`): troop types 0 … 6 take the bank's
+    /// colour sheet, **7 … 10 all take `engine.pl8` in both banks**, so a
+    /// siege engine has no side colour and this does not consult `side`.
     fn sheet_for(&self, side: l2_sim::Side, troop: Troop) -> Option<&Sheet> {
+        if troop.is_siege() {
+            return self.engine.as_ref();
+        }
         let bank = if side == SIDE_A { &self.side0 } else { &self.side4 };
         bank.get(troop.index()).and_then(|s| s.as_ref())
     }
@@ -354,16 +386,173 @@ pub fn draw_figures(
             }
         }
 
-        let index = figures::frame(f.troop, f.anim, f.facing, f.phase);
+        let index = match f.troop.is_siege() {
+            true => match engines::frame(f.troop, f.anim, f.facing, f.polar, f.phase) {
+                Some(i) => i,
+                None => continue,
+            },
+            false => figures::frame(f.troop, f.anim, f.facing, f.phase),
+        };
         let Some(frame) = sheet.frame(index) else { continue };
         // `BattleFigure_Draw` centres on the cell using the sprite *width* for
         // both axes, which is why a 48-pixel man sits eight pixels left of and
         // sixteen above his cell's corner. Reproduced rather than corrected.
+        //
+        // Two troop types get one more nudge on y and only on y —
+        // `engines::body_y_nudge`, the painter's `troopType == 9` and
+        // `== 10` arms.
         let w = frame.width as i32;
-        canvas.blit_clipped(&frame, cell_x + (TILE / 2 - w / 2), cell_y - w / 2 + 8, FIELD_CLIP);
+        canvas.blit_clipped(
+            &frame,
+            cell_x + (TILE / 2 - w / 2),
+            cell_y - w / 2 + 8 + engines::body_y_nudge(f.troop),
+            FIELD_CLIP,
+        );
         drawn += 1;
+
+        // **The catapult's arm** — `FUN_004BE7BE`, a second sprite from
+        // `Catarm1/2.pl8` over the carriage, from the *unnudged* cell corner
+        // (the painter restores `g_drawX`/`g_drawY` before it calls this).
+        if f.troop == Troop::Catapults {
+            let swing = runner.sim.figures[f.sim].reload_counter;
+            let arm = engines::arm_frame(f.facing, swing);
+            if let Some(sheet) = assets.catarm[engines::arm_sheet(f.facing)].as_ref() {
+                if let Some(frame) = sheet.frame(arm) {
+                    let w = frame.width as i32;
+                    canvas.blit_clipped(
+                        &frame,
+                        cell_x + (TILE / 2 - w / 2),
+                        cell_y - w / 2 + 8,
+                        FIELD_CLIP,
+                    );
+                }
+            }
+        }
+
+        // **The ram's beam** — `FUN_004BEAB9`, two more `Engine.pl8` frames
+        // above and below the carriage, and only while it is beating on a
+        // gate. Neither carries the `+ 8` the body and the arm do.
+        if f.troop == Troop::BatteringRams {
+            if let Some(strips) = engines::ram_strips(f.anim, f.phase) {
+                for (index, dy) in [strips.0, strips.1] {
+                    let Some(frame) = sheet.frame(index) else { continue };
+                    let w = frame.width as i32;
+                    canvas.blit_clipped(
+                        &frame,
+                        cell_x + (TILE / 2 - w / 2),
+                        cell_y - w / 2 + dy,
+                        FIELD_CLIP,
+                    );
+                }
+            }
+        }
     }
     drawn
+}
+
+/// **The pass after the men** — `FUN_004BD355` (`0x004BD355`), which walks the
+/// viewport plus a one-cell ring and, per cell, draws what overlaps the
+/// figures and then that cell's missiles.
+///
+/// ```c
+/// FUN_004bd938(); FUN_004bda92(); FUN_004bdb95();      /* collect, sort, draw */
+/// for (row …) for (col …) {
+///     if (cell[+2] & 0x80) { gfx = cell[+3]; gfx ? FUN_004bd759(gfx) : FUN_004bd574(); }
+///     if (cell[+6]) FUN_004beed4(cell[+6]);            /* the missile list    */
+/// }
+/// ```
+///
+/// **`docs/battle.md` §13.7 named the wrong byte for the overlap pass.** It
+/// reads *"a second terrain pass for cells flagged `0x04` on byte `+1`"*; the
+/// test here is byte **`+2`** bit **`0x80`**, and the thing drawn is not a
+/// terrain tile — it is `Engine.pl8` (a docked tower's stair,
+/// [`engines::dock_overlay_frame`]) or `A2_miss.pl8` (`FUN_004BD574`'s
+/// animated banner, which is **not built** — see the module head of
+/// [`crate::engines`] for what our cells carry instead of byte `+2`).
+///
+/// Returns how many missiles were drawn.
+pub fn draw_overlay_and_missiles(
+    canvas: &mut Canvas,
+    runner: &BattleRunner,
+    assets: &BattleAssets,
+    cam: Camera,
+) -> usize {
+    // Every live missile, filed by the cell it stands on, in ascending slot
+    // order — `Missile_LinkToCell` (`0x0046EFBE`) appends to the tail and
+    // `Missile_UpdateAll` relinks slots 1 … 100 ascending every tick, so the
+    // list a cell hands the renderer is in slot order.
+    let mut by_cell: std::collections::BTreeMap<(i16, i16), Vec<usize>> = Default::default();
+    for (slot, m) in runner.missiles.iter() {
+        by_cell.entry((m.cell_y, m.cell_x)).or_default().push(slot);
+    }
+
+    let (camx, camy) = (cam.x as i32, cam.y as i32);
+    let mut drawn = 0;
+    let mut nth_fire = 0usize;
+    for row in -1..=VIEW_ROWS as i32 {
+        for col in -1..=VIEW_COLS as i32 {
+            let (mx, my) = (camx + col, camy + row);
+            if mx < 0 || my < 0 || mx >= DIM as i32 || my >= DIM as i32 {
+                continue;
+            }
+            let (px, py) = (ORIGIN_X + col * TILE, ORIGIN_Y + row * TILE);
+
+            dock_overlay(canvas, runner, assets, mx as usize, my as usize, px, py);
+
+            let Some(slots) = by_cell.get(&(my as i16, mx as i16)) else { continue };
+            for &slot in slots.iter().take(missiles::CELL_LIST_LIMIT) {
+                let m = runner.missiles.get(slot);
+                let Some(index) = missiles::frame(m) else { continue };
+                let Some(sheet) = assets.missiles.as_ref() else { continue };
+                let Some(frame) = sheet.frame(index) else { continue };
+                // A missile's position is already in pixels: thirty-seconds
+                // of a cell, and a cell is 32 pixels. `DAT_004E5D44` is
+                // `tileSize / 2` and is the whole of the centring — no
+                // sprite-width term, unlike every figure on the field.
+                let mut x = ORIGIN_X + (m.x as i32 - camx * TILE) + TILE / 2;
+                let mut y = ORIGIN_Y + (m.y as i32 - camy * TILE) + TILE / 2;
+                if m.class == l2_sim::missile::CLASS_FIRE {
+                    let (jx, jy) = missiles::jitter(runner.tick, nth_fire);
+                    nth_fire += 1;
+                    x += jx;
+                    y += jy;
+                }
+                canvas.blit_clipped(&frame, x, y, FIELD_CLIP);
+                drawn += 1;
+            }
+        }
+    }
+    drawn
+}
+
+/// **A docked siege tower's stair** — `FUN_004BD759` (`0x004BD759`), one of
+/// `Engine.pl8` frames `0x1F … 0x22` over the centre cell of the 3 × 3
+/// `FUN_00491492` leaves behind, drawn after the men so the tower's top
+/// overlaps them. Centred `(0x10 - w / 2)` on **both** axes.
+///
+/// The original gates on cell byte `+2` bit `0x80`; our cells have no byte
+/// `+2`, so this gates on `flags & 1`, which `l2_sim::siege::lay_tower_ramp`
+/// sets on those nine cells and nothing else in `l2_sim` sets anywhere. The
+/// gate is not optional: `Engine.pl8`'s four codes are 73, 76, 97 and 100, and
+/// the field tileset's hills occupy 64 … 111.
+fn dock_overlay(
+    canvas: &mut Canvas,
+    runner: &BattleRunner,
+    assets: &BattleAssets,
+    mx: usize,
+    my: usize,
+    px: i32,
+    py: i32,
+) {
+    let cell = runner.field.at(mx, my);
+    if cell.flags & 1 == 0 {
+        return;
+    }
+    let Some(index) = engines::dock_overlay_frame(cell.gfx) else { return };
+    let Some(sheet) = assets.engine.as_ref() else { return };
+    let Some(frame) = sheet.frame(index) else { return };
+    let w = frame.width as i32;
+    canvas.blit_clipped(&frame, px + (TILE / 2 - w / 2), py + (TILE / 2 - w / 2), FIELD_CLIP);
 }
 
 /// **The overview panel, `rows` rows of it starting at `row`** —
@@ -439,10 +628,18 @@ pub fn draw_overview_rows(
     }
 }
 
-/// One whole frame: terrain, then figures.
+/// One whole frame, in the original's order: the terrain
+/// (`FUN_004BCBDC`), the men sorted by map y (`FUN_004BD938` →
+/// `FUN_004BDA92` → `FUN_004BDB95`), then the per-cell pass that puts what
+/// overlaps them and the missiles on top (`FUN_004BD355`).
+///
+/// Returns the number of figures drawn, which is what the headless tests
+/// assert on; [`draw_overlay_and_missiles`] returns the missiles.
 pub fn draw(canvas: &mut Canvas, runner: &BattleRunner, assets: &BattleAssets, cam: Camera) -> usize {
     draw_terrain(canvas, &runner.field, &assets.tiles, cam);
-    draw_figures(canvas, runner, assets, cam)
+    let figures = draw_figures(canvas, runner, assets, cam);
+    draw_overlay_and_missiles(canvas, runner, assets, cam);
+    figures
 }
 
 /// Where the camera should sit to watch the fighting.

@@ -29,6 +29,9 @@
 //!   and the `vill_gd8.pl8` grid that decides where a drop lands.
 //! * [`scene`] — the battlefield viewport and the men on it.
 //! * [`figures`] — sprite-frame arithmetic; [`sheet`] — cached PL8 decoding.
+//! * [`missiles`] — `A2_miss.pl8`: arrows, bolts, catapult shot, debris and
+//!   fire; [`engines`] — `Engine.pl8` and `Catarm1/2.pl8`, the four troop
+//!   types that are not men.
 //! * [`text`] and [`ink`] — our own 5 x 7 font and the palette-resolved
 //!   interface colours. Both are ours, not the original's, and say so.
 //!
@@ -50,9 +53,11 @@
 pub mod campaign;
 pub mod canvas;
 pub mod chrome;
+pub mod engines;
 pub mod fade;
 pub mod figures;
 pub mod ink;
+pub mod missiles;
 pub mod scene;
 pub mod sheet;
 pub mod text;

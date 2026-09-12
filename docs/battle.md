@@ -164,7 +164,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x16A` | u8 | weaponClass | [V] | 0 melee, 1 bow, 2 crossbow, 3 catapult. |
 | `+0x16B` | i8 | reloadTicks | [V] | `g_missileStats[class][1]`. |
 | `+0x16C` | u8 | missileSubSteps | [V] | `g_missileStats[class][2]`, always 4. |
-| `+0x16E` | i16 | missileSprite | [D] | `g_missileStats[class][4]`; added to the flight direction to pick the missile frame. |
+| `+0x16E` | i16 | missileSprite | [V] | `g_missileStats[class][4]` — **0 bow, 8 crossbow, 16 catapult**, read off the table. `BattleMan_FireMissile` writes the missile's frame `+0x12` as `(ushort)missile[+0x2E] + missile[+0x34]`, the flight direction plus this. **It is not always added**: `BattleMan_StateEngineFire` writes the base alone, so a catapult shot has one picture and an arrow has eight. This row was `[D]` and said only the first half. §13.11 |
 | `+0x170` | i16 | range | [V] | `g_missileStats[class][0]`, in **eighths of a cell** — every consumer computes `range >> 3`. |
 
 ### 2.4 Movement and routing
@@ -1379,8 +1379,17 @@ are identical with and without painting.
 
 ### 13.7 Draw order
 
-**[V]** Per frame: terrain pass, then figures, then a second terrain pass for
-cells flagged `0x04` on byte `+1` (tiles that overlap the men), then missiles.
+**[V]** Per frame: terrain pass, then figures, then a per-cell pass over the
+viewport plus a one-cell ring that draws what overlaps the men and then that
+cell's missiles.
+
+**Corrected: the overlap test is byte `+2` bit `0x80`, not byte `+1` bit
+`0x04`, and what it draws is not a terrain tile.** `FUN_004BD355`
+(`0x004BD355`) is the whole pass — `FUN_004BD938`, `FUN_004BDA92`,
+`FUN_004BDB95`, then the loop — and each flagged cell dispatches on its
+graphic byte `+3`: zero to `FUN_004BD574` (an eight-frame banner out of
+`A2_miss.pl8`), anything else to `FUN_004BD759`, which answers exactly four
+codes and draws a **docked siege tower's stair** out of `Engine.pl8`. §13.11.
 
 Figures are collected if they lie within one cell of the viewport
 (`0x004BD938`), **bubble-sorted by map y ascending** (`0x004BDA92`) and drawn in
@@ -1443,9 +1452,9 @@ layout above.
   orientation. §14.8. It is the only function in the battle that does.
 * **The LFSR seed** a battle starts from, and therefore which grass tile any
   particular cell gets.
-* **Missiles, siege engines and the panel.** `A2_miss.pl8`, `Engine.pl8`,
-  `Catarm1/2.pl8`, `Misc_bat.pl8` and the 2-pixel minimap tiles are all located
-  and none is drawn by us.
+* ~~**Missiles, siege engines and the panel.**~~ Settled and built — §13.11 for
+  the six painters and the frame map. What is left of this bullet is
+  `Misc_bat.pl8` and `FUN_004BD574`'s banner.
 * **Nothing has been compared against the original's framebuffer.** Every claim
   here is arithmetic over the binary and the shipped art. The renderer produces
   an indexed 640 x 480 buffer precisely so that comparison stays possible, but
@@ -1473,6 +1482,111 @@ Ghidra scripts live in `ghidra_scripts_view/` (`VBDecomp`, `VBRefs`, `VBDump`,
 not edit the same files.
 
 ---
+
+### 13.11 Missiles and siege engines, end to end  **[V]**
+
+The two sheets §13.9 listed as located and undrawn. `docs/decisions.md`
+`CNEW-missiles-engines`; built in `crates/l2-view/src/missiles.rs` and
+`crates/l2-view/src/engines.rs`.
+
+**One sheet for all the missiles and one for all the engines, and neither is a
+colour.** `FUN_00480F8B` (`0x00480F8B`) writes `DAT_00566518` into all hundred
+missile records' `+0x00`, and gives troop types **7, 8, 9 and 10 the same
+`DAT_00553250` in both banks** — slots 6 and 8 of the asset table at
+`0x004DA550`, `a2_miss.pl8` and `engine.pl8`. The catapult's arm is a second
+sprite from slots 9 and 10, `catarm1.pl8` and `catarm2.pl8`.
+
+#### The six painters
+
+| function | draws | sheet |
+|---|---|---|
+| `FUN_004BEED4` (`0x004BEED4`) | every missile in flight, by walking cell byte `+6` | `A2_miss.pl8` |
+| `BattleFigure_Draw` (`0x004BDC31`) | an engine's carriage, and the two y nudges below | `Engine.pl8` |
+| `FUN_004BE7BE` (`0x004BE7BE`) | the catapult's **arm**, over the carriage | `Catarm1/2.pl8` |
+| `FUN_004BEAB9` (`0x004BEAB9`) | a ram's beam, two strips, **only in state 14** | `Engine.pl8` |
+| `FUN_004BD759` (`0x004BD759`) | a docked tower's stair, over the men | `Engine.pl8` |
+| `FUN_004BD574` (`0x004BD574`) | an eight-frame banner, `shield × 8 + 0x21` on `g_pulse80` | `A2_miss.pl8` |
+
+#### `A2_miss.pl8`, 81 frames
+
+| frames | what | written by |
+|---|---|---|
+| 0 … 7 | an arrow, by flight direction `+0x2E` | `BattleMan_FireMissile`, once at spawn |
+| 8 … 15 | a crossbow bolt | the same |
+| 16 | the catapult shot — **no direction** | `BattleMan_StateEngineFire` (`0x004843BC`) |
+| 17 … 24 | catapult debris, `DAT_004D9950[ttl >> 1]` | `Missile_UpdateAll`, every tick |
+| 25 … 40 | a burning cell, `DAT_004D99A8[ttl >> 4]` | the same |
+| `0x21 + shield × 8 + 0 … 7` | the banner | `FUN_004BD574` |
+| — | **class 7, boiling oil: not drawn at all** | — |
+
+The banner block ends on frame 80 with the sixth shield, which is what closes
+the file. Debris and fire count *down* through their tables, so the picture
+walks 17 → 24 as rubble settles.
+
+#### `Engine.pl8`, 46 frames, and `Catarm1/2.pl8`, 20 each
+
+Three functions write an engine's frame — `FUN_00488436` (from `Anim_WalkA2`),
+`FUN_00488793` (from `Anim_StrikeA2`, `Anim_StandA2`, `Anim_DyingA2`,
+`Anim_DrawBowA2`) and `FUN_0048895E` (from `Anim_CollapseA2` and the engine
+state handlers 12 … 15). The first two differ only in whether a tower's
+`polarDirc` is recomputed; the third is the one that changes the picture.
+
+| frames | size | what | formula |
+|---|---|---|---|
+| 0 | 88 × 122 | the ram, every facing | `0` |
+| 1 … 4 | 96 × 96 | the siege tower | `(polarDirc >> 1) + 1` |
+| 5 … 12 | 128 × 120 | the catapult's carriage | `dirc + 5` |
+| 13 … 21 | 48 × 35 | the ram's lower beam strip | `+0x11 + 0x0D`, `FUN_004BEAB9` |
+| 22 … 30 | 48 × 22 | its upper strip | `+0x11 + 0x16` |
+| 31 … 34 | 96 × 96 | a docked tower's stair | `FUN_004BD759`, by gfx code |
+| 35 … 40 | 32 × 32 | a pot of oil, idling | `(animPhase >> 3) + 0x23` |
+| 41 | 32 × 32 | **nothing reaches it** | — |
+| 42 … 45 | 32 × 32 | a pot of oil, pouring | `(polarDirc >> 1) + 0x2A` |
+
+The arm is `dirc % 4 × 5 + g_horseWalkCycle[animPhase >> 2]` out of
+`catarm1.pl8` for `dirc < 4` and `catarm2.pl8` otherwise: four facings of five
+poses is each file's twenty. `g_horseWalkCycle` (`0x004D9C08`) is the
+**horse's** curve, reused — and `FUN_0048895E` steps `animPhase` only while
+`swingTimer >= 100`, so the arm is still while the crew winds and arcs over
+during the eighty ticks after the shot.
+
+**Every block was derived from the code and then found to be one sprite size in
+the file.** That is a second, independent witness: no wrong base reproduces it.
+
+#### Where a missile is drawn
+
+```
+screen = origin + (missile[+0x0A] − camX·0x20, missile[+0x0C] − camY·0x20) + tileSize/2
+```
+
+**A missile's position is already in pixels** — `+0x0A`/`+0x0C` are
+thirty-seconds of a cell and a battle tile is 32 pixels — and **there is no
+sprite-width centring**, where every figure has one. `DAT_004E5D44` is
+`param_11 / 2`, stored by `FUN_004BC020`.
+
+A class-5 record also takes one of sixteen `(i32, i32)` offsets at
+`0x004E4470`, chosen by `DAT_004E5B1C`: a render-side global, pre-incremented
+once per fire *drawn* and never reset, so a burning cell shimmers.
+
+Cell byte `+6` is the head and missile `+0x04` the link; `Missile_LinkToCell`
+appends to the tail and `Missile_UpdateAll` relinks slots 1 … 100 ascending
+every tick, so a cell's list is in slot order. **Both ends give up after ten**,
+so an eleventh missile on one cell is not drawn.
+
+#### The engine y nudges
+
+`BattleFigure_Draw` adds one more offset, on y only and to two troop types:
+**`+0x0C` for a ram (9), `+8` for a pot of oil (10)**. Nothing for a catapult
+or a tower, and nothing anywhere else in the game.
+
+#### What `FUN_004BD759` actually is
+
+`FUN_00491492` (§17.6) writes `DAT_004D9DD0[k + polarDirc × 9]` into the
+graphic byte of every cell of a docked tower's 3 × 3 and sets byte `+2` bit
+`0x80` on the **centre**. The four centre codes read out of that table are
+`0x49`, `0x4C`, `0x61`, `0x64` — exactly the four `FUN_004BD759` answers, and
+each maps to one of `Engine.pl8` 31 … 34. So the tower's top is redrawn over
+the men once the tower itself is gone.
 
 ## 14. The dispatch tables, read end to end
 
@@ -2526,3 +2640,7 @@ chapter and not changed by it: our castle has no frames, and its rampart walk is
 * The player's fire arrow (state 17), the engine side-step, a corpse's eighty frames, and
   `g_battleSizeClass`'s `scale × siegeEngines` term — `size_class` is fed the two armies' total
   alone, and the missile hit still passes size class 0.
+* **A corpse's eighty frames now costs a picture too.** `FUN_0047A814` puts a spent pot
+  into state 2, whose collapse tick reaches `FUN_0048895E` and the pour frames 42 … 45.
+  Ours has no corpse lifetime, so a pot that has poured holds its pouring picture for the
+  rest of the battle instead of collapsing out of it. §13.11.

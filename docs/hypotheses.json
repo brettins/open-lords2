@@ -240,27 +240,27 @@
       "name": "Anim_EngineMove",
       "section": "battle",
       "confidence": "subject",
-      "comment": "Siege-engine frames. Type 10 (oil) steps animPhase to 0x2F and reads frame 0x23 + phase >> 3; type 8 (tower) folds dirc and polarDirc into four half-facings; type 7 (catapult) uses dirc + 5 and a horse frame of dirc * 5.",
-      "basis": "the else-branch every a2 animation handler takes for troopType > 6",
-      "caveat": "The four branches are on troop types 7, 8, 9 and 10 and it writes frame and horseFrame, so it is certainly the siege-engine animation. \"Move\" versus \"work\" for this one and Anim_EngineWork rests only on which states call which."
+      "comment": "Siege-engine frames, the arm Anim_WalkA2 takes for troopType > 6. Recomputes a tower's polarDirc from its dirc with hysteresis on the diagonals, then writes frame +0x10: ram 0, tower (polarDirc >> 1) + 1, catapult dirc + 5, pot of oil (animPhase >> 3) + 0x23 over an animPhase that wraps past 0x2F. For a catapult it also writes horseFrame +0x11 = dirc * 5, less 0x14 for dirc > 3 - the base of its arm in catarm1/2.pl8, which CatapultArm_Draw (0x004BE7BE) reads.",
+      "basis": "the else-branch every a2 animation handler takes for troopType > 6, and the ONLY one Anim_WalkA2 takes. Every frame it can write is inside Engine.pl8's 46, and each block it names is one physical sprite size in the file - docs/battle.md 13.11",
+      "caveat": "The frame arithmetic is now verified against the shipped art; the NAME is still the reading. 'Move' rests on its one caller being the walk handler, which is exhaustive but is an argument about intent, not a fact about the bytes."
     },
     {
       "addr": "0x00488793",
       "name": "Anim_EngineHold",
       "section": "battle",
       "confidence": "subject",
-      "comment": "The still pose for a siege engine.",
-      "basis": "the third engine helper; every a2 handler that is not Anim_EngineMove falls back to it",
-      "caveat": "Called by thirteen functions and does the least of the three. \"Hold\" is a guess at intent."
+      "comment": "The still pose for a siege engine: the same frames as Anim_EngineMove without the tower polar recompute.",
+      "basis": "the arm Anim_StrikeA2, Anim_StandA2, Anim_DyingA2 and Anim_DrawBowA2 all take for troopType > 6 - the four stationary handlers, enumerated exhaustively",
+      "caveat": "'Hold' is a guess at intent. What is settled is that its callers are exactly the handlers that do not move a figure, and that its frames are Anim_EngineMove's."
     },
     {
       "addr": "0x0048895E",
       "name": "Anim_EngineWork",
       "section": "battle",
       "confidence": "subject",
-      "comment": "Siege-engine frames while the engine is doing its job. Reads g_horseWalkCycle.",
-      "basis": "the sibling of Anim_EngineMove; called by the firing and dying engine states",
-      "caveat": "Same shape as Anim_EngineMove with a longer animPhase range (0xA0 up for a catapult once swingTimer passes 100, 0x8F down for a ram) and the horse cycle table. That the longer animation is the working one is inference from the callers."
+      "comment": "Siege-engine frames while the engine is doing its job. Three differences from Anim_EngineMove, all verified against Engine.pl8: a pot of oil draws the POUR, (polarDirc >> 1) + 0x2A, rather than the idle bubble; a catapult's arm gets g_horseWalkCycle[animPhase >> 2] added to its base, with animPhase stepped only while swingTimer >= 100 - the eighty ticks after the shot, BattleMan_StateEngineFire wrapping the timer at 179; and a ram counts animPhase DOWN from 0x8F, horseFrame = animPhase >> 4, which is the beam RamBeam_Draw (0x004BEAB9) draws.",
+      "basis": "called by BattleMan_StateEngineFire, BattleMan_StateEngineWork, BattleMan_StateRamGate, BattleMan_StateEngineDead and Anim_CollapseA2 - enumerated exhaustively, and the only three engine helpers in the binary",
+      "caveat": "'Work' is the reading. The frame formulas are verified: 0x2A + polar/2 and 0x23 + phase/8 are the pot's two blocks in Engine.pl8, 42..45 and 35..40, and the arm's base plus g_horseWalkCycle's 0..4 is exactly Catarm1.pl8's twenty frames."
     }
   ],
   "fields": [

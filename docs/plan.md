@@ -796,8 +796,8 @@ arms enumeration is the evidence that the technique works. Doing both at once wo
 half-inventories and no finished one.
 
 **The naming campaign is in flight and is not on the critical path.**
-<!--fig:functions-->1,309<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig-->
-(<!--fig:functions-pct-->53<!--/fig-->%) are named. Most of the rest is CRT, allocator, string and
+<!--fig:functions-->1,315<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig-->
+(<!--fig:functions-pct-->54<!--/fig-->%) are named. Most of the rest is CRT, allocator, string and
 DirectDraw glue, and naming it is not the goal — but under 1:1 the fraction matters more than it
 did, because an unnamed function is a behaviour nobody has looked for, and every miss this month
 was exactly that.
@@ -948,7 +948,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,587<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,606<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -1051,9 +1051,9 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->1,309<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->1,315<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
-  <!--fig:functions-pct-->53<!--/fig-->%. The review measured that *"the rest is mostly CRT and
+  <!--fig:functions-pct-->54<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and
   the conclusion survives for a different reason: we are inventing our interface rather than
   cloning the original's. Name what a plan item needs, when it needs it.

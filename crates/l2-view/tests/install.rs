@@ -228,6 +228,100 @@ fn the_knight_frame_table_fits_the_knight_sheets() {
     }
 }
 
+/// **The missile and siege-engine frame maps against the shipped files, and
+/// they close with one frame spare.**
+///
+/// `A2_miss.pl8` is slot 6 of the battle asset table at `0x004DA550`,
+/// `engine.pl8` slot 8, `catarm1/2.pl8` slots 9 and 10. The arithmetic that
+/// indexes them is read out of `BattleMan_FireMissile` (`0x00483337`),
+/// `Missile_UpdateAll` (`0x00485BB1`), `FUN_00488436`, `FUN_00488793`,
+/// `FUN_0048895E` and `FUN_004BE7BE`; the frame counts are read off the files.
+/// Getting any of the bases wrong breaks one of the three identities:
+///
+/// * **81** in `A2_miss.pl8` = 33 + six shields × 8 — the banner block
+///   `FUN_004BD574` indexes runs to the last frame, and the missile blocks
+///   0 … 40 sit under it;
+/// * **46** in `Engine.pl8`, and `(polarDirc >> 1) + 0x2A` reaches 45;
+/// * **20** in each `Catarm`, and `dirc % 4 × 5 + g_horseWalkCycle[…]`
+///   reaches 19.
+///
+/// The physical frame sizes are a fourth, independent check that costs
+/// nothing: the blocks the arithmetic claims are each one size — 96 × 96 for
+/// the tower's four and the docked stair's four, 128 × 120 for the catapult's
+/// eight, 32 × 32 for the pot's eleven.
+#[test]
+fn the_missile_and_engine_frame_maps_fit_the_shipped_sheets() {
+    use l2_sim::missile::{Missile, CLASS_DEBRIS, CLASS_FIRE};
+    use l2_sim::Motion;
+    use l2_view::{engines, missiles};
+
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+    let sheet = |name: &str| Sheet::new(read(&dir, name).unwrap_or_else(|| panic!("{name}"))).unwrap();
+
+    let miss = sheet(missiles::MISSILE_SHEET);
+    assert_eq!(miss.frame_count(), 81, "A2_miss.pl8 = 33 + 6 shields x 8");
+    for class in [1u8, 2, 3, CLASS_DEBRIS, CLASS_FIRE] {
+        for dir in 0..8u8 {
+            for ttl in 0..=0x280i16 {
+                let m = Missile { owner: 1, class, dir, ttl, ..Missile::default() };
+                let Some(f) = missiles::frame(&m) else { continue };
+                assert!(miss.frame(f).is_some(), "A2_miss.pl8 frame {f} (class {class})");
+            }
+        }
+    }
+    // The banner `FUN_004BD574` draws — `shield * 8 + counter + 0x21` — ends
+    // on the sheet's last frame, which is what fixes the six blocks under it.
+    assert_eq!(0x21 + 5 * 8 + 7, miss.frame_count() - 1);
+
+    let engine = sheet(engines::ENGINE_SHEET);
+    assert_eq!(engine.frame_count(), 46, "Engine.pl8");
+    for troop in [Troop::Catapults, Troop::SiegeTowers, Troop::BatteringRams, Troop::Oil] {
+        for anim in [Motion::Idle, Motion::Walking, Motion::Attacking, Motion::Dying] {
+            for facing in 0..8u8 {
+                for polar in [0u8, 2, 4, 6] {
+                    for phase in 0..=255u8 {
+                        let f = engines::frame(troop, anim, facing, polar, phase).unwrap();
+                        assert!(engine.frame(f).is_some(), "Engine.pl8 frame {f} ({troop:?})");
+                    }
+                }
+            }
+        }
+    }
+    for phase in 0..=255u8 {
+        let ((u, _), (l, _)) = engines::ram_strips(Motion::Attacking, phase).unwrap();
+        assert!(engine.frame(u).is_some() && engine.frame(l).is_some(), "the ram's strips");
+    }
+    for (_, f) in engines::DOCK_OVERLAY {
+        assert!(engine.frame(f).is_some(), "the docked stair, frame {f}");
+    }
+
+    // Each block the map claims is one physical size, which no wrong base
+    // could reproduce.
+    let size = |i: usize| engine.frame(i).map(|f| (f.width, f.height)).unwrap();
+    assert!((1..=4).all(|i| size(i) == (96, 96)), "the tower's four facings");
+    assert!((5..=12).all(|i| size(i) == (128, 120)), "the catapult's eight");
+    assert!((0x1F..=0x22).all(|i| size(i) == (96, 96)), "the docked stair's four");
+    assert!((0x23..=0x2D).all(|i| size(i) == (32, 32)), "the pot's eleven");
+    assert_eq!(size(0x0D), size(0x15), "the ram's lower strip is one block");
+    assert_eq!(size(0x16), size(0x1E), "and its upper strip another");
+
+    for (half, name) in engines::ARM_SHEETS.iter().enumerate() {
+        let arm = sheet(name);
+        assert_eq!(arm.frame_count(), 20, "{name} = 4 facings x 5 poses");
+        for facing in 0..8u8 {
+            if engines::arm_sheet(facing) != half {
+                continue;
+            }
+            for swing in 0..=engines::ARM_SWING_TICKS {
+                let f = engines::arm_frame(facing, swing);
+                assert!(arm.frame(f).is_some(), "{name} frame {f}");
+            }
+        }
+    }
+}
+
 /// Map a virtual address to a file offset through the PE section headers.
 /// `Lords2.exe` has no ASLR and a fixed image base of `0x400000`, so a virtual
 /// address is a constant.
