@@ -181,6 +181,23 @@ pub struct Zoom {
     /// square through `Gfx_MarkTile48` and the mercenary marks **nothing**,
     /// which is a repaint economy we do not have and do not need. **[V]**
     pub mercenary_at: (i32, i32),
+    /// **Where the besieger's camp mark goes** — `Sprite_TopIt`'s arm 6, the
+    /// one call site of [`besieger_marker`]'s painter:
+    ///
+    /// ```c
+    /// if (units[garrison].besiegedBy != 0) {
+    ///   if      (g_mapZoom == 0) FUN_00407f82(units[besieger].siegeSeasonsLeft, 8, -0x38);
+    ///   else if (g_mapZoom == 2) FUN_00407f82(units[besieger].siegeSeasonsLeft, 2, -0x28);
+    /// }
+    /// ```
+    ///
+    /// **The far zoom's pair is dead and is kept anyway.** `FUN_00407F82`'s
+    /// entire body is inside `if (g_mapZoom == 0)` — `83 3D 18CB5700 00` then
+    /// `0F 84 05` / `E9 07 02` at `0x00407F8C`, read out of the shipped bytes —
+    /// so the second call draws nothing at all and a besieged castle carries no
+    /// mark at zoom 2. `docs/bugs.md`; the offset is recorded here so nobody
+    /// re-derives it when asking why. **[V]**
+    pub besieger_at: (i32, i32),
 }
 
 /// Zoom 0: 58 × 30 tiles, eight lattice columns on screen.
@@ -207,6 +224,7 @@ pub const NEAR: Zoom = Zoom {
     flags: "Flags1a.pl8",
     flag_at: (0x1A, -0x1C),
     mercenary_at: (0x10, -0x12),
+    besieger_at: (8, -0x38),
 };
 
 /// Zoom 2: 10 × 6 tiles, forty lattice columns on screen. The original pins the
@@ -257,6 +275,7 @@ pub const FAR: Zoom = Zoom {
     flags: "Flags2a.pl8",
     flag_at: (6, -0x15),
     mercenary_at: (6, -0x15),
+    besieger_at: (2, -0x28),
 };
 
 /// The two zooms the campaign screen actually has, near first.
@@ -855,6 +874,79 @@ pub fn draw_mercenary_marker(
     let at = zoom.mercenary_at;
     blit_over_tile(canvas, assets, view, zoom, tile, MERCENARY_MARKER_FRAME, at, clip)
 }
+
+/// **`FUN_00407F82` (`0x00407F82`) — the besieger's camp mark over a besieged
+/// castle, and the count of siege seasons left under it.**
+///
+/// [`draw_flag`] with a third offset and a constant frame, plus a number. The
+/// number is the caller's to draw because it needs a font, so this returns
+/// *where* it goes:
+///
+/// ```c
+/// if (g_mapZoom != 0) return;                      /* the whole body */
+/// g_drawX += dx;  g_drawY += dy;  DAT_005C9288 = 0x82;
+/// g_spriteWidth = *(short *)(g_flagsSheet + 0x828);    /* frame 0x82's own width */
+/// …clip, blit…
+/// DAT_005AEA40 = 1;                                    /* flat, no emboss */
+/// if (0x18 < y0 + dy + 10)
+///   Ui_DrawNumberRight(seasonsLeft, ' ', " ", x0 + dx, y0 + dy + 10,
+///                      g_spriteWidth, &g_fontBody, 0xF9);
+/// DAT_005AEA40 = 0;
+/// ```
+///
+/// Three things in that are decisions, not detail:
+///
+/// * **`Ui_DrawNumberRight` centres** (`docs/symbols.md`, `0x004030C6`), and the
+///   width it centres in is **frame `0x82`'s own width** — `+0x828` is the
+///   8-byte PL8 header plus `0x82 * 0x10`, landing on the width field at `+0`
+///   of that frame's record (`docs/formats/pl8.md`), which is also what fixes
+///   the frame index at `0x82` from a second direction. The count sits under
+///   the middle of the mark whatever the artwork is; in the shipped
+///   `Flags1a.pl8` that frame is **24 × 28 and the last of 131**.
+/// * **The suffix is one space.** `DAT_004D2094` is `20 00 00 00`, read out of
+///   `.data` at file offset `0xD0294`, and `FUN_004025D7` measures it — the
+///   trailing space is inside the centring, not after it.
+/// * **`0x18` is the menu bar.** The blit is clipped; the number is not, and
+///   this test is all that keeps it off the bar.
+///
+/// Returns `(x, y, width)` for the count, or `None` when nothing was drawn —
+/// the far zoom, a missing sheet, or a mark so high the number would land on
+/// the menu bar.
+pub fn besieger_marker(
+    canvas: &mut Canvas,
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    clip: Clip,
+) -> Option<(i32, i32, i32)> {
+    if zoom.id != NEAR.id {
+        return None;
+    }
+    let at = zoom.besieger_at;
+    let decoded = assets.flag_sheet(zoom)?.frame(BESIEGER_MARKER_FRAME)?;
+    let width = i32::from(decoded.width);
+    let (row, col) = tile_to_cell(tile.0, tile.1);
+    let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    canvas.blit_clipped(&decoded, sx + at.0, sy + at.1, clip);
+    let y = sy + at.1 + BESIEGER_COUNT_DY;
+    (BESIEGER_COUNT_TOP < y).then_some((sx + at.0, y, width))
+}
+
+/// `Flags1a.pl8` frame `0x82` — the tent an army camped outside a castle flies,
+/// `DAT_005C9288 = 0x82` in `FUN_00407F82` and its only appearance in the
+/// image.
+pub const BESIEGER_MARKER_FRAME: usize = 0x82;
+
+/// Ten pixels below the mark's own top-left, `y0 + dy + 10`.
+pub const BESIEGER_COUNT_DY: i32 = 10;
+
+/// `if (0x18 < …)` — the menu bar's height, and the count's only clip.
+pub const BESIEGER_COUNT_TOP: i32 = 0x18;
+
+/// `0xF9`, the pen `FUN_00407F82` passes and the one the diplomacy screen's
+/// inner selection outline uses. Not the ordinary `0x3F`.
+pub const BESIEGER_COUNT_INK: u8 = 0xF9;
 
 /// The body both town arms share: `g_flagsSheet`, a frame, and an offset added
 /// to the tile origin with no centring.

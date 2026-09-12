@@ -987,9 +987,13 @@ into the gitignored `out/` so it can be looked at.
 * **settlement state** on the map — `FUN_004071A0`'s industry-shut-down marker
   (`Flags1a.pl8` frames `0x28 … 0x37`, cycled on its own 16-step counter) and the field
   overlay block at `0x55 … 0x66`;
-* the **besieger's banner** (`Flags1a.pl8` frame `0x82` with the seasons left under it,
-  `FUN_00407F82`) and the **selection flood fill** the original paints for an army under
-  orders. Ours are a dot and a ring;
+* the **selection flood fill** the original paints for an army under orders. Ours is a ring.
+  ~~The **besieger's banner** (`Flags1a.pl8` frame `0x82` with the seasons left under it,
+  `FUN_00407F82`).~~ **Built.** It is over the *castle*, in `draw_flags`, not over the army
+  where our dot was — `Sprite_TopIt`'s castle arm reads `units[county.garrisonUnit].besiegedBy`
+  and calls `FUN_00407F82(units[besieger].siegeSeasonsLeft, 8, -0x38)`. At the far zoom it
+  calls it with `(2, -0x28)` and the callee returns without drawing, which is the original's
+  and is in `docs/bugs.md`;
 * the File / Options / Help menus, their drop-downs, and everything the right column puts
   *inside* frames 55 / 66 / 56 / 58 — our own numbers go on a dark backing over frame 56,
   which is the one plain part of the column, so they read as an overlay;

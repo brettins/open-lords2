@@ -1725,11 +1725,12 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // **The fallback is not decoration.** A world that did not come through
         // the front end — a `.sav` imported by `l2-scenario`, a kingdom a test
         // built — has no names in it, and an empty third line under two full
-        // ones looks like a drawing fault rather than like missing data.
-        let owner = match ctx.game.player_names[c.owner as usize].as_str() {
-            n if n.is_empty() => format!("REALM {}", c.owner),
-            n => n,
-        };
+        // ones looks like a drawing fault rather than like missing data. It is
+        // [`super::message::lord_name`]'s, shared with the court, the battle
+        // prompt and the three diplomacy screens: `g_playerNames` and then
+        // `L2.eng` group 7 by the realm's **lord**, which is the pair
+        // `Game_NewGame` itself uses.
+        let owner = super::message::lord_name(ctx, c.owner);
         // **The pen is keyed by the realm's shield, not by its id**, and that
         // was the bug a player reported as *"the sovereign land text has the
         // wrong colours … the counties seem to have the right colours … but the

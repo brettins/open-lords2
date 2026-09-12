@@ -702,7 +702,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "S031_01 ... S031_04 and S071_02 ... S071_06, the picked unit or castle",
-      "note": "The last statement of both functions that open screen 0x04, which is the edge TileInfo_Draw#1..#4 already uses."
+      "note": "The last statement of both functions that open screen 0x04, which is the edge TileInfo_Draw#1..#4 already uses. NO MERCHANT ARM, and that is the original's and not a gap of ours: the ladder tests kind 1, 4 and 2 and returns for anything else, so kind 3 falls out of the bottom; only four S031_*.wav ship; and L2.eng group 31 holds FIVE unit descriptions where four have voices - 13..16 are these four in this order and index 12, 'Merchants allow a county to buy needed supplies and raise revenue by selling goods.', is the one with prose and no recording. Map_Click sends a left click on a merchant to screen 0x08 instead, so the panel never opens on one that way."
     },
     {
       "id": "FUN_004b3940#1",

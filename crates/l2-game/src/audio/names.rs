@@ -501,6 +501,27 @@ pub mod speech {
     /// silent for a reason rather than by omission: `Map_Click` sends a click on
     /// a merchant to screen `0x08`, the stall, so the information panel never
     /// opens on one from the left button. `[V]`
+    ///
+    /// # Three independent readings, because "we found nothing" is a claim
+    ///
+    /// A report — *"picking a merchant says nothing, where a unit or a castle
+    /// speaks"* — sent somebody looking for the missing arm. **There is none,
+    /// and it is not a gap.** `CLAUDE.md` rule 5: the finding is that the
+    /// original does not do it.
+    ///
+    /// 1. **The ladder.** `FUN_004B37BC` is the last statement of *both*
+    ///    functions that open screen `0x04` (`FUN_0043893C` and `Map_Click`'s
+    ///    `flags & 0x20` arm). It tests kinds 1, 4 and 2 and the castle branch
+    ///    and `return`s for everything else; kind 3 falls out of the bottom.
+    /// 2. **The files.** Four `S031_*.wav` ship and there is no fifth.
+    /// 3. **The group, which is the reading that settles it.** `L2.eng` group
+    ///    31 holds five unit descriptions and four of them are these four, in
+    ///    this order: 13 *"These starving revolutionaries…"*, 14 *"This
+    ///    transport is moving goods…"*, 15 *"This is an enemy army."*, 16
+    ///    *"This is one of your armies."* The fifth is index **12**,
+    ///    *"Merchants allow a county to buy needed supplies and raise revenue
+    ///    by selling goods."* — the one member of the run with prose and no
+    ///    voice file. The words exist and the recording was never made. `[V]`
     pub const PICKED_UNIT: [&str; 4] = [
         "S031_01.wav",
         "S031_02.wav",

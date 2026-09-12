@@ -149,7 +149,7 @@ the next thing anything references — is exactly where that array ends.
 |---|---|---|---|---|
 | `+0x198` | u8 | **garrisonCounty** | [V] | non-zero = this army is inside that county's castle. County `+0x1BC` (i32) holds the unit index back. |
 | `+0x199` | u8 | **besiegingCounty** | [V] | non-zero = camped outside that county's castle, building engines. |
-| `+0x19A` | u8 | besiegedBy | [D] | on a *garrison*, the unit index of its besieger. |
+| `+0x19A` | u8 | **besiegedBy** | [V] | on a *garrison*, the unit index of its besieger. Upgraded from `[D]`: `Sprite_TopIt` (`0x004071A0`) reads `g_units[county.garrisonUnit].besiegedBy` and **indexes `g_units` with the result** to fetch `+0x19C` for `FUN_00407F82`, so it is a unit index and it is read off the garrison. |
 | `+0x19B` | u8 | — | [D] | copied from realm `+0xE8`; not traced. |
 | `+0x19C` | u8 | **siegeSeasonsLeft** | [V] | drawn with `L2.eng` group 8/66 *"Season(s)"* on the siege-preparation screen. §4. |
 

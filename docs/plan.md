@@ -177,8 +177,8 @@ the goal is not met — not "mostly met".
 
    **The campaign map**, the screen a player spends most of a session looking at, makes
    **<!--fig:map-draws-->139<!--/fig--> draw calls, of which <!--fig:map-draws-live-->121<!--/fig-->
-   are live. We make <!--fig:map-draws-ours-->69<!--/fig--> of them:
-   <!--fig:map-draws-pct-->57<!--/fig-->%.** `docs/draws-map.md`, via `tools/draws/mapdraws.js`.
+   are live. We make <!--fig:map-draws-ours-->71<!--/fig--> of them:
+   <!--fig:map-draws-pct-->59<!--/fig-->%.** `docs/draws-map.md`, via `tools/draws/mapdraws.js`.
 
    **The other <!--fig:draws-screens-->51<!--/fig--> screens** make
    <!--fig:draws-original-->1,012<!--/fig--> draw calls and we make
@@ -948,7 +948,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,568<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,570<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
