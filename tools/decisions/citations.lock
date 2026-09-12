@@ -79,6 +79,7 @@ crates/l2-game/src/screens/diplomacy.rs	C26	d7d30139b2b8	e8179d1f76a8
 crates/l2-game/src/screens/diplomacy.rs	C61	5aa0f88f789e	60611046b40d
 crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
 crates/l2-game/src/screens/info.rs	C110	610d3cd4e224	a4ab43902f60
+crates/l2-game/src/screens/info.rs	C199	05b94bdb92e3	f4bda256f5f1
 crates/l2-game/src/screens/info.rs	C25	81871fcedfac	5d466f0cb89c
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/job.rs	C61	640e90a8620c	60611046b40d
@@ -89,6 +90,7 @@ crates/l2-game/src/screens/map.rs	C138	3ac5e2071333	7724e6665b90
 crates/l2-game/src/screens/map.rs	C152	0572ee1cacc9	582988651236
 crates/l2-game/src/screens/map.rs	C158	12f4c2311571	3b5e22280a31
 crates/l2-game/src/screens/map.rs	C173	aaceff39270a	d5c09120ff4b
+crates/l2-game/src/screens/map.rs	C199	63aaf6fc1069	f4bda256f5f1
 crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C21	d7e286680856	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C22	9269ad59f313	0364b53a921d
@@ -702,6 +704,7 @@ docs/decisions.md	C161	6e968c63f3ee	8b6af36909ef
 docs/decisions.md	C161	bd94546675a8	8b6af36909ef
 docs/decisions.md	C163	2510e92d9958	d043a04534f8
 docs/decisions.md	C163	2ae950ef80e9	d043a04534f8
+docs/decisions.md	C164	4758be55119f	68f38e5b4b46
 docs/decisions.md	C164	9442c0d65781	68f38e5b4b46
 docs/decisions.md	C164	ac02323ec142	68f38e5b4b46
 docs/decisions.md	C165	0975230f1017	4757c74b4a0a

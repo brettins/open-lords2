@@ -10892,3 +10892,78 @@ which is the *table's* `+0x25` and the name's `+0x21`. Nothing was built on the 
 the colour is passed into `NewGame` rather than read out of a save — so this cost nothing, and
 it is exactly the sentence that would have cost the next person a day. `crates/l2-game/src/text.rs`
 had the record right the whole time and no reader used it.
+
+---
+
+**C199 — the tile panel's castle arm, four
+figures a comment said we did not carry, and the selection the right button
+also makes. Three gaps in one screen, and two of them were held open by a
+sentence that had been true.**
+
+**1. `TileInfo_DrawCastle` (`0x0041DA2F`) was not built.** Right-clicking a castle gave a
+box with a heading in it. The arm is two halves that share almost nothing:
+
+* **intact** (`castleDegraded == 0`, `+0x1C2` clear) — 71/16 and the tax bonus, 71/11 and
+  the barracks cap with 71/12 after it, and, with a garrison, the men and 71/13 or 71/19
+  for somebody else's, then 71/14 and the widget;
+* **degraded** — the builders at `(0x68, R + 0x88)` and then
+  `Castle_DrawStatusBlock(county, 8, 0x30, R)`, the same block `FUN_00414220` draws on the
+  job page at `(-0x20, 0x40, 0)`. So the county *building* a castle is the one that shows
+  the stone and wood owed and the seasons left, and the finished castle never does.
+
+**A ruined county (`+0x1C2`) draws nothing at all** — the heading stands over an empty
+box. That is the original's and is reproduced; `FUN_0041BEFE` gives it row `0x11` rather
+than the `0x0E` an intact castle gets, so the box is short and the emptiness is smaller
+than it would otherwise look.
+
+`FUN_0041BEFE`'s `0x80` arm is the layout: `0x0A` for a degraded castle of your own,
+`0x0E` for an intact unruined one, `0x11` for everything else including every resource
+site. **`0x0A` is the tallest tile layout in the game** and `Layout::ALL` already carried
+it, with the condition, and nothing produced it — the ladder had been read and only the
+farmland and county-town arms built from it. A row in a table of eleven that no code path
+can reach is not a gap anybody trips over.
+
+The tax and barracks words are `Castle_DrawStatusBlock`'s own two table reads, one word
+low, so `docs/bugs.md`'s *"Barracks for 2500 troops."* on a county with no castle is
+reproduced on this screen too. It is one function, `screens::job::castle_word`, and both
+screens call it.
+
+**2. Four figures were drawn by the job page and not here, because a comment said they
+were not carried.** `screens/info.rs`'s module doc read *"Two figures are not carried and
+are not drawn … `docs/stored-fields.json` has all four as excluded"*, and the two report
+painters each carried a `NOT PORTED` beside the line. **All four are `imported`** —
+`grain_event_change` (`+0x278`), `herd_event_change` (`+0x274`),
+`grain_weather_change` (`+0x24C`) and `herd_weather_change` (`+0x270`) — and
+`Panel_JobGrain` and `Panel_JobCattle` have been drawing them since C164.
+
+The comment was true when it was written. What made it expensive is that it was
+**specific**: it named the four offsets, cited the file that would have contradicted it,
+and explained why the *"no outside factors"* sentence was exact. A vague note gets
+re-checked; a well-sourced one gets believed, which is `CLAUDE.md`'s warning about `[V]` in
+`docs/formats/` arriving at a different document. The half that stayed right through all of
+it is the conditional sentence: the painter draws 77/24 only when the figure is zero, and
+ours drew it on the event id instead, which agreed on every save because the figure is zero
+in all of them.
+
+**3. `FUN_0043CAF4` also selects a county, and the guard nobody would guess is the third
+one.** Between `Map_ResolvePick` and the panel:
+
+```c
+if ((g_pickedTileCounty != 0) && (g_pickedTileCounty != g_selectedCounty) &&
+    (g_pickedTileUnit == 0)) {
+  DAT_0053f0dc = g_counties[g_pickedTileCounty].townTile;
+  if (DAT_0053f0dc != 0) { g_selectedCounty = …; Map_CentreOnTile(DAT_0053f0dc); }
+}
+```
+
+Right-clicking bare ground of another county selects it and recentres on its **town**;
+right-clicking a **unit** standing on that same ground selects nothing, because the panel
+that comes up is about the army. A county with no town square shows its panel and leaves
+the sidebar alone — the same shape `Map_Click`'s industry arm has, without that arm's
+outright refusal.
+
+**No new input arm.** This is a second effect of a gesture `docs/arms.json` already has
+(`0x0042FF10/map-right-opens-info`), which is why the inventory could not have found it:
+the arms count says *which* controls a screen answers, and a handler that does two things
+is one arm either way. `CLAUDE.md` rule 5's two measurements do not cover a third thing,
+and this is it.

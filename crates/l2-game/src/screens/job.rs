@@ -990,8 +990,10 @@ const OURS_22: [&str; 7] = [
     "Excellent fertility - bumper crop!",
 ];
 
-/// Our transcription of one string these bodies draw.
-fn ours(group: usize, index: usize) -> &'static str {
+/// Our transcription of one string these bodies draw. `screens::info` shares
+/// group 71's, because `Castle_DrawStatusBlock` and `TileInfo_DrawCastle` draw
+/// the same strings on two screens.
+pub(crate) fn ours(group: usize, index: usize) -> &'static str {
     let table: &[&str] = match group {
         FORECAST_GROUP => &OURS_77,
         INDUSTRY_GROUP => &OURS_76,
@@ -1401,7 +1403,7 @@ pub fn castle_status_block(
 /// at those addresses (`c4 09 00 00`, `00 00 00 00`). `[V]` on the bytes; that a
 /// player building a first castle sees *"Barracks for 2500 troops."* is `[I]`
 /// — the reading of the painter, not observed.
-fn castle_word(t: &Tables, index: usize) -> i32 {
+pub(crate) fn castle_word(t: &Tables, index: usize) -> i32 {
     let c = &t.castle;
     let mut run = [0i32; 28];
     for (i, &(a, b)) in c.workforce.iter().enumerate() {
@@ -1415,9 +1417,9 @@ fn castle_word(t: &Tables, index: usize) -> i32 {
 }
 
 /// `&DAT_004D8A0C`, as a word of [`castle_word`]'s run.
-const CASTLE_BARRACKS_BASE: usize = (0x004D_8A0C - 0x004D_89E8) / 4;
+pub(crate) const CASTLE_BARRACKS_BASE: usize = (0x004D_8A0C - 0x004D_89E8) / 4;
 /// `&DAT_004D8A24`, the same.
-const CASTLE_TAX_BONUS_BASE: usize = (0x004D_8A24 - 0x004D_89E8) / 4;
+pub(crate) const CASTLE_TAX_BONUS_BASE: usize = (0x004D_8A24 - 0x004D_89E8) / 4;
 
 #[cfg(test)]
 mod tests {

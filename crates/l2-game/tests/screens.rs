@@ -7467,3 +7467,99 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
         "and the town is still gold — `local_14` is tested before the cost is looked at"
     );
 }
+
+/// **`FUN_0043CAF4`'s extra step: the right button also selects a county.**
+///
+/// ```c
+/// if ((g_pickedTileCounty != 0) && (g_pickedTileCounty != g_selectedCounty) &&
+///     (g_pickedTileUnit == 0)) {
+///   DAT_0053f0dc = g_counties[g_pickedTileCounty].townTile;
+///   if (DAT_0053f0dc != 0) {
+///     g_selectedCounty = g_pickedTileCounty;
+///     Map_CentreOnTile(DAT_0053f0dc);
+///   }
+///   DAT_004eb260 = 1; FUN_004050c0();
+/// }
+/// FUN_0041b032();
+/// ```
+///
+/// Both halves of the third guard are asserted: bare ground of another county
+/// selects it and recentres on that county's **town**, and a unit standing on
+/// ground of a third county selects nothing, because the panel that comes up
+/// is about the army. The information panel opens either way.
+///
+/// Ablated, each red on its own assertion: the whole block removed — the
+/// selection stays where it started; the `g_pickedTileUnit == 0` guard dropped
+/// — the unit's county is selected where nothing should move.
+#[test]
+fn right_clicking_another_countys_ground_selects_it_and_a_unit_on_it_does_not() {
+    let (mut game, assets) = world!();
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+    let here = game.selected;
+    assert!(here != 0, "setup: the game opens with a county selected");
+
+    // Another county with a town square, and a tile of it nothing stands on.
+    let empty_tile = |game: &Game, id: u8| {
+        let map = &game.kingdom.campaign.map;
+        (0..map.county.len()).find(|&t| {
+            let (x, y) = l2_kingdom::map::coords(t);
+            map.county[t] == id && game.kingdom.campaign.units.at(x, y).is_none()
+        })
+    };
+    let (there, tile, town) = (1..=game.kingdom.county_count as u8)
+        .filter(|&id| id != here)
+        .find_map(|id| {
+            let ctx = Ctx { game: &mut game, assets: &assets };
+            let town = *MapScreen::town(&ctx, id).first()?;
+            Some((id, empty_tile(&game, id)?, town))
+        })
+        .expect("some other county has a town and a tile with nobody on it");
+
+    let (x, y) = on_screen(&mut screen, tile);
+    let opened = send(&mut screen, &mut game, &assets, Event::RightClick { x, y });
+    assert_eq!(
+        opened,
+        Transition::Push(ScreenId::Info(l2_game::screens::info::Target::Tile(tile))),
+        "the right click still opens the information panel on the tile"
+    );
+    assert_eq!(game.selected, there, "and it selected the county the tile belongs to");
+    // `Map_CentreOnTile(townTile)` — the town, not the tile that was clicked.
+    let (tx, ty) = l2_kingdom::map::coords(town);
+    assert!(
+        campaign::tile_centre(screen.viewport(), screen.zoom(), tx as usize, ty as usize).is_some(),
+        "the view moved to county {there}'s town square"
+    );
+
+    // **The third guard.** Put an army on ground of a third county and right
+    // click it: the unit half comes up and the selection does not move.
+    let (elsewhere, ground) = (1..=game.kingdom.county_count as u8)
+        .filter(|&id| id != there)
+        .find_map(|id| Some((id, empty_tile(&game, id)?)))
+        .expect("a third county with an empty tile");
+    // **A merchant, because the fixture has six and no army** — the guard is
+    // `g_pickedTileUnit != 0` and says nothing about the kind.
+    let unit = game
+        .kingdom
+        .campaign
+        .units
+        .iter()
+        .find(|(_, u)| u.kind == l2_kingdom::UnitKind::Merchant)
+        .map(|(id, _)| id)
+        .expect("the fixture ships six merchants");
+    let (gx, gy) = l2_kingdom::map::coords(ground);
+    {
+        let u = game.kingdom.campaign.units.get_mut(unit).expect("the merchant");
+        u.x = gx;
+        u.y = gy;
+        u.county = elsewhere;
+    }
+    let (x, y) = on_screen(&mut screen, ground);
+    let opened = send(&mut screen, &mut game, &assets, Event::RightClick { x, y });
+    assert_eq!(
+        opened,
+        Transition::Push(ScreenId::Info(l2_game::screens::info::Target::Unit(unit))),
+        "the right click opens the unit half"
+    );
+    assert_eq!(game.selected, there, "and a unit under the cursor selects nothing");
+}
