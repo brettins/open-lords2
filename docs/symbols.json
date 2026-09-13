@@ -500,6 +500,13 @@
       "comment": "The 0x21 painter: a 15 x 7 cell box at (x - 16, y - 16), group 12 index g_sliderPrompt as the caption and index 0, \"Click Right to Exit\", underneath, with the value in a 3 x 1 recess. g_sliderFormat 1 divides by ten, 3 appends a per cent sign."
     },
     {
+      "addr": "0x0040CF09",
+      "name": "ClickContinue_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The \"Click to Continue\" overlay: a 0x14 x 5 box at (x,y) via FUN_0040914B, then L2.eng group 13 index 0 at x+0x60, y+0x3C in g_fontBody. Sole consumer of group 13; only caller is FUN_0040E680."
+    },
+    {
       "addr": "0x0040CFD2",
       "name": "Widget_Draw",
       "section": "ui",
@@ -790,6 +797,14 @@
       "comment": "Draws a 19-cell box at (64, 112) and, for mode 0 or 1, the three sound-level numbers from g_options+0x3C/+0x40/+0x44 with '%', '%' and ' ' suffixes (chars at 0x004D3EE4/E8/EC). ITS ONLY CALLER PASSES 3, which draws the box and no numbers. Dead content: Ui_OpenSlider has exactly two call sites in the whole image (game speed and scroll speed), so L2.eng group 12 indices 3, 4 and 5 - 'Adjusting music level', 'Adjusting sound level', 'Number of samples' - are unreachable strings. The volume values are still defaulted and still written to lords2.inf on every exit. See also the orphaned widget table at 0x004DDE08. docs/bugs.md."
     },
     {
+      "addr": "0x00414790",
+      "name": "ExitConfirm_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void ExitConfirm_Draw(void)",
+      "comment": "The exit confirm box: a 0x12 x 9 box at (0x80,0xA0) and all three strings of L2.eng group 48 (\"Exit the game?\") at x 0x90, y 0xB8 / 0xE0 / 0x108. Sole consumer of group 48; no caller in the corpus - reached through a table or an unnamed dispatcher."
+    },
+    {
       "addr": "0x00414819",
       "name": "Screen_SaveLoad",
       "section": "ui",
@@ -1060,6 +1075,14 @@
       "comment": "The 640x24 bar at y 0: background tiled from Panels.pl8 frames 196+(c mod 8) at 24px steps (25 cells from x 0 plus 2 from x 592 = 640 exactly), a bevel outline, the File/Options/Help titles from L2.eng groups 1/2/3, one 13x16 Misc_cty banner per live realm at x 270+16i y 4, the year and season at x 360 and the local realm treasury at x 500."
     },
     {
+      "addr": "0x0041A166",
+      "name": "Intro_DrawSubtitle",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Intro_DrawSubtitle(int frame)",
+      "comment": "Subtitles over the opening Smacker: a ladder on the frame number draws one of the eleven strings of L2.eng group 301 (\"1268 AD\", \"The king is Dead\", ...) centred at y 400, or clears the band with FUN_0040437D. Suppressed entirely in the English build - it copies L2.eng group 300 index 0 (seven bytes) and returns when it strcmps equal to \"English\". Sole consumer of groups 300 and 301; only caller is Smk_PlayLoop, via g_smack+0x374."
+    },
+    {
       "addr": "0x0041A734",
       "name": "Screen_DrawEndTurn",
       "section": "ui",
@@ -1170,12 +1193,28 @@
       "comment": "Screen 0x45. Loads lom.256 and lom.pl8 and installs the palette: the Lords of Magic advertisement the front end links to, and nothing else."
     },
     {
+      "addr": "0x0041E962",
+      "name": "LowMemory_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void LowMemory_Draw(void)",
+      "comment": "The start-up low-memory warning: L2.eng group 297 index 0 centred as a heading at (0x50,0x38) and index 1 wrapped at (0x70,0x60) over a 0x1E x 0xB box, then presents immediately. Sole consumer of group 297; no caller in the corpus."
+    },
+    {
       "addr": "0x0041EF57",
       "name": "Setup_DrawShieldPage",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Setup_DrawShieldPage(void)",
       "comment": "Setup page 4 - the gateway and panels2 backgrounds under L2.eng 11.10, \"Choose your title and your shield.\" Draws the five shields and the name plate; the hotspots it registers are handled by Setup_ShieldClick. NOT the campaign page: Setup_ChooseCampaign is page 5's handler and page 4 is where it goes."
+    },
+    {
+      "addr": "0x0041F86D",
+      "name": "CustomGame_DrawOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void CustomGame_DrawOptions(int editing)",
+      "comment": "The twelve custom-game option rows: for each, the name from L2.eng group 102 at the row position in DAT_004D3098[i*0xC], and - for every row but \"editing\" - its value from group 103 at index DAT_004D3128[i] + FUN_00433A70(). Sole consumer of group 102 (group 103 is shared with FUN_0041FDD6); called by FUN_0041F6C7, FUN_0041F77A and Screen_DrawWidgets."
     },
     {
       "addr": "0x0041F98B",
@@ -1238,6 +1277,14 @@
       "comment": "Screens 0x28 and 0x29, and the frame around 0x2A: the battle sidebar - Misc sheet frames 0, 1 and 2 at x 480, the same 162-pixel column the campaign uses - the menu bar, and the field or siege palette chosen by g_battleIsSiege. The main loop treats 0x28 .. 0x2A as one range."
     },
     {
+      "addr": "0x00423B4F",
+      "name": "BattlePaused_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void BattlePaused_Draw(void)",
+      "comment": "The \"Battle Paused\" banner: L2.eng group 32 index 0 at (0x10E,0x1AE) in g_fontHeading, plus g_systemSheet frame 0x4D at (400,0x1C4). Sole consumer of group 32; only caller is Battle_Frame."
+    },
+    {
       "addr": "0x00423BA4",
       "name": "Net_DrawDebugOverlay",
       "section": "netcode",
@@ -1252,6 +1299,14 @@
       "confidence": "verified",
       "signature": "void BattleDebug_Panel(void)",
       "comment": "The developers' own battle debug overlay. It prints figure and unit fields beside their original labels - FIGURE / map x / map y / tg x / tg y / routed / hold it / state / on route / hits / walking / barred / target / dirc / delay / dly state / targeted / selected / selctd seen / polar dirc / mov straff, and GROUP / re targ / map x / map y / targ x / targ y / orders / firing. This is the primary evidence for the field names in docs/battle.md."
+    },
+    {
+      "addr": "0x00425A6A",
+      "name": "SmkTest_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void SmkTest_Draw(void)",
+      "comment": "The Smacker-file test harness screen: a 0x14 x 10 box at (0x50,0xB0) and the three strings of L2.eng group 89 (\"Smack file testing\" ...), with g_smkTestIndex + 1 drawn between index 1 and index 2. Sole consumer of group 89; only caller is Screen_Draw."
     },
     {
       "addr": "0x00425B10",
@@ -6725,6 +6780,14 @@
       "confidence": "verified",
       "signature": "void Tip_Show(int group)",
       "comment": "Shows one first-time tip screen: saves g_screenId, switches to screen 0x27, marks g_tipShown[group] and posts the group with the category from g_tipCategory[group]. [V] Fourteen literal groups reach it - 200, 201, 202, 206..212, 214, 215, 217, 218 - and each is an L2.eng group whose label names the screen it belongs to. See docs/formats/eng.md 5.3."
+    },
+    {
+      "addr": "0x00476E95",
+      "name": "ToolTip_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void ToolTip_Draw(void)",
+      "comment": "The tool-tip layer, gated on g_optToolTips: picks the id into DAT_004EAC00 (FUN_00477131 or FUN_004770B8 by DAT_004EAC00), then draws L2.eng group 220 at that index twice - once to measure the wrapped width, once over the panel it sizes from it - at DAT_004EB268/DAT_004EB270 + 4. Index 0 is the group's \"Null tool tip\" placeholder, not the subject. Sole consumer of group 220; only caller is Battle_Frame."
     },
     {
       "addr": "0x004778A0",
