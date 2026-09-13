@@ -11867,3 +11867,80 @@ original writes it rather than pruned.
 (the save box) speaks `S040_02.wav`, anything else `S040_01.wav`. Ours collapses
 the latch and the tick's take-up into `SaveLoadScreen::begin`, so the line is one
 frame earlier than the original's and on the same occasion.
+
+---
+
+**C213 — the battle ratings sheet's two blocks are two realms, and the
+merchant was already an army everywhere it mattered.**
+
+`Screen_BattleMasterRatings` (`0x00421707`, screen `0x2E`, `score1.256` +
+`score1.pl8`) draws its two blocks from **realm ids**, not from a side index.
+Each block reads `g_playerNames[realm]` for the line of text and
+`g_realms[realm].shieldIndex + 8` for the crest above it. `[V]`. The local
+block's realm is `g_localPlayer`; the opponent's is `DAT_0056D5CC`, written by
+`Skirmish_Setup` (`0x0042B7F7`) as `g_localPlayer == 1 ? 2 : 1` — so a skirmish
+between realms 1 and 2 names both lords, and the sheet is the same code path
+whichever one the human is.
+
+Ours had drawn the local block as "PLAYER". **`L2.eng` group 37 has no word for
+a player** — the group is the sheet's own vocabulary (CLAUDE.md rule 6) and its
+317-group map in `docs/formats/eng.md` §5 gives it no such string — so there is
+nothing to draw but the lord's name. `crates/l2-game/src/screens/ratings.rs`
+takes it from the realm, with `REALM {n}` as the fallback for a realm with no
+name rather than a literal invented here.
+
+Checked: `the_ratings_blocks_name_the_two_lords` in
+`crates/l2-game/tests/screens.rs` sets two named realms and asserts both blocks.
+Ablated by restoring the "PLAYER" literal, it fails on the first assert.
+
+**The second half: nothing came off the merchant.** The ledger row asked whether
+a merchant should be excluded from sub-tile interpolation. It should not.
+`Merchant_Tick` (`0x00465622`) and `Transport_Tick` (`0x00465761`) are the same
+319 bytes as each other and reach `Unit_StepOnce` (`0x0046634D`), which has **no
+kind test at all**; `Map_DrawArmies` (`0x00408438`) reads the six 8×16 sprite
+tables before its first kind comparison. `[V]`: the original interpolates a
+merchant exactly as it interpolates an army. What differs is only the walk
+cycle — `g_merchantWalkFrames` (`0x004D6AB8`) advances **six frames per facing**
+against an army's three — and that is a sprite index, not motion. Recorded in
+`cross_sub_tile`'s doc comment so the next reader does not re-open it.
+
+---
+
+**C214 — the field brush sounds the terrain it paints, and `setup3.wav` is the
+skirmish bed rather than the credits.**
+
+`FUN_00438B02` (`0x00438B02`) is the one handler every field-brush button
+reaches (`crates/l2-kingdom/tests/oracle.rs` asserts that of all six records in
+`g_infoFieldBrush` `0x004DC4D0` and the waste table `0x004DC530`). It picks a
+one-shot **bank slot from the brush id**: `0x13` → slot 4 (`moo_2.wav`), `2` →
+slot 7 (`wheat.wav`), `1`/`0`/`0x19` → slot 6 (`fallow.wav`). Five
+`docs/audio.json` sites — `FUN_00438b02#1`..`#5` — go from unreproduced to
+reproduced.
+
+`audio::names::field_brush_slot` keys the slot off `County_RecountFields`'
+terrain **ranges**, not off the raw byte, because `Field_SetType`'s call to
+`Herd_UpdateCrowding` regrades a fresh pasture from `0x13` to `0x14..0x16`
+before anything downstream sees it: a byte comparison would go quiet on the
+second cow. `Director::hear_the_brush` fires off the info panel's tile terrain
+changing, which is the diff the `Director` can see — the handler ends in
+`g_screenId = 0`, so by the next tick the panel is gone and there is no
+screen-local state left to read.
+
+Checked: `the_field_brush_sounds_what_it_paints` in
+`crates/l2-game/tests/audio_wiring.rs` paints all three terrains and the waste
+arm; ablated, all four arms fail.
+
+**The second half: which bed `setup3.wav` is.** `FUN_00433155` plays it on
+`g_setupPage` `0xC` and `0xB`, `[V]`. `Screen_FrameInput`#1 and #2 leave screen
+`0x2F` after `0x2E`, `[V]`, and `FUN_00497A34`#1 is the `DAT_0057A0F0 == 1` arm
+of the return to the front end, `[V]` — `[I]` that the flag is the skirmish
+flag. So the track is the **skirmish** bed. It is not the credits and not the
+ending: both are films carrying their own audio, and **none of the 22
+`Music_Play` sites is a credits bed**.
+
+**Conquest music is left alone.** `Screen_DrawConquest` (`0x0041E1DD`) plays
+`setup.wav` looped for map < 8 and `setup2.wav` **once** otherwise; ours cannot
+express the second, because `Mixer::set_music` always loops, and the
+`audio_wiring` assertion
+`every_in_game_screen_over_the_front_end_is_campaign_music` would fail on the
+screen besides. Two blockers, one site, recorded rather than forced.
