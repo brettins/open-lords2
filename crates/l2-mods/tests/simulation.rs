@@ -396,7 +396,9 @@ fn the_last_kingdom_mod_in_the_load_order_is_the_one_the_economy_runs_on() {
     // less of it. `Grain_Grow` and `Grain_Harvest` then cap the standing crop
     // at `labour * multiplier` twice more. Quadrupling the number in the file
     // doubles what reaches the barn.
-    assert_eq!((high, low), (600, 300));
+    // Since C225 the weather pass ruins one field a season in this seed
+    // (`FUN_00469A9C`), so the barn holds 576 and 240, not 600 and 300.
+    assert_eq!((high, low), (576, 240));
 }
 
 /// A rule with no arithmetic in it at all: the year random events start.
