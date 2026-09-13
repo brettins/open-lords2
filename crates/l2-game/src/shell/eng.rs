@@ -1,4 +1,4 @@
-//! `L2.eng` — the game's strings, read rather than transcribed.
+//! `L2.eng` — the game's strings, read.
 //!
 //! Until now every screen in this workspace carried its own copy of the labels
 //! it drew (`screens/county.rs`: *"Nothing here reads `L2.eng`; the workspace
@@ -37,7 +37,7 @@ pub struct Eng {
     offsets: Vec<usize>,
     /// **The whole file with every byte as the `char` of the same number** —
     /// `0x82` is `'\u{82}'` — so a string with a byte above `0x7F` in it comes
-    /// back as a string rather than as nothing.
+    /// back as a string.
     ///
     /// The number is what matters and the name of the character does not:
     /// `Ui_DrawText` (`0x00402637`) indexes `g_glyphWidths` with the byte, and
@@ -103,10 +103,10 @@ impl Eng {
         Some((start, &self.bytes[start..end]))
     }
 
-    /// String `index` of `group`, exactly as `Eng_DrawString` walks to it:
+    /// String `index` of `group`:
     /// skip `index` NUL terminators, then skip any byte below `0x20`.
     ///
-    /// Returns `None` rather than an empty string for an index past the end, so
+    /// Returns `None` for an index past the end, so
     /// a caller can tell "the group is shorter than I thought" from "the game
     /// really does draw nothing here".
     pub fn get(&self, group: usize, index: usize) -> Option<&str> {

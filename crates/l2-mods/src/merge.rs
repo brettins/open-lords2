@@ -8,10 +8,10 @@
 //! 1. **Table into table: recurse.** Keys only the newer document has are
 //!    added. Keys both have are resolved one level deeper.
 //! 2. **Anything else: replace.** Scalars replace scalars. Arrays replace
-//!    arrays *whole* — there is no element-wise array merge, because with no
-//!    identity on an element there is no principled way to say which element
+//! arrays *whole* —
+//! identity on an element there is no principled way to say which element
 //!    an override refers to. A table keyed by name is the right shape for
-//!    anything that wants partial override, and the seeded rulesets use it.
+//! anything that wants partial override, and the seeded rulesets use it.
 //! 3. **`"$delete" = ["a", "b"]`** removes those keys from the table it
 //!    appears in, before the rest of that table is merged.
 //!
@@ -30,7 +30,7 @@ pub struct Override {
     /// Where the replacement came from.
     pub current: Origin,
     /// True when the two values are structurally different types — almost
-    /// always a mistake rather than an intended rebalance.
+    /// always a mistake
     pub type_changed: bool,
 }
 

@@ -55,7 +55,7 @@
 //!
 //! `FUN_004180F6` is the same function with the two big reads and the grid
 //! dropped: it is what `0x0D` repaints the armoury with on the way back, and it
-//! is why the sheets are loaded once rather than per frame.
+//! is why the sheets are loaded once.
 //!
 //! **`FUN_00418426` — the walls.** Table `g_armouryWallItems` (`0x004D2D88`),
 //! six records of `(frame, x, y)`, one per weapon slot, drawn when
@@ -110,7 +110,7 @@
 //!     id 3 -> g_confirmAnswer = 0; Army_RaiseConfirm();          "Cancel"
 //! ```
 //!
-//! **So `Army_RaiseConfirm` is a button on the armoury.** There is no confirm
+//! **So `Army_RaiseConfirm` is a button on the armoury.**
 //! anywhere on the raise-army screen: `0x17`'s widget table is the *Continue*
 //! button and the mercenary tick and cross, and nothing else. `screens/army.rs`
 //! carried a `RAISE` button of ours because this screen was a shell; it is gone,
@@ -118,7 +118,7 @@
 //!
 //! # `0x0D`, one weapon — and `Screen_Draw` has no arm for it
 //!
-//! **Verified against `Screen_Draw` (`0x0040F1A0`): there is no `'\r'` case.**
+//! **Verified against `Screen_Draw` (`0x0040F1A0`):**
 //! `0x0D` is painted exactly once, by `Armoury_ClickRack` calling
 //! `Armoury_LoadScreen` on the way in, and after that only
 //! `Screen_DrawWidgets`' `0x0D` arm runs:
@@ -132,7 +132,7 @@
 //! So `FUN_00418E2D` is in that arm *as well as* in the painter — which is what
 //! makes the count and the spare update when a button is pressed, on a screen
 //! nothing repaints. The armoury's own racks are redrawn under the panel every
-//! frame too, which is why the room does not go stale behind it.
+//! frame too, so the room does not go stale behind it.
 //!
 //! ## Two corner pictures, one of them dead
 //!
@@ -178,7 +178,7 @@
 //! > **`docs/hypotheses.json` had the first two backwards, and so did the tool
 //! > that generated them.** It named `0x0043593A` `Armoury_BuyLess` and
 //! > `0x004359BC` `Armoury_BuyMore` on the strength of
-//! > `tools/oracle/widgets.js`'s note that *"68/66 [are] minus and plus"*. The
+//! > `tools/oracle/widgets.js`'s *"68/66 [are] minus and plus"*. The
 //! > bodies say the opposite, and so does the only other table in the binary
 //! > that uses the pair: the diplomacy gift row `0x004DD9D0` gives its frame-68
 //! > record hotspot id 1 and its frame-66 record id 0, and `FUN_00436372` adds
@@ -215,7 +215,7 @@
 //! `docs/hypotheses.json` filed it as `Armoury_DrawPanel` and had the role
 //! right and the verb wrong. It is why `Screen_Armoury` saves four strips of
 //! backdrop at `y 0xD8`: the walker is a blit over a *restored* background
-//! rather than a composited sprite, and the strip is the piece of room he can
+//!
 //! have dirtied. [`walker_strip`] is that choice, and it says there why our own
 //! full repaint means the call is not made.
 //!
@@ -249,10 +249,10 @@
 //! `FUN_004B3F0A` strip *saves* (they copy the backdrop out, they do not draw),
 //! the `.256` read and `Palette_Set` above, `File_ReadChunk("arm_grid.pl8")`
 //! which is a hit map, `Gfx_MarkSpriteDirty`, and the `Blit_*` family, which is
-//! the implementation of every primitive above rather than a draw of its own.
+//! the implementation of every primitive above.
 //!
 //! **Neither screen draws `L2.eng` 31/21 *"Morale"***, or any of group 31 —
-//! checked by reading every one of the seven functions above rather than by
+//! checked by reading every one of the seven functions above.
 //! grepping for the string. `docs/armies.md` rests a `[V]` on unit `+0x166`
 //! against that label, and nothing in this module resources it.
 
@@ -475,7 +475,7 @@ pub const TICK_MS: u32 = 16;
 /// | `DAT_005AEA48` | 24 | the weapon turning in the rack panel's well |
 ///
 /// The last two are the *divider chain's own counters*, reused as frame
-/// indices — which is why they wrap at 13 and 24 rather than at a power of two,
+/// indices — so they wrap at 13 and 24,
 /// and why `Armtorch.pl8` has exactly 26 frames and `Arm_*.pl8` exactly 24.
 ///
 /// **Four documents called `Tick_Pulses` "once a frame and wrapped".** That
@@ -560,16 +560,16 @@ pub const STRIP_H: i32 = 0x9E;
 /// under `0x140` the second, under `0x1E0` the third, otherwise the fourth. So
 /// **the walker is a blit over a restored background, not a composited
 /// sprite** — that is why the strips exist and why there are four of them
-/// rather than one 640-pixel one.
 ///
-/// **It is not called from [`overlay`], and this says so rather than leaving a
+///
+/// **It is not called from [`overlay`], and this says so.
 /// reader to wonder.** Our page is repainted whole every frame (the original
 /// paints `Screen_Armoury` once and never clears again), so the erase has
 /// already happened by the time the walker is drawn. What is reproduced here is
 /// the *shape* and the rectangle, which
 /// `crates/l2-game/tests/armoury.rs` asserts covers him — all but the five
 /// pixels of his right shoulder that stand outside it at each band boundary,
-/// which is the original's own smear and is measured there rather than assumed.
+/// which is the original's own smear and is measured there.
 pub fn walker_strip(x: i32) -> Rect {
     let (sx, w) = match x {
         _ if x < 0xA0 => STRIPS[0],
@@ -584,7 +584,7 @@ pub fn walker_strip(x: i32) -> Rect {
 /// apart, `0x70` (seven slots) per shield colour, indexed by
 /// `[shieldIndex][basketSlot]`.
 ///
-/// Slot 0 and slot 1 both name the crossbowman, exactly as [`ITEM_SHEETS`]
+/// Slot 0 and slot 1 both name the crossbowman.
 /// names red twice: the tables are indexed by a 1-based slot and a 1-based
 /// shield and each pads its zeroth entry with its first. The order after that
 /// is the basket's — crossbow, mace, sword, pike, archer, knight — which is
@@ -604,7 +604,7 @@ pub const WALKER_SHEETS: [[&str; 7]; 6] = [
 pub const WALKER_FALLBACK: &str = "Trp_xb_b.pl8";
 
 /// The sheet one walk is drawn from, clamped the way the original's index
-/// arithmetic is bounded rather than the way it would overflow.
+/// arithmetic is bounded.
 pub fn walker_sheet(shield_index: u8, slot: u8) -> &'static str {
     let colour = (shield_index as usize).min(WALKER_SHEETS.len() - 1);
     let s = slot as usize;
@@ -643,7 +643,7 @@ pub fn walker_sheet(shield_index: u8, slot: u8) -> &'static str {
 /// The latch is `g_levyBasket + 0x0C`. **Nothing else in the binary reads or
 /// writes it** — `Armoury_ClickRack` and `FUN_004AABD8` are its only two
 /// references — so it is presentation state that happens to be stored in the
-/// basket, and it is here rather than in [`l2_kingdom::LevyBasket`] for that
+/// basket, and it is here for that
 /// reason. `[V]`, by grep over the whole decompilation.
 ///
 /// # None of it may reach the simulation
@@ -742,7 +742,7 @@ impl Walker {
     /// draw(frame, x, 0xD8);
     /// ```
     ///
-    /// The last two lines are the seam and they are written out rather than
+/// The last two lines are the seam and they are written out.
     /// tidied: the frame that *overflows* the pickup run is `0x0D`, which is
     /// also the first carrying-walk frame, so the reset happens under a picture
     /// that is already correct and the join is invisible.
@@ -849,13 +849,13 @@ impl Anim {
 // ------------------------------------------------------------- the painter
 
 /// **The whole static page**, shared by `0x0A` and by the first frame of
-/// `0x17` exactly as `Screen_Draw` shares `Screen_Armoury` between them.
+/// `0x17`.
 ///
 /// `buttons` is false for the raise-army screen, which draws the three labels
 /// too — the painter is one function and does not know which screen called it —
 /// but where they are *dead*: `0x17`'s input arm tests only its own three
 /// widgets, so *Create*, *Change* and *Cancel* are visible and inert until the
-/// player presses Continue. We draw them dimmed there rather than not at all,
+/// player presses Continue. We draw them dimmed there,
 /// because a label that is painted and does nothing is what the original shows.
 pub fn page(ctx: &Ctx, canvas: &mut Canvas, buttons: bool) {
     let a = &ctx.assets.shell;
@@ -939,7 +939,7 @@ pub fn page(ctx: &Ctx, canvas: &mut Canvas, buttons: bool) {
 ///        FUN_00418E2D(); Armoury_DrawWalker();
 /// ```
 ///
-/// One pass, both screens, run after the page rather than as part of it —
+/// One pass, both screens, run after the page —
 /// `Screen_Draw` has **no `'\r'` case at all**, so `0x0D` is painted once on
 /// the way in and this arm is the only thing that runs on it afterwards.
 ///
@@ -1067,7 +1067,7 @@ impl ArmouryScreen {
     }
 
     /// `FUN_00435AE8`'s id 1 and id 3 — `Army_RaiseConfirm` with the answer set
-    /// either way. A no is not a refusal: it closes the screen and raises
+/// either way. A no closes the screen and raises
     /// nothing, which is `g_screenId = 0` down both arms of the handler.
     fn confirm(&mut self, ctx: &mut Ctx, yes: bool) -> Transition {
         if !yes {
@@ -1224,7 +1224,7 @@ impl RackScreen {
     /// was seeded with. **Ours already is the difference** —
     /// [`l2_kingdom::LevyBasket::equip`] decrements `remaining` as it fills
     /// `chosen`, so the two conventions meet at the same number and only the
-    /// expression differs. Written out rather than transcribed, because
+/// expression differs. Written out, because
     /// transcribing it would have subtracted `chosen` twice.
     fn spare(&self, ctx: &Ctx) -> i32 {
         let basket = &ctx.game.levy.basket;
@@ -1512,7 +1512,7 @@ mod tests {
         }
         // 0x21E + 100 runs two pixels past the screen; the boxes stop at 634,
         // which is `Ui_DrawCentred` being given a column wider than the room
-        // that is left rather than a coordinate we misread.
+// that is left.
         assert_eq!(LABEL_X + LABEL_W - 640, 2, "the painter's column overhangs by two");
         assert_eq!(CREATE_BOX.x + CREATE_BOX.w, 634, "and the hotspot stops short of it");
     }

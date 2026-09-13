@@ -180,7 +180,7 @@
 //! written by `Trade_DrawPanel` itself in the two arms above, and it is the
 //! panel's whole modality. **The table is exactly six records long** —
 //! `0x004DD838 + 6 * 24` is `0x004DD8C8`, which is `g_armouryBuyWidgets` — so
-//! unlike the merchant's own table there is no cut row behind this count.
+//! unlike the merchant's own table.
 //!
 //! # The three strings that are the rules stated in English
 //!
@@ -1186,7 +1186,7 @@ impl Screen for TradeScreen {
         }
         // The two clamps are read for the *arrows'* behaviour, not for their
         // pictures: `Widget_Draw` draws every record it is given whether or not
-        // the handler would do anything, so there is no disabled frame.
+        // the handler would do anything.
         let _ = (floor, ceiling);
 
         // ---- ours, below the original's window, debug overlay only --------
@@ -1208,7 +1208,7 @@ mod tests {
     use super::*;
 
     /// The table is self-checking: row `i` carries good id `i + 1`, fourteen
-    /// for fourteen. A misread row would show up here rather than as a plaque
+    /// for fourteen. A misread row would show up here
     /// in the wrong place.
     #[test]
     fn the_stall_table_names_its_own_good_in_every_row() {
@@ -1253,7 +1253,7 @@ mod tests {
     /// box and nothing ever shows both. Grain's at (100, 230) and stone's at
     /// (160, 210) do. That is why the plaque box is a poor hit test and
     /// `mercgrid.pl8` is the real one; the fallback below resolves an overlap
-    /// in ascending good id, deterministically, and only ever runs on a machine
+    /// in ascending good id, deterministically,
     /// with no artwork at all.
     #[test]
     fn the_plaques_fit_on_the_screen_and_overlapping_ones_resolve_in_id_order() {

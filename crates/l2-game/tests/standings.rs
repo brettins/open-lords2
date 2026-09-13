@@ -14,7 +14,7 @@
 //!   `FUN_00415E42` and the ranking of `FUN_00415BDC` against values built by
 //!   hand.
 //!
-//! The rules are tested by hand-built realms rather than from a fixture on
+//! The rules are tested by hand-built realms
 //! purpose: `docs/decisions.md` C26 — every fixture is turn one with one
 //! county each, so **every category is a five-way tie** and the only line the
 //! page would ever show from one is *"undecided."*. A test driven by the
@@ -146,7 +146,7 @@ fn the_bars_are_each_realms_share_of_the_leaders_score() {
     assert_eq!(s.pct[3], 25);
     assert_eq!(s.pct[4], 0);
     // `PctOf(1, 1000)` is `1 * 100 / 1000`, which is integer zero — a realm
-    // with a crown in the bank is drawn exactly as one with nothing.
+    // with a crown in the bank is drawn
     assert_eq!(s.pct[5], 0, "integer division, and the original's too");
 }
 
@@ -255,7 +255,7 @@ fn the_pages_geometry_is_the_exes_own_tables() {
     }
 
     // `g_nobleColumnX` — entries **1…5**; entry 0 is a zero the loop never
-    // reads, which is why this is offset by one.
+    // reads,
     let t = l2_testkit::pe::Table::at(&exe, 0x004D_2B40);
     for (slot, &x) in nobles::COLUMN_X.iter().enumerate() {
         assert_eq!(t.i32_at(slot + 1), x, "column x, slot {}", slot + 1);
@@ -307,7 +307,7 @@ fn the_banner_sheet_holds_five_banners_and_one_marker() {
 /// 6, and this painter is its only consumer in the binary.
 ///
 /// Seven categories and one *"undecided."*, and the test asserts the words
-/// rather than the count so that a group that shifted would be caught.
+///
 #[test]
 fn the_page_draws_its_words_out_of_group_35() {
     let dir = l2_testkit::install!();
@@ -426,7 +426,7 @@ fn the_button_rebuilds_the_realm_totals_the_page_reads() {
 /// 2; FUN_004B3994(g_uiHotspotId);`.
 ///
 /// Two things are asserted that a simpler wiring would fail: the id comes from
-/// **which** tab was hit rather than from a running index, and the counter
+/// **which** tab was hit, and the counter
 /// moves even when the tab pressed is the one already showing — because the
 /// original's call is unconditional and a diff on the category would swallow
 /// that press.

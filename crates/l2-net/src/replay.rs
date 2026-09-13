@@ -31,7 +31,7 @@
 //! with the Rust version, an `f32` that the compiler contracted into an
 //! FMA on one target and not another. A replay corpus in CI on one
 //! runner will pass all of those happily. That is why D-1 through D-6
-//! are structural rules rather than things the test suite is expected
+//! are structural rules
 //! to find, and it is worth being explicit that this file is not a
 //! substitute for them.
 
@@ -68,7 +68,7 @@ pub struct Replay {
     pub commands: Vec<(Tick, Command)>,
     /// The checksum after each simulated tick.
     ///
-    /// Every tick, not just the last. A replay that only pinned the
+    /// Every tick. A replay that only pinned the
     /// final hash would say "these two runs ended differently" when
     /// what is wanted is "these two runs first differed at tick 412",
     /// and the difference between those two sentences is an afternoon.
@@ -140,7 +140,7 @@ impl Replay {
             });
         }
 
-        // A cursor rather than `commands_at` per tick: the command
+        // A cursor per tick: the command
         // stream is in tick order, so one pass is enough, and a
         // thirty-minute battle has enough ticks that the quadratic
         // version is noticeable in CI.

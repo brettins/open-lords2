@@ -168,7 +168,7 @@ fn a_press_that_closes_its_own_screen_is_still_counted() {
 /// countdown loop twenty frames later and that loop plays nothing. Asserted on
 /// `Press` directly and through both of its entry points, because the
 /// diplomacy screen's six verb buttons call `Press::press_delayed` by hand
-/// rather than through `Press::event`.
+///
 ///
 /// **Ablation, run:** delete `self.click()` from `Press::press_delayed` and the
 /// two loud assertions go red; add one on `Press::tick`'s delayed fire and the
@@ -223,12 +223,12 @@ fn the_hotspot_kinds_are_silent() {
 }
 
 /// **The campaign sidebar is `Hotspot_Test` kind 1, and opening a screen from it
-/// is silent.** Through the machine, because the sidebar is not a [`Press`] at
+/// is silent.** Through the machine,
 /// all — which is the point: a hotspot cannot click because it has no path to
 /// the only thing that counts.
 ///
 /// **This one cannot be ablated from `press.rs`**, and that is a finding about
-/// the shape rather than a gap in the test: `MapScreen` owns no `Press`, so no
+/// the shape: `MapScreen` owns no `Press`, so no
 /// edit to the click's rule reaches it. What would turn it red is a screen
 /// answering its hotspots through a `Press` table with the wrong kind — which
 /// is the defect it exists to catch.
@@ -252,7 +252,7 @@ fn the_sidebar_opens_screens_without_a_sound() {
 ///
 /// The county panel's corner closes on the release (`Ui_OkButtonClicked`,
 /// `0x0040E7E4`, 26 call sites, no sound); the message scroll's corner closes
-/// on the press through `Msg_HandleInput`'s own 48 × 48 test, which is not a
+/// on the press through `Msg_HandleInput`'s own 48 × 48 test,
 /// widget either. Both are asserted to have closed their window.
 #[test]
 fn the_ok_buttons_are_silent() {

@@ -52,7 +52,7 @@
 //!
 //! A field outside the encoding carries `not-encoded:` and a reason in
 //! its doc comment. A field that crosses the codec through a *constructor*
-//! rather than by name — `Quirks::from_bits` — carries `codec-via:`, because
+//! carries `codec-via:`, because
 //! this check matches names and cannot see one. Both are excuses, both are
 //! counted, and neither is a silence. That is the same principle as an invention being a countable
 //! status: a decision nothing counts is a decision nobody
@@ -166,7 +166,7 @@ fn codec_bodies() -> BTreeMap<String, Codec> {
 }
 
 /// **Codecs that are a pair of free functions**, named
-/// one by one because there is no keyword to scan for.
+/// one by one.
 ///
 /// `Game` is the whole of the list today and it is the reason the list exists:
 /// `l2_game::save` writes a saved game with `encode`/`encode_prefix` and reads
@@ -408,7 +408,7 @@ fn every_field_of_an_encodable_struct_is_encoded_and_decoded() {
     // a growing list goes red.** These are types with a codec whose struct does
     // not resolve in the codec own crate: enums with a hand-rolled wire form,
     // and fixtures that live in a test module. Each is a type this check makes
-    // NO claim about, which is worth exactly as much as knowing which ones it
+    // NO claim about.
     // does.
     unverifiable.sort();
     assert_eq!(

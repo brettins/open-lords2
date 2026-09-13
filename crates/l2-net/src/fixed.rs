@@ -16,7 +16,7 @@
 //! uses seven of the sixteen integer bits; the remaining nine are
 //! headroom for intermediate results. A value that overflows Q16.16
 //! here is a bug, not a large number, and [`Fixed`] is built to make
-//! that visible rather than to accommodate it.
+//! that visible.
 //!
 //! # Rounding
 //!
@@ -65,17 +65,17 @@
 //! takes the game down for something that may be one bad frame in a
 //! cutscene. Saturation pins the value at the end of the range, where
 //! it stays visibly wrong and stays *there*, and the checksum still
-//! matches on both peers because saturation is exactly as deterministic
+//! matches on both peers because saturation is
 //! as wrapping.
 //!
-//! Code that wants to know rather than to continue uses
+//! Code that wants to know uses
 //! [`Fixed::checked_add`] and friends, which return `None` and cost
 //! nothing extra — the saturating versions are written in terms of
 //! them.
 //!
-//! Division by zero is the exception: `/` panics. There is no value to
+//! Division by zero is the exception: `/` panics.
 //! saturate to that is not a lie, and a panic is deterministic — both
-//! peers panic on the same tick, which is a bug report rather than a
+//! peers panic on the same tick, which is a bug report.
 //! desync. [`Fixed::checked_div`] is there for callers who would rather
 //! branch.
 
@@ -152,7 +152,7 @@ impl Fixed {
 
     /// Percent as a fraction: `percent(150) == 1.5`.
     ///
-    /// Exists because it is what the rule files actually contain —
+/// Exists because it is what the rule files contain —
     /// `l2-mods`'s seeded ruleset writes difficulty as
     /// `scale_percent = 116` — and because `from_ratio(p, 100)` at
     /// every call site is where a `100` eventually gets typed as `10`.
@@ -339,7 +339,7 @@ impl Fixed {
     /// `self * numerator / denominator`, with the multiply done in 64
     /// bits before the divide.
     ///
-    /// Worth having as one operation rather than two: `x.mul(a).div(b)`
+/// Worth having as one operation: `x.mul(a).div(b)`
     /// rounds twice and can saturate in the middle, and "apply a
     /// percentage" is the single most common fractional operation in a
     /// game's rules. Truncates toward zero. Panics on a zero
@@ -352,11 +352,11 @@ impl Fixed {
     // --- roots -----------------------------------------------------
 
     /// Square root, truncated. Panics on a negative input, which is a
-    /// programming error rather than a game state.
+/// programming error.
     ///
     /// Integer bit-by-bit extraction, so it is exact to the last
     /// representable step on every machine. `f32::sqrt` would be
-    /// faster and is precisely what D-1 forbids: it is correctly
+/// faster and is what D-1 forbids: it is correctly
     /// rounded on hardware that implements IEEE-754 square root, and
     /// "hardware that implements it" is not a promise the language
     /// makes.
@@ -371,7 +371,7 @@ impl Fixed {
     /// root brings them back to Q16.16 in one step.
     ///
     /// This is the reason [`Fixed::sqrt`] exists — distance between two
-    /// points is the one place a battle simulation genuinely wants a
+/// points is the one place a battle simulation wants a
     /// root, and doing it as `x.mul(x).add(y.mul(y)).sqrt()` would
     /// saturate for any separation over 181 tiles and round three times
     /// on the way.
@@ -381,7 +381,7 @@ impl Fixed {
         // Each square is at most 2^62, so the sum can overflow i64 only
         // if both operands are near the ends of the range — which is
         // already outside anything this game represents. Saturate the
-        // sum rather than wrap.
+// sum.
         let sum = xx.checked_add(yy).unwrap_or(i64::MAX);
         Fixed(saturate(isqrt(sum as u64) as i64))
     }
@@ -408,7 +408,7 @@ const fn narrow(wide: i64) -> Option<Fixed> {
 
 /// `numerator / denominator`, nearest, halves away from zero.
 ///
-/// Done on magnitudes with the sign reapplied, rather than by nudging
+/// Done on magnitudes with the sign reapplied.
 /// the numerator in place. The in-place version needs four sign cases
 /// and gets one of them wrong the first time it is written — as this
 /// one did, rounding `-2.5` to `-2`.
@@ -528,7 +528,7 @@ impl From<u8> for Fixed {
 /// which is a truncation of `0.0000152…`, because five digits is the
 /// most that ever distinguishes two Q16.16 values.
 ///
-/// Written with integers, of course. A `Display` that formatted through
+/// Written with integers. A `Display` that formatted through
 /// `f64` would be correct here and would also be the first `f64` in the
 /// simulation crate's call graph, which is exactly the sort of thing
 /// the CI grep in `docs/netcode.md` is meant to catch.

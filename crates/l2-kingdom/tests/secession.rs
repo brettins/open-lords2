@@ -138,7 +138,7 @@ fn an_eliminated_realm_loses_nothing_because_it_is_not_looked_at() {
     assert_eq!((1..=3).map(|id| k.counties[id].owner).collect::<Vec<u8>>(), vec![1, 2, 1]);
 }
 
-/// `County_MakeIndependent` leaves the county **consistent**, not merely
+/// `County_MakeIndependent` leaves the county **consistent**, all four industries switched off, the peasants reallocated, and the
 /// unowned: all four industries switched off, the peasants reallocated, and the
 /// tax preview rewritten. Switching the industries off is the mechanism — it is
 /// what turns the four industry ceilings to zero and moves those people into

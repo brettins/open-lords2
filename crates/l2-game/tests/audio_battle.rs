@@ -13,7 +13,7 @@
 //! the two listeners on it are held to:
 //!
 //! * the right file for the right event and troop, **with the file names pinned
-//!   as literals read out of `Lords2.exe`** rather than computed from the tables
+//! as literals read out of `Lords2.exe`**
 //!   under test;
 //! * the original's two throttles, which are drop-if-busy and nothing else;
 //! * and that **a battle played with sound is the same battle as one played
@@ -502,7 +502,7 @@ fn play_it_twice(sound: &mut Audio) -> (Game, Game) {
 /// than the lockstep digest, which is a hand-written projection of the same
 /// runner (`crates/l2-sim/tests/lockstep.rs`).
 ///
-/// **A green ablation, and it is the finding.** There is no line in
+/// **A green ablation, and it is the finding.**
 /// `Director` whose deletion turns this red, because `Director::listen` holds
 /// `&Game` and cannot write to it: the guarantee is the type, and this test is
 /// the tripwire for the day somebody changes the signature. Ablated the other
@@ -598,7 +598,7 @@ fn find(dir: &Path, name: &str) -> Option<PathBuf> {
     })
 }
 
-/// **The same, with sound that actually plays** — decoded and mixed from the
+/// **The same, with sound** — decoded and mixed from the
 /// install, and the assertion that sound was made is what keeps the equality
 /// from being about a silence.
 #[test]
@@ -616,7 +616,7 @@ fn sound_that_plays_does_not_change_the_battle() {
     }
 }
 
-/// **The same siege with sound that actually plays** — and the four files the
+/// **The same siege with sound** — and the four files the
 /// siege added are among what was opened: the pour, the dock, the bridge and
 /// the shot off the high wall, with a burning man's death cry beside them.
 #[test]
@@ -691,7 +691,7 @@ fn the_troop_cry_table_is_the_one_at_0x004db0d0() {
 
 /// **Eighty-three more files**: the ladder's seventeen and the sixty-six cries,
 /// asked for through the verbs the director uses and counted by what the layer
-/// actually opened. With `tests/audio_wiring.rs`' 530 and 30 that is **643 of
+/// opened. With `tests/audio_wiring.rs`' 530 and 30 that is **643 of
 /// 771**. It was seventy-nine until the siege could pour oil, dock a tower,
 /// burn a bridge and bounce a shot off a wall four high.
 #[test]
@@ -702,7 +702,7 @@ fn the_battlefield_is_eighty_three_more_files() {
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let mut sound = Audio::headless(&platform.vfs);
     for r in audio::battle_requests(&Cues::default(), &Cues::of_every_occasion()) {
-        // `play_effect` rather than the dropping verbs, because a census that
+        // `play_effect`
         // loses a file to a busy buffer is counting the timing, not the reach.
         sound.play_effect(file_of(r));
     }

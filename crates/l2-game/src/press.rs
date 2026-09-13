@@ -86,7 +86,7 @@ pub const REPEAT_GATE_ADDR: u32 = 0x004D_2748;
 /// Steps below this fire nothing: `if (rec[0x0E] < 8) return 0;`
 pub const REPEAT_FIRST_STEP: u8 = 8;
 
-/// The counter clamps here, and the clamped branch **skips the table** — so
+/// The counter clamps here, and the clamped branch **skips the table** —
 /// from this step onward the button fires on every step, which is the *"and
 /// then it goes fast"* the player remembers.
 pub const REPEAT_CLAMP: u8 = 0x2F;
@@ -143,7 +143,7 @@ pub enum Kind {
     ///
     /// It reads `g_mouseLeftPressed` **and not** `g_mouseLeftDoubleClick`, so
     /// the second click of a double click does not fire it: Windows sends
-    /// `WM_LBUTTONDBLCLK` *instead of* the second `WM_LBUTTONDOWN`. That is a
+    /// `WM_LBUTTONDBLCLK`
     /// behaviour, not an oversight, and [`Press::event`] keeps it.
     Press,
     /// `Hotspot_Test` kind **2** — the down edge, then a **flat**
@@ -156,7 +156,7 @@ pub enum Kind {
     /// edge.
     ///
 /// It carries no memory of a press: the tester hit-tests the box and
-    /// reads the released flag, so a release inside a kind-3 box fires it
+    /// reads the released flag,
     /// whether or not the press that preceded it happened there.
     Release,
     /// `Widget_Test` kind **4** — the down edge, the pressed picture for
@@ -216,7 +216,7 @@ impl Kind {
 /// `arm!("0x00437AFB/divide-confirm", Delayed)` *is* `Kind::Delayed` — it
 /// expands to nothing else — and it is also the `docs/arms.json` marker for
 /// that arm. `crates/l2-game/tests/arms.rs` reads the id out of the first
-/// argument and the gesture out of the second, through [`Kind::gesture`], so
+/// argument and the gesture out of the second, through [`Kind::gesture`],
 /// the word the marker claims and the kind the widget is answered with are
 /// the same identifier and cannot drift apart.
 ///
@@ -281,8 +281,8 @@ pub fn fires_on_step(step: u8) -> bool {
 ///
 /// The largest table a screen of ours hands to [`Press`] is the army-division
 /// screen's eighteen (`g_splitWidgets`). The bound is a bitmask's width
-/// ([`Fired`]), and it is asserted on every press, so a
-/// bigger table fails its first test instead of timing the wrong button.
+/// ([`Fired`]), and it is asserted on every press,
+/// bigger table fails its first test
 pub const MAX_WIDGETS: usize = 32;
 
 /// **The handlers one tick owes a screen**, in the order `Widget_Test` calls
@@ -394,7 +394,7 @@ pub struct Press {
     ///
     /// Set when [`Press::tick`] fires a handler or brings a pressed picture back
     /// up. An event repaints on its own — `Machine::handle` marks the machine
-    /// dirty for every one — so a press never needs this; the auto-repeat and
+    /// dirty for every one —
     /// the delayed fire arrive with **no** event, and until this existed a held
     /// arrow stepped the number on every pulse and the screen showed it only
     /// when the button came up.
@@ -435,10 +435,10 @@ impl Press {
     ///   and `Battle_Frame` calls `Screen_DrawWidgets` (`0x004BA26E`) every
     ///   frame, whose `0x11`, `0x18` and `0x0C` arms run
     ///   `Screen_SplitArmyRows`, `FUN_0041AEA2` and `Trade_DrawPanel` — the
-    ///   number and the widgets — before `Widget_Draw`.
+    /// number and the widgets — before `Widget_Draw`.
     ///
     /// Either way the number a held arrow steps is on screen on the frame it
-    /// stepped. Ours repaints when the machine is dirty, so a screen that owns
+    /// stepped. Ours repaints when the machine is dirty,
     /// one of these hands this up through [`crate::screen::Screen::take_redraw`].
     pub fn take_redraw(&mut self) -> bool {
         core::mem::take(&mut self.redraw)
@@ -531,7 +531,7 @@ impl Press {
             // arms with `g_mouseLeftPressed || g_mouseLeftDoubleClick`, and
             // `Hotspot_Test` (`0x0040E3EE`) its kind-2 arm; kind 1 reads
             // `g_mouseLeftPressed` alone and kind 3 `g_mouseLeftReleased`
-            // alone. Since Windows sends the double click *instead of* the
+            // alone. Since Windows sends the double click
             // second press, that is the difference between a spinner that steps
             // twice on a fast double click and a box that answers once. `[V]`
             //
@@ -568,7 +568,7 @@ impl Press {
                 let i = table.iter().position(|w| w.rect.contains(x, y))?;
                 (table[i].kind == Kind::Release).then_some(i)
             }
-            // The original re-runs the hit test every frame, so a pointer that
+            // The original re-runs the hit test every frame,
 // has walked off the button stops matching and the record's
             // timer is never refreshed. Ours says it.
             Event::Pointer { x, y } => {
@@ -628,10 +628,10 @@ impl Press {
     /// up and arms its handler for [`DELAYED_FRAMES`] ticks' time;
     /// [`Press::tick`] returns the widget on the tick it expires.
     ///
-    /// **Every other record's countdown carries on**, so a second gauntlet
+    /// **Every other record's countdown carries on**,
     /// pressed before the first has acted does not cancel it. **The same
     /// record pressed again restarts its own**: the kind-5 arm is
-    /// `rec[0x0D] = 0x14` whatever the timer held, so a button pressed twice
+    /// `rec[0x0D] = 0x14` whatever the timer held,
     /// within twenty frames — a double click, usually — acts once, twenty
     /// frames after the second press. `[V]`, `Widget_Test` (`0x0040DA1E`).
     pub fn press_delayed(&mut self, widget: usize) {
@@ -648,7 +648,7 @@ impl Press {
     /// The pointer moved. `over` is the widget under it, or `None`.
     ///
     /// The original does not track this: it re-runs the hit test every frame,
-/// so a pointer that has walked off the button stops matching and
+///
     /// the record's timer is never refreshed. The effect is the same and this
     /// is how a screen that owns its own rectangles says it.
     pub fn pointer(&mut self, over: Option<usize>) {
@@ -800,7 +800,7 @@ mod tests {
     fn holding_a_button_repeats_slowly_then_quickly() {
         let mut p = Press::new();
         assert!(p.press(3));
-        // 16 ms ticks against a 30 ms step, so a step every other tick.
+        // 16 ms ticks against a 30 ms step,
         let mut fires = Vec::new();
         for t in 1..=120 {
             if p.tick().any(|w| w == 3) {

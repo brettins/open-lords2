@@ -18,12 +18,12 @@
 //! Case-folding can collide where the filesystem allowed two files that differ
 //! only in case. That cannot happen on NTFS but can on ext4, so the index
 //! resolves it deterministically — lowest raw name wins — and records a
-//! [`CaseCollision`] rather than picking whichever `read_dir` happened to
+//! [`CaseCollision`]
 //! return first.
 //!
 //! ## Read-only by construction
 //!
-//! There is no write API. `CLAUDE.md` rule 2 says the game installs are
+//!
 //! read-only, and the cheapest way to keep a rule is to make breaking it
 //! impossible: a mod's output goes somewhere else entirely, through code that
 //! never had a handle on a layer root.
@@ -227,8 +227,8 @@ impl Vfs {
 
     /// Files a single layer contributes under a prefix, sorted.
     ///
-    /// Rule documents need this rather than [`Self::resolve`]: rules from
-    /// every layer are *merged*, so every layer's copy must be read, not just
+    /// Rule documents need this: rules from
+    /// every layer are *merged*, so every layer's copy must be read,
     /// the winning one. Assets shadow; rules accumulate. That asymmetry is
     /// deliberate and is the reason both accessors exist.
     pub fn layer_entries_under(&self, layer: usize, prefix: &str) -> Vec<(&str, &Path)> {

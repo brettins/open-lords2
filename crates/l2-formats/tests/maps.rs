@@ -5,7 +5,7 @@
 //! ```
 //!
 //! These re-derive the structural claims in `docs/formats/maps.md` from the
-//! bytes rather than trusting them. Skips when `LORDS2_DIR` is unset; no game
+//! bytes. Skips when `LORDS2_DIR` is unset; no game
 //! data lives in this repository.
 
 use l2_formats::maps::{flags, Plane, MapSet, PLANE_DIM, SLOT_LEN};
@@ -119,8 +119,8 @@ fn castle_tiles_form_complete_two_by_two_blocks() {
 /// indexed a list of the block's tiles and took element 1 drew on `(x + 1, y)`,
 /// which is quadrant 1 and which the original never paints anything on.
 ///
-/// This is the claim checked against the player's own file rather than against
-/// the sentence in `maps.rs`, because the sentence is what was believed and the
+/// This is the claim checked against the player's own file
+/// the sentence in `maps.rs`
 /// bytes are what is true — `docs/agents.md`, *a document is an input to the
 /// code, not only a record of it*.
 #[test]

@@ -424,7 +424,7 @@ pub struct DropdownScreen {
     /// `DAT_00522CB0`, zero-based: the item under the pointer, if any.
     hover: Option<usize>,
     /// Ours: what a refused item said, drawn under the bar so a player is told
-    /// rather than left wondering.
+    ///.
     status: String,
 }
 
@@ -450,7 +450,7 @@ impl DropdownScreen {
     fn run(&mut self, _ctx: &mut Ctx, item: Item) -> Transition {
         match item {
             // `Menu_NewGame`: `Ui_OpenConfirm(1, …)` — group 10 index 1. Screen
-            // 0x1E is not built, so this is refused rather than guessed at.
+            // 0x1E is not built, so this is refused.
             // arm: 0x0040DECA/file-new-game left-press
             Item::NewGame => {
                 self.status = "NEW GAME NEEDS THE CONFIRM BOX (SCREEN 0x1E)".into();
@@ -624,7 +624,7 @@ impl Screen for DropdownScreen {
 }
 
 /// **The bar's three captions, drawn.** A free function because the *campaign
-/// map* draws it, exactly as `Screen_DrawMenuBar` does: the drop-down is a
+/// map* draws it: the drop-down is a
 /// separate screen and the titles are not its.
 ///
 /// `Ui_DrawMenuTitles` draws the open title inverted — colour `0x18` on a
@@ -643,7 +643,7 @@ pub fn draw_titles(ctx: &Ctx, canvas: &mut Canvas, open: Option<usize>) {
             //
             // **`g_spriteWidth` is in sixteen-pixel units**, so the plate is
             // rounded out to a whole number of cells and is always at least 32
-            // pixels wider than the word rather than four. This drew `w + 4`
+            // pixels wider than the word. This drew `w + 4`
             // until `FUN_004B414A`'s body was read.
             let cells = (r.w + 4) / PLATE_CELL + 2;
             canvas.fill_rect(
@@ -708,7 +708,7 @@ mod tests {
 
     /// **The plate is the original's, and its height is the item count.**
     /// `g_spriteHeight = (count * 0x15) / 16 + 2`, in cells: 4 items → 7,
-    /// 5 → 8, 7 → 11. Pinned as literals from the decompilation rather than
+    /// 5 → 8, 7 → 11. Pinned as literals from the decompilation
     /// recomputed from `plate_rows`, which would test nothing.
     #[test]
     fn the_dropdown_plate_is_twelve_cells_wide_and_grows_with_the_item_count() {

@@ -1,9 +1,9 @@
-//! What each mod actually did — the answer to "why is my mod not working?"
+//! What each mod
 //!
 //! [`crate::Report`] answers it from the *conflict's* side: this path was
 //! overridden, this file was shadowed. That is the right shape for "the two
 //! mods I installed are fighting", and the wrong shape for the question mod
-//! authors actually ask, which is about one mod and starts from the
+//! authors
 //! assumption that it should have worked.
 //!
 //! A rule a mod wrote can fail to reach the game in three quite different
@@ -15,13 +15,13 @@
 //!    added it and the engine reads it from a name nothing looks up. Almost
 //!    always a typo — `battle.three_brdiges` — or a mod written against a
 //!    version of another mod that has since renamed something. This one is
-//!    invisible without provenance, which is why the value tree carries it.
+//! invisible without provenance.
 //! 3. **It was deleted.** A later `"$delete"` removed the table it was in.
 //!
 //! Case 2 is the one worth the machinery, and it is `docs/modding.md` §7.3.
 //! The example-mod corpus test already makes that check by hand — the example
 //! must *override* every leaf it sets, never add one — and this generalises it
-//! to every mod, at runtime, where the author will actually see it.
+//! to every mod, at runtime, where the author will
 //!
 //! Assets are simpler, because assets shadow: a mod's file either wins or is
 //! covered by a later layer's file of the same name.
@@ -45,7 +45,7 @@ pub enum Fate {
     Overrode(String),
     /// This layer's value is the one the engine reads, and nothing below
     /// defined the path. A new rule if that was intended, a typo if it was
-    /// not — the platform cannot tell, and says so rather than guessing.
+    /// not — the platform cannot tell, and says so.
     Added,
     /// A later source set the same path and won.
     LostTo(String),
@@ -158,7 +158,7 @@ impl LayerEffect {
 pub fn analyse(vfs: &Vfs, rules: &Ruleset, mods: &[ModMeta]) -> Vec<LayerEffect> {
     let mut out = Vec::new();
 
-    // The core ruleset is not a VFS layer — it is compiled in — so it is
+    // The core ruleset is
     // accounted for first and separately, and only for rules.
     let core = crate::core::CORE_LAYER;
     if rules.documents.iter().any(|d| layer_of(&d.source) == core) {

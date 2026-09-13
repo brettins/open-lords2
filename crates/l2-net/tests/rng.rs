@@ -119,7 +119,7 @@ fn below_zero_panics() {
     Pcg32::from_seed(1).below(0);
 }
 
-/// The debiasing must actually debias. A modulo without rejection makes
+/// The debiasing must. A modulo without rejection makes
 /// the low residues more likely; over a large sample with a bound that
 /// divides badly into 2^32, that shows up as a measurable skew.
 ///

@@ -42,14 +42,14 @@
 //!   model changed with them: [`County::crop`] is **seed, standing crop,
 //!   harvest** and not three growth stages.
 //! * **the four industries.** `Industry_LabourEstimate` reads the owning
-//!   *realm*, so [`l2_kingdom::field::refresh_estimates`] takes one — and the
+//! *realm*, so [`l2_kingdom::field::refresh_estimates`] takes one — and the
 //!   blacksmith's share of the stockpile is
 //!   [`l2_kingdom::industry::weapon_shares`], `FUN_0044F15B`, which was `[D]`
 //!   and is now traced.
 //! * **the castle.** `Castle_BuildEstimate`'s ceiling is 0 until the build's
 //!   materials have been delivered. This file used to say the gate was
 //!   permanently open because the crate debited the cost up front; it does not,
-//!   the six words at `+0x1CC … +0x1E0` are on [`County`] now, and the gate
+//! the six words at `+0x1CC … +0x1E0` are on [`County`] now, and the gate
 //!   shuts. See [`l2_kingdom::industry::castle_labour_estimate`].
 //!
 //! And the one that would have made wiring the allocator a **silent no-op**:
@@ -264,7 +264,7 @@ fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
 
     // **The gate is a whole percent, and that is the original's arithmetic.**
     // `PctOf(1, 400)` is 0, so a build one stick of wood short reads as fully
-    // delivered and the builders start. Reproduced rather than tightened:
+    // delivered and the builders start. Reproduced
     // `FUN_00450FB4` is two `PctOf` calls and integer division, and a rule that
     // rounded the other way would idle a county over a rounding error.
     realm.wood = 399;

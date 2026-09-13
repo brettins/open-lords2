@@ -215,11 +215,11 @@ unit's index into **byte +5 of the runtime tile record**.
 > One thing that falls out and matters elsewhere: **`moveAllowance` (`+0x154`) is
 > 0 in all six records.** It is written by the tick handler every frame and
 > never persisted, which is the direct evidence for
-> [`armies.md`](../armies.md) §2.1a's "tick-maintained rather than initial"
+> [`armies.md`](../armies.md) §2.1a's "tick-maintained"
 > reading — and a warning for any loader, because a unit restored from a save
 > and never ticked cannot move at all.
 >
-> **All of it is now asserted rather than quoted.** `l2-formats` reads
+> **All of it is now asserted.** `l2-formats` reads
 > `g_merchantRoutes`, `g_merchantStartCounty` and the whole `g_units` array out
 > of a save, and `crates/l2-formats/tests/save_england_turn1.rs`'s
 > `england_ships_six_merchants_on_the_six_routes_plane4_predicted` and
@@ -227,7 +227,7 @@ unit's index into **byte +5 of the runtime tile record**.
 > number in the block above against the file. `tests/save.rs` then checks the
 > shape of the table, the merchant count and the slot-1…n coupling over **every**
 > save the machine can reach, which is what makes the coupling an invariant
-> rather than an observation about England.
+>
 
 Merchant count per map, from the simulation (an upper bound — a spawn also
 requires a free tile, which is never a problem on the shipped maps but is not
@@ -282,12 +282,12 @@ Two details worth recording:
   not an artefact of decompilation. **[V]**
 * The cursor starts at **1**, so a merchant's first destination is the *second*
   county on its list — which is usually not the one it was spawned in, because
-  the start county came from `Merchant_PickStartCounties`' dedup walk rather than
+  the start county came from `Merchant_PickStartCounties`' dedup walk
   from entry 0.
 
 ---
 
-## 3. Why "merchant" is not a guess  **[V]**
+## 3. Why "merchant" is not a guess **[V]**
 
 Unit type 3 is identified from the game's own UI text, three independent ways.
 
@@ -327,7 +327,7 @@ Eight names ship; only six can ever be used, because the table has six rows.
 when a moving unit enters an occupied tile, returns immediately for types 3 and 4
 — they cannot be attacked. `FUN_0046873f` (crop trampling) and `FUN_00468ae2`
 (dwelling burning) both begin `if (type != 3 && type != 4)`. A merchant walks
-through a hostile county without a fight and without doing damage, which is what
+through a hostile county without a fight and without doing damage,
 the game's merchants do.
 
 Owner is `6`, the same owner byte the engine uses for player index 0 (unowned) —

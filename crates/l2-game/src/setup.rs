@@ -1,4 +1,4 @@
-//! **The custom game's twelve options, and what each one actually does.**
+//! **The custom game's twelve options, and what each one**
 //!
 //! `screens::setup` draws them. This module is what they *mean*, and it exists
 //! because the answer turned out not to be the obvious one: the twelve
@@ -16,7 +16,7 @@
 //! |---|---|---|
 //! | `Setup_SetOption` | `0x00433BA2` | `(which, value)` — one `if`/`else if` chain of twelve arms, each writing one global. Called from the drop-down's click handler with the row that was clicked. |
 //! | `Setup_DefaultOptions` | `0x004AE539` | writes all twelve at once. This is the *Defaults* button, and it is **not** twelve zeroes. |
-//! | `Setup_CommitOptions` | `0x00499DC3` | reads the twelve and writes the eleven globals a game is actually played with. Called from the *Start* button's handler, immediately before `Setup_StartGame`. |
+//! | `Setup_CommitOptions` | `0x00499DC3` | reads the twelve and writes the eleven globals a game. Called from the *Start* button's handler, immediately before `Setup_StartGame`. |
 //!
 //! # The twelve, and where each one lands
 //!
@@ -44,7 +44,7 @@
 //! # The five tables close against the string lists
 //!
 //! Every table was read out of a GOG `Lords2.exe` at the address the
-//! decompilation names, and each one has **exactly as many rows as its
+//! decompilation names, and each one has **
 //! drop-down has strings** — which is the check that could have failed and did
 //! not. [`tests`] asserts it against `screens::setup::OPTION_COUNT`, which is
 //! derived independently from the drop-down *geometry* table at `0x004D3158`.
@@ -169,9 +169,9 @@ pub struct CountyStart {
 /// order `FUN_0049BD99` assigns them in.
 ///
 /// **`medium` really does start with no grain at all.** It is 0 in the image
-/// where `weak` is 10, and it is reproduced rather than tidied: the two numbers
+/// where `weak` is 10, and it is reproduced: the two numbers
 /// are both far below a county's appetite and the herd, which triples from
-/// 40 to 95 to 330, is what the setting is actually moving.
+/// 40 to 95 to 330, is what the setting.
 pub const COUNTY_STATUS: [CountyStart; 3] = [
     CountyStart { grain: 10, herd: 40, population: 167, health_meter: 45, happiness: 41 },
     CountyStart { grain: 0, herd: 95, population: 417, health_meter: 65, happiness: 65 },
@@ -194,7 +194,7 @@ pub const AI_EXTRA_MAIL_PER_DIFFICULTY: i32 = 20;
 
 /// Which of `Realm::weapons` that extra lands in. `FUN_0049BD99` writes index
 /// 4, which is *bow* in [`START_ARMOURY`]'s order — carried as the index the
-/// binary uses rather than as a name, because the name is `docs/kingdom.md`'s
+/// binary uses, because the name is `docs/kingdom.md`'s
 /// to settle and the index is not in doubt.
 pub const AI_EXTRA_WEAPON_SLOT: usize = 4;
 
@@ -309,7 +309,7 @@ impl SetupOptions {
             // `DAT_0053F268 = (nobles + 2) - humanPlayers`. It is not clamped
             // in the original either; `Realms_AssignLords` walks five realms and
             // stops handing out lords when it has handed out this many, so a
-            // negative simply means nobody gets one.
+            // negative simply means.
             ai_lords: self.lords() as i32 - human_players as i32,
         }
     }
@@ -317,7 +317,7 @@ impl SetupOptions {
 
 // --------------------------------------------------------------- the settings
 
-/// **What a game is actually played with**, once the twelve selections have been
+/// **What a game**, once the twelve selections have been
 /// through `Setup_CommitOptions` and its five tables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Settings {
@@ -332,7 +332,7 @@ pub struct Settings {
     /// will reproduce, taken from the quirks page
     /// ([`crate::screens::options`]) at the moment the game is started.
     ///
-    /// It sits with the six *rule* settings rather than the six starting
+    /// It sits with the six *rule* settings
     /// conditions because it is one: it lives for the length of the game, it
     /// goes into the save, and it is in the lockstep digest.
     /// `docs/decisions.md` C62.
@@ -388,7 +388,7 @@ impl Settings {
     /// basket and the county's food passes re-run around it; doing that here
     /// would be a second army-raising path beside the one the levy screen
     /// already owns, and the option is reported by
-    /// [`Settings::unhonoured`] rather than silently dropped.
+    /// [`Settings::unhonoured`].
     pub fn apply_to(&self, game: &mut Game) {
         game.kingdom.options = self.kingdom_options();
 
@@ -478,7 +478,7 @@ impl Settings {
             }
         }
 
-        // `Diplo_Init` (`0x004A1C53`), and **it has to be here rather than in
+        // `Diplo_Init` (`0x004A1C53`), and **it has to be here
         // the world builder**: the opening standing it writes is 5 for an
         // in-play AI realm and 0 for a person or a dropped one, so it has to
         // run *after* the loop above has decided which realms exist. Run it
@@ -538,7 +538,7 @@ mod tests {
         assert_eq!(START_ARMOURY.len(), VALUE_COUNT[option::WEAPONS]);
         assert_eq!(START_TROOPS.len(), VALUE_COUNT[option::ARMY_SIZE]);
         assert_eq!(COUNTY_STATUS.len(), VALUE_COUNT[option::COUNTY_STATUS]);
-        // The two that are read as an index rather than through a table still
+        // The two that are read as an index
         // have to fit what they index.
         assert_eq!(VALUE_COUNT[option::NOBLES], 4, "two, three, four, five");
         assert_eq!(

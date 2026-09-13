@@ -19,7 +19,7 @@
 //! flew, so sixty archers fought as sixty men carrying bows. The question that
 //! had to be settled before any of this could be written was whether the
 //! original resolves a shot at launch and merely animates it, or whether the
-//! arrow genuinely traverses. **It genuinely traverses**, and the evidence is
+//! arrow genuinely traverses. **It genuinely traverses**
 //! one line of `Missile_Step` (`0x00492C8B`):
 //!
 //! ```c
@@ -41,7 +41,7 @@
 //! * **A target that dies or walks away is not tracked.** The impact point is
 //!   frozen at launch; the arrow arrives at an empty cell and carries on.
 //! * **Friendly fire cannot happen**, because the test is on the *owner* byte
-//!   rather than the side — and a friendly body does not stop the arrow either.
+//! rather than the side — and a friendly body does not stop the arrow either.
 //!
 //! # The timing is one number wearing two hats
 //!
@@ -80,7 +80,7 @@ pub const SUB_STEPS: i8 = 4;
 
 /// The array bound: `Missile_UpdateAll` runs `for (i = 1; i < 0x65; i++)`, and
 /// slot 0 is the "none" value. **A hundred and first arrow is silently
-/// dropped**, exactly as an eighty-first figure is.
+/// dropped**
 pub const MAX_MISSILES: usize = 100;
 
 /// **A missile is born a whole cell out from its shooter.**
@@ -222,13 +222,13 @@ impl WeaponClass {
 /// the sprite frame and base, the per-cell draw list link, the burnt-surface
 /// save slot, and `+0x32`, which the original writes and never reads.
 ///
-/// **`owner` is the free-slot marker**, exactly as it is for a unit and a
+/// **`owner` is the free-slot marker**
 /// figure: zero means the slot is empty, and [`Missiles::alloc`] finds the
 /// lowest such slot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Missile {
     /// Realm that fired it. **Zero means a free slot.** The hit test compares
-    /// this against a figure's *owner*, not its side, which is why an arrow
+    /// this against a figure's *owner*, not its side
     /// passes through a friendly body without being consumed.
     pub owner: u8,
     /// 1 bow, 2 crossbow, 3 catapult, [`CLASS_DEBRIS`] what a catapult shot
@@ -424,7 +424,7 @@ impl Missile {
     }
 }
 
-/// **The missile array** — a hundred fixed slots and no allocation, exactly as
+/// **The missile array** — a hundred fixed slots and no allocation
 /// the original has it.
 ///
 /// Slot 0 is never used; it is the "none" value. Allocation always restarts the

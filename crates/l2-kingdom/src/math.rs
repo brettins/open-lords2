@@ -1,7 +1,7 @@
 //! The two arithmetic primitives every rule in `docs/kingdom.md` is written in.
 //!
 //! Both are integer-only and both round the way the original's C rounds, which
-//! is the only reason they exist as named functions rather than as inline
+//! is the only reason they exist as named functions
 //! expressions: a lockstep simulation cannot afford one call site to round a
 //! percentage differently from another (`docs/netcode.md` §3).
 
@@ -29,9 +29,9 @@ pub fn pct(x: i32, p: i32) -> i32 {
 /// `PctOf(a, b) = a * 100 / b`, and **0 when `b` is 0** — `0x00404DC1`.
 ///
 /// The inverse of [`pct`]: what percentage of `b` is `a`. The zero case is the
-/// original's own guard rather than ours, and it is load-bearing — a county
+/// original's own guard
 /// with no cattle asks `PctOf(labour, 0)` for its herd staffing and gets 0
-/// rather than a division by zero (`docs/kingdom.md` §13).
+///
 ///
 /// ```
 /// # use l2_kingdom::math::pct_of;
@@ -94,7 +94,7 @@ pub fn div_ceil(a: i32, b: i32) -> i32 {
 }
 
 /// Clamp, spelled out so the intent reads at the call site. `i32::clamp`
-/// panics on an inverted range; this is only ever handed literal bounds.
+/// panics on an inverted range; this is
 #[inline]
 pub fn clamp(x: i32, low: i32, high: i32) -> i32 {
     if x < low {

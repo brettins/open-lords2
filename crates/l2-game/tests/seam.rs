@@ -142,7 +142,7 @@ fn before(save: &Save) -> (Kingdom, usize) {
 /// **The levy, against `battle-during.sav`.**
 ///
 /// The defence the original raised is in the save; the defence this crate
-/// raises is built here. Every field is compared, not just the total — a
+/// raises is built here. Every field is compared — a
 /// composition that summed to 182 the wrong way would pass a headcount.
 #[test]
 fn attacking_county_three_levies_the_defence_the_saved_game_holds() {
@@ -246,7 +246,7 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
     assert!(!report.verdict.attacker_won, "the save has both armies gone and the county neutral");
     assert_eq!(report.verdict.winner(), defender);
 
-    // Both armies are gone from the unit array, exactly as in the save.
+    // Both armies are gone from the unit array.
     assert!(unit_at(&after, ATTACKER_SLOT).is_none(), "the fixture's slot 5 is empty");
     assert!(unit_at(&after, DEFENCE_SLOT).is_none(), "and so is slot 6");
     assert!(k.campaign.units.get(attacker).is_none(), "the attacker was destroyed as the loser");
@@ -274,7 +274,7 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
     assert_eq!(report.attacker_men, (178, 0));
 }
 
-/// The same position **fought** rather than calculated: the seam runs a real
+/// The same position **fought**: the seam runs a real
 /// `l2-sim` battle from saved campaign records and brings a result back.
 ///
 /// # The winner is asserted now, and it did not used to be
@@ -341,7 +341,7 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
     assert!(report.attacker_men.1 <= 178 && report.defender_men.1 <= levied);
 
     // **The same verdict the saved game records**, reached by fighting it out
-    // rather than by the ladder. This is the assertion the missile gap made
+    //. This is the assertion the missile gap made
     // impossible.
     assert!(
         !report.verdict.attacker_won,

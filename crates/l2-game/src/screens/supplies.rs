@@ -75,7 +75,7 @@
 //! * The cattle row sits at y 300 and the orphan sheep row at y 296: the
 //!   layout was re-spaced when the row came out.
 //!
-//! [`SHEEP_ROW`] carries the orphan so the absence is countable rather than
+//! [`SHEEP_ROW`] carries the orphan so the absence is countable
 //! merely missing.
 //!
 //! # The spinner step is one or ten, and the **source pool** picks
@@ -89,7 +89,7 @@
 //!
 //! So the pool you are drawing **from** decides the step, not the one you are
 //! adding to: a count runs 1, 2, … 10, then jumps 20, 30 and comes back the
-//! same way. There is no modifier key; the auto-repeat is `Widget_Test`'s
+//! same way. The auto-repeat is `Widget_Test`'s
 //! kind-4 press timer. The sum is conserved, so the cap is structural — you can
 //! ship everything the county had when the screen opened and nothing more.
 //!
@@ -262,7 +262,7 @@ pub enum Dispatch {
     /// A transport is on the road, carrying `(grain, cattle)`.
     Sent(i32, i32),
     /// **`Transport_Spawn` found no free tile.** The cargo is not deducted and
-    /// nothing is spawned, exactly as the original loses it.
+    /// nothing is spawned.
     Nowhere,
 }
 
@@ -578,7 +578,7 @@ impl Screen for SuppliesScreen {
         // arm: 0x0043B412/supplies-pick left-press
         if MINIMAP_HIT.contains(x, y) {
             // `Minimap::county_at` subtracts the SIDEBAR hit origin, so the
-            // pixel is rebased onto it here rather than a second reader of the
+            // pixel is rebased onto it here
             // raster being written.
             if let Some(m) = ctx.assets.minimap(ctx.game.map_slot) {
                 let id = m.county_at(
@@ -654,7 +654,7 @@ impl Screen for SuppliesScreen {
         pen.box_interior(canvas, WELL.x, WELL.y, 0x14, 5);
         pen.inset(canvas, WELL);
         // `Widget_Draw`'s `base + 1` while `+0x0D` runs. The index is
-        // [`widgets`]', which is why the loop counts.
+        // [`widgets`]'
         let press = &self.press;
         let frame = |i: usize, base: usize| if press.is_pressed(i) { base + 1 } else { base };
         for (n, row) in ROWS.iter().enumerate() {

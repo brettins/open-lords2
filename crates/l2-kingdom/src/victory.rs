@@ -30,7 +30,7 @@
 //! first and the last non-zero entry of the sorted ranking table, from which
 //! every eliminated realm has just been struck out. Two realm *indices* are equal
 //! exactly when the table has one live entry. So the condition is the ordinary
-//! one — **one realm left standing** — written as a scan of a table rather than a
+//! one — **one realm left standing** — written as a scan of a table
 //! count. It is not "the bottom-ranked realm caught the leader on points".
 //!
 //! What *is* strange is everything around it, and all three are reproduced here:
@@ -95,7 +95,7 @@ pub const CATEGORY_ENDING: u8 = 0x0E;
 /// The two live values are the original's own: **10 won, 11 lost**. Everything
 /// that reads it (`FUN_00497879`, `FUN_0042E060`, `FUN_00476768`, the screen
 /// `0x1C` painter) tests exactly those two numbers, so they are the
-/// discriminants rather than a table on the side.
+/// discriminants
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(u8)]
 pub enum Outcome {
@@ -147,7 +147,7 @@ pub struct Ending {
     /// it.
     pub to: u8,
     /// The message category. Group 195 travels as category 1 and every other
-    /// ending message as [`CATEGORY_ENDING`], which is why the crowning of an AI
+    /// ending message as [`CATEGORY_ENDING`]
     /// cannot itself set an outcome.
     pub category: u8,
     /// `Msg_Enqueue`'s `+0x0C` — **which of the group's strings the window
@@ -169,7 +169,7 @@ pub struct Ending {
 /// Lords are 1..=4 and the rotation 0..=3, so this is 0..=15 in four contiguous
 /// blocks of four: **each lord has four things to say and says them in turn.**
 /// It is not clamped here for the same reason nothing clamps it there — a lord
-/// byte outside 1..=4 is a realm that was never set up.
+/// byte outside 1..=4 is a realm
 pub fn voice_variant(realm: &Realm) -> u8 {
     (realm.lord as i32 * 4 + realm.voice_rotation as i32 - 4).clamp(0, 15) as u8
 }
@@ -220,7 +220,7 @@ pub fn strength(
 /// | `Battle_Resolve` (`0x004A4E..`), twice | after the loser's army is destroyed |
 ///
 /// **The `County_ChangeOwner` call cannot eliminate anybody**, and that is a
-/// quirk of the original rather than a reading of it: it recounts the old owner
+/// quirk of the original
 /// *before* `g_counties[c].owner = newOwner` runs, so the county being lost is
 /// still counted. A realm losing its last county therefore survives until its own
 /// step 0 comes round. Reproduced by [`crate::conquest::change_owner`]'s caller
@@ -369,7 +369,7 @@ pub fn rank_and_crown(
 
     // **Switchable** — [`Quirk::EmptyGameIsWonBySlotZero`], `docs/bugs.md` B51.
     // With nobody in play leader and trailer are both 0, `0 == 0` passes, and
-    // the original crowns `g_realms[0]`, which is not a realm. The fixed path
+    // the original crowns `g_realms[0]`, The fixed path
     // requires somebody to be standing before anyone is crowned.
     let crowning = r.sole_survivor()
         && (quirks.reproduces(Quirk::EmptyGameIsWonBySlotZero) || r.realms_in_play > 0);
@@ -380,7 +380,7 @@ pub fn rank_and_crown(
         // runs many times a turn, and the second call finds `crowned_once` set,
         // falls through, and sends the *human* group 225 *"Victory!"* — in a
         // game the human is not in. The fixed path sends the victory only to a
-        // local player who is actually the realm left standing.
+        // local player
         let victory_is_the_local_players =
             quirks.reproduces(Quirk::DeadHumanCanStillWin) || winner == local_player as usize;
         if !realms[winner].crowned_once && !realms[winner].is_human {

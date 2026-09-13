@@ -97,7 +97,7 @@ fn a_rule_that_lost_to_a_later_mod_names_the_mod_that_won() {
     }
     assert_eq!(p.rules.integer(path).unwrap(), 400);
 
-    // The mod that lost every rule it set is inert, and says so rather than
+    // The mod that lost every rule it set is inert, and says so
     // looking like a successful load.
     assert!(effect_of(&effects, "aaa").is_inert());
     assert!(!effect_of(&effects, "zzz").is_inert());
@@ -138,7 +138,7 @@ fn a_misspelt_rule_is_reported_as_added_rather_than_overriding() {
     assert_eq!(report.added_rules, vec![(path.to_string(), "typo".to_string())]);
     assert!(format!("{report}").contains("check the spelling"), "{report}");
 
-    // The real rule is untouched, which is what the author is complaining about.
+    // The real rule is untouched.
     assert_eq!(p.rules.integer("battle.three_bridges.attacker.archers").unwrap(), 200);
 }
 

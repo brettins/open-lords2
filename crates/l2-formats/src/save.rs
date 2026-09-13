@@ -5,7 +5,7 @@
 //! `Save_Write` (`0x004ADE93`) does not serialise anything. It walks a table of
 //! `{u32 address, u32 length}` records at **`0x004DE960`**, writes each of those
 //! regions of live memory back to back, and then appends `castles.dat` as
-//! sixteen blocks of `0x3200`. There is no header, no field order, and no
+//! sixteen blocks of `0x3200`.
 //! version — the file *is* the game's `.data`, in the order that table names.
 //!
 //! Two consequences shape this module.
@@ -271,7 +271,7 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// Walk `Save_Write`'s table. Stops at the first zero length, exactly as the
+    /// Walk `Save_Write`'s table. Stops at the first zero length.
     /// game's loop does.
     pub fn from_executable(exe: &[u8]) -> Result<Layout, SaveError> {
         let pe = Pe::parse(exe)?;
@@ -872,7 +872,7 @@ impl Unit {
         self.path[..n].iter().rev().copied().collect()
     }
 
-    /// The tile `+0x0C` names, or `None` if it is not a well-formed offset.
+    /// The tile `+0x0C` names.
     pub fn tile_of_offset(&self) -> Option<(u8, u8)> {
         if self.tile_offset < 0 || self.tile_offset % 8 != 0 {
             return None;

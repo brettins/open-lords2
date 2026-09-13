@@ -60,7 +60,7 @@ const WEAPON_COST_VA: u32 = 0x004D_8990;
 const GOOD_SELL_PRICE_VA: u32 = 0x004D_8910;
 
 /// `g_healthBandLadder` — **five** `{inclusive upper bound, band}` pairs, not
-/// four. The top band is an explicit `(100, 4)` entry rather than an `else`.
+/// four. The top band is an explicit `(100, 4)` entry.
 ///
 /// The count is fixed by arithmetic and not by belief: five pairs is forty
 /// bytes, and `0x004D6520 + 40` is exactly `0x004D6548`, where
@@ -103,8 +103,8 @@ fn the_health_delta_table_is_the_bytes_in_the_executable() {
         }
     }
     // Thirty ints is 120 bytes and `0x004D64A8 + 120` is `0x004D6520`, where the
-    // band ladder starts. That is what fixes the table at six rows rather than
-    // five or seven, and it is asserted rather than remembered.
+    // band ladder starts. That is what fixes the table at six rows
+    // five or seven, and it is asserted.
     assert_eq!(HEALTH_DELTA_VA + 6 * 5 * 4, HEALTH_BAND_LADDER_VA);
     eprintln!("g_healthDeltaTable: 30 values match the executable");
 }
@@ -171,14 +171,14 @@ fn the_flat_economy_tables_are_the_bytes_in_the_executable() {
     // `g_deathRateByHealth` is not a table in the image - it is written by
     // Rules_InitConstants and lives in the instruction stream (C16), which
     // tools/oracle/initconsts.ps1 recovers. Named here so its absence from this
-    // file reads as deliberate rather than as an oversight.
+    // file reads as deliberate.
     assert_eq!(DEATH_RATE_BY_HEALTH.len(), 5);
     eprintln!("six flat economy tables match the executable");
 }
 
 /// **The ruleset a mod overrides is the same data these tables hold.**
 ///
-/// `Tables::DEFAULT` is what the simulation actually runs on;
+/// `Tables::DEFAULT` is what the simulation runs on;
 /// `tables::HEALTH_DELTA` and friends are what this file compares against the
 /// binary. If the two ever came apart the oracle above would be checking
 /// something the engine does not use — which is the same failure as checking a
@@ -221,7 +221,7 @@ const FIELD_BRUSH_HANDLER: i32 = 0x0043_8B02;
 /// `docs/screens-county.md` §9 guessed that county `+0x130`/`+0x134`/`+0x138`
 /// were the field brush; they are the first three of the eight job percentages,
 /// and the brush is these two hotspot tables. Reading them settles it with
-/// bytes rather than with a story (`docs/decisions.md` C3), and it fixes the
+/// bytes, and it fixes the
 /// terrain value of each button, which `l2_kingdom::field::FieldType::brush`
 /// has to agree with.
 #[test]

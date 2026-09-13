@@ -9,7 +9,7 @@
 //! * **can a player dismiss a message?** — `Msg_HandleInput` (`0x0047685D`),
 //!   every screen's arm, which nothing in this workspace had;
 //! * **can a player answer a lord?** — the two prompts `docs/arms.json` called
-//!   *"the only two places a person answers a lord rather than writing to one,
+//! *"the only two places a person answers a lord,
 //!   and both are unreachable"*;
 //! * **can a player be told he has won?** — `docs/plan.md`'s mainline win, which
 //!   ends *"the game is won when **that** is dismissed"* and had nothing to
@@ -189,7 +189,7 @@ fn a_left_click_on_the_map_leaves_a_question_standing() {
 }
 
 /// **The message never times out in single player.** `Msg_Pump` clamps the
-/// timer to 1 rather than expiring it, so the scroll waits — two thousand ticks
+/// timer to 1, so the scroll waits — two thousand ticks
 /// is more than the whole timer and it is still up.
 #[test]
 fn in_single_player_the_scroll_waits_for_ever() {
@@ -220,14 +220,14 @@ fn in_a_network_game_the_scroll_closes_itself() {
         ticks += 1;
     }
     // Pinned: 2000 - 0x641 = 399 decrements leave the timer at 0x641, and the
-    // 400th puts it below. Written out rather than computed from the two
+    // 400th puts it below. Written out
     // constants the code under test reads.
     assert_eq!(ticks, 400, "2000 down past 0x641, and it is gone");
     assert!(!g.messages.is_open());
 }
 
 /// **Opening another screen throws the message away.** `Msg_Pump`'s else
-/// branch, which is the arm that makes the scroll part of the map rather than
+/// branch,
 /// part of the interface.
 #[test]
 fn walking_into_another_screen_loses_the_message() {
@@ -236,7 +236,7 @@ fn walking_into_another_screen_loses_the_message() {
     open_the_scroll(&mut m, &mut g, &a);
     assert!(g.messages.is_open());
 
-    // Pushed from outside, exactly as `Machine::push` is documented for: a
+    // Pushed from outside,
     // screen the interface can only reach through three clicks.
     m.push(ScreenId::Village(3));
     tick(&mut m, &mut g, &a);
@@ -279,7 +279,7 @@ fn a_player_can_accept_an_alliance() {
 /// refusal, not a grudge, not a letter. The guard is
 /// `(offerer is human) || (hotspot != 0)`, and an AI offer declined fails both.
 ///
-/// Asserted rather than assumed, because a rule that does nothing is
+/// Asserted,
 /// indistinguishable from a rule nobody wired up unless something checks the
 /// nothing.
 #[test]
@@ -681,7 +681,7 @@ fn the_poster_touches_nothing_in_the_kingdom() {
 ///
 /// The original cannot answer this. `Battle_Frame` posts for
 /// `g_selectedCounty` (`0x004BA187`) on **one** machine with one selection; the
-/// question only exists here. `docs/netcode.md` §6, *What the original actually
+/// question only exists here. `docs/netcode.md` §6, *What the original
 /// did* — networking is the one place the binary is not the authority.
 #[test]
 fn two_peers_with_different_selections_hash_the_same_kingdom() {
@@ -817,7 +817,7 @@ fn the_scroll_paints_and_painting_it_again_changes_nothing() {
 /// Two records of the **same group** and different variants: the heading is the
 /// group's own label in both, so the only thing that can differ is the body
 /// string `Eng_DrawString(group, variant + 1)` picks. Group 194 holds a label
-/// and sixteen laments, which is why it is the one used.
+/// and sixteen laments,
 ///
 /// If the body draw did nothing the two pictures would be identical, and this is
 /// the assertion that says so — with no threshold and no knowledge of where the

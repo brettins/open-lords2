@@ -9,11 +9,11 @@
 //! * the desync dump (§6).
 //!
 //! If the checksum hashed one encoding and the snapshot wrote another,
-//! then a desync dump would be a picture of a state that was never
+//! then a desync dump would be a picture of a state that
 //! checksummed, and the first hour of every investigation would go on
 //! establishing that the two encoders agree. So there is one encoder,
 //! [`Canonical`], and hashing is something it does *while* writing
-//! rather than a separate pass over a buffer. A checksum and a snapshot
+//! A checksum and a snapshot
 //! taken from the same state cannot disagree, because the same code
 //! produced both.
 //!
@@ -28,11 +28,11 @@
 //! off, which is worse than not having one.
 //!
 //! So every method here writes a **fixed width in little-endian**,
-//! chosen once and never derived from the host. There is no `usize`
+//! chosen once and never derived from the host.
 //! method: a `usize` is 8 bytes on this machine and 4 on a 32-bit one,
 //! and a length written as `usize` is a desync between a 32-bit and a
 //! 64-bit player. Lengths go out as `u32` through [`Canonical::len32`],
-//! which panics rather than truncating.
+//! which panics.
 //!
 //! Little-endian to match the file formats we already read
 //! (`docs/netcode.md` D-10), not because of the host's byte order —
@@ -76,7 +76,7 @@ use crate::hash::XxHash64;
 ///
 /// Zero, so that `xxh64sum` or any other off-the-shelf XXH64 tool
 /// reproduces our number from a dumped byte stream. A random-looking
-/// constant would have added nothing — there is no adversary here
+/// constant would have added nothing —
 /// (§8) — and would have made an external cross-check a small research
 /// project at exactly the moment nobody has patience for one.
 pub const CHECKSUM_SEED: u64 = 0;
@@ -115,7 +115,7 @@ impl Digest {
     /// already spread. §6's advice applies — if the PRNG section is the
     /// only one that differs, someone drew a random number outside the
     /// simulation; if it differs along with everything else, it is a
-    /// consequence rather than a cause.
+/// consequence.
     pub fn sole_difference(&self, other: &Digest) -> Option<&'static str> {
         if self.sections.len() != other.sections.len() {
             return None;
@@ -269,7 +269,6 @@ impl Canonical {
     }
 
     /// One byte, `0` or `1`. Never the host's `bool` representation,
-    /// which is not a stability promise anyone has made.
     pub fn bool(&mut self, v: bool) {
         self.u8(u8::from(v));
     }
@@ -308,7 +307,7 @@ impl Canonical {
 
     /// A length-prefixed sequence, written by a closure per item.
     ///
-    /// Takes a slice rather than an iterator on purpose: an iterator
+/// Takes a slice on purpose: an iterator
     /// over a `HashMap` would compile, and D-4 exists to make sure that
     /// never happens. A slice has one order and it is the one in
     /// memory.
@@ -362,7 +361,7 @@ impl Canonical {
 
 /// Something with a canonical byte form.
 ///
-/// Hand-written, per D-10. There is no derive here and there will not
+/// Hand-written, per D-10.
 /// be one: a derive is a layout decided by a macro, and the whole point
 /// of this module is that the layout is decided by a person and does
 /// not move when a dependency does.
@@ -385,7 +384,7 @@ pub enum CodecError {
     UnexpectedEnd { wanted: usize, remaining: usize, at: usize },
     /// Decoded successfully but did not consume everything. Always an
     /// error here: a trailing byte means the two sides disagree about
-    /// the schema, which is precisely the disagreement this crate
+/// the schema, which is the disagreement this crate
     /// exists to catch early.
     TrailingBytes { unread: usize },
     /// A length prefix larger than the data that follows it.
@@ -422,7 +421,7 @@ impl std::error::Error for CodecError {}
 /// Every method is bounds-checked and returns a `Result`. This decodes
 /// bytes that arrived over a network from a peer who may be running a
 /// different version, a different mod set, or a deliberately corrupted
-/// build; there is no input here that may be trusted enough to index
+/// build;
 /// without checking, and §8's "no anti-cheat" does not extend to
 /// "panics on a malformed packet".
 #[derive(Debug, Clone)]
@@ -506,7 +505,7 @@ impl<'a> Reader<'a> {
     }
 
     /// A `bool` written by [`Canonical::bool`]. Anything other than 0
-    /// or 1 is an error rather than "nonzero is true": a byte that was
+/// or 1 is an error: a byte that was
     /// never written by our encoder means the schemas differ, and
     /// guessing at that point buries the evidence.
     pub fn bool(&mut self) -> Result<bool, CodecError> {
@@ -522,11 +521,11 @@ impl<'a> Reader<'a> {
         Ok(Fixed::from_raw(self.i32()?))
     }
 
-    /// A `u32` length, checked against what is actually left.
+/// A `u32` length, checked against what is left.
     ///
     /// The check is the point. A declared length of four billion would
     /// otherwise become a four-billion-element `Vec::with_capacity`,
-    /// and a peer who sends one should get an error rather than our
+/// and a peer who sends one should get an error
     /// allocator.
     pub fn len32(&mut self) -> Result<usize, CodecError> {
         let at = self.pos;

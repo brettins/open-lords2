@@ -4,8 +4,8 @@
 //! # It is a bar chart of five flagpoles, not a table
 //!
 //! `docs/screens-county.md` calls it *"the standings"* and `docs/draws.md`
-//! filed it as a standings **table**, which is why its seven draw calls looked
-//! *"suspiciously few"*. There is no table. The page is five banners on five
+//! filed it as a standings **table**.
+//! *"suspiciously few"*. The page is five banners on five
 //! poles, each raised to that realm's **percentage of the leader's** score in
 //! one category, with the seven categories as tabs along the bottom and one
 //! line of text naming the category and whoever leads it.
@@ -44,9 +44,9 @@
 //!
 //! **`Screen_DrawWidgets` has no `0x20` arm** — checked across all of its arms
 //! — so this painter is the whole of the screen, and the seven tabs are drawn
-//! by `grtnoble.pl8` itself rather than by any widget record.
+//! by `grtnoble.pl8` itself.
 //!
-//! # `flags.pl8` has **six** frames, and the sixth is not a sixth realm
+//! # `flags.pl8` has **six** frames
 //!
 //! `docs/draws.md`'s sheet note said frame 5 was *"for the leader"*. It is
 //! not: `Sprite_WGenSprite(5, …)` is indexed by `g_nobleCategory` through
@@ -98,7 +98,7 @@
 //!
 //! **The bars are a percentage of the leader, not of a maximum**, so the
 //! leader's pole is always full height and a realm with nothing is a bare
-//! pole. When every realm is level the bars are set to **50** rather than 100,
+//! pole. When every realm is level the bars are set to **50**,
 //! which is the one place the original draws a number it did not compute.
 //!
 //! # The seven tabs — `Hotspot_Test(0, 0, &g_nobleTabs, 7)`
@@ -216,7 +216,7 @@ pub const LINE_AT: (i32, i32) = (0x148, 0x1BE);
 pub const NAME_DX: i32 = 0x14A - 0x148;
 
 /// `Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1)` — **mode 1**,
-/// `System.pl8` frame `0x10`, computed from the screen size rather than typed.
+/// `System.pl8` frame `0x10`, computed from the screen size.
 pub const OK: Rect = Rect::new(640 - 0x1C, 480 - 0x1C, 24, 24);
 pub const OK_MODE: usize = 1;
 
@@ -380,7 +380,7 @@ pub fn rank(realms: &[Realm], category: usize, year: i32) -> Standings {
 /// `Net_SendCommand(0x3B, 0)`, whose deferred action `NetAct_RankRealms`
 /// (`0x00448422`) runs the identical pair on every peer. We have no network
 /// game and take the single-player arm; when one exists this call site is one
-/// of the places that has to become a command rather than a local write.
+/// of the places that has to become a command.
 /// `docs/netcode.md`.
 pub fn recount(game: &mut crate::game::Game) {
     let t = game.kingdom.tables;

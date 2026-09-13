@@ -2,7 +2,7 @@
 
 An adversarial re-derivation of the load-bearing claims in `CLAUDE.md`, `docs/`,
 `docs/formats/` and `crates/l2-formats/`, done against the shipped data files and
-binaries rather than against the documents.
+binaries.
 
 **Nothing outside this file and `tools/audit/` was modified.** Every finding below is a
 report, not a fix. Where two documents disagree I say which one the bytes support.
@@ -61,8 +61,8 @@ Consequences, all of which a reader would act on:
 * the "development `l2.eng`" story is wrong — the retail Windows file ships the strings;
 * "a tool that wants the editor's default strings must supply them itself" is wrong;
 * §1.3's worked example of the empty-group walk ("an empty group does not fail; the
-  pointer simply walks on into the next group's strings") rests on the wrong file, and
-  should be re-illustrated with a group that is genuinely empty in the Windows file —
+pointer walks on into the next group's strings") rests on the wrong file, and
+should be re-illustrated with a group that is empty in the Windows file —
   there are 28 to choose from (42, 53–56, 58, 78, 79, 84, 90–93, 104–107, 198, 199,
   261–269);
 * the §5 open question should be struck.
@@ -267,7 +267,7 @@ without re-counting.
 
 The same wrong number is in the crate, twice:
 `crates/l2-formats/src/pl8.rs` — "24 frames in the corpus declare rows and still occupy
-exactly h^2" (decode comment) and "24 frames in the real corpus declare rows on shape 1"
+24 frames in the real corpus declare rows on shape 1"
 (test `a_diamond_ignores_its_overhang_row_count`).
 
 Behaviourally harmless — shape 1 ignores the byte either way — but it is a count stated
@@ -292,10 +292,10 @@ as fact that is 33% low.
 
 26 + 13 + 1 = **40** blocks; 26 + 26 + 3 = **55** tiles, which is exactly the document's
 own `0x82 | roads` class count of 55. No reading of the data gives 17. (Minor: the class
-uses frames 38, 39 **and 40**, not just 38/39.)
+uses frames 38, 39 **and 40**.)
 
 The load-bearing half of the claim — "a decoder must not assume all four members share a
-bank" — stands, and is understated rather than overstated.
+bank" — stands, and is understated.
 
 Reproduce: `node tools/audit/maps3.js`.
 
@@ -314,7 +314,7 @@ truth. 16,435 corresponds to nothing derivable today: the corpus is 21,344 frame
 291/291 files, and even the old model's passing-file count is 18,937. `docs/status.html`
 still carries the *retracted* 16,638 alongside "236/291" (see F22).
 
-`decisions.md` is append-only and lead-owned, so this is reported rather than proposed as
+`decisions.md` is append-only and lead-owned, so this is reported as
 an edit — but the sentence reads as a live number.
 
 ---
@@ -324,7 +324,7 @@ an edit — but the sentence reads as a live number.
 ### F14 — `pl8-failures.md` says its findings are "recorded, not applied". They are applied.
 
 §4: "Two corrections to `docs/symbols.md` fall out of this (the file is owned by someone
-else, so they are recorded here rather than applied)". §6: "What this changes for
+else, so they are recorded here)". §6: "What this changes for
 `crates/l2-formats` — Owned by someone else; recorded, not applied", listing five items.
 
 All five have since been done, and `symbols.md` has both corrections:
@@ -488,7 +488,7 @@ appeared. `environment.md`'s Paths table does not mention that directory at all.
   `base2a`/`mtns2a`/`roads2a`/`town2a`/`castle2a` in all four of its season blocks, so the
   far view is not seasonal at all and the twelve zoom-2 seasonal files on disk are never
   opened — the same way `Flags1b/c/d.pl8` are not. Verified by dumping the table at
-  `0x004DA050`. The failure mode is quiet rather than loud: `Town2a.pl8` has **61** frames
+`0x004DA050`. The failure mode is quiet: `Town2a.pl8` has **61** frames
   and `Town2b/c/d.pl8` have **94**, so a renderer that derives the filename from the suffix
   draws a different sheet at every index for three seasons out of four without erroring.
   Both documents corrected; `maps-layers.md` §1.1b, `docs/decisions.md` C61.
@@ -518,7 +518,7 @@ appeared. `environment.md`'s Paths table does not mention that directory at all.
   "incremented once a frame and wrapped".** They are stepped on a **pulse**, not a frame:
   `Tick_Pulses` (`0x004BBC80`) gates on a 20 ms `timeGetTime` delta and divides that by 4
   and by 2, so the village's counters run at 80 ms and 160 ms — 12.5 Hz and 6.25 Hz. The
-  sentence was describing the call site rather than the rate. The same section listed
+sentence was describing the call site. The same section listed
   **six** counters and **three** overlays; there are **eight** counters, **six** overlays
   (three of them ungated by any resource), and two counters with no reader anywhere in the
   binary. `docs/bugs.md` B65.
@@ -589,7 +589,7 @@ scripts, and matched the documented value to the digit.
   the same statistics are 1,472 / 794 / 679 / 62 / 46 — worth a scope note in the doc.)
 * Bank frame counts: `Base1a` 140, `Mtns1a` **25**, `Roads1a` 140, `Town1a` 61,
   `Castle1a` 100.
-* Engine string references, exactly as `pl8-failures.md` §5 claims: `fnt_8`, `fntl2_9`,
+* Engine string references
   `fntl2_14`, `fntl2_22`, `font_10`, `t32_bat1`, `t32_bat2`, `base2a` present in
   `Lords2.exe`; `font_c2`, `font3c2`, `t16_bat1`, `base2b` absent.
 * `cargo test -p l2-formats` with `LORDS2_DIR` set: 23 tests, all pass, "291 validated

@@ -48,7 +48,7 @@ impl Battle {
     }
 
     /// Add a figure. Returns its index, or `None` once the original's ceiling is
-    /// reached — the real engine truncates silently, and reproducing that
+    /// reached — the real engine truncates silently
     /// matters if we ever diff against it.
     pub fn add(&mut self, troop: Troop, side: Side, men: u16) -> Option<usize> {
         if self.figures.len() >= MAX_FIGURES {
@@ -165,7 +165,7 @@ mod tests {
     ///
     /// This is the assertion that makes "data-driven" mean something. Both
     /// halves matter — the default must be unchanged, *and* the override must
-    /// actually bite.
+    /// bite.
     #[test]
     fn a_supplied_troop_table_decides_the_battle_instead_of_the_default() {
         let stock = {
@@ -310,7 +310,7 @@ mod tests {
         );
     }
 
-    /// The property lockstep actually depends on: identical inputs must give
+    /// The property lockstep identical inputs must give
     /// bit-identical state, every time, with no dependence on allocation or
     /// iteration order.
     #[test]
@@ -348,7 +348,7 @@ mod tests {
     /// figure that dies by its own side** — `Melee_Tick`'s two ladders.
     ///
     /// Checked tick by tick against the men, both halves of the duel, so the
-    /// assertion is about each occasion rather than a total. Macemen against
+    /// assertion is about each occasion Macemen against
     /// knights, because both land heavy blows and the two troops pick
     /// *different* swords (slot 4 against slot 5). Ablation: delete
     /// `self.cues.melee_casualty(striker)` and the first assertion names the

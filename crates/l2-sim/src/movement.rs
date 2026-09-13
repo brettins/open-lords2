@@ -21,7 +21,7 @@ use crate::troop::Troop;
 /// zero. The counter never starts at zero — `if (local_10 == 1) { dirc = dir;
 /// walking = 1; FUN_00491b1f(man); }` — so the ninth increment does not exist
 /// and a cell costs `8 * (moveDelay + 1)`, not `9 * (…)`. Every relative
-/// speed the manual states is a ratio and is unchanged, which is why the
+/// speed the manual states is a ratio and is unchanged,
 /// error survived. `docs/decisions.md` C200.
 pub const SUBSTEPS_PER_CELL: u32 = 8;
 
@@ -42,7 +42,7 @@ pub fn ticks_per_cell(troop: Troop) -> u32 {
     SUBSTEPS_PER_CELL * (move_delay(troop) + 1)
 }
 
-/// What `Cell_TryEnter` reports. Kept as distinct cases rather than a boolean
+/// What `Cell_TryEnter` reports. Kept as distinct cases
 /// because they lead to different behaviour: a friendly blocker of the same
 /// troop type causes a swap, an enemy stops movement and starts a melee.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -137,7 +137,7 @@ impl Progress {
 /// Exchange two figures' positions and state.
 ///
 /// When a figure is blocked by a friendly of the same troop type heading for
-/// the same cell, the original swaps the two records rather than moving either.
+/// the same cell, the original swaps the two records
 /// It is a genuine state exchange — including hits and men — not a move.
 pub fn swap_places(figs: &mut [Figure], a: usize, b: usize) {
     if a != b {

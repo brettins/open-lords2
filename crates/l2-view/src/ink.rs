@@ -1,7 +1,7 @@
 //! Named interface colours, resolved against whatever palette is loaded.
 //!
 //! The canvas holds palette indices, and a `.256` palette is the game's, not
-//! ours: there is no index that means "white" everywhere. Hard-coding an index
+//! ours: Hard-coding an index
 //! would be a claim about a shipped file that nobody has checked, and it would
 //! break the moment a mod supplied a different palette.
 //!
@@ -73,7 +73,7 @@ pub struct Ink {
     /// one per purpose: [`crate::chrome::MINIMAP_REALM_RAMP`] for tinting land
     /// and [`crate::chrome::REALM_PEN`] for drawing text. Use those. This
     /// exists so that a world with no shields — a placeholder, a test that
-    /// never loaded a save — draws something visibly ours rather than borrowing
+    /// never loaded a save — draws something visibly ours
     /// one of the game's five real colours and looking finished.
     ///
     /// The county strip used this for the *Sovereign land of …* lines and a
@@ -110,7 +110,7 @@ mod tests {
     use super::*;
 
     /// A palette built from an explicit ramp, so the expected answers are
-    /// arithmetic rather than a reading of a shipped file.
+    /// arithmetic
     fn ramp() -> Palette {
         let mut bytes = vec![0u8; Palette::FILE_LEN];
         for i in 0..256usize {

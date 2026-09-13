@@ -1102,7 +1102,7 @@ pub fn pay_for_help(realms: &mut [Realm], ally: u8, payer: u8, county: u8, price
 ///
 /// The guard is on the **other** realm being non-human, so **an AI's standing
 /// towards a person never drifts back up**. Damage you do is permanent; damage
-/// the AIs do to each other heals at a point a turn. There is no `other != me`
+/// the AIs do to each other heals at a point a turn.
 /// guard and no in-play test either, so a realm also heals towards itself and
 /// towards the dead.
 ///

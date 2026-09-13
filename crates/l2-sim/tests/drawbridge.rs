@@ -88,7 +88,7 @@ fn lowering_the_drawbridge_opens_a_way_through_and_tells_the_besieger_so() {
 ///
 /// A table exercised at one input is `docs/decisions.md` C26's shape, so this
 /// reads all twenty-eight cells back off the field. The **shape** is what makes
-/// the *reading* checkable rather than merely the copying: fifteen cells carry
+/// the *reading* checkable: fifteen cells carry
 /// the filler frame 197 and the other thirteen trace a diagonal in frames
 /// 192…198 into the corner nearest the gate. Twenty-eight `i32`s misread as
 /// bytes, or bytes misread as `i32`s, would have no shape at all — they would
@@ -149,7 +149,7 @@ fn a_castle_with_no_drawbridge_does_not_spend_the_latch() {
     }
 }
 
-/// The bridge is a **way through**, not just a picture.
+/// The bridge is a **way through**.
 ///
 /// `Cell_TryEnter` refuses a `0x40` cell to **both** sides — it is the one
 /// castle flag that is not a side test — so a raised drawbridge is a shut gate
@@ -184,7 +184,7 @@ fn the_lowered_bridge_is_a_way_through_where_the_raised_one_was_a_wall() {
 /// **A moat cell filled in is one point of approach damage**, and it costs the
 /// county work and no materials at all.
 ///
-/// The **four** loads rather than fifteen are the finding, and it comes out of
+/// The **four** loads are the finding, and it comes out of
 /// two numbers that were never put beside each other: the fill counter lives in
 /// the cell's own **terrain** byte, which `Battlefield_BuildCastle` has already
 /// written the water id — 11 — into, and `g_moatFillSteps` is 15.
@@ -225,7 +225,7 @@ fn filling_a_moat_cell_scores_the_approach_and_bills_only_the_digging() {
 /// **A figure really shovels**, over the frames the original charges it, and
 /// the ditch is water until the last load goes in.
 ///
-/// This is the state-9 handler rather than the routine underneath it, and what
+/// This is the state-9 handler, and what
 /// it drives is the whole chain the moat needed and did not have: a unit
 /// ordered at the water, every one of its figures in state 9,
 /// `BattleMan_Step`'s state-9 arm latching the cell that stopped them, four
@@ -241,7 +241,7 @@ fn filling_a_moat_cell_scores_the_approach_and_bills_only_the_digging() {
 /// the human one, where the player's order stands until he gives another.
 #[test]
 fn a_man_ordered_onto_the_moat_shovels_it_full_over_four_loads() {
-    // 101 and 81, from the `threshold < counter` test rather than `<=`.
+    // 101 and 81, from the `threshold < counter` test.
     assert_eq!(siege::MOAT_TICKS_PER_LOAD_HUMAN, 100);
     assert_eq!(siege::MOAT_TICKS_PER_LOAD_AI, 0x50);
     let loads = u32::from(siege::MOAT_FILL_STEPS - id::WATER);
@@ -270,7 +270,7 @@ fn a_man_ordered_onto_the_moat_shovels_it_full_over_four_loads() {
 
     // **Every figure of the unit is in state 9**, not only the ones whose slot
     // happens to be wet — that is `DAT_00553FE4` being the *unit's* destination
-    // rather than the figure's, and it is what a check on the slot could never
+    //, and it is what a check on the slot could never
     // produce, because no slot is ever chosen on water.
     let filling = r
         .fighters
@@ -343,7 +343,7 @@ fn the_moat_and_the_wall_are_two_accumulators_and_only_one_costs_material() {
 
 /// The round trip: what a siege leaves is what the next assault on the same
 /// castle picks up — `FUN_004787A4`, the last statement but one of
-/// `Battlefield_BuildCastle`, which is why it overwrites the fresh scores
+/// `Battlefield_BuildCastle`.
 /// `Battle_Start` had just written.
 #[test]
 fn a_castle_carries_its_scars_into_the_next_assault() {

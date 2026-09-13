@@ -1344,7 +1344,7 @@ mod tests {
         assert_eq!(realms[1].peak_counties, 2, "the peak rises to the new holding");
     }
 
-    /// **Losing a county does not lower the peak**, so winning it back is not a
+    /// **Losing a county does not lower the peak**
     /// new high — the difference between *"Bravo!!"* and *"The county is yours.
     /// May you rule it wisely."*
     ///

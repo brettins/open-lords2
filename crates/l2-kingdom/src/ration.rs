@@ -48,7 +48,7 @@ pub struct Plan {
 }
 
 impl Plan {
-    /// True when the county's store can actually cover the plan.
+    /// True when the county's store can cover the plan.
     pub fn fits(&self, herd: i32, grain: i32) -> bool {
         self.heads <= herd && self.sacks <= grain
     }
@@ -64,7 +64,7 @@ pub fn food_from_dairy(t: &Tables, herd: i32) -> i32 {
     herd.max(0).saturating_mul(t.food.dairy_per_head)
 }
 
-/// **The ration panel's *Fed* row: how many people each source actually fed.**
+/// **The ration panel's *Fed* row: how many people each source fed.**
 ///
 /// `FUN_0044E...`'s three lines, which the panel then prints at (0xD0, 0x11E),
 /// (0x10A, 0x11E) and (0x144, 0x11E):
@@ -117,7 +117,7 @@ fn clamp_level(level: i32) -> i32 {
 /// Cost out one ration level, without deciding whether it is affordable.
 ///
 /// `split` is `rationSplit`: the percentage of the remaining requirement taken
-/// from livestock rather than grain. The grain side is the *remainder* rather
+/// from livestock rather than grain.
 /// than `Pct(remainder, 100 - split)`, so the two sides always sum back to the
 /// whole and a split of 33% does not silently lose a person.
 pub fn plan(t: &Tables, people: i32, level: i32, herd: i32, split: i32) -> Plan {
@@ -174,10 +174,10 @@ pub fn people_to_feed(county: &County, armies_eat: bool) -> i32 {
 /// > re-runs the county's food passes before it charges anything.
 /// >
 /// > Each term is guarded independently, so a negative field contributes
-/// > nothing rather than subtracting, and nothing clamps the sum. `[D]`
+/// > nothing rather than subtracting
 ///
 /// There are two sibling functions computing superficially similar sums from
-/// *different* county fields (`+0x178`/`+0x17C`, the food actually eaten). Any
+/// *different* county fields (`+0x178`/`+0x17C`, the food eaten). Any
 /// reading that pattern-matches on "the food function" is `docs/decisions.md`
 /// C3 waiting to happen.
 pub fn food_available(t: &Tables, county: &County) -> i32 {
@@ -227,7 +227,7 @@ fn record(t: &Tables, county: &mut County, p: Plan) {
 pub fn apply(t: &Tables, county: &mut County, armies_eat: bool) -> Plan {
     let p = choose(t, county, armies_eat);
     record(t, county, p);
-    // Each side is capped at what is actually in store. At the chosen level the
+    // Each side is capped at what is in store. At the chosen level the
     // plan already fits, so the cap only bites at level 0 with a negative store,
     // which cannot happen - but the original applies it and so does this.
     let heads = p.heads.min(county.herd);

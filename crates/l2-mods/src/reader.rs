@@ -20,7 +20,7 @@
 //!
 //! Dates and times — the game has no use for them, and accepting them would
 //! mean carrying a date type through the merge and the accessors for nothing.
-//! A document containing one gets a clear error rather than a wrong parse.
+//! A document containing one gets a clear error.
 
 use crate::value::{Origin, Spanned, Table, Value};
 use std::collections::BTreeSet;
@@ -67,7 +67,7 @@ struct Parser<'a> {
     line: u32,
     line_start: usize,
     source: Arc<str>,
-    /// Explicitly written `[table]` headers, so a repeat is an error.
+    /// Explicitly written `[table]` headers.
     defined: BTreeSet<Vec<String>>,
     /// Paths introduced by `[[array of tables]]`.
     arrays: BTreeSet<Vec<String>>,

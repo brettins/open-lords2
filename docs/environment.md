@@ -37,7 +37,7 @@ where exactly six files differ and five of them are saves. Nine tests treated on
 particular `lastturn.sav` as a fixed fixture, called it "the shipped save", and
 went red the first time somebody played for ten minutes.
 
-So a fixture is a **file name plus a fingerprint**, and lives outside every
+So a fixture is a **file name plus a fingerprint**
 install:
 
 | fixture | file | what it is |
@@ -95,7 +95,7 @@ workspace names a save directory.
   save that lands beside the source is a save somebody commits.
 * **Not beside the executable.** That works for a portable build and fails for
   an installed one: `%PROGRAMFILES%` is not writable by the user who runs the
-  game, and the failure arrives at the worst moment, when somebody presses save.
+  game
 
 **The extension is `.l2sav`, not `.sav`.** The original's `.sav` is an
 unversioned memory dump we read as an *oracle* (`l2_formats::save`, whose schema
@@ -118,11 +118,11 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # many the current environment satisfies.
 cargo test --workspace
 
-# Everything, including the corpus and the fixture-gated suites.
+# Everything
 LORDS2_DIR="F:\games\Lords of the Realm II" \
 LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test --workspace
 
-# What this run actually asserted, and what it silently did not.
+# What this run asserted
 cargo test -p l2-testkit --test census -- --nocapture
 ```
 
@@ -136,7 +136,7 @@ added there.
 ### Building while the game is open
 
 **Launch the game with `tools\run\play.cmd`, not with `target\debug\l2-game.exe`.**
-Windows will not let a build replace a running executable, so a game started from the
+Windows will not let a build replace a running executable
 build output turns every build in the workspace red — `cargo test --workspace` included,
 because it builds the same binary. It is cargo's last step that fails, not the linker:
 
@@ -152,7 +152,7 @@ tools\run\play.cmd -NoBuild "F:\games\Lords of the Realm II"     # play what is 
 tools\run\play.cmd "F:\games\Lords of the Realm II" --no-sound   # any l2-game flag passes through
 ```
 
-It makes two promises, and both were driven end to end rather than read off the script
+It makes two promises
 (`docs/decisions.md` C154):
 
 * **A build succeeds while the game is open.** It runs a *copy* — `l2-game-live.exe`, or
@@ -176,7 +176,7 @@ taken by the launcher (`-n` becomes `-NoBuild`). None of `l2-game`'s own flags i
 | Start in | `E:\dev\lords2` |
 
 A console window shows the build, then the game opens. `Start in` is not load-bearing —
-the script finds the repository from its own location, and the same shortcut run from
+the script finds the repository from its own location
 `C:\Windows\Temp` did the same thing — but it costs nothing. Verified by building a
 `.lnk` outside the desktop and running exactly the Target, arguments and Start in it
 stored, with a game directory containing spaces; the game's own error named the whole
@@ -198,7 +198,7 @@ they always did.
   running them.
 * `L2_ALWAYS_UNLOCK=1` makes that move happen before every build, **and every build then
   recompiles `l2-game`: 2.6–3.2s against 0.17–0.21s for a no-op**, measured. That is
-  paid by every build in the workspace while the variable is set, which is why it is
+  paid by every build in the workspace while the variable is set
   opt-in.
 
 ```bash
@@ -222,7 +222,7 @@ $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
 
 `DecompileFunc.java` takes any number of hex addresses as script arguments.
 
-## Keys of ours, in the game
+## Keys of ours
 
 **Ctrl+D — the debug overlay, off by default.** It shows everything we draw that
 `Lords2.exe` does not: the squares on town squares and fields, the ring round a picked
@@ -259,14 +259,14 @@ is occluded — plain screen capture grabs whatever is physically on top instead
 `tools/input.ps1` sends clicks in client-relative coordinates. `tools/probe.ps1` reads
 memory from a live process.
 
-Note: taking a screenshot by spawning a process can steal focus, and the game crashes if
+Note: taking a screenshot by spawning a process can steal focus
 it is deactivated during startup. Don't capture during the first few seconds of a launch.
 
 ### Synthetic input needs window focus (verified)
 
 `input.ps1 -Action key` uses `SendKeys`, which goes to whatever window is focused, so it
 needs the target in front. `SetForegroundWindow` also **fails silently** from a background
-process, so a script that assumes it worked will type into the wrong window.
+process
 
 `-Action postkey` posts `WM_KEYDOWN`/`WM_KEYUP` straight to the window handle with a
 correctly formed `lParam` (repeat count, scan code in bits 16-23, extended flag in bit 24 -
@@ -275,7 +275,7 @@ not work on our `winit` viewer**: minimising the window so it cannot be focused,
 posting keys, produced no key events at all, while the identical sequence worked the moment
 the window had focus.
 
-Measured, not assumed - and the measurement went the opposite way to the assumption twice
+Measured
 before it was checked properly. If a test needs the window unfocused, minimise it and read
 the title with `GetWindowTextW` on the handle; `Process.MainWindowTitle` returns empty for
 a minimised window and will look like a failure that isn't one.

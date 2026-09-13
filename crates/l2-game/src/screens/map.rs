@@ -1152,7 +1152,7 @@ impl MapScreen {
 // **And the fog** lifts without a turn ending and
             // the options page drops or raises in the middle of one. The
             // seventh painter-side input, and the only one that is a viewer's
-// rather than the world's.
+//
             Self::fog_key(ctx),
         );
         if self.built == Some(key) {
@@ -1849,7 +1849,7 @@ impl MapScreen {
         self.centre_on_tile(x as usize, y as usize);
         self.cancel_move_selection();
         // `DAT_00553C64 = g_pickedTileUnit` — and this is the call that carries
-// it, exactly as the paragraph above predicted it would have to.
+// it, as the paragraph above predicted it would have to.
         Transition::Push(ScreenId::Merchant(unit))
     }
 
@@ -1865,7 +1865,7 @@ impl MapScreen {
     /// which is where [`l2_kingdom::movement::try_enter`] already puts it.
     ///
     /// The refusal is the whole rule: `Unit_OrderMove` writes **nothing at all**
-/// when no path is extracted. A refused order leaves the army exactly as
+/// when no path is extracted. A refused order leaves the army as
     /// it was — not half-ordered, not stopped. `docs/armies.md` §2.3.
     /// **`g_screenId = 0` and then `Map_ConfirmMoveOrder`** — the left press
     /// in move-order mode, in the order `Screen_FrameInput` does it:
@@ -2287,7 +2287,7 @@ const FAR_BOX_ADVICE_X: i32 = 0x50;
 const FAR_BOX_ADVICE_Y: i32 = 0x1C6;
 
 /// `Eng_DrawString(101, g_scenarioIndex, …)` — the map's own name, from the
-/// player's own file, with our slot number where there is no `L2.eng` to read.
+/// player's own file, with our slot number
 pub fn map_name(ctx: &Ctx) -> String {
     let s = ctx.assets.shell.text(FAR_BOX_MAP_GROUP, ctx.game.map_slot);
     if s.is_empty() {
@@ -2341,7 +2341,7 @@ impl Screen for MapScreen {
         // hotspot it offers writes to state the phase machine is in the middle
         // of reading, so a click that landed mid-turn would race it. Pointer
         // motion still gets through, because a frozen cursor reads as a hang
-// rather than as a turn passing.
+//
         if (turn::turn_in_flight(ctx.game) || self.fading.is_some())
             && !matches!(event, Event::Pointer { .. } | Event::PointerLeft | Event::Release { .. })
         {
@@ -2487,7 +2487,7 @@ impl Screen for MapScreen {
             // **Guard 2 of the arm, and it is tested before anything else the
             // right button does** — including the information panel below.
             // `FUN_00439079` consumes the click only when an overlay is up, so
-// with no overlay this falls through exactly as the original's
+// with no overlay this falls through as the original's
             // `return 0` does.
             Event::RightClick { x, y } if self.clear_minimap_mode(x, y) => {}
             Event::RightClick { x, y } if self.map_clip().contains(x, y) => {
@@ -2504,7 +2504,7 @@ impl Screen for MapScreen {
                 // — leave move-order mode, redraw, and that is all. No
                 // information panel, no confirmation. Ours reached the panel
                 // instead because the arm was written for one screen and the
-// mode it belongs to was never given its own.
+// mode it belongs to
                 //
                 // Note what is *not* here: a click on empty ground does **not**
                 // cancel. In the original that click is `Map_ConfirmMoveOrder`
@@ -2695,7 +2695,7 @@ impl Screen for MapScreen {
                     return Transition::Push(ScreenId::Job(ctx.game.selected, job));
                 } else if let Some(panel) = county::panel_at(x, y) {
                     // **The county strip is a 2 x 2 hotspot and it is the whole
-// navigation into the four county panels** — there is no
+// navigation into the four county panels** —
                     // other way into any of them, in the original or here
                     // (`docs/screens-county.md` §2.3). It used not to be tested
 // on this screen at all. A player could reach
@@ -2725,7 +2725,7 @@ impl Screen for MapScreen {
                     // where the raster is blank. And it returns 0 outright while
                     // `g_screenId` is `0x05` or `0x06` — the village's two drag
 // screens — the village keeps a peasant drag
-// rather than losing it to a stray click on the minimap.
+//
                     // arm: 0x0043253A/minimap-click left-press
                     self.ensure_minimap(ctx);
                     let county = self.minimap.as_ref().map_or(0, |m| m.county_at(x, y));
@@ -3231,7 +3231,7 @@ impl Screen for MapScreen {
 // so `Map_Click` does nothing at zoom 2. `docs/draws-map.md`
         // §5.4, C89, C189.
         //
-// **There is no season in this box.**
+// **
         // §7 both say *"the map's name, the season and the year"*; the painter
         // draws three things and a season is not one of them. The season is on
         // the menu bar, out of group 29.
@@ -4611,7 +4611,7 @@ mod tests {
             s.view = Viewport::new(60, 30).clamped(&zoom);
             // A tile whose neighbours are all comfortably on screen **and all
             // on the map**. The grid's own edge is a real hole and not a seam:
-// there is no tile beyond it to pick.
+//
             let (tx, ty) = (1..l2_kingdom::MAP_DIM - 1)
                 .flat_map(|y| (1..l2_kingdom::MAP_DIM - 1).map(move |x| (x, y)))
                 .find(|&(x, y)| {

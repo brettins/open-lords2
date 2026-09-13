@@ -29,7 +29,7 @@
 
 use crate::figure::{Figure, Side, State};
 
-/// `g_battleUnits` holds 81 slots and the sweeps run `1 ..= 80`; slot 0 is
+/// `g_battleUnits` holds 81 slots and the sweeps run `1..= 80`; slot 0 is
 /// never used, and `0` is therefore also the "no such unit" value that
 /// [`BattleUnit::last_attacker`] and `Enemy_NearestUnit` return. **[D]**
 pub const MAX_UNITS: usize = 80;
@@ -37,14 +37,14 @@ pub const MAX_UNITS: usize = 80;
 /// One unit record. **[D]** from `0x00566520`, stride `0x34`.
 ///
 /// Only the fields the order handlers, the rebuild pass and the reform
-/// countdown actually touch are modelled. The rest of the 52 bytes is drawing
+/// countdown touch are modelled. The rest of the 52 bytes is drawing
 /// and player-order state that no AI decision reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BattleUnit {
-    /// `+0x00` owner. **Zero means the slot is free**, which is why every
+/// `+0x00` owner. **Zero means the slot is free**, so every
     /// handler's "is my attacker still alive" test is `units[a].owner != 0`,
     /// and why `Enemy_NearestUnit` tells friend from foe by comparing this
-    /// byte rather than [`side`](Self::side).
+/// byte.
     pub owner: u8,
     /// `+0x01` this unit is controlled by a human, so no handler runs for it.
     pub human: bool,
@@ -53,7 +53,7 @@ pub struct BattleUnit {
     /// `+0x03` side, 0 or 4. Picks which half of every position table applies.
     pub side: Side,
     /// `+0x04`/`+0x06` lowest and highest figure index belonging to this unit.
-    /// The original scans that range rather than the whole array.
+/// The original scans that range.
     pub first: u16,
     pub last: u16,
     /// `+0x08` dispatch category, 0…10. See [`crate::ai`] §1.2.
@@ -91,7 +91,7 @@ pub struct BattleUnit {
     pub on_moat: bool,
     /// `+0x12` times hit. A `u8`, and it **wraps** — reproduced, not widened.
     /// Decremented only once `hit_memory` has reached zero, so it measures hit
-    /// *frequency* rather than a total.
+/// *frequency*.
     pub times_hit: u8,
     /// `+0x13` **[I]** read by `BattleUnit_NeedsReform` and by nothing else
     /// this crate implements. Its meaning was not established; the reform
@@ -117,7 +117,7 @@ pub struct BattleUnit {
     pub target_x: i16,
     pub target_y: i16,
     /// `+0x2A` halted, set by `Order_ChargeNearest`. It switches the
-    /// every-500-frame reform off, which is why *a charged unit stops being a
+/// every-500-frame reform off, so *a charged unit stops being a
     /// formation*.
     pub halted: bool,
     /// `+0x2B` withdrawals taken. `UnitOrder_FieldFoot` allows one,
@@ -174,7 +174,7 @@ pub const HIT_MEMORY: u8 = 50;
 /// `BattleUnit_JoinMelee`. **[D]** `docs/battle-ai.md` §4.2.
 pub const ORDER_LOCK: u8 = 64;
 
-/// What `+0x14` is set to when a unit is **ordered** rather than when the
+/// What `+0x14` is set to when a unit is **ordered**.
 /// countdown expires: `0x14`, twenty frames.
 ///
 /// Three separate sites write it — `BattleUnit_Order` (`0x00479E90`),
@@ -188,7 +188,7 @@ pub const REFORM_ON_ORDER: i16 = 0x14;
 ///
 /// `docs/battle-ai.md` §1.2. Categories 9 and 10 are *not* here: they are
 /// assigned to the first two missile units a siege **defender** raises, by two
-/// one-shot latches, and so depend on raise order rather than on troop type.
+/// one-shot latches, and so depend on raise order.
 pub const CATEGORY_OF_TROOP: [u8; 11] = [2, 1, 3, 3, 2, 1, 4, 5, 6, 7, 8];
 
 /// The unit array, indexed the original's way.
@@ -265,7 +265,7 @@ impl Units {
     ///    range, and a figure that raised its was-hit flag hands its unit a
     ///    fresh 50-frame grudge naming the *unit* of whoever hit it.
     ///
-    /// The hit flag is consumed here, which is why the grudge is per frame and
+/// The hit flag is consumed here, so the grudge is per frame and
     /// not per blow.
     pub fn rebuild_from_figures(&mut self, figures: &mut [Figure]) {
         for i in 1..=MAX_UNITS {
@@ -276,7 +276,7 @@ impl Units {
             u.figures = 0;
             u.owner = 0;
             // times_hit ages only once the grudge itself has expired, so it is
-            // a rate rather than a total.
+// a rate.
             if u.hit_memory == 0 {
                 u.times_hit = u.times_hit.saturating_sub(1);
             } else {
@@ -331,7 +331,7 @@ impl Units {
     /// the **bounding box** of its live figures, not at their centroid.
     ///
     /// `positions` is indexed by figure. A unit with no figures keeps the
-    /// position it had, exactly as the original's `figures != 0` guard does.
+    /// position it had.
     ///
     /// The tail of the original is easy to miss and load-bearing: a unit whose
     /// destination is still `(0, 0)` — i.e. one that has never been ordered —
@@ -375,7 +375,7 @@ pub fn chebyshev(ax: i16, ay: i16, bx: i16, by: i16) -> i32 {
 /// `PctOf` (`0x00404DC1`): `a * 100 / b`, and **0 when `b` is 0**. **[D]**
 ///
 /// The zero case is not a guard we added. It is why a side with no living
-/// enemy reads a strength advantage of `-100` rather than dividing by zero.
+/// enemy reads a strength advantage of `-100`.
 pub fn pct_of(a: i32, b: i32) -> i32 {
     if b == 0 {
         0

@@ -5,7 +5,7 @@
 //!
 //! `screens/shells.rs` called this *"Hire mercenaries"* while
 //! `docs/symbols.json` called its painter **`Screen_RaiseArmy`**. Both halves
-//! matter and the shell table had the wrong one: **there is no mercenaries
+//! matter and the shell table had the wrong one
 //! screen in the game at all.** The mercenary offer is a block on *this*
 //! screen, below the levy slider, and this screen is the only door to the
 //! armoury a player has. Filing it as optional content is what let the most
@@ -27,7 +27,7 @@
 //! — not a popup over the campaign map in the campaign palette, which is what
 //! this module used to answer and what a player was looking at when he called
 //! it *"a weird popup"*. [`crate::screens::armoury::page`] is the painter both
-//! screens share, exactly as the binary shares it. `docs/decisions.md` C61.
+//! screens share
 //!
 //! # What the painter draws, read out of it
 //!
@@ -171,7 +171,6 @@
 //! [`hire_readout`] now, and [`hire_yes`] and [`hire_no`] are the two that
 //! click.
 //!
-//! # There is no Raise button here
 //!
 //! `Screen_FrameInput`'s `0x17` arm is `Levy_SliderClick()`, then — if that did
 //! not take the click — a **right release** to `g_screenId = 0x0A` or the
@@ -361,7 +360,7 @@ pub const SLIDER_RIGHT_ICON: usize = 0x52;
 ///
 /// **What the picture is has not been established.** It is the frame
 /// immediately after the slider's five and no other function in the
-/// decompiled corpus passes `0x53` to `Pl8_DrawFrame`, so there is no second
+/// decompiled corpus passes `0x53` to `Pl8_DrawFrame`
 /// call site to read it against. Named.
 pub const HAPPINESS_ICON: usize = 0x53;
 
@@ -654,7 +653,6 @@ impl Screen for RaiseArmyScreen {
         // `Sidebar_Button` seeds before it sets `g_screenId`, so a screen that
         // finds no order for its county was opened by something that did not
         // go through `Game::open_levy` — the demo index, or a test. Seed here
-        // rather than draw a levy of nobody.
         if ctx.game.levy.county != self.county {
             ctx.game.levy.county = self.county;
             let percent = ctx.game.levy.percent;
@@ -807,7 +805,7 @@ impl Screen for RaiseArmyScreen {
             // [`RaiseArmyScreen::slider_click`]: nothing but `g_mouseLeftDown`
             // is read there, so every pointer position while the button is down
             // is a new percentage, and a release ends it. The table is
-            // re-hit-tested first, exactly as `Widget_Test` re-runs every
+            // re-hit-tested first
             // frame, so a pointer that has walked off a record drops its hold.
             // arm: 0x00435CEF/levy-slider-track drag
             Event::Pointer { x, y } => {

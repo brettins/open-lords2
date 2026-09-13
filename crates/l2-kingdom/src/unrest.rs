@@ -32,7 +32,7 @@
 //! reaches it with a `goto`. One block, two callers. This module's own test
 //! `an_ai_county_never_raises_a_mob` asserted the opposite, sourced from
 //! `docs/kingdom.md` §6's prose putting the call "on the human ladder only".
-//! It is the C58 shape exactly: a claim read out of a document rather than out
+//! It is the C58 shape exactly: a claim read out of a document
 //! of the function.
 //!
 //! **Two. The revolt only fires on the season the counter *rose*.** Both
@@ -78,7 +78,7 @@ pub const AI_UNREST_BELOW: i32 = 1;
 /// for calling `County_RaiseRevolt` and nothing more.
 ///
 /// The caller does the raising and resets the counter only if a mob was
-/// actually placed — see [`raise_revolt`], and `0x0044AA41`'s
+/// — see [`raise_revolt`], and `0x0044AA41`'s
 /// `if (3 < unrest && County_RaiseRevolt(c)) unrest = 0;`.
 ///
 /// `id` is the county's index, carried only so the messages can name it.
@@ -130,7 +130,7 @@ pub fn update(
     before < county.unrest && county.unrest >= UNREST_REVOLT
 }
 
-/// `County_RaiseRevolt` (`0x004AC185`) — what unrest 4 actually does.
+/// `County_RaiseRevolt` (`0x004AC185`) — what unrest 4
 ///
 /// ```c
 /// if (county.owner == 0) return 0;
@@ -150,7 +150,7 @@ pub fn update(
 /// return 1;
 /// ```
 ///
-/// Three details that are the rule rather than transcription:
+/// Three details that are the rule
 ///
 /// * **The tile search is the levy's**, box radius 1…3 around the county
 ///   anchor, road first — [`crate::levy::muster_tile`]. A county with no free
@@ -262,7 +262,7 @@ mod tests {
     /// `update` now returns *"the counter rose to 4"*, which is exactly what
     /// `0x0044AA41` tests before calling `County_RaiseRevolt`; the reset and the
     /// `Revolt` message belong to the caller, because the original only does
-    /// them when the mob was actually placed.
+    /// them when the mob
     #[test]
     fn a_human_county_below_twenty_five_revolts_after_more_than_four_seasons() {
         let mut c = owned_by(1, 24);
@@ -371,7 +371,7 @@ mod tests {
     }
 
     /// The hole in the documented AI ladder, asserted so that it is visible
-    /// rather than accidental. If this test ever has to change, the ladder was
+    ///. If this test ever has to change, the ladder was
     /// wrong in the document.
     #[test]
     fn the_ai_ladder_has_a_documented_dead_band_between_one_and_ten() {

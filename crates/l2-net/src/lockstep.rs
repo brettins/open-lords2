@@ -14,9 +14,9 @@
 //! a different protocol: each player plans a turn, sends a command list
 //! to the host, the host concatenates in slot order and broadcasts. But
 //! "collect every player's commands for step N, order them by slot,
-//! apply them identically everywhere" is precisely what this session
+//! apply them identically everywhere" is what this session
 //! does — with an input delay of zero, because a turn's commands
-//! execute on that same turn rather than two ticks later. The host's
+//! execute on that same turn. The host's
 //! relaying is a *transport topology*, not a second protocol: it is why
 //! [`PeerId`](crate::PeerId) and [`PlayerSlot`] are
 //! different types, and it is invisible from here.
@@ -26,10 +26,10 @@
 //!
 //! # No clock
 //!
-//! There is no `Instant`, no `SystemTime` and no timeout anywhere in
+//! no `SystemTime` and no timeout anywhere in
 //! this file. D-5 forbids the simulation from seeing wall-clock time,
 //! and the cleanest way to obey a rule like that is to make the value
-//! unavailable rather than to be careful with it.
+//! unavailable.
 //!
 //! The consequence is deliberate and worth understanding: **this crate
 //! will wait forever.** [`Advance::Waiting`] names the slots it is
@@ -54,7 +54,7 @@ use crate::replay::Replay;
 /// * `step` is D-11's pure function of state and commands. Everything
 ///   the tick may read is reachable from `self` and `commands`. No file
 ///   I/O, no globals, no clock — and note what is *not* passed in:
-///   there is no `dt`, no frame time and no wall clock, because
+/// no frame time and no wall clock, because
 ///   [`Tick`] is the only time the simulation has (D-5).
 /// * `encode_state` writes the canonical byte stream §6 requires,
 ///   never the in-memory image.
@@ -114,7 +114,7 @@ pub struct Config {
     /// **we do not build rollback**. It buys responsiveness at the cost
     /// of making every piece of simulation state rewindable, which is a
     /// tax on every future feature; for units that are formations of
-    /// soldiers rather than fighting-game frames, input delay is the
+/// soldiers, input delay is the
     /// right trade.
     pub input_delay: u32,
 
@@ -169,7 +169,7 @@ impl Config {
     /// current turn, and nothing is sent while the player is still
     /// planning. That matches §5 exactly - "nothing is sent while
     /// planning, and nothing local is applied" - and it falls out of
-    /// the input delay being zero rather than needing a second code
+/// the input delay being zero
     /// path.
     pub fn kingdom() -> Config {
         Config {
@@ -208,7 +208,7 @@ pub enum Advance {
 ///
 /// Every one of these is fatal to the session in practice: a rejected
 /// packet is a tick that will never arrive, and the session will wait
-/// for it forever. They are returned rather than acted on because
+/// for it forever. They are returned because
 /// *how* to fail is a policy decision — a dialog, a log line, a
 /// [`HaltReason::Protocol`] sent to the peer — and this crate does not
 /// make policy.
@@ -224,17 +224,17 @@ pub enum SessionError {
     ///
     /// Not an anti-cheat measure — §8 is clear that lockstep offers no
     /// protection against a modified client, and a peer that wanted to
-    /// forge a command could simply set the whole packet's `from`. It
+/// forge a command could set the whole packet's `from`. It
     /// is an *integrity* check: a packet whose contents contradict its
     /// header is far more likely to be a relaying bug in our own host
     /// code than an attack, and it should be caught where it happens
-    /// rather than three ticks later as a desync.
+    ///
     ForgedCommand { packet_from: PlayerSlot, command_from: PlayerSlot },
     /// A packet too far ahead of our own simulation
     /// ([`Config::lead_slack`]).
     TooFarAhead { tick: Tick, horizon: Tick },
     /// A packet for a tick already simulated. Harmless — a duplicate
-    /// delivery — and reported rather than silently dropped so that a
+/// delivery — and reported so that a
     /// transport that is duplicating packets is visible.
     AlreadySimulated { tick: Tick },
 }
@@ -298,7 +298,7 @@ impl std::error::Error for SessionError {}
 /// # Pacing is the caller's job, and looping on `advance` is a decision
 ///
 /// [`Session::advance`] steps at most one tick per call, and it stops
-/// when it runs out of commands rather than when it runs out of time -
+/// when it runs out of commands -
 /// it has no clock (D-5). A caller that loops until [`Advance::Waiting`]
 /// therefore runs the simulation **as fast as the machine allows**, up
 /// to the input delay ahead of its peers. That is exactly right for a
@@ -319,7 +319,7 @@ pub struct Session {
     tick: Tick,
     /// The next tick we owe a packet for.
     next_seal: u32,
-    /// The last tick actually simulated.
+/// The last tick simulated.
     simulated: Option<Tick>,
     /// The newest tick whose checksum we have already put in a packet.
     acked_through: Option<u32>,
@@ -510,7 +510,7 @@ impl Session {
             Vec::new()
         };
 
-        // Every tick simulated since the last packet, not just the
+        // Every tick simulated since the last packet,
         // newest. See `TickPacket::acks` for why: the newest-only form
         // skips whole ticks whenever a peer simulates more than one
         // between packets, which it does at session start and after

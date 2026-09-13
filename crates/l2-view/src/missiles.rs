@@ -25,22 +25,22 @@
 //! }
 //! ```
 //!
-//! Four things in that are worth stating flat, because each is a decision
+//! Four things in that are worth stating flat
 //! somebody could get wrong:
 //!
 //! * **A missile's position is already in pixels.** `+0x0A`/`+0x0C` are
 //!   thirty-seconds of a cell and a battle tile is 32 pixels, so the sub-cell
-//!   unit and the screen pixel are the same unit — [`crate::scene::TILE`]. No
+//! unit and the screen pixel are the same unit — [`crate::scene::TILE`]. No
 //!   scaling anywhere.
 //! * **There is no sprite centring.** `BattleFigure_Draw` subtracts half the
 //!   sprite width on both axes; this adds `tileSize / 2` and nothing else
 //!   (`DAT_004E5D44 = param_11 / 2`, stored by `FUN_004BC020`). Reproduced
-//!   rather than corrected.
+//!
 //! * **Class 7 — the boiling-oil stream — is never drawn.** `docs/battle.md`
 //!   §17.2 already said *"invisible to the renderer"*; this is the function
 //!   that makes it so. What a player sees of a pour is the fire it leaves.
 //! * **Ten to a cell.** Both ends of the list give up after ten
-//!   (`Missile_LinkToCell`, `0x0046EFBE`, and the counter here), so an eleventh
+//! (`Missile_LinkToCell`, `0x0046EFBE`, and the counter here)
 //!   missile standing on one cell is not drawn.
 //!
 //! # Which frame
@@ -138,7 +138,7 @@ pub fn frame(m: &Missile) -> Option<usize> {
         c if c == CLASS_FIRE => {
             let f = FIRE_FRAMES[(m.ttl.max(0) as usize >> 4).min(FIRE_FRAMES.len() - 1)] as usize;
             // `Missile_UpdateAll`'s class-5 arm links the record to its cell
-            // only while the frame is positive, so a zero frame is a fire that
+            // only while the frame is positive
             // is not on any draw list.
             (f > 0).then_some(f)
         }
@@ -161,7 +161,7 @@ pub fn frame(m: &Missile) -> Option<usize> {
 /// that rule, enforced.
 ///
 /// So the tick stands in for the global: same sixteen offsets, same wrap, same
-/// shimmer, one advance a frame instead of one an drawn fire. Ours is a
+/// shimmer, one advance a frame. Ours is a
 /// function of simulation state; the original's is a function of how many
 /// fires have ever been painted. Nothing else about the fire differs.
 pub fn jitter(tick: u32, nth_fire_this_frame: usize) -> (i32, i32) {
@@ -178,7 +178,7 @@ mod tests {
         Missile { owner: 1, class, dir, ttl, ..Missile::default() }
     }
 
-    /// The three weapon bases, and the one class that does not add its
+    /// The three weapon bases
     /// direction.
     #[test]
     fn a_bow_and_a_bolt_point_where_they_fly_and_a_catapult_shot_does_not() {

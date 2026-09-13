@@ -1,8 +1,8 @@
 //! The wire messages.
 //!
-//! Three of them, and the smallness of that list is the design. §4
+//! Three of them
 //! needs a tick packet; D-12 needs a handshake that compares the
-//! ruleset; a session that stops needs to say why. There is no lobby,
+//! ruleset; a session that stops needs to say why.
 //! no chat, no ping, no matchmaking (§8), and no message whose meaning
 //! depends on a previous one.
 //!
@@ -34,13 +34,13 @@ pub const PROTOCOL_VERSION: u16 = 2;
 /// as unverified: in the registry CSV downloaded 2026-09-07, 27962
 /// falls inside the row `27877-27998`, marked *Unassigned*, for both
 /// TCP and UDP. The nearest assignments either side are `tw-auth-key`
-/// on 27999 and `nxlmd` on 28000. Unassigned is not a reservation —
+/// on 27999 and `nxlmd` on 28000.
 /// IANA could allocate the range tomorrow, and 27015-27050 nearby is
 /// heavily used by Source-engine games in practice without being
 /// registered — but nothing official sits on it and nothing this crate
 /// can find claims it.
 ///
-/// Note that no test binds this port. `tests/tcp.rs` uses port 0 and
+/// No test binds this port. `tests/tcp.rs` uses port 0 and
 /// lets the OS choose, because a test that binds a fixed port fails
 /// when the developer has the game running.
 pub const DEFAULT_PORT: u16 = 27962;
@@ -69,7 +69,7 @@ pub struct TickPacket {
     /// turn" and "player 4 sent nothing this turn" are the same packet.
     ///
     /// One byte, and it makes [`PeerId`](crate::PeerId) and
-    /// [`PlayerSlot`] genuinely independent rather
+/// [`PlayerSlot`] independent
     /// than independent-until-it-matters.
     pub from: PlayerSlot,
     /// This peer's commands for that tick, in its own sequence order.
@@ -83,7 +83,7 @@ pub struct TickPacket {
     /// **A deviation from `docs/netcode.md` §4**, which lays the packet
     /// out as a bare `u32 ack_tick` and a bare `u64 state_hash` — one
     /// tick's checksum per packet, the newest one. Two things are wrong
-    /// with that, and the second was found by a failing test rather
+    /// with that
     /// than by reading:
     ///
     /// 1. There is no value of `u32` meaning "I have not simulated
@@ -100,7 +100,7 @@ pub struct TickPacket {
     ///    battle session: the acks ran 2, 5, 8, 11, 14 and ticks 12 and
     ///    13 were never checked. A divergence landing on a skipped tick
     ///    is still caught at the next reported one, but it is
-    ///    localised to a window instead of a tick, which is most of
+    /// localised to a window instead of a tick
     ///    what §6's per-tick cadence was buying.
     ///
     /// A list fixes both. In steady state it holds exactly one entry
@@ -169,15 +169,15 @@ impl Decode for TickPacket {
 /// The session handshake, and D-12 in one struct.
 ///
 /// D-12 says two peers must agree on the protocol version, the engine
-/// version, **and the mod set and load order**, because `l2-mods`
-/// exists precisely to let a mod change the simulation and a mod
+/// version
+/// exists to let a mod change the simulation and a mod
 /// mismatch is a guaranteed desync with a baffling symptom. `l2-mods`
 /// already tracks which mod and which line set every value, so the
 /// material for `ruleset_hash` exists; computing it is that crate's
 /// job, and comparing it is this one's.
 ///
-/// The seed is here for the same reason. It is not a rule, but it is
-/// something the two peers must agree on before tick 0, and the cost of
+/// The seed is here for the same reason.
+/// something the two peers must agree on before tick 0
 /// checking it in the handshake is one `u64` against an hour of
 /// wondering why two identical builds diverged immediately.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -189,7 +189,7 @@ pub struct Hello {
     /// a stronger check than a structured one that invites
     /// "compatible enough" reasoning.
     pub engine: String,
-    /// A hash over the *resolved* ruleset: every value, and the mod
+    /// A hash over the *resolved* ruleset: every value
     /// that set it, in load order.
     pub ruleset_hash: u64,
     /// **Which of the original's defects this session reproduces** —
@@ -203,8 +203,8 @@ pub struct Hello {
     /// mod set only because a quirk set did not exist when it was
     /// written.
     ///
-    /// **It is a separate field rather than folded into
-    /// [`Hello::ruleset_hash`]**, and the reason is the error message.
+/// **It is a separate field
+    /// [`Hello::ruleset_hash`]**
     /// A quirk set is a thing a player chose on a settings page and can
     /// change in one click; a ruleset is a mod list. Hashing them
     /// together would report *"your rules differ"* to somebody whose
@@ -214,7 +214,7 @@ pub struct Hello {
     ///
     /// **Not a substitute for the per-tick digest, and not made
     /// redundant by it.** The digest catches a quirk difference at the
-    /// first tick that a quirk actually touches, which for a harvest
+/// first tick that a quirk touches, which for a harvest
     /// rule is the end of the first Winter — a quarter of an hour into
     /// a game that was already wrong. This catches it in the lobby.
     pub quirks: u64,
@@ -232,7 +232,7 @@ pub enum Mismatch {
     Engine { ours: String, theirs: String },
     Ruleset { ours: u64, theirs: u64 },
     /// The two peers reproduce different sets of the original's bugs.
-    /// Its own variant rather than a `Ruleset` mismatch, because the
+/// Its own variant
     /// fix is a check box and not a mod list.
     Quirks { ours: u64, theirs: u64 },
     Seed { ours: u64, theirs: u64 },
@@ -265,7 +265,7 @@ impl core::fmt::Display for Mismatch {
 }
 
 impl Hello {
-    /// Every reason this peer and that one cannot play, not just the
+/// Every reason this peer and that one cannot play
     /// first.
     ///
     /// All of them, because the alternative is the player fixing one
@@ -336,7 +336,7 @@ pub enum HaltReason {
     Desync { tick: Tick },
     /// The player quit.
     Left,
-    /// A peer stopped answering. Note that *this crate* never decides
+/// A peer stopped answering. *this crate* never decides
     /// this — it has no clock (D-5) — so the value only ever arrives
     /// from a caller that does.
     Timeout,
@@ -370,7 +370,7 @@ pub enum Message {
     /// Lobby, host to clients: the game begins, with this seed and this roster.
     Start(crate::lobby::Start),
     /// Lobby, host to one client: you cannot play, with every reason at once
-    /// rather than one per reconnect. Empty means a reason that is not a
+/// Empty means a reason that is not a
     /// [`Mismatch`] — a name already taken, or a full game.
     Refused(Vec<Mismatch>),
 }
@@ -466,7 +466,7 @@ const TAG_REFUSED: u8 = 8;
 /// A `Mismatch` on the wire, so a refused peer is told every reason at once.
 ///
 /// The strings are the *host's* view of its own build and rules; a client
-/// displays them beside its own, which is why both halves travel.
+/// displays them beside its own, so both halves travel.
 impl Encode for Mismatch {
     fn encode(&self, out: &mut Canonical) {
         match self {

@@ -11,7 +11,7 @@ re-run the commands instead, and write a new review if the answers have changed.
 
 ## Verdict
 
-**The central claim is half true, and the half that is false is load-bearing.** Five
+**The central claim is half true, Five
 crates do work, 727 tests pass, and nothing is joined up — that part reproduces. But *"the
 gap is integration, not knowledge"* is false for three of the slice's five items: starting
 a scenario, moving an army, and fighting a campaign battle each require subsystems that are

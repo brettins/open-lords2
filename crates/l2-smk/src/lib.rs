@@ -26,7 +26,7 @@
 //!    are padded to a four-byte boundary, and in all 7,652 video frames and
 //!    7,108 audio chunks of the corpus the decoder leaves between 0 and 31 bits
 //!    unread. A Huffman tree read one bit wrong desynchronises every code after
-//!    it and the decoder runs off the end of its chunk instead.
+//! it and the decoder runs off the end of its chunk instead.
 //!    [`Decoder::video_bits`] and [`AudioChunk`] report both numbers so the
 //!    corpus test can demand it (`crates/l2-smk/tests/corpus.rs`).
 //! 3. **An independent decoder agrees, pixel for pixel.** That comparison was
@@ -665,7 +665,7 @@ impl Decoder {
 
     /// **The frame as `_SmackToBuffer@28` (`0x403AF0`) leaves a cleared
     /// destination**: stored width × [`Header::display_height`], borrowed when
-    /// there is no scaling. [`YScale::Interlace`] writes the even rows and
+    /// [`YScale::Interlace`] writes the even rows and
     /// leaves the odd ones black; [`YScale::Double`] writes each row twice.
     pub fn display(&self) -> std::borrow::Cow<'_, [u8]> {
         if self.y == YScale::One {
@@ -701,7 +701,7 @@ impl Decoder {
     /// Decode `smk`'s next frame. `Ok(false)` once every frame has been.
     ///
     /// `smk` must be the film this decoder was made for; a different one of
-    /// the same size decodes garbage rather than failing.
+    /// the same size decodes garbage.
     pub fn next_frame(&mut self, smk: &Smk) -> Result<bool> {
         let i = self.next;
         if i >= smk.frames() {

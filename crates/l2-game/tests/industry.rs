@@ -64,7 +64,7 @@ macro_rules! world {
 /// else               step = g_pulse80;
 /// ```
 ///
-/// Typed here rather than read from [`l2_view::campaign::industry_period_ms`],
+/// Typed here
 /// because a probe computed from the constant under test cannot fail when the
 /// constant is ablated — `docs/agents.md`, *how to ablate wrongly*, one.
 const PULSE_MS: [u32; 4] = [640, 320, 160, 80];
@@ -75,7 +75,7 @@ const BAND_EDGES: [(i32, usize); 8] =
     [(0, 0), (9, 0), (10, 1), (24, 1), (25, 2), (49, 2), (50, 3), (173, 3)];
 
 /// How many of **our** ticks each rung is, at `l2_game::TICK_MS`. Asserted
-/// against `TICK_MS` below rather than divided out of it, so that a change to
+/// against `TICK_MS` below
 /// the frame rate is a red test and not a silently rescaled expectation.
 const EVERY: [u32; 4] = [40, 20, 10, 5];
 
@@ -104,7 +104,7 @@ fn turns_of_each_wheel(
             // Every site gets a row whether or not it ever moves — a wheel that
             // stood still is the assertion in
             // [`a_site_the_player_switched_off_stops_turning`], and a missing
-            // key would be an absence rather than a zero.
+            // key would be an absence.
             turns.entry(tile).or_insert(0);
             let seen = last.entry(tile).or_insert(frame);
             if *seen != frame {
@@ -118,11 +118,11 @@ fn turns_of_each_wheel(
 
 /// Every working site on the map, as the *terrain* says — the same test
 /// `step_industry` makes, but written out from `Industry_UpdateSiteTile`'s
-/// `content = base + (enabled != 0)` rather than borrowed from
+/// `content = base + (enabled != 0)`
 /// `l2_kingdom::map::industry_state`.
 /// The first working site whose **record says its season was idle** —
 /// `total == totalSnapshot`, so `output` is 0 — read from what the importer
-/// carried rather than assumed. The rate tests need a wheel on the slow rung,
+/// carried. The rate tests need a wheel on the slow rung,
 /// and until C161 they took the first site and got one only
 /// because the load had thrown every running total away.
 fn idle_site(game: &l2_game::Game) -> Option<(usize, usize, usize)> {
@@ -271,7 +271,7 @@ fn a_busy_site_turns_its_wheel_eight_times_as_often_as_an_idle_one() {
 }
 
 /// **A site that is switched off does not turn at all**, and switching it off is
-/// a map click rather than a flag.
+/// a map click.
 ///
 /// `Industry_UpdateSiteTile` writes `content = base + (enabled != 0)`, so "off"
 /// is a terrain value `Sprite_TopIt`'s arm 5b never animates — the whole of the
@@ -367,7 +367,7 @@ fn differences(a: &l2_view::Canvas, b: &l2_view::Canvas) -> Vec<(i32, i32)> {
 /// the first claim goes red — the sites then draw the frame `L2_maps.dat`
 /// stores and the wheel turns invisibly, which is exactly the defect this
 /// branch was written to fix. Dropping `industry_key` from the base plane's
-/// repaint key goes red the same way, on the cache rather than on the override.
+/// repaint key goes red the same way, on the cache.
 #[test]
 fn a_turning_wheel_changes_the_screen_and_a_stopped_one_changes_nothing() {
     let (mut game, assets) = world!();
@@ -401,7 +401,7 @@ fn a_turning_wheel_changes_the_screen_and_a_stopped_one_changes_nothing() {
 
     // The precondition, stated so that a window which happens to be a whole
     // number of the wheel's own cycle fails *here*, where it names the cause,
-    // rather than below, where it would read as "the wheel does not reach the
+    //
     // screen".
     assert_ne!(
         frame_before, frame_after,
@@ -452,7 +452,7 @@ fn a_turning_wheel_changes_the_screen_and_a_stopped_one_changes_nothing() {
 }
 
 /// **The wheel's phase is not in the kingdom**, and this asks it the only way
-/// that is actually available.
+/// that is.
 ///
 /// `armoury.rs`'s
 /// `a_hundred_ticks_of_the_armoury_leave_the_kingdom_byte_identical` encodes the
@@ -478,7 +478,7 @@ fn a_turning_wheel_changes_the_screen_and_a_stopped_one_changes_nothing() {
 /// # Ablating it, and the two things that came out of trying
 ///
 /// **`step_industry` cannot write to the kingdom at all**: it takes `&Ctx`, and
-/// the attempt is a borrow-check error rather than a red test. That is the
+/// the attempt is a borrow-check error. That is the
 /// stronger guarantee `docs/agents.md` asks for — *prefer a shape that cannot be
 /// wrong to a check that notices when it is* — and it means the leak has to be
 /// staged in `update`, where a `&mut Ctx` exists.
@@ -501,7 +501,7 @@ fn two_maps_whose_wheels_are_out_of_phase_reach_the_same_kingdom() {
     // counter and its site frames run ahead of a fresh one. **47 and not 7**: the
     // slowest rung is 40 ticks, so a seven-tick lead moves no wheel at all and
     // both screens then take the same number of steps from the same frame. The
-    // assertion below caught exactly that, which is why it is written first.
+    // assertion below caught exactly that.
     let (mut warm, assets) = world!();
     let mut ahead = MapScreen::new();
     tick(&mut ahead, &mut warm, &assets, 47);

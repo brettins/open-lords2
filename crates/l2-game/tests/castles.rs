@@ -1,4 +1,4 @@
-//! **The castle route, played rather than tested.**
+//! **The castle route, played.**
 //!
 //! ```text
 //! cargo test -p l2-game --test castles
@@ -7,7 +7,7 @@
 //! Every line below goes through [`Machine::handle`] with an [`Event`]. Nothing
 //! here sets `castle_degraded`, `garrison_unit` or `besieging_county` by hand,
 //! and that is the whole point: those three fields were **read by rules and
-//! written by nothing a player could reach**, which is why a county could never
+//! written by nothing a player could reach**
 //! build a castle, a castle could never be manned and a siege could only ever
 //! be laid by a test that laid it itself.
 //!
@@ -119,7 +119,7 @@ fn run_until(
 /// `Unit_StepOnce`'s sub-tile counter landed a unit takes 8 ticks to cross a
 /// road tile and 32 to cross anything else. Nothing in the turn machine waits
 /// on the human's armies, so a test that presses End Turn on the same frame as
-/// the order is asserting a race rather than a rule.
+/// the order is asserting a race.
 fn march(m: &mut Machine, g: &mut Game, a: &Assets) {
     run_until(m, g, a, "the march", |_, g| {
         !g.kingdom.campaign.units.iter().any(|(_, u)| u.moving)
@@ -135,7 +135,7 @@ fn end_turn(m: &mut Machine, g: &mut Game, a: &Assets) {
     }
 }
 
-/// The sidebar's **CASTLE** button, found by its name rather than by its index
+/// The sidebar's **CASTLE** button, found by its name
 /// so that reordering the strip does not silently point this at COURT.
 fn castle_button() -> Rect {
     map::SIDEBAR_BUTTONS
@@ -343,7 +343,7 @@ fn the_ok_button_refuses_the_castle_you_have_and_anything_smaller() {
 }
 
 /// **You have to close the mines to build a castle**, and that is the
-/// original's rule rather than this fixture's shape.
+/// original's rule.
 ///
 /// `Labour_Allocate` serves the industry half as a round robin — wood, stone,
 /// iron, blacksmith, **and castle building only as the tail**, reached when all
@@ -366,7 +366,7 @@ fn the_ok_button_refuses_the_castle_you_have_and_anything_smaller() {
 /// worlds ever finds a county. `tests/screens.rs`'s
 /// `every_painted_pixel_of_a_mine_reaches_the_industry_toggle` drives that half
 /// against the real sheet and the real map, which is where it belongs; what is
-/// asserted here is the *rule*, which is the half that was never stated.
+/// asserted here is the *rule*.
 #[test]
 fn a_county_with_its_mines_running_never_gets_round_to_the_castle() {
     let (mut g, a, mut m) = on_the_map();

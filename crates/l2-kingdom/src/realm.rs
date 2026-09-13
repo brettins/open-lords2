@@ -57,7 +57,7 @@ pub const PAIR_BLOCK_END: usize = PAIR_BLOCK_OFFSET + MAX_REALMS * PAIR_RECORD_S
 /// than trusting the prose, and so the two runs of bytes that are *not* fields
 /// stay visible. `docs/diplomacy.md` §1 and §9: `+0x06`/`+0x07` are neither
 /// written by `Diplo_Init` nor read anywhere, and `+0x0E`/`+0x0F` are zeroed at
-/// init and read nowhere. Both are left as gaps rather than invented into
+/// init and read nowhere. Both are left as gaps
 /// fields.
 pub const PAIR_FIELDS: [(&str, usize, usize); 11] = [
     ("standing", 0x00, 1),
@@ -151,13 +151,13 @@ pub struct Realm {
     /// reader in the binary uses it, but the byte itself is
     /// [`Realm::strength`], and this is `strength != 0`.
     pub in_play: bool,
-    /// `+0x04` again — the number the byte actually holds.
+    /// `+0x04` again — the number the byte holds.
     ///
     /// **`docs/kingdom.md` §2 calls `+0x04` `inPlay` and marks it `[V]`; it is a
     /// weighted strength count.** `FUN_0049B42B` rebuilds it at the top of
     /// every AI turn as `3 * ownedCounties + 1 * armies`, and a realm is
     /// eliminated when it comes out zero. Every other site only tests it
-    /// against zero, which is why "inPlay" fits everything but the write.
+    /// against zero,
     /// See [`crate::ai::begin_realm_turn`].
     pub strength: u8,
     /// `+0x05` — when set, the AI turn machine is skipped entirely. This is the
@@ -521,14 +521,14 @@ impl Realm {
     /// A human's lord byte is 0, so a human's variant would be `rot - 4` —
     /// negative. Nothing in the original sends a letter *from* a human through
     /// this path (the player's letter is drawn from a text buffer instead), and
-    /// the arithmetic is reproduced with a wrapping subtraction rather than
+    /// the arithmetic is reproduced with a wrapping subtraction
     /// guarded, so the shape of the expression stays visible.
     pub fn message_variant(&self) -> u8 {
         (self.lord.wrapping_mul(4)).wrapping_add(self.voice_rotation).wrapping_sub(4)
     }
 
     /// Advance the voice rotation, wrapping 3 → 0. Every message send does
-    /// this, which is why two consecutive letters from one lord never use the
+    /// this,
     /// same recorded take.
     pub fn advance_voice(&mut self) {
         self.voice_rotation += 1;
@@ -575,7 +575,7 @@ impl Realm {
     /// *saturated* into the byte, so sixteen counties at −15 land on −128 and
     /// stay there instead of coming back round as +16. The field stays an `i8`
     /// either way — widening it would change the *save*, and the bug is the
-    /// missing clamp rather than the width.
+    /// missing clamp
     ///
     /// **The fixed path is not `saturating_add` on the byte**, and the
     /// difference is not pedantic: contributions can be either sign, so a walk
@@ -597,7 +597,7 @@ impl Realm {
     ///
     /// The fixed half of [`Quirk::EmpireTaxHappinessWraps`]. The field stays an
     /// `i8` — widening it would change the *save*, and the defect is the
-    /// missing clamp rather than the width.
+    /// missing clamp
     pub fn set_empire_tax_happiness(&mut self, total: i32) {
         self.tax_hap_empire = total.clamp(i8::MIN as i32, i8::MAX as i32) as i8;
     }
@@ -620,7 +620,7 @@ impl Realm {
     ///
     /// **Two tables**: a realm holding fewer than three counties draws from the
     /// smaller [`AI_GOLD_GRANT_SMALL`], which is uniformly *less* — the grants
-    /// reward a realm that is winning rather than propping up one that is
+    /// reward a realm that is winning
     /// losing. The human's lord byte is 0 and row 0 of both tables is all
     /// zeros, so the human gets nothing either way. `docs/kingdom.md` §8.2.
     pub fn gold_grant(&self, t: &Tables, difficulty: u8) -> i32 {
@@ -681,7 +681,7 @@ mod tests {
         assert_eq!(r.wage_for_unit(T, 300, 0), 100);
         assert_eq!(r.wage_for_unit(T, 300, 1), 60);
         assert_eq!(r.wage_for_unit(T, 300, 2), 30);
-        // Out-of-range difficulty clamps rather than panicking.
+        // Out-of-range difficulty clamps
         assert_eq!(r.wage_for_unit(T, 300, 9), 30);
     }
 
@@ -725,7 +725,7 @@ mod tests {
     /// its smallest threshold first and never reaches the other two. The
     /// disassembly is in [`crate::tables::score_gold_bracket`]; this test used
     /// to assert 100 at 5,001 and 200 at 10,001, which is what the table looks
-    /// like rather than what the executable does.
+    /// like
     #[test]
     fn the_gold_bracket_is_the_only_term_with_a_known_meaning() {
         let mut r = Realm::new();
@@ -744,7 +744,7 @@ mod tests {
         }
     }
 
-    /// `docs/diplomacy.md` §1's headline claim, as arithmetic rather than as
+    /// `docs/diplomacy.md` §1's headline claim, as arithmetic
     /// prose: sixteen bytes per sub-record, six sub-records, and the block
     /// finishing exactly on `+0xE4` where the next named field begins.
     ///
@@ -762,7 +762,7 @@ mod tests {
         }
         assert_eq!(next, PAIR_RECORD_STRIDE, "the fields do not fill sixteen bytes");
 
-        // And the two runs that are gaps rather than fields are still gaps: a
+        // And the two runs that are gaps
         // future reading that named them would have to change this count.
         let named = PAIR_FIELDS.iter().filter(|(n, _, _)| !n.starts_with('-')).count();
         assert_eq!(named, 9, "nine fields and two untraced gaps");

@@ -54,12 +54,12 @@ impl IndexScreen {
         // agent that owns the screen owns its id.
         push("0x02 THE VILLAGE (ANOTHER AGENT)".into(), None);
         // Unit 1 is a stand-in: the screen takes the besieging army's slot, and
-        // from the index there is no siege in progress to take it from. It
+        // from the index It
         // draws an empty order and a zero countdown, which is what the original
         // shows the instant a siege is laid.
         push("0x1D SIEGE PREPARATIONS".into(), Some(ScreenId::Siege(1)));
         // The same stand-in argument as the siege screen's, for the same
-        // reason: from the index there is no selected county and no selected
+        // reason: from the index
         // army to take one from. `0x17` on county 1 draws the no-offer layout
         // with a zero levy; `0x11` on a slot with no army in it says so.
         push("0x17 RAISE AN ARMY".into(), Some(ScreenId::RaiseArmy(1)));
@@ -71,7 +71,7 @@ impl IndexScreen {
         push("0x0D THE SWORD RACK".into(), Some(ScreenId::Rack(1, 3)));
         push("0x11 ARMY DIVISION".into(), Some(ScreenId::Divide(1)));
         // The same stand-in again, and here it shows something the screen
-        // itself is about: unit 1 is not a merchant from the index, so its
+        // itself is about: unit 1 is not a merchant from the index
         // morale reads 0 and every buy price falls to the markup's floor of one
         // crown. That is the formula working, not a placeholder — reached from
         // the map the unit is a merchant at morale 100 and the prices double.
@@ -79,9 +79,9 @@ impl IndexScreen {
         push("0x0C TRADE GOODS (GRAIN)".into(), Some(ScreenId::Trade(1, 1)));
         push("0x0B THE OTHER LORDS".into(), Some(ScreenId::Diplomacy));
         // The compose dialog has three shapes and the index reaches all three,
-        // because they are three painters and three widget tables rather than
+        // because they are three painters and three widget tables
         // three states of one. Rival 2 is a stand-in the same way unit 1 is
-        // above: from the index there is no `g_diploTarget` to take.
+        // above: from the index
         push("0x1A   DISPATCH A GIFT".into(), Some(ScreenId::DiploCompose(2, 0)));
         push("0x1A   A LETTER".into(), Some(ScreenId::DiploCompose(2, 1)));
         push("0x1A   ASK AN ALLY FOR HELP".into(), Some(ScreenId::DiploCompose(2, 5)));

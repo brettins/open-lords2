@@ -1,6 +1,6 @@
 //! The turn machine — `docs/kingdom.md` §3.
 //!
-//! Two ordered things live here, and both are ordered *data* rather than
+//! Two ordered things live here, and both are ordered *data*
 //! implicit control flow, because `docs/kingdom.md` §3.4 is explicit that
 //! **the order is the rule**:
 //!
@@ -59,7 +59,7 @@ pub const PHASE_ORDER: [Phase; 7] = [
 ///
 /// **This used to be a second enum with the same name and the same four
 /// values.** It was declared here while `crate::unit` did not exist; it does
-/// now, and two identical `UnitKind`s in one crate is a trap rather than a
+/// now, and two identical `UnitKind`s in one crate is a trap
 /// separation — a phase that waits on `phase::UnitKind::Merchant` and a unit
 /// that is a `unit::UnitKind::Merchant` would not have compared equal, and the
 /// compiler would have said nothing useful about why. There is one, and it is
@@ -171,7 +171,7 @@ pub struct PhaseTick {
 /// The machine deliberately does **not** own the units it waits on. `Turn_Tick`
 /// waits for movement to stop, and movement is not this crate's business; the
 /// caller passes `settled` and the machine decides. That keeps the ordering
-/// rule — the part `docs/kingdom.md` §3.1 actually establishes — testable
+/// rule — testable
 /// without a unit simulation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnMachine {
@@ -317,7 +317,7 @@ pub enum Pass {
     /// the army recount have changed how many people a county holds.
     ///
     /// This one is what keeps [`crate::labour::allocate`]'s invariant true at
-    /// the *end* of the season rather than only in the middle of it: the nine
+    /// the *end* of the season: the nine
     /// job records sum to the population, exactly, every season. A pipeline
     /// with only the first allocation leaves every newborn in no job at all.
     LabourAllocateAgain,
@@ -353,7 +353,7 @@ pub enum Pass {
     /// nothing in the workspace invoked either — so the `allied` matrix and the
     /// `ally` bytes were only ever written by the two functions that form and
     /// break an alliance, and an alliance with a realm that had just been
-    /// eliminated was never taken down. `tests/long_game.rs` catches exactly
+    /// eliminated. `tests/long_game.rs` catches
     /// that as a broken invariant, and it caught it only once
     /// `docs/decisions.md` **C134** slowed the world down enough for
     /// realm 2 to die while realm 5 was still allied to it.
@@ -398,7 +398,7 @@ pub enum Pass {
 ///    kept, because the ranking still has to happen somewhere and a kingdom
 ///    with no turn machine driving it would otherwise never rank at all; it is
 ///    flagged by [`is_in_season_advance`] and asserted in this module's tests
-///    rather than quietly presented as the original's order.
+///.
 /// 3. **The two campaign passes at the end are phase 7's, not
 ///    `Season_Advance`'s.** `Turn_Tick`'s seventh phase runs
 ///    `Mercenary_AdvanceAll(); Units_ResetMoves(); Move_BuildCostMap();` and
@@ -651,7 +651,7 @@ mod tests {
     /// (`0x00448440`) opens `Ai_ManageFarmsAll(); Rand_Advance();` and only then
     /// reads `g_seasonNext` — so the AI farms the season that is *ending*, and a
     /// Winter re-sow happens on the Winter turn. The assertion used to be
-    /// `SEASON_PIPELINE[0] == Pass::Clock`, which described our array rather than
+    /// `SEASON_PIPELINE[0] == Pass::Clock`, which described our array
     /// the function.
     #[test]
     fn the_pipeline_holds_no_duplicates_and_farms_before_the_clock() {

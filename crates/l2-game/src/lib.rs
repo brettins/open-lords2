@@ -9,7 +9,7 @@
 //!   drawing.
 //! * **The dependency direction is one way.** Nothing below this crate learns
 //!   that screens or input exist; `l2-sim` and `l2-kingdom` keep their
-//!   manifests exactly as they were.
+//! manifests
 //! * **A screen returns transitions as values** and cannot reach the stack.
 //! * **Simulation time is not frame time.** The renderer draws when it can; the
 //!   simulation steps on a fixed tick and never reads a clock.
@@ -18,7 +18,7 @@
 //! # The slice
 //!
 //! Menu, campaign map, county panel, end turn — starting from the shipped
-//! scenario in `lastturn.sav` rather than an invented position. Everything else
+//! scenario in `lastturn.sav` Everything else
 //! is refused: the castle designer, diplomacy, video, the multiplayer lobby,
 //! and any screen not on that list.
 //!

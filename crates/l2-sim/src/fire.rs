@@ -168,7 +168,7 @@ fn in_field(x: i32, y: i32) -> bool {
 /// every flag gone. So a burning bridge is passable ground at the height of the
 /// water, for as long as it burns and after.
 ///
-/// **The slot is not checked**, and that is the original's defect rather than
+/// **The slot is not checked**, and that is the original's defect
 /// ours: `Missile_Spawn` returns 0 with a hundred records in flight, and the
 /// writes land on a hundred-and-first record past the array. The cell's own
 /// writes still happen — so **a cell set alight with the array full burns for
@@ -197,7 +197,7 @@ pub fn ignite(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: i32, 
 ///
 /// Unlike [`ignite`] this one **does** check the slot, and does nothing at all
 /// without one. The life is `0x280 − 10 × ((x + y) & 0x1F)`, so a wood burns
-/// out in a diagonal stripe pattern over 330 to 640 frames rather than all at
+/// out in a diagonal stripe pattern over 330 to 640 frames
 /// once, and the remembered surface is always woodland.
 ///
 /// Returns the cell when it caught.
@@ -490,7 +490,7 @@ mod tests {
     use crate::Troop;
 
     /// **The burn table**, pinned from the literals in `BattleMan_BurnTick`
-    /// rather than computed: one frame per size class, a man and an engine, an
+    ///
     /// AI's and a human's.
     ///
     /// Ablation: swap the `6` and `9` in `MAN` and the class-2 row reads 9.

@@ -123,7 +123,7 @@ fn typing_a_name_reaches_the_field() {
 
 /// **Overwrite is the default, and Delete is how a person gets out of it.**
 ///
-/// Reproduced rather than corrected: `g_editInsert` starts at zero and zero is
+/// Reproduced: `g_editInsert` starts at zero and zero is
 /// the overwrite branch. `docs/bugs.md` B79.
 #[test]
 fn a_short_name_leaves_the_tail_of_the_old_one_until_delete_or_insert() {
@@ -137,7 +137,7 @@ fn a_short_name_leaves_the_tail_of_the_old_one_until_delete_or_insert() {
     }
     assert_eq!(field_of(&m), "Ed", "VK_DELETE clears the tail");
 
-    // The other way out is the Insert key, which is why it is wired at all.
+    // The other way out is the Insert key.
     let mut m = name_page(&mut game, &assets);
     press(&mut m, &mut game, &assets, Key::Insert);
     type_into(&mut m, &mut game, &assets, "Ed");
@@ -177,7 +177,7 @@ fn the_field_takes_the_keys_the_menu_would_otherwise_spend() {
 /// after driving the whole page — the name is never assigned by the test.
 ///
 /// Install-gated because *Start* builds a world out of `L2_maps.dat` and
-/// refuses rather than half-starting one when it cannot.
+/// refuses when it cannot.
 ///
 /// **Page 4 is reached through the campaign chooser, and that is not
 /// incidental.** `FUN_00433155`'s *Continue* arm only starts a game when
@@ -187,7 +187,7 @@ fn the_field_takes_the_keys_the_menu_would_otherwise_spend() {
 /// that flag, so after that arm was reproduced it was pressing a button that
 /// correctly does not start anything. The name still has to survive the trip:
 /// `Setup_ChooseCampaign` re-seeds the field on arrival, so *"Aethelred"* is
-/// typed after page 4 is open, exactly as a person types it.
+/// typed after page 4 is open.
 #[test]
 fn start_puts_the_typed_name_into_the_realm() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -267,7 +267,7 @@ fn start_puts_the_typed_name_into_the_realm() {
 /// `Game.player_names — not named in encode`. It did **not**, on the first
 /// attempt, because that check matched the comment above the loop; it reads
 /// code with the comments stripped now, which is a defect fixed in the shared
-/// check rather than worked around here.
+/// check here.
 #[test]
 fn a_typed_name_survives_the_save_and_the_reload() {
     let mut game = Game::new(7);
@@ -337,7 +337,7 @@ fn the_name_field_stops_at_sixteen_characters() {
 // 4. The picture
 // ---------------------------------------------------------------------------
 
-/// **The name and its caret are actually painted**, and this is asserted the
+/// **The name and its caret are painted**, and this is asserted the
 /// way `docs/agents.md` says to assert a draw: by drawing the page twice and
 /// requiring the second draw to change nothing.
 ///
@@ -437,7 +437,7 @@ fn the_name_and_its_caret_are_painted() {
 }
 
 // ---------------------------------------------------------------------------
-// The engine, against the metrics rather than a font
+// The engine, against the metrics
 // ---------------------------------------------------------------------------
 
 /// **The pixel limit is a real limit and is measured with the font.**

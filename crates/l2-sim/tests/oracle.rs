@@ -93,7 +93,7 @@ fn the_four_unit_geometry_tables_are_the_bytes_in_the_executable() {
 }
 
 /// `g_formationTypePriority` decides which troop type dictates a mixed unit's
-/// geometry. Eleven ints, read rather than recited.
+/// geometry. Eleven ints, read.
 #[test]
 fn the_formation_priority_table_is_the_bytes_in_the_executable() {
     let exe = l2_testkit::executable!();

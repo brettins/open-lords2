@@ -299,7 +299,7 @@ pub const WORK_FRAMES: u8 = 0x96;
 
 /// What the status line is saying.
 ///
-/// **There is no `Done`,** and that is the original's behaviour.
+/// and that is the original's behaviour.
 /// omission: group 40's status strings are *"Loading game. Please wait."*,
 /// *"Saving game. Please wait."* and *"File error. Operation canceled."* — two
 /// progress messages and a failure. Success is not a message, because on
@@ -357,7 +357,7 @@ pub struct SaveLoadScreen {
 ///   of the buffer and calls `FUN_004AF675` to add `.sav`, `.svb` or `.sva`).
 ///   Our saves are `.l2sav` files in `%APPDATA%` and [`saves::MAX_NAME`] is 64;
 ///   holding a person to eight characters on a filesystem that has not had that
-///   limit since 1995 would be superstition rather than fidelity, which is the
+/// limit since 1995 would be superstition, which is the
 ///   line this module's header already draws about the scroll clamp. **In
 ///   practice the pixel limit bites first** and a name never gets near 64.
 fn begin_name(seed: &str) -> crate::text::TextField {

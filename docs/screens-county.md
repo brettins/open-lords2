@@ -925,7 +925,7 @@ Two of those rows used to say something else, and both were guesses that read as
 **0x33 is not a tick**; 0x1D / 0x1F are not a tick and a cross; the frames
 were decoded and looked at, not named from the function that draws them.
 
-**The skin trap has a sharper edge; \"69 blank frames\" does not describe it,** and it is worth
+**The skin trap has a sharper edge; "69 blank frames" does not describe it,** and it is worth
 knowing which way round it falls. In `System2.pl8`, `Ui_OkButton`'s **mode 0** frame
 (`0x33`) is painted — the same drawing on a stone ground, not parchment — while its
 **mode 1** frame (`0x10`) is entirely index 0. Mode 1 is exactly what the village, the
@@ -1287,7 +1287,7 @@ same two pulses drive `FUN_004071A0`, the campaign map's waving flag.
 
 **Two more counters are stepped and drawn by nothing** — `DAT_004D2934` (21 states, 160 ms)
 and `DAT_004D2948` (16 states, 80 ms) — with no other reader anywhere in the binary.
-`docs/bugs.md` B65, which also records that the dead 21-state counter has exactly as many
+`docs/bugs.md` B65.
 states as `villani1.pl8` has frames, and declines to make anything of it.
 
 **Drawn.** `l2_view::village::OVERLAYS` is the table, `AnimationClock` is the two pulses, and

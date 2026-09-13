@@ -30,7 +30,7 @@
 //!
 //! # Why the numbers are trustworthy
 //!
-//! The arithmetic is checked against the shipped art, not just read out of a
+//! The arithmetic is checked against the shipped art
 //! decompiler. For every one of the **36** `a2` sprite files that are not
 //! knights — six player colours times six troop types — the frame count is
 //! exactly `8 * poses_per_facing + 18`, and the dying handler's base index is
@@ -40,7 +40,7 @@
 //!
 //! Knights are different and are handled separately: they are drawn on a horse
 //! and their frame comes from an 8 x 8 `(body facing, target facing)` table at
-//! `0x004D9C30` rather than from a stride. That table's sixteen live entries
+//! `0x004D9C30`. That table's sixteen live entries
 //! are spaced three apart and top out at 53, which with the walk cycle's
 //! maximum of 2 reaches frame 55 — exactly the 56 real frames of
 //! `A2r_knig.pl8`. **[V]**
@@ -182,7 +182,7 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, phase: u8) -> usize {
     if troop == Troop::Knights {
         // A knight's body facing snaps to whichever of the eight rows has
         // artwork for the facing it wants, searching outward from its current
-        // one exactly as `0x00486249` does.
+        // one.
         let base = knight_base(facing, facing);
         let step = walk_cycle(troop)[((phase % 40) / 4) as usize];
         return match anim {

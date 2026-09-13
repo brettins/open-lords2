@@ -119,7 +119,7 @@ fn the_same_layer_id_cannot_be_mounted_twice() {
 
 #[test]
 fn nothing_in_the_api_can_write_to_a_layer() {
-    // A compile-time property rather than a runtime one: Vfs exposes read,
+    // A compile-time property: Vfs exposes read,
     // read_to_string, resolve and the listing methods, and no counterpart that
     // takes bytes. This test exists so that adding one is a visible decision.
     let base = TempDir::new("ro");

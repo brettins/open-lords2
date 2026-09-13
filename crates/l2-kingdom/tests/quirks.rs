@@ -2,7 +2,7 @@
 //!
 //! `docs/agents.md`: *a field is only tested if something a test reads was
 //! written by something the game runs.* The quirk-shaped version of that, and
-//! the reason this file exists rather than a comment saying the flags work:
+//! the reason this file exists:
 //!
 //! > **A quirk switch that nothing reads is worse than no switch**, because it
 //! > claims a behaviour is configurable when it is not.
@@ -52,7 +52,7 @@ fn pair(q: Quirk) -> (Quirks, Quirks) {
 
 /// One reaper, a huge standing crop, and a sunny sky. The original stores three
 /// halves of *everything the county grew*; fixed, it stores three halves of what
-/// the one reaper could actually carry.
+/// the one reaper could carry.
 #[test]
 fn b1_a_single_reaper_in_a_sunny_field_reaps_the_whole_county_or_does_not() {
     let (faithful, fixed) = pair(Quirk::HarvestIgnoresLabourCap);
@@ -210,7 +210,7 @@ fn b3_a_found_weapon_follows_the_county_id_or_the_countys_own_smithy() {
 
 /// **The crossbow.** Slot 0 is unreachable for the whole game with the quirk on
 /// — `docs/bugs.md` D6, the dead-code half of B3 — and reachable with it off.
-/// This is the consequence a player could actually notice.
+/// This is the consequence a player could notice.
 #[test]
 fn b3_the_crossbow_can_be_found_only_with_the_quirk_off() {
     let (faithful, fixed) = pair(Quirk::FoundWeaponFollowsCountyId);
@@ -293,7 +293,7 @@ fn b10_one_crown_of_ale_in_a_tiny_village_buys_five_happiness_or_one() {
     assert_eq!(a.happiness - b.happiness, 4);
 }
 
-/// A village big enough for the step to be non-zero was never the bug.
+/// A village big enough for the step to be non-zero.
 #[test]
 fn b10_a_real_village_is_the_same_ladder_either_way() {
     let (faithful, fixed) = pair(Quirk::AnyAleFillsATinyVillage);
@@ -443,7 +443,7 @@ fn b15_the_inflow_list_holds_one_repeated_value_or_a_list() {
     };
 
     // The reproduced bug: some county's list is one value written into every
-    // free slot, so it is full rather than short.
+    // free slot, so it is full.
     assert!(
         a.iter().any(|l| filled(l) > 1 && l.iter().filter(|v| **v != 0).all(|v| *v == l[0])),
         "reproduced: a destination's sixteen bytes hold one repeated source"
@@ -500,7 +500,7 @@ fn b16_an_extinct_county_reports_negative_deaths_or_the_people_it_lost() {
 ///
 /// An empty county then goes on recording a negative number every season, and
 /// the fixed path never records one at all. The survey below is the old one
-/// turned round, so that the retraction is asserted rather than only written.
+/// turned round, so that the retraction is asserted.
 #[test]
 fn b16_the_negative_number_appears_on_the_season_the_county_dies() {
     let (faithful, fixed) = pair(Quirk::ExtinctCountyRecordsNegativeDeaths);
@@ -774,7 +774,7 @@ fn the_quirk_set_is_inside_the_lockstep_digest() {
 }
 
 /// The `options` section is where it lands, so a desync dump names the right
-/// subsystem rather than saying only "the state differs".
+/// subsystem.
 #[test]
 fn a_quirk_difference_shows_up_as_the_options_section() {
     let base = furnished_kingdom(22);
@@ -812,7 +812,7 @@ fn a_saved_game_remembers_which_bugs_it_was_played_with() {
 
 /// **Two kingdoms that differ only in their quirks really do play differently.**
 ///
-/// The end-to-end claim, made once over the whole season pipeline rather than
+/// The end-to-end claim, made once over the whole season pipeline
 /// per rule: run the same world forward under both settings and the states
 /// diverge. A switch that only changed a flag would pass every test above that
 /// calls one rule directly and fail this one.

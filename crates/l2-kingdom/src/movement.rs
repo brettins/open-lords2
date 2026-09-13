@@ -197,7 +197,7 @@ impl DistanceField {
 ///   impassable cell keeps `dist == 0` forever, which is indistinguishable
 ///   from unreached — deliberately, since neither can be walked to.
 /// * **A road tile expands orthogonally only.** `if (cost[cur] != 1)` gates the
-///   four diagonals, and the gate reads the *raw* cost, so it holds in both
+/// four diagonals, and the gate reads the *raw* cost, so it holds in both
 ///   routing modes. `docs/armies.md` §2.3 records the extractor's half of this
 ///   rule and not the fill's; this is the other half. Off a road a diagonal
 ///   costs exactly what an orthogonal step costs — no √2, no scaling — so
@@ -268,11 +268,11 @@ pub fn flood_fill(cost: &CostMap, start: (u8, u8), routing: Routing) -> Distance
 /// The scan:
 ///
 /// * on a **road** tile (raw cost 1) the direction index steps by **2**,
-///   hitting N, E, S, W only, and the full eight-direction pass is re-run
+/// hitting N, E, S, W only, and the full eight-direction pass is re-run
 ///   verbatim only if that found nothing. `[D]`, and it confirms
 ///   `docs/armies.md` §2.3.
 /// * the running best is seeded with `dist[cur]` itself and the test is a
-///   strict `<`, so **only a strictly cheaper neighbour is a candidate and the
+/// strict `<`, so **only a strictly cheaper neighbour is a candidate and the
 ///   lowest direction index wins a tie**. That is the whole tie-break rule.
 /// * the candidate's *cost* is never consulted — only the distance field, and
 ///   only the road test on the tile being left.
@@ -359,13 +359,13 @@ pub fn extract_path(cost: &CostMap, field: &DistanceField, dest: (u8, u8)) -> Op
 ///
 /// > **Every write is inside the `if`.** `docs/armies.md` §2.3 renders the
 /// > destination and `moveState = 2` as unconditional statements after it; they
-/// > are not. A failed extraction leaves the unit exactly as it was
+/// > are not. A failed extraction leaves the unit
 /// > destination, not moving, its previous path intact. Corrected in the
 /// > document. `[D]`
 /// >
 /// > This is *not* the same as "an unreachable destination does
 /// > nothing": `Move_ExtractPath` returns success with a zero-length path when
-/// > the destination was never reached, so that order **is** accepted and the
+/// > the destination
 /// > army stands still with `moveState = 2`. Only a dead end in the descent —
 /// > which a fully relaxed field should not produce — fails.
 ///

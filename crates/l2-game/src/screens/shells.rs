@@ -12,7 +12,7 @@
 //!
 //! **A screen left the table when there was real state behind it, and they all
 //! have.** [`SHELLS`] is empty, [`find`] answers `None` for every id, and the
-//! generic painter and its `ScreenId::Shell` are gone rather than left standing
+//! generic painter and its `ScreenId::Shell` are gone
 //! with nothing to draw.
 //!
 //! # Why the file stays
@@ -38,11 +38,11 @@
 //!
 //! **A row of five fields cannot say what a painter does.** Every graduation
 //! found something the row could not hold: that `0x0A` is where an army is
-//! *created* rather than a shop; that `0x09` draws four of its five lines in
+//! *created*; that `0x09` draws four of its five lines in
 //! the 22-pixel font and the fifth is a button caption, not a line; that `0x2E`
 //! is seven *columns* by three rows and not seven rows; that `0x04`'s eleven
 //! layouts all pin their bottom edge at y 464. None of that fits in a table and
-//! all of it fits in a module header — which is why every graduated screen
+//! all of it fits in a module header —
 //! carries its painter as a literal listing and this file carries only the
 //! history.
 
@@ -74,7 +74,7 @@ pub struct Shell {
     pub lines: &'static [Line],
     /// `Ui_OkButton(x, y, mode)`.
     pub ok: Option<(i32, i32, usize)>,
-    /// Whether this drew over what was underneath rather than replacing it.
+    /// Whether this drew over what was underneath.
     pub overlay: bool,
     /// What the painter did that the shell did not.
     pub unfinished: &'static str,
@@ -96,11 +96,11 @@ pub struct Shell {
 /// * `0x09` **the court** → `screens/court.rs`. Group 70 was right. The *fonts*
 ///   were wrong: indices 0, 2, 3 and 4 are the 22-pixel heading font, not the
 ///   body font the `lines` field documents, and index 6 is a **button caption**
-///   rather than a line at all.
+///.
 /// * `0x0A` **the armoury** → `screens/armoury.rs`, and it took `0x0D` with it.
 ///   The group was **69**, not 16 — 16 is the twelve mercenary nationalities
 ///   and the painter never touches it. Filing it wrong made it look like a
-///   mercenary panel with nothing behind it rather than the screen the whole
+/// mercenary panel with nothing behind it
 ///   levy is confirmed on.
 /// * `0x0B` **diplomacy** → `screens/diplomacy.rs`. Group 72 was right; the
 ///   name *"The other lords"* named the left-hand column and hid the menu, and
@@ -110,14 +110,14 @@ pub struct Shell {
 ///   group were all correct *and already claimed by `screens/job.rs`*, which
 ///   had graduated. Two index entries for one screen of the original.
 ///   Everything in the row that was not a copy was wrong: the window was
-///   admitted invented and the real one is `Ui_DrawBox(0x30, 0x60, 0x19,
+/// admitted invented and the real one is `Ui_DrawBox(0x30, 0x60, 0x19,
 ///   g_jobPanelRows[job])`, a *variable* height, and the heading index is the
 ///   **job**, not a constant 1. Nothing caught it, because the only check
 ///   dedupped *within* this table.
 /// * `0x11` **army division** → `screens/divide.rs`.
 /// * `0x17` **the raise-army screen** → `screens/army.rs`, *and its name was
 ///   the finding.* Filed as *"Hire mercenaries"* while `docs/symbols.json`
-///   called its painter `Screen_RaiseArmy`; there is no mercenaries screen in
+/// called its painter `Screen_RaiseArmy`;
 ///   the game, the offer is a block on this one, and this is the only door to
 ///   `Army_Create` a player has. `docs/decisions.md` C45.
 /// * `0x18` **send supplies** → `screens/supplies.rs`. The only row whose every
@@ -136,7 +136,7 @@ pub struct Shell {
 pub const SHELLS: &[Shell] = &[];
 
 /// The shell for a screen id — **always `None`**, and kept so that the claim is
-/// testable rather than assumed.
+/// testable.
 pub fn find(id: u8) -> Option<&'static Shell> {
     SHELLS.iter().find(|s| s.id == id)
 }
@@ -190,7 +190,7 @@ mod tests {
     /// screen in this engine is artwork with nothing behind it"*, and this
     /// table is the only place that could ever be expressed: a row added here
     /// is a screen somebody decided to ship as a picture, and that should cost
-    /// an argument rather than a diff nobody reads.
+    /// an argument.
     ///
     /// It replaces `every_shell_has_a_distinct_screen_id_and_a_painter`, which
     /// dedupped *within* the table and therefore could not see `0x0F` sitting

@@ -65,7 +65,7 @@
 //! sits at `0x004DC414` as the fourth record of the **Help** drop-down's action
 //! table — `L2.eng` group 3 index 7, *"About"*, under group 3 index 0,
 //! *"Help"*. `Menu_OpenDropdown` restores `g_screenId` to the screen underneath
-//! before dispatching, which is why `Menu_About` can overwrite it and the exit
+//! before dispatching, and the exit
 //! arm still finds the right place to go back to. **Not dead code.**
 
 use l2_view::Canvas;

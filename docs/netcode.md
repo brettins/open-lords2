@@ -32,7 +32,6 @@ situation, opposite answer, decided by who happened to open the game. The lobby 
 ### What "real loss, NAT, MTU, head-of-line blocking" amounts to
 
 That list sat on the status page as untested. Taken one at a time, it deserves a reckoning
-rather than four tests named after it:
 
 | claim | status |
 |---|---|
@@ -96,13 +95,13 @@ all — so nothing about the protocol can be observed on this build.
   `GetProcAddress` calls with literal names: `SendTCPMessage`, `SendTCPPointMessage`,
   `RecvTCPMessage`, `PeekForTCPMessage`, `CheckForAnyTCPMessage`, `GetNumberOfPlayers`,
   `PingTime` and the rest. That is a *description* of what Sierra's matchmaking DLL offered,
-  recovered without the DLL — and it is worth exactly as much as this section says: it tells
+  recovered without the DLL —, it tells
   us what the original expected, not what we should build.
 
 One detail is worth carrying into our own design as a thing **not** to copy.
 `g_netPlayerJoined` (`0x004E5A90`) is an `int[5]` written by the SierraNW callback thread —
 `Net_MarkPlayerJoined` sets a slot to 1 — and drained by `Net_PumpReceive` on the game
-thread, which turns each 1 into a session event and then a 2. There is no interlock of any
+thread, which turns each 1 into a session event and then a 2.
 kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 `SetForegroundWindow` and `SetFocus` on the game window from that background thread.
 
@@ -355,7 +354,7 @@ game.
 
 The original is a 1996 32-bit integer game; its
 map is a 64×64 byte grid, its units are 150 fixed records, its blitters copy
-bytes. There is no floating-point requirement anywhere in the design we are
+bytes.
 reimplementing.
 
 ### D-2 — Fixed-point where fractions are needed
@@ -376,7 +375,7 @@ own crate. This is not not-invented-here: the value stream must be frozen
 updated and one who did not, and between a replay and its recording.
 
 The obvious alternative is `rand_pcg` or `rand_xoshiro`, and it was checked
-rather than dismissed. The rust-random project's own reproducibility policy
+. The rust-random project's own reproducibility policy
 says, verbatim:
 
 > A change is considered **value-breaking** if it is not API-breaking yet would
@@ -413,7 +412,7 @@ it. This is the code that rolls it.
 
 **We cannot reproduce its numbers and should stop trying.** The original's generator is an LFSR
 whose state at that call depends on every draw since process start — the splash timing, the
-menu, the map load. There is no seed to copy. So `l2_scenario::newgame::shuffle_starts`
+menu, the map load.. So `l2_scenario::newgame::shuffle_starts`
 reproduces the *algorithm* on our own `Pcg32`: the same `(rand & 3) + 1 + i`, the same wrap, the
 same forward probe, the same order of entries. Identical structure, a different stream.
 
@@ -423,7 +422,7 @@ of the decision, and it is why the entry exists:
 - A new game is **state that every peer must agree on**, exactly like a tick. If one peer
   shuffled from `thread_rng` and another from its own clock, the two would be playing different
   maps before the first command was ever sent — a desync at frame zero, which is the one place
-  the digest cadence in §6 would not localise, because there is no earlier agreed frame to bisect
+  the digest cadence in §6 would not localise,
   back to.
 - So `shuffle_starts` takes its seed as an argument, the lobby settles it the way it settles the
   ruleset hash (D-12), and it travels in the game-start command. **No call to it may pass a seed
@@ -1089,7 +1088,7 @@ the fully resolved `Cargo.lock` shipped inside each `.crate` tarball, and the
 maintainers' own requirement documents. A crate needing a C toolchain cannot
 hide it — `cc` would appear in that lock. What was *not* done is an actual
 `cargo build` on `x86_64-pc-windows-msvc`, so these are strong static findings
-rather than a compiled result. Verify by building before committing to any of
+. Verify by building before committing to any of
 them.
 
 **Port:** pick our own and document it. Do not reuse DirectPlay's 2300–2400 or

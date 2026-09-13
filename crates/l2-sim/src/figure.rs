@@ -44,7 +44,7 @@ pub enum State {
 /// [`State`] is the original's state byte and decides what the figure will do
 /// next; this is the four-way reduction of it that the original's animation
 /// handlers key off (`0x00486249` idle/walk, `0x00486D83` attacking,
-/// `0x00487908` dying). It lives here rather than in the renderer because the
+/// `0x00487908` dying). It lives here because the
 /// simulation is what *chooses* it — the renderer only turns it into a frame
 /// index, and two peers that disagree about it would draw different battles
 /// from the same state.
@@ -87,7 +87,7 @@ pub struct Figure {
     /// The heavy blow lands once. In the original this flag is set and, in the
     /// paths that were traced, never cleared — which would mean one heavy blow
     /// per figure per battle. `docs/battle.md` flags that as unresolved, so it
-    /// is reproduced faithfully and marked here rather than quietly "fixed".
+    /// is reproduced faithfully and marked here.
     pub blow_used: bool,
     /// Owner is a human player. Only observable effect found is that human-owned
     /// oil gets less armour, which is real in the original but unexplained.
@@ -111,12 +111,12 @@ pub struct Figure {
     /// Figure record `+0x15`: this figure was hit since the last unit rebuild.
     /// Set by whatever damages it, and **consumed** by
     /// [`crate::unit::Units::rebuild_from_figures`], which is what makes a
-    /// unit's grudge last frames rather than blows.
+    /// unit's grudge last frames.
     pub was_hit: bool,
     /// Figure record `+0x16`: who hit it. The rebuild looks up *that figure's
     /// unit* and stores it as the victim unit's remembered attacker. This is
     /// the only way a unit ever acquires a target it did not walk into or find
-    /// by proximity — there is no threat assessment anywhere.
+    /// by proximity —.
     pub hit_by: Option<usize>,
     /// The figure this one is chasing or shooting at, set by the two order
     /// actions that reach past the unit into its figures
@@ -127,13 +127,13 @@ pub struct Figure {
     ///
     /// `Melee_ChooseChaseTarget` adds it to the distance score and adds 2 to
     /// the figure it picks; `Battle_UpdateAllMen` counts it back down by one
-    /// each frame. That makes free pursuit a **load balancer** rather than a
+    /// each frame. That makes free pursuit a **load balancer**
     /// focus-fire rule — `docs/battle-ai.md` §3.3.
     pub targeted: u8,
     /// This figure's combat constants, **copied in at construction** from the
     /// [`TroopTable`] in force.
     ///
-    /// Carried per figure rather than looked up per blow, and that is the seam
+    /// Carried per figure, and that is the seam
     /// that makes the numbers data: melee and missile code reads `f.stats`,
     /// never a constant, so whatever table built the figure is the table the
     /// whole battle runs on. It also means a table cannot change under a
@@ -153,7 +153,7 @@ pub struct Figure {
     ///
     /// `BattleMan_RecomputeStrength` compares a figure's men against three
     /// thresholds loaded from `g_strengthBandTable` *by battlefield size class*,
-    /// so the comparison is against the scale rather than against what this
+    /// so the comparison is against the scale,
     /// figure started with. It is carried per figure because a figure carries
     /// everything else it is judged by, and because the two sides of one battle
     /// can be on different scales (`docs/battle.md` §5.1).
@@ -165,13 +165,13 @@ pub struct Figure {
     /// Figure record `+0x09`, and the debug panel's own label **`selected`**:
     /// **which player has this figure picked**, `0` for nobody.
     ///
-    /// A player index rather than a flag, because that is what the original
+    /// A player index, because that is what the original
     /// stores — `FUN_00479B58` writes `selected = param_1` and `FUN_00479A71`
     /// clears only the figures whose `selected` equals the player being cleared,
     /// so two players can hold disjoint selections in the same battle at the
     /// same time.
     ///
-    /// **Selection is simulation state, not interface state**, and that is not a
+    /// **Selection is simulation state, and that is not a
     /// modelling choice: `FUN_00478987` (`0x00478987`) walks the selection and
     /// *allocates a new unit* for it whenever the picked figures are not exactly
     /// one whole unit. A box drawn round half a unit therefore **splits** that

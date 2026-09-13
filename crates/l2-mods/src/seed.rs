@@ -17,7 +17,6 @@
 //! ## On decoding
 //!
 //! `l2-formats` owns decoding, and this module does not duplicate any of it:
-//! there is no `.eng` decoder there yet, and what is needed here is not one.
 //! `TROOPS*.ENG` is plain text, and the engine's own reader (`FUN_0042AC0C`)
 //! is "skip to the first `*`, then take every decimal token and ignore
 //! everything else". That is the ten lines below. When `l2_formats::eng`
@@ -42,7 +41,7 @@ pub const NORMAL_GROUP: usize = 2;
 
 /// The eleven columns. Names for 0-6 come from the two-letter header and the
 /// unit set; 7-10 are the siege columns the engine clamps to 9, and their
-/// individual identities are **inferred** from the abbreviations rather than
+/// individual identities are **inferred** from the abbreviations
 /// verified. `docs/formats/eng.md` marks the same distinction.
 pub const TROOP_COLUMNS: [(&str, &str, &str, bool); COLUMNS] = [
     ("peasants", "Pe", "Peasants", false),
@@ -94,7 +93,7 @@ impl std::fmt::Display for SeedError {
 
 impl std::error::Error for SeedError {}
 
-/// The raw table, exactly as the file lays it out.
+/// The raw table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawTroopTable {
     pub advantage: [i64; ROWS],
@@ -102,7 +101,7 @@ pub struct RawTroopTable {
     pub counts: Box<[[[[i64; COLUMNS]; SIDES]; GROUPS]; ROWS]>,
 }
 
-/// Scan the decimal tokens after the first `*`, exactly as the engine does.
+/// Scan the decimal tokens after the first `*`.
 pub fn parse_troops_eng(bytes: &[u8]) -> Result<RawTroopTable, SeedError> {
     let start = bytes.iter().position(|&b| b == b'*').ok_or(SeedError::NoMarker)?;
     let mut tokens: Vec<i64> = Vec::with_capacity(TOKEN_COUNT);
@@ -133,7 +132,7 @@ pub fn parse_troops_eng(bytes: &[u8]) -> Result<RawTroopTable, SeedError> {
     let mut t = tokens.into_iter();
     for row in 0..ROWS {
         // The engine clamps the advantage to 0..10 on read, so the generated
-        // rules record what the game actually used, not what the file said.
+        // rules record what the game
         table.advantage[row] = t.next().unwrap().clamp(0, 10);
         for g in 0..GROUPS {
             for s in 0..SIDES {

@@ -1,7 +1,7 @@
 //! The generic value tree that rule documents parse into.
 //!
 //! Every value knows where it came from. That is the whole reason this is a
-//! hand-rolled tree rather than a set of `Deserialize` structs: when two mods
+//! hand-rolled tree
 //! set `battle.three_bridges.attacker.crossbows`, the engine must be able to
 //! say *which two*, and at which line.
 
@@ -26,7 +26,7 @@ impl Origin {
         Origin { source, line, col }
     }
 
-    /// An origin for values the engine synthesised rather than read.
+    /// An origin for values the engine synthesised
     pub fn synthetic(what: &str) -> Self {
         Origin { source: Arc::from(what), line: 0, col: 0 }
     }

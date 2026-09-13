@@ -76,11 +76,11 @@
 //! `Battle_ReturnToCampaign(1)` rebases the start on it); and a siege assault
 //! zeroing `DAT_0055403C` so that the next turn does not restart the count.
 //!
-//! **Not reproduced, and said here rather than left to be inferred:**
+//! **Not reproduced, and said here**
 //!
 //! * the count carrying on through the rest of phase 4 after End Turn while the
 //!   AI realms finish stepping — ours freezes it at the click, because our
-//!   phase 4 comes after 1, 2 and 3 rather than before them;
+//! phase 4 comes after 1, 2 and 3;
 //! * the timer hiding during phases 1 … 3 (where `Turn_BeginPlayersTurn` has
 //!   cleared the person's counter and `DAT_0055403C` is still 2) — the same
 //!   rotation puts those phases first in ours;
@@ -288,7 +288,7 @@ impl Frame {
 /// What one tick did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tick {
-    /// The count moved, or there is no limit.
+    /// The count moved.
     Running,
     /// **`Turn_End`.** The count went below zero on this tick.
     Expired,
@@ -361,7 +361,7 @@ impl TurnClock {
     /// which the map takes as soon as it is on top.
     ///
     /// **Two clauses are not ours and are named so the reader knows what is
-    /// missing rather than finding a bare `restart_pending`.** `DAT_00553FC8`
+    /// `DAT_00553FC8`
     /// is the multiplayer sync-wait latch, which nothing in this engine sets
     /// (`docs/netcode.md`); `DAT_00553018` is the F12 debug override, whose one
     /// setter is `App_WndProc`'s `VK_F12` arm and which we do not have. With
@@ -514,7 +514,7 @@ mod tests {
     ///
     /// `DAT_005440C8 = limit - elapsed / 1000` goes 30, 29 … 1, 0, and the test
     /// is `< 0`; the draw's is `0 < DAT_005440C8`. The tick numbers are
-    /// written out rather than derived from the clock's own arithmetic: with 16
+    /// written out: with 16
     /// ms ticks, 1,937 ticks is 30.992 s and 1,938 is 31.008 s.
     #[test]
     fn a_thirty_second_limit_runs_out_on_the_tick_that_passes_thirty_one_seconds() {

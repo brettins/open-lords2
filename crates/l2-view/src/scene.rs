@@ -90,7 +90,7 @@ pub const TILESET: &str = "T32_bat1.pl8";
 /// measured better than a whole siege in the field's colours. **C201 ported
 /// the tiles**, so the pairing is no longer a compromise: a siege is drawn
 /// from its castle's own sheets in its own palette. One palette serves both
-/// castle families; there is no `t32_wod1.256`. See [`Ground`].
+/// castle families; See [`Ground`].
 pub const TILE_PALETTE: &str = "T32_bat1.256";
 pub const SIEGE_PALETTE: &str = "T32_stn1.256";
 
@@ -180,7 +180,7 @@ impl Ground {
 
     /// `Screen_DrawBattlefield` (`0x004233F7`): `Palette_Set(0x568EE0)` for a
     /// field battle and `Palette_Set(0x5675A0)` for a siege. **Both castle
-    /// families use `t32_stn1.256`** — there is no `t32_wod1.256`, in the
+    /// families use `t32_stn1.256`** — in the
     /// preload table or in the install. **[V]**
     pub fn palette(self) -> &'static str {
         match self {
@@ -407,7 +407,7 @@ impl BattleAssets {
 
     /// The art for one ground, falling back to the field's on an install that
     /// has no siege sheets — which is the placeholder case and looks it,
-    /// rather than a battle that cannot be drawn at all.
+    ///
     pub fn ground(&self, g: Ground) -> &GroundArt {
         self.grounds[g.index()]
             .as_ref()
@@ -647,8 +647,8 @@ pub fn draw_figures(
         };
         let Some(frame) = sheet.frame(index) else { continue };
         // `BattleFigure_Draw` centres on the cell using the sprite *width* for
-        // both axes, which is why a 48-pixel man sits eight pixels left of and
-        // sixteen above his cell's corner. Reproduced rather than corrected.
+        // both axes,
+        // sixteen above his cell's corner. Reproduced
         //
         // Two troop types get one more nudge on y and only on y —
         // `engines::body_y_nudge`, the painter's `troopType == 9` and
@@ -901,7 +901,7 @@ fn dock_overlay(
 ///
 /// The third, `flags & 0x1C == 4`, **is** honoured now: it is
 /// [`Cell::tileset`](l2_sim::terrain::Cell::tileset), and a siege's ground,
-/// moat and rubble come from the second sheet here exactly as they do at 32
+/// moat and rubble come from the second sheet here
 /// pixels.
 ///
 /// **And one branch that is dead in a battle**: column 0 draws `t2_spri` frame
@@ -944,7 +944,7 @@ pub fn draw_overview_rows(
 /// overlaps them and the missiles on top (`FUN_004BD355`).
 ///
 /// The terrain's two sheets come from the [`Ground`] — C201 — and the third
-/// pass from C202; the passes are independent, which is why one merge could
+/// pass from C202; the passes are independent,
 /// take both.
 ///
 /// Returns the number of figures drawn, which is what the headless tests

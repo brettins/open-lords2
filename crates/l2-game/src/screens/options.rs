@@ -1,7 +1,7 @@
 //! **The options panels** — `g_screenId` `0x39`, `0x42`, `0x43` and `0x31` —
 //! and a fifth page that is ours.
 //!
-//! # There is no options *screen*
+//! #
 //!
 //! The premise this module was written against was *"find the options screen in
 //! the binary and reproduce it"*. There isn't one. The Options drop-down
@@ -103,12 +103,12 @@
 //! # Every widget count is a variable, and all four are honest
 //!
 //! `Widget_Draw` is passed `g_helpOptWidgetCount`, `g_advancedOptWidgetCount`,
-//! `g_soundOptWidgetCount` and `g_displayOptWidgetCount` rather than a literal,
+//! `g_soundOptWidgetCount` and `g_displayOptWidgetCount`
 //! which is the shape that hid `g_sendSuppliesWidgets`' cut sheep row. **It is
 //! not hiding anything here.** `xref.js touches` finds exactly three functions
 //! per count — the painter, which writes it, and `Screen_DrawWidgets` and
 //! `Screen_HandleInput`, which only read it — and the tables decoded out of
-//! `.data` are exactly as long as the value written:
+//! `.data` are
 //!
 //! ```text
 //!   g_advancedOptWidgets 0x004DDC10  4 records, then g_soundOptWidgets    count 4
@@ -127,10 +127,10 @@
 //! `Widget_Draw` or `Widget_Test` call site anywhere in the image names
 //! `0x004DDD30`** — `grep` over the whole decompilation finds the address only
 //! in `.data` — so those three buttons exist, cost 72 bytes, and are drawn by
-//! nothing. Recorded here rather than guessed at, and not reproduced.
+//! nothing. Recorded here
 //!
 //! Reading `FUN_0043441C` for that settles something else, which belongs to
-//! screen `0x45` rather than here and is written down because nothing else
+//! screen `0x45`
 //! records it: **answering *yes* to *"Exit the game?"* does not exit.** While
 //! `DAT_0053F644` is under 3 it increments it, sets `g_screenId = 0x45` and
 //! checks that `lom.256` is on disk — the Lords of Magic advertisement — and
@@ -180,7 +180,7 @@
 //!
 //! [`Page::Quirks`] has no `g_screenId`, no painter and no `L2.eng` group,
 //! because the original has no such page and could not: to it these are not
-//! settings. It is marked on screen, in our own font, exactly as
+//! settings. It is marked on screen, in our own font,
 //! [`crate::screens::index`] is. `docs/decisions.md` C62.
 //!
 //! # The hit boxes
@@ -192,7 +192,7 @@
 //! judgement:
 //!
 //! * only the 24 × 24 widget boxes and the close button are hot. A row's *label*
-//!   is not a hotspot, because the original's is not;
+//! is not a hotspot,
 //! * **every** click inside or outside the window is consumed
 //!   ([`Transition::Stay`]), never [`Transition::Pass`]. A player has already
 //!   reported that *"clicking anywhere inside a window used to close it"*, and
@@ -392,7 +392,7 @@ impl Row {
     /// `l2help.hlp` through `WinHelpA`, a Windows 3.1 help file and a Windows
     /// API that has not shipped since Vista.
     ///
-    /// **Drawn rather than dropped**, in the disabled colour with the reason
+    /// **, in the disabled colour with the reason
     /// under the panel: a reproduction that silently loses two of its eleven
     /// rows is a reproduction nobody can check against a screenshot.
     pub fn supported(&self) -> bool {
@@ -408,7 +408,7 @@ const WIDGET: i32 = 24;
 /// `Widget_Draw` (`0x0040CFD2`) draws `base + 1` while the press timer runs.
 ///
 /// Ours drew `Ui_OkButton`'s mode-1 picture, frame `0x10`, which is no record's
-/// frame: it was chosen to look like a button rather than read out of the
+/// frame: it was chosen to look like a button
 /// table.
 pub const WIDGET_FRAME: usize = 25;
 
@@ -687,7 +687,7 @@ pub fn value(setting: Setting, ctx: &Ctx) -> bool {
         Setting::Exploration => o.exploration,
         // Inverted in the original: the byte is 0 when the option displays
         // *Yes*. `l2_kingdom::battle::settlement` tests the byte against 0
-        // exactly as `FUN_004A6A30` does, and this is the only place the sense
+        //
         // is turned round for a reader.
         Setting::FightHumansOnly => o.fight_humans_only_byte == 0,
         Setting::Music => ctx.game.prefs.music,
@@ -764,7 +764,7 @@ pub fn toggle(setting: Setting, ctx: &mut Ctx) {
 // The quirk list, which spans two homes
 // ---------------------------------------------------------------------------
 
-/// Where a quirk's flag actually lives.
+/// Where a quirk's flag
 ///
 /// **Two homes, and the split is not an implementation detail a player should
 /// ever meet.** `docs/bugs.md` §6.3a: *if flipping it can change a number in a
@@ -1064,7 +1064,7 @@ impl Screen for OptionsScreen {
             // the second test of all four arms: `if (g_mouseLeftReleased == 0)
             // return 0;` and then the 24 × 24 box. Ours closed on the press.
             // The quirks page is ours and closes the same way, so that one
-            // corner picture does not mean two gestures.
+            // corner picture
             // arm: 0x0040E7E4/options-ok left-release
             Event::Release { x, y } => {
                 self.press.event(&self.page.widgets(), event);
@@ -1188,7 +1188,7 @@ impl OptionsScreen {
         //
         // **The original draws it in `0x3F` like every other row**; it is dimmed
         // here because this engine has no F5 resize, and that is a divergence
-        // rather than a transcription. `Eng_DrawString(52, 3, 0x48, 0x108,
+        //
         // &g_fontBody, 0x3F)`.
         if self.page == Page::Display {
             let note = a.text(group, DISPLAY_F5_NOTE).to_string();

@@ -19,7 +19,7 @@
 //!
 //! **Index 1, *"Arms"*, is drawn by nothing.** The six weapon icons are laid
 //! out with no heading over them, which is the original leaving a label behind
-//! in the file rather than us failing to find it. [`ARMS`] names it so that the
+//! in the file
 //! next reader does not go looking.
 //!
 //! # The painter, address by address
@@ -57,7 +57,7 @@
 //! `shells.rs` documented [`Shell::lines`] as *"the body lines, in the 14-pixel
 //! font"* and filed indices 0, 2, 3 and 4 there. The painter draws all four
 //! with `g_fontHeading`, the 22-pixel one; only index 6 is body font, and index
-//! 6 is a **button caption** rather than a line at all. So the shell drew the
+//! 6 is a **button caption**
 //! right words in the wrong size in the wrong role, which is the kind of thing
 //! a table of five fields cannot say and a painter can.
 //!
@@ -77,7 +77,7 @@
 //! ```
 //!
 //! So it is **the empire-wide sum of `County::tax_shown`**, recomputed whenever
-//! a tax rate moves. We have every county's `tax_shown` already, so rather than
+//! a tax rate moves. We have every county's `tax_shown` already, so
 //! add a realm field that only one screen reads and only one function writes,
 //! [`tax_expected`] sums it at the point of use — and says so. That is a
 //! divergence from the original's storage and not from its arithmetic: the
@@ -127,7 +127,7 @@
 //! # How it is reached
 //!
 //! `Sidebar_Button` (`0x0043AE30`), hotspot id 2, the rectangle **x 512…542,
-//! y 430…458**, and it is **ungated** — unlike ids 1 and 3 there is no
+//! y 430…458**, and it is **ungated** — unlike ids 1 and 3
 //! ownership or turn test. `screens/index.rs` said it *"opens off a sidebar
 //! button that needs a selected county"*; it does not.
 
@@ -426,10 +426,10 @@ impl Screen for CourtScreen {
             // `Ui_DrawNumberRight` **centres** — `FUN_004025D7` is
             // `(width - textWidth) / 2`, the same helper `Ui_DrawCentred` uses.
             // `docs/symbols.json` calls it right-aligned and that is wrong for
-            // every caller in the binary, not just this one.
+            // every caller in the binary,
             //
             // The lead is `' '` and the suffix is `&DAT_004D3F98`, which holds
-            // one space — checked in the image rather than assumed, because the
+            // one space — checked in the image
             // five sites on `Panel_Ration` pass an *empty* suffix and the
             // difference is two pixels of centring.
             // `docs/decisions.md` C140. **[V]**

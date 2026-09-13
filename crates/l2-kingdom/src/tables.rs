@@ -831,7 +831,7 @@ pub const AI_GRANT_HERD_PER_DIFFICULTY: i32 = AI_GRANT_TIERS[0].2;
 pub const AI_GRANT_GRAIN_PER_DIFFICULTY: i32 = AI_GRANT_TIERS[0].3;
 
 /// The grant is gated on the county *already having some*, so it compounds
-/// rather than rescues.
+///.
 pub const AI_GRANT_MIN_POPULATION: i32 = 20;
 pub const AI_GRANT_MIN_HERD: i32 = 10;
 pub const AI_GRANT_MIN_GRAIN: i32 = 50;
@@ -964,7 +964,7 @@ pub const AI_PERSONALITY_OFFER_INTERVAL: [i32; AI_PERSONALITY_COUNT] = [12, 10, 
 /// **`docs/diplomacy.md` §3.5 calls this a treasury floor and it is not one.**
 /// `Diplo_ReplyHelpRequest` compares it against realm `+0x14`, which
 /// [`crate::Realm::population_mean`] holds — the mean population of the
-/// realm's counties, not its gold. §8.4's own note that the same field is
+/// realm's counties, §8.4's own note that the same field is
 /// *"also a county-population floor at step 9"* is the corroboration: it is a
 /// population floor in both places. See [`crate::diplomacy::reply_help_request`].
 pub const AI_PERSONALITY_HELP_POPULATION_FLOOR: [i32; AI_PERSONALITY_COUNT] =
@@ -1053,7 +1053,7 @@ pub const AI_PERSONALITY_CASTLE_CONCURRENT: [i32; AI_PERSONALITY_COUNT] = [4, 3,
 /// stepped through by AI step 12 (`FUN_0049E77D`).
 ///
 /// **`[V]`** — read straight out of `Lords2.exe` at `0x004D8A58 + lord*0xF0`
-/// rather than off a decompiler listing, so the values are the file's. They
+///, so the values are the file's. They
 /// agree entry for entry with the table `docs/diplomacy.md` §8.3 had already
 /// recovered by a different route, which is the corroboration that lifts the
 /// mark: two independent reads of the same twenty-four numbers.
@@ -1285,7 +1285,7 @@ pub const MOVE_ALLOWANCE_ARMY: i32 = 15;
 pub const MOVE_ALLOWANCE_OTHER: i32 = 10;
 
 /// A step onto a road tile. `Unit_StepOnce` (`0x0046634D`) reaches it as an
-/// `INC` of `+0x153`, so there is no immediate
+/// `INC` of `+0x153`
 /// to read and the oracle check tags the opcode instead of a value.
 pub const STEP_COST_ROAD: i32 = 1;
 
@@ -1769,7 +1769,7 @@ mod tests {
 /// file.** Every economic constant lives in `Lords2.exe`, so modding
 /// the original means patching a binary, and why an open engine is worth
 /// building at all. Our engine therefore has to carry the whole ruleset
-/// itself - and carrying it as `const` items makes it exactly as unreachable
+/// itself - and carrying it as `const` items makes it
 /// as the 1996 binary made it.
 ///
 /// So the same numbers are also available as one value of one type. A ruleset
@@ -1990,13 +1990,13 @@ pub struct CastleTable {
     /// `150, 200, 200, 400, 600, 0`, and it is that 24-byte stride that puts
     /// the tax bonuses at `0x004D8A28` and the free archers at `0x004D8A40`.
     /// Keeping the sixth slot means the arrays are the shape the game has,
-    /// rather than a tidied copy that no longer matches the addresses.
+    ///.
     pub tax_bonus_pct: [i32; 6],
     /// `(wood, stone)` by castle type 1..=5.
     pub cost: [(i32, i32); 5],
     /// Two ints per castle level in the binary, both holding the same number.
     /// What the second column is for is **not established**, so it is carried
-    /// rather than discarded — see `docs/kingdom.md`.
+    /// — see `docs/kingdom.md`.
     pub workforce: [(i32, i32); 5],
     pub garrison_cap: [i32; 6],
     pub free_archers: [i32; 6],
@@ -2238,7 +2238,7 @@ pub struct ScoreTable {
 
 impl Tables {
 /// The numbers above, gathered. Assembled *from* the constants
-    /// retyped, so there is no second transcription to drift.
+    /// retyped.
     pub const DEFAULT: Tables = Tables {
         food: FoodTable {
             dairy_per_head: DAIRY_PER_HEAD,
@@ -2620,7 +2620,7 @@ impl Tables {
     /// `None` for **0 (the human), 5, and 6 (eliminated)** — see
 /// [`AI_PERSONALITY_COUNT`]. Every
     /// diplomacy rule that needs a number out of the record refuses to act
-    /// rather than substituting one, which is the same choice
+    ///
     /// [`crate::ai::set_tax_rates`] already makes.
     ///
     /// **Indexed by the lord byte and never by the realm id.** The two are

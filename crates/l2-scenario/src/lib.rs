@@ -24,7 +24,7 @@
 //! # Two kingdoms, and they are different games
 //!
 //! [`Scenario::kingdom`] is the state **as the save holds it** — turn 1, Winter
-//! 1268, the counties exactly as they were written. That is what "load a save"
+//! 1268.
 //! means.
 //!
 //! [`Scenario::starting_kingdom`] is the position the save was taken **from**,
@@ -34,7 +34,7 @@
 //!
 //! # What the save does not record
 //!
-//! One thing, and it is worth stating where a reader will find it
+//! One thing
 //! burying it in a test. The file stores `popLast` and `happinessLast`, so the
 //! previous season's population and happiness are recoverable exactly. It
 //! stores **no previous herd and no previous grain** — the ration pass spent
@@ -504,7 +504,7 @@ pub enum ImportError {
     /// An owner byte naming a realm that does not exist.
     Owner { county: usize, owner: u8 },
 /// A weather byte outside 0..=5. Refused:
-    /// a scenario we cannot read is not a scenario we should half-load.
+/// A scenario we cannot read should not be half-loaded.
     Weather { county: usize, byte: u8 },
     /// `g_localPlayer` outside 1..=5.
     LocalPlayer(i32),
@@ -906,7 +906,7 @@ pub struct RealmState {
 ///
 /// Nothing here is a `Save` and nothing here is a `Kingdom`. That is what makes
 /// this the seam: a hand-written scenario, a
-/// scenario editor or a future `.toml` can produce one of these without a game
+/// scenario editor or a future `.toml` can produce one of these
 /// install, and [`Scenario::kingdom`] is the only code that has to change if the
 /// simulation's own shape does.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -986,7 +986,7 @@ pub struct Scenario {
 /// One `g_units` record, checked and converted.
 ///
 /// Three refusals, and each of them means "the array is being read wrong"
-/// rather than "this save is unusual":
+///:
 ///
 /// * a type byte outside 1…4 — `g_unitTickTable`'s fifth slot is NULL and
 ///   nothing spawns a type-5 unit;
@@ -2111,7 +2111,7 @@ impl Scenario {
             // every grudge gone. `docs/decisions.md` C83.
             realm.pairs = *pairs;
             // Which names this realm's armies have used, so the next one raised
-            // after a load is not a repeat. Campaign state, beside the units.
+// Campaign state, beside the units.
             k.campaign.names.set_counters(id as u8, *army_names);
         }
 
@@ -2164,7 +2164,7 @@ impl Scenario {
             // `FUN_0044D913` is called from everywhere a county's herd or
             // pasture can change, county setup included, so a county always
             // arrives with its crowding already computed. Deriving it here
-            // rather than reading `+0x25C` keeps the two consistent — and the
+            // keeps the two consistent — and the
             // reproduction test checks the derived value against the byte.
             // **The five field counts are derived, not imported.** The file
             // stores them, `CountyState` carries what it stored, and the
@@ -2205,9 +2205,9 @@ impl Scenario {
         //
         // **After the county loop**, which opens with `*c = County::new()`.
         // This ran before it once and was silently wiped, which is worth a line
-        // of comment rather than a silent reorder.
+        // of comment.
         //
-        // **Ascending slot wins a tie.** Two units claiming one castle is not a
+// **Ascending slot wins a tie.**
         // state the original can reach; if a save carries it, the lowest slot is
         // the answer every peer computes (`docs/netcode.md`).
         for (slot, unit) in &self.units {

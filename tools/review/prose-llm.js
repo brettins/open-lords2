@@ -31,9 +31,11 @@ async function ask(listing) {
     let res; try { res = await ask(listing); } catch (e) { console.error(`prose-llm: ${f}: ${e.message}`); continue; }
     // Tidy the cut, mechanically: the old line's indent, no space before punctuation, no double space.
     const src = fs.readFileSync(path.join(root, f), "utf8").split(/\r?\n/);
-    for (const [n, v] of Object.entries(res.map)) {
+    for (let [n, v] of Object.entries(res.map)) {
       if (v === "" || !src[n - 1]) continue;
       const indent = src[n - 1].match(/^\s*/)[0];
+      const pre = src[n - 1].match(/^\s*(\/\/[!/]?)/); // a comment line keeps its prefix
+      if (pre && !/^\s*\/\//.test(v)) v = pre[1] + " " + v.trim();
       res.map[n] = indent + v.trimStart().replace(/ +([.,;:)])/g, "$1").replace(/  +/g, " ").replace(/\*\*\s*\*\*/g, "").trimEnd();
     }
     const tmp = path.join(os.tmpdir(), "prose-llm.json"); fs.writeFileSync(tmp, JSON.stringify(res.map));

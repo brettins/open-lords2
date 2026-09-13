@@ -1,5 +1,5 @@
 //! **The audio layer against a real install.** Headless: no device is opened
-//! and no sound is made, so this runs on CI's runner exactly as it runs here —
+//! and no sound is made, so this runs on CI's runner —
 //! by skipping, because CI has no install.
 //!
 //! ```text
@@ -13,7 +13,7 @@
 //! * **every sound the game plays is PCM at 11,025 Hz, 8-bit**, which is what
 //!   `wav.rs` was allowed to be as small as it is because of.
 //!
-//! Both are corpus checks over all 771 files rather than over one that
+//! Both are corpus checks over all 771 files
 //! happened to work — `docs/decisions.md` C1.
 
 use std::path::{Path, PathBuf};
@@ -96,7 +96,7 @@ fn all_448_lord_voices_exist_and_the_convention_generates_them() {
         }
     }
     // 28 groups x 4 lords x 4 takes. If the convention were wrong this would
-    // fail on the first file rather than here, but the count is the claim.
+    // fail on the first file, but the count is the claim.
     assert_eq!(found, 448);
 }
 
@@ -121,14 +121,14 @@ fn the_message_fanfares_ship() {
 /// convention.**
 ///
 /// `S016_*`, `S020_*`, `S031_*` and `S071_*` are read out of `.data` as
-/// `char[n][16]` rather than generated, and this is why: **entries 3 and 4 of
+/// `char[n][16]`, and this is why: **entries 3 and 4 of
 /// the health table are the same file.** A `format!("S020_{:02}", band + 1)`
 /// would have produced `S020_05.wav` for band 4 — a file that ships, and the
 /// wrong line — so the defect would have been a health readout that speaks
 /// somebody else's sentence and nothing would have gone red.
 ///
 /// The tables over-allocate in the original's own way and that is asserted
-/// rather than trimmed: only twelve mercenary nationalities exist, so
+///: only twelve mercenary nationalities exist, so
 /// `S016_13` … `S016_16` name files that do not ship, and `S020_06` /
 /// `S020_07` sit past the five bands `health_band` produces.
 #[test]
@@ -190,7 +190,7 @@ fn every_shipped_sound_is_11khz_8_bit_pcm_or_is_one_of_the_two_we_never_open() {
             // `L2.eng` group 180, mastered at 44,100 Hz — 403,764 bytes where
             // its three siblings are 80-119 kB. At its own rate it is 9.2
             // seconds, and theirs are 7.3, 9.5 and 10.8, so it is the same
-            // take at four times the resolution rather than a wrong file: a
+            // take at four times the resolution: a
             // slip in whatever batch-converted the voice sessions.
             //
             // It is only harmless because the resampler is per sound. A mixer
@@ -228,7 +228,7 @@ fn the_music_is_stereo_and_the_voices_are_mono() {
 }
 
 /// **End to end from the England turn-one save**: the music the player would
-/// actually hear on the position the game starts from.
+///
 ///
 /// The two clauses of the ladder both answer `Scroll1` here — one county of
 /// fourteen is 7 % — so this cannot separate them, and
@@ -266,7 +266,7 @@ fn england_turn_one_would_play_scroll1() {
     // And the reason `scene` computes the share instead of reading it: the
     // importer leaves the derived field at zero until a turn has been ended.
     // If this ever stops being 0 the recompute still agrees with it, so this
-    // is a note rather than a requirement - but it is why the note exists.
+    // is a note - but it is why the note exists.
     assert_eq!(realm.share_of_map_pct, 0, "the derived field is not populated on import");
 
     // The front end is silent — the one clause of this test that was true of
@@ -306,7 +306,7 @@ fn a_real_track_comes_out_of_the_mixer_audible() {
     assert!(peak > 0.001, "the first tenth of a second is silent (peak {peak})");
 
     // And it is still playing a minute in, which exercises the cursor and the
-    // loop rather than only the first buffer.
+    // loop.
     for _ in 0..600 {
         m.fill(&mut buf);
     }

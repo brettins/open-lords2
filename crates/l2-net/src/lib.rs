@@ -21,7 +21,7 @@
 //! * [`Fixed`] — Q16.16 arithmetic, because floats are banned and
 //!   fractions are not (D-1, D-2).
 //! * [`Canonical`] and [`XxHash64`] — one canonical byte stream, hashed
-//!   as it is written, serving the checksum, the snapshot and the
+//! as it is written, serving the checksum, the snapshot and the
 //!   desync dump so they cannot disagree (§6, D-10).
 //!
 //! **The lockstep core** collects commands, orders them identically on
@@ -54,7 +54,7 @@
 //! `tests/tcp.rs` then runs the same claim through real sockets on the
 //! loopback interface, both peers driven by the test, on an
 //! OS-assigned port — so the socket code is exercised on every `cargo
-//! test` rather than skipped by default. **Nothing in it is
+//! test`. **Nothing in it is
 //! `#[ignore]`d and nothing is conditional on an environment
 //! variable.** A transport whose tests do not run is a transport that
 //! has never worked.
@@ -68,11 +68,11 @@
 //!   temporary directory, and it means nothing in this crate can
 //!   accidentally violate D-11's "no file I/O inside `step()`".
 //! * **No clock outside [`tcp`].** D-5 forbids the simulation from
-//!   seeing a clock, and the surest way to obey that is to have no
+//! seeing a clock, and the surest way to obey that is to have no
 //!   clock to consult. [`Session`] therefore waits forever; timeouts
 //!   belong to the caller, which has a render loop and a UI. The one
 //!   `std::time::Duration` in the crate is [`tcp`]'s connect timeout,
-//!   which is the caller's patience handed to the OS rather than a
+//! which is the caller's patience handed to the OS
 //!   clock this code reads.
 //! * **No threads, [`tcp`] included.** §7 recommends a reader thread;
 //!   non-blocking sockets give the same "never block the caller"

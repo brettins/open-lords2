@@ -24,7 +24,7 @@
 //! a click on a village cluster (`FUN_0043A123`) or a click on a job row in the
 //! campaign sidebar (`0x00438E3B`). It returns to whichever it was —
 //! `DAT_005533F4` remembers — so this is a screen the machine pushes
-//! rather than something the village owns.
+//!.
 //!
 //! # What the original draws, and what is here
 //!
@@ -520,7 +520,7 @@ pub struct JobScreen {
     county: u8,
     job: usize,
     /// The blacksmith page's fire. Ticks on every job and is only drawn on
-/// job 7, exactly as `DAT_004E59BC` is stepped by a draw arm that runs on
+/// job 7,
     /// one `g_jobPanelJob`.
     forge: Forge,
     redraw: bool,
@@ -756,7 +756,7 @@ fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
 }
 
 /// **`Panel_JobBlacksmith` (`0x00413155`), call for call** — the one job that is
-/// a full-screen page rather than a window, and the one that has a control.
+/// a full-screen page,
 ///
 /// ```text
 /// File_ReadChunk("smithy.pl8", scratch, 200000, 0)
@@ -775,7 +775,7 @@ fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
 /// ```
 ///
 /// **Both `Ui_DrawNumber` suffixes are the empty string** — `DAT_004D3E9C` and
-/// `DAT_004D3EA0` are two NULs in a run of zero bytes — which is why group 75's
+/// `DAT_004D3EA0` are two NULs in a run of zero bytes —
 /// *"wood needed."* and *"iron needed."* are in the file and on no screen.
 ///
 /// `forge` is [`Forge::frame`], drawn last because `Screen_DrawWidgets`'s `0x0F`

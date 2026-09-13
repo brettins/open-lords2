@@ -107,7 +107,7 @@ macro_rules! world {
 }
 
 /// **The original's variant for one county's grain tiles**, transcribed with
-/// its literals rather than asked of `l2_kingdom`.
+/// its literals.
 ///
 /// ```c
 /// /* Grain_SeasonTick, 0x0044C8AE */
@@ -349,7 +349,7 @@ fn a_sown_field_draws_the_originals_wheat_frame_in_every_season_of_a_year() {
     // **Seed in the granary — the one number this file places.** The England
     // turn-one county's store is empty (printed below): sown as it stands, the
     // crop is zero all year and the original draws variant 0 in every season
-    // too, so a picture that never changed would be *right* and prove nothing.
+    // too, so a picture.
     // A player who sows buys the seed first — and **before** painting, because
     // the brush's own `Labour_Allocate` / `County_RefreshEstimates` round is
     // what puts farmers on the fields, and it sizes the grain ceiling from the

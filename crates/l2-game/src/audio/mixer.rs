@@ -5,7 +5,7 @@
 //! at 44,100 or 48,000, so a resampler is not optional. It is a 32.32
 //! fixed-point cursor stepped by `src_rate / dst_rate` with linear
 //! interpolation between the two frames it lands between — **integer
-//! arithmetic, no floats**. That is not because a float here could reach the
+//! arithmetic, no floats**.
 //! simulation (nothing here can; see [`super`]), but because a fixed-point
 //! cursor cannot drift over the eight million frames of a three-minute track
 //! the way a repeatedly-incremented `f32` does.
@@ -66,7 +66,7 @@ impl Voice {
             if !self.looping {
                 return None;
             }
-            // Wrap by the length rather than resetting to zero, so a loop does
+            // Wrap by the length
             // not lose the fractional remainder every time round.
             self.pos %= (frames as u64) << 32;
             return self.next();
@@ -263,7 +263,7 @@ impl Mixer {
             } else {
                 self.effects.clear();
             }
-            // Clamp rather than wrap. Eight overlapping battle cries can sum
+            // Clamp
             // past the rail, and a wrap there is a bang, not a loud noise.
             frame[0] = (l.clamp(-32768, 32767) as f32) / 32768.0;
             if let Some(second) = frame.get_mut(1) {
@@ -368,7 +368,7 @@ mod tests {
     fn a_marching_army_asks_every_step_and_gets_one_voice() {
         // `Unit_MoveInFacing` fires per step of every moving unit. Without
         // drop-if-busy, twelve units crossing the map is twelve copies of
-        // `Army.wav` in phase, which is not a march - it is a roar.
+        // `Army.wav` in phase
         let mut m = Mixer::new(11025);
         assert!(m.play_effect_if_idle("army.wav".into(), constant(11025, 3000, 200)));
         for _ in 0..50 {
@@ -382,7 +382,7 @@ mod tests {
         assert_eq!(m.effects.len(), 2);
 
         // And once it has run out, the next step starts it again - which is
-        // what makes the loop continuous rather than one-shot.
+        // what makes the loop continuous
         let mut buf = [0f32; 2 * 256];
         m.fill(&mut buf);
         assert!(m.play_effect_if_idle("army.wav".into(), constant(11025, 3000, 200)));
@@ -391,7 +391,7 @@ mod tests {
     #[test]
     fn a_click_restarts_itself_rather_than_being_dropped() {
         // The other verb. `Sound_RestartSlot` rewinds and plays no matter what,
-        // which is why clicking twice quickly clicks twice.
+        //
         let mut m = Mixer::new(11025);
         m.play_effect("click3.wav".into(), constant(11025, 3000, 200));
         m.play_effect("click3.wav".into(), constant(11025, 3000, 200));

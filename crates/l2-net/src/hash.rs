@@ -32,11 +32,11 @@
 //!
 //! FNV-1a was the design's first choice and was dropped for a real
 //! reason: its avalanche on long runs of structured, mostly-zero
-//! records — which is precisely what a serialised unit array is — is
+//! records — is
 //! poor, and a checksum whose whole purpose is that any one-bit
 //! difference changes the output cannot afford that.
 //!
-//! # Why vendored rather than `twox-hash`
+//! # Why vendored
 //!
 //! Argued in Cargo.toml. Short version: 120 lines against a dependency,
 //! where the 120 lines are pinned by someone else's published test
@@ -117,7 +117,7 @@ impl XxHash64 {
     /// Total bytes written so far. Cheap, and worth carrying into a
     /// desync dump: two peers whose state hashes differ *and* whose
     /// serialised lengths differ have a structural divergence — a
-    /// different number of units — rather than a numeric one, which is
+    /// different number of units —, which is
     /// a much shorter path to the cause.
     pub fn len(&self) -> u64 {
         self.total_len
@@ -227,7 +227,7 @@ fn avalanche(mut h: u64) -> u64 {
     h
 }
 
-/// Explicit little-endian reads. `from_le_bytes` rather than a
+/// Explicit little-endian reads. `from_le_bytes`
 /// transmute, so the result is the same on a big-endian machine — the
 /// specification says XXH64 is byte-order independent and a pointer
 /// cast would quietly make that false.

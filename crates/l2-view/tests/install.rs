@@ -1045,7 +1045,7 @@ fn the_panels_kit_in_the_file_has_the_shape_the_drawing_code_indexes() {
 /// reached a picture the original only ever shows for a county that has no such
 /// resource at all. It does now — `l2_kingdom::Kingdom::move_labour`, and
 /// `crates/l2-game/tests/labour_move.rs` drives it through the village. (This
-/// comment named a `docs/arms.json` row for it that was never written: it is not
+/// comment named a `docs/arms.json` row for it: it is not
 /// an input arm but a call inside the drop's.) This pins the drawing half so
 /// that the input half cannot quietly change what the icons mean.
 ///
@@ -1485,14 +1485,14 @@ fn a_click_on_the_drawn_army_resolves_to_the_tile_it_stands_on() {
 ///    sprite is a full-meadow overlay and not a small figure. Eighteen frames,
 ///    three terrains by six phases, with no gap and no stray size;
 /// 2. every frame it returns for the **vestigial** half is a `2 × 2` stub — the
-///    art for that block was never drawn, which is the second, independent
+/// art for that block, which is the second, independent
 ///    reason to believe nothing ever writes terrain `0x0F … 0x12` on a farm
 ///    tile;
 /// 3. the three reachable groups carry **strictly more opaque pixels** as the
 ///    crowding rises. That is the claim *"a more crowded meadow has more
 ///    animals on it"* stated as something the file can contradict, and it is
 ///    what makes the band → frame mapping the right way round
-///    merely consistent;
+/// merely consistent;
 /// 4. `0x13`, the empty herd, and `0x0F` return **nothing at all** — bare grass
 ///    for a county that has lost every animal.
 ///
@@ -1997,7 +1997,7 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
 ///    one of the four `stored & 3` positions. That is *"a riper field has more
 ///    ripe wheat in it"* stated as something the file can contradict, and it is
 ///    what makes the band → variant mapping the right way round
-///    merely consistent;
+/// merely consistent;
 /// 3. the blocks on either side — fallow at 84 … 87 and pasture at 104 … 107 —
 ///    carry almost none of it, which bounds the run from outside.
 ///

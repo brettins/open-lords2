@@ -347,7 +347,7 @@ pub fn resolve_load_order(
     let pos = |id: &str| chosen.iter().position(|m| m.id == id);
 
     // Conflicts and dependency satisfaction, before any ordering work, so the
-    // error a user sees is the real problem rather than a cycle caused by it.
+    // error a user sees is the real problem.
     for m in &chosen {
         for c in &m.conflicts {
             if pos(c).is_some() {
@@ -419,7 +419,7 @@ pub fn resolve_load_order(
 }
 
 /// Recover one concrete cycle from the nodes Kahn's algorithm could not place,
-/// so the error names the loop instead of just asserting one exists.
+/// so the error names the loop.
 fn find_cycle(chosen: &[&ModMeta], edges: &[Vec<usize>], done: &[bool]) -> Vec<String> {
     let start = match (0..chosen.len()).find(|&i| !done[i]) {
         Some(i) => i,

@@ -11,7 +11,7 @@
 //! 1268. Every test here is gated on `l2_testkit::england_turn1`, which finds
 //! `%LORDS2_FIXTURES%\england-turn1.sav` and **checks it is that game** before
 //! handing it over. Absent, the tests skip and say so; present and wrong, they
-//! fail with a message naming the fixture rather than a bare assertion diff.
+//! fail with a message naming the fixture.
 //!
 //! # Why the file is called a fixture and not "the shipped save"
 //!
@@ -136,7 +136,7 @@ fn turn_one_has_no_tax_and_castles_only_where_someone_lives() {
 }
 
 /// The food split `docs/kingdom.md` §4.3 derives: an unowned county at
-/// population 456 with a herd of 67 slaughters 13 head. Read here rather than
+/// population 456 with a herd of 67 slaughters 13 head. Read here
 /// computed, which is what makes it evidence.
 #[test]
 fn the_documented_food_split_is_what_the_file_stores() {
@@ -344,7 +344,7 @@ fn the_fixture_is_the_england_turn_one_position() {
 /// that run". It is in the save, and it is those six, in that order.
 ///
 /// The routes come with it: row 1 is `14 → 4 → 7 → 8 → 2`, which is the scan
-/// order the same document derives from castle geography rather than anything an
+/// order the same document derives from castle geography
 /// author wrote. Two files produced by different code — `L2_maps.dat` shipped
 /// with the game, `england-turn1.sav` written by the running engine — agreeing
 /// on 41 numbers.
@@ -377,7 +377,7 @@ fn england_ships_six_merchants_on_the_six_routes_plane4_predicted() {
 /// else** — no armies, no mobs, no transports — each owned by nobody, standing
 /// in its own start county, with its route number and a route cursor of 1.
 ///
-/// **The cursor is 1, not 0**, which is why a merchant's first destination is
+/// **The cursor is 1, not 0**,
 /// the *second* county on its list. And every one of them carries
 /// `moveAllowance = 0`: the field is written by `Merchant_Tick` and turn one has
 /// not ticked them yet, so an importer that filled in 10 there would be

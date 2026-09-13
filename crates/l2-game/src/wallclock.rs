@@ -28,16 +28,16 @@
 //! Fixed **UTC−7**, all year. Mountain *Daylight* Time is UTC−6 and is a
 //! different zone with a different name; reading the host's zone would give a
 //! third answer again on a machine that is not in Denver. [`MST_OFFSET_SECS`]
-//! is the whole conversion and there is no daylight rule anywhere in this file
+//! is the whole conversion
 //! — which is the point, not an omission.
 //!
 //! # How it stays out of the simulation
 //!
 //! `docs/netcode.md` D-5 — *no wall clock, no scheduler* — binds everything
 //! under the renderer. So this module is arithmetic on a reading it is
-//! **handed**: nothing here calls `SystemTime::now()`, exactly as
+//! **handed**: nothing here calls `SystemTime::now()`
 //! [`crate::clock::Ticker`] takes its monotonic nanoseconds from `main.rs`
-//! rather than reading them (`docs/decisions.md` C193).
+//!
 //!
 //! The reading arrives through `Assets::wall_clock`, which `main.rs` samples
 //! and which is the same channel `Assets::quirks` already uses — the shell
@@ -67,8 +67,8 @@ const MARGIN_Y: i32 = 2;
 
 /// **`HH:MM`, 24-hour, in MST**, from seconds since the Unix epoch.
 ///
-/// `rem_euclid` rather than `%`: a reading before 1970 is not something a game
-/// will ever see, but a negative remainder would print `-7:00` rather than
+/// `rem_euclid`
+/// will ever see
 /// wrapping, and a formatter that is only correct for half its domain is a
 /// formatter somebody eventually feeds the other half.
 pub fn hhmm(unix_secs: i64) -> String {
@@ -92,7 +92,7 @@ pub fn left_edge(pen: &Pen, s: &str) -> i32 {
     l2_view::canvas::WIDTH as i32 - MARGIN_X - w
 }
 
-/// And its top row, measured off the face that will actually draw it —
+/// And its top row, measured off the face
 /// [`crate::build_id::top_edge`]'s rule, for its reason: a literal chosen
 /// against one font clips the other, and that shipped once already.
 pub fn top_edge(pen: &Pen, s: &str) -> i32 {
@@ -119,7 +119,7 @@ pub fn top_edge(pen: &Pen, s: &str) -> i32 {
 /// *Which face*: the body font at [`font::TEXT`] (`0x3F`), flat, which is what
 /// the subtitle and all four menu captions on this page are drawn in — the
 /// caller hands us the page's own flat pen, so the colour and the emboss are
-/// the page's rather than a style invented here. It is deliberately **not**
+/// the page's
 /// [`crate::build_id`]'s plain `Fntl2_9.pl8`: that line is seven hex characters
 /// compared one at a time, and this is four digits read as a shape, like every
 /// other word on the screen.
@@ -141,7 +141,7 @@ mod tests {
         assert_eq!(hhmm(7 * 3600 + 86_400), "00:00", "and it wraps at midnight");
     }
 
-    /// **The ablation, as an assertion: there is no daylight shift.**
+    /// **The ablation, as an assertion: **
     ///
     /// Two instants six months apart — 15 January and 15 July 2026, both
     /// 19:00:00 UTC — must read the same clock face. A `chrono`-style local

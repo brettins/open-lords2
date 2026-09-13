@@ -22,7 +22,7 @@
 //! merge driver a repository merely names.** `.gitattributes` asking for
 //! `merge=l2json` does nothing until someone registers it in their own clone,
 //! and nobody reads setup instructions. So the check is here, where it runs
-//! rather than waits to be read, and it fails with the command in the message.
+//! and it fails with the command in the message.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -107,16 +107,16 @@ fn the_attributes_file_and_this_test_name_the_same_keyed_files() {
 /// Why order matters at all: two branches that both keep a file in key order
 /// cannot produce a misaligned diff, whatever git does and whether or not the
 /// driver is registered. That is the half of the fix that removes the failure
-/// rather than handling it.
+///
 
-/// **Every keyed array's key is actually unique**, asked of the driver itself.
+/// **Every keyed array's key is
 ///
 /// This is the invariant a keyed merge silently depends on: if the key the
 /// driver picks is not unique, merging *deletes* one entry per collision, and
 /// the result parses and reads plausibly. `arms.json` is exactly that trap —
 /// `addr` looks like the key and is not.
 ///
-/// It shells out to `merge-json.js --check` rather than reimplementing
+/// It shells out to `merge-json.js --check`
 /// `KEY_FIELDS` here **on purpose**. A Rust copy of the key rule would be a
 /// second list that can drift from the first, which is the failure this whole
 /// area is about; the driver's own logic is what a merge will use, so the
@@ -153,7 +153,7 @@ fn every_keyed_arrays_key_is_unique() {
 /// The rows are deliberately **not** in id order, so a sorting merge cannot
 /// pass by accident. And the result is compared **byte for byte** with the
 /// expected file, which is the claim exactly: every change kept, in the file's
-/// order, in the file's shape. A synthetic ledger rather than the real one,
+/// order, in the file's shape. A synthetic ledger
 /// because the real one's rows leave as their work merges and a test must not
 /// depend on which work is live.
 #[test]
@@ -364,7 +364,7 @@ fn the_driver_refuses_a_merge_that_would_reformat_the_file() {
 /// noisy — and tonight git took both sides of three duplicates without a murmur,
 /// so "noisy" is not a property to lean on.
 ///
-/// Skipped rather than failed outside a git checkout: a source tarball has no
+/// Skipped
 /// `.git`, and there is nothing to configure or to protect.
 #[test]
 fn the_keyed_json_merge_driver_is_registered() {

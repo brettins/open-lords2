@@ -137,13 +137,13 @@ fn choosing_ireland_starts_ireland() {
 
     // The world is Ireland's, and the county count is the check that says so:
     // Ireland and England have different ones, so a game that had quietly
-    // started England would fail here rather than pass silently.
+    // started England would fail here.
     let ireland = counties_in(&assets, IRELAND);
     let england = counties_in(&assets, ENGLAND);
     assert_ne!(ireland, england, "the two maps must differ or this proves nothing");
     assert_eq!(game.kingdom.county_count, ireland, "the world is not Ireland's");
 
-    // …and the tiles are Ireland's, not merely the right number of counties.
+    // …and the tiles are Ireland's.
     // The county plane is copied verbatim by the loader, so it is exact.
     let bytes = l2_testkit::read_install("L2_maps.dat").expect("the install has it");
     let set = MapSet::parse(&bytes).expect("L2_maps.dat parses");
@@ -243,7 +243,7 @@ fn two_maps_started_in_one_session_are_two_worlds() {
 ///
 /// `docs/plan.md` C26 again: England is one input of forty-four. A map that
 /// builds a world nothing can take a turn in is a map the list should not
-/// offer, and there is no other way to find out which those are.
+/// offer.
 #[test]
 fn every_shipped_map_starts_and_takes_a_turn() {
     let assets = assets!();
@@ -344,7 +344,7 @@ fn walk_to_campaign(
 /// first map.**
 ///
 /// The assertion that matters is the second one, and it is written against the
-/// *game's own* string table rather than against our copy of the campaign
+/// *game's own* string table.
 /// table: whatever slot the campaign started, `L2.eng` group 101 must call it
 /// *Quaintville*. A test that computed the expected slot from
 /// `victory::TRACK_FIRST` would agree with that table however wrong it was.
@@ -362,7 +362,7 @@ fn the_original_campaign_starts_on_quaintville() {
         "L2.eng group 101 does not call the started slot Quaintville"
     );
 
-    // …and the world really is that map, not merely the label. Quaintville has
+    // …and the world really is that map. Quaintville has
     // four counties and England — slot 0, where the map list sits untouched and
     // where this used to land — has fourteen, so the two cannot be confused.
     let quaintville = counties_in(&assets, QUAINTVILLE);
@@ -385,7 +385,7 @@ fn the_original_campaign_starts_on_quaintville() {
     }
 }
 
-/// **The campaign row is the settings too, not just the map.**
+/// **The campaign row is the settings too.**
 ///
 /// `Campaign_LoadEntry` writes the eight committed globals straight over
 /// whatever the custom page last committed, and forces five more. Row 0 of the
@@ -413,7 +413,7 @@ fn the_campaign_row_overrides_the_custom_options() {
     assert_eq!(game.kingdom.realms[game.player as usize].gold, 5000, "row 0's purse");
 
     // The counter and the track went onto the *new* game, so the conquest
-    // screen can step to Rose rather than back to the default track's row 0.
+    // screen can step to Rose.
     assert_eq!(game.campaign.track, l2_game::victory::Track::First);
     assert_eq!(game.campaign.map, 0, "the first campaign starts at row 0");
 }
@@ -438,7 +438,7 @@ fn the_second_campaign_starts_on_australia() {
 /// **The other way into page 4 does not start a game at all.**
 ///
 /// `FUN_00433155`'s hotspot-2 arm is a branch, and its `else` limb walks on to
-/// the page that chooses a game rather than starting one. Reading the whole
+/// the page that chooses a game. Reading the whole
 /// button as *Start* is what let the campaign limb go missing for a merge, so
 /// the `else` limb is asserted too — otherwise `DAT_0057D320` could be ignored
 /// and every test above would still pass by starting a campaign unconditionally.
@@ -627,7 +627,7 @@ fn taking_a_middle_colour_moves_which_lord_flies_which_shield() {
 /// row. It says nothing about the shield, and it must not: page 4 is the page a
 /// campaign passes *through*. If the colour were carried on
 /// `l2_game::setup::Settings` instead of beside the seed, this test would fail
-/// and the custom-page tests above would not — which is why it is here.
+/// and the custom-page tests above would not.
 #[test]
 fn a_campaign_keeps_the_colour_page_four_chose() {
     use l2_game::screens::setup::{

@@ -600,7 +600,7 @@ pub fn herd_density(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
 /// says twice: once through [`herd_density`]'s sentinel and again as an
 /// explicit override after the bands. Both are reproduced, because they are
 /// separable — a ruleset that lowered `no_pasture_density` below the top band
-/// would find the override still holding, exactly as the binary does.
+/// would find the override still holding.
 ///
 /// §13.1's pseudocode shows an `if (herd < 1)` arm before the bands, as though
 /// an empty herd had no crowding at all. It does not: that guard is on the map
@@ -1104,7 +1104,7 @@ pub fn grain_repaint_fields(
 ///   allocation and the *undiminished* store. Two different questions, and
 ///   folding them would produce a plausible wrong number.
 /// * **`crop[2]` and `+0x2FC` are written only in their own seasons** and keep
-///   their previous value otherwise, so this is not a "recompute everything"
+/// their previous value otherwise.
 ///   pass. Winter's arm then reads the `crop[2]` it has just written.
 /// * **`+0x22C` is zeroed before the `popBand` guard**, so an empty county
 ///   forecasts nothing. The same shape
@@ -1156,7 +1156,7 @@ pub fn grain_preview(t: &Tables, county: &mut County, season_next: Season, advan
 ///
 /// `season` and `season_next` are `g_season` indices; the herd's own tick is
 /// run on the season now beginning and the forecast on the one after it,
-/// exactly as `Herd_SeasonTick` passes `g_season` and `g_seasonNext`.
+/// `Herd_SeasonTick` passes `g_season` and `g_seasonNext`.
 pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next: u8) {
     let growth = herd_growth(
         t,
@@ -1222,7 +1222,7 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
 /// *is* "the fewest farmers that reach the best yield" — but by scanning, and
 /// the loop stops one short of the population, so a county can never want every
 /// one of its people on the fields. **`[D]`**, and reproduced by search here
-/// rather than by a closed form, for the same reason the original does: the
+/// for the same reason the original does: the
 /// integer truncation inside `Grain_Sow` is part of the answer.
 ///
 /// Two details that are the original's and look like slips:
@@ -1316,7 +1316,7 @@ pub struct GrainEstimate {
 ///
 /// A player: *"I don't know why 16 cows are being lost this season."* His county
 /// had 80 head, 114 milkmaids and a population of 150 — 47 % staffing, which
-/// adds 17 points to the death rate in [`herd_growth`], and there is no
+/// adds 17 points to the death rate in [`herd_growth`].
 /// arrangement of 150 people that would have tended 80 cows. **The game's one
 /// way of saying so is this floor**: `Panel_JobDetail` colours the worker count
 /// red when `labour < labour_wanted` and `Village_RebuildIcons` draws the
@@ -2103,7 +2103,7 @@ mod tests {
         assert_eq!(plain.births, per_myriad(25, 1400).max(1));
     }
 
-    /// **No pasture is not a small penalty.** `docs/kingdom.md` §13's second
+    /// `docs/kingdom.md` §13's second
     /// branch, walked over the whole herd domain it splits.
     #[test]
     fn a_county_with_no_pasture_loses_half_its_herd_or_all_of_it() {

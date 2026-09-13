@@ -351,7 +351,7 @@ it is blank — every pixel palette index 0 — so the dark is black; at the far
   no army or merchant, no town banner, no mercenary band, no cattle, no garrison flag, and a
   mine there does not turn. **What it does not hide:** the minimap (no reader), the right-hand
   panel, the path balls of an order, and *clicks* — no input arm tests the bit, so a click on
-a dark tile resolves exactly as on a lit one. **The AI lords see everything.**
+a dark tile resolves.
   no rule and no simulation pass reads the option or the bit.
 
   **What lifts it, `[V]`.** A new game shows the start county with a one-tile border round
@@ -604,7 +604,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   Merchant, court, send-supplies, castle-building and eleven more remain shells — right
   artwork and hotspots, contents unbuilt.
   The raise-army screen's name was the finding: the shell table called it *"hire
-  mercenaries"* and **there is no mercenaries screen** — the offer is a block on the only
+  mercenaries"* and — the offer is a block on the only
   door to the armoury a player has. C45. And the *armoury's* row was the second finding:
   filed under the wrong `L2.eng` group, with `arm_grid.pl8` called a "buy grid", it looked
 like optional content and it holds the button that creates the army. C61.
@@ -643,13 +643,13 @@ like optional content and it holds the button that creates the army. C61.
   nothing in `docs/netcode.md` terms.
 - ✅ **Sound: the music plays — and for weeks this line was wrong.** 771 `.wav` files,
   396 MB. The layer is `crates/l2-game/src/audio`, and it is in `l2-game` for the same
-  reason `winit` is (`docs/netcode.md` D-3). **A sound can only ever read the world**:
+  reason `winit` is (`docs/netcode.md` D-3).
   `Audio` is not in `Ctx`, so no screen can reach it, and the event loop derives what
   should be audible from what already happened.
 
   **The number that keeps this row honest is 703 of 771.** 668 of them are measured
 `crates/l2-game/tests/audio_wiring.rs` and `tests/audio_battle.rs`
-drive the real paths and read back what was opened — and the other **35 are
+drive the real paths and read back what was opened — and the other
   the tip screens**, of which `crates/l2-game/tests/tips.rs` drives one tip's three clips
   end to end and the rest are counted from the take table and the install's listing, not
   driven. **565 of those 678 are the narrator** — 448 lord takes, 93 system clips and 24
@@ -677,7 +677,7 @@ turned out to be counted because their names resolved
   **674**, when the battlefield got an event stream — and then **678**, when a siege could
   pour oil, dock a tower, burn a bridge and bounce a shot off a wall four high
   (`docs/battle.md` §17). Everything below this paragraph is
-  about the original and was never in doubt; what was in doubt was whether anything
+  about the original and; what was in doubt was whether anything
   called it, which is the question this row now answers with a fraction instead of a tick.
 
   Two things the fraction hides. **`Battle5` is unreachable**: it ships, it decodes, and
@@ -755,7 +755,7 @@ sites *"a limit of the design"*: a sword swing is an event inside a
   in the game, possibly army sizes or number of counties owned"* and *"scroll1 almost
   always played in the first map right away"*; both halves hold, and the **first** clause
   is why the second is *almost* always — one county is `Scroll1` at any map size, and only
-  from the second does the percentage decide. There is no separate county track: phase 0
+  from the second does the percentage decide.
   is the whole management surface.
 
   **[V] The battle music alternates in pairs**, it does not choose. `Music_StartBattle`
@@ -778,7 +778,7 @@ sites *"a limit of the design"*: a sword swing is an event inside a
   merchant, army) and `FUN_00499D97` loads seventeen for a battle (`0x004DAFC0`: click3,
   *null*, pouroil, sword5/2/3, bowmen1, bow_hit, crossbow, cros_hit, deadguy2/3/4,
   catfire, cathit, catmiss, siegedoc). Entry 1 of both is `null.wav`, which is in neither
-  install and never was — a deliberate hole in a fixed-size table.
+  install — a deliberate hole in a fixed-size table.
 
   **[V] Slot numbers are 1-based and the tables are not: `slot n` is `BANK[n − 1]`.**
   `Sound_LoadBank` *stores* at `&DAT_00522B00 + i × 4` from `i = 0`; `Sound_PlaySlot` and
@@ -816,7 +816,7 @@ a continuous march. Twelve units crossing the map at once cost one
   their siblings are named by the binary and **are not in the install**: the shipping
   build knew they were dead.
 
-  **[V] There is no end-of-turn sound.** Nothing on the `Turn_End` / `Season_Advance` /
+  Nothing on the `Turn_End` / `Season_Advance` /
   phase-7 path plays anything, the End Turn button is silent, and the two call sites of
   the end-of-turn screen fade (`FUN_004B0CB4` from `0x00499...`, once either side of
   `Season_Advance` and the autosave) carry no sound call either — checked by reading both.
@@ -889,7 +889,7 @@ The install ships **two** PE binaries. `mapl2.exe` is 253,440 bytes, dated 16 Ju
 its own error strings call it the **"L2 Battlemap editor"**. Nothing in this project has
 looked at it.
 
-It is worth a task on its own for one reason: **it is an independent implementation of the
+It is worth a task on its own for one reason:
 battlefield format by the original authors**, so it is a potential second oracle in the same
 way `Lords2.exe` is the first — and a disagreement between the two would be far more
 informative than either alone.

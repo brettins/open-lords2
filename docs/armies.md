@@ -338,7 +338,7 @@ independently:
 >    behaviour. The game says it plainly — `L2.eng` group 30 index `0x1B`, "Your troops may
 >    capture a castleless county by attacking its county town.")*
 > 2. **The dwelling-plot row is not free.** `Unit_BurnDwelling` (`0x00468AE2`) charges
->    `+0x153 += 7`, like trampling. It fires when the unit is not a merchant or
+> `+0x153 += 7`, like trampling. It fires when the unit is not a merchant or
 >    transport, the county's owner differs from the unit's, **and** the terrain byte is
 >    `0x10`.
 > 3. **The settlement `+7` is conditional twice over.** It is charged *inside* each of
@@ -1625,7 +1625,7 @@ simulation at all**, so the autocalc and everything downstream of it lives in
 layer present. `g_optFightHumansOnly` is the advanced option *"Fight humans only?"* and is
 **stored inverted** — the byte is 0 when the option displays *Yes*.
 
-There is no distance-from-the-view test, no army-size cut-off and no separate "quick
+and no separate "quick
 battle" toggle on this path. The mid-battle *"Autocalc battle?"* button (`0x0043BD67`,
 `L2.eng` group 10 index 9) is a fourth entry, not a fourth outcome: it re-runs
 `Battle_AutoResolve` on the counts as they stand, which the battle layer has not yet
@@ -1780,7 +1780,7 @@ if (A.ownerIsHuman == 0)                     movesUsed[B] += 7;
 left with one move; a winning human keeps everything but the 8. And when B wins, an AI pays
 7 and **a human pays nothing at all**. `[V]`
 
-**There is no `County_ChangeOwner` anywhere in the B-wins branch.** That is not an omission
+**That is not an omission
 in the reading — `g_battleArmyB` is the *defender* at all three call sites, so a defender
 that wins keeps a county it already had, or leaves a neutral county neutral. It is the half
 of this section that was inverted, and `crates/l2-game/tests/seam.rs` asserts it against
@@ -2284,7 +2284,7 @@ question had a source before.
 
 ## 8b. There is an oracle for an army now
 
-§9's largest disclaimer said *"there is no oracle for an army, and there cannot be one from
+§9's largest disclaimer said *""
 the shipped save"* — `lastturn.sav` holds six units and all six are merchants. That was true
 of `lastturn.sav` and is no longer true of the fixture set. **The battle triple
 (`battle-before/during/after.sav`) contains real armies**, and every army-only offset it
@@ -2450,7 +2450,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
 * **`L2.eng` 31/26** *"Foraging in your county."* has no reachable caller in the panel.
 * **The fourth write in each `Unit_TrampleTile` branch**, `industryRecord + 0x18`, which is the
   *next* record's first field. That is what the code does and it is not explained.
-* ~~**There is no oracle for an army, and there cannot be one from the shipped save.**~~
+* ~~~~
   **Closed by the fixture set, not by the shipped save** — see §8b, which uses the battle
   triple to turn five of this document's `[D]` readings into `[V]`. The paragraph below is
   kept because its *argument* is still correct and still worth reading: with no second

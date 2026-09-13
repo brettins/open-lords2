@@ -2,9 +2,9 @@
 //! panel's three, drawn with the game's own fonts and words.**
 //!
 //! The tile panel's castle and field arms draw `L2.eng` groups 71 and 77 out
-//! of a county exactly as the job popup does — `TileInfo_DrawCastle` shares
+//! of a county — `TileInfo_DrawCastle` shares
 //! `Castle_DrawStatusBlock` with `FUN_00414220` — so they are measured with
-//! these helpers rather than a second copy of them.
+//! these helpers.
 //!
 //! ```text
 //! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-game --test job_bodies
@@ -195,7 +195,7 @@ fn signed_at(canvas: &Canvas, a: &Assets, value: i32, y: i32) {
 
 /// The first county a predicate picks, or a setup failure naming what was
 /// wanted. The fixtures' realm assignment is rolled per game, so a test names
-/// the property it needs rather than a county number.
+/// the property it needs.
 #[track_caller]
 fn county_where(k: &Kingdom, what: &str, pick: impl Fn(&l2_kingdom::county::County) -> bool) -> usize {
     (1..=k.county_count)
@@ -226,7 +226,7 @@ fn paint_all_fallow_to_grain(k: &mut Kingdom, county: usize) -> i32 {
 /// then 77/0 + `crop[0]` + 77/4 on `0xE8`.
 ///
 /// Non-zero on disk: the store, grain eaten, the overall change, and the season
-/// count (Autumn next gives 2). **Only ever zero here:** `+0x2FC` and `crop[0]`
+/// count (Autumn next gives 2). **Zero here:** `+0x2FC` and `crop[0]`
 /// (zero in every save; the rule-driven test below makes them move) and
 /// `+0x278` (the no-event line is what is asserted).
 ///
@@ -273,7 +273,7 @@ fn the_grain_popup_draws_the_store_the_eating_and_the_overall_change() {
 /// **The grain year, as the rule walks it: sown, growing, harvested.**
 ///
 /// No save on this machine has grain in the ground, so the fields are painted
-/// with the player's brush and the seasons advanced, exactly as
+/// with the player's brush and the seasons advanced,
 /// `crates/l2-kingdom/tests/fields.rs` does. Each stage then has a non-zero
 /// figure in its own box:
 ///
@@ -365,7 +365,7 @@ fn the_grain_popup_follows_the_crop_the_rule_sows_grows_and_harvests() {
 /// overall change are all non-zero, a herd eaten by nobody draws the zero, and
 /// the crowding bands 10, 20 and 40 are each some county's.
 ///
-/// Only ever zero here: `+0x274` (the no-event line is asserted; the event test
+/// Zero here: `+0x274` (the no-event line is asserted; the event test
 /// below moves it).
 ///
 /// Ablations, run: the crowding arm `20 => 9` → `20 => 11` → *"Average herd
@@ -649,7 +649,7 @@ fn a_letter_left_waiting_for_seasons_prints_a_figure_its_season_has_zeroed() {
 /// `siege-old_turn.sav`'s county is 56 and 56, where swapping them in the
 /// painter stays green — an ablation that cannot fail is a test that cannot.
 ///
-/// Only ever zero here: stone's output and `+0x288`/`+0x28C` (no castle is
+/// Zero here: stone's output and `+0x288`/`+0x28C` (no castle is
 /// being built; the castle test below makes the stone figure move). **And the
 /// output and efficiency cannot tell wood from iron on any save here**: every
 /// county that has both produces the same amount of each at the same 80%.
@@ -715,7 +715,7 @@ fn the_industry_popup_counts_output_and_what_the_blacksmiths_will_use() {
 /// `0xD0`, `0xE0`, `0xF0`. The stone quarry's popup is checked too while the
 /// stone is owed, because `+0x28C` is that figure.
 ///
-/// **Only ever zero here: the builders.** Delivering the materials opens the
+/// **Zero here: the builders.** Delivering the materials opens the
 /// castle's ceiling (`labour_useful` 1500) and even an industry split of 100
 /// staffs nobody, because castle building's share at `+0x130 + 3*4` is 0 after
 /// `order_castle` — wood cutting takes all 435. So a finite estimate is not
@@ -776,7 +776,7 @@ fn a_castle_under_construction_reports_materials_builders_and_seasons() {
 /// table's trailing **0**. `[V]` on the bytes and the painter; `[I]` that a
 /// player sees it — the original was not run for this.
 ///
-/// Only ever zero here: both materials, and `+0x1A6` (the no-build line is what
+/// Zero here: both materials, and `+0x1A6` (the no-build line is what
 /// is asserted).
 ///
 /// Ablations, run: `CASTLE_BARRACKS_BASE` → `(0x004D_8A10 - 0x004D_89E8) / 4`
@@ -806,9 +806,9 @@ fn a_county_with_no_castle_reads_barracks_for_2500_from_the_next_table() {
 // ------------------------------------------- the tile panel's same two groups
 //
 // `TileInfo_DrawCastle` (`0x0041DA2F`) and `TileInfo_DrawGrain`/`…Herd` draw
-// groups 71 and 77 out of a county exactly as the job popup does, at a y built
+// groups 71 and 77 out of a county, at a y built
 // from `DAT_00553D2C` instead of a literal. The helpers above measure both, so
-// the tile panel's arms are checked here rather than in a second copy of them.
+// the tile panel's arms are checked here.
 
 /// The tile half of screen `0x04` for one tile, drawn on its own.
 fn draw_tile_panel(game: &mut Game, assets: &Assets, tile: usize) -> Canvas {
@@ -875,7 +875,7 @@ fn the_tile_panel_draws_an_intact_castles_tax_bonus_barracks_and_garrison() {
     let at = word_at(&canvas, &assets, 71, 0x0B, 0x68, R + 0x98);
     expect_at(&canvas, f, "200", INK, at + 4, R + 0x98);
     word_at(&canvas, &assets, 71, 0x0C, at + advance(f, " 200 "), R + 0x98);
-    // `Widget_Draw`'s count is `garrisonUnit != 0`, so there is no button.
+// `Widget_Draw`'s count is `garrisonUnit != 0`.
     assert!(
         !is_at(&canvas, f, &eng(&assets, 71, 0x0E), INK, 0x68, R + 0xC4),
         "an empty castle offers no \"View these troops?\""
@@ -1060,7 +1060,7 @@ fn the_field_panel_says_what_the_weather_and_the_events_did() {
 // ------------------------------------------------------------- reclamation
 
 /// **`Panel_JobReclamation`, on the stored zeros.** Every save on this machine
-/// has no field under reclamation, so this is **only ever zero**: *"0 fields
+/// has no field under reclamation, so this is **zero**: *"0 fields
 /// being reclaimed"* on `0xB8` and 77/0xF on `200`. It pins the two lines'
 /// places and the plural at zero, which is `Ui_DrawNumber` and not
 /// `Ui_DrawCount` here — `(byte) +0x204 == 1` picks 0xC, anything else 0xD.
@@ -1098,7 +1098,7 @@ const ARMOUR_NOUN: usize = 28;
 /// The line that matters most is `Ui_DrawCentred(75, 0, 0, 0x1CC, 0x1CC)` —
 /// *"Click on a weapon to change production."* **`Panel_JobBlacksmith` is group
 /// 75's only consumer in the whole binary**, so this is the page's own
-/// vocabulary rather than a naming lead (rule 6), and it is the sentence a
+/// vocabulary, and it is the sentence a
 /// player reported missing by reporting the control: *"I can't choose what type
 /// of weapon my blacksmiths are making."*
 ///
@@ -1108,8 +1108,8 @@ const ARMOUR_NOUN: usize = 28;
 /// piece is at a literal out of the painter or chained from one.
 ///
 /// Advanced Farming is off in every save on this machine, so the `76/4` + `76/5`
-/// branch is **only ever unexercised** and `76/8` — *"Smiths working."* — is the
-/// one that runs. Said here rather than left to be discovered.
+/// branch is **unexercised** and `76/8` — *"Smiths working."* — is the
+/// one that runs. Said here.
 ///
 /// Ablations, run: the two cost numbers swapped → `"18"` is at 440 and not at
 /// `0x16A + 4`; 76/6's `SMITHY_ROW_OUTPUT` → `SMITHY_ROW_WORKERS` → the smiths

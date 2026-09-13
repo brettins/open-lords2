@@ -110,7 +110,7 @@ pub struct Options {
     ///   peers whose quirk sets differ disagree at the first tick a quirk
     ///   touches, and the desync detector names the `options` section.
     ///
-    /// **A quirk is not a local preference.** Sound, animations and the scroll
+/// Sound, animations and the scroll
     /// speed are — they live in `l2_game::prefs`, are never encoded here and
     /// never reach the digest. These change the world.
     ///
@@ -141,7 +141,7 @@ impl Default for Options {
 
 /// A whole kingdom.
 ///
-/// The two arrays are fixed size and 1-based, exactly as the original's are:
+/// The two arrays are fixed size and 1-based, as the original's are:
 /// county 0 is never a county and realm 0 is never a realm. Everything is
 /// walked by index, so two peers running the same commands reach bit-identical
 /// state (`docs/netcode.md` §3).
@@ -334,7 +334,7 @@ impl History {
 /// counters. They are one struct because every rule in [`crate::movement`],
 /// [`crate::levy`] and [`crate::conquest`] needs two or three of them at once,
 /// and because grouping them keeps [`Kingdom`] readable as *economy plus war*
-/// rather than as fourteen fields.
+///
 ///
 /// A default [`Campaign`] is an empty map with no units and no bands, which is
 /// what a kingdom built without a scenario has. Nothing here is optional: an
@@ -1258,7 +1258,7 @@ impl Kingdom {
     /// rate its happiness earns on that realm's ladder.
     ///
 /// Like [`Kingdom::run_ai_grants`] this runs in the AI's turn
-    /// in `Season_Advance`, so it is exposed rather than being a `Pass`.
+/// in `Season_Advance`, so it is exposed.
     /// **Realm 0 is the unowned counties**, which the original taxes once a
     /// turn in phase 1 on the neutral ladder. An out-of-range realm index does
 /// nothing, because the caller is a turn machine and
@@ -1656,7 +1656,7 @@ impl Kingdom {
     /// idle frame, which is where the wheel starts from again.
     ///
     /// The guard matters and is easy to miss. A **wrecked** site — three
-    /// seasons on the countdown — is left exactly as `Unit_TrampleTile` wrote
+/// seasons on the countdown — is left as `Unit_TrampleTile` wrote
     /// it, so switching a trampled mine on and off changes nothing on the map
     /// until the countdown expires and `Industry_Produce`'s own call here
     /// repaints it.
@@ -2071,7 +2071,7 @@ impl Kingdom {
     /// [`Kingdom::run_neutral_farms`] takes any [`crate::ai_farm::Market`] and
     /// stays the seam; this is the one call that supplies the real one, built
     /// from `County::merchant_count` / `merchant_unit` and the unit array
-    /// exactly as `Ai_BuyGood` reads them. Returns the number of fields
+/// as `Ai_BuyGood` reads them. Returns the number of fields
     /// ordered, as [`Kingdom::run_neutral_farms`] does.
     pub fn run_neutral_farms_at_the_stall(&mut self) -> i32 {
         let env = self.farm_env();
@@ -2208,7 +2208,7 @@ impl Kingdom {
             // The blacksmith's ceiling is a share of the realm's stockpile
             // split across every *staffed* smithy it owns, and the allocation
             // on the line above is what staffs them — so the share is
-            // recomputed per county, inside the loop, exactly as
+// recomputed per county, inside the loop, as
             // `crate::field::set_type` recomputes it inside its own.
             let share = crate::industry::weapon_shares(
                 &self.tables,
@@ -2752,7 +2752,7 @@ mod tests {
 
 
     /// **The third control on the ration panel, found by enumerating the class
-    /// rather than by a player.** `Ration_IncreaseCounty` (`0x0043A23F`) is
+/// `Ration_IncreaseCounty` (`0x0043A23F`) is
     /// `rationWanted++`, `Ration_Apply`, `County_RefreshEstimates`,
     /// `Panel_Ration` — so asking for more food changes what the county is
     /// recorded as eating, on the spot.
@@ -2789,7 +2789,7 @@ mod tests {
     }
 
     /// The cap is the table's length and the recompute is **outside** the
-    /// guard: a click at the top still re-applies, exactly as
+/// guard: a click at the top still re-applies, as
     /// `if (rationWanted < 5) rationWanted++;` followed by an unconditional
     /// `Ration_Apply` says.
     #[test]

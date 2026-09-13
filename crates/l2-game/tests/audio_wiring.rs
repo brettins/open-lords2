@@ -14,7 +14,7 @@
 //! The test that covered it did this:
 //!
 //! ```ignore
-//! let machine = Machine::new(ScreenId::Campaign);   // "through the real entry point"
+//! let machine = Machine::new(ScreenId::Campaign);
 //! assert_eq!(scene(&machine, &game), Scene::Campaign { .. });
 //! ```
 //!
@@ -598,7 +598,7 @@ fn the_voice_class_is_84_percent_of_the_games_audio() {
         "the narrator's reachable performance moved: {spoken} clips"
     );
     // 448 lord takes and 82 system clips. The system bands outside the tips
-    // cover 135 groups and only 82 of them ship an `_01`, which is not a gap in
+    // cover 135 groups and only 82 of them ship an `_01`.
     // the tables - a group with no clip is a message the narrator does not read.
     assert_eq!(audio.heard().iter().filter(|n| n.starts_with('s')).count(), 82);
     assert_eq!(spoken - 82, 448);

@@ -59,7 +59,7 @@ pub struct Ruleset {
     pub log: MergeLog,
     /// Document names in the order they were applied.
     pub sources: Vec<String>,
-    /// What each applied document actually said: its source name and every
+    /// What each applied document
     /// leaf path it set, in sorted order.
     ///
     /// The merge log records *contests*; this records *claims*. Both are
@@ -106,7 +106,7 @@ impl Ruleset {
 
     /// Load every layer's rule documents, in layer order.
     ///
-    /// Within a layer, documents apply in sorted name order, which is why a
+    /// Within a layer, documents apply in sorted name order,
     /// mod that wants to be sure it lands last inside its own layer names its
     /// file `zz-final.toml` and not something alphabetically unlucky. Across
     /// layers the load order decides, and that is the one that matters.
@@ -151,7 +151,7 @@ impl Ruleset {
     }
 
     /// Keys of a table, or an empty list when the table is absent. Used when
-    /// "no mod defined any troops" is a legitimate state rather than an error.
+    /// "no mod defined any troops" is a legitimate state
     pub fn keys(&self, path: &str) -> Vec<&str> {
         match self.get(path).and_then(|v| v.value.as_table()) {
             Some(t) => t.keys().map(|k| k.as_str()).collect(),
@@ -273,7 +273,7 @@ impl Ruleset {
     ///
     /// Arrays replace whole on merge (merge rule 2), so a mod that wants to
     /// change one element restates all of them. The length check is what turns
-    /// "restated nine of ten" into an error at load rather than a zero in the
+    /// "restated nine of ten" into an error at load
     /// tenth slot at turn forty.
     pub fn integer_array(&self, path: &str, len: usize) -> Result<Vec<i64>, RuleError> {
         let v = self.require(path)?;
@@ -322,7 +322,7 @@ impl Ruleset {
     /// simulation never touches — but every one of them is a place a rule
     /// could reach the lockstep simulation as a float, which `docs/netcode.md`
     /// forbids. [`crate::Report`] prints them so the question is asked at load
-    /// rather than at the first desync.
+    ///
     pub fn float_rules(&self) -> Vec<(String, Origin)> {
         let mut out = Vec::new();
         collect_floats(&self.root, &mut Vec::new(), &mut out);
@@ -334,7 +334,7 @@ impl Ruleset {
 /// Walk a table, recording the dotted path of every leaf.
 ///
 /// A leaf is any non-table value, arrays included: an array replaces whole, so
-/// it is one claim rather than N. `"$delete"` is a directive, not a claim, and
+/// it is one claim
 /// is skipped.
 fn collect_leaves(table: &Table, stack: &mut Vec<String>, out: &mut Vec<String>) {
     for (key, spanned) in table {

@@ -22,7 +22,7 @@
 //!
 //! A neighbour is considered only while
 //! `cost[neighbour] == 0`, so the first cost written to a cell stands even when a
-//! cheaper route reaches it later; there is no relaxation step. Reproduced
+//! cheaper route reaches it later. Reproduced
 //! deliberately — the original's paths are the specification, and "fixing" this
 //! changes where armies walk.
 //!
@@ -140,7 +140,7 @@ impl Grid {
     ///
     /// * it seeds `g_pathCost` from the blocked template **and calls
     ///   `Path_BuildBlockedMap`**, so a friendly figure — 998 — is an obstacle
-    ///   here exactly as terrain is;
+    /// here;
     /// * two walkers set out from the start together, each step choosing the
     ///   eight-way direction toward the target and, when that cell is taken,
     ///   rotating — one clockwise, the other anticlockwise, up to eight tries.
@@ -238,7 +238,7 @@ impl Grid {
     /// over `g_pathCost` and calling **`Path_BuildBlockedMap`** — the routine
     /// that writes **998** into every cell a *friendly* figure is standing on —
     /// and then walks the line testing that same array. So a comrade in the way
-    /// makes the line not clear, exactly as terrain does, and the caller falls
+    /// makes the line not clear, and the caller falls
     /// through into the flood fill that will route around him.
     ///
     /// The destination is the one exception: the original clears a 998 there
@@ -322,7 +322,7 @@ pub struct Search {
 /// search left there. An expensive cell down there may expand immediately
 /// because it is already "visited enough", instead of being deferred.
 ///
-/// This only bites where step costs are non-zero, which is castles: a `.skr`
+/// This only bites where step costs are non-zero: a `.skr`
 /// field is uniformly zero-cost (see the module docs). It is reproduced rather
 /// than fixed because the original's paths are the specification.
 ///
@@ -382,7 +382,7 @@ pub fn search(grid: &Grid, start: Pos, dest: Pos) -> Search {
 /// Weighted breadth-first flood fill, carrying the original's scratch space.
 ///
 /// Returns `NoSearchNeeded` without touching the cost field when the target is
-/// adjacent or in clear line of sight, exactly as the original does — most
+/// adjacent or in clear line of sight — most
 /// movement in a battle never runs a search at all.
 pub fn search_with(scratch: &mut Scratch, grid: &Grid, start: Pos, dest: Pos) -> Search {
     if chebyshev(start, dest) < 2 || grid.line_is_clear(start, dest) {

@@ -19,12 +19,12 @@
 //!    *first* — `FUN_00491B1F` rewrites `mapX`/`mapY` — and then counts `walking`
 //!    (`+0x32`) up 1, 3 … 15 while `BattleFigure_Draw` (`0x004BDC31`) trails the
 //!    man behind the cell he is already in. Our simulation counts first and
-//!    enters last, and the picture applied the trailing offset to the cell he
+//! enters last, and the picture applied the trailing offset to the cell he
 //!    was *leaving*: up to 28 pixels behind his own square, then a jump.
 //! 3. **The ghosts.** `BattleFigure_Draw` clips every man to
 //!    `Clip_Horizontal(0, 480)` / `Clip_Vertical(24, 472)`, the viewport
 //!    `FUN_004BC020` stores. Ours blitted unclipped, into the menu bar, the
-//!    right column and the bottom strip, which nothing on this screen repaints.
+//! right column and the bottom strip, which nothing on this screen repaints.
 //!
 //! **The probes are literals out of the binary** — the viewport clip, the
 //! palette file — and never an expression of the constants under test.
@@ -115,7 +115,7 @@ fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
 }
 
 /// One frame as `App` runs it: the tick, then the paint, **onto the same
-/// canvas as every frame before** — `Machine::draw` never clears it, so a
+/// canvas as every frame before** — `Machine::draw` never clears it,
 /// remnant is only visible to a test that keeps the canvas.
 fn frame(m: &mut Machine, g: &mut Game, a: &Assets, canvas: &mut Canvas) {
     let mut ctx = Ctx { game: g, assets: a };
@@ -189,13 +189,13 @@ fn install() -> Option<(Assets, l2_mods::Platform)> {
 /// the map the presenter reads, and **the only one**: a name it does not hold
 /// falls through to `base01.256`, which is what the player saw.
 ///
-/// It stops at the resolved palette rather than at presented bytes because the
+/// It stops at the resolved palette because the
 /// presenter is being moved into the library by the concurrent overlay-palette
 /// branch, as `Machine::present`; once that has landed, the loop below belongs
 /// on `m.present(…)`'s bytes, and the answer must not change.
 ///
 /// The discrimination half is what keeps it from passing on a palette that
-/// merely agrees: the same pixels through `base01.256` must differ, and on the
+/// agrees: the same pixels through `base01.256` must differ, and on the
 /// shipped files they differ at most of them.
 ///
 /// Ablation: delete `"T32_bat1.256"` from `shell::PALETTES` — red, on the
@@ -293,7 +293,7 @@ fn staged_siege(level: u8) -> (Game, Machine) {
 /// `T32_bat1.pl8` and none of its tiles uses those three indices. They are
 /// `T32_stn1.pl8`'s — the sheet the original draws a siege from, which is not
 /// ported. So this arm is correct, cheap, and worth nothing on screen until
-/// the siege tileset lands; the two counts are printed every run rather than
+/// the siege tileset lands; the two counts are printed every run
 /// asserted, because both come from the player's own files.
 ///
 /// Ablation: delete `"T32_stn1.256"` from `shell::PALETTES` — red on the
@@ -647,7 +647,7 @@ fn walk_off(assets: &Assets, at: (i32, i32), (dx, dy): (i32, i32)) {
 /// **A man who walks off the edge of the field leaves nothing behind him** —
 /// not on the square he left, and not in the menu bar, the right column or the
 /// strip under the field, which is where the ghosts were: nothing on this
-/// screen repaints those pixels, so a man drawn into them stayed there.
+/// screen repaints those pixels,
 ///
 /// `BattleFigure_Draw` (`0x004BDC31`) and the horse under a knight
 /// (`FUN_004BE4DF`) both call `Clip_Horizontal(DAT_004E6564, DAT_004E5D54)` and
@@ -658,7 +658,7 @@ fn walk_off(assets: &Assets, at: (i32, i32), (dx, dy): (i32, i32)) {
 /// Ablation: `blit` in place of `blit_clipped` for the man in
 /// `l2_view::scene::draw_figures` — red on the first walk, in the menu bar.
 /// **The square-he-left half is a green ablation, and it is a finding**: our
-/// terrain pass repaints every cell every frame, so there is no dirty-cell
+/// terrain pass repaints every cell every frame
 /// restore to forget; skipping `draw_terrain` on every frame after the first
 /// turns it red.
 #[test]
@@ -773,7 +773,7 @@ fn same_battle(drawn: &Game, blind: &Game, label: &str, killed: u32) {
 /// battle came through untouched.
 ///
 /// **A green ablation, and that is the finding**, as it was for sound in C166:
-/// `Screen::draw` receives `&Ctx`, whose `game` it can only read, so there is no
+/// `Screen::draw` receives `&Ctx`, whose `game` it can only read
 /// line in any painter whose deletion turns this red. Ablated the other way —
 /// an extra `runner.step()` inside `BattlefieldScreen::draw`'s caller on one
 /// copy — it goes red on that tick. It is the tripwire for the day a painter is
@@ -793,7 +793,7 @@ fn painting_the_battlefield_does_not_change_the_battle() {
 
 /// **The two 2 × 2 sheets, read straight out of the install** — an 8-byte
 /// header, then 16-byte frame records with `dataOffset` at `+4`. Written out
-/// here rather than taken from `l2_view::sheet` so the expectation is the
+/// here so the expectation is the
 /// player's own file and not our decoder.
 fn t2_pixels(bytes: &[u8], index: usize) -> [u8; 4] {
     let count = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
@@ -900,7 +900,6 @@ fn staged_with_shields(
 /// draws exactly two things a cell: frame `cell[+3]` of the tileset, or frame
 /// `g_realms[owner].shieldIndex` of `t2_spri` over a cell holding a man. It
 /// draws **no viewport rectangle**, and this compares every pixel of the panel,
-/// so a rectangle anywhere on it is red.
 ///
 /// The expectation is decoded from the install's own two files by [`t2_pixels`].
 ///
@@ -1030,7 +1029,7 @@ fn the_overview_panel_is_repainted_four_cell_rows_a_frame() {
 }
 
 /// The same with the install's artwork, so the painter that runs is
-/// `l2_view::scene::draw` — the one this file changed — rather than the
+/// `l2_view::scene::draw` — the one this file changed —
 /// placeholder's blocks.
 #[test]
 fn painting_the_battlefield_with_its_artwork_does_not_change_the_battle() {
@@ -1046,7 +1045,7 @@ fn painting_the_battlefield_with_its_artwork_does_not_change_the_battle() {
 /// **An arrow in the air is drawn, in the right frame and at the right
 /// pixel** — `FUN_004BEED4` (`0x004BEED4`), the pass after the men.
 ///
-/// Two literals out of the binary, and the test is built from them rather than
+/// Two literals out of the binary, and the test is built from them
 /// from `l2_view`:
 ///
 /// * the **frame** is `g_missileStats[class][4] + missile[+0x2E]` —
@@ -1057,7 +1056,7 @@ fn painting_the_battlefield_with_its_artwork_does_not_change_the_battle() {
 ///   from `FUN_004BC020`'s `DAT_004E6558 = 0`, `DAT_004E6554 = 0x18` and
 ///   `DAT_004E5D44 = param_11 / 2`. A missile's position is in thirty-seconds
 ///   of a cell and a battle tile is 32 pixels, so the two units are one unit.
-///   **There is no sprite-width centring** — every figure has one and a
+///   every figure has one and a
 ///   missile does not.
 ///
 /// The sheet is the install's own `A2_miss.pl8`, decoded here, and the frame
@@ -1159,7 +1158,7 @@ fn a_catapult_is_drawn_from_engine_pl8_with_its_arm_on_top() {
     let (cx, cy) = (f.x as i32 - live(&g).cam.0, f.y as i32 - live(&g).cam.1);
     let cell = (bf::VIEW.x + cx * bf::TILE, bf::VIEW.y + cy * bf::TILE);
 
-    // The carriage is under the arm, so a few of its pixels are overwritten
+    // The carriage is under the arm,
     // and an exact match is the wrong test for it — most of it must be there,
     // and somewhere else must not be.
     let body = engine.frame(5 + facing).expect("the carriage decodes");
@@ -1188,7 +1187,7 @@ fn a_catapult_is_drawn_from_engine_pl8_with_its_arm_on_top() {
 ///
 /// The nudge is one of exactly two in the painter — `+0x0C` for a ram, `+8`
 /// for a pot, on y only — and nothing else in the game has one. The idle loop
-/// is six frames over forty-eight ticks, so a pot standing still still
+/// is six frames over forty-eight ticks,
 /// changes picture, which is the half a static assertion would miss.
 ///
 /// Ablation: return 0 from `engines::body_y_nudge` for a pot — red, frame 36
@@ -1321,9 +1320,8 @@ fn skirmish() -> (Game, Machine) {
 /// **The bar's three titles are on the battlefield, and they answer.**
 ///
 /// The probe is `Menu_HitTitle`'s own geometry through the install's own font
-/// rather than a coordinate of this test's, because that is the whole of what
 /// the arm hit-tests. The near-miss is the 32 pixels `g_penAdvance += 0x20`
-/// leaves after a title, which `Menu_HitTitle` does **not** answer — so a test
+/// leaves after a title, which `Menu_HitTitle` does **not** answer —
 /// that passed by clicking anywhere in the band fails here.
 ///
 /// Ablation: drop the `menubar::title_at` guard from the `0x29` ladder — red on
@@ -1388,7 +1386,7 @@ fn a_battle_takes_the_date_off_the_bar_and_leaves_the_treasury() {
     g.kingdom.realms[1].gold = 1234;
     // **Group 29 is 1-based**: index 0 is *"No Season"*, which is what a
     // default-constructed kingdom reads and which would make the probe a
-    // fallback string rather than one of the game's four seasons.
+// fallback string
     g.kingdom.season = l2_kingdom::tables::Season::Summer as u8;
     let season = l2_game::screens::map::season_text(&assets, g.kingdom.season);
     assert_eq!(season, "Summer", "the probe must be L2.eng group 29's own word");
@@ -1411,7 +1409,7 @@ fn a_battle_takes_the_date_off_the_bar_and_leaves_the_treasury() {
 ///
 /// The drop-down is a screen, so opening *File* puts a screen over the
 /// battlefield, and `Screen::update` is the top screen's alone. Measured on the
-/// simulation's own `BattleRunner::tick` rather than on anything drawn.
+/// simulation's own `BattleRunner::tick`
 ///
 /// Ablation: delete the `wind_battle` call from `Machine::wind_turn` — the
 /// second count comes out zero and this goes red.
@@ -1579,7 +1577,7 @@ fn saving_is_refused_while_a_battle_is_live() {
     // battle live. A refusal that fired on every save would pass the half above
     // on its own.
     //
-    // A fresh machine rather than `g.battle = None` under the open box,
+// A fresh machine under the open box,
     // because a battlefield that loses its battle answers `Transition::Pop`,
     // and a pop from *under* another screen truncates the stack — which is the
     // original's single `g_screenId` byte and would take the save box with it.

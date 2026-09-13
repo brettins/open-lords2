@@ -1,7 +1,7 @@
 //! The screens: the slice's five, the front end and its thirteen setup pages,
 //! the conquest interstitial, and the shells for everything else.
 //!
-//! [`shells`] is a table rather than a module per screen: each entry names the
+//! [`shells`] is a table per screen: each entry names the
 //! `g_screenId`, the painter, the `.pl8` it loads and the `L2.eng` group it
 //! draws, and one painter walks the table. A screen graduates out of it when
 //! there is state behind it to draw.
@@ -16,7 +16,7 @@
 //! or pushes another, and the only way from one to another is a [`Transition`]
 //! value handed back to the machine.
 //!
-//! The second one is the binary's own arrangement rather than a convenience:
+//! The second one is the binary's own arrangement:
 //! `Screen_Draw`'s `0x17` arm opens `if (firstFrame == 1) Screen_Armoury(1);`
 //! before it calls `Screen_RaiseArmy`, so the levy window really is a box drawn
 //! over the armoury. Sharing the painter here is sharing the painter there.
@@ -26,9 +26,9 @@
 //! underneath — so an event can reach a screen that did not receive it, while
 //! the *routing* stays the machine's. Two things follow for anyone adding a
 //! screen. Your `handle` may be called for a click that landed on something
-//! drawn above you, so decide what is yours by position rather than by assuming
+//! drawn above you, so decide what is yours by position
 //! the machine filtered it. And if you return `Pass` you are asserting the
-//! event is not yours at all: passing by default rather than by decision is how
+//! event is not yours at all: passing by default is how
 //! two screens end up both acting on one click. It exists because
 //! `Screen_FrameInput`'s per-screen arms are ladders of guards and a guard that
 //! returns zero has not consumed the click — `docs/decisions.md` C59.

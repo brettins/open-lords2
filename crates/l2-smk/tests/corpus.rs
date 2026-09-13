@@ -21,7 +21,7 @@
 //!    records the run.
 //!
 //! **Ablated, and what went red.** Swapping the two `Full` codes of a row in
-//! `decode_video` leaves every bitstream consumed exactly as before — the
+//! `decode_video` leaves every bitstream consumed — the
 //! padding test stays green, correctly, because a column swap reads the same
 //! bits — and [`every_film_matches_an_independent_decoder`] fails on the first
 //! film, `AXMEN.SMK`, at frame 10's pixels. Skipping `Tree16::decode`'s cache
@@ -174,7 +174,7 @@ fn every_bitstream_is_read_to_its_padding_and_no_further() {
     }
 }
 
-/// **A film's sound track is exactly as long as its picture**, and that is
+/// **A film's sound track is **
 /// what makes the two candidate clocks one clock.
 ///
 /// `Smk_PlayLoop` (`0x0042DBC7`) advances a film only when `SmackWait` answers

@@ -25,7 +25,7 @@
 //!
 //! The sound *is* the screen opening, with a condition on the county attached.
 //! `Sidebar_Button`'s supplies arm, `Panel_SplitButton`, `Map_ZoomOut`,
-//! `Panel_JobDetail` and `TileInfo_Draw` are all that shape, which is why one
+//! `Panel_JobDetail` and `TileInfo_Draw` are all that shape.
 //! mechanism reaches fourteen sites.
 //!
 //! Everything below drives real [`Event`]s through [`Machine::handle`] and then
@@ -77,7 +77,7 @@ fn listen(d: &mut audio::Director, a: &mut Audio, m: &Machine, g: &Game) {
 /// `setup.wav` is started by `Music_Play` (`0x004263AD`), a **ninth** leaf that
 /// `docs/audio-triggers.md`'s table did not have, so no row of the inventory
 /// said it was missing and `audio::scene`'s `FrontEnd => None` read as a
-/// finding rather than a gap.
+/// finding.
 ///
 /// A player reported *"I don't hear music"*; C116 fixed the campaign half of
 /// that and the title screen stayed quiet.
@@ -100,7 +100,7 @@ fn the_title_screen_plays_setup_wav_and_the_campaign_still_does_not() {
         "the front end is silent; Music_Play's nine sites are all this bed"
     );
 
-    // And the campaign replaces it rather than layering on it.
+    // And the campaign replaces it.
     let mut machine = machine;
     machine.push(ScreenId::Campaign);
     let _ = &mut game;
@@ -109,10 +109,10 @@ fn the_title_screen_plays_setup_wav_and_the_campaign_still_does_not() {
 }
 
 /// **"All your people are fed by dairy" — the readout a player asked for, in
-/// the medium the game actually uses.**
+/// the medium the game uses.**
 ///
 /// `docs/decisions.md` C133 searched every one of `L2.eng`'s 317 groups for
-/// that sentence and correctly found nothing. It is not a string.
+/// that sentence and correctly found nothing.
 /// `Panel_OpenRation` (`0x0043A846`) **speaks** it: `S021_01.wav`, on the frame
 /// the ration panel opens, when the county has a standing herd and opening the
 /// larder took neither a cow nor a sack.
@@ -191,7 +191,7 @@ fn right_clicking_a_resource_site_plays_its_work() {
     let assets = Assets::placeholder();
 
     // The four graphics are the original's own ranges, and the expected files
-    // are read off `KINGDOM_BANK` by slot rather than recomputed from the
+    // are read off `KINGDOM_BANK` by slot.
     // ladder under test.
     for (graphic, want) in
         [(1u8, "iron.wav"), (5, "stonecut.wav"), (8, "stonecut.wav"), (11, "woodcut.wav")]
@@ -217,7 +217,7 @@ fn right_clicking_a_resource_site_plays_its_work() {
         );
     }
 
-    // And a tile that is not a settlement is silent, which is the `0x80` guard.
+    // And a tile that is not a settlement is silent.
     let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
     let mut game = world();
     let tile = l2_kingdom::map::index(21, 21);
@@ -281,7 +281,7 @@ fn the_job_popup_opens_with_the_sound_of_the_job() {
 /// join, that we do not.
 ///
 /// **Ablation:** remove any one `opened(...)` block and exactly one assertion
-/// goes red, which is what makes this a test of four things rather than of one.
+/// goes red.
 #[test]
 fn four_screens_speak_as_they_open() {
     let Some(_) = headless() else { l2_testkit::skip!("no game install") };
@@ -309,7 +309,6 @@ fn four_screens_speak_as_they_open() {
     }
 
     // `Map_ZoomOut` is the one edge that is not a screen: it is the zoom level,
-    // and there is no matching sound on the way back in.
     let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
     let mut game = world();
     let mut machine = Machine::new(APP_ROOT);
@@ -343,7 +342,7 @@ fn four_screens_speak_as_they_open() {
 /// requests whether the edge is there or not. The previous version of this test
 /// mixed two buffers mid-line and compared them, which was a test of the rewind a
 /// second trigger used to cause; once `Audio::play_file` dropped, the drop hid
-/// the missing edge exactly as the original's would. So the line is played to its
+/// the missing edge. So the line is played to its
 /// end, and then the panel, still up, is listened to again.
 ///
 /// **Ablation:** drop the `&& !self.stack…` half of `opened` and this goes red

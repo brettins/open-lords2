@@ -10,7 +10,7 @@
 //!
 //! # The tables
 //!
-//! All four are read out of `Lords2.exe` rather than out of a listing. **[V]**
+//! All four are read out of `Lords2.exe`.
 //! `g_troopBattleStats` (`0x004D96D0`, 11 rows of 5 ints) supplies three of
 //! them and `tools/oracle/tables.ps1` prints it:
 //!
@@ -68,7 +68,7 @@ pub const TYPE_PRIORITY: [i32; 11] = [0, 4, 1, 2, 5, 3, 6, 10, 8, 9, 7];
 ///
 /// `Formation_SendFigure` branches on `0 < class < 3` (a figure that closes to
 /// shoot) and on `class > 2` (a catapult that aims), so the raw number matters
-/// rather than just "has a missile weapon".
+///.
 pub const WEAPON_CLASS: [u8; 11] = [0, 2, 0, 0, 0, 1, 0, 3, 0, 0, 0];
 
 /// How many rows a unit of `figures` figures of `troop` forms up in.
@@ -85,7 +85,7 @@ pub fn rows_for(troop: Troop, figures: usize) -> i32 {
 
 /// `Formation_OffsetX` (`0x00481878`): `(i / rows) * footprint`.
 ///
-/// The original is a five-way ladder rather than a division, and it **caps at
+/// The original is a five-way ladder, and it **caps at
 /// five**: `rows` of six or more behaves as five. Reproduced, because a unit
 /// of more than 25 figures is reachable (oil holds one figure per unit, but a
 /// mixed 80-figure army is not) and the cap changes the shape.
@@ -136,8 +136,8 @@ impl Rect {
 ///   footprint is 3, so a lone catapult forms up on one cell;
 /// * the two axes clamp **differently**. `x` is pulled back so the right edge
 ///   lands on 79, while `y` is pulled back by `bottom - 79` where `bottom` is
-///   `origin + depth` rather than `origin + depth - 1` — one cell more
-///   generous. Reproduced rather than symmetrised.
+/// `origin + depth` — one cell more
+/// generous. Reproduced.
 ///
 /// The original also forces `cols = 2` when unit byte `+0x09` is 1. That byte is
 /// not modelled here (nothing we have read writes it), so that branch is absent.
@@ -225,7 +225,7 @@ mod tests {
         assert_eq!(WEAPON_CLASS[Troop::Catapults.index()], 3);
         assert_eq!(WEAPON_CLASS[Troop::Swordsmen.index()], 0);
 
-        // Relations rather than values: exactly three troop types carry a
+        // Relations.
         // weapon, exactly four take more than one cell, and no unit is empty.
         assert_eq!(WEAPON_CLASS.iter().filter(|&&c| c != 0).count(), 3);
         assert_eq!(FOOTPRINT.iter().filter(|&&f| f > 1).count(), 4);
@@ -263,7 +263,7 @@ mod tests {
         assert_eq!(cells4[2], (1, 0), "third starts the next column");
         assert_eq!(cells4[11], (5, 1), "six columns of two");
         // Side 0's second rank grows the other way, so the two bodies of men
-        // face rather than trail each other.
+        // face.
         assert_eq!(offset_y(fp, rows, 1, SIDE_A), -1);
         assert_eq!(offset_y(fp, rows, 1, SIDE_B), 1);
         // One row is a flat line whichever side it is.
@@ -300,14 +300,14 @@ mod tests {
             assert!((0..80).contains(&y), "slot {i} y {y}");
         }
         // x lands the right edge exactly on 79; y stops one short, because the
-        // original measures the bottom from origin + depth rather than
+        // original measures the bottom from origin + depth.
         // origin + depth - 1.
         assert_eq!(r.origin_x + r.cols * r.footprint - 1, 79);
         let depth = (12 - 1) / r.cols * r.footprint;
         assert_eq!(r.origin_y + depth, 79);
     }
 
-    /// A lone catapult occupies one cell rather than its three-cell footprint.
+    /// A lone catapult occupies one cell.
     #[test]
     fn a_single_figure_unit_is_one_cell_wide_whatever_its_footprint() {
         let r = compute_rect((40, 40), 1, 3, 2);

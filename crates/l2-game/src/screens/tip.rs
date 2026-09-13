@@ -28,7 +28,7 @@
 //!
 //! * **`Screen_HandleInput` (`0x004BA9C8`) really does nothing.** Its body is
 //!   one `if`/`else if` ladder on `g_screenId` with no `0x27` arm anywhere in
-//!   its 3,832 bytes, and it ends `return 0;`. So there is no widget pass on
+//! its 3,832 bytes, and it ends `return 0;`.
 //!   this screen — not "a table that happens to be empty", but no arm at all.
 //!   `[V]`
 //! * **`Screen_FrameInput`'s epilogue does run**, and it is this screen's one
@@ -94,7 +94,7 @@ impl Screen for TipScreen {
     /// **The window stays up, and that is the original.** The epilogue writes
     /// `g_screenId = 0` and nothing else; `Msg_Pump` runs on `0x00` as well as
     /// on `0x27`, so the tip window the player was reading is still there over
-    /// the map. Returning [`Transition::Stay`] rather than [`Transition::Pass`]
+    /// the map. Returning [`Transition::Stay`]
     /// is what says that: the campaign map underneath is **not** `g_screenId`
     /// while this screen is up and its own ladder must not run — `Map_Click`'s
     /// first guard is `Msg_DismissUnlessQuestion`, which would throw the window
@@ -108,7 +108,7 @@ impl Screen for TipScreen {
     /// is reproduced on the map's own ladder and not on this path. So a minimap
     /// press under a tip closes the tip's hold and does not yet move the map.
     ///
-    /// **The left press only**, exactly as the six other screens that carry this
+    /// **The left press only**
     /// arm do. The epilogue's guard is `g_mouseLeftPressed || g_mouseRightPressed`
     /// and our vocabulary has no right *press*: [`Event::RightClick`] is the
     /// right **release**, because that is what all fifty-odd of the original's

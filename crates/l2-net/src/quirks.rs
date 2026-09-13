@@ -22,7 +22,7 @@
 //! tri-state parent over two lists is a tri-state parent that will one day
 //! disagree with itself.
 //!
-//! **This is not a claim that quirks are networking.** It is a claim that they
+//! It is a claim that they
 //! are part of the agreed configuration, which is what this crate is for. See
 //! `docs/decisions.md` C62.
 //!
@@ -47,11 +47,11 @@
 //! `docs/bugs.md` §6.3 asked for *"a single `Quirks` value — a struct of named
 //! `bool`s, or a bitfield with a documented assignment and room to grow"*, and
 //! required the bump be paid once. This is the bitfield, and the inversion is
-//! how it is paid once rather than once per bug.
+//! how it is paid once per bug.
 //!
 //! # Determinism
 //!
-//! [`Quirks`] is a `Copy` integer. There is no map, no set, and nothing to
+//! [`Quirks`] is a `Copy` integer. no set, and nothing to
 //! iterate in hash order — `docs/netcode.md` D-4. [`Quirk::ALL`] is a slice in
 //! declaration order, which is also bit order, and every walk of the quirk set
 //! anywhere in the workspace goes through it.
@@ -159,7 +159,7 @@ pub enum Quirk {
 
     /// **B51** — a game with nobody in play is won by the array slot.
     /// `Score_RankRealms` (`0x0049AA0E`): leader and trailer are both 0,
-    /// `0 == 0` passes, and the original crowns `g_realms[0]`, which is not a
+    /// `0 == 0` passes, and the original crowns `g_realms[0]`
     /// realm.
     EmptyGameIsWonBySlotZero = 11,
 
@@ -248,7 +248,7 @@ impl Quirk {
         }
     }
 
-    /// One line for the player, in the player's words rather than the
+    /// One line for the player, in the player's words
     /// binary's. Shown on the quirks page.
     pub const fn summary(self) -> &'static str {
         match self {

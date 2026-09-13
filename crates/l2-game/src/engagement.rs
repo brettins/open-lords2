@@ -310,7 +310,7 @@ pub fn resolve_fought(
 ///   banners.
 ///
 /// **The `county` is the besieged one**, taken from the besieger's own
-/// `besieging_county`, exactly as `Siege_LaunchAssault` takes it.
+/// `besieging_county`.
 pub fn resolve_siege(
     kingdom: &mut Kingdom,
     assault: l2_kingdom::siege::Assault,
@@ -335,7 +335,7 @@ pub fn resolve_siege(
 /// ```
 ///
 /// **Phase 2 is sieges and nothing else.** It is called *"army movement"* in
-/// `docs/kingdom.md` §3.1 and there is no movement in it: `Siege_StartPhase`,
+/// `docs/kingdom.md` §3.1: `Siege_StartPhase`,
 /// a cursor, and the assaults it yields. Armies move in phase 4, under whoever
 /// is driving that realm.
 ///
@@ -464,7 +464,7 @@ fn resolve_battle(
     let before = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.men);
     let (attacker_before, defender_before) = (before(kingdom, attacker), before(kingdom, defender));
     // Read now, not later: `return_to_campaign` destroys the loser's record, so
-    // after it there is no realm to read off the losing slot at all.
+    // after it.
     let owner_of = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.owner);
     let (attacker_owner, defender_owner) = (owner_of(kingdom, attacker), owner_of(kingdom, defender));
     let roster = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or([0; TROOP_TYPES], roster_of);
@@ -759,7 +759,7 @@ pub fn begin_fight(
         // layers of each castle, because the original's builder reaches for
 // them through a global.
         //
-        // Without the install there is no raster, and the stand-in ring
+        // Without the install, and the stand-in ring
         // `l2_sim::siege::our_castle` takes over — a castle whose wall stands
         // one high, which is exactly what boiling oil and a siege tower's dock
         // cannot happen against.

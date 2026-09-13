@@ -18,7 +18,6 @@ and/or the shipped binaries; **[I]** = inferred.
 
 A recursive search of `F:\games`, `E:\` and the user profile found no others.
 So every "checked over every file" claim below is a claim over **one** file —
-which is why the structure is instead pinned to the two binaries that read and
 write it, and why the strongest single check is different: **19 of `USER.SKR`'s
 20 maps are byte-identical to the blank map that `mapl2.exe` writes**, so the
 terrain block is validated against the editor's own initialiser 19 times over.

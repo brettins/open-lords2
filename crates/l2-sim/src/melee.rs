@@ -6,7 +6,7 @@
 //!
 //! * damage per blow is the **attacker's** melee attack for its strength band;
 //! * the interval between blows is the **defender's own recovery**, so recovery
-//!   is the only melee defence in the game;
+//! is the only melee defence in the game;
 //! * the heavy blow lands once per exchange and is large.
 //!
 //! Everything here is integer arithmetic evaluated in a fixed order. Nothing
@@ -17,7 +17,7 @@
 use crate::figure::{Figure, Role, State};
 
 /// Borrow two distinct figures mutably. Panics only on a caller bug (equal
-/// indices), which is a programming error rather than a data condition.
+/// indices)
 fn pair_mut(figs: &mut [Figure], a: usize, b: usize) -> (&mut Figure, &mut Figure) {
     assert_ne!(a, b, "a figure cannot duel itself");
     if a < b {
@@ -90,7 +90,7 @@ pub fn tick(figs: &mut [Figure], idx: usize) {
             if heavy > 0 {
                 other.take_hits_from(heavy, idx);
             }
-            // Set and never cleared, exactly as the original appears to behave.
+            // Set and never cleared
             me.blow_used = true;
         }
         // Pressing the opponent shortens *their* recovery, so an attacker

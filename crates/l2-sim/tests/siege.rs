@@ -1,4 +1,4 @@
-//! **A siege that actually runs**, and the fourteen order handlers it reaches.
+//! **A siege that
 //!
 //! `docs/battle-ai.md` has held all seventeen handlers since it was written and
 //! `crates/l2-sim/src/ai.rs` has implemented all eighteen slots. **Fourteen of
@@ -146,7 +146,7 @@ fn a_battering_ram_opens_the_gate_and_the_breach_reaches_the_order_layer() {
 
     // And in a running battle. The besieger is a player's here — an AI unit
     // marches to the approach points its script names, and the player's is the
-    // side that actually walks its men into a wall.
+    // side that
     let field = siege::our_castle(1);
     let wall_cells = field.cells.iter().filter(|c| c.flags & FLAG_WALL != 0).count();
     assert!(wall_cells > 0);
@@ -204,13 +204,13 @@ fn reaching_the_keep_wins_the_siege_outright() {
 }
 
 /// **Assault repulsed, repeat** — the one arm of the outcome test that changes
-/// something rather than ending the battle, and the level that separates it
+/// something
 /// from *the besieger loses*.
 #[test]
 fn a_small_castle_repeats_a_failed_assault_and_a_large_one_ends_it() {
     // A besieger with no engines at all is the position both arms test, and
     // the engine count is recounted from the figures every frame — so this is
-    // reached by bringing none rather than by setting a counter.
+    // reached by bringing none
     let bare = |level: u8| {
         BattleRunner::deploy_siege(
             siege::our_castle(level),
@@ -354,7 +354,7 @@ fn a_breach_is_nine_cells_wide_and_a_collapse_is_one() {
 /// This is the exact position the branch started from, and it is written as a
 /// *long* battle on purpose. The four defects it found were all invisible to a
 /// 600-frame test — the whole suite's previous longest siege — because every
-/// one of them is an order nobody is ever given rather than an order that goes
+/// one of them is an order
 /// wrong:
 ///
 /// | | |
@@ -384,7 +384,7 @@ fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
         // `g_attackersOnWall` — side-4 figures standing on surface 5, which
         // after `Wall_Smash` is the breach and the bailey behind it. It going
         // positive *is* "the assault was pressed home", and it is recounted
-        // from the figures' own cells every frame rather than set by anything
+        // from the figures' own cells every frame
         // this test can reach.
         let mut got_inside = 0;
         let end = loop {
@@ -471,7 +471,7 @@ fn the_same_besieger_is_thrown_off_a_castle_held_in_strength() {
 /// doing so with the whole assault path deleted.
 ///
 /// With no missile troop at all the only ways to win are the three
-/// `Battle_CheckOutcome` actually offers a besieger, and every one of them
+/// `Battle_CheckOutcome`
 /// requires getting through the wall.
 const STORMING_PARTY: &[(Troop, u32)] = &[
     (Troop::Peasants, 448),
@@ -515,7 +515,7 @@ fn a_dry_castle_opens_at_five_hundred_and_a_moated_one_at_zero() {
 /// **A player's assault: a ram opens the gate, and the Charge button carries
 /// it.**
 ///
-/// The other half of the headline, and the one that actually exercises
+/// The other half of the headline, and the one that
 /// `Wall_Smash`. The AI besieger above wins through cells a *catapult*
 /// collapsed one at a time; this one drives the 20,000-hit gate accumulator
 /// with rams, which is the path that opens a nine-cell hole and leaves it at

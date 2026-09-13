@@ -1,7 +1,7 @@
 //! **The auto-repeat ramp, against the player's own `Lords2.exe`.**
 //!
 //! `crate::press::REPEAT_GATE` is forty-eight bytes copied out of the game at
-//! `0x004D2748`, and the reason it is checked here rather than merely commented
+//! `0x004D2748`
 //! is `docs/agents.md`: *ablating a constant while computing your probe from
 //! that same constant tests nothing at all.* Every unit test beside the
 //! constant — the fire schedule, the acceleration, the first-repeat delay — is
@@ -32,9 +32,8 @@ fn the_repeat_ramp_is_the_exes_own_forty_eight_bytes() {
     }
     assert_eq!(press::REPEAT_GATE.to_vec(), theirs);
 
-    // **And the two indices the game never reads are still checked above**,
     // deliberately: entries 0..8 and entry 47 are dead, and the constant is a
-    // copy of the bytes rather than an interpretation of them. If a future
+    // copy of the bytes. If a future
     // reader trims them, this goes red and the trim has to be argued for.
     assert_eq!(&theirs[..8], &[8, 8, 8, 8, 8, 8, 8, 8], "the eight dead leading bytes");
     assert_eq!(theirs[47], 0, "entry 47 is dead because the clamp branch skips the table");

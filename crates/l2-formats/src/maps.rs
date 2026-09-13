@@ -14,7 +14,7 @@
 //! are simply more maps in the same layout.
 //!
 //! See `docs/formats/maps.md`. Plane meanings beyond `Flags` and `County` are
-//! inferred rather than proven; [`Plane`] says which.
+//! inferred; [`Plane`] says which.
 
 use crate::{Error, Result};
 
@@ -30,7 +30,7 @@ pub const LATTICE_LEN: usize = LATTICE_W * LATTICE_H;
 pub const SLOT_LEN: usize = PLANE_COUNT * PLANE_LEN + LATTICE_LEN;
 
 /// Highest real county id. The engine clamps at `< 0x11` when counting
-/// counties. The value 32 also appears in the county plane but is not a county.
+/// counties. The value 32 also appears in the county plane.
 pub const MAX_COUNTY_ID: u8 = 16;
 
 /// The six 64x64 byte planes, in file order.

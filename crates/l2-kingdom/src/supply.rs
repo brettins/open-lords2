@@ -31,7 +31,7 @@
 //! `County_FindFreeOpenTile`; if neither answers it spawns nothing **and
 //! deducts nothing**, and the screen that sent it has already closed. There is
 //! no message. [`Sent::Nowhere`] is that outcome, and it is a returned value
-//! rather than a warning because a warning is not what the original gives.
+//!
 //!
 //! **`troops[1]` is loaded and never unloaded.** `Transport_Spawn` copies the
 //! record's dead sheep word into it and `Transport_Deliver` adds `troops[0]`
@@ -61,7 +61,7 @@ pub enum Sent {
 /// county's **anchor**, radius 1 then 2 then 3, that an army is raised on
 /// (`docs/decisions.md` C47).
 ///
-/// The cargo is clamped to what the county actually holds, which the original
+/// The cargo is clamped to what the county
 /// does not need to do because the screen's own arithmetic conserves the sum —
 /// see `screens/supplies.rs`. It is done here so that a caller that is not that
 /// screen (the AI's abandon-a-county path, `FUN_0049F431`, which ships

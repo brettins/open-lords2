@@ -28,7 +28,7 @@
 //!
 //! **None of the writers tests `g_optExploration`.** The bits are kept whether
 //! the option is on or off, and the England turn-one fixture is the proof from
-//! the data rather than the code: it was saved with the option off, and its
+//! the data: it was saved with the option off, and its
 //! seen bits are exactly the local player's county and its one-tile border, bit
 //! for bit (`crates/l2-scenario/tests/explored.rs`). So turning the option on in the
 //! middle of a game blacks out what the armies have *not* seen, not the whole
@@ -87,7 +87,7 @@ impl Default for Explored {
     }
 }
 
-/// The bit a realm's seen flag occupies, or `None` for anything that is not a
+/// The bit a realm's seen flag occupies, or `None` for anything— 0, and the owner 6 that ownerless units and merchants carry.
 /// realm — 0, and the owner 6 that ownerless units and merchants carry.
 fn realm_bit(realm: u8) -> Option<u8> {
     if realm == 0 || realm as usize >= MAX_REALMS {
@@ -109,7 +109,7 @@ impl Explored {
         self.seen.iter_mut().for_each(|b| *b = 0);
     }
 
-    /// Has `realm` seen this tile? `false` for anything that is not a realm and
+    /// Has `realm` seen this tile? `false` for anything and
     /// for a tile off the map.
     pub fn is_seen(&self, realm: u8, tile: usize) -> bool {
         match (realm_bit(realm), self.seen.get(tile)) {

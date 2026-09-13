@@ -2,7 +2,7 @@
 //!
 //! `docs/status.html` listed "beyond loopback — real loss, NAT, MTU, TCP
 //! head-of-line blocking" as untested, and that list deserves an honest
-//! reckoning rather than four tests named after it. Taking them one at a time:
+//! reckoning
 //!
 //! * **Loss and reordering are not testable at this layer, because TCP has
 //!   already handled them.** A byte stream does not lose or reorder; it either
@@ -10,7 +10,7 @@
 //!   a `TcpTransport` would be theatre — the code under test would never see
 //!   it. What *is* real is the failure that replaces them: the connection
 //!   breaking, which `tests/tcp.rs` covers. Reordering at the *session* layer,
-//!   where packets from different peers genuinely arrive in any order, is
+//! where packets from different peers genuinely arrive in any order, is
 //!   covered in `tests/lockstep.rs`.
 //! * **NAT is not testable on one machine at all.** Two peers on loopback never
 //!   traverse anything. This is a real gap and is recorded as one in
@@ -133,7 +133,7 @@ fn a_message_at_the_frame_limit_crosses_a_real_socket() {
     assert_eq!(got, payload, "the bytes changed in transit");
 }
 
-/// Head-of-line blocking, which is the one that could actually corrupt a game.
+/// Head-of-line blocking,
 ///
 /// One peer stops sending for a stretch. The other must **wait** — reporting
 /// exactly who it is waiting on — and must not advance a single tick on its
@@ -172,7 +172,7 @@ fn a_stalled_peer_blocks_the_other_and_then_both_catch_up() {
             for bytes in sealed {
                 if i == 1 {
                     peer1_sealed += 1;
-                    // While frozen, peer 1's packets are held rather than
+                    // While frozen, peer 1's packets are held
                     // dropped. TCP does not lose them, and neither does this.
                     if peer1_sealed > FREEZE_AFTER && step < THAW_AT {
                         frozen_backlog.push(bytes);

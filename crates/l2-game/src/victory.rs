@@ -63,7 +63,7 @@
 //! `g_startWeapons` is 1 — *few* — on every row but Italy's and the Crusades',
 //! where it is 0.
 //!
-//! **The second track starts at index 2**, which is not a typo:
+//! **The second track starts at index 2**:
 //! `FUN_00433461` sets `DAT_0053F258 = 2` when the campaign hotspot is 1 and 0
 //! otherwise, and track B's rows 0 and 1 are the same bytes as track A's zero
 //! padding. So track B is *six* maps and still ends on the same `< 8` test.
@@ -72,7 +72,7 @@
 //! increments the counter to 8 and `FUN_00499E5D` then reads entry **8** — one
 //! past the eight real rows. Entries 8 and 9 of both tracks are all zeros, so
 //! that read yields scenario 0 and a harmless `Map_LoadPlanes(0)` behind the
-//! end-of-campaign screen rather than garbage. Verified by reading the bytes, not
+//! end-of-campaign screen rather than garbage. Verified by reading the bytes,
 //! assumed.
 
 use l2_kingdom::victory::{Outcome, Ranking};
@@ -177,7 +177,7 @@ impl CampaignMap {
             armoury: START_ARMOURY[self.weapons()],
             garrison: START_TROOPS[self.army_size()],
             county: COUNTY_STATUS[self.county_status()],
-            // **Already the AI count**, so there is no `- humanPlayers` here.
+            // **Already the AI count**.
             // `Setup_CommitOptions` subtracts the people because its source is
             // *Nobles*, which counts everybody; this column is `g_aiLordCount`
             // itself and is stored into the same global with no arithmetic.
@@ -380,7 +380,7 @@ mod tests {
                 gold = i32::MAX; // a new tier; the purse starts again
             }
             assert!(m.gold <= gold, "the purse went up inside one difficulty tier");
-            // **Both of these climb, which is why they were confusable.**
+            // **Both of these climb.**
             // Column 3 is the castle you start with and column 7 is how many
             // lords you start against; `docs/decisions.md` C44.
             assert!(m.castle() >= castle && m.castle() <= 5);

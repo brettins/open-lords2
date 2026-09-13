@@ -23,7 +23,7 @@
 //! The family byte alone does not determine the encoding. An isometric file
 //! carries plain raw frames alongside diamonds; the per-frame `shape` byte is
 //! what decides. Missing that is why "storage mode 2" resisted analysis for so
-//! long - there was never one mode-2 codec to find.
+//! long -
 
 use crate::{u16_at, u32_at, Error, Result};
 
@@ -254,7 +254,7 @@ impl<'a> Pl8<'a> {
         let boundary = self.frame_boundary(index);
 
         // Two things extrude a frame *upward*, and both are decided per frame
-        // rather than by the file header:
+        //
         //
         //   * an isometric diamond of shape 2-4 appends chevron records
         //   * a plain rectangle may store extra RLE rows above itself
@@ -758,7 +758,7 @@ mod tests {
                 0, 0, 15, 16, 0, 0,
             ]
         );
-// Outside the diamond was never written.
+//
         assert_eq!(&f.opaque[0..2], &[false, false]);
         assert_eq!(&f.opaque[6..12], &[true; 6]);
         pl8.validate().unwrap();

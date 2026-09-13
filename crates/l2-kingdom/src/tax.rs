@@ -24,7 +24,7 @@ use l2_net::{Quirk, Quirks};
 /// The tax rate that costs nothing. `dHapTax = 5 - rate`.
 pub const FREE_TAX_RATE: i32 = 5;
 
-/// The castle type `Tax_CollectAll` actually uses.
+/// The castle type `Tax_CollectAll`
 ///
 /// `docs/kingdom.md` §4.1: normally `castleType`, but when the untraced flag at
 /// `+0x1C3` is set, the *lower* of `castleType` and the castle under
@@ -93,7 +93,7 @@ pub fn empire_contribution(t: &Tables, tax_rate: i32) -> i32 {
 /// with nothing clamping it, and sixteen counties at −15 is −240, which wraps
 /// to +16 — so taxing a large empire hard enough can make its people happier.
 ///
-/// The fixed path totals in `i32` and clamps **once at the end** rather than
+/// The fixed path totals in `i32` and clamps **once at the end**
 /// saturating each step, because the contributions are not all one sign: a walk
 /// that dipped below −128 and climbed back would otherwise land on a third
 /// answer belonging to neither setting. Both paths make exactly the same two
@@ -215,13 +215,13 @@ pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
 /// which `Merchant_Trade` writes; these are a third accumulator pair that only
 /// this branch writes. They used to be named here and not ported, on the
 /// reading that *"nothing has been found that reads either"* — which is still
-/// true, and is now established rather than merely not found: no function in
+/// true, and is now established: no function in
 /// the decompilation names them except this one and the new-game clear, and no
 /// instruction in `Lords2.exe` carries either absolute address except those
 /// two functions' four. See [`Realm::tax_ledger`] for the scan and what it
 /// cannot see. **Unread is not unstored**: the realm block is in the save and
 /// `Sync_CompareState` compares it, so the pair is carried — credited here,
-/// saved, and imported from a `.sav` — exactly as the trade pair is.
+/// saved, and imported from a `.sav` —
 ///
 /// **`[V]`**, read out of `0x0044B59B` at the moment of writing. `docs/symbols.md`
 /// said only *"credited to the owner realm's gold"* and that sentence is why an
@@ -263,7 +263,7 @@ mod tests {
     use crate::tables::{CASTLE_TAX_BONUS_PCT, CASTLE_TYPE_COUNT};
 
     /// The stock ruleset. Every test here runs on it explicitly, which is the
-    /// point: the rules arrive as an argument rather than as a constant.
+    /// point: the rules arrive as an argument.
     const T: &Tables = &Tables::DEFAULT;
 
     fn county_with(pop: i32, rate: i32, castle: u8) -> County {
@@ -360,7 +360,7 @@ mod tests {
         sum_empire_happiness(T, &mut counties, &mut realms, 4, Q);
 
         // -2 from the table, not -20 from `min(5 - rate, 0)`. This assertion
-        // read -20 until `g_taxHappinessOther` was actually read: the real
+        // read -20 until `g_taxHappinessOther`
         // empire term is an order of magnitude gentler than the formula.
         assert_eq!(realms[1].tax_hap_empire, -2);
 
@@ -375,7 +375,7 @@ mod tests {
     /// replaced: **taxing at 19% costs the rest of the realm nothing at all**,
     /// and even the maximum rate costs only 15.
     ///
-    /// Walks every rate rather than sampling, because the rule it replaced was
+    /// Walks every rate, because the rule it replaced was
     /// wrong at 45 of 51 and survived on the six where they agree — one of
     /// which is rate 0, the only rate the England turn-one fixture contains.
     #[test]
@@ -394,7 +394,7 @@ mod tests {
             previous = v;
         }
 
-        // Out of range clamps rather than panicking. The UI cannot produce
+        // Out of range clamps. The UI cannot produce
         // these; a mod or a corrupt save could.
         assert_eq!(empire_contribution(T, 999), -15);
         assert_eq!(empire_contribution(T, -5), 0);
@@ -516,7 +516,7 @@ mod tests {
     }
 
     /// **An unowned county banks its own tax**, and this is the arithmetic the
-    /// fixtures settle rather than a reading.
+    /// fixtures settle.
     ///
     /// County 1 of the battle game is unowned, holds 580 people at rate 6 with
     /// no castle, and carries a purse of 186 at turn 3 and **297** at turn 4.

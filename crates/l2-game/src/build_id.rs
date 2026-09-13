@@ -11,7 +11,7 @@
 //! documents what the marker can and cannot promise.
 //!
 //! **This is not a version number and must not become one.** A version says
-//! what we *intended* to ship; this says what is actually running, which is the
+//! what we *intended* to ship; this says what is actually running
 //! only thing a bug report needs. `0.1.0` would have been true of every build
 //! for two months.
 //!
@@ -44,7 +44,7 @@ pub const ID: &str = env!("L2_BUILD_ID");
 /// seen"* are different claims, and only the second is what anybody wanted.
 const X: i32 = 4;
 /// The gap left below the stamp. The top edge is derived from the font
-/// actually in use, so a taller font moves the line **up** rather than off.
+/// actually in use
 const BOTTOM_MARGIN: i32 = 2;
 
 /// One line, in the dim ink, over whatever is already there, in the game's
@@ -81,7 +81,7 @@ const BOTTOM_MARGIN: i32 = 2;
 /// in the debug font (`docs/decisions.md` C107), and this is the one element on
 /// the page that has no business drawing in the game's.
 ///
-/// Drawn flat — no emboss — so it reads as a caption rather than as part of the
+/// Drawn flat — no emboss — so it reads as a caption
 /// game's own furniture.
 pub fn draw(canvas: &mut Canvas, pen: &Pen) {
     let s = format!("BUILD {ID}");

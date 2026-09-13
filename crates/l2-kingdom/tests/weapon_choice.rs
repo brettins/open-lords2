@@ -42,7 +42,7 @@
 //! `docs/agents.md`, *how to ablate wrongly*: nothing here reads `Tables`,
 //! `weapon_shares` or `resource_limit`. The two weapons are named by the numbers
 //! `g_weaponCost` (`0x004D8990`) holds for them, and the claim is a direction —
-//! the ceiling *moves* — rather than an arithmetic identity this file would have
+//! the ceiling *moves* — this file would have
 //! to re-derive.
 
 use l2_kingdom::industry::MapToggle;
@@ -84,7 +84,7 @@ fn realm_with_two_staffed_smithies(kingdom: &mut Kingdom) -> (u8, usize, usize) 
                 kingdom.toggle_industry(id, MapToggle::Industry(Commodity::Weapons));
             }
             // The village drag that staffs it. `Labour_Move` clamps nothing, so
-            // this asks for a share of the foresters rather than all of them.
+            // this asks for a share of the foresters.
             let spare = kingdom.counties[id].labour[FOREST] / 2;
             if spare > 0 {
                 kingdom.move_labour(id, FOREST, SMITH, spare);
@@ -110,7 +110,7 @@ fn realm_with_two_staffed_smithies(kingdom: &mut Kingdom) -> (u8, usize, usize) 
 ///    forges changes what another one can. The Readme's *"turning a blacksmith on
 ///    will reduce the resources available to other blacksmiths"*, from the other
 ///    side;
-/// 4. and the clicked county's **headcount** moves, which is what fixes the order
+/// 4. and the clicked county's **headcount** moves,
 ///    of the middle three statements: the estimate writes `labour_useful[7]`, the
 ///    ceiling, and `Labour_Allocate` runs *after* it and deals against it.
 ///

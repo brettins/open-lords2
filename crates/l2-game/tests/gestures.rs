@@ -2,7 +2,7 @@
 //!
 //! `crates/l2-game/src/press.rs` has unit tests for the state machine and
 //! `crates/l2-game/tests/press.rs` pins the ramp's 48 bytes against the
-//! player's own `Lords2.exe`. Neither can catch the thing that actually went
+//! player's own `Lords2.exe`.
 //! wrong, which is a screen that owns a [`Press`] and never asks it anything:
 //! `docs/arms.json` marked nineteen arms `reproduced` under a kind none of them
 //! had, and every test in the tree passed.
@@ -108,7 +108,7 @@ fn holding_the_tax_arrow_keeps_raising_the_tax_and_speeds_up() {
         last_gap < first_gap,
         "the repeat must accelerate: first gap {first_gap} ticks, last {last_gap}, fires {at:?}",
     );
-    // And the tax stops at its ceiling rather than running away, which is
+    // And the tax stops at its ceiling,
     // `Tax_Increase`'s own `if (taxRate < 0x32)`.
     assert!(g.kingdom.counties[1].tax_rate <= l2_game::game::MAX_TAX_RATE);
 }
@@ -153,7 +153,7 @@ fn releasing_the_arrow_or_sliding_off_it_stops_the_repeat() {
 /// Nothing in this engine drew one until the gesture-kind work, and the county
 /// panel's own painter said so in a comment for weeks.
 ///
-/// This asserts on [`Press`] rather than on the canvas on purpose: the pressed
+/// This asserts on [`Press`]: the pressed
 /// picture is a *sprite index* and an install with no artwork draws the
 /// fallback button, so a canvas assertion here would be gated and would measure
 /// the fallback. The painter's use of it is one expression, `frame + 1`, three
@@ -245,7 +245,7 @@ fn the_held_pulse_is_flat_where_the_repeat_ramp_accelerates() {
 /// so a control that reads only `g_mouseLeftPressed` genuinely misses it.
 /// `Widget_Test`'s kind-4 arm tests `pressed || doubleClick` and
 /// `Hotspot_Test`'s kind-1 arm tests `pressed` alone — a difference nobody
-/// would invent, which is why it is worth a test.
+/// would invent.
 ///
 /// **Ablation, run: make the `Event::DoubleClick` arm of `Press::event` answer
 /// `Kind::Press` with `Some(i)`** and the first assertion goes red.
@@ -289,7 +289,7 @@ fn a_double_click_on_a_repeating_button_fires_once_and_does_not_hold() {
 /// repaints when the machine is dirty, an event makes it dirty, and the repeat
 /// is not an event.
 ///
-/// This presents exactly as `main.rs` does — draw only when `take_dirty` says
+/// This presents — draw only when `take_dirty` says
 /// so, onto a canvas that persists — and on each tick the tax moved it draws
 /// the stack **again** onto a copy. A screen that was presented changes nothing
 /// on a second draw; a screen that was not paints the new number. The digits'

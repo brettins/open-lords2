@@ -452,7 +452,7 @@ fn the_glyph_map_is_the_table_in_the_users_own_executable() {
         return;
     };
     let exe = std::fs::read(dir.join("Lords2.exe")).expect("Lords2.exe");
-    // The image base is 0x400000 and there is no ASLR, so a virtual address is
+    // The image base is 0x400000
     // a section offset away from a file offset. `.data` is found by walking the
 // section table.
     let pe = u32::from_le_bytes(exe[0x3C..0x40].try_into().unwrap()) as usize;

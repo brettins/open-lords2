@@ -11,7 +11,7 @@
 //! (478, 156) in the campaign map's right-hand column, and the strip is a
 //! **2 × 2 hotspot**: `CountyStrip_Click` (`0x00438CEB`) opens the population
 //! panel from its top-left quadrant, happiness from top-right, tax from
-//! bottom-left and rations from bottom-right, and there is no other way into
+//! bottom-left and rations from bottom-right,
 //! any of them. Each is a floating `Ui_DrawBox` window over whatever was
 //! underneath, and each has **two ways out**: the 24 × 24 picture in its
 //! bottom-right corner, which is a live hotspot, and the **right mouse button**
@@ -192,7 +192,7 @@
 //! # What is still ours, and says so
 //!
 //! * **The history graph, and it is a whole picture.** `Ui_HistoryGraph`
-//!   (`0x004156A7`) was never read until this audit; here is all of it.
+//!   (`0x004156A7`); here is all of it.
 //!
 //!   ```text
 //!   Ui_HistoryGraph(x, y, mode) -> peak:                       0x004156A7
@@ -228,7 +228,7 @@
 //!   an empty recess that says so. It is a stub and it is meant to look like
 //!   one, and what is missing is now written down.
 //! * **The two years under the graph.** `Ui_DrawYear(DAT_00553228, …)` prints
-//!   the year at the head of the history window; with no history there is no
+//! the year at the head of the history window;
 //!   such year, and drawing only the right-hand one would be worse than
 //!   drawing neither. Both are recorded missing.
 //! *(**Fixed.** This list used to carry a fourth entry: "what is behind the
@@ -767,7 +767,7 @@ mod g87 {
     /// *"harvested"*, *"planted"* — have no literal call site anywhere in the
     /// corpus.** Whether some caller reaches them through a computed group is
     /// not established; `Msg_DrawWindow` takes its group from a table. Recorded
-    /// rather than guessed.
+    ///
     #[allow(dead_code, reason = "an inventory of absences, asserted in tests")]
     pub const UNDRAWN: [usize; 5] = [6, 7, 9, 10, 11];
 }
@@ -1027,7 +1027,7 @@ impl Screen for CountyScreen {
             // is the fourth place our input model differs from the original's
 // by *category*.
             //
-            // The release ends the drag and does nothing else, exactly as the
+            // The release ends the drag and does nothing else,
             // first line of the original's ladder says.
             Event::Release { x, y } => {
                 self.slider_held = false;
@@ -1065,7 +1065,7 @@ impl Screen for CountyScreen {
             // `Screen_FrameInput`'s arm for each of `0x14`, `0x15`, `0x16` and
             // `0x19` is the same shape — the strip, the sidebar and the ration
             // slider are tested first, so a click on those *switches* panel
-            // rather than closing it, and only then does a right release set
+// and only then does a right release set
             // `g_screenId = 0`.
             //
             // It closes from *anywhere*, the strip included: every guard in
@@ -1079,7 +1079,7 @@ impl Screen for CountyScreen {
             // quits the game, and the four panels are four screen ids with no
             // ordering between them at all. Kept because a keyboard player has
             // nothing else, and recorded in `docs/arms.json` as an invention
-            // rather than left as a comment admitting a choice — which is what
+            //
             // `docs/decisions.md` C61 found nine of.
             // arm: ours/county-panel-keyboard key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => return Transition::Pop,
@@ -1207,7 +1207,7 @@ impl Screen for CountyScreen {
         // `0x15`, `0x16` and `0x19` arms are `Panel_Population` and its three
         // siblings, and not one of them calls `CountyStrip_Draw` or
 // `Minimap_Draw`. The column is still there from the last frame —
-        // §3.1's *"there is no screen clear anywhere in this engine"*.
+        // §3.1's *""
         //
         // The **strip** is still drawn, and only because it is the one part of
         // the column that carries the focus outline (ours) and because the plate
@@ -1567,7 +1567,7 @@ pub fn county_name(ctx: &Ctx, id: u8) -> String {
     }
 }
 
-/// **One `L2.eng` string with a fallback — the panels' vocabulary, not just the
+/// **One `L2.eng` string with a fallback — the panels' vocabulary,
 /// strip's two.**
 ///
 /// All four county panels hard-coded their words — `"RATION"`, `"WANTED:"`,
@@ -1636,7 +1636,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // right, and the reason [`Ink`](l2_view::Ink) is not the answer here is
     // that this text is written on the **original's own plate** — `Misc_cty`
     // frame `0x37` — so the index is a reading of the binary and not a choice
-    // of ours. With no chrome loaded there is no plate to be black on, and the
+    // of ours.
     // fallback is our own ink.
     let strip_ink =
         if ctx.assets.chrome.is_some() { crate::shell::font::TEXT } else { ink.text };
@@ -1700,7 +1700,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // So a county nobody holds gets the plate and its name and **nothing
         // else** — no banner, no owner line. `L2.eng` group 15 is two strings,
         // `"Sovereign land"` and `"of"`, and the third line is a lord's name
-        // out of `g_playerNames`; there is no wording in the file for an
+        // out of `g_playerNames`;
         // unowned county because the original never needs one.
         //
         // We drew `SOVEREIGN LAND / OF / UNCLAIMED` here, which is a sentence
@@ -2466,13 +2466,13 @@ impl CountyScreen {
                 // **It is the same condition as the slider's inertness, read a
                 // second way**, and the two were found an hour apart as separate
                 // complaints — *"the slider is inoperable"* and *"sorely
-                // missing: 'All your people are fed by dairy'"*. There is no
+                // missing: 'All your people are fed by dairy'"*.
                 // such sentence in `L2.eng`; this figure reaching the county's
                 // population **is** the game saying it, and it is why the two
                 // reports have one fix. `docs/rules.md` §4.
                 //
 // Drawn through [`Pen`], and centred
-                // rather than right-aligned: `Ui_DrawNumberRight` **centres**
+// `Ui_DrawNumberRight` **centres**
                 // (C110's neighbour, and the symbol's name is a false claim).
                 //
                 // **These five are the only `Ui_DrawNumberRight` sites in the

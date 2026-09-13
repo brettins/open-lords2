@@ -807,7 +807,7 @@ impl Simulation for RunnerNetBattle {
         // bytes, one `Sync_RecordDigest` per slot.
         //
         // **Every slot, not every live one.** A record that has just been freed
-        // must hash differently from one that was never used, and a walk over
+        // must hash differently from one, and a walk over
         // only the live ones is the second half of `docs/decisions.md` C39: a
         // whole *record* can go missing from the sweep and no amount of field
         // checking sees it.

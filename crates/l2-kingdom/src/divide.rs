@@ -35,7 +35,7 @@
 //! `Screen_SplitArmyRows` draws the **parent** from `g_levyBasket[t].chosen` and
 //! the **daughter** from `g_levyBasket[t].available` — the second word of the
 //! same sixteen-byte slot — for t = 0…6, and slot **7 holds the mercenary
-//! band's men** rather than the total. The two totals are separate globals,
+//! band's men**
 //! `DAT_00554468` and `DAT_00554040`, each recomputed as the sum of all eight
 //! slots after every button.
 //!
@@ -62,7 +62,7 @@ pub const SPLIT_MOVE_COST: i32 = 5;
 
 /// The cap `FUN_00437AFB` uses when there is no castle to split into: a number
 /// far above [`crate::tables::ARMY_MAX_MEN`], so on the plain path it never
-/// bites. Kept as the literal rather than removed, because the branch that reads
+/// bites. Kept as the literal
 /// it is the branch the castle path replaces.
 pub const SPLIT_NO_CASTLE_CAP: i32 = 5000;
 
@@ -140,7 +140,7 @@ impl SplitBasket {
     }
 
     /// Hotspot 7 on either handler: the band crosses whole. Returns whether it
-    /// moved, which is false when there is no band to move.
+    /// moved
     pub fn move_mercenaries(&mut self, leaving: bool) -> bool {
         if self.mercenaries.is_none() || self.mercenaries_leave == leaving {
             return false;
@@ -169,7 +169,7 @@ pub enum SplitInto {
 impl SplitInto {
     /// `DAT_0053F080` — the destination county, and **zero is the whole of what
     /// the plain path is**. Every branch in `FUN_00437AFB` and `Army_Split`
-    /// tests this against 0 rather than testing a mode flag.
+    /// tests this against 0
     pub fn county(self) -> u8 {
         match self {
             SplitInto::Field => 0,
@@ -259,7 +259,7 @@ pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<
 /// The gate `FUN_00437AFB` applies before it calls `Army_Split`, on its own.
 ///
 /// Split out so the screen can grey a button with the same rule the confirm
-/// enforces, rather than a second copy of it.
+/// enforces
 pub fn refuse_split(
     t: &Tables,
     counties: &[County; MAX_COUNTIES],
@@ -318,7 +318,7 @@ pub fn refuse_split(
 /// 1. **`men` is the sum of all eight slots**, so an army whose whole strength
 ///    is its mercenary band still has the right total.
 /// 2. **The daughter inherits the parent's morale**, not the county's happiness
-///    — this is not `Army_Create` and there is no levy here.
+/// — this is not `Army_Create` and there is no levy here.
 /// 3. **Both halves are set walking** (`moving = 2`) even on the plain split,
 ///    with no path; the stepper finds nothing to do and they stand still. It is
 ///    the same value `Unit_OrderMove` writes, and reproducing it matters because
@@ -330,7 +330,7 @@ pub fn refuse_split(
 ///    standing in whenever the home county is not the owner's, and county 0
 ///    never is. The visible effect is that **a daughter army always disbands
 ///    where it stands**, never to the county its parent was raised in.
-///    Reproduced rather than tidied, because it is what the original does and
+/// Reproduced
 ///    the fallback makes it harmless. `[D]`
 ///
 /// The parent keeps its siege and garrison links: neither is copied.
@@ -427,7 +427,7 @@ pub fn split(
 /// if (unit.owner != counties[c].owner) message 0x91;   /* group 145 */
 /// ```
 ///
-/// The fallback is the county the army is *standing in*, which is why the
+/// The fallback is the county the army is *standing in*
 /// Readme's remedy — *"move it to any friendly county before disbanding it"* —
 /// works, and it is the same two clauses in the same order. `[V]`
 pub fn disband_county(counties: &[County; MAX_COUNTIES], units: &Units, army: usize) -> Option<u8> {
@@ -465,9 +465,9 @@ pub fn disband_county(counties: &[County; MAX_COUNTIES], units: &Units, army: us
 /// weapons they are carrying are returned to your treasury."*
 ///
 /// **The mercenaries are released first**, which is what makes the men returned
-/// to the county the levy's men rather than the band's: `Mercenary_Release`
+/// to the county the levy's men: `Mercenary_Release`
 /// subtracts the band from `men` before anything reads it, so a hired band
-/// walks off rather than joining a county's population. `[D]`
+/// walks off
 ///
 /// Returns the county the men joined and how many joined it. The three
 /// re-runs of the labour and ration passes are the original keeping its panel

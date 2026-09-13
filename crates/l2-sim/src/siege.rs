@@ -538,7 +538,7 @@ pub fn strike_wall(state: &mut SiegeState, standing_on: u8, is_ram: bool) -> Wal
 ///   20,000.
 /// * **The wall's graphic bump lands one row south** — `frame[+0x280] += 0x10`
 ///   — while the drawbridge's lands on the cell itself. Reproduced, because
-///   the two are not the same offset in the original and there is no reason to
+/// the two are not the same offset in the original and
 ///   believe that is an accident. [`Cell`] carries no `flags2`, so the two
 ///   `|= 1` writes are dropped; nothing in this engine reads that byte.
 ///
@@ -987,7 +987,7 @@ pub fn lay_tower_ramp(field: &mut Battlefield, x: i32, y: i32, d: u8, wall: usiz
 ///   surface value, had nothing to find, so **no defender ever posted on the
 ///   wall**;
 /// * a besieger standing outside on a 5 fed the *rampart* accumulator at 5,000
-///   rather than the gate's 20,000, which is the wrong one by a factor of four.
+///
 ///
 /// The layout is still ours. The five values in it are the binary's.
 pub fn our_castle(level: u8) -> Battlefield {

@@ -58,14 +58,14 @@
 //!
 //! # The icons
 //!
-//! One icon is `ceil(population / 25)` people, which is why a cluster has
+//! One icon is `ceil(population / 25)` people
 //! twenty-five slots. `Misc_cty.pl8` frames 0 … 0x16 are the icons — twenty-
 //! three 16 x 32 frames that `docs/screens-county.md` §9 guessed were "almost
 //! certainly the top menu bar", marked `[I]` and never checked. They are not.
 //! **`[V]`**: [`ICON_VALUE`] is the shipped table at `0x004D6808`, its nine
 //! entries are nine (normal, highlighted) pairs, and the four frames it never
 //! names — 5, 6, 11 and 12 — are exactly the four frames in that range of the
-//! shipped file that are **2 x 2 stubs** rather than 16 x 32 icons. Nineteen
+//! shipped file that are **2 x 2 stubs**. Nineteen
 //! icons, nineteen 16 x 32 frames, nothing left over.
 
 use crate::sheet::Sheet;
@@ -139,11 +139,11 @@ pub const IDLE_CLUSTER: usize = 6;
 /// also balances slot 4, *Iron mining* — which no cluster 0 … 7 reaches unless
 /// the county's cluster 0 has been overridden to it — and balances slot 6,
 /// *Wood cutting*, a second time. Whether the original meant to reach iron or
-/// merely ran off the end of its table, the effect is that the gesture covers
+/// merely ran off the end of its table
 /// **all nine slots**, and a faithful reimplementation has to loop the same ten.
 pub const CLUSTER_TO_SLOT_BALANCE: [usize; 10] = [5, 0, 1, 3, 6, 7, 8, 2, 4, 6];
 /// Where the ten words above start, so a test can read them back out of the
-/// user's own executable rather than trusting this table.
+/// user's own executable.
 pub const CLUSTER_TO_SLOT_VA: u32 = 0x004D_6780;
 
 /// `Village_Draw`: `FUN_0040A682(0, 0x40, g_villageTopY)`.
@@ -222,7 +222,7 @@ pub const BAND_H: i32 = 0x178;
 pub const ICON_VALUE: [u8; 9] = [4, 8, 10, 14, 16, 18, 20, 22, 2];
 
 /// Where the nine dwords above start, so a test can read them back out of the
-/// user's own executable rather than trusting the transcription.
+/// user's own executable.
 ///
 /// It is nine **dwords**, not nine bytes: 4 8 10 14 16 18 20 22 2.
 pub const ICON_VALUE_VA: u32 = 0x004D_6808;
@@ -237,7 +237,7 @@ pub const ICON_SURPLUS: u8 = 2;
 
 /// `DAT_004D6830` — the order the twenty-five slots of a single-state cluster
 /// fill in. A permutation of 1 ..= 25, so the icons appear scattered over the
-/// grid rather than in reading order.
+/// grid.
 pub const FILL_ORDER: [u8; ICONS_PER_CLUSTER] = [
     10, 22, 6, 19, 11, 25, 5, 15, 2, 23, 9, 14, 1, 16, 7, 18, 4, 17, 3, 20, 13, 21, 8, 24, 12,
 ];
@@ -630,7 +630,7 @@ impl VillageArt {
     }
 
     /// Whether the drop grid was found. Without it nothing can be dropped, and
-    /// the screen says so rather than guessing at rectangles.
+    /// the screen says so.
     pub fn has_grid(&self) -> bool {
         self.grid.len() == GRID_LEN
     }
@@ -645,7 +645,7 @@ impl VillageArt {
         }
         let col = ((x - SCENE_X) / GRID_CELL) as usize;
         let row = ((y - top) / GRID_CELL) as usize;
-        // The original clamps to 8 rather than rejecting, so a stray byte reads
+        // The original clamps to 8
         // as the last cluster.
         (self.grid[row * GRID_COLS + col] as usize).min(CLUSTER_COUNT)
     }
@@ -687,7 +687,7 @@ impl VillageArt {
     ///
     /// This is the missing half of a defect a player reported as *"a county
     /// that clearly has iron has no iron mine in the town centre"*: the other
-    /// half was that `has_resource` was never imported and every county claimed
+    /// half was that `has_resource` and every county claimed
     /// every resource. `docs/decisions.md` C57.
     pub fn draw_resources(&self, canvas: &mut Canvas, has_resource: [bool; 4], top: i32) -> usize {
         let Some(sheet) = self.animation_b.as_ref() else { return 0 };
@@ -708,7 +708,7 @@ impl VillageArt {
     /// `clock` is currently showing.
     ///
     /// The three unconditional ones are drawn whatever the county holds; the
-    /// other three are gated on `has_resource` exactly as
+    /// other three are gated on `has_resource`
     /// [`VillageArt::draw_resources`]'s are, and go **on top of** the buildings
     /// that function paints — the original calls `Village_Draw` once and
     /// `Village_Animate` every frame after it.

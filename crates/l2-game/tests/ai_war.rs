@@ -2,13 +2,13 @@
 //!
 //! This is the test `docs/agents.md` C27 asks for, on the subject C27 is
 //! about. The grain economy was *"finished, tested and unreachable in play"* —
-//! nobody farmed, and the suite was green — because every test drove the rules
+//! nobody farmed — because every test drove the rules
 //! directly and none of them drove the game. The AI's fourteen turn handlers
 //! are the same shape: a handler that exists as library code and is never
 //! dispatched passes every unit test it has.
 //!
 //! So the assertion here is not *"the allocator returns the right numbers"*.
-//! It is **"play N turns of a real game and the AI realms are still alive,
+//! It is **"play N turns of a real game
 //! still fed, and their fields are planted"** — and it is the only test in the
 //! workspace that can catch a handler that was implemented and then forgotten
 //! at the dispatch.
@@ -16,7 +16,7 @@
 //! # Two worlds, on purpose
 //!
 //! * [`the_ai_realms_are_competing_after_forty_turns_of_england`] plays the
-//!   **England turn-one fixture** — a real position, a real map, the real
+//!   **England turn-one fixture** — a position, a map, the
 //!   fourteen counties — and is gated on a copy of the game.
 //! * [`the_ai_realms_survive_forty_turns_of_a_world_built_by_hand`] plays a
 //!   world this file builds, so that CI asserts something too.
@@ -54,7 +54,7 @@ struct Scoreboard {
     armies: usize,
     men: i32,
     /// Armies carrying a mission other than 0 — i.e. ones AI step 9, 10 or the
-    /// garrison passes have actually given orders to.
+/// garrison passes have given orders to.
     on_mission: usize,
 }
 
@@ -145,7 +145,7 @@ fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8], planted_peak: i32) {
     assert!(alive > 0, "every AI realm was wiped out; the game has no opponents left");
 
     // 2. Fed. A realm that is starving loses its people first and its health
-    //    meter with them. Nothing here says what the numbers should be; it
+    // meter with them. Nothing here says what the numbers should be; it
     //    says a living realm still has people in it and is not on the floor.
     for s in ai_rows.iter().filter(|s| s.counties > 0) {
         assert!(s.population > 0, "realm {} has counties and nobody in them", s.realm);
@@ -159,7 +159,7 @@ fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8], planted_peak: i32) {
 
     // 3. Planted. **This is the one the whole item was about.** Before
     //    `l2_kingdom::ai_farm` an AI realm could add fallow fields and could
-    //    never lay one to grain, so a game played to the end was played against
+    // never lay one to grain, so a game played to the end was played against
     //    realms that starve.
     //
     //    **Over the whole game, not at its last turn.** This used to count the
@@ -168,7 +168,7 @@ fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8], planted_peak: i32) {
     //    its own counties, so the count was carried by one small realm's last
     //    county. Correcting `Population_UpdateAll`'s extra person
     //    (C170) moved a couple of people at turn 4. That realm
-    //    then lost the county at turn 35 instead of holding it, and the count
+    // then lost the county at turn 35 instead of holding it, and the count
     //    read zero — while realms 4 and 5 had kept 19 and 20 fields laid to
     //    grain from turn 5 on. The defect was an AI that could *never* plant, so
     //    *never* is what is asserted.
@@ -179,8 +179,8 @@ fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8], planted_peak: i32) {
     );
 
     // 4. Competing. An AI that never raises a man is not an opponent, and the
-    //    mission byte is what says the army was *given orders* rather than
-    //    merely levied by the county-defence path.
+//    mission byte is what says the army was *given orders*
+    // merely levied by the county-defence path.
     let armies: usize = ai_rows.iter().map(|s| s.armies).sum();
     let on_mission: usize = ai_rows.iter().map(|s| s.on_mission).sum();
     assert!(armies > 0, "no AI realm raised a single army in {TURNS} turns");
@@ -191,7 +191,7 @@ fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8], planted_peak: i32) {
     );
 }
 
-/// **The real game.** The England turn-one fixture, played for [`TURNS`] turns.
+/// **The game.** The England turn-one fixture, played for [`TURNS`] turns.
 #[test]
 fn the_ai_realms_are_competing_after_forty_turns_of_england() {
     let save = l2_testkit::england!();
@@ -199,7 +199,7 @@ fn the_ai_realms_are_competing_after_forty_turns_of_england() {
         l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
 
     // Who is who is rolled per game (`l2_testkit::ENGLAND_TURN1_COUNTIES`), so
-    // the AI set is derived rather than written down.
+// the AI set is derived.
     let ai: Vec<u8> = (1..=5)
         .filter(|&r| game.kingdom.realms[r as usize].in_play && !game.kingdom.realms[r as usize].is_human)
         .collect();
@@ -311,14 +311,14 @@ fn a_played_game_writes_the_four_fields_the_war_handlers_read() {
     // the realms **do** ally, and this world's first alliance forms on turn 11.
     // It had been broken again by turn 40.
     //
-    // So the assertion was never about the courtship. It was about the state of
+// So the assertion was about the state of
     // one instant, and it held because on the old, faster world the last
     // alliance to form happened to still be standing when the loop stopped. A
     // pacing change moved the trajectory by a few turns and it fell over —
     // `docs/agents.md`, *a test that passes for an accidental reason*, and the
     // reason here was the arithmetic of which turn the run ends on.
     //
-    // What `AI_Diplomacy` being dispatched actually implies is that an alliance
+// What `AI_Diplomacy` being dispatched implies is that an alliance
     // is reachable at all, so that is what is watched for.
     let mut ever_allied = 0;
     let mut first_alliance = None;
@@ -416,7 +416,7 @@ fn a_played_game_writes_the_four_fields_the_war_handlers_read() {
          is the only way two AI realms can reach one, so step 2 is not being \
          dispatched"
     );
-    // And the war half, which is the offence hook rather than step 2: it is
+// And the war half, which is the offence hook: it is
     // asserted separately so that a failure says which of the two broke.
     assert!(
         hostile > 0 || war_targets > 0,
@@ -443,10 +443,10 @@ fn a_played_game_writes_the_four_fields_the_war_handlers_read() {
     assert_eq!(u.troops.iter().sum::<i32>(), u.troops[0], "peasants and nothing else");
 }
 
-/// **AI step 1, driven through the dispatch rather than called.**
+/// **AI step 1, driven through the dispatch.**
 ///
 /// The forty-turn test above cannot see step 1 at all, and that is a fact about
-/// the game rather than a hole in the test: `Diplo_AnswerInbox` answers letters,
+/// the game: `Diplo_AnswerInbox` answers letters,
 /// only `Diplo_Post` writes one, and in single player only a person ever posts.
 /// An AI-only game therefore runs step 1 forty times over an empty inbox.
 ///
@@ -535,7 +535,7 @@ fn forty_turns_of_england_leaves_a_diplomatic_position() {
     }
 
     // The invariants, and they are the ones the original's own functions
-    // maintain rather than any number this position happens to produce.
+// maintain.
     for realm in 1..l2_kingdom::MAX_REALMS {
         let r = &game.kingdom.realms[realm];
         for other in 1..l2_kingdom::MAX_REALMS {
@@ -561,7 +561,7 @@ fn forty_turns_of_england_leaves_a_diplomatic_position() {
                 "realm {realm} is allied to a realm that is out of play"
             );
         }
-        // **A person's row can only ever go down**, and it takes one very
+// **A person's row can only go down**, and it takes one very
         // specific act to move it at all.
         //
         // `Diplo_Offend`'s entry guard refuses outright when the offended realm
@@ -602,7 +602,7 @@ fn forty_turns_of_england_leaves_a_diplomatic_position() {
 /// `AI_ManageFields(0)`, the pass over the counties **nobody owns** — which is
 /// where a missing import does change behaviour.
 ///
-/// Stated as a test rather than as a paragraph because *"the allocator behaves
+/// Stated as a test because *"the allocator behaves
 /// the same for every county"* and *"every county had style 0"* are
 /// indistinguishable from the outside, and the first is the far more
 /// interesting claim.
@@ -669,7 +669,7 @@ fn six_county_world() -> Game {
         // `County::field_tiles`, and `field::recount` reads only those — so a
         // world that painted the flag and left the slots empty would have the
         // AI lay out nothing and would say so with the same message as an AI
-        // that was never dispatched. That is precisely the failure this file
+// that was never dispatched. That is the failure this file
         // exists to tell apart, and it caught itself first time out.
         let c = &mut game.kingdom.counties[id];
         for row in 0..4u8 {

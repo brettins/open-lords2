@@ -1,4 +1,4 @@
-//! Starting from the England turn-one scenario, rather than from a made-up one.
+//! Starting from the England turn-one scenario.
 //!
 //! `lastturn.sav` in a real install is a turn-1 autosave of the England map,
 //! and `l2_formats::save` reads it by walking the block table out of the user's
@@ -10,7 +10,7 @@
 //! could disagree. What is left in this module is the part that is genuinely
 //! the application's:
 //!
-//! * finding the two files through the mod overlay rather than on disk;
+//! * finding the two files through the mod overlay;
 //! * `g_scenarioIndex`, which picks the **map slot** — a scenario for the
 //!   kingdom does not need it and a screen that draws the map does;
 //! * seeding the interface's own state: each county's anchor tile, the
@@ -23,7 +23,7 @@
 //! the file holds **five owned counties, one for each of realms 1 to 5, and
 //! nine unowned**, with the human realm owning county 8 alone. Reading the file
 //! means the interface cannot inherit that fiction, and `tests/scenario.rs`
-//! asserts what the bytes say rather than what any document says.
+//! asserts what the bytes say.
 
 use l2_formats::maps::{MapSlot, PLANE_DIM};
 use l2_formats::save::Save;
@@ -59,7 +59,7 @@ const REALM_COLOUR: u32 = 0x0A;
 
 /// The two crates read the same `0x1F` out of the same two `FUN_00401136`
 /// calls, and [`from_save`] moves one array into the other by value. If they
-/// ever disagree this fails to compile rather than truncating a name.
+/// ever disagree this fails to compile.
 const _: () = assert!(l2_formats::save::PLAYER_NAME_LEN == crate::text::PLAYER_NAME_LEN);
 
 /// The seed the kingdom's generator starts on.
@@ -187,7 +187,7 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
     // nothing has moved, and wrong for every later save: a player who loaded a
     // mid-game file found the AI had forgotten every war.
     //
-    // The fixtures can tell the difference, which is why this is asserted
+    // The fixtures can tell the difference. `Diplo_Init` opens an in-play AI at 5;
     // rather than inferred. `Diplo_Init` opens an in-play AI at 5;
     // `siege-lastturn.sav` carries 18, `old_turn.sav` 8 and `battle-after.sav`
     // 10 -- the +1-a-turn heal, thirteen turns of it in the first. A test that
@@ -221,7 +221,7 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
 ///    [`crate::setup::Settings::apply_to`], which the caller runs next because
 ///    it is the caller who has the settings;
 /// 3. one immediate `Season_Advance` — [`l2_kingdom::Kingdom::start_new_game`],
-///    which is why a new game begins in **Winter 1268** and not in the Autumn
+/// and not in the Autumn
 ///    1267 this function returns.
 ///
 /// Steps 2 and 3 are the caller's on purpose: this returns the world, and the
@@ -230,7 +230,7 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
 /// # The seed
 ///
 /// `seed` decides one thing — which realm gets which start county, dealt by
-/// `FUN_00497E65`. It is a parameter rather than a constant because a network
+/// `FUN_00497E65`. It is a parameter because a network
 /// game's seed comes from the lobby and both peers must build the same world
 /// from it (`docs/netcode.md`). The single-player path passes [`SEED`], so a
 /// new game on a given map is reproducible today; a seed the player can see and
@@ -240,13 +240,13 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
 ///
 /// `shield` is the colour the person picked on setup page 4, 1 … 5, and it sits
 /// beside `seed` and `human_players` on purpose: all three are **lobby** facts
-/// rather than option-grid ones. `settings` is the twelve values the custom
+/// `settings` is the twelve values the custom
 /// page committed, and a campaign row overwrites every one of them — but not
 /// the colour, because page 4 is the page you pass *through* on the way to
 /// pressing anything. So the shield cannot live on [`crate::setup::Settings`]
 /// without being wiped by a campaign.
 ///
-/// It changes the world rather than the picture: it moves which realm flies
+/// It changes the world: it moves which realm flies
 /// which colour **and which lord sits behind each realm**
 /// (`l2_scenario::newgame::assign_lords`, `docs/rules.md` §7a), so two lockstep
 /// peers must agree on it before tick 0 the same way they agree on the seed.
@@ -272,7 +272,6 @@ pub fn new_game(
         options: settings.kingdom_options(),
         lords,
         // One person, realm 1. `g_localPlayer` is the lobby's in a network
-        // game and there is no lobby.
         local_player: 1,
         shield,
         seed,

@@ -2,9 +2,9 @@
 //!
 //! The original raises these through its message system by numeric id, and
 //! **the id is the `L2.eng` group number** — message `0x92` is group 146,
-//! *"Uncertain times."*. The ids are carried here rather than discarded because
+//! *"Uncertain times."*. The ids are carried here because
 //! that correspondence is the only thing linking a rule to the string a player
-//! actually sees, and it is how the event table and the bankruptcy escalation
+//! and it is how the event table and the bankruptcy escalation
 //! were both cross-checked: the prose says what the code does.
 
 use crate::phase::Pass;
@@ -92,8 +92,8 @@ impl Message {
 
 /// The record of one `Season_Advance`.
 ///
-/// `passes` is the pipeline as it actually ran, so a test can compare it
-/// against [`crate::phase::SEASON_PIPELINE`] rather than trusting that the
+/// `passes` is the pipeline as it so a test can compare it
+/// against [`crate::phase::SEASON_PIPELINE`]
 /// driver walked the array. Everything in here is appended in index order —
 /// counties 1..=n, then realms 1..=5 — so two peers build identical reports
 /// (`docs/netcode.md` §3).

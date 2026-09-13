@@ -1,4 +1,4 @@
-//! Worked example: the skirmish army table as rules rather than as code.
+//! Worked example: the skirmish army table as rules.
 //!
 //! This is the smallest piece of the game that is genuinely *rules* — 35
 //! battles x 11 troop columns x 2 sides, plus a per-battle defensive
@@ -15,11 +15,11 @@
 //!   exist only as instructions in a 1996 binary. Here they are five lines of
 //!   a rule file, and a mod that wants a harsher curve edits them.
 //! * **The clamps were a parser detail.** The engine clamps the siege columns
-//!   to 9 and the advantage to 0..10 because a text file it could not validate
-//!   might contain anything. We validate instead, so a mod with 40 catapults
-//!   gets an error naming its file and line rather than a silent 9.
+//! to 9 and the advantage to 0..10 because a text file it could not validate
+//! might contain anything. We validate instead, so a mod with 40 catapults
+//! gets an error naming its file and line.
 //! * **The columns had no names.** The file has an eleven-column header of
-//!   two-letter abbreviations and the code has indices. Naming the columns is
+//! two-letter abbreviations and the code has indices. Naming the columns is
 //!   what lets a mod write `crossbows = 40` and change nothing else.
 
 use crate::ruleset::{RuleError, Ruleset};
@@ -199,7 +199,7 @@ fn read_row(
         let _ = v;
         row[t.column] = if siege[t.column] {
             // The original clamps siege columns to 9. We refuse instead, so a
-            // mod finds out at load rather than wondering where its 40
+            // mod finds out at load.
             // catapults went.
             rs.integer_in(&path, 0, 9)?
         } else {

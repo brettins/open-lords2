@@ -4,7 +4,7 @@
 //! The skirmish army table in [`crate::troops`] came out of `TROOPS*.ENG`, a
 //! file the original at least *read*; these numbers were never in a file at
 //! all. `docs/battle.md` §6.1 read them out of the instruction stream of
-//! `Lords2.exe`, and the only way to change them in the 1996 game is to patch
+//! `Lords2.exe`
 //! the binary. Here they are eleven tables in a document.
 //!
 //! # Why `unit.*` and not `troop.*`
@@ -66,13 +66,13 @@ const MAX_STAT: i64 = u16::MAX as i64;
 /// Every type must be present: unlike the army table, where an absent troop
 /// legitimately means "none of those", an absent `recovery` would mean a
 /// figure that can be struck every tick. A missing rule here is a mistake, and
-/// the error names the rule rather than the file, because after a merge the
+/// the error names the rule
 /// rule is the thing that is missing and no single file is to blame.
 ///
-/// Ranges are checked and refused rather than clamped. `recovery = 0` is the
+/// Ranges are checked and refused
 /// one that matters: it is a divisor-shaped value in the melee loop and a
 /// figure with no recovery interval is struck on every tick by every
-/// neighbour, which reads as a hang rather than as a rebalance.
+/// neighbour, which reads as a hang
 pub fn troop_table(rs: &Ruleset) -> Result<TroopTable, RuleError> {
     let mut table = TroopTable::DEFAULT;
     for troop in ALL_TROOPS {

@@ -5,7 +5,7 @@
 //! implementation is verified against the reference C implementation —
 //! so what is being checked here is not "does our hasher agree with
 //! itself" but "does our hasher agree with the rest of the world".
-//! That distinction is the whole reason for vendoring rather than
+//! That distinction is the whole reason for vendoring
 //! depending: a vendored algorithm with nobody else's vectors is just
 //! a private hash function with a misleading name.
 //!
@@ -133,7 +133,7 @@ fn the_length_is_tracked() {
     assert!(!hasher.is_empty());
 }
 
-// --- the properties a checksum actually needs -------------------------
+// --- the properties a checksum
 
 /// The whole job of a state checksum is that any one-bit difference
 /// changes the output. FNV-1a was rejected in `docs/netcode.md` §6
@@ -178,7 +178,7 @@ fn the_seed_matters_on_both_paths() {
 }
 
 /// No collisions across a large sweep of small, structurally similar
-/// inputs — the population a state checksum actually faces, where two
+/// inputs — the population a state checksum
 /// states differ by one field of one record.
 #[test]
 fn no_collisions_across_a_sweep_of_similar_states() {

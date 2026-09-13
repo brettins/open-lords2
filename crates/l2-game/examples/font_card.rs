@@ -159,7 +159,7 @@ fn to_rgb(canvas: &Canvas, palette: &Palette) -> Vec<u8> {
 
 // ------------------------------------------------------------------- the PNG
 //
-// Hand-rolled rather than pulled in as a dependency. The workspace has no image
+// Hand-rolled
 // crate and this is the only thing in it that wants one: an example that writes
 // a diagnostic picture is a poor reason to put a decoder in everybody's
 // dependency tree. Deflate "stored" blocks are uncompressed and legal, so the

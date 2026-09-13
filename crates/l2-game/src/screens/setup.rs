@@ -257,7 +257,7 @@
 //!
 //! # There are two Start buttons and they are not the same button
 //!
-//! **This is what the campaign-start defect was**, and it is worth stating at
+//! **This is what the campaign-start defect was**
 //! the top of the file because reading the front end as *one* way of beginning
 //! a game is what caused it.
 //!
@@ -466,7 +466,7 @@ pub const LOAD_OUTLINES: [Rect; 3] = [
 /// # A silent fallback is the worst shape of defect on this project
 ///
 /// Every [`Pen`] method falls back to `l2_view::text`, our 5 × 7 debug font,
-/// when the face it wants is `None` — per call, and without a word. So a
+/// when the face it wants is `None` — per call
 /// checkout that cannot read `Fntl2_14.pl8` renders the *entire* front end in a
 /// squat all-capitals face, with every call site perfectly correct and nothing
 /// anywhere to say why. A player reported exactly that:
@@ -954,7 +954,7 @@ impl SetupScreen {
     /// **`rows` is the item count, `DAT_00553FB4`** — the same number the
     /// painter loops over, not the geometry table's count-plus-two. That
     /// matters now that the count can be shortened: on a map that seats three
-    /// lords the list is two rows and rides two rows lower, exactly as the
+    /// lords the list is two rows and rides two rows lower
     /// original's does, because both read the one variable.
     fn dropdown_y(&self, y: i32, rows: usize) -> i32 {
         if self.open == crate::setup::option::NOBLES {
@@ -1162,7 +1162,7 @@ impl SetupScreen {
     /// each set `g_setupPage = 4` and then immediately run
     /// `Edit_Begin(&g_options, 0x10, 0xC0, 0)` and `Edit_RecomputeLength`.
     ///
-    /// **Corrected: there is no exception, and this comment used to claim
+    /// **Corrected:
     /// one.** It said "arriving from page 5 or 6 does not — those two arms set
     /// the page and nothing else", and `Setup_ChooseCampaign`'s third statement
     /// is that very `Edit_Begin` call. All four writers of `g_setupPage = 4`
@@ -1217,12 +1217,12 @@ impl SetupScreen {
     ///
     /// **A world that cannot be built is not half-started.** An install with no
     /// `L2_maps.dat`, or a slot that is an empty template, leaves the game
-    /// exactly as it was and says so under the grid in our own font
+    ///
 /// (`docs/decisions.md` C21)
     /// different map than the one they chose.
     fn start(&mut self, ctx: &mut Ctx) -> Transition {
         // One person, in this build. `DAT_00553F98` is the lobby's count and
-        // there is no lobby.
+        //
         if !self.map_read {
             self.read_map(ctx);
         }
@@ -1288,7 +1288,7 @@ impl SetupScreen {
     ///
     /// The counter is `Campaign::new(track)`, which is
     /// [`crate::victory::Track::first_map`] — 0 for the first campaign and
-    /// **2** for the second, exactly as `Setup_ChooseCampaign` sets it.
+    /// **2** for the second
     ///
     /// **The campaign goes onto the new game, not the old one.** `new_game`
     /// returns a whole fresh [`crate::game::Game`], whose `campaign` field is a
@@ -1331,7 +1331,7 @@ impl SetupScreen {
             // rewrites every one of the twelve options and says nothing about
             // the colour, which is right: page 4 is the page a campaign passes
             // *through*, so the shield the person picked there survives
-            // `Campaign_LoadEntry` exactly as it survives `Setup_CommitOptions`.
+            // `Campaign_LoadEntry`
             self.shield(),
             crate::scenario::SEED,
             tables,
@@ -1457,7 +1457,7 @@ impl Screen for SetupScreen {
         // it move.** The reading comes in on `Assets`; the minute it falls in
         // is compared with the minute already on the screen, and only a change
         // asks for a repaint. Nothing here reads a clock, and on any page but
-        // the title there is no clock drawn to keep.
+        // the title
         if self.page == SetupPage::Title {
             let minute = ctx.assets.wall_clock.map(crate::wallclock::minute);
             if minute != self.clock_minute {
@@ -1664,7 +1664,7 @@ impl SetupScreen {
                 //
                 // The time itself is `ctx.assets.wall_clock`, which only the
                 // shell ever fills: no clock is read here or anywhere below it
-                // (`docs/netcode.md` D-5), and with no shell there is no clock
+                // (`docs/netcode.md` D-5)
 // on the page.
                 if let Some(now) = ctx.assets.wall_clock {
                     crate::wallclock::draw(canvas, pen, now);
@@ -1804,7 +1804,7 @@ impl SetupScreen {
         // **The plate is the same frame whether or not the field is being
 // typed into.** the caret
 // is the whole of the affordance, so it had to be built
-        // rather than skipped.
+        //
         let sheet = pen.assets.sheet(BOX_SHEET);
         match sheet.and_then(|s| s.frame(0xCC)) {
             Some(f) => canvas.blit(&f, NAME_PLATE_X, NAME_PLATE_Y),
@@ -1920,7 +1920,7 @@ impl SetupScreen {
         }
         // **Both custom pages draw the five player cards, not only page 8.**
         // This comment used to say page 8; `FUN_0041F6C7` — page 7's painter —
-        // calls `FUN_0041FBCB` with no guard, exactly as `FUN_0041F77A` does.
+        // calls `FUN_0041FBCB` with no guard
         // The card is `misc_sel` frame `2 * shieldIndex - 2` at (10, 94n + 6),
         // the lord's portrait frame `lord + 9` (14 for a human) at (84, 94n +
         // 10), and the name centred in 160 pixels at y = 94n + 80 in the

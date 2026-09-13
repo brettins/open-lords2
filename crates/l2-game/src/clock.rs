@@ -41,7 +41,7 @@
 //! `Instant::now()` there is read **after** the wait, so it is the deadline
 //! *plus* however far the wait overshot, and the next deadline is measured from
 //! that. Overshoot is never negative, so the clock can only ever run slow, and
-//! the error is kept rather than repaid: it compounds once per tick. Measured
+//! the error is kept: it compounds once per tick. Measured
 //! with winit 0.30's own wait primitive — `CreateWaitableTimerExW` with
 //! `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` and `WaitForSingleObject`, which is
 //! what `ControlFlow::WaitUntil` runs on Windows — a 16 ms tick came out at
@@ -100,7 +100,7 @@ impl Ticker {
         if owed > MAX_CATCH_UP as u64 {
             self.dropped += owed - MAX_CATCH_UP as u64;
             owed = MAX_CATCH_UP as u64;
-            // The debt is written off rather than carried: the next deadline is
+            // The debt is written off: the next deadline is
             // a whole tick from *now*, not from a deadline in the past.
             self.next = Some(now_ns + TICK_NS);
         } else {
@@ -147,7 +147,7 @@ mod tests {
 
     /// **The measurement that produced the fix**, as a property: 400 µs of
     /// overshoot per wake — the middle of what a high-resolution waitable timer
-    /// actually costs on this machine — and one minute of wall clock must still
+    /// — and one minute of wall clock must still
     /// be 3,750 ticks.
     #[test]
     fn an_overshooting_wake_does_not_lose_the_time() {
@@ -201,7 +201,7 @@ mod tests {
         // and eight of them were run.
         let owed = (1_000_000_000 - TICK_NS) / TICK_NS + 1;
         assert_eq!((owed, t.dropped()), (62, owed - MAX_CATCH_UP as u64));
-        // And the clock restarts from the stall rather than owing the rest.
+        // And the clock restarts from the stall.
         assert_eq!(t.due(1_000_000_000), 0);
         assert_eq!(t.due(1_000_000_000 + TICK_NS), 1);
     }

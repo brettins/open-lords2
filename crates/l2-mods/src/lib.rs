@@ -8,7 +8,7 @@
 //!   without anything knowing it can be.
 //! * [`Ruleset`] — game rules as merged data documents. A mod restates only
 //!   the keys it changes. Every value remembers which document and which line
-//!   set it, so "these two mods disagree" is a diagnostic rather than a
+//! set it, so "these two mods disagree" is a diagnostic
 //!   mystery.
 //! * [`ModMeta`] and [`resolve_load_order`] — discovery, dependencies,
 //!   conflicts and a deterministic order.
@@ -39,7 +39,6 @@
 //!
 //! # What is deliberately absent
 //!
-//! There is no scripting, no event hooks and no way for a mod to run code.
 //! Every one of those is a decision that should be made against a real
 //! simulation, and making it now would be guessing. The data-driven half is
 //! the half that is expensive to retrofit; the scripting half is not.
@@ -179,7 +178,7 @@ impl Platform {
                 .shadowed()
                 .into_iter()
                 // A manifest and a rule document are not assets: every mod has
-                // a `mod.toml`, and rule documents are merged rather than
+                // a `mod.toml`, and rule documents are merged
                 // shadowed. See `package::is_platform_metadata`.
                 .filter(|(n, _)| !package::is_platform_metadata(n))
                 .map(|(n, layers)| (n.to_string(), layers.into_iter().map(str::to_string).collect()))
@@ -221,7 +220,7 @@ impl Platform {
     }
 
     /// The per-mod view: what each layer supplied and how much of it the
-    /// engine will actually read.
+    /// engine will read.
     ///
     /// This is the one a mod author wants. [`Platform::report`] is organised
     /// by conflict — good for "my two mods are fighting" — and this is
@@ -268,7 +267,7 @@ pub struct Report {
     /// `(mod id, warning)` from inspecting each enabled mod on its own.
     ///
     /// These are things a merge cannot see, because they are about the shape
-    /// of the mod rather than about what it collided with — a rule file
+    /// of the mod — a rule file
     /// outside `rules/` being the common one, which loads with no error and
     /// does nothing.
     pub package_warnings: Vec<(String, String)>,
@@ -446,7 +445,7 @@ impl PlatformBuilder {
 
         // Inspect each mod on its own, in load order. Best effort: a mod
         // handed in through `add_mod` need not have a manifest on disk, and a
-        // document that is genuinely broken has already failed the merge
+        // document that is broken has already failed the merge
         // above, so nothing is lost by skipping a mod that cannot be read
         // here.
         let packages = load_order

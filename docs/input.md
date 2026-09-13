@@ -5,7 +5,7 @@
 `docs/arms.json` counts **which** gestures a screen answers. This document is the other
 half: **what kind** each one is. The two are independent, and until this was written we
 had the first and none of the second — so an arm could be marked `reproduced`, be
-genuinely present, and feel wrong to a player in every case.
+present, and feel wrong to a player in every case.
 
 A player reported three things in one breath and they are one thing:
 
@@ -45,7 +45,7 @@ The whole interface is data: arrays of **24-byte records**, walked by two functi
   rectangle `{x0, y0, x1, y1}`, nothing drawn. The map sidebar, the battle HUD, the
   armoury racks and every setup page are these.
 
-**The kind numbers do not overlap between the two**, which is why the tester is part of
+**The kind numbers do not overlap between the two**, so the tester is part of
 the question: `Hotspot_Test`'s 3 is a release; `Widget_Test` has no 3 that fires at all.
 
 ## 2. The five kinds
@@ -68,7 +68,7 @@ and prints every handler; `--counts` prints just this table's numbers. It totals
 records with a handler and not one whose kind byte is outside the five**, which is the
 closure claim: there is no sixth kind in the tables. The script spot-checks two records
 against handlers named from call sites before it will print anything, because a wrong
-region bound decodes plausible rubbish rather than nothing.
+region bound decodes plausible rubbish.
 
 > **Kind 2 is 23 records over 7 handlers, and this document said *"one pair, a
 > setup-page scroll"*.** That was written from one call site and was wrong by a factor
@@ -76,7 +76,7 @@ region bound decodes plausible rubbish rather than nothing.
 > multiplayer setup pages, and §6's verdict on our side is unchanged — but it is the
 > exact shape `CLAUDE.md`'s note about `[V]` warns of: a true statement about one table,
 > promoted to a statement about a kind. The cure is the same one that found it, which is
-> to make the count come out of the exe rather than out of a sentence.
+> to make the count come out of the exe.
 
 ### Answering the player, item by item
 
@@ -96,7 +96,7 @@ if (kind == 4 || kind == 5) {
 }
 ```
 
-and then it marks the rectangle with **`Gfx_MarkWidgetUrgent`** rather than the ordinary
+and then it marks the rectangle with **`Gfx_MarkWidgetUrgent`**
 `Gfx_MarkSpriteDirty`, so the depressed picture appears on the same frame as the press
 instead of at the next general redraw. *"The gauntlet would go down slightly when
 clicked"* is `base + 1`, urgent.
@@ -105,7 +105,7 @@ clicked"* is `base + 1`, urgent.
 Every `+`/`−`, every `<`/`>`, every up/down arrow in the game is `Widget_Test` kind 4 —
 the armoury's equip/unequip, the supplies `+`/`−`, the army-division steppers, the
 diplomacy gift stepper, tax, rations, castle build, siege engines, the save/load scroll
-pair. One function, one ramp, one 30 ms clock. There is no second implementation anywhere.
+pair. One function, one ramp, one 30 ms clock.
 
 ## 3. The auto-repeat, exactly
 
@@ -149,7 +149,7 @@ branch fires without consulting the table). So the schedule is
 — gaps of 6, 5, 4, 3, 3, 3, 2, 2, 3, 1, 1, … In milliseconds: the press fires at once,
 the **first repeat 240 ms later**, and it is running flat out — 33 a second — from
 **1.44 s**. There is a wobble at 36 → 39 that breaks the monotonic ramp. It is in the
-game and it is reproduced rather than smoothed; a formula fitted to this table would be
+game and it is reproduced; a formula fitted to this table would be
 a guess where a copy is a fact.
 
 `crates/l2-game/src/press.rs` is this, and
@@ -206,12 +206,12 @@ option checkbox** on the four options pages.
 **Twenty *frames*, not milliseconds.** The frame loop is uncapped — `App_IdleFrame` calls
 `App_Draw` whenever no window message is waiting — so the wall-clock duration depended on
 the machine. Ours uses twenty 16 ms ticks, 320 ms, and that is a departure recorded
-rather than hidden: nothing below the renderer may read a clock (`docs/netcode.md`).
+nothing below the renderer may read a clock (`docs/netcode.md`).
 
 ## 5. The gestures that are not a kind byte
 
 * **Drag** — `g_mouseLeftDown && g_mouseInputChanged`. `Ration_SliderClick` is the
-  example and it **returns 0 on the release**: a drag is not a click with extra steps.
+example and it **returns 0 on the release**.
 * **Hover** — the tool tip, `FUN_00476E95`. Not a record and not a kind: a frame
   function that waits for `g_mouseInputChanged` to stay clear for **more than 999 ms of
   `timeGetTime`** (63 of our 16 ms ticks), then asks one of two pointer ladders for an
@@ -229,7 +229,7 @@ rather than hidden: nothing below the renderer may read a clock (`docs/netcode.m
 * **The settled click** — release, then **300 ms with no second press**:
   `g_mouseClickPending` is set on the release, `g_mouseClickSettled` on the timeout, and
   `g_mouseClickX/Y` hold the *release* position. It has **exactly one reader** in the
-  binary, `Village_ClickJob` (`0x0043A123`), which is why a click on a village cluster
+binary, `Village_ClickJob` (`0x0043A123`), so a click on a village cluster
   opens the job popup only after a beat. The village arm arms it with
   `g_mouseClickArm = 1` at the end of its ladder.
 * **The click sound.** `Sound_RestartSlot(1)` — `click3.wav` — is played by
@@ -300,7 +300,7 @@ claims.** `crates/l2-game/src/press.rs` carries `Kind`, `Widget` and `Press::eve
 screen **declares** the kind of each rectangle and stops keeping press/release state of
 its own — that is the same shape as the original, where the kind is a byte in the record
 and the tester does the rest. What remains is that our screens name a small fraction of
-the original's 332 records. That is countable rather than remembered:
+the original's 332 records. That is countable:
 `node tools/oracle/kinds.js` is the original's side and `docs/arms.json` is ours.
 
 > **Say the boundary in the same sentence as the number.** Of the **five gesture kinds**,
@@ -315,7 +315,7 @@ the original's 332 records. That is countable rather than remembered:
 Three, in rising order of what they can catch:
 
 1. **The vocabulary is closed** (`crates/l2-game/tests/arms.rs`). A new kind costs a
-   decision rather than a keystroke. It also caught `button-0` … `button-5`: **fourteen
+decision. It also caught `button-0` … `button-5`: **fourteen
    records had been filing a *position in a table* in the field that holds a *kind*.**
 2. **The marker carries the gesture**, and the check is set equality on **(id, gesture)
    pairs**, not on ids. An arm answered with the wrong kind stops counting as reproduced.
@@ -346,7 +346,7 @@ the check now scans `what` and `note` for addresses that land **exactly on a rec
 inside the two regions** — not on a handler, which is the false-positive that made the
 first version of this useless — and cross-checks those too.
 
-Three things make it safe rather than clever, and they are worth copying:
+Three things make it safe, and they are worth copying:
 
 * **Record bases only.** A record whose prose mentions a *function* mentions it for a
   hundred reasons; a record whose prose names an address in `0x004DC4D0 … 0x004DE400` is

@@ -129,7 +129,7 @@ const INDUSTRY_TAIL: usize = JOB_CASTLE_BUILDING;
 /// zero and every job whose resource the county has not got forced to zero.
 ///
 /// The gates are `FUN_0044F6E7`'s own, and they are the *enable* byte
-/// (`+0x297 + c*0x18`) rather than the *has-resource* byte beside it — an
+/// (`+0x297 + c*0x18`) — an
 /// industry switched off allocates nobody even where the ore is.
 ///
 /// **One gate is deliberately not applied**: castle building is gated on
@@ -162,8 +162,8 @@ pub fn ceilings(county: &County) -> [i32; JOB_COUNT] {
         &mut out,
     );
     gate(JOB_BLACKSMITH, county.industry[Commodity::Weapons.index() as usize].enabled, &mut out);
-    // `+0x1C3`: a castle is actually under construction. Our field is named
-    // `castle_degraded`, and it is a byte with three values rather than a flag
+    // `+0x1C3`: a castle is. Our field is named
+    // `castle_degraded`, and it is a byte with three values
     // — 1 for a build and 2 for a post-siege repair, both of which are work the
     // allocator and `Castle_BuildEstimate` both read it as "a build is in
     // progress", and `Tax_CollectAll` charging the *lower* castle while it is
@@ -188,7 +188,7 @@ pub fn allocate(county: &mut County) -> i32 {
 
     spend(county, &ceiling, &mut farm_pool, &FARM_QUOTA_ORDER, &FARM_ROUND, FARM_TAIL);
 
-    // Farm leftovers smaller than one icon are handed to industry rather than
+    // Farm leftovers smaller than one icon are handed to industry
     // left to become idle. `popBand` is the county's own icon size, so this is
     // "less than one peasant icon's worth".
     if farm_pool < county.pop_band {
@@ -230,7 +230,7 @@ fn spend(
     }
 
     // `do { ... } while (ceiling[tail] <= labour[tail]); labour[tail]++;`
-    // wrapped in `while (0 < pool)`. Spelled out rather than transcribed,
+    // wrapped in `while (0 < pool)`.
     // because the original's four gotos do not translate.
     let mut progress = *pool >= 1;
     'outer: while *pool > 0 {
@@ -348,7 +348,7 @@ pub fn toggle_share(county: &mut County, job: usize, on: bool, divisor: i32) {
 /// industry jobs, and the only caller is `Industry_ToggleFromMap`.
 ///
 /// Line for line the twin of [`toggle_share`] with a five-member group and no
-/// divisor, which is why both are one private `toggle`. Switching an industry off on the
+/// divisor. Switching an industry off on the
 /// map takes its share out of the split and hands it to the rest; switching one
 /// on gives it `g_shareTable[n]`, an even share of the enlarged group.
 pub fn toggle_industry_share(county: &mut County, job: usize, on: bool) {
@@ -402,11 +402,11 @@ fn toggle(
     county.labour_share[best] += short;
 }
 
-/// `FUN_0044FF4A` — rewrite [`County::industry_share`] from what was actually
+/// `FUN_0044FF4A` — rewrite [`County::industry_share`] from what
 /// assigned.
 ///
 /// **Half the idle count goes to industry**, which is the one surprising part:
-/// a county with people doing nothing drifts towards a 50/50 split rather than
+/// a county with people doing nothing drifts towards a 50/50 split
 /// towards whichever half it last favoured.
 pub fn recompute_industry_share(county: &mut County) {
     let pop = county.population;

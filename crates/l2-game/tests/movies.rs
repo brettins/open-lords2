@@ -512,7 +512,7 @@ fn a_film_ends_on_a_release_of_either_button_or_any_key_and_not_on_a_press() {
 }
 
 /// **The release of the click that ordered the castle cannot skip the film,
-/// because when it arrives there is no film.**
+/// because when it arrives
 ///
 /// `CastleBuild_Confirm` (`0x00436B59`) is record 0 of `g_castleBuildWidgets`
 /// and the record is `Widget_Test` kind 5, so `Smk_Play` runs **twenty frames
@@ -678,7 +678,7 @@ fn a_real_castle_film_ends_on_the_map_however_long_it_runs() {
 }
 
 /// **A film stops the bed and the bed starts over after it** — the five
-/// restart sites `docs/audio.json` now calls reproduced, heard rather than
+/// restart sites `docs/audio.json` now calls reproduced, heard
 /// read. The castle film's track plays in between. Ablation: make
 /// `Scene::Film` answer the campaign track, and the music never stops.
 #[test]
@@ -779,7 +779,7 @@ fn the_narrator_reads_an_ending_over_the_opening_of_its_film() {
 /// Ablation: schedule the ticks the way `main.rs` used to — a deadline of
 /// `now + TICK` measured after the wait — and the same film falls behind by
 /// **a fixed fraction of its own length**, which is the second half of this
-/// test and the shape of the defect. It is a rate, not an amount: `bat_win5`
+/// test and the shape of the defect. It is a rate,
 /// is 3.6 s long and ends 71 ms out, under one of its frames, while the intro
 /// is 131 s long and ends three seconds out. That is why the complaint was
 /// about the long films.

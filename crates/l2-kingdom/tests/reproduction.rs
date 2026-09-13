@@ -54,7 +54,7 @@
 //! grain**: the ration pass ate some of both and only the remainder survives.
 //! So the starting position `l2-scenario` builds carries the stored stores
 //! forward, and one county of fourteen — **realm 5's**, whichever that is —
-//! then starves where the real one did not. That is not a rule failing; it is a
+//! then starves where the real one did not. That is not a rule failing;
 //! missing input, and [`the_food_the_season_ate_is_recoverable_and_unique`]
 //! recovers it: there is **exactly one** pre-season store per county that
 //! reproduces the file, and putting it back makes the map land.
@@ -185,7 +185,7 @@ fn hungry_county(s: &Scenario) -> usize {
 /// what the ration pass ate" was the whole of it and the inversion in
 /// [`solve_opening`] closed. Now that a herd is born, dies and has to be tended
 /// (`docs/kingdom.md` §13), the season moves it — and the file says outright
-/// that the inversion's answer was never the real one. `+0x254` is the herd as
+/// that the inversion's answer `+0x254` is the herd as
 /// `Herd_SeasonTick` found it, and it is **95 in every one of the fourteen
 /// counties**: the new-game starting herd from the table at `0x004DC0D0`, not
 /// the 73 the inversion recovers.
@@ -425,7 +425,7 @@ fn the_starting_position_is_the_file_rewound_by_exactly_one_season() {
     }
 
     // Every county in the England turn-one fixture started the season on the same two
-    // numbers - the file's own claim, checked rather than assumed.
+    // numbers - the file's own claim, checked.
     let starts: Vec<(i32, i32)> = s
         .county_ids()
         .map(|id| (file.counties[id].pop_last, file.counties[id].happiness_last))
@@ -436,7 +436,7 @@ fn the_starting_position_is_the_file_rewound_by_exactly_one_season() {
     assert_eq!(start.season, 0);
 }
 
-/// **`docs/kingdom.md` §9 point 3**, checked against the file rather than
+/// **`docs/kingdom.md` §9 point 3**, checked against the file
 /// against §7.2: with Advanced Farming off, every stored weather byte is 3 and
 /// every stored fertility is 0 — and the pipeline leaves them there.
 #[test]
@@ -600,7 +600,7 @@ fn realm_fives_county_is_fed_on_slaughter_by_its_lords_sweep_from_the_rewound_st
 /// realm 5's, which [`every_county_the_save_can_feed_reproduces_every_stored_field`]
 /// has to skip and [`solve_opening`] had to invent eight sacks for.
 ///
-/// **What this does not prove, measured rather than assumed**: it passes with
+/// **What this does not prove**: it passes with
 /// `Pass::AiManageFarms` skipped as well. On this fixture the AI's season-head
 /// pass leaves every one of these fields where the rest of the season puts
 /// them, once the stores are right — so this test is evidence about the
@@ -643,7 +643,7 @@ fn every_county_reproduces_from_the_stores_the_season_found() {
 /// Nine unowned counties opened on **73 head** and closed on 67; county 1 opened
 /// on **8 sacks** and closed on none.
 ///
-/// The uniqueness is what makes these numbers a measurement rather than a fudge.
+/// The uniqueness is what makes these numbers a measurement.
 /// It also settles `docs/kingdom.md` §4.3's open question about which of
 /// `Ration_Apply`'s two calls survives: a pass that did not debit the store
 /// could not have taken county 1's grain to zero, nor the unowned counties'
@@ -808,7 +808,7 @@ fn every_countys_nine_labour_records_sum_to_its_population() {
 /// Every one of those four reappears in the save: `popLast` is 417 in all
 /// fourteen counties, and 65 is [`STARTING_HEALTH_METER`], which
 /// `crates/l2-scenario` had marked as the one number in the reproduction taken
-/// from prior art rather than from the binary. It is in the binary.
+/// from prior art. It is in the binary.
 #[test]
 fn every_county_opened_the_game_on_the_same_herd_and_the_same_people() {
     let save = l2_testkit::england!();
@@ -846,7 +846,7 @@ fn the_whole_five_stage_chain_lands_on_both_bands() {
 }
 
 /// The ration rule against the file with **no reconstruction at all**: run the
-/// end-of-season preview on the counties exactly as the file holds them, and it
+/// end-of-season preview on the counties, and it
 /// must produce the stored `rationAchieved`, `herdEaten`, `grainEaten` and
 /// `dHapRation`.
 ///
@@ -1015,7 +1015,7 @@ fn recomputing_the_shares_from_the_shipped_counties_keeps_both_halves_at_a_hundr
     }
 }
 
-/// Ten more seasons past the reproduction, to show the model does not merely
+/// Ten more seasons past the reproduction, to show the model
 /// land on turn 1 and then diverge into nonsense: every county stays inside
 /// every documented bound.
 #[test]
@@ -1126,7 +1126,7 @@ fn ten_seasons_under_a_different_ruleset_reach_a_different_kingdom() {
     let stock = run(Tables::DEFAULT);
     // `g_dairyPerHead` is 5: one head of cattle feeds five people. Halve it and
     // every county on this map, which lives on its dairy, feels it - which is
-    // why it is the perturbation used rather than the grain yield, whose fields
+    // why it is the perturbation used, whose fields
     // are unplanted here and which moves nothing on turn one.
     let mut lean = Tables::DEFAULT;
     lean.food.dairy_per_head /= 2;

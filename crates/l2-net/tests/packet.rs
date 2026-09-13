@@ -1,8 +1,8 @@
 //! The wire messages: round trips, the handshake, and malformed input.
 //!
-//! Round-tripping *byte-identically* is the requirement, not merely
+//! Round-tripping *byte-identically* is the requirement
 //! decoding to an equal value. D-10 says a command must round-trip byte
-//! for byte, and the reason is that a packet re-encoded differently is a
+//! for byte
 //! packet that would hash differently in a replay — so the tests below
 //! encode, decode, and encode again.
 

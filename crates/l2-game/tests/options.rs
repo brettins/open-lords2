@@ -15,7 +15,7 @@
 //!   those words;
 //! * **a control that acts on the press where the original waits.** Every row
 //!   of the four original panels is `Widget_Test` **kind 5** — the picture goes
-//!   down on the press and the toggle runs twenty frames later — and ours acted
+//! down on the press and the toggle runs twenty frames later — and ours acted
 //!   on the click. That is the yes/no gauntlets' defect (*"clicking yes/no is
 //!   instant whereas the game waited"*), and `docs/input.md` §4 is the model.
 

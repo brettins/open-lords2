@@ -33,7 +33,7 @@ pub fn publish(sheets: CastleSheets) -> bool {
 }
 
 /// Parse and publish, if the overlay has the file. Returns how many castles
-/// were found — 0 when there is no install, which is not an error.
+/// were found — 0
 pub fn publish_from(read: impl FnOnce(&str) -> Option<Vec<u8>>) -> usize {
     let Some(bytes) = read(CastleSheets::FILE) else { return 0 };
     let Some(sheets) = CastleSheets::parse(&bytes) else { return 0 };

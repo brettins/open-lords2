@@ -126,7 +126,7 @@ Two of the sixteen are now built, and they are the two a player meets:
 They carry no `// sfx:` marker:
 `tools/oracle/sounds.js` scans for the nine *play* primitives. That is the right
 denominator for *"what does the game ask for"* and the wrong one for *"does our
-audio behave like the game's"*, and the gap is worth stating rather than
+audio behave like the game's"*, and the gap is worth stating
 closing — adding stops to the census would put sixteen rows in it that no file
 depends on. `crates/l2-game/tests/audio_wiring.rs` is where the two are
 asserted.
@@ -204,7 +204,7 @@ limit of the design and not a to-do"*.** Its premise was right — `Director::li
 takes `&Game` and derives sound from the world after the tick, and a sword swing
 is an event *inside* one — and its conclusion did not follow. The world simply
 kept no record of the event: `l2-sim` resolved figure and unit state and wrote
-nothing a listener could hear. That was the gap, and it was ours rather than the
+nothing a listener could hear. That was the gap, and it was ours
 design's.
 
 `l2_sim::cue` is the record: monotone counts of the occasions the original's per-man
@@ -344,7 +344,7 @@ with the game needs to open a dairy-fed county's ration panel and listen.
 
 `Msg_DrawWindow` (`0x0047309E`) is 10,915 bytes: it
 dismisses, enqueues, sets its own timer and plays its own sound from inside the
-draw. There is no call site to put a voice beside. All sixteen `Msg_PlayVoice`
+draw. All sixteen `Msg_PlayVoice`
 calls are guarded by `g_messageTimer == <constant>`, and the timer counts
 **down** from 2000, one per tick. `[V]`.
 
@@ -386,7 +386,7 @@ caller, `Msg_DrawWindow`'s categories `0x05`…`0x09` branch, `else if
 `n = table[group × 5 + cursor]` at `0x004E1E40`; if `Sound_OneShotBusy()` it stamps
 the time, otherwise once **more than 999 ms** have passed since the last busy stamp
 it advances the cursor and plays `S201_02.wav + (n − 1) × 0x10`. The cursor
-`DAT_0052F004` is reset in exactly one place, **`Tip_Show`**, and the table's only
+`DAT_0052F004` is reset in
 live rows are groups 200…218: 200 → 26, 27 · 201 → 1, 2, 3 · 202 → 4, 5, 6 ·
 207 → 7, 8, 9 · 209 → 10…13 · 210 → 14, 15, 16 · 212 → 17 · 214 → 18, 19 ·
 217 → 20…23 · 218 → 24, 25 — 27 takes, all shipping, read out of the executable into

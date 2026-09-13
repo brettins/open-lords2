@@ -5,7 +5,7 @@
 //! 771 files in the install by `tests/audio_install.rs`: 737 mono, 31 stereo
 //! (the ten music tracks and the fanfares), two `PUMKIN` files nothing opens,
 //! and **`Bp180_4.wav`, which is 44,100 Hz.** That one file is why the rate is
-//! carried per [`Sound`] and the mixer resamples per voice rather than once:
+//! carried per [`Sound`] and the mixer resamples per voice:
 //! 768 files would have let an 11 kHz assumption pass.
 //!
 //! So this reader deliberately handles nothing else. A decoder that also
@@ -34,7 +34,7 @@
 
 /// The largest `.wav` this reader will look at, in bytes.
 ///
-/// Eight megabytes: the longest track the game actually plays is
+/// Eight megabytes:
 /// `Scroll1.wav` at 3.8 MB, and `PUMKIN.WAV` is 160 MB. See the module note.
 pub const MAX_BYTES: usize = 8 * 1024 * 1024;
 
@@ -124,7 +124,7 @@ pub fn decode(bytes: &[u8]) -> Result<Sound, WavError> {
     let mut format: Option<(u16, u16, u32, u16)> = None; // tag, channels, rate, bits
     let mut data: Option<&[u8]> = None;
 
-    // Chunks are walked rather than assumed to be `fmt ` then `data`: the
+    // Chunks are walked:
     // shipped files put them in that order, but a `LIST`/`fact` chunk between
     // them is legal and costs one branch to survive.
     let mut at = 12usize;
@@ -136,7 +136,7 @@ pub fn decode(bytes: &[u8]) -> Result<Sound, WavError> {
         if end > bytes.len() {
             // A `data` length that overruns the file happens in the wild when a
             // writer never went back to patch the header. Take what is there
-            // rather than refusing the whole sound.
+            //
             if tag == b"data" {
                 data = Some(&bytes[body..]);
             }

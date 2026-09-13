@@ -70,7 +70,6 @@
 //! `0x004DE904`, holding the same text. A victory fanfare shipped and the
 //! function that would play it plays the defeat one twice. `[V]` that the
 //! binary contains no reference to `ff_win.wav`; `[I]` that this is a bug
-//! rather than a decision.
 
 /// The five battle tracks, `0x004D9228`, in table order. Index 0 is
 /// `battle1.wav`. `[V]`
@@ -83,7 +82,7 @@ pub const MUSIC_BATTLE: [&str; 5] = [
 ];
 
 /// **The front end's bed** — `Music_Play("setup.wav", 0, 1)`, a literal rather
-/// than a table entry, which is why no table here had it.
+/// than a table entry.
 ///
 /// Two siblings ship and are not reached from our engine: `setup2.wav`, which
 /// `Screen_DrawConquest` (`0x0041E1DD`) plays **unlooped** once the campaign is
@@ -318,7 +317,7 @@ pub mod blacksmith {
 /// | 7…9 | **blacksmith** | 8 | `stonecut.wav` |
 /// | 10…12 | lumber mill | 9 | `woodcut.wav` |
 ///
-/// **The blacksmith plays the quarry's sound**, exactly as `Panel_JobDetail`'s
+/// **The blacksmith plays the quarry's sound**
 /// job 8 does. `[V]` at both sites; `[I]` that it is because the kingdom bank
 /// has no forge in it.
 ///
@@ -433,7 +432,7 @@ pub mod speech {
     /// fanfare is in the one-shot buffer when the line is asked for and bare
     /// `Sound_PlayFile` drops it. Ours makes the same two calls in the same
     /// order through the same verb, so the drop is the buffer's here too
-    /// rather than a rule written down. `docs/audio.json` recorded these nine
+    /// `docs/audio.json` recorded these nine
     /// sites as *"which of the three a given call plays is unread"*; it is
     /// read, and it is this.
     pub const BATTLE_PROMPT: [&str; 3] = ["S080_02.wav", "S080_03.wav", "S080_01.wav"];
@@ -525,7 +524,7 @@ pub mod speech {
     /// ```
     ///
     /// **Entries 3 and 4 are the same file, and that is why this is a table
-    /// rather than a `format!`.** The bytes at `0x004E2058` read `S020_01`,
+    /// The bytes at `0x004E2058` read `S020_01`
     /// `_02`, `_03`, `_04`, `_04`, `_05`, `_06`, `_07` — so the two healthiest
     /// of the five bands `l2_kingdom::tables::health_band` produces share one
     /// clip, and a generated name would have spoken `S020_05.wav` (a real file,
@@ -594,7 +593,7 @@ pub mod speech {
     ///
     /// A report — *"picking a merchant says nothing, where a unit or a castle
     /// speaks"* — sent somebody looking for the missing arm. **There is none,
-    /// and it is not a gap.** `CLAUDE.md` rule 5: the finding is that the
+    /// `CLAUDE.md` rule 5: the finding is that the
     /// original does not do it.
     ///
     /// 1. **The ladder.** `FUN_004B37BC` is the last statement of *both*
@@ -609,7 +608,7 @@ pub mod speech {
     ///    *"This is one of your armies."* The fifth is index **12**,
     ///    *"Merchants allow a county to buy needed supplies and raise revenue
     ///    by selling goods."* — the one member of the run with prose and no
-    ///    voice file. The words exist and the recording was never made. `[V]`
+    /// voice file. The words exist. `[V]`
     pub const PICKED_UNIT: [&str; 4] = [
         "S031_01.wav",
         "S031_02.wav",
@@ -624,7 +623,7 @@ pub mod speech {
     /// `FUN_004B37BC`'s tile branch, with all three of its guards: the tile
     /// carries plane-0 bit `0x80` (a settlement), its graphic is `0x15` or
     /// above (the castle end of `Industry_ToggleFromMap`'s ladder, which is how
-    /// the original tells a keep from a mine without a second plane), and the
+    /// the original tells a keep from a mine without a second plane)
     /// county's `castleType` is 1…5. `[V]`
     ///
     /// The table starts at `S071_02` — `S071_01.wav` does not ship and is named
@@ -670,7 +669,7 @@ pub mod fanfare {
     /// a fanfare exactly when he wins and hears nothing at all when he loses —
     /// and the fanfare he hears is the one called *lose*, while `Ff_win.wav`
     /// ships unreferenced. That makes the defect sharper than "the wrong file
-    /// is played at both sites": there is no losing fanfare, and the winning
+    /// is played at both sites"
     /// one is misnamed.
     ///
     /// **Not wired**, and deliberately: `main.rs`'s `listen` can see the

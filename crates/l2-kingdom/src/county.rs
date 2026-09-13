@@ -737,7 +737,7 @@ pub struct County {
     /// crop, and repainting *more* land as grain does nothing until next
     /// year's sowing.
     ///
-    /// **`+0x206` is not a second copy of this**, which is what this comment
+    /// **`+0x206` is not a second copy of this**
     /// used to say. The two are written together, once, by the sowing clause,
     /// but only `+0x206` is ever stepped down again — see
     /// [`County::fields_grain_standing`].
@@ -840,7 +840,7 @@ pub struct County {
     /// search loop that [`crate::land::grain_labour_estimate`] reproduces:
     ///
     /// ```c
-    /// staff = county.labour[0].workers;                 /* the real staffing */
+    /// staff = county.labour[0].workers; /* the real staffing */
     /// county.field_0x230 = Grain_Sow(county, staff, county.grain);
     /// if (season == 4)                county.crop[2]     = Grain_Harvest(county, staff, crop[1]);
     /// if (season == 2 || season == 3) county.field_0x2FC = Grain_Grow   (county, staff, crop[1]);
@@ -1128,7 +1128,7 @@ impl County {
         true
     }
 
-    /// `popBand` = `(pop - 1) / 25 + 1` (`+0xB8`). Written exactly as the
+    /// `popBand` = `(pop - 1) / 25 + 1` (`+0xB8`). Written
     /// document states it, including at population 0 where C's truncating
     /// division makes `(0 - 1) / 25` zero and the band 1.
     pub fn compute_pop_band(&self) -> i32 {

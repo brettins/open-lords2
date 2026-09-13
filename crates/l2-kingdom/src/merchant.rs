@@ -14,7 +14,7 @@
 //! # The table is in the save, and the England fixture proves the whole model
 //!
 //! `g_merchantRoutes` falls inside a saved block, so it can be read straight
-//! out of `england-turn1.sav` rather than derived. It holds:
+//! out of `england-turn1.sav`. It holds:
 //!
 //! ```text
 //! route 0  14  4  7  8  2
@@ -74,7 +74,7 @@ pub const FREE_TILE_RADIUS: u8 = 3;
 /// `g_merchantRoutes` (`0x00567970`) — six rows of sixteen county ids, `0`
 /// meaning "no more".
 ///
-/// A fixed array rather than a `Vec` of `Vec`s on purpose: `docs/netcode.md` §5
+/// A fixed array of `Vec`s on purpose: `docs/netcode.md` §5
 /// wants iteration whose order cannot depend on anything but an index, and this
 /// is walked by index in two places.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,7 +148,7 @@ impl MerchantRoutes {
 ///   tries walk the row exactly once and a route of five counties cycles
 ///   through eleven zeroes to get back to the start;
 /// * the wrap is `> 15 -> 0`, so **entry 0 is reached only by wrapping** — a
-///   merchant's first destination is entry 1, which is why it is usually not
+/// merchant's first destination is entry 1,
 ///   the county it was spawned in;
 /// * a county id above the map's count is treated as **absent**, not as an
 ///   error.
@@ -178,7 +178,7 @@ pub fn next_destination(routes: &MerchantRoutes, route_row: usize, cursor: &mut 
 /// three of the county's anchor.
 ///
 /// The box around the anchor is grown `r = 1, 2, 3` and only road tiles
-/// qualify, which is why merchants are always found on roads: `plane4.md` §2.2's
+/// qualify,: `plane4.md` §2.2's
 /// live dump of England found all six start tiles carrying plane 0 `0x01`
 /// exactly. A tile is free only if no unit stands on it.
 ///
@@ -247,13 +247,13 @@ fn scan_box(
 /// * **A merchant that already has a destination is re-pathed, not skipped.**
 ///   The `hasNoDestination` test guards only the route lookup; the pathing
 ///   below it runs for every merchant that has somewhere to go. That is what
-///   lets a merchant interrupted mid-leg — blocked by another unit, or simply
+/// lets a merchant interrupted mid-leg — blocked by another unit, or simply
 ///   out of moves — resume the same leg next season instead of stalling for
 ///   ever. A phase that waits for merchants to stop moving and never restarts
 ///   them is a phase that settles instantly, which is the bug this whole
 ///   module exists to fix.
 /// * **No free road tile means the merchant is skipped with its flag still
-///   set**, so it retries next season rather than losing its place.
+/// set**, so it retries next season.
 /// * The route row is the **slot minus one**, not the unit's stored route
 ///   number. See [`route_row_for`].
 ///
@@ -313,7 +313,7 @@ pub fn advance_all(
             // because a human clicking a tile means *that tile*.
             // `Merchant_AdvanceAll` writes the route's county and then never
             // touches it again, so the derived value has to be put back.
-            // Restored rather than avoided, so both orders keep sharing one
+            // Restored, so both orders keep sharing one
             // pathfinder.
             if let Some(u) = units.get_mut(id) {
                 u.dest_county = dest_county;
@@ -336,7 +336,7 @@ pub fn advance_all(
 ///     }
 /// ```
 ///
-/// **Three details are the rule rather than incidental**, and all three are
+/// **Three details are the rule **, and all three are
 /// visible in the C above:
 ///
 /// * the visit counter is **not** cleared, which is what makes it a lifetime
@@ -356,7 +356,7 @@ pub fn advance_all(
 /// route said to go. See [`advance_all`] for why those two differ.
 ///
 /// `+0x15C` is the third field the clear loop zeroes and this crate does not
-/// model it; it is cleared here by nothing, which is stated rather than left
+/// model it; it is cleared here by nothing,
 /// to be discovered.
 pub fn recount_all(counties: &mut [County; MAX_COUNTIES], county_count: usize, units: &Units) {
     for county in counties.iter_mut().take(county_count + 1).skip(1) {
@@ -487,7 +487,7 @@ mod tests {
     }
 
     /// A county id above the map's count is absent, not an error — and a row
-    /// of nothing but such ids yields nothing rather than looping for ever.
+    /// of nothing but such ids yields nothing.
     #[test]
     fn a_county_above_the_map_count_is_skipped() {
         let mut r = MerchantRoutes::none();
@@ -628,7 +628,7 @@ mod tests {
     }
 
     /// A county with no free road tile near its anchor is skipped and the
-    /// merchant keeps its flag, so it tries again next season rather than
+    /// merchant keeps its flag, so it tries again next season
     /// losing its place on the route.
     #[test]
     fn a_county_with_no_free_road_tile_is_skipped_and_retried() {

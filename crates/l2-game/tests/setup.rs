@@ -61,7 +61,7 @@ fn tick(screen: &mut SetupScreen, game: &mut Game, assets: &Assets) {
     screen.update(&mut ctx);
 }
 
-/// Open option `i`'s drop-down and choose row `row`, by clicking, exactly as a
+/// Open option `i`'s drop-down and choose row `row`, by clicking,
 /// person would.
 fn choose(
     screen: &mut SetupScreen,
@@ -149,7 +149,7 @@ fn start_carries_all_twelve_settings_into_the_game() {
 }
 
 /// **The *County Status* row reaches the land**, measured through the season
-/// rather than around it.
+///
 ///
 /// The three rows differ by a factor of eight in the herd and seven in the
 /// population, and one season of eating does not close that — so the ordering
@@ -583,7 +583,7 @@ fn the_mst_clock_is_painted_on_the_title_page() {
     );
 }
 
-/// **With no reading there is no clock.** Every test
+/// **With no reading.** Every test
 /// and every headless driver leaves `Assets::wall_clock` at `None`, which is
 /// what makes *nothing below the shell may read a clock* enforceable
 /// — and it is the ablation for the test above, which would also
@@ -670,7 +670,7 @@ fn every_pixel_of_the_mst_clock_is_inside_the_visible_canvas() {
          columns have been clipped off the right-hand edge",
     );
     // And it really is in the bottom-right corner the painter says it is in,
-    // rather than having drifted into the middle of the page.
+    //
     assert!(
         first_col > screen_w / 2 && last_row > screen_h - 20,
         "the clock occupies x {first_col}.. y ..{last_row}, which is not the bottom-right corner",
@@ -724,7 +724,7 @@ fn the_clock_asks_for_a_repaint_only_when_the_minute_turns() {
 }
 
 /// **The clock reaches no simulation** — `docs/netcode.md` D-5, as an assertion
-/// rather than as a promise.
+///
 ///
 /// Two copies of one game are stepped through the same ticks under wall-clock
 /// readings six months and eleven hours apart. The worlds must stay equal and

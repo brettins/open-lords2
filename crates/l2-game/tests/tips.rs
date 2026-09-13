@@ -12,7 +12,7 @@
 //! Everything asserted is the subject and nothing is a canvas: **which tip
 //! fires for which screen**, the **frame count** of the delay, **where the OK
 //! button is** for a given wrap, **the words**, and **the tick each clip starts
-//! on**. Every number the oracle gives is typed as a literal rather than read
+//! on**. Every number the oracle gives is typed as a literal
 //! from the constant under test, so ablating the constant cannot move the
 //! probe with it — `docs/agents.md`.
 
@@ -455,7 +455,7 @@ fn an_army_marching_out_of_its_own_county_sets_the_flag() {
 // ------------------------------------------------------ with the player's game
 
 /// **The words are the player's own `L2.eng`**, and our transcription agrees
-/// with it string for string — which is what makes it a fallback rather than a
+/// with it string for string — which is what makes it a fallback
 /// rewrite. `CLAUDE.md` rule 6.
 #[test]
 fn every_tip_draws_the_players_own_words_and_our_transcription_is_them() {
@@ -475,7 +475,7 @@ fn every_tip_draws_the_players_own_words_and_our_transcription_is_them() {
     assert_eq!(strings, 53, "fourteen groups: fourteen headings and thirty-nine paragraphs");
 }
 
-/// **The OK corner of a real tip, in the real font.** *"Kingdom overview:"* is
+/// **The OK corner of a real tip, in the real font.** *"Kingdom overview:"*
 /// one short line, so it takes the one-line layout: dropped 64 pixels, OK at
 /// (416, 272).
 #[test]
@@ -571,7 +571,7 @@ fn a_tip_reads_its_first_line_and_then_its_takes_a_second_apart() {
     assert_eq!(takes, vec!["s200_02.wav", "s200_03.wav"]);
 }
 
-/// **A troop cry holds a tip's next take back exactly as the narrator does**,
+/// **A troop cry holds a tip's next take back**
 /// because there is one buffer. `FUN_004B3ACD` asks `Sound_OneShotBusy()`, and
 /// `Sound_PlayTroopCry` is `Sound_PlayFile` into the same `DAT_00522AEC` the
 /// first line went into — so a cry keeps the next take waiting until a full

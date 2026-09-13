@@ -4,7 +4,7 @@
 //! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-mods -- --nocapture
 //! ```
 //!
-//! Skips (rather than fails) when unset, matching `l2-formats`. No assets live
+//! Skips. No assets live
 //! in this repository and none are written by these tests: the install is
 //! mounted as a read-only layer and every file this test creates goes in a
 //! temporary directory.
@@ -51,7 +51,7 @@ fn the_whole_install_indexes_and_every_pl8_decodes_through_the_overlay() {
     println!("{} frames decoded through the overlay", frames);
 
     // The counts docs/formats/pl8.md records, per release. Reaching them
-    // through the overlay rather than straight off disk is the point: the
+    // through the overlay is the point: the
     // indirection must not lose or reorder a single file.
     match pl8s.len() {
         291 => assert_eq!(frames, 21_344, "Windows release"),
@@ -238,7 +238,7 @@ fn the_example_mod_only_changes_rules_that_the_real_game_actually_has() {
     assert_eq!(rules.difficulty("very_hard").unwrap().scale_percent, 65);
 
     // Its `unit.*` half reaches the simulation table, over a ruleset seeded
-    // from a real install rather than a fixture.
+    // from a real install.
     assert_eq!(p.troop_table().unwrap().stats(l2_sim::Troop::Archers).armour, 4);
 
     // The two reports, printed against real data. `docs/modding.md` §7 quotes
@@ -272,7 +272,7 @@ fn count_leaves(v: &l2_mods::Value) -> usize {
 /// hand. **They are not**, and the attempt is more useful for having failed:
 ///
 /// * 299 of the 400 entries in each non-Normal group of `TROOPS.ENG` are
-///   **zero**, so it is not a filled-in table either;
+/// **zero**, so it is not a filled-in table either;
 /// * of the ones that are not, the ratios to Normal are all over the place —
 ///   1.20, 1.222, 1.225, 1.233, 1.25, 1.266, 1.30, 1.33, 1.40, 1.50, 1.60, 2.00
 ///   in group 0 alone. They were authored by hand, per battle, and 116 % is
@@ -284,7 +284,7 @@ fn count_leaves(v: &l2_mods::Value) -> usize {
 /// undoing a correct reading; this test is here to say so before they try.
 ///
 /// The curve's provenance therefore remains the decompilation alone. That is
-/// recorded as an open item rather than papered over: see `docs/audit.md`.
+/// recorded as an open item: see `docs/audit.md`.
 #[test]
 fn the_shipped_difficulty_rows_are_dead_data_and_not_the_engines_curve() {
     use l2_mods::seed::{COLUMNS, DIFFICULTIES, ROWS, SIDES};

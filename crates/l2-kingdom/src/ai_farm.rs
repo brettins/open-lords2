@@ -223,7 +223,7 @@ impl Market for NoMarket {
 ///    shipped game creates has morale 100, so `Pct(2, 100) = 2` and a sack
 ///    costs **4 crowns**. That number is the whole of why the cascade lands
 ///    where it does.
-/// 3. **the purse.** `price * qty <= purse`, whole lot or nothing — there is no
+/// 3. **the purse.** `price * qty <= purse`, whole lot or nothing —
 ///    partial fill anywhere in this path.
 ///
 /// Put together with [`FarmStyle::buys`], the cascade is *"take the largest lot
@@ -334,7 +334,7 @@ impl Market for CountyStall<'_> {
         // `if (realm != 0)` and so never runs; this test in `Ai_BuyGood` is the
 // only thing in front of it, so `crate::trade`'s
         // `UnownedCountyTradesUnchecked` quirk is about a *reachable* path
-        // rather than a theoretical one.
+        //
         //
         // > The owned arm used to be refused outright here, with the note that
         // > `manage_county_farms` still passed `NoMarket` and so the arm had no
@@ -489,7 +489,7 @@ impl FarmStyle {
     }
 
     /// The percentage of the county's people this style hands to industry
-    /// rather than to the farm — [`County::industry_share`], written before the
+    /// — [`County::industry_share`], written before the
     /// labour shares are reset.
     ///
     /// This is the single largest difference between the styles, and it goes
@@ -733,7 +733,7 @@ pub fn split_search(style: FarmStyle, county: &County) -> SplitSearch {
 ///
 /// `[V]` on the arithmetic, `[D]` on calling it a bug. It is the only place in
 /// the ration rules where the *composition* of the larder changes the level
-/// rather than only the price, and it costs the grazing lords a ration point.
+///, and it costs the grazing lords a ration point.
 pub fn ration_wanted(t: &Tables, county: &County, armies_eat: bool) -> i32 {
     let store = food_in_store(t, county);
     let dairy = ration::food_from_dairy(t, county.herd);
@@ -929,7 +929,7 @@ pub fn fit_cattle_fields(t: &Tables, county: &mut County, map: &mut CampaignMap,
 /// moves **between** the two passes of step 6, because the allocation in the
 /// middle is what staffs the smiths.
 ///
-/// So this takes `counties` and an index, exactly as
+/// So this takes `counties` and an index,
 /// [`crate::field::set_type`] does, and recomputes the share on each pass. The
 /// tempting shortcut — hand the estimate a default [`crate::realm::Realm`] —
 /// would zero every industry ceiling in every AI county, because
@@ -1441,7 +1441,7 @@ mod tests {
     /// This is the fixture's own arithmetic, both ways round: county 3 of
     /// `old_turn.sav` holds 316 crowns and buys the 50-sack lot for 200; the
     /// same county of `safeturn.sav` one turn earlier holds 195 and buys
-    /// **nothing**, because 200 is more than 195 and there is no smaller lot.
+    /// **nothing**, because 200 is more than 195 and
     /// A purse of 400 reaches the 100-sack lot instead, which is what says the
 /// rule is a threshold.
     #[test]

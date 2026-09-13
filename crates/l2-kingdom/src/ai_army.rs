@@ -29,7 +29,7 @@
 //!
 //! §3.2 calls step 10 *"create a **type-7 unit** and send it somewhere"*, and
 //! `ai.rs` copied that as *"needs the unit **mission** byte"* without noticing
-//! the two were the same claim. **There is no unit kind 7** —
+//! the two were the same claim. —
 //! [`crate::unit::UnitKind`] has four and `g_unitTickTable` has four handlers.
 //! `FUN_004A0015` calls `FUN_004A5003`, which calls `Army_Create`, which
 //! spawns a **type-1 army**; the 7 goes into `+0x1A`, the *mission*. `[D]`
@@ -1932,7 +1932,7 @@ impl Kingdom {
     /// The link is cleared on **both** sides — the unit's
     /// [`crate::unit::Unit::garrison_county`] and the county's
     /// [`crate::county::County::garrison_unit`] — and a besieger waiting outside is reported
-    /// rather than fought; see [`Eviction`].
+    ///; see [`Eviction`].
     ///
     /// **`[I]` on the search.** The original calls `Map_FindFreeTileNear`,
     /// whose radius this crate has not read; the box walk here is the one

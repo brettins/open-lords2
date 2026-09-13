@@ -11,7 +11,7 @@
 //! `CLAUDE.md` rule 5. The middle column is `Screen_FrameInput`'s
 //! (`0x0042FF10`) own dispatch order, which is a **ladder of guards**: the first
 //! one that consumes the input ends the frame. Ours is the same ladder in the
-//! same order, and where a guard declines we fall through exactly as it does.
+//! same order, and where a guard declines we fall through.
 //!
 //! ## `0x29` — the field
 //!
@@ -71,7 +71,7 @@
 //! Ours painted the field from `y = 24` down and left the 640 × 24 band above it
 //! empty. An empty bar and a dead bar look the same.
 //!
-//! **And there is no disabled state in the original's menu bar to copy.** The
+//! The
 //! drop-down painter, `FUN_0040C725`, is a two-way branch per row — `0x18` on a
 //! plate for the row under the pointer, `0x3F` for every other — with no third
 //! colour, no skip and no flag; `FUN_0040E099` hit-tests every row and
@@ -97,7 +97,7 @@
 //! is, and a battle is the one thing that stops them.
 //!
 //! **`Menu_SaveGame` mid-battle is the one thing we refuse**, and the refusal is
-//! [`crate::screens::saveload`]'s rather than the bar's, because the original
+//! [`crate::screens::saveload`]'s, because the original
 //! has no way to say no here. `crate::save` cannot encode a live
 //! [`crate::battlefield::LiveBattle`], and a save that silently dropped the
 //! battle a player was fighting is worse than one that says it cannot.
@@ -112,8 +112,8 @@
 //! `+ (64, 46)` and `+ (112, 50)`. **What is ours is that it is drawn by this
 //! screen instead of by `Screen_ConfirmBox` on a screen of its own** — and that
 //! is now the only thing left that is: the ground is `Screen_ConfirmBox`'s own
-//! `FUN_004093E0(…, 0xE, 8)` in border set 1 rather than a plate of ours, and
-//! the two pictures are `g_confirmWidgets`' frames 29 and 31 rather than the
+//! `FUN_004093E0(…, 0xE, 8)` in border set 1, and
+//! the two pictures are `g_confirmWidgets`' frames 29 and 31
 //! close corner and its neighbour.
 //!
 //! # The outcome banner, both arms, and the film
@@ -487,7 +487,7 @@ impl Screen for BattlefieldScreen {
     /// The siege arm was left out because the siege *tileset* was not ported
     /// and *"one without the other would be wrong both ways"*. C200 measured
     /// it the other way round — a siege drew every wall and every man in the
-    /// field's colours, the whole screen wrong rather than the tiles wrong —
+/// field's colours, the whole screen wrong —
     /// and **C201 then ported the tiles**, so neither is wrong now.
     ///
     /// [`BattlefieldScreen::ground`] is the cached flag, because this is
@@ -622,7 +622,7 @@ impl Screen for BattlefieldScreen {
                     }
                     // `0x2A`'s: cancel the drag and go back to `0x29`. The box
                     // that was being drawn is **not** undone — the original
-                    // leaves the live selection exactly as the last motion left
+                    // leaves the live selection
                     // it, because the cancel is a screen change and nothing
                     // else.
                     //
@@ -653,7 +653,7 @@ impl Screen for BattlefieldScreen {
                 Transition::Stay
             }
             // `WM_CHAR`. The battlefield's four key arms are all `WM_KEYDOWN`
-            // virtual-key ones — the nine digits and H/V — and there is no text
+            // virtual-key ones — the nine digits and H/V —
             // field on any of the three battle screens, so the character
             // message has nothing to do here. See `crate::text`.
             Event::Text(_) => Transition::Stay,
@@ -904,7 +904,7 @@ impl Screen for BattlefieldScreen {
             // `if (kind == 4 || kind == 5) { frame = rec[0x04]; if (rec[0x0D])
             // frame = rec[0x04] + 1; }` — a *sprite index*, not a colour
             // effect — and it then marks the rectangle with
-            // `Gfx_MarkWidgetUrgent` rather than `Gfx_MarkSpriteDirty` so the
+// `Gfx_MarkWidgetUrgent` so the
             // depressed picture appears on the same frame as the press. This is
             // the only place in this engine that draws one.
             for (i, (r, frame, label)) in
@@ -929,19 +929,19 @@ impl Screen for BattlefieldScreen {
         // **`Screen_DrawMenuBar` (`0x00419C78`), and it is the last thing
         // painted.** `Battle_Frame` (`0x004B99C0`) runs it *after* `Screen_Draw`
         // and `Screen_DrawWidgets`, so the bar sits over everything this
-        // function has just drawn — which is why it is here and not at the top,
+// function has just drawn — so it is here and not at the top,
         // and why the outcome banner's `canvas.remap` above does **not** dim it.
         //
         // The 640 × 24 band at y 0 was blank on this screen: the field starts at
         // `VIEW.y == 24` and nothing filled the strip above it. A player read
         // that as *"the menu buttons are deactivated in battle mode"*, and he
-        // was looking at an empty bar rather than a greyed one — the original
+// was looking at an empty bar — the original
         // has **no disabled state anywhere in the menu bar**, on this screen or
         // any other. `true` is `g_battlePhase != 0`: the shields and the
         // year-and-season go, the three titles and the treasury stay.
         crate::screens::map::draw_menu_bar(canvas, ctx, true);
 
-        // The cursor kind, printed rather than drawn: the pointer itself is the
+// The cursor kind, printed: the pointer itself is the
         // host's and we have no cursor sheet. It is here because the ladder that
         // chooses it is an arm and a test reads it.
         let _ = live.cursor();
@@ -998,7 +998,7 @@ fn outcome_banner(game: &crate::Game, live: &LiveBattle) -> usize {
 ///
 /// The blocks stand where the artwork's men would —
 /// `l2_view::scene::figure_origin`, `BattleMan_Step`'s cell and trail — so the
-/// placeholder walks the way the picture does rather than a cell at a time.
+/// placeholder walks the way the picture does.
 fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
     let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
     canvas.fill_rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h, ink.background);
@@ -1027,7 +1027,7 @@ fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view:
 
 /// **Cell byte `+5`, as `FUN_004BC51A` reads it, already turned into the
 /// `t2_spri.pl8` frame it picks.** One byte a cell: the man's owning realm's
-/// `shieldIndex`, `6` for the ownerless, `0` where there is no man — which is
+/// `shieldIndex`, `6` for the ownerless, `0` where there is no man —
 /// also the value the original's `if (DAT_005C9288 != 0)` guard drops.
 ///
 /// ```c
@@ -1067,7 +1067,7 @@ fn overview_occupants(game: &crate::Game, live: &LiveBattle) -> Vec<u8> {
 /// tests, painted by `FUN_004BC51A` (`0x004BC51A`) and scheduled by
 /// [`Overview`].
 ///
-/// **The frame round the viewport is gone and was never the original's.**
+///
 /// `FUN_004BC51A` draws two things and neither is a rectangle: a terrain tile
 /// per cell and a man over it. **[V]** That nothing *else* writes inside
 /// `(0x1E0, 0x18)`–`(0x280, 0xB8)` is **[I]**: `Screen_DrawBattlefield`'s three

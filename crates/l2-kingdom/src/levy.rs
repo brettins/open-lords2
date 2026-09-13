@@ -2,7 +2,7 @@
 //! `docs/armies.md` §6.
 //!
 //! **Recruitment is a headcount.** You take a percentage of a county's people
-//! and the county's happiness pays for it; there is no per-troop-type
+//! and the county's happiness pays for it;
 //! recruitment price anywhere on this path. What the men are *carrying* is
 //! decided separately, out of the realm's weapon stockpiles, and a man with no
 //! weapon is a peasant.
@@ -121,7 +121,7 @@ impl LevyBasket {
     }
 
     /// Move `n` men from the unequipped pool into a weapon slot, as the `+`
-    /// button does one at a time. Returns how many actually moved: the move is
+    /// button does one at a time. Returns how many
     /// bounded by the men available and by the stock left.
     pub fn equip(&mut self, troop: TroopType, n: i32) -> i32 {
         let Some(slot) = troop.weapon_slot().map(|w| w + 1) else { return 0 };
@@ -165,7 +165,7 @@ impl LevyBasket {
     /// > weapon type runs out"*. Wrong on the second half:** a weapon type that
     /// > runs out is *skipped* on every later pass and the round-robin
     /// > continues with the others, so an army is equipped from whatever the
-    /// > armoury still has rather than stopping at the first empty rack. There
+    /// > armoury still has
     /// > is also a **50-pass ceiling** — at six types and ten men a pass that is
     /// > 3,000 men, twice [`crate::tables::ARMY_MAX_MEN`], so it never bites in
     /// > play — and the floor is `men < 10`, not `men == 0`, so **up to nine men
@@ -216,7 +216,7 @@ pub struct Levy {
     /// and `g_levyPercent` stays where the player put the slider while the two
     /// globals hold the reduced figures — so the slider can read 80% while the
     /// county is only giving up 59%. Carried here because a caller needs to know
-    /// what actually happened, and named `settled` rather than `percent` so it
+    /// what
     /// cannot be mistaken for the slider.
     pub settled: i32,
 }
@@ -293,7 +293,7 @@ pub enum LevyRefusal {
     /// Message `0x94` = group 148, *"impractical to create an army of less than
     /// 50 men"*.
     TooFew,
-    /// Message `0xDD` = group 221. `Army_Create` returned 0: there is no free
+    /// Message `0xDD` = group 221. `Army_Create` returned 0:
     /// road tile and no free open tile in the county to put the army on.
     NowhereToStand,
 }
@@ -441,7 +441,7 @@ pub struct Muster {
 /// >    morale 80. The document's pseudocode lists them in the other order.
 /// > 2. **The happiness debit is clamped.** §6.3 renders it as a flat
 /// >    `happiness -= cost`. When the county cannot afford the full cost its
-/// >    happiness goes to 0 and the panel is debited only what was actually
+/// > happiness goes to 0 and the panel is debited only what was
 /// >    taken, so the two always agree. This is reachable: the AI paths pass an
 /// >    unclamped cost.
 /// > 3. **`Army_Create` sets neither `moveAllowance` nor `movesUsed`.**
@@ -451,7 +451,7 @@ pub struct Muster {
 /// >    kind — the one-frame stale 0 is a rendering artefact of the original's
 /// >    frame loop and not a rule.
 ///
-/// The **two food passes really do run twice**, which is not a transcription
+/// The **two food passes really do run twice**
 /// slip: `Food_Available` is recomputed from the ration pass's per-season caps,
 /// so the army's own foraging has to be settled before the happiness is
 /// charged.
@@ -594,12 +594,12 @@ pub const DEFENCE_PERCENT: i32 = 40;
 /// `FUN_004A50AE` — raise a county's defence force in the face of an invader.
 ///
 /// This is the function `docs/armies.md` never names, and it is what turns
-/// walking onto a county into a fight rather than a capture. It levies a
+/// walking onto a county into a fight
 /// percentage of the county's population, equips it according to who owns the
 /// county, and calls `Army_Create`.
 ///
 /// Returns the new unit, or `None` when the county has fewer than
-/// [`DEFENCE_MIN_POPULATION`] people — in which case there is no defence and
+/// [`DEFENCE_MIN_POPULATION`] people — in which case
 /// [`crate::conquest::attack_county`] captures outright.
 #[allow(clippy::too_many_arguments)]
 pub fn raise_defence(

@@ -9,7 +9,7 @@
 //! went stale at once, a comment in `ai.rs` stated an expired constraint and set
 //! the AI's priority for weeks, and `l2-kingdom` cited a correction number that
 //! had never been written. A hand-maintained toggle list would drift within a
-//! week, and the drift would be invisible — the code compiles either way.
+//! week — the code compiles either way.
 //!
 //! So this test **reads both files as text** and asserts they agree. It follows
 //! `crates/l2-testkit/tests/census.rs`, including the habit worth copying: when
@@ -52,7 +52,7 @@
 //!    checkbox claims a behaviour is configurable. So every variant has to be
 //!    named somewhere outside its own definition and outside a test.
 //! 4. **No quirk may be filed under `Tables`.** `Tables` is hashed into the save
-//!    *header* and `save::decode` refuses a mismatch, so a quirk there would
+//! *header* and `save::decode` refuses a mismatch, so a quirk there would
 //!    invalidate every existing save and would frame a quirk as a rule.
 //!    `docs/bugs.md` §6.3, `docs/decisions.md` C62.
 //! 5. **The presentation table and its struct are the same list.** A field with
@@ -83,7 +83,7 @@ enum Disposition {
     /// Reproduced in our code, switchable at a reasonable price, **and nobody
     /// has done it**. The honest middle: not impossible, just not done. The
     /// string says where the code is, so the next person starts from a path
-    /// rather than from the catalogue.
+    ///
     Unwired(&'static str),
     /// A switch would be meaningless, harmful, or has nothing to switch. The
     /// reason is mandatory and is prose a reader can disagree with.
@@ -110,7 +110,7 @@ use Home::{Behavioural, Presentation};
 /// So the home is written down here, beside the catalogue entry, and the check
 /// below fails if the implementation is anywhere else — including if it is in
 /// *both*. Moving a quirk between homes is then a visible edit to this file
-/// rather than a silent one to a struct.
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Home {
     /// `l2_net::Quirk`, on `l2_kingdom::kingdom::Options`. In the save body and
@@ -387,7 +387,7 @@ fn read(root: &Path, rel: &str) -> String {
 /// **A placeholder is an entry.** A branch cannot know the number its new row
 /// will get, so it writes `B` + `NEW-` + a slug and the integrator assigns the
 /// number at merge with `node tools/decisions/corrections.js --assign`. This
-/// parser used to accept digits only, so a placeholder row was invisible here:
+/// parser used to accept digits only:
 /// the branch's own suite was green, and the two tests below went red only once
 /// the row was numbered, on `main`, in the integrator's hands. Now the row is
 /// seen on the branch, `DISPOSITIONS` has to carry the placeholder, and
@@ -431,7 +431,7 @@ fn catalogue_of(doc: &str) -> Vec<String> {
 /// `B` then digits then an optional lower-case suffix: `B1`, `B11a`, `B63a` —
 /// or `B` + `NEW-` + a slug, the placeholder a branch writes (see
 /// [`catalogue`]). The slug is the one `corrections.js` recognises: word
-/// characters in hyphen-separated runs, so a trailing or doubled hyphen is not
+/// characters in hyphen-separated runs,
 /// part of it.
 fn is_entry_id(s: &str) -> bool {
     let Some(rest) = s.strip_prefix('B') else { return false };
@@ -691,7 +691,7 @@ fn every_bug_has_a_disposition_every_switch_has_a_bug_and_every_switch_is_in_its
     }
 }
 
-/// **A placeholder row is a catalogue entry**, so a branch that adds a bug and
+/// **A placeholder row is a catalogue entry**,
 /// does not say what its switch is goes red on its own branch.
 ///
 /// The failure this exists for: a branch added a row as a placeholder, its
@@ -790,7 +790,7 @@ fn every_switch_is_read_by_the_simulation() {
 ///
 /// `l2_kingdom::save::ruleset_fingerprint` hashes `Tables` into the save
 /// *header* and `decode` refuses a save whose supplied tables hash differently,
-/// so a quirk field there would invalidate every existing save on the day it was
+///
 /// added — and would frame a quirk as a *rule*, which it is not. It belongs on
 /// `Options`, which is in the save *body* and therefore already inside the
 /// per-tick lockstep digest. `docs/bugs.md` §6.3, `docs/decisions.md` C62.
@@ -810,7 +810,7 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
              per-tick digest. docs/bugs.md §6.3, docs/decisions.md C62."
         );
     }
-    // And the other direction: `Options` really is the home, so that this test
+    // And the other direction: `Options` really is the home,
     // cannot pass by the field having quietly gone away.
     let kingdom = read(&root, "crates/l2-kingdom/src/kingdom.rs");
     assert!(

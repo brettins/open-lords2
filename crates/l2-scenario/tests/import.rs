@@ -229,8 +229,8 @@ fn a_local_player_that_is_not_a_realm_is_refused() {
 /// produces the pattern below, and the pattern is the whole argument:
 ///
 /// * **Seven of the nine floors are −1 in all fourteen counties.** Only the
-///   cattle estimate (`FUN_0044DD4D`) and the grain estimate (`FUN_0044D374`)
-///   ever write a real floor, and the shipped save is a Winter save with no
+/// cattle estimate (`FUN_0044DD4D`) and the grain estimate (`FUN_0044D374`)
+/// ever write a real floor, and the shipped save is a Winter save with no
 ///   grain sown, so cattle is the only one with a number in it. A misread
 ///   offset does not produce ninety-eight −1s.
 /// * **Wood's ceiling is exactly 100,000 in every owned county and exactly 0
@@ -392,7 +392,7 @@ fn every_unit_in_every_save_is_imported_slot_for_slot() {
             for t in 0..7 {
                 assert_eq!(ours.troops[t], f.troops[t] as i32, "{at}: troop {t}");
             }
-            // And the kingdom got it in the same slot, which is what
+            // And the kingdom got it in the same slot
             // `garrison_unit`, `besieged_by` and the merchant route index all
             // depend on.
             assert_eq!(kingdom.campaign.units.get(*slot), Some(ours), "{at}: in the kingdom");
@@ -751,12 +751,11 @@ const CASTLE_TAX_BASE: [i32; 6] = [320, 480, 560, 640, 720, 800];
 /// It is the middle save of the battle triple, and the fixture's own name is
 /// the explanation: `battle-during.sav` (the install calls the same game
 /// `incombat.sav`) is taken with a battle open. County 2's population has
-/// already fallen to 588 and the stored preview is still **245**, which is
+/// already fallen to 588 and the stored preview is still **245**
 /// `Pct(Pct(638, 480), 8)` — the answer for the population the county had
 /// before the fighting. `battle-after.sav` stores **225** for the same county,
 /// which *is* `Pct(Pct(588, 480), 8)`.
 ///
-/// **That single disagreement is the argument for reading the byte instead of
 /// recomputing it on load.** No recompute can produce 245; the original
 /// restores a memory image, and `Tax_RecomputePreview` runs on a control or at
 /// the end of a season, not on a load.

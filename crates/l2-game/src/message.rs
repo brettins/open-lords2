@@ -221,7 +221,7 @@ impl Record {
     /// `Msg_DismissUnlessQuestion` (`0x00476710`) refuses to close, and the four
     /// `Msg_HandleInput` runs a `Widget_Test` for.
     ///
-    /// **The two lists are the same four and that is checkable rather than
+    /// **The two lists are the same four and that is checkable
     /// assumed**: `0x11`, `0x0A`, `0x0B`, `0x0C`. See
     /// [`MessageQueue::dismiss_unless_question`] and
     /// [`Record::answer_widgets`].
@@ -375,7 +375,7 @@ impl Shape {
     /// click can dismiss the message at all.
     ///
     /// **Every arm but two draws one.** [`Shape::Tip`] does not — it is the
-    /// timed one — and [`Shape::Unhandled`] does not because there is no arm.
+    /// timed one — and [`Shape::Unhandled`] does not
     pub fn has_ok_button(self) -> bool {
         !matches!(self, Shape::Tip | Shape::Unhandled)
     }
@@ -480,7 +480,7 @@ impl Frame {
 /// Where each category's window goes, read off `Msg_DrawWindow`'s
 /// `FUN_004093E0` calls one arm at a time.
 ///
-/// Three categories are not here because their geometry is not a constant:
+/// Three categories are not here
 /// [`category::TIP`] follows the cursor, [`category::HELP`] and the two
 /// letter categories index tables in `.rdata`, and the paragraph stack computes
 /// its height from how many paragraphs it drew.
@@ -1027,7 +1027,7 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 ///   arrives the instant that county is picked, which may be seasons later and
 ///   may be the same frame the player clicks it.
 /// * **The clear is outside the owner test.** A county that changed hands
-///   between the roll and the click has its flag thrown away without a letter.
+/// between the roll and the click has its flag thrown away without a letter.
 /// * **`eventId` is never cleared by anything.** It is overwritten by the next
 ///   event the county draws and otherwise stands for the rest of the game, which
 ///   is why four siege fixtures still read `0x8E` on a county whose Wedding
@@ -1039,7 +1039,7 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// **`g_mouseRightDown`.** Our [`crate::input::Event`] has no right *press* —
 /// `RightClick` is the release, deliberately, because the original's fifty-odd
 /// right-button arms all read the released-this-frame flag (`DAT_004E6900`) and
-/// never the held one. So there is no frame in this engine during which the
+/// never the held one. So
 /// right button is down, the guard would be false on every one of them, and a
 /// flag invented to satisfy it would be a flag nothing could ever set. The
 /// original's effect is to hold a letter back while the button is held; ours
@@ -1061,7 +1061,7 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// and never reaches the kingdom — the same split as [`Game::player_names`],
 /// and the alternative (a field in the save but out of the digest) would need a
 /// second encoder that `l2_net::Canonical` does not have. The latch itself
-/// stays exactly as `Event_RollAll` wrote it, identical on every peer.
+/// stays
 /// `docs/netcode.md` §6, `docs/decisions.md` C210.
 ///
 /// Returns whether a letter was enqueued.

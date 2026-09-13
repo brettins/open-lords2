@@ -24,7 +24,7 @@
 //!
 //! `Map_SetZoom` has a third case (26 × 14 tiles) and it is dead code:
 //! `g_mapZoom` has three writers in the whole binary and none of them can make
-//! it 1. See `docs/screens.md` §2.2 — there is no shipped PL8 holding 26 × 14
+//! it 1. See `docs/screens.md` §2.2 —
 //! map tiles either.
 //!
 //! # Why there is one blitter here and five in the original
@@ -114,7 +114,7 @@ pub fn season_slot(season: u8) -> usize {
     }
 }
 
-/// One of the two campaign zooms, exactly as `Map_SetZoom` sets it up.
+/// One of the two campaign zooms,
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Zoom {
     /// `g_mapZoom`. 0 near, 2 far — the original's own numbering, with the gap
@@ -418,7 +418,7 @@ impl Viewport {
 ///
 /// **Rotations 2, 4 and 6 are not implemented.** `Map_BuildLattice` builds all
 /// four and `Map_RotateCW` / `Map_RotateCCW` step between them; we only ever
-/// build rotation 0 and there is no way to ask for another.
+/// build rotation 0 and
 pub fn tile_to_cell(x: usize, y: usize) -> (i32, i32) {
     let (x, y) = (x as i32, y as i32);
     (x + y + 1, (x - y + PLANE_DIM as i32) >> 1)
@@ -503,9 +503,9 @@ impl MapAssets {
     /// plain directory and against the mod overlay's case-insensitive VFS.
     ///
     /// **Spring is required and the other three seasons are not.** Without
-    /// spring's five banks there is no map at all; without summer's the map
+    /// spring's five banks; without summer's the map
     /// falls back on spring, which is a map that does not change with the year
-    /// rather than no map. An install that is missing `Base1c.pl8` should still
+    /// An install that is missing `Base1c.pl8` should still
     /// play, and a mod that ships one season should not have to ship four.
     ///
     /// The sprite and flag sheets are optional for the same reason: everything
@@ -618,7 +618,7 @@ impl MapAssets {
 /// index with, and that *"a unit mid-step would sit at its destination tile in
 /// the original for the same reason it does here"*. The first half stopped being
 /// true when `docs/decisions.md` C134 gave the unit its sub-tile counter, and
-/// the second half was never true — the original's tile is the destination and
+/// the second half — the original's tile is the destination and
 /// its figure is not on it. A player: *"The army marching animation is jumping
 /// from square to square, I remember there being an animation and some
 /// interpolation between walking squares."*
@@ -1141,7 +1141,7 @@ pub fn path_marker_frame(cost: i32, in_range: bool, action: bool) -> usize {
 /// `Flags1a.pl8`'s first 40 frames are 32 × 24 and lie on the artist's sheet as
 /// five rows of eight: **five shields × eight wave phases**, and `shield = 5,
 /// phase = 7` lands on frame 39, the last of them. The colour is in the frame
-/// index; there is no palette remap. `shield` is the realm's `shieldIndex`,
+/// index; `shield` is the realm's `shieldIndex`,
 /// clamped 1 … 5 by the original, so a zero shield has no flag.
 pub const FLAG_PHASES: u8 = 8;
 
@@ -1156,7 +1156,7 @@ pub fn flag_frame(shield: u8, phase: u8) -> Option<usize> {
 /// block's origin and **not** the north-east one this line used to name.
 ///
 /// **Two unrelated painters pass this one index**, which is what makes it `[V]`
-/// rather than a reading of one function:
+///
 ///
 /// * `Sprite_TopIt` (`0x004071A0`) — [`draw_mercenary_marker`], on the map;
 /// * `TileInfo_Draw` (`0x0041C208`) — `Pl8_DrawFrameClipped(g_flagsSheet, 0x81,
@@ -1226,7 +1226,7 @@ pub const MERCENARY_MARKER_FRAME: usize = 0x81;
 /// **The sheet.** Frames `0x67 … 0x78` are eighteen **2 × 2 stubs** — the same
 /// padding as `0x4F … 0x54`, which is what makes the livestock block start on a
 /// row of six — while `0x55 … 0x66` are eighteen frames of **58 × 30**, exactly
-/// the near-zoom diamond. There is no second herd in the file to draw.
+/// the near-zoom diamond.
 /// [`tests::the_pasture_frames_are_full_tiles_and_the_dead_block_is_stubs`]
 /// measures both against a real `Flags1a.pl8`.
 ///
@@ -1246,7 +1246,7 @@ pub const MERCENARY_MARKER_FRAME: usize = 0x81;
 /// # There are no sheep
 ///
 /// A pasture is a *"dairy meadow"* in `L2.eng` group 30 and its mode line is
-/// *"- Cattle."* There is no sheep sprite, no sheep sheet, and no `farm_style`
+/// *"- Cattle."*
 /// branch anywhere that picks a species — the five styles choose grain against
 /// pasture and how many fields, never what grazes. Goods 3 (*Sheep*) and 5
 /// (*Wool*) carry price 0, have no `Merchant_Trade` branch and no `mercgrid.pl8`

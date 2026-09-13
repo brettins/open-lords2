@@ -28,7 +28,7 @@
 //! each of them by running the rule and reading a different answer out of the
 //! simulation, not by reading the field back.
 //!
-//! What is *not* covered is worth naming rather than leaving to be discovered:
+//! What is *not* covered is worth naming:
 //!
 //! * **`kingdom.ai.personality.*.farm_style` loads and does nothing.**
 //!   `AI_ManageFields` dispatches on it into three labour allocators that were
@@ -148,7 +148,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
 
     t.ale = AleTable {
         // `buy_ale` divides the population by this, so zero is a division by
-        // zero rather than "ale is free".
+// zero.
         step_pct: int(rs, "kingdom.happiness.ale_step_pct", 1, 10_000)?,
         // The rung count and the cumulative cap are one number, as they are in
         // the original. Zero means ale buys nothing, which is a rebalance and
@@ -179,13 +179,13 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     }
 
     // Five bounds, not four. The table is `{bound, band}` pairs in the binary's
-    // own layout, and the top band is an explicit entry rather than an `else` —
+// own layout, and the top band is an explicit entry —
     // `tools/oracle/kingdom.ps1` checks that against the executable.
     //
     // The ruleset carries only the bounds, because in the shipped table the band
     // column always equals its own row index (10,0  35,1  65,2  90,3  100,4).
     // That is a property of the data, not a rule, so a mod wanting non-identity
-    // bands would need the format to grow a column rather than get them by
+// bands would need the format to grow a column
     // accident.
     let bands = t.health_band_ladder.len();
     let ladder = rs.integer_array("kingdom.health.band_ladder", bands)?;
@@ -241,7 +241,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     }
 
     // The empire tax term, one row per rate. The length is the tax ceiling and
-    // is therefore structure rather than balance: a document with a different
+// is therefore structure: a document with a different
     // number of rows is describing a game whose tax panel stops somewhere else.
     let tax = rs.integer_array("kingdom.tax.happiness_other", t.tax_happiness_other.len())?;
     for (rate, &value) in tax.iter().enumerate() {
@@ -302,7 +302,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         tax_base: [0; 6],
         // Six slots, five used: the binary stores a trailing zero after each of
         // these tables, and that 24-byte stride is what places the next one.
-        // The shape is kept rather than tidied so the arrays still match the
+// The shape is kept so the arrays still match the
         // addresses `tools/oracle/kingdom.ps1` reads.
         tax_bonus_pct: [0; 6],
         cost: [(0, 0); 5],
@@ -327,7 +327,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         );
         // Both columns take the mod's single value, matching the shipped table
         // where the two are always equal. The second column's meaning has never
-        // been traced, so it is carried rather than invented a purpose for.
+// been traced, so it is carried.
         let workforce = int(rs, &format!("{base}.workforce"), 0, 1_000_000)?;
         castle.workforce[b] = (workforce, workforce);
         castle.garrison_cap[b] = int(rs, &format!("{base}.garrison_cap"), 0, 1_000_000)?;
@@ -454,7 +454,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             ));
         }
         // `castle_gold` is one threshold per castle type 1..=5, and a zero means
-        // that type is never offered to this lord — which is why the Baron and
+// that type is never offered to this lord — so the Baron and
         // the Countess never build a royal castle at any treasury.
         let gold = rs.integer_array(&format!("{base}.castle_gold"), CASTLE_TYPE_COUNT - 1)?;
         let mut castle_gold = [0i32; CASTLE_TYPE_COUNT - 1];
@@ -483,14 +483,14 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             help_price: int(rs, &format!("{base}.help_price"), 0, 1_000_000)?,
             grudge_tolerance: int(rs, &format!("{base}.grudge_tolerance"), 0, 10_000)?,
             // A zero interval would offer every turn, which is a rebalance
-            // rather than a crash, so it is allowed.
+            // so it is allowed.
             offer_interval: int(rs, &format!("{base}.offer_interval"), 0, 10_000)?,
             help_population_floor: int(rs, &format!("{base}.help_population_floor"), 0, 1_000_000)?,
             muster_pct: int(rs, &format!("{base}.muster_pct"), 0, 100)?,
             // The five fields AI steps 7, 9 and 10 read
             // (`l2_kingdom::ai_army`). A zero patience musters every turn and
             // a zero raid interval raids every turn; both are rebalances
-            // rather than crashes, so the low bound is open.
+            // so the low bound is open.
             muster_patience: int(rs, &format!("{base}.muster_patience"), 0, 10_000)?,
             muster_arms: int(rs, &format!("{base}.muster_arms"), 0, 1_000_000)?,
             garrison_min_population: int(
@@ -514,7 +514,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             castle_gold,
             // Personality `+0xA0`: 7, 8 or 9 selects the lord's siege-engine
             // order and anything else falls to the default of two towers, so
-            // the range is deliberately open rather than an enum.
+// the range is deliberately open.
             siege_doctrine: int(rs, &format!("{base}.siege_doctrine"), 0, 255)?,
         };
     }
@@ -572,7 +572,7 @@ fn int(rs: &Ruleset, path: &str, lo: i64, hi: i64) -> Result<i32, RuleError> {
 ///
 /// The simulation's ladder is a fixed [`TAX_LADDER_RUNGS`]-row array because
 /// the neutral ladder needs all eight, but the three personality ladders use
-/// five, five and six. Rather than make an author write three padding rows of
+/// five, five and six.
 /// `below = 2147483647`, a document may give **1 to 8** rows and the last one
 /// is repeated to fill. That is lossless in both directions: a fall-through
 /// returns the last row's rate whether the padding is there or not, and
@@ -1239,7 +1239,7 @@ fn join_i32(values: &[i32]) -> String {
 }
 
 /// A long integer array, wrapped at `per_line` values and indented, so a
-/// hundred-entry table is readable rather than one enormous line.
+/// hundred-entry table is readable.
 fn wrap_i32(values: &[i32], per_line: usize) -> String {
     values
         .chunks(per_line)

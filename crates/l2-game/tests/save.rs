@@ -436,7 +436,7 @@ fn the_listing_is_sorted_by_name_and_not_by_whatever_the_file_system_says() {
 fn a_failed_write_cannot_destroy_the_save_it_was_replacing() {
     // The write goes to a `.part` file and is renamed over the target, so the
     // only way the target changes is a rename that succeeded. What is asserted
-    // here is the visible consequence: after a successful overwrite there is no
+    // here is the visible consequence: after a successful overwrite
     // `.part` left behind, and the file is the *new* game.
     //
     // **Against the directory, not the listing.** This used to ask `saves::list`
@@ -564,7 +564,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     // screen's fields; it is clicks and keys.
     //
     // **`Event::Text`, not `Event::KeyDown`.** They are `WM_CHAR` and
-    // `WM_KEYDOWN` and the field reads the first, exactly as the original's
+    // `WM_KEYDOWN` and the field reads the first,
     // does — `Key::Char` is folded to upper case for the hotkey matchers, so a
     // field fed from it could never produce a lower-case letter at all. This
     // test drove the old hand-rolled field through the hotkey message and is

@@ -519,7 +519,7 @@ fn fire_arrows_set_a_wood_alight_under_a_human_army_and_it_burns_through() {
 /// over the proving ground, which pours oil, docks a tower, burns a bridge,
 /// kills men with fire and bounces catapult shots off a wall four high.
 ///
-/// Ablation, by insertion because there is no reader to delete: make
+/// Ablation, by insertion: make
 /// `update_man` skip the burn while `self.sim.cues.oil_poured() > 0` and this
 /// goes red on the frame after the pour.
 #[test]

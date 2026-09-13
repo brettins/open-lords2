@@ -8,7 +8,7 @@
 //!
 //! Until the draw-call audit it read: *"the original's glyphs live in
 //! `Font_c2.pl8` and friends, and that file is an open question … so the
-//! interface draws its own letters **until the real font is decoded**."*
+//! interface draws its own letters **until the real font is decoded**."
 //!
 //! **The real font has been decoded.** `crates/l2-game/src/shell/font.rs` draws
 //! with `Fntl2_14.pl8` and `Fntl2_22.pl8` through the 128-byte
@@ -17,7 +17,7 @@
 //! `p`, `q` and `y` to are exactly the frames in that file which are four
 //! pixels taller than their neighbours.
 //!
-//! **`Font_c2.pl8` was never the file the game draws from**, which is why
+//! **`Font_c2.pl8`
 //! waiting on it was waiting on the wrong thing twice over: `docs/audit.md`
 //! records that `font_c2` does **not** appear among `Lords2.exe`'s strings at
 //! all, that it shares 103 of its 108 frame records with `Fntl2_9.pl8`, and
@@ -58,14 +58,14 @@ pub const LINE: i32 = GLYPH_H + 2;
 type Glyph = [u8; 7];
 
 /// What an unmapped character draws: a hollow box, so a missing glyph is
-/// visible rather than silently blank.
+/// visible
 const MISSING: Glyph = [0b11111, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11111];
 
 const BLANK: Glyph = [0; 7];
 
 /// `(character, glyph)`, printable ASCII. Lowercase is not listed: it draws
 /// the uppercase shape, which is a legibility compromise this font makes on
-/// purpose rather than an omission.
+/// purpose
 const GLYPHS: &[(char, Glyph)] = &[
     (' ', BLANK),
     ('!', [0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00000, 0b00100]),

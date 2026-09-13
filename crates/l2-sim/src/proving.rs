@@ -33,7 +33,7 @@ use crate::runner::BattleRunner;
 use crate::terrain::{flag, id, Battlefield, DIM};
 use crate::{Muster, Side, Troop, SIDE_A, SIDE_B};
 
-/// A palisade, so an assault that runs out of engines repeats rather than
+/// A palisade, so an assault that runs out of engines repeats
 /// ending (`ASSAULT_REPEATS_BELOW_LEVEL`).
 pub const LEVEL: u8 = 1;
 pub const SEED: u64 = 0x0F1E_5EED;

@@ -10,7 +10,7 @@
 //! none, so there it skips and says so. The **schema half** needs only the
 //! file, and this is where it runs on every push.
 //!
-//! Both tests shell out to the tool rather than re-reading the JSON here. A Rust
+//! Both tests shell out to the tool. A Rust
 //! copy of the schema would be a second list maintained by whoever maintains
 //! the first, in the same commit, for the same reason — two artefacts that agree
 //! because they were written to, which `docs/agents.md` records as the pattern
@@ -258,7 +258,7 @@ const BROKEN: &str = r##"{
 /// whose subject is a whole file be made to fail deliberately once, by
 /// corrupting its input, and its message read. Here that happens on every run,
 /// and what is asserted is the *identity* of each failure — which row, which
-/// rule — rather than a count, because a count of nine can be nine of the
+/// rule —, because a count of nine can be nine of the
 /// wrong things.
 #[test]
 fn a_broken_ledger_fails_and_names_every_broken_row() {
@@ -441,7 +441,7 @@ fn a_broken_feature_list_fails_and_names_every_broken_feature() {
 /// once, a missing feature as missing, computed counts, and none of the prose.**
 ///
 /// Built in a scratch repository whose `main` holds the inventories and the
-/// fixture checklist, so the page is generated exactly as it would be for the
+/// fixture checklist, so the page is generated. Then the real `docs/features.json` and the real ledger are
 /// real `main`. Then the real `docs/features.json` and the real ledger are
 /// drawn through the same tool, and every one of their ids is counted.
 #[test]

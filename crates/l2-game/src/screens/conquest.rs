@@ -76,7 +76,7 @@
 //! `FUN_00408FCB(name, lines)` (`0x00408FCB`) is
 //! `File_ReadChunk(name, g_backBufferBits, g_screenStride * lines, 0x18)` —
 //! it seeks 24 bytes into the `.pl8` and reads 640 × 480 bytes **straight into
-//! the back buffer**. There is no sprite decode, no blit and no clip: a
+//! the back buffer**. A
 //! full-screen `.pl8` is a raw image with a 24-byte header, and the eleven
 //! screens that call it (this one, the armoury, the two Battle Master pages,
 //! the castle chooser, the standings, the merchant, the trade goods, the Lords
@@ -297,7 +297,7 @@ impl Screen for ConquestScreen {
                 head(canvas, 0, 0x20);
                 body(canvas, 1, 0x40);
                 pen.heading_centred(canvas, BOX_X, 0x58, TEXT_W, &name, font::TEXT);
-                // Seven lines, twenty apart, exactly as the painter lists them.
+                // Seven lines, twenty apart.
                 for (n, i) in (FINISHED_FIRST..=FINISHED_LAST).enumerate() {
                     body(canvas, i, 0x80 + n as i32 * FINISHED_PITCH);
                 }

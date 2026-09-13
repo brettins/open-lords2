@@ -7,7 +7,7 @@
 //! count). Those two need the corpus or the documents; this one needs neither,
 //! so it is the half that runs in CI on every push.
 //!
-//! # What it checks, and why this pair rather than a `// draw:` marker
+//! # What it checks
 //!
 //! The pilot recommended **against** set-equality markers on draw calls — some
 //! 230 lines across seven screens against 26 input arms, most carrying no
@@ -22,9 +22,9 @@
 //!   says the engine is incomplete, which is true; or
 //! * **an invention**: words on a screen the original never puts there.
 //!
-//! There is no way to tell those apart mechanically, so the inventory record
+//!, so the inventory record
 //! names the first kind in `literals_ours` and the check is *set equality*
-//! against what the module actually draws. A new literal that nobody defended
+//! against what the module actually draws. A new literal
 //! fails; a defence for a literal somebody deleted fails too.
 //!
 //! **The two artefacts are not maintained by the same work**, which is the
@@ -38,7 +38,7 @@
 //! `literals_ours` is a claim by a person and this test believes it. What it
 //! guarantees is only that the list cannot grow *silently* — which is exactly
 //! the failure `crates/l2-view/src/text.rs`'s stale header caused, where whole
-//! screens were written in our 5 x 7 debug font because a comment said the real
+//! screens were written in our 5 x 7 debug font
 //! font was not decoded yet and nothing anywhere counted the consequence.
 //!
 //! **That a screen with no record is fine.** A screen the audit has not reached
@@ -65,7 +65,7 @@ struct Record {
     /// `literals_ours`, each entry reduced to the quoted caption it defends.
     ///
     /// An entry reads `"NOT SIMULATED - an honest diagnostic"`, so the caption
-    /// is everything before the first ` - `. Written that way rather than as a
+    /// is everything before the first ` - `. Written that way
     /// nested object because the file is read by people at least as often as by
     /// this test.
     literals_ours: BTreeSet<String>,
@@ -79,7 +79,7 @@ struct Record {
 ///
 /// The file is written by `screendraws.js --write` with `JSON.stringify(_, 2)`,
 /// so every scalar is on its own line and every array element is too. The
-/// scanner asserts it found a plausible number of records rather than trusting
+/// scanner asserts it found a plausible number of records
 /// that, because a file reformatted onto one line would otherwise parse as
 /// nothing at all and pass.
 fn records(root: &Path) -> Vec<Record> {
@@ -137,7 +137,7 @@ fn records(root: &Path) -> Vec<Record> {
 /// version also split on `" - "` and truncated two real captions that contain a
 /// hyphen — *"NO ARM_GRID.PL8 - RACKS ARE RECTANGLES"* is a caption, not a
 /// caption plus a verdict. A separator that can occur inside the thing it
-/// separates is not a separator, which is the same objection that killed the
+/// separates is not a separator
 /// self-describing citation scheme in `docs/agents.md`: **a disambiguation
 /// scheme derived from the thing being disambiguated can inherit its
 /// ambiguity.**
@@ -154,7 +154,7 @@ fn caption_of(entry: &str) -> String {
 /// literal caption each is given.
 ///
 /// Pinned by name from `crates/l2-view/src/text.rs` and `crates/l2-game/src/
-/// widget.rs` rather than matched by a pattern: a pattern over `draw` catches
+/// widget.rs`
 /// `draw_scene`, `draw_misc` and `draw_system`, every one of which blits a
 /// frame out of a `.pl8` the player owns and is therefore the *right* thing.
 const OUR_LETTERS: [&str; 5] = [
@@ -168,7 +168,7 @@ const OUR_LETTERS: [&str; 5] = [
 /// Everything outside a comment, with comments replaced by spaces so that byte
 /// offsets and line breaks are preserved.
 ///
-/// Comments must go before the scan rather than during it, because a call can
+/// Comments must go before the scan
 /// be split across lines by `rustfmt` and a per-line filter cannot see that.
 /// This file's own module docs quote several of the captions it hunts for, so
 /// getting this wrong makes the check match itself.
@@ -218,7 +218,7 @@ fn strip_comments(src: &str) -> String {
 /// does not catch an indirected one. Two modules in the first audit had words
 /// on screen that reach `text::draw` through a `format!` result and declared
 /// `[]` here; both say so in their record's `notes`. **A silent skip becomes
-/// permanent**, so those are written down rather than left to the scanner.
+/// permanent**, so those are written down
 fn literals_in(src: &str) -> BTreeSet<String> {
     let code = strip_comments(src);
     let mut out = BTreeSet::new();
@@ -343,7 +343,7 @@ fn every_screen_module_the_inventory_names_exists() {
 /// **Minus one is singular**, which `Ui_DrawCount` says in three arms and we
 /// said in two.
 ///
-/// This is here rather than in `tests/text.rs` because it is a finding of the
+/// This is here
 /// draw-call audit and it is the audit's argument in miniature: the defect was
 /// in a *primitive*, not in a screen, so no amount of reading screens would
 /// have found it — and every screen that draws a signed quantity inherited it.
@@ -366,7 +366,7 @@ fn ui_drawcount_takes_the_singular_for_minus_one_as_well_as_one() {
     assert_eq!(count_noun(-2, CROWN), CROWN + 1, "and minus two is plural again");
 }
 
-/// **The audit's coverage, printed rather than gated.**
+/// **The audit's coverage, printed**.
 ///
 /// `docs/draws.md` §6: seven screens is not enough to know what a normal ratio
 /// is, and a gate set from seven samples is a gate set from the status quo. So

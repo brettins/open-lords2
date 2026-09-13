@@ -12,7 +12,7 @@
 //! | beside the executable | works for a portable build and fails for an installed one, because `%PROGRAMFILES%` is not writable by the user who runs the game. |
 //!
 //! So: **under the user's own profile**, in a directory named after *this*
-//! project rather than after the original, because these are our files in our
+//! project
 //! own format.
 //!
 //! | platform | directory |
@@ -61,7 +61,7 @@ pub enum Error {
     /// nowhere on this machine a save may go.
     NoDirectory,
     /// A name with a path separator, a drive letter, a `..`, or nothing in it.
-    /// **Refused rather than sanitised** — a name that is quietly changed is a
+    /// **Refused** — a name that is quietly changed is a
     /// save the player cannot find again.
     BadName(String),
     /// The file system said no.
@@ -101,7 +101,7 @@ pub struct Entry {
 ///
 /// In order: this thread's [`scoped_dir`], then [`DIR_VAR`], then the profile.
 ///
-/// Read on every call rather than cached: a cached answer would be a second
+/// Read on every call: a cached answer would be a second
 /// source of truth for a value the user can change, and this is called once
 /// per screen open.
 pub fn dir() -> Option<PathBuf> {
@@ -209,7 +209,7 @@ pub fn path_for(name: &str) -> Result<PathBuf, Error> {
 
 /// Every save in the directory, **sorted by name**.
 ///
-/// Sorted, not in directory order, and that is a correctness point rather than
+/// Sorted, not in directory order, and that is a correctness point
 /// tidiness: `read_dir` returns whatever the file system happens to hand back,
 /// which differs between machines and between file systems, and a list whose
 /// order depends on that is a list where the same click means different things
@@ -241,7 +241,7 @@ pub fn list() -> Vec<Entry> {
 ///
 /// The write is **atomic where the platform allows it**: the bytes go to a
 /// neighbouring temporary file and are renamed over the target, so a crash or a
-/// full disk halfway through leaves the previous save intact rather than
+/// full disk halfway through leaves the previous save intact
 /// truncated. Losing a saved game to a failed save of the same name is the one
 /// failure a player never forgives.
 pub fn write(name: &str, game: &Game) -> Result<PathBuf, Error> {
@@ -328,7 +328,7 @@ pub fn rotate_and_write(game: &Game) -> Result<PathBuf, Error> {
 ///
 /// The request is raised by a screen and drained by [`Machine`]
 /// ([`crate::screen::Screen::take_autosave`]); this is the one place it becomes
-/// a file. It lives in the library rather than in `main.rs` for
+/// a file. It lives in the library
 /// [`crate::audio::Director::listen`]'s reason, which is the whole argument for
 /// where the seam goes: **a binary's code cannot be called by a test**, so an
 /// application that performed the write itself could only be checked by a test

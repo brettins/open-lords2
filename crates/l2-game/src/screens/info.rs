@@ -140,7 +140,7 @@
 //! (`0x0041C208`) for a `0x20` tile. [`draw_farmland`] is that arm, whole:
 //!
 //! * **the heading and the mode** — `DAT_004D2EC8`, sixteen bytes a terrain
-//!   value, gives `(heading, body, icon, mode)` and the painter draws
+//! value, gives `(heading, body, icon, mode)` and the painter draws
 //!   `Eng_DrawString(30, heading)` then `Eng_DrawString(30, mode)` after it, both
 //!   in `&g_fontHeading`: *"Farmland - Wheat."* [`FARM_TILE_INFO`] is the
 //!   table, checked against the player's `Lords2.exe` by
@@ -441,7 +441,7 @@ pub const SITE_INFO: [(usize, usize, usize); 4] = [
 /// [`l2_kingdom::county::Industry::output`] here — the same difference, kept as
 /// a field. Group 22 is never touched: 53…57 read *"A small mine."*, *"A medium
 /// mine."*, *"A large mine."*, *"A very large mine."*, *"A destroyed mine."*,
-/// and the other three sites the same, which is what fixes the band as size and
+/// and the other three sites the same
 /// `+4` as destroyed. `[V]` against the player's `L2.eng`. The brief that
 /// opened this arm called it a fertility table; the correction is
 /// `docs/decisions.md` C204.
@@ -762,7 +762,7 @@ pub struct InfoScreen {
 /// **`DAT_004DD640` as a table, with the kind byte its one record carries.**
 ///
 /// `Widget_Test` kind **4**, read out of `+0x0F` of `0x004DD640`.
-/// `docs/arms.json` filed it `left-press`, which is the right *edge* and the
+/// `docs/arms.json` filed it `left-press`
 /// wrong *kind*: kind 4 also shows the pressed picture and accepts a double
 /// click as a press. The repeat is inert — `FUN_00438ACC` assigns the same
 /// garrison every time — and that is a property of the handler, not of the
@@ -1126,7 +1126,7 @@ impl Screen for InfoScreen {
                 // **`Map_EdgeScroll` is the SECOND guard of the `0x04` arm and a
                 // scroll CLOSES the panel**: pushing the pointer into the edge
                 // of the screen with the information panel up puts you back on
-                // the map. It is not a click at all, and nobody would guess it.
+                // the map. It is not a click at all
                 //
                 // ```c
                 // if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }
@@ -1439,7 +1439,7 @@ impl Screen for InfoScreen {
                     let w = pen.eng(canvas, UNIT_GROUP, FORMED, HEADING_X, l.y(0xA0), font::TEXT);
                     // `Ui_DrawYear(yearFormed, g_penAdvance + 0x28, …, 0)` —
                     // **style 0, which appends `L2.eng` 26/1 "AD"**. We drew the
-                    // bare number, which is style 3's, and the word the file
+                    // bare number
                     // holds for this line was missing. `CLAUDE.md` rule 6.
                     pen.year(canvas, w, l.y(0xA0), u.year_formed, 0, font::TEXT);
                     let w = pen.eng(canvas, UNIT_GROUP, WAGES, 0xF8, l.y(0xA0), font::TEXT);
@@ -1598,7 +1598,7 @@ impl Screen for InfoScreen {
                     draw_castle(ctx, &pen, canvas, l, castle, self.press.is_pressed(0), ink);
                 }
                 // **The other half of the `0x80` arm.** A player clicked a mine
-                // exactly as he clicks a field and the panel said nothing. See
+                //
                 // [`draw_resource_site`].
                 if let Some((site, c)) = self.resource_site(ctx) {
                     draw_resource_site(ctx, &pen, canvas, l, site, c);
@@ -1721,7 +1721,7 @@ impl Screen for InfoScreen {
 /// different y, and the degraded arm reaches the block itself — so a county
 /// building its first castle is the one that shows the stone and wood owed and
 /// the seasons left. And the ruined county (`+0x1C2`) draws **nothing**: the
-/// heading above it says *"Castle."* and the block below is empty, which is
+/// heading above it says *"Castle."* and the block below is empty
 /// the original's, not a gap of ours.
 ///
 /// The tax and barracks words come from
@@ -1831,7 +1831,7 @@ fn draw_castle(
 ///    group 22 is never touched here and 53…57 run *"A small mine."* to *"A
 ///    destroyed mine."*
 /// 3. the working-or-idle line at [`SITE_STATUS_DY`], a **separate** tail block
-///    keyed on `industry.enabled` — so a site reads *operational* and
+/// keyed on `industry.enabled` — so a site reads *operational* and
 ///    *destroyed* at once whenever an army has just trampled it, which is the
 ///    original's and not a bug of ours.
 ///

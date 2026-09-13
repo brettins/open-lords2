@@ -96,11 +96,11 @@ struct App {
     /// tick by [`App::listen`], which means a sound cannot change what the
     /// simulation does in either value or timing — the property
     /// `docs/netcode.md`'s lockstep argument rests on, held by the type
-    /// system rather than by remembering.
+    /// system
     audio: Audio,
     /// **What decides what is audible**, and the edge counters it needs to
     /// notice that something has *become* true. It lives in the library so that
-    /// a test runs this code rather than a copy of it —
+    /// a test runs this code —
     /// `crates/l2-game/tests/audio_wiring.rs`.
     director: l2_game::audio::Director,
     /// `DAT_004DF3A8` — whether Control is held. The window procedure keeps the
@@ -109,7 +109,7 @@ struct App {
     ctrl: bool,
     /// When and where the left button last went down, for [`DOUBLE_CLICK`].
     /// `None` once a double click has been reported, so three clicks are a
-    /// double and then a single rather than two doubles — which is what
+    /// double and then a single — which is what
     /// Windows itself does.
     last_press: Option<(Instant, (i32, i32))>,
     /// **`DAT_004EABC2`'s left bit**, and the release edge the frame poll
@@ -138,7 +138,7 @@ impl App {
         // the assets.** `Ctx` hands a screen `&Assets`, so the quirks page
         // cannot write them where the drawing code reads them; the authority
         // is `Game::presentation_quirks` and this is its projection. Done here
-        // rather than in `deliver`, so that a change made by anything at all -
+        //
         // a click, a key, a future command replay - is on screen the next
         // frame without every writer having to remember.
         self.assets.quirks = self.game.presentation_quirks;
@@ -168,7 +168,7 @@ impl App {
     /// (`docs/decisions.md` C193), for the same reason.
     ///
     /// A clock before 1970 — or one the machine cannot read — leaves the field
-    /// `None` and the screen simply draws no clock, rather than a wrong one.
+    /// `None` and the screen simply draws no clock.
     fn sample_wall_clock(&mut self) {
         self.assets.wall_clock = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -185,7 +185,7 @@ impl App {
     /// The arithmetic itself is [`l2_game::input::window::to_canvas`], which is
     /// a pure function of the window's size and is tested there against the
     /// window size the scrolling bug was reported from. It lives in the library
-    /// rather than here because **a transform that can only be checked by
+    ///
     /// opening a window is a transform that stops being checked**, and because
     /// this is the one piece of arithmetic every click in the game passes
     /// through.
@@ -327,7 +327,7 @@ impl ApplicationHandler for App {
     ///
     /// **The deadline comes from the deadline before it**, not from the moment
     /// the wait returned: that is [`l2_game::clock::Ticker`]'s whole job, and
-    /// the reason a tick is 16 ms of wall clock rather than 16 ms plus whatever
+    /// the reason a tick is 16 ms of wall clock
     /// the timer overshot. A wake that came back late runs the ticks it owes,
     /// up to `clock::MAX_CATCH_UP`, so that time the machine spent elsewhere is
     /// repaid to the simulation instead of being lost from it.
@@ -549,7 +549,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Sound is opened through the same vfs every other asset comes through, so
     // the install is found once and a mod layer can replace a `.wav` for free.
     // `Audio::open` cannot fail: no device, no files, or a device that refuses
-    // a stream all end at the same silent object, and the game runs exactly as
+    // a stream all end at the same silent object, and the game runs
     // it did before sound existed.
     let audio = if sound { Audio::open(&platform.vfs) } else { Audio::silent() };
     println!(

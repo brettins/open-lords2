@@ -44,7 +44,7 @@
 //!
 //! No option, no difficulty and no single-player test guards either letter.
 //! The only filter is `Msg_Enqueue`'s own — `to == 0 || to == g_localPlayer` —
-//! which is why an AI's invasion of another AI is written, and advances the
+//!
 //! invader's rotation, and is seen by nobody.
 //!
 //! # Reported as letters, and one of them is not presentation
@@ -56,7 +56,7 @@
 //! advanced by the posting itself, for every invasion, whoever is watching —
 //! and the rotation is half the variant of every later letter that lord sends,
 //! taunts and diplomatic replies included. So [`enter_county`] takes the realms
-//! mutably and the rotation is simulation state, in the lockstep digest, exactly
+//! mutably and the rotation is simulation state, in the lockstep digest,
 //! as it already is for `AI_Taunt`.
 
 use crate::county::{County, MAX_COUNTIES};
@@ -99,7 +99,7 @@ pub const CATEGORY_ENVOY: u8 = 2;
 ///
 /// **The rule runs the way it reads: the bigger the army against the county's
 /// people, the politer they are**, and a wretched county asks for help whatever
-/// size of army arrives. An army exactly as large as the county's population is
+/// size of army arrives. An army
 /// *not* below it, so it takes the 101 — the welcome.
 pub fn greeting(county: u8, c: &County, unit: &Unit) -> Option<Letter> {
     if c.owner != 0 {
@@ -190,7 +190,7 @@ mod tests {
     }
 
     /// **Every band of the ladder, and both edges of each.** A thousand people;
-    /// the numbers are typed rather than derived from the thresholds, so
+    /// the numbers are typed
     /// ablating a threshold cannot move a probe with it.
     ///
     /// Ablation: swap `pct < 20` for `pct < 21` and the 20-man row goes red;

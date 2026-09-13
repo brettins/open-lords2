@@ -22,7 +22,7 @@
 //!    deliberate: the marker can lag on, never off, so a stamp with no `-DIRTY`
 //!    is trustworthy and one with it is a warning.
 //! 2. Git may be missing, or the source may be a tarball. Then the stamp reads
-//!    `NO GIT`, which is a fact rather than a fabricated version.
+//! `NO GIT`.
 //!
 //! Nothing here can fail the build. A build script that stops the game
 //! compiling because `git` was not on the path would be a poor trade for a
@@ -37,7 +37,7 @@ fn main() {
 
     // **`L2_ALWAYS_UNLOCK=1` makes this script run before every link**, so a
     // build can never collide with a running game. It is opt-in because the cost
-    // was measured rather than guessed: the two `rerun-if-changed` lines below
+    // was measured: the two `rerun-if-changed` lines below
     // replace cargo's default of "any file in this package", and naming a path
     // that does not exist is how a build script asks to be rerun
     // unconditionally — but a rerun marks this crate dirty, so **every build
@@ -87,7 +87,7 @@ fn stamp() -> String {
     let date = git(&["log", "-1", "--format=%cd", "--date=format:%Y-%m-%d"])
         .unwrap_or_else(|| "?".into());
     // The build's own wall clock, local, HH:MM: git has no opinion on when a
-    // binary was made. PowerShell rather than chrono, to add no dependency.
+    // binary was made. PowerShell, to add no dependency.
     let time = std::process::Command::new("powershell")
         .args(["-NoProfile", "-Command", "Get-Date -Format HH:mm"])
         .output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
@@ -101,7 +101,7 @@ fn stamp() -> String {
     )
 }
 
-/// `--absolute-git-dir` rather than a hand-built `../../.git`, because agents
+/// `--absolute-git-dir`, because agents
 /// work in `git worktree`s, where `.git` is a *file* pointing at
 /// `…/.git/worktrees/<name>` — and that directory has its own `HEAD` and
 /// `index`, which are the two this build wants to watch.
@@ -155,7 +155,7 @@ fn git(args: &[&str]) -> Option<String> {
 /// running, which are precisely the ones that must. *A run of this script is not
 /// every build* — see the rerun conditions in `main` — so they are collected on
 /// the first rerun after the player quits, not the first build. If the sweep
-/// ever leaves more than a handful behind, that is reported rather than silently accumulated — it would
+/// ever leaves more than a handful behind, that is reported — it would
 /// mean deletion is failing for a reason other than "still running", and a
 /// disposable file that cannot be disposed of is worth knowing about.
 ///
@@ -210,7 +210,7 @@ fn make_room_for_the_link() {
         );
     }
 
-    // Then the live one, and only if it is actually locked. Opening for write
+    // Then the live one. Opening for write
     // is the test: a running image refuses, an idle file opens and is left
     // alone so an ordinary build does no renaming at all.
     let exe = profile.join("l2-game.exe");

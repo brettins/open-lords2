@@ -62,7 +62,7 @@ agent, so it stays short. Read the linked document before working in that area.
 
 **Networking is the one place the original is not the authority.** Its multiplayer sync is
 the reason for the rewrite; `docs/netcode.md` argues on its own, *What the original
-actually did* states the exception.
+states the exception.
 
 ## The idea that shapes everything
 

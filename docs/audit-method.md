@@ -5,7 +5,7 @@ question: **is this project using the right techniques, and are its stated obsta
 real?** It is not a roadmap and it proposes no features.
 
 Nothing outside this file and `tools/audit/` was touched. Nothing was staged or committed.
-No process was launched. The game was never started — §6 explains why, and says what would
+No process was launched.
 have justified it.
 
 New scripts written for this audit, all static and all fast:
@@ -117,7 +117,7 @@ The tree holds **2,452 functions, 3.3 MB**, and it is current: `decomp/index.txt
 21:14 against `docs/symbols.json` at 18:10, and all 230 function symbols in `symbols.json`
 are correctly applied in it. Across the whole `docs/` tree the project names **569 distinct
 addresses**: 292 are function entry points and **all 292 are in `decomp/`**, 164 are known
-data globals, and 113 are mid-function addresses, struct offsets or unlocated. There is no
+data globals, and 113 are mid-function addresses, struct offsets or unlocated.
 function the documents name that the tree does not hold.
 
 The Ghidra-lock argument is likewise spent. Re-verifying a decompiler-derived claim now costs

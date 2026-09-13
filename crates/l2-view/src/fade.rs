@@ -19,11 +19,11 @@
 //! The two branches differ by a factor of four, so it is a fade **to one
 //! quarter brightness and back**. The stepper at `0x004B0E03` moves each
 //! channel by at most [`STEP`] every ~20 ms, over palette entries
-//! [`FIRST`] … [`LAST`] **only** — which is why the chrome stays lit while the
+//! [`FIRST`] … [`LAST`] **only** —
 //! map dims. A channel of 255 has 191 to travel, so a full fade is
 //! [`STEPS`] steps ≈ 320 ms each way.
 //!
-//! Inferred, from where the two calls sit rather than from anything the
+//! Inferred, from where the two calls sit
 //! function says: the dark window is **cover for the seasonal art reload and
 //! the autosave**, both of which run inside it.
 //!
@@ -33,7 +33,7 @@
 //! read a clock (`docs/netcode.md`), so ours steps once per fixed 16 ms tick —
 //! the same trade `MapScreen::flag_tick` and `VillageScreen::CLICK_SETTLE_TICKS`
 //! already make, and the same one `docs/decisions.md` C49 records for the flag
-//! wave. Sixteen steps at 16 ms is 256 ms rather than 320; the *sequence of
+//! wave. Sixteen steps at 16 ms is 256 ms
 //! palettes* is the original's, the interval between them is ours.
 //!
 //! # Nothing here is simulation
@@ -79,13 +79,13 @@ fn quarter(v: u8) -> u8 {
 /// `0` and [`PHASES`] are both `full` exactly; [`STEPS`] is the bottom of the
 /// dark window. Phases below `STEPS` are the descent and phases above it are
 /// the climb, and they are **not** mirror images of each other — the original
-/// steps *toward a target* rather than replaying a sequence backwards, so a
+/// steps *toward a target*
 /// channel that reaches its target early sits there on the way down and leaves
-/// late on the way up. Reproduced rather than smoothed, because it is one
+/// late on the way up. Reproduced
 /// `min`/`max` either way and a smoothed version would be a guess.
 ///
 /// A phase past [`PHASES`] is clamped to it, so a caller that overruns gets the
-/// full palette rather than a panic.
+/// full palette
 pub fn at(full: &Palette, phase: u8) -> Palette {
     let mut entries = *full.entries();
     for entry in entries.iter_mut().take(LAST + 1).skip(FIRST) {
@@ -168,7 +168,7 @@ mod tests {
     }
 
     /// No channel ever moves by more than [`STEP`] between two phases — the
-    /// clamp at `0x004B0E03`, asserted over every starting value rather than a
+    /// clamp at `0x004B0E03`, asserted over every starting value
     /// chosen one.
     #[test]
     fn no_channel_moves_by_more_than_twelve_in_one_step() {

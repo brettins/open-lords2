@@ -9,7 +9,7 @@
 //! This was written three times: once in `l2-formats`'s save reader, once in
 //! `l2-view/tests/install.rs`, and once in each of the four PowerShell scripts
 //! under `tools/oracle`. The Rust copies are now this one, so an oracle test in
-//! any crate is four lines rather than forty and there is no reason left not to
+//! any crate is four lines
 //! write one.
 
 /// `Lords2.exe`'s fixed image base.
@@ -17,7 +17,7 @@ pub const IMAGE_BASE: u32 = 0x0040_0000;
 
 /// File offset of a virtual address, or `None` when no section covers it.
 ///
-/// Uses the **raw** size rather than the virtual size, so an address in
+/// Uses the **raw** size, so an address in
 /// uninitialised `.data` returns `None` instead of an offset into whatever
 /// follows it in the file. That distinction is C14/C16: the bytes for a runtime
 /// constant are not in the image, and a reader that confidently returns zero for

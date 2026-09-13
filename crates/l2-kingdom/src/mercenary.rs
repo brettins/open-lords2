@@ -6,7 +6,7 @@
 //! The roster is identical on every map and every playthrough; only the
 //! starting counties and the walk depend on the map.
 //!
-//! # Why the roster is a finding rather than a fit
+//! # Why the roster is a finding
 //!
 //! `docs/decisions.md` C3 is the standing hazard: a table that *looks* like the
 //! thing you were hoping for is not evidence. The roster is held in place by an
@@ -70,7 +70,7 @@ pub struct BandRules {
 
 /// `g_mercMen`, `g_mercTroopType`, `g_mercPrice`, `g_mercWage`,
 /// `g_mercStartCounty` and `g_mercPeriod`, as twelve rows. Index 0 is a
-/// placeholder that no rule reads, exactly as in the original.
+/// placeholder that no rule reads.
 ///
 /// Nationalities come in pairs by troop type — a small band and a large one of
 /// each — and the price per man is flat within a type: pikemen ≈ 18, archers
@@ -250,7 +250,7 @@ impl MercenaryBands {
     /// holds one band; if two land on the same county the lower-numbered one
     /// wins.
     ///
-    /// `[D]`, and one detail worth reproducing rather than tidying: the second
+    /// `[D]`, and one detail worth reproducing: the second
     /// `nextCounty++` has **no wrap guard**, so a band that has just made an
     /// offer sits at `countyCount + 1` for one season until the next call wraps
     /// it. Reproduce the sequence, not the invariant.
@@ -258,7 +258,7 @@ impl MercenaryBands {
     /// **Switchable** — [`Quirk::MercenaryBandOvershoots`], `docs/bugs.md` B42.
     /// The fixed path gives the second increment the wrap guard the first one
     /// has, so a band that has just made an offer stands next season in the
-    /// county after it rather than one past the end of the map.
+    /// county after it.
     pub fn advance(
         &mut self,
         counties: &mut [County; MAX_COUNTIES],
@@ -372,7 +372,7 @@ impl MercenaryBands {
     ///
     /// It frees **only** `hiredBy`: the countdown, the offer and the walk
     /// position are left alone, so a released band rejoins its round mid-cycle
-    /// rather than starting again. `[D]`
+    /// `[D]`
     ///
     /// Two callers matter: an army being destroyed, and **bankruptcy stage 1**,
     /// which walks every mercenary in the realm out at once — `L2.eng` 160,
@@ -418,7 +418,7 @@ mod tests {
 
     /// The prediction `docs/armies.md` §5.1 tests itself against, and the two
     /// places the player's recollection was wrong: **the Spanish band is the
-    /// fifty knights, the Angevin is a hundred**, and there is no 200-maceman
+    /// fifty knights, the Angevin is a hundred**.
     /// band.
     #[test]
     fn the_roster_is_the_shipped_one() {
@@ -509,8 +509,8 @@ mod tests {
     /// county 13 on a fourteen-county map, the first season offers in 14 and
     /// leaves the walk sitting at **15**, one past the end, until the *next*
     /// season's guarded increment wraps it to 1. That is why the offers run
-    /// 14, 1, 3, 5 rather than 14, 2, 4, 6 — the overshoot costs the band a
-    /// county. Reproduced rather than tidied.
+    /// 14, 1, 3, 5 — the overshoot costs the band a
+    /// county. Reproduced.
     #[test]
     fn the_saxon_band_offers_itself_every_season_and_keeps_walking() {
         let (mut counties, _) = blank();

@@ -96,14 +96,14 @@
 //! * **The lords' names.** `g_playerNames` **is** modelled — `Game::player_names`,
 //!   filled by `Player_SetHuman` (`0x0049BAE9`) for the person and by
 //!   `Eng_Seek(7, realm.lord)` for the AIs — and [`side_name`] reads it. It drew
-//!   `"LORD {owner}"` until C189, on a sentence that said the names were not
+//! `"LORD {owner}"` until C189,
 //!   modelled and stopped being true when they were. The other name here is
 //!   the original's own — `L2.eng` group 99, the single string
 //!   `"The people."`, which it draws for an ownerless army. A county levy is
 //!   exactly that. **The original's test is `owner == 6`**, because 6 is the
 //!   peasant faction's owner byte; ours is `owner == 0`, because
 //!   `l2_kingdom::realm` numbers realms 1..=5 and reserves 0 for nobody.
-//!   The **medallion is not a face** and this module used to say it was: it is
+//! The **medallion is not a face** and this module used to say it was: it is
 //!   `icon_tmp.pl8` frame `0x37`, one picture, with `0x38` for a siege, and it
 //!   is drawn here now — as are the two shields at frame `0x30 + shieldIndex`,
 //!   where `Battle_ChooseSettlement` substitutes **6** for a zero shield.
@@ -156,7 +156,7 @@
 //!
 //! `Battle_SelectOutcomeBanner` (`0x00478419`) writes `g_battleOutcome` and only
 //! ever writes **0…5**: `siege ? (localWon ? (Awon ? 2 : 4) : (Awon ? 5 : 3))
-//! : (localWon ? 0 : 1)`. The seventh pair, 12/13, is not a value of
+//!: (localWon ? 0: 1)`. The seventh pair, 12/13,
 //! `g_battleOutcome` at all — it is the `g_battleChoiceOwner == 0` branch, *"a
 //! battle between two other realms"*. **That is what makes the count seven, and
 //! all seven are reachable.** `docs/battle.md` does not name them; the seven
@@ -266,7 +266,7 @@ const TOTAL_Y: i32 = 404;
 const TOTAL_A_X: i32 = 82;
 const TOTAL_B_X: i32 = 282;
 
-/// The two widgets of `DAT_004DDBB0`, **box-relative** exactly as the table
+/// The two widgets of `DAT_004DDBB0`, **box-relative**
 /// holds them: `(x, y, System.pl8 frame, side)`.
 ///
 /// Frames 29 and 31 are a mailed hand giving a thumb **up** and a thumb
@@ -297,7 +297,7 @@ fn pen<'a>(ctx: &'a Ctx) -> Pen<'a> {
     }
 }
 
-/// The county's name out of group 100, or ours when there is no `L2.eng`.
+/// The county's name out of group 100, or ours.
 fn county_name(ctx: &Ctx, id: u8) -> String {
     let name = ctx.assets.shell.text(GROUP_COUNTY, ctx.game.map_slot * 20 + id as usize);
     if name.is_empty() {
@@ -379,7 +379,7 @@ fn draw_frame(
 /// original's mode 0 *records* the counts into two arrays and prints only the
 /// one column, and mode 1 reads them back as the parenthesised figure beside
 /// what is left. Here the recording is [`BattleReport::attacker_roster`] and
-/// there is no global.
+///
 ///
 /// `totals` is the pair the original reads **out of the unit record** rather
 /// than off the rows — see the loop at the end of this function.
@@ -574,7 +574,7 @@ impl Screen for BattlePromptScreen {
     /// `g_battleChoiceOwner == 1` and 0 otherwise**, so a bystander's prompt has
     /// no widgets and no way out but the multiplayer timeout. The table holds
     /// exactly two records — `g_sliderWidgets` begins at `0x004DDBE0`, 48 bytes
-    /// on — so there is no third widget hiding behind the count.
+    /// on —.
     ///
 /// Gone from here, and counted as inventions
     /// (`docs/arms.json`): **right-click to Decline**, **Escape to Decline**,
@@ -780,7 +780,7 @@ impl Screen for BattleResultScreen {
 
         // **The banner that belongs to screen `0x2B`.** Group 82's pair for
         // this battle, from the local player's point of view — printed here
-        // rather than nowhere, because `0x2B` is not built and a player who is
+        //
         // told only *"The Battle is decided."* has not been told the outcome.
 // Marked as ours by being under the original's heading
         // place of it.

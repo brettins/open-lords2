@@ -31,7 +31,7 @@ impl Sheet {
 
     /// Decode frame `index`, caching it. Returns `None` for an index past the
     /// end or a frame this decoder cannot read, so a renderer degrades to a
-    /// hole rather than dying — a battle should still be watchable when one
+    /// hole — a battle should still be watchable when one
     /// sprite is unreadable.
     pub fn frame(&self, index: usize) -> Option<DecodedFrame> {
         if index >= self.count {

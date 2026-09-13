@@ -413,7 +413,7 @@ fn the_cattle_forecast_follows_the_labour_it_depends_on() {
 ///    completes before a field at 0 gets touched;
 /// 3. **a finished field hands its surplus on**, so a gang with enough labour
 ///    finishes two in a season — which is the only way the figure ever reads
-///    more than 1, and the reason it is a simulation.
+/// more than 1.
 #[test]
 fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
     let save = england!();
@@ -502,7 +502,7 @@ fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
 ///    `Grain_Sow(county, workers, grain - grainEaten)` — a different third
 ///    argument, so the number cannot be recovered from the ceiling.
 /// 3. **Facing Winter it is the harvest less the eating**, so the same row
-///    turns positive once there is a crop to bring in. A test that only ever
+/// turns positive once there is a crop to bring in. A test that only ever
 ///    looked at Spring would pass with the other two arms deleted.
 ///
 /// Ablation, run: deleting the `crate::land::grain_preview` call from
@@ -522,7 +522,7 @@ fn the_grain_forecast_is_the_sowing_loss_the_player_reported() {
     k.counties[mine].grain = 10_000;
     assert!(paint_all_fallow_to_grain(&mut k, mine) > 0, "county {mine} had fields to paint");
 
-    // The fixture opens facing Spring, which is the sowing turn and the one the
+    // The fixture opens facing Spring,
     // player was looking at.
     assert_eq!(k.season_next, 1, "the England position faces Spring");
     k.refresh_estimates(mine);
@@ -580,7 +580,7 @@ fn the_grain_forecast_is_the_sowing_loss_the_player_reported() {
 ///    `herd * birthRate / 10000` then rounds to the same integer at 100% as at
 ///    200% — so the argmax is the *first* of the two, and every milkmaid past
 ///    three a head is idle. That is the player's county.
-/// 3. **The season moves the answer**, which is the question he asked outright:
+/// 3. **The season moves the answer**,
 ///    Spring multiplies the births by `3/2` and Winter the deaths.
 ///
 /// Nothing here is asserted against a typed constant: the counts come out of
@@ -591,7 +591,7 @@ fn the_grain_forecast_is_the_sowing_loss_the_player_reported() {
 /// in a way worth keeping:
 ///
 /// * Relaxing the search's `best < net` to `best <= net` makes it take the
-///   **last** argmax instead of the first. Claim 2 was expected to fail at six
+/// **last** argmax instead of the first. Claim 2 was expected to fail at six
 ///   a head; what fails is **claim 1**, at `ceiling 9999` for a herd
 ///   of one — the last argmax is the end of the scan, not `6 * herd`. The
 ///   ablation found the right defect for a reason one step away from the one
@@ -642,7 +642,7 @@ fn the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd() {
         "and doubling the dairy buys exactly nothing",
     );
 
-    // 3 — and the season is one of the inputs, which is what he asked.
+    // 3 — and the season is one of the inputs,
     c.herd = 74;
     c.herd_crowding = herd_crowding(t, 74, fields);
     let hands = herd_labour_estimate(t, &c, 1).useful;

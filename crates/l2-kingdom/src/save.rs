@@ -84,7 +84,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   its twenty field tiles and the two counts `County_RecountFields` fills
 ///   besides the three we already had. A version 3 save records the counts but
 ///   not the tiles they were counted from, so its fields could never be
-///   repainted; there is no way to recover the tiles from the counts, which is
+/// repainted; which is
 ///   why this is a refusal and not a default.
 /// * 5 — **four county fields that were never written at all**:
 ///   `labour_wanted`, `labour_useful`, `labour_share` and `industry_share`.
@@ -122,9 +122,9 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   destination cursor, and a transport's cargo county on the unit record.
 ///   All three are state a turn *reads and writes* — a version 7 save would
 ///   load with six empty routes and every merchant would stand still for ever,
-///   which is a silently different game rather than a missing feature.
+/// which is a silently different game.
 ///
-///   **And it happened again, exactly as the entry above predicted.** This
+/// **And it happened again.** This
 ///   arrived as its own version 7 from a third parallel branch, was read off
 ///   the changelog on merge, and moved to 8. That is now twice in one day, so
 ///   the note above should be taken as a standing hazard
@@ -222,7 +222,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   `l2_formats::save::Globals` and then dropped on the floor, because
 ///   `Options` had nowhere to put them. Neither is read by a rule in this
 ///   crate — exploration's behaviour is unimplemented (`docs/mechanics.md`) and
-///   a wall clock is not a rule — but a game that was started with a four
+/// a wall clock is not a rule — but a game that was started with a four
 ///   minute turn limit and no fog is a different game from one that was not,
 ///   and a save that cannot say which is a save that guesses.
 ///
@@ -404,7 +404,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   version 16 save taken mid-turn has units part-way across tiles; zeroing
 ///   the counter hands each of them up to thirty-one ticks of free progress or
 ///   takes it away, which moves *which tick* an army arrives on, which moves
-///   which of two armies reaches a castle first. It is not a display field and
+/// which of two armies reaches a castle first. It is not a display field and
 ///   it is not derived.
 ///
 ///   *Written as 17 with `VERSION` at 16 on `main`. Per the standing hazard

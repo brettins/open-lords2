@@ -1,5 +1,5 @@
 //! **An AI lord besieges a castle and orders its engines**, travelled from the
-//! step onto the castle tile rather than by setting a field.
+//! step onto the castle tile.
 //!
 //! ```text
 //! cargo test -p l2-kingdom --test ai_siege
@@ -34,7 +34,7 @@
 //! too, which is `docs/agents.md`'s *"a field is only tested if something a
 //! test reads was written by something the game runs"*, exactly.
 //!
-//! # What the AI orders, and it is per lord rather than per castle
+//! # What the AI orders,
 //!
 //! `Siege_Prepare`'s only input beyond the castle is `g_aiPersonality[lord-1]
 //! +0xA0`, read out of `Lords2.exe` as **8, 9, 7, 7** for the four lords —
@@ -131,7 +131,7 @@ fn an_ai_army_that_reaches_a_castle_lays_siege_and_orders_its_engines() {
 }
 
 /// **A besieging AI builds its way to an assault on a stone castle**, which is
-/// the question the hand-off actually asked. A level-3 castle refuses an
+/// the question the hand-off. A level-3 castle refuses an
 /// assault with no engines; this one arrives with two towers and three
 /// catapults because nobody pressed a button.
 #[test]
@@ -161,7 +161,7 @@ fn an_ai_besieging_a_stone_castle_builds_its_way_to_an_assault() {
         units.get(army).unwrap().engines.iter().map(|e| e.ordered as i32).sum();
     assert!(ordered > 0, "the AI ordered engines at the moment it laid the siege");
 
-    // Turn phase 2, a season at a time, exactly as `Siege_TickPhase` pumps it.
+    // Turn phase 2, a season at a time,
     let mut seasons = 0;
     let ready = loop {
         seasons += 1;

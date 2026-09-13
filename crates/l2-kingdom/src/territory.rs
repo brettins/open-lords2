@@ -42,9 +42,9 @@
 //! sweeps the counties in index order, offering each unplaced one to
 //! `Territory_ExtendBlock`, and **never merges two blocks that a newly placed
 //! county would join**. A county placed into block A that also neighbours block
-//! B leaves A and B separate for that sweep — which is precisely why the
+//! B leaves A and B separate for that sweep —
 //! function sweeps repeatedly (up to [`SWEEP_CAP`] times) instead of once, and
-//! why [`build_blocks`] is a fixpoint loop rather than a flood fill. Run to a
+//! why [`build_blocks`] is a fixpoint loop. Run to a
 //! fixpoint the two agree; run once they do not.
 //!
 //! **The winner is the most populous block, not the largest one.**
@@ -62,7 +62,7 @@
 //!
 //! # The anchor, stated plainly
 //!
-//! **There is no data-side oracle for this pass.** Every realm in every fixture
+//! Every realm in every fixture
 //! in `E:\dev\lords2-fixtures` owns exactly one county, so "each realm's
 //! counties form one connected component" holds trivially in all six saves and
 //! proves nothing. What holds it up is the code above, the two `L2.eng` strings,
@@ -104,7 +104,7 @@ impl Block {
     pub const EMPTY: Block =
         Block { population: 0, owner: 0, members: [0; MAX_BLOCK_MEMBERS] };
 
-    /// The member ids actually present, in the order they were placed.
+    /// The member ids present, in the order they were placed.
     pub fn members(&self) -> impl Iterator<Item = u8> + '_ {
         self.members.iter().copied().filter(|&id| id != 0)
     }
@@ -330,7 +330,7 @@ pub struct Secession {
 /// `g_localPlayer` in the whole pass is the message: `0x7F` when exactly one
 /// county went and `0x80` when more, sent only to the local player and only
 /// when the realm held more than one block. **An AI loses its outlying counties
-/// in silence** — which is why this returns the decision for every realm and
+/// in silence** —
 /// leaves the filtering to whoever raises the messages.
 pub fn minor_blocks(blocks: &Blocks, strength: &[u8]) -> Vec<Secession> {
     let mut out = Vec::new();

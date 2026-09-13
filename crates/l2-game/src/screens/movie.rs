@@ -26,10 +26,10 @@
 //! **A release, not a press, and either button**; and **any key**, because
 //! `App_WndProc` sets `DAT_004EABB4` on every `WM_KEYDOWN` before it looks at
 //! which key it was, and `Screen_FrameInput` clears it on its way out. The
-//! first `if` is a network state, not input, and there is no network game here.
+//! first `if` is a network state
 //!
-//! A skip is `Smk_OnFinished`, exactly as the natural end is — so a skip during
-//! the start-up sequence moves on to the next film rather than out of it. Two
+//! A skip is `Smk_OnFinished` — so a skip during
+//! the start-up sequence moves on to the next film. Two
 //! other callers skip without the player: `FUN_0043AD25`, which `Turn_Tick`'s
 //! end-of-season phase runs, and `Net_LeaveGame`. Ours cannot reach either
 //! state — a film pauses our turn, because only the top screen is stepped — and

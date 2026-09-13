@@ -53,7 +53,7 @@
 //!   [`crate::audio`] makes for the tip narration's own `999 <` test.
 //! * **The stamp is written on every frame the mouse changes while no tip is
 //!   up**, and on the frame a tip is resolved. It is *not* written on the frame
-//!   that hides a tip. So a tip that has been up for more than a second and is
+//! that hides a tip. So a tip that has been up for more than a second and is
 //!   nudged for exactly one frame comes straight back at the new place on the
 //!   next still frame, with no rest at all; a movement of two frames or more
 //!   re-arms the full second. Reproduced.
@@ -65,8 +65,8 @@
 //!   ladders: [`campaign_tip`] for the thirty-five screens that sit on the
 //!   campaign map's sidebar, [`battle_tip`] for the battlefield, `0x29`. The
 //!   campaign ladder reads live state — the minimap mode, whether the selected
-//!   county is the player's, and the two produce-row lists — at the moment the
-//!   tip is resolved, and the id it answers is the group-220 index.
+//! county is the player's, and the two produce-row lists — at the moment the
+//! tip is resolved, and the id it answers is the group-220 index.
 //! * **The box is placed once**, 30 pixels right of and below the pointer, or
 //!   220 left / 30 above past the screen's middle (`x 321`, `y 241`), then
 //!   clamped to `0 … 440`. It does not follow the pointer; the pointer moving
@@ -108,7 +108,7 @@
 //! * The first pass is drawn at a wrap of 180 and the box sized from it; the
 //!   text is then drawn again at 176. A string that wraps differently at the two
 //!   widths would get a box of the wrong height. Both passes are drawn here
-//!   exactly as the original draws them, so whatever it showed, this shows; the
+//! so whatever it showed, this shows; the
 //!   original then left anything outside the saved 192 x 40 backdrop on the
 //!   screen after the tip went, and ours repaints and does not.
 

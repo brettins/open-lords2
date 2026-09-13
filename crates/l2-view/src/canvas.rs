@@ -13,7 +13,7 @@
 //!   `FUN_004B5333`, a straight copy. **[V]** and, as it happens, unobservable
 //!   on a field battlefield: no frame of `T32_bat1.pl8` contains a single index-0
 //!   pixel, checked over all 252 frames. The distinction is kept because it is
-//!   real, not because it currently changes a pixel.
+//! real
 
 use l2_formats::DecodedFrame;
 
@@ -21,7 +21,7 @@ pub const WIDTH: usize = 640;
 pub const HEIGHT: usize = 480;
 
 /// The game's transparent palette index. An unpainted canvas reads as "nothing
-/// drawn here" rather than as a colour.
+/// drawn here"
 pub const TRANSPARENT: u8 = 0;
 
 /// A half-open destination rectangle a blit may write inside.
@@ -60,7 +60,7 @@ impl Clip {
 }
 
 /// A parallel plane of identifiers the same size as a [`Canvas`]: *what* was
-/// drawn at each pixel, rather than what colour it came out.
+/// drawn at each pixel
 ///
 /// This exists because picking a county off an isometric map cannot be done by
 /// inverting the projection. Tiles are diamonds drawn back to front and they
@@ -193,9 +193,9 @@ impl Canvas {
         self.blit_inner(frame, ox, oy, false)
     }
 
-    /// Blit a sprite and stamp `id` into `tags` at every pixel it actually
+    /// Blit a sprite and stamp `id` into `tags` at every pixel it
     /// painted. Transparent pixels leave both planes alone, so the tag plane
-    /// records the shape of the sprite rather than of its bounding box.
+    /// records the shape of the sprite
     pub fn blit_tagged(&mut self, frame: &DecodedFrame, ox: i32, oy: i32, tags: &mut Tags, id: u8) {
         self.blit_full(frame, ox, oy, true, Some((tags, id)), Clip::WHOLE)
     }
@@ -212,7 +212,7 @@ impl Canvas {
     /// left half, right half — and the halves exist purely so that a tile at
     /// the edge of the viewport writes nothing outside it. Working out where
     /// their dropped columns land shows a plain clip does the same job, so
-    /// there is one blitter here and a rectangle, rather than five.
+    /// there is one blitter here and a rectangle
     pub fn blit_clipped_tagged(
         &mut self,
         frame: &DecodedFrame,
@@ -229,7 +229,7 @@ impl Canvas {
     /// colour appears at all.
     ///
     /// `rgba` holds four bytes per pixel and is written until either it or the
-    /// canvas runs out. This lives here, rather than in the windowing layer, so
+    /// canvas runs out. This lives here
     /// that the final image can be asserted on without a GPU — and so this
     /// crate needs no presentation dependency to produce one.
     pub fn to_rgba(&self, palette: &l2_formats::Palette, rgba: &mut [u8]) {

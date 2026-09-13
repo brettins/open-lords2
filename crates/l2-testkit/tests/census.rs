@@ -349,7 +349,7 @@ fn the_install_gated_tests_are_the_ones_we_have_written_down() {
     eprintln!("gate census: {GATED_TOTAL} install-gated tests across {} files", INVENTORY.len());
 }
 
-/// **What this run actually asserted**, printed every time and asserted at the
+/// **, printed every time and asserted at the
 /// ends.
 ///
 /// Run it with `--nocapture` to see the breakdown. The two ends are the ones

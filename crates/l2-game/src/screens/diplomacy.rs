@@ -9,7 +9,7 @@
 //!
 //! This is **the player's whole side of diplomacy**. Everything a person can do
 //! to an AI lord goes through these two screens and out through `Diplo_Post`;
-//! there is no other door. `docs/diplomacy.md` §7.
+//! `docs/diplomacy.md` §7.
 //!
 //! # The screen, out of the painter
 //!
@@ -260,7 +260,7 @@ impl Menu {
     /// the height is the only thing the four arms vary about it.
     ///
     /// **The dispatched layout draws none**, which is the reason this returns an
-    /// option rather than a number: the one-line *"A message has been
+/// option: the one-line *"A message has been
     /// dispatched, my Lord."* sits directly on the window's parchment.
     pub fn inset_height(self) -> Option<i32> {
         match self {
@@ -275,7 +275,7 @@ impl Menu {
     ///
     /// **Three of the four, and the allied layout is the exception** — its
     /// recess is `0x130` tall and reaches `0x60 + 0x130 = 0x190`, past the
-    /// picture's own `0x140`. Read out of the four arms rather than reasoned
+/// picture's own `0x140`. Read out of the four arms
     /// about; the geometry is offered as the likely *why* and is not evidence.
     pub fn draws_seal(self) -> bool {
         self != Menu::Allied
@@ -533,7 +533,7 @@ impl Screen for DiplomacyScreen {
         // `Diplo_DrawScreen` sets neither `DAT_0058FE2C` (drop capitals) nor
         // `DAT_005AEA40` (the emboss kill), and `0x0B` is neither `0x1C` nor
         // `0x1F`, so the shadow pair is the ordinary one. The three compose
-        // painters below *do* set the caps flag, which is why their pen differs.
+// painters below set the caps flag, so their pen differs.
         let pen = Pen {
             assets: a,
             ink,
@@ -571,7 +571,7 @@ impl Screen for DiplomacyScreen {
         }
         // `Pl8_DrawFrame(g_miscCtySheet, 0x1D, 0x140, 0x140)` — drawn on three
         // of the four layouts and **not on the allied one**, whose taller inset
-        // reaches down over that corner. Transcribed rather than tidied.
+// reaches down over that corner. Transcribed.
         if menu.draws_seal() {
             pen.misc_frame(canvas, SEAL_FRAME, SEAL_AT.0, SEAL_AT.1);
         }
@@ -660,7 +660,7 @@ impl DiplomacyScreen {
 
         // The three status icons, all read out of the **rival's** record
         // indexed by me, and all `Sprite_WGenSprite` frames of `faces.pl8`
-        // rather than letters. `allied` and `atWar` are exclusive in the
+// `allied` and `atWar` are exclusive in the
         // painter: the at-war icon is only drawn when the allied one was not.
         let their = rr.pair(me);
         let mut icons: Vec<(usize, i32, i32, &str)> = Vec::new();
@@ -702,7 +702,7 @@ impl DiplomacyScreen {
         // The fill loop, transcribed: `for (v = 30; v > -31; v--)` filling row
         // `30 - v` when `v <= standing`. So the column fills **downward from
         // the standing's own row**, and the colour is chosen once from the
-        // standing rather than per row.
+// standing.
         let colour = if standing >= i32::from(THERMOMETER_WARM) {
             THERMOMETER_HIGH
         } else if standing <= i32::from(THERMOMETER_COLD) {
@@ -742,12 +742,12 @@ pub const COUNTY_CANCEL: Rect = Rect::new(356, 248, 32, 32);
 /// Decoded out of `Lords2.exe`, `0x004DD9D0` is a contiguous run of 24-byte
 /// widgets: records 0…3 are the gift's four, records 4…5 *are* `0x004DDA30`
 /// (`0x004DD9D0 + 4 × 24`) and records 6…7 *are* `0x004DDA60`
-/// (`+ 6 × 24`). Every slice is exactly as long as the count its
+/// (`+ 6 × 24`). Every slice is
 /// `Screen_DrawWidgets` arm passes, so the `g_sendSuppliesWidgets` failure —
 /// eight records, six ever drawn — has no counterpart here. The run continues
 /// past the compose dialogs into other screens' tick/cross pairs at
 /// `0x004DDA90` and beyond, whose handlers (`FUN_004367FF`, `FUN_00436872`,
-/// `FUN_004368FD`) are message replies rather than anything `0x1A` draws.
+/// `FUN_004368FD`) are message replies.
 /// **[V]** `tools/oracle/widgets.js widgets 4dd9d0 8`.
 pub const WIDGET_TABLE: u32 = 0x004D_D9D0;
 
@@ -1076,7 +1076,7 @@ impl ComposeScreen {
             return Transition::Pop;
         }
         // `if (g_diploKind != 0) g_diploGold = 0;` — only a gift carries gold,
-        // and the field is cleared rather than ignored.
+// and the field is cleared.
         let gold = if self.kind == Kind::Gift { self.gold } else { 0 };
         let me = ctx.game.player;
         ctx.game.kingdom.post_letter(me, self.target, self.kind, gold, self.county);
@@ -1185,11 +1185,11 @@ impl Screen for ComposeScreen {
         let me = ctx.game.player;
         // **[V]** Each of the three painters brackets everything it draws in
         // `DAT_0058FE2C = 1`, which is the drop-capital switch: `A` … `Z` come
-        // out in colour 1 rather than the caller's `0x3F`. `DAT_005AEA40` — the
+// out in colour 1. `DAT_005AEA40` — the
         // emboss kill the *front end* uses — is never touched here, and `0x1A`
         // is neither `0x1C` nor `0x1F`, so `Ui_DrawText`'s shadow pair is the
         // ordinary [`font::SHADOW`]. Both facts are `docs/screens-county.md`
-        // §4.4's four emboss details, applied rather than quoted.
+// §4.4's four emboss details, applied.
         let pen = Pen {
             assets: a,
             ink,
@@ -1251,7 +1251,7 @@ impl Screen for ComposeScreen {
                 // else                     FUN_00410c71(g_pickedCounty, …);
                 // ```
                 //
-                // Transcribed rather than tidied. **[I]** the effect is
+// Transcribed. **[I]** the effect is
                 // *nothing lit*, because group 100 gives twenty county names
                 // per scenario and county 20 is the last of them — England has
                 // fourteen — so on most maps the highlight lands on a county
@@ -1452,7 +1452,7 @@ mod tests {
             assert!(ok.x + ok.w <= w.x + w.w && ok.y + ok.h <= w.y + w.h, "{ok:?} leaves {w:?}");
         }
         // And the three are distinct, which is what makes them three branches
-        // rather than one constant drawn three times.
+        //
         assert_ne!(GIFT_OK, LETTER_OK);
         assert_ne!(LETTER_OK, COUNTY_OK);
     }

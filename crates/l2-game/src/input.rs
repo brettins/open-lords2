@@ -66,7 +66,7 @@ pub mod window {
     /// The key is the original's. With `g_optFullScreen` clear the game draws
     /// the caption *"(F5 key re-sizes window to 640x480)"*, so it shipped a key
     /// that snaps the window to a whole scale; **ours snaps to the largest that
-    /// fits rather than always to 1×**, which is the one thing here that is not
+    /// fits, which is the one thing here that is not
     /// the original's and is written down as such.
     pub fn snapped(window_w: u32, window_h: u32) -> (u32, u32) {
         let s = scale(window_w, window_h);
@@ -220,7 +220,7 @@ pub enum Event {
     /// **two** readers, and the second is on the battlefield:
     /// `FUN_0043BF07` (`0x0043BF07`) tests
     /// `(g_mouseLeftReleased || g_mouseLeftDoubleClick) && g_screenId == 0x2A`,
-/// so a double click **commits an open selection box** exactly as a release
+/// so a double click **commits an open selection box**
 /// would. It is the same verb reached a second
 /// way, and it exists because of the sentence below: without it,
     /// the second click of a fast double click would leave the drag open with no
@@ -269,7 +269,7 @@ pub enum Event {
 /// ```
 ///
 /// So **the `WM_LBUTTONUP` that ends a double click raises no release**: the
-/// bit was never set by `0x203`, clearing it changes nothing, and there is no
+/// bit, clearing it changes nothing, and
 /// edge. `[V]` `docs/input.md` §5 said so and said we still delivered one; this
 /// is the type that stops it, and it lives here so a
 /// test can drive it without a window.
@@ -300,7 +300,7 @@ impl LeftButton {
     }
 
     /// **`WM_LBUTTONDBLCLK`** — a different byte, and the down bit is left
-    /// exactly as it was. Windows sends this *instead of* the second
+    /// . Windows sends this *instead of* the second
     /// `WM_LBUTTONDOWN`, so the bit is clear here and stays clear for as long
     /// as the second press is held.
     pub fn double_clicked(&mut self, x: i32, y: i32) -> Event {
@@ -429,7 +429,7 @@ mod tests {
     }
 
     /// **A double click's own button-up raises no release**, because the down
-/// bit it would have cleared was never set. The whole sequence Windows
+/// bit it would have cleared. The whole sequence Windows
     /// sends for a double click is asserted, in order.
     ///
     /// **Ablation, run:** make `released` return `Some` unconditionally — which

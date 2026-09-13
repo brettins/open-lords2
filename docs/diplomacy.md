@@ -708,7 +708,7 @@ exactly five rows: `0x004DC1E0 + 5 × 0x10 = 0x004DC230`, where the small table 
 | 3 — Countess | 0, 400, 700, 1200 | 0, 160, 250, 400 |
 | **4 — Bishop** | **250, 600, 1100, 1800** | **100, 240, 400, 600** |
 
-**Row 0 is the human and it is all zeros**, so there is no fifth AI row here either: the gold
+**Row 0 is the human and it is all zeros**: the gold
 table and the personality table agree on four lords and are indexed by the same byte. §0.1 —
 **these rows are lords, not realms.** Reading them as realms 1…5 shifts every lord by one and
 makes the Bishop's grant look middling; the index expression settles it.
@@ -801,7 +801,7 @@ the file), **[D]** on each field's meaning, from its single reader.
 **`+0x68` used to read *"a threshold on realm `+0x38`"*, and that is a missing digit.** It is
 realm **`+0x138`**, the maintained sum of the six weapon counters (`Realm_RecountWeapons`,
 `0x004487A9`) — the number the panel draws as *Arms*. `+0x38` sits inside the twenty-four
-army-name counters at `+0x2D`, which is not a number anything would threshold. Found by trying
+army-name counters at `+0x2D`. Found by trying
 to use the field; see `crates/l2-kingdom/src/ai_army.rs`.
 
 **Three more of the untraced set have readers now**, all in the table above and all `[D]` from
@@ -950,11 +950,11 @@ finding that is not one.
 ### 10.10 What is still missing on the player's side
 
 Two arms, and they are the same blocker: **`Msg_DrawWindow` (`0x0047309E`, 10,915 bytes) has
-only ever been read for its text and voice lookups**, so its per-category window layouts do
+only ever been read for its text and voice lookups**
 not exist here.
 
 * **`Diplo_PayHelpClicked` (`0x004367FF`)** — the accept button on the category-10 *"Pay -"*
-  prompt. The rule behind it is built; there is no window to click.
+  prompt. The rule behind it is built.
 * **`FUN_00436872`** — the *"Accept alliance ?"* prompt's two buttons, category `0x0B`.
   Its guard is `(realms[offerer].isHuman != 0) || (hotspot != 0)`, so in single player
   **declining an AI's offer runs nothing at all** — not even a refusal message. The offer
@@ -991,7 +991,6 @@ now. This section is the half of diplomacy that is not *writing* to a lord.
 ### 11.1 Two of the seven kinds arrive as a question, and only two
 
 Of everything in this document, exactly **two** things put a decision in front of the player
-rather than a notice:
 
 | the message | `L2.eng` | category | widget table | handler |
 |---|---|---|---|---|

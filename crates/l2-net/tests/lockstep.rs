@@ -28,7 +28,7 @@ struct Peer {
     session: Session,
     sim: ToySim,
     /// Every checksum this peer computed, so two peers can be compared
-    /// tick by tick rather than only at the end.
+    /// tick by tick
     hashes: Vec<(Tick, u64)>,
     errors: Vec<SessionError>,
     waited_for: Vec<PlayerSlot>,
@@ -142,7 +142,7 @@ impl Table {
     /// given genuinely different input and call the difference a
     /// desync. Keying the schedule to the tick a command will execute
     /// on is what makes "the network's timing changed nothing" a
-    /// statement about the lockstep core rather than about the test.
+    /// statement about the lockstep core
     fn run_scheduled(&mut self, rounds: usize, schedule: impl Fn(u8, Tick) -> Option<Order>) {
         for _ in 0..rounds {
             for peer in &mut self.peers {
@@ -201,7 +201,7 @@ fn a_perturbed_peer_is_caught_and_both_sides_halt() {
     let mut table = Table::new(Config::battle(), 2, 7);
     table.peers[1].sim.bias = 1;
 
-    // Nothing diverges until the biased code path actually runs, which
+    // Nothing diverges until the biased code path
     // is the honest shape of the problem: a desync detector cannot see
     // a difference that has not been computed yet.
     table.run(4);
@@ -338,7 +338,7 @@ fn a_stalled_link_pauses_the_session_and_it_resumes_intact() {
 
 /// The same experiment with a link that *discards* instead of holding.
 ///
-/// The session never recovers, and that is correct rather than a
+/// The session never recovers
 /// defect: tick `N` cannot be simulated without every peer's commands
 /// for it, nothing in the design retransmits, and §4 says plainly that
 /// proceeding without them is a desync. This is the concrete form of
@@ -431,7 +431,7 @@ fn a_packet_is_sent_every_tick_even_with_nothing_to_say() {
     let simulated = table.peers[0].hashes.len() as u32;
     assert!(simulated >= 9, "only {simulated} ticks ran");
     // One packet per tick, contiguous from zero, with no gaps — a gap
-    // is a peer that said nothing, which the other side cannot
+    // is a peer that said nothing
     // distinguish from a disconnection.
     let expected: Vec<Tick> = (0..table.peers[0].sealed.len() as u32).map(Tick).collect();
     assert_eq!(table.peers[0].sealed, expected);
@@ -553,7 +553,7 @@ fn a_second_packet_for_a_tick_is_refused() {
     );
 }
 
-/// An integrity check rather than an anti-cheat measure: a packet whose
+/// An integrity check: a packet whose
 /// contents contradict its header is far more likely to be a relaying
 /// bug in our own host code than an attack.
 #[test]

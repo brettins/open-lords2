@@ -42,7 +42,7 @@ use l2_view::Canvas;
 
 /// `.data` begins at RVA `0x4D2000` / file offset `0xD0200`, so the two
 /// structure tables at `0x004D7B80` and `0x004D7D80` are these. Written out
-/// rather than derived from the constants under test.
+///
 const STONE_AT: usize = 0xD5D80;
 const WOOD_AT: usize = 0xD5F80;
 
@@ -250,7 +250,7 @@ fn the_castle_is_on_sheet_zero_and_the_ground_and_moat_on_sheet_one() {
     assert_eq!(seen.len(), 16, "all sixteen grass variants are used");
 }
 
-/// **A field battlefield never asks for the second sheet**, which is why the
+/// **A field battlefield never asks for the second sheet**
 /// original can leave slot 1 null for one: `Battlefield_BuildFromSkr` clears
 /// bits `0x1C` on every cell it writes, and `t32_bat2.pl8`'s size in the asset
 /// table is 0.
@@ -276,7 +276,7 @@ fn a_field_battlefield_asks_for_neither_the_second_sheet_nor_the_overlay() {
 /// must differ over most of the viewport, and the siege's must have no holes.
 ///
 /// The probe is the viewport `FUN_004BC020` stores — `x 0…480`, `y 24…472` —
-/// written out rather than read from `l2_view::scene`.
+/// written out
 ///
 /// Ablation, run: `Ground::for_battle` answering `Field` always — red, 212,253
 /// of 215,040 viewport pixels never painted.

@@ -88,7 +88,7 @@ slot of parity *k*.
 
 **Why it is a bug.** Counties 2, 4, 6 … 16 are permanently exempt from every random event in
 the game, at every seed, for the whole game. Nothing in play reveals it, because the counties
-that do draw behave exactly as they should.
+that do draw behave
 
 **Evidence.** **[V]** — arithmetic over the dumped deck, checked exhaustively across all 128
 seeds, not sampled. `00448822 MOV EAX,[0x0058FD60] / ADD EAX,EAX` quoted from the
@@ -644,7 +644,7 @@ while it is up — which works, because the village's arm hands the whole right-
 through (§below) — and the screen that opens replaces the village outright. Close it and you
 are on the **campaign map**, not back in the village.
 
-`g_screenId` is one byte, and there is no stack anywhere in the binary.
+`g_screenId` is one byte.
 **100** writes to `g_screenId` inside `Screen_FrameInput` (`0x0042FF10`), **57 are the literal
 `0`** — the campaign map. A screen's exit is a **constant compiled into its own arm**, not a
 memory of where it was opened from. The `0x0A` arm is the shape of all of them:
@@ -1539,7 +1539,6 @@ code and in `decisions.md`. §3's N1, N2 and N3 have neither and should.
 
 `Transport_Spawn` (`0x004292AF`) looks for a free road tile near the source county's anchor
 and then any free open tile. If **neither** answers, it spawns nothing and — because the
-There is no message, no refusal.
 no sound: `FUN_0043B04C` has already set `g_screenId = 0`, so the send-supplies screen closes
 on the way in and the player is looking at the map.
 

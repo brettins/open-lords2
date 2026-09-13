@@ -18,7 +18,7 @@
 //!
 //! `l2_net::Canonical` exists precisely so that everything which turns state
 //! into bytes produces the *same* bytes (§6). Writing a second encoder here
-//! would mean two byte streams that could disagree with each other, and the
+//! would mean two byte streams that could disagree with each other
 //! first hour of any investigation would go on establishing which one was
 //! right. So this is `Canonical`, seeded and sectioned the same way.
 //!
@@ -32,7 +32,7 @@
 //! the same game", not "do we have the same files".
 //!
 //! **Load order, and which mod set what.** Two different load orders that
-//! merge to the same numbers are the same rules, and the simulation cannot
+//! merge to the same numbers are the same rules
 //! tell them apart, so neither does this. [`crate::Report`] is where the
 //! difference between them is visible.
 //!
@@ -88,7 +88,7 @@ pub fn digest_hex(rules: &Ruleset) -> String {
 /// # Why this is stricter than [`digest`], and why both exist
 ///
 /// [`digest`] answers "do our rules agree", which is the right question for a
-/// diagnostic and the wrong one for a handshake. `docs/netcode.md` D-12 says
+/// diagnostic and the wrong one for a handshake.
 /// two peers must agree on *the mod set and load order*, and `l2_net::Hello`
 /// documents `ruleset_hash` as covering the mod that set each value. The
 /// difference matters because the merged rule tree is not everything a mod can
@@ -96,7 +96,7 @@ pub fn digest_hex(rules: &Ruleset) -> String {
 ///
 /// * **A mod can replace an asset that is simulation input.** A `.skr`
 ///   battlefield is terrain, and terrain decides pathfinding. Nothing in the
-///   rule tree would move, and the two peers would desync on the first unit to
+/// rule tree would move
 ///   walk. Hashing 1,196 files at load would cover it properly and is not done
 ///   here; hashing the mod list is the cheap proxy that at least catches "you
 ///   have a mod I do not". **This is a real gap and it is not closed** —
@@ -111,7 +111,7 @@ pub fn digest_hex(rules: &Ruleset) -> String {
 /// with a symptom that points nowhere.
 ///
 /// Ids and order only. Versions are deliberately out: a mod that changed its
-/// version without changing a rule is the same simulation, and the rules
+/// version without changing a rule is the same simulation
 /// digest already catches one that changed a rule without changing its
 /// version, which is the dangerous direction.
 pub fn session_digest(rules: &Ruleset, load_order: &[crate::ModMeta]) -> u64 {

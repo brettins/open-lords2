@@ -356,7 +356,7 @@ pub struct Ai {
     ///   one per castle raster;
     /// * **incremented** by `BattleMan_StateAttackWall` and
     ///   `BattleMan_StateRamGate`, in each case at the 5,000-hit rampart
-    ///   threshold, beside `Wall_Smash` and the counter reset. Nothing else
+    /// threshold, beside `Wall_Smash` and the counter reset. Nothing else
     ///   writes it — `Wall_Collapse` does **not**;
     /// * **read** three times: `BattleMan_StateRamGate` sends a ram away
     ///   (`1 < it`), and `Order_ToCastleObjective` and
@@ -627,7 +627,7 @@ impl World<'_> {
     /// or more, and then moves only the axes separated by six or more. That,
     /// plus `Order_StopShortOfTarget` pulling a missile unit's destination back
     /// to `range/8 − 3`, is why AI archers converge on a standoff distance
-    /// rather than closing.
+    ///
     fn halfway_to_unit(&mut self, cur: usize, other: usize) {
         self.clear_withdrawing(cur);
         let (sx, sy) = self.unit_pos(cur);
@@ -2667,7 +2667,7 @@ mod tests {
             let mut fx = Fixture::new(Troop::Knights, Troop::Peasants, 4);
             fx.ai.is_siege = true;
             if dismount {
-                // One man of the besieging force who is not a knight, which is
+                // One man of the besieging force who is not a knight,
                 // the whole of what `total <= knights` asks about.
                 fx.figures[0].troop = Troop::Peasants;
             }
@@ -2951,7 +2951,7 @@ mod tests {
             assert_eq!(a.ai, b.ai, "ai state diverged");
             assert_eq!(a.figures, b.figures, "figures diverged");
         }
-        // And the jitter really was in play, or this would prove nothing.
+        // And the jitter really was in play,
         assert_ne!(a.ai.rng, Ai::new(0x5EED).rng, "the generator never advanced");
     }
 }

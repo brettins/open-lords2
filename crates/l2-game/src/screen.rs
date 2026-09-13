@@ -59,7 +59,7 @@ pub enum ScreenId {
     ///
     /// The rival being looked at is **not** part of the identity, unlike the
     /// county on a county panel: `g_diploTarget` is a global the screen owns
-    /// and changes under itself when a card is clicked, and there is only ever
+/// and changes under itself when a card is clicked,
     /// one of these open.
     Diplomacy,
     /// `g_screenId` `0x1A` — one of the seven compose dialogs, for one rival
@@ -79,7 +79,7 @@ pub enum ScreenId {
     /// army. See [`crate::screens::siege`].
     Siege(usize),
     /// `g_screenId` `0x17` — **the raise-army screen**, for one county. The
-    /// shell table called it *"Hire mercenaries"*; there is no mercenaries
+/// shell table called it *"Hire mercenaries"*
     /// screen, and the offer is a block on this one. See
     /// [`crate::screens::army`].
     RaiseArmy(u8),
@@ -157,7 +157,7 @@ pub enum ScreenId {
     /// The category being looked at is **not** part of the identity, for
     /// `ScreenId::Diplomacy`'s reason: `DAT_0055CE7C` is a global the original
     /// keeps outside the screen, it survives the page being closed, and there
-    /// is only ever one of these open. It is [`Game::nobles_category`]. See
+/// is one of these open. It is [`Game::nobles_category`]. See
     /// [`crate::screens::nobles`].
     Nobles,
     /// `g_screenId` `0x18` — **send supplies**, from one county to another.
@@ -284,7 +284,7 @@ pub enum Transition {
     ///
     /// Applied as: truncate to the screen already on the stack, or — if it is
     /// not there — clear and build it, which is the byte's behaviour when the
-    /// destination was never open.
+/// destination was not open.
     ///
     /// [`Pop`]: Transition::Pop
     /// [`Replace`]: Transition::Replace
@@ -292,7 +292,7 @@ pub enum Transition {
 }
 
 /// What a screen is given. `game` is mutable through `handle` and `update`, and
-/// read-only through `draw`, because `draw` only ever gets `&Ctx`.
+/// read-only through `draw`, because `draw` gets `&Ctx`.
 pub struct Ctx<'a> {
     pub game: &'a mut Game,
     pub assets: &'a Assets,
@@ -329,7 +329,7 @@ pub trait Screen {
     /// if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }
     /// ```
     ///
-    /// and **there is no `g_screenId` test on it** — `[V]`, read whole. Only
+    /// and — `[V]`, read whole. Only
     /// `Screen_Draw` and `Screen_FrameInput`, in the tail below it, dispatch on
     /// the screen. So the campaign winds on under a county panel, a village, an
     /// open menu and the message scroll alike, and the one thing that stops it
@@ -389,7 +389,7 @@ pub trait Screen {
     ///   `Move_BuildCostMap`. [`crate::screens::setup::SetupScreen`] raises it
 ///   there, so a fresh install's `lastturn.sav` reads Winter 1268.
     ///
-/// **It goes up**, exactly as [`Screen::take_clicks`] does and
+/// **It goes up**, as [`Screen::take_clicks`] does and
     /// for the same reason: a screen may report that a turn came round, and may
     /// not learn whether a file was written or where it went. Nothing here is on
     /// [`Game`], so it is not in the save and not in the lockstep digest.
@@ -398,7 +398,7 @@ pub trait Screen {
         false
     }
 
-    /// **The original's `g_screenId`, where it is not a function of
+    /// **The original's `g_screenId`
     /// [`Screen::id`].**
     ///
     /// Almost every screen's byte follows from its [`ScreenId`], and
@@ -802,7 +802,7 @@ impl Machine {
         // `Battle_Frame`'s `FUN_00448d7e(g_selectedCounty)` at `0x004BA187`, in
         // its place: `Tip_Update` (106), `Msg_Pump` (107), … this (190), …
         // `Turn_Tick` (262). **After the pump on purpose** — a letter posted now
-        // is pulled off the ring on the next frame, exactly as in the original,
+// is pulled off the ring on the next frame, as in the original,
         // which is what gives the player one frame of the county they just
         // clicked before the scroll covers it. See
         // [`crate::message::post_event`]. No screen test: the original has none.
@@ -848,7 +848,7 @@ impl Machine {
     /// else if ((g_battlePhase == 2) && (ticksDue != 0)) { …the battle's passes… }
     /// ```
     ///
-    /// `[V]`, `0x004B99C0`, and **the absence is the finding**: there is no
+    /// `[V]`, `0x004B99C0`, and **the absence is the finding**:
     /// `g_screenId` test on either arm. Everything in the loop's tail that does
     /// test the screen — `Screen_Draw`, `Screen_FrameInput`, the cursor ladder —
     /// is *drawing and input*. So the only thing on the stack that suspends a
@@ -857,13 +857,13 @@ impl Machine {
     ///
     /// **The defect this replaces**: [`Screen::update`] is run for the top
     /// screen only, and the campaign map is what wound the turn, so a letter —
-    /// which is not a screen in the original at all, see
+    ///
     /// [`crate::screens::message`] — stopped the turn while it was open. So did
     /// walking into a county panel. `docs/decisions.md` C197.
     ///
 /// **And the `else if` is the battle's**, so this is one function.
     /// The second arm has no `g_screenId` test either, so a battle runs under
-    /// whatever is on top of *it* exactly as a turn runs under whatever is on
+/// whatever is on top of *it* as a turn runs under whatever is on
     /// top of the map. That mattered the moment the battlefield got a menu bar:
     /// the drop-down is screen `0x32`, a push here, and
     /// [`Screen::update`] is the top screen's alone — so opening *File* over a
@@ -919,7 +919,7 @@ impl Machine {
     ///
     /// The original's inner loop is one `if / else if` on `g_battlePhase` with
     /// **no `g_screenId` test on either side**, so a battle steps under an open
-    /// drop-down exactly as a campaign turn steps under an open letter. Ours
+/// drop-down as a campaign turn steps under an open letter. Ours
     /// stepped only from [`Screen::update`], which the machine gives to the top
     /// screen alone, so the menu bar this screen has just been given would have
     /// frozen the fight every time a player opened it. Same absence, same fix,
@@ -956,7 +956,7 @@ impl Machine {
     /// * **A repaint.** `Screen_Draw` opens with `FUN_0047703A`, which drops the
     ///   tip and keeps its stamp. A painter runs when the screen changes, so a
     ///   change in the screens on the stack — looking through the message
-    ///   scroll, which is not a screen id — is that call. `[I]`, and the module
+    /// scroll — is that call. `[I]`, and the module
     ///   header says what it does not cover.
     /// * **`Opt_ToggleToolTips` (`0x004347C7`)** is three statements, and the
     ///   second is `_DAT_004EA830 = 0`. `g_optToolTips` has no other writer in
@@ -1047,7 +1047,7 @@ impl Machine {
             if ctx.game.messages.advance(ctx.game.multiplayer) == crate::message::Tick::TimedOut {
                 // `Msg_Pump`'s two timeouts call `Msg_Dismiss`, and so reach
                 // `FUN_00476E21`: a network game's tip that expires restores
-                // its screen exactly as a clicked one does.
+// its screen as a clicked one does.
                 ctx.game.tips.restore();
                 self.dirty = true;
             }

@@ -1,6 +1,6 @@
 //! Random events — `docs/kingdom.md` §8.1, `Event_RollAll` (`0x00448819`).
 //!
-//! # The table, which is not a 24-entry table
+//! # The table
 //!
 //! `docs/kingdom.md` §8.1 describes `g_eventTable` (`0x004D6108`) as the source
 //! of *"one of 24 handlers (ids `0x87` … `0x8E` and `0x12E` … `0x13D`)"*, and
@@ -53,7 +53,7 @@
 //! therefore always lands on a slot of parity `k`. And every dealt slot is at
 //! `index ≡ 7 (mod 8)`, which is **odd**. So counties 2, 4, 6 … 16 are
 //! permanently exempt from the random-event table, and no amount of play will
-//! reveal it, because the counties that do draw look exactly as they should.
+//! reveal it, because the counties that do draw look
 //! The seed is `00448822 MOV EAX,[0x0058FD60] / ADD EAX,EAX` in the
 //! disassembly, so the doubling is not a decompiler artefact
 //! (`docs/decisions.md` C13). Reproduced, and asserted
@@ -441,7 +441,7 @@ pub enum Guard {
     Wood(i32),
     /// The realm must hold this many of [`weapon_slot`]'s weapon type.
     Weapons(i32),
-    /// The county's shown tax must be at least this — there is no point robbing
+    /// The county's shown tax must be at least this —
     /// a tax collector who is carrying nothing.
     TaxShown(i32),
     /// Two guards, both of which must pass.

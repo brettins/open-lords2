@@ -138,7 +138,7 @@ fn a_click_that_lands_on_no_menu_item_does_nothing_at_all() {
 }
 
 /// The structural claim `docs/plan.md` makes, tested where it can actually
-/// fail: a screen **returns** a transition rather than performing one. The
+/// fail: a screen **returns** a transition. The
 /// screen below is driven with no machine in existence, so if it could push
 /// anything there would be nothing to push onto.
 #[test]
@@ -176,7 +176,7 @@ fn only_the_top_screen_is_offered_input() {
     assert!(after_map > before, "the map screen ends the turn on E");
 
     // Now put the county panel on top and press the same key. Ticking after it
-    // is what makes this an assertion rather than a coincidence: if the map
+    // is what makes this an assertion: if the map
     // underneath had taken the key, the ticks would wind its turn on.
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Enter));
     assert_eq!(m.top_id(), Some(ScreenId::County(1, Panel::Tax)));
@@ -217,7 +217,7 @@ fn the_county_panels_second_row_sets_the_ration_level() {
     assert_eq!(game.kingdom.counties[1].ration_wanted, 4);
     assert_eq!(game.kingdom.counties[1].tax_rate, 0, "the tax row must not have moved");
 
-    // And it stops at the top of the table rather than running past it.
+    // And it stops at the top of the table.
     for _ in 0..5 {
         send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
     }

@@ -30,7 +30,7 @@
 //! `Kind::Press` under a `left-press-delayed` comment, and this file stayed
 //! green; `tests/options.rs` caught it. **So a comment may not claim
 //! `left-press-repeat`, `left-press-delayed` or `left-press-held`**: those are
-//! answered by nothing but a `Kind` handed to `Press`, so a claim of one has to
+//! answered by nothing but a `Kind` handed to `Press`
 //! be that `Kind`. A plain press or a release can still be a comment, because
 //! hand-rolled hit tests answer those.
 //!
@@ -567,7 +567,7 @@ fn every_arm_names_a_gesture_from_the_closed_vocabulary() {
 ///
 /// The three are `Widget_Test`'s kinds 4 and 5 and `Hotspot_Test`'s kind 2.
 /// Nothing in this engine answers them but a `press::Kind` handed to
-/// `press::Press`, so a marker claiming one is a claim about a `Kind` value —
+/// `press::Press` —
 /// and the only marker that cannot disagree with that value is the value. A
 /// comment beside a table could say `left-press-delayed` over a row declared
 /// `Kind::Press`, and did, and the set check above was satisfied by the comment.
@@ -609,7 +609,7 @@ fn a_press_only_gesture_is_declared_by_its_kind_and_never_by_a_comment() {
     assert!(declared >= 34, "only {declared} arm! declarations found; it was 34");
 }
 
-/// One marker per arm, so a record cannot silently mean two places.
+/// One marker per arm
 #[test]
 fn no_arm_is_marked_twice() {
     let root = repo_root();
@@ -732,7 +732,7 @@ fn every_group_an_arm_names_is_declared() {
         undeclared.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n  "),
     );
 
-    // And the other way, which is the cheaper half of the same mistake: a group
+    // And the other way
     // nobody files under is a group whose arms went somewhere else.
     let unused: Vec<&String> = declared.difference(&used).collect();
     assert!(
@@ -746,7 +746,7 @@ fn every_group_an_arm_names_is_declared() {
 ///
 /// This is the half that cannot be typed into agreement. Everything above
 /// compares two things a person maintains; this one derives the answer from the
-/// game, so a record that says `left-release` about a control the original
+/// game
 /// fires on the press goes red however carefully the record was written.
 ///
 /// **How.** The interface is data. `Widget_Test` (`0x0040DA1E`) and
@@ -777,7 +777,7 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
     const WIDGETS: (u32, u32) = (0x004D_D310, 0x004D_E400);
 
     let mut kinds: BTreeMap<u32, BTreeSet<&'static str>> = BTreeMap::new();
-    // **And the same thing keyed by the RECORD's address**, which is what lets
+    // **And the same thing keyed by the RECORD's address**
     // the prose check below reach the four arms whose `addr` is a dispatcher.
     // See `docs/input.md` §7a.
     let mut at_record: BTreeMap<u32, &'static str> = BTreeMap::new();
@@ -917,7 +917,7 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
          A record that stops naming its table stops being classifiable.",
     );
     // **One handler is reachable at two different kinds**, and it is named
-    // rather than skipped, because a growing list of things a check declines to
+    //
     // judge is itself the signal. `FUN_00432B05` is the multiplayer setup
     // page's four-row table (`0x004DCB48`): three of its records are kind 1 and
     // **the third is kind 3** — one row of one table waits for the release

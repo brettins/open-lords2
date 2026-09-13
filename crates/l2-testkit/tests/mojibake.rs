@@ -23,20 +23,20 @@
 //! `tools/decisions/corrections.js` parses, so the correction went missing and
 //! three citations pointed at nothing. **Had the same corruption landed one line
 //! lower, in the prose, it would have shipped and stayed.** That is the argument
-//! for the check rather than for care: this one was caught by luck, and luck
+//! for the check: this one was caught by luck, and luck
 //! does not scale to the next document.
 //!
 //! # What it looks for
 //!
 //! The mojibake of a UTF-8 sequence is itself a fixed UTF-8 sequence, so this is
 //! a literal search and not a heuristic. The listed pairs are the ones whose
-//! originals this tree actually uses — em-dash, en-dash, the curly quotes, the
+//! originals this tree — em-dash, en-dash, the curly quotes, the
 //! ellipsis, the non-breaking space and the multiplication sign. Each entry
 //! carries the correct character, so the failure message can say what the text
-//! was meant to be rather than only that something is wrong.
+//! was meant to be.
 //!
 //! A file may opt out by naming itself below, and exactly one does: this one.
-//! **The exemption is belt-and-braces rather than load-bearing**, and saying so
+//! **The exemption is belt-and-braces**, and saying so
 //! matters because the obvious reason for it is wrong: the patterns are written
 //! as `\u{..}` escapes, so this file does *not* contain them as bytes and would
 //! pass the scan unexempted. The first draft of the second test assumed the
@@ -66,7 +66,7 @@ const TEXT: &[&str] = &[
 /// `(mangled, intended, name)`.
 ///
 /// The mangled form is what you get by decoding correct UTF-8 as CP1252 and
-/// re-encoding it. Written as `\u{..}` escapes rather than pasted, so that this
+/// re-encoding it. Written as `\u{..}` escapes, so that this
 /// file cannot itself be corrupted into agreeing with the corruption.
 const DOUBLE_ENCODED: &[(&str, char, &str)] = &[
     ("\u{c3}\u{a2}\u{e2}\u{82}\u{ac}\u{e2}\u{80}\u{9d}", '—', "em dash"),
@@ -92,7 +92,7 @@ struct Hit {
 
 /// The scan's result, and **how much it looked at**.
 ///
-/// `files` is carried out of here rather than discarded because a scanner that
+/// `files` is carried out of here because a scanner that
 /// silently visited nothing reports a clean tree, and a clean tree is what this
 /// check reports when all is well. The count is the difference between the two.
 struct Scan {
@@ -117,7 +117,7 @@ fn scan() -> Scan {
             continue;
         }
         // Read as bytes and view them as latin-1, so that the mangled sequence
-        // is matched as the byte run it is rather than as whatever it decodes
+        // is matched as the byte run it is
         // to. `read_to_string` would succeed here — double-encoded UTF-8 is
         // still valid UTF-8, which is the whole reason this is invisible.
         let Ok(bytes) = std::fs::read(root.join(rel)) else {
@@ -195,7 +195,7 @@ fn the_scan_reads_the_tree_and_the_matcher_matches() {
 
     // Half two: the matcher finds a mangled run in bytes shaped like a real
     // file's. Built from raw bytes and viewed the way scan() views a file, so
-    // this exercises the same path rather than a paraphrase of it.
+    // this exercises the same path.
     let (mangled, intended, name) = DOUBLE_ENCODED[0];
     let raw: Vec<u8> = b"**C146 "
         .iter()

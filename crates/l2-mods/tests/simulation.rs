@@ -223,7 +223,7 @@ fn the_documented_example_mod_reaches_the_simulation() {
     assert_eq!(archers.melee_attack, [7, 5, 4, 2]);
     assert_eq!(archers.armour, 4);
     // Its battle and difficulty rules land on nothing here, because no game
-    // install has been seeded - which the report says plainly rather than
+    // install has been seeded - which the report says plainly
     // leaving the author to wonder.
     assert!(!p.report().added_rules.is_empty());
 }
@@ -446,7 +446,7 @@ fn a_mod_can_postpone_the_first_year_random_events_are_drawn() {
 // The one that is *not* here is `kingdom.ai.personality.*.farm_style`. It
 // loads and validates, and nothing in `l2-kingdom` reads it, because the three
 // labour allocators `AI_ManageFields` dispatches into were never traced. There
-// is no observable effect to assert, so there is no test claiming one —
+// is no observable effect to assert,
 // `docs/decisions.md` C12.
 
 use l2_kingdom::tables::{Commodity, JOB_COUNT};

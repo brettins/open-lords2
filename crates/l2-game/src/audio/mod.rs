@@ -233,7 +233,7 @@ pub enum Scene {
 pub struct Audio {
     mixer: Arc<Mutex<Mixer>>,
     /// Dropping this closes the device, so it is held even though nothing
-    /// calls it. `None` when there is no device.
+/// calls it. `None`
     stream: Option<cpal::Stream>,
     /// Lower-cased file name to the path the vfs resolved it to. Built once;
     /// a `BTreeMap` to keep the listing in a stable order.
@@ -259,7 +259,7 @@ pub struct Audio {
     /// 3.8 MB every time the ladder changes track — that is what the guard was
     /// for. But [`Audio::headless`] has no device *and does* want the decode,
     /// because mixing into a buffer nobody hears is the only way to assert on
-    /// what a player would hear without a sound card. The two are separate
+/// what a player would hear without a sound card. The two are separate
     /// fields and the guard says what it means.
     decodes: bool,
     /// **Every file this layer has opened.** Not a cache and not a
@@ -327,7 +327,7 @@ impl Audio {
     /// audible. [`Audio::mix`] is where the result comes out.
     ///
     /// This exists so that a test can assert on *what a player would hear* —
-    /// samples, from a real file, chosen by the real policy — on a machine
+/// samples, from a real file, chosen by the real policy — on a machine
     /// somebody is sitting at. `docs/agents.md`: prefer the mechanism that
     /// needs nothing of the world. Reaching for a device instead would make the
     /// assertion depend on a sound card, on CI having one, and on nobody
@@ -544,7 +544,7 @@ impl Audio {
     /// `Sound_RestartSlot` (`0x00426216`), the verb a click uses.
     ///
     /// Silently does nothing when the file is missing, when effects are off,
-    /// or when there is no device. A missing sound is not an
+/// or
     /// error: the install is the publisher's and we do not get to require it
     /// be complete.
     pub fn play_effect(&mut self, name: &str) {
@@ -626,7 +626,7 @@ impl Audio {
         Some(Sound {
             channels: track.channels(),
             rate: track.rate,
-            // Unsigned 8-bit, centred on 128, exactly as the `.wav` files are.
+// Unsigned 8-bit, centred on 128,
             samples: pcm.iter().map(|&b| ((b as i16) - 128) << 8).collect(),
         })
     }
@@ -873,9 +873,9 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
 ///
 /// # The draw is the behaviour, so the trigger is a countdown
 ///
-/// `Msg_DrawWindow` is 10,915 bytes and it is not a painter: it dismisses,
+/// `Msg_DrawWindow` is 10,915 bytes: it dismisses,
 /// enqueues, sets its own timer and plays its own sound, all from inside the
-/// draw. There is no call site to put a voice beside. Every one of its
+/// draw. Every one of its
 /// sixteen `Msg_PlayVoice` calls is guarded by `g_messageTimer == <constant>`,
 /// and `g_messageTimer` counts **down** from [`crate::message::TIMER_START`]
 /// (2000), one per tick. `[V]`.
@@ -1335,7 +1335,7 @@ impl Director {
         // `TileInfo_Draw#1…#4` below already uses.
         //
         // The third writer of `g_screenId = 4`, `Army_SplitConfirm`
-        // (`0x00437AFB`), is silent — and is not a route of ours either: our
+// (`0x00437AFB`), is silent: our
         // division screen pops back to whatever opened it.
         // sfx: FUN_004b37bc#1
         if opened(&|id| matches!(id, ScreenId::Info(_))) {
@@ -1571,7 +1571,7 @@ impl Director {
         // decrements by one per tick (`MessageQueue::tick`), so each value
         // occurs exactly once per window and a `==` fires exactly once with no
         // memo to keep and nothing to reset when a window is dismissed early.
-        // It is also precisely what the original tests. If the timer ever steps
+// It is also what the original tests. If the timer ever steps
         // by more than one this goes quiet: firing twice is impossible, which is
         // the failure worth having of the two.
         if let Some(record) = game.messages.open() {
@@ -1932,7 +1932,7 @@ pub enum Request {
 ///
 /// `was` and `now` are one battle's [`l2_sim::Cues`] at two ticks; the answer
 /// is every call the original would have made in between, **once per kind**.
-/// That "once" is not a throttle of ours — every call below is drop-if-busy.
+/// Every call below is drop-if-busy.
 /// its own buffer, so a second request for the same slot inside one tick is
 /// dropped by the original too. `l2-sim`'s `crate::cue` has the argument.
 ///
@@ -2104,7 +2104,7 @@ impl TroopCries {
 ///
 /// The `true` side is small and closed. `SetupPage` covers all thirteen front
 /// end pages including `SetupPage::Load`, so *"the load screen opened from the
-/// title is still the front end"* holds without a special case —
+/// title is still the front end"* holds —
 /// [`ScreenId::SaveLoad`] is the in-game one (`g_screenId` `0x35`/`0x36`) and
 /// is a different screen. [`ScreenId::Menu`] is the placeholder front end the
 /// application no longer starts on, and [`ScreenId::Index`] is ours and is
@@ -2145,7 +2145,7 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         // question, which is the whole point of it having no wildcard.
         | S::Message
         // Screen `0x27`, a tip's. `g_appPhase == 3` gates `Tip_Update`, so it
-        // is only ever raised over a running game.
+// is raised over a running game.
         | S::Tip
         | S::Options(_)
         | S::Battlefield
@@ -2153,7 +2153,7 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         | S::About
         | S::Court
         // The standings, `0x20`: reachable only through the court's button,
-        // so only ever over a running game.
+// so over a running game.
         | S::Nobles
         | S::Supplies(_)
         | S::Ratings
@@ -2274,7 +2274,7 @@ mod tests {
     #[test]
     fn the_front_end_is_silent_and_the_campaign_is_not() {
         // The decision, not the sound: `follow` is the whole music policy and
-        // it is checked here without a device.
+// it is checked here without a device.
         let mut a = Audio::silent();
         a.follow(Scene::FrontEnd);
         assert_eq!(a.scene, Some(Scene::FrontEnd));

@@ -110,7 +110,7 @@ fn the_human_realms_score_inputs_are_rebuilt_on_the_humans_own_turn() {
 
     let r = &g.kingdom.realms[1];
     // The five `Realm_UpdateTotals` writes, each against the named field it is
-    // copied from rather than against a number chosen by watching the test pass.
+    // copied from
     assert_eq!(r.county_count, 1, "the human holds county 1");
     assert_eq!(r.score_inputs[0], r.share_of_map_pct, "+0x60, one county of fourteen");
     assert_eq!(r.score_inputs[1], r.population_total, "+0x10");
@@ -153,7 +153,7 @@ fn a_realms_outstanding_alliance_offer_is_cleared_at_the_top_of_its_own_turn() {
 ///
 /// `Castle_BuildTick` (`0x004508DE`) is its only writer — clears realms 1..=5 and
 /// increments the owner's for each county with `castleType != 0` and
-/// `castleDegraded == 0`. Verified exhaustively rather than by reading: every
+/// `castleDegraded == 0`. Verified exhaustively
 /// instruction in `Lords2.exe` whose operand mentions `g_realms + 0x4C` is one of
 /// seven, and they are that clear, that increment,
 /// `Game_SetupRealmsAndCounties`' initial clear, `Score_RankRealms` three times
@@ -165,7 +165,7 @@ fn a_realms_outstanding_alliance_offer_is_cleared_at_the_top_of_its_own_turn() {
 ///
 /// **Two ablations, and they fail differently on purpose.** Delete the increment
 /// in `Kingdom::castle_build_tick` and the first assertion goes red. Delete the
-/// *clear* above it and only the second does, because a count that is only ever
+/// *clear* above it and only the second does,
 /// added to is right the first season and wrong every season after.
 #[test]
 fn a_realms_finished_castles_are_counted_every_season_and_not_accumulated() {
@@ -274,7 +274,7 @@ fn the_same_kingdom_ended_twice_lands_on_the_same_numbers() {
     assert_eq!(a.kingdom, b.kingdom);
 }
 
-/// The seasons turn, and the year rolls where the code says rather than where
+/// The seasons turn,
 /// the prose does.
 ///
 /// `Season_Advance` rolls the year when the season that *ended* was 4, and
@@ -300,7 +300,7 @@ fn four_turns_walk_the_year_round() {
     assert_eq!(seasons, vec![(1, 1268), (2, 1268), (3, 1268), (4, 1269)]);
 }
 
-/// The numbers actually move, which is the point of the button. Population,
+/// The numbers
 /// health and the treasury all change on a turn that nobody gave any orders.
 #[test]
 fn a_turn_moves_the_population_and_the_treasury() {
@@ -425,7 +425,7 @@ fn an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended() {
     //
     // `mid.0 < 20` is the pacing assertion and it is the one to ablate: make
     // `cross_sub_tile` return `true` unconditionally and the army arrives
-    // inside the turn, exactly as this test used to require.
+    // inside the turn,
     let mid = g.kingdom.campaign.units.get(id).unwrap().tile();
     assert_ne!(mid, from, "the army did not move at all");
     assert_eq!(mid.1, 10, "along the road it was given");
@@ -467,7 +467,7 @@ fn another_realms_army_refuses_the_players_orders() {
 ///
 /// This was written as the seam's marker while battle resolution was on
 /// another branch: it asserted one *unfought* pair in `pending_battles`, so
-/// that filling the seam in would change a test rather than pass either way.
+/// that filling the seam in would change a test
 /// It did exactly that. `turn::resolve_battle` now calls
 /// `engagement::resolve`, so what a played turn produces is a result, not a
 /// note — one of the two armies is destroyed and `pending_battles` is empty.
@@ -699,7 +699,7 @@ fn a_turn_with_units_moving_is_still_a_pure_function_of_where_it_started() {
 }
 
 /// Phase 5 re-targets the peasant mobs and phase 3 the transports, off their own
-/// state rather than off any player order — so a turn moves things nobody
+/// state
 /// touched. These two phases have no other way to be exercised.
 #[test]
 fn the_turn_moves_mobs_and_transports_nobody_ordered() {

@@ -102,7 +102,7 @@ pub fn face_frame(lord: u8, is_human: bool, realm: u8) -> usize {
 /// **The message scroll.**
 ///
 /// It holds no state: the record, the timer and the ring are all on
-/// [`crate::Game`], exactly as the original keeps them in its data segment,
+/// [`crate::Game`],
 /// because the window is opened by the frame driver and not by anything the
 /// player did.
 pub struct MessageScreen {
@@ -388,7 +388,7 @@ pub(crate) fn county_name(ctx: &Ctx, id: u8) -> String {
 }
 
 /// `g_playerNames[realm]`, with `L2.eng` group 7 standing in for a realm whose
-/// name was never set — which is what `Game_NewGame` copies in in the first
+/// name
 /// place.
 ///
 /// **Every screen that names a lord comes here**, and that is the point of it
@@ -397,7 +397,7 @@ pub(crate) fn county_name(ctx: &Ctx, id: u8) -> String {
 /// strip's third line (`CountyStrip_Draw` `0x0040F7D3`, whose call is
 /// `FUN_004025D7(&g_playerNames + owner * 0x2C, 0x1E0, 0x118, 0xA0, …)`),
 /// `Diplo_DrawScreen`'s heading, `Diplo_DrawLordCard`'s caption and the three
-/// compose dialogs — so there is no screen where a different rule applies.
+/// compose dialogs —
 /// Three of them carried their own copy and each invented `REALM n` for a world
 /// that never came through the front end; `docs/decisions.md` C189 fixed the
 /// first two and this is the rest.
@@ -643,7 +643,7 @@ fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: 
 ///
 /// **The record is posted by [`message::post_event`]**, the port of
 /// `FUN_00448D7E`, which `Machine::update` runs once a frame for
-/// `Game::selected` exactly as `Battle_Frame` does for `g_selectedCounty`.
+/// `Game::selected`
 fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     pen.heading_centred(
         canvas,

@@ -16,7 +16,7 @@
 //! over a page touches it: `Tip_Show`
 //! (`0x00476DA9`) saves `g_screenId`, writes `0x27` and posts; `FUN_00476E21`
 //! puts the byte back; `Msg_DrawWindow` (`0x0047309E`) calls no `Palette_Set`.
-//! There is no dim, no shade table and no remap in any of the three, so the
+//! so the
 //! backdrop behind a tip is the backdrop, in its own colours. `[V]`
 //!
 //! `Machine::palette_name` asked the **top** screen alone, and the tip host
@@ -87,7 +87,7 @@ fn index(c: &Canvas, (x, y): (i32, i32)) -> u8 {
 
 /// Fixed probes, spread round the edges of the screen where neither the levy
 /// window nor a tip window reaches. Each test still filters them against the
-/// windows it actually has up, and says how many survived.
+/// windows it up, and says how many survived.
 const PROBES: [(i32, i32); 8] =
     [(8, 8), (40, 60), (600, 40), (624, 200), (40, 300), (600, 300), (20, 470), (560, 470)];
 

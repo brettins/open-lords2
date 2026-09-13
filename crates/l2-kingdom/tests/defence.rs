@@ -11,12 +11,12 @@
 //! lowest-numbered army of the county's owner standing in the county"*, with the
 //! function itself unread. When it was read, **both halves were wrong**: the
 //! scope is a 4×4 tile block around the county *town*, and the tie-break is the
-//! largest army rather than the earliest slot.
+//! largest army.
 //!
 //! The unit tests beside the function in `src/conquest.rs` state the geometry.
 //! This file states the thing the geometry was checked against: that
 //! `battle-before.sav` really does hold a position where the two readings
-//! **disagree**, so the correction is not a preference between two stories.
+//! **disagree**.
 //!
 //! That is `docs/decisions.md` C12 (a test that cannot fail) turned around: the
 //! old reading and the new one are both run here, on the same bytes, and they
@@ -71,7 +71,7 @@ fn units_of(save: &Save) -> Vec<SaveUnit> {
 /// owner's only army stands at (30, 46) — one column left of the anchor and
 /// four rows north of it. The old reading returns that army; the original, and
 /// now [`conquest::find_defender`], returns nothing, so the county levies a
-/// fresh defence instead of being defended by a force four tiles away.
+/// fresh defence.
 #[test]
 fn battle_before_holds_a_county_whose_army_is_too_far_from_its_town_to_defend_it() {
     let save: Save = l2_testkit::fixture!("battle-before.sav");
@@ -93,7 +93,7 @@ fn battle_before_holds_a_county_whose_army_is_too_far_from_its_town_to_defend_it
     assert_eq!((army.x, army.y), (30, 46), "and it stands four rows north of the town");
     assert_eq!(army.county, 2, "inside county 2 all the same — which is why the old reading hit");
 
-    // **What that army actually is.** `+0x198` is the garrison link, and it
+    // **What that army is.** `+0x198` is the garrison link, and it
     // holds 2: this is county 2's castle garrison, sitting on the castle tile
     // (`docs/armies.md` §8b.3) four rows from the town. So the county's own
     // defenders are outside the window that decides who defends it — which is

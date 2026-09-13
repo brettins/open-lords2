@@ -68,12 +68,12 @@ const UNLIMITED: i32 = 999;
 ///    trampling forecasts **nothing**, and the write is the function's *first*
 ///    statement so a stale number cannot survive;
 /// 3. at least one county forecasts a **non-zero** number, which is what says
-///    the value arrived rather than that every branch returned early;
+/// the value arrived;
 /// 4. and a forecast that *was* non-zero goes back to zero when the player
 ///    switches the industry off — because
 ///    `*(undefined4 *)(county * 0x300 + 0x53fc58 + industry * 0x18) = 0;` is
 ///    `Industry_LabourEstimate`'s **first** statement, outside every guard, so
-///    a county that fails one of them forecasts nothing rather than keeping
+/// a county that fails one of them forecasts nothing
 ///    last season's number.
 ///
 /// **Ablation, and the reason claim 4 exists.** Deleting the
@@ -86,7 +86,7 @@ const UNLIMITED: i32 = 999;
 /// turn one every guarded county starts at zero and stays there, so nothing in
 /// the position can tell "written to zero" from "never written". Claim 4 is
 /// what makes that ablation red, and it needs a county whose forecast is
-/// non-zero *first* — which is why it goes through
+/// non-zero *first* —
 /// [`l2_kingdom::Kingdom::toggle_industry`], the map click's own road, rather
 /// than clearing a flag by hand.
 #[test]
@@ -171,7 +171,7 @@ fn a_season_of_england_writes_every_county_s_industry_forecast() {
 
 
 /// **`B97`: the row is multiplied by the ramp at the county's whole
-/// population and not at the workforce actually digging.** The defect, asserted.
+/// population and not at the workforce.** The defect, asserted.
 ///
 /// `Industry_LabourEstimate` computes the ramp twice and uses the wrong one:
 ///
@@ -182,7 +182,7 @@ fn a_season_of_england_writes_every_county_s_industry_forecast() {
 ///     …
 /// }
 /// iVar3 = Industry_EfficiencyRamp(county, industry, labour[slot].workers, base);
-/// county.industry[industry].efficiency = (char)iVar3;      /* the real one, written */
+/// county.industry[industry].efficiency = (char)iVar3; /*
 /// made = Pct(labour[slot].workers / divisor, local_28);    /* the loop's, drawn */
 /// ```
 ///
@@ -199,7 +199,7 @@ fn a_season_of_england_writes_every_county_s_industry_forecast() {
 /// increment is zero for every `n` and the floor pins both to `base`), and
 /// `capacity` between the staffing and the population. The England position has
 /// `capacity == 0` in all fourteen counties, so this sets the three fields and
-/// says so rather than pretending a fixture reached them. Everything else —
+/// says so. Everything else —
 /// the population, the miners, the seam, the switch — is the importer's.
 ///
 /// # The direction, which the first draft of `docs/bugs.md` had backwards
@@ -221,7 +221,7 @@ fn the_row_is_drawn_at_the_ramp_a_whole_population_would_earn_and_understates_be
     kingdom.options.advanced_farming = true;
 
     // Wood: job 6, divisor 1, base efficiency 20. It is the one industry the
-    // England position has switched on anywhere, which is why the defect is
+    // England position has switched on anywhere,
     // demonstrated on a forest and not on a mine.
     const WOOD: usize = 0;
     const WOOD_BASE: i32 = 20;
@@ -253,7 +253,7 @@ fn the_row_is_drawn_at_the_ramp_a_whole_population_would_earn_and_understates_be
     // pass and `Industry_ToggleFromMap` use.
     kingdom.refresh_estimates(id);
 
-    // `Industry_EfficiencyRamp` (`FUN_0044F248`), written out here rather than
+    // `Industry_EfficiencyRamp` (`FUN_0044F248`), written out here
     // called, so that ablating the crate's copy cannot move this expectation
     // with it.
     let ramp = |n: i32| {

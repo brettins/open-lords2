@@ -4,7 +4,7 @@
 //!
 //! PCG-XSH-RR 64/32 — O'Neill's `pcg32`, the "minimal C implementation"
 //! variant. 64 bits of state, 32 bits of output, an odd per-stream
-//! increment, and a permutation on the output rather than on the state:
+//! increment, and a permutation on the output:
 //!
 //! ```text
 //! old    = state
@@ -28,7 +28,7 @@
 //! (see below). Statistically either would be far more than a 1996
 //! turn-based game needs.
 //!
-//! # Why it is written out here rather than depended upon
+//! # Why it is written out here
 //!
 //! `docs/netcode.md` D-3 makes the argument and this crate's Cargo.toml
 //! repeats it: the value stream must be frozen *forever*, and the
@@ -55,7 +55,7 @@
 //! advanced only by simulation code (D-3). It is `Clone`, which is what
 //! makes a speculative "what would this roll be" query possible without
 //! disturbing the real stream, and `PartialEq`, which is what lets a
-//! desync dump say "the generators differ" rather than "something
+//! desync dump say "the generators differ":
 //! differs".
 
 /// The multiplier from the reference implementation. LCG parameters are
@@ -78,7 +78,7 @@ pub struct Pcg32 {
 }
 
 impl Pcg32 {
-    /// Seed the generator, exactly as the reference `pcg32_srandom_r`
+    /// Seed the generator:
     /// does: increment first, then two advances with the seed folded in
     /// between them.
     ///
@@ -114,7 +114,7 @@ impl Pcg32 {
     /// The increment is forced odd. A snapshot with an even increment is
     /// either corrupt or hand-written; silently repairing it is better
     /// than a generator whose period collapses, and it keeps the type's
-    /// invariant true by construction rather than by hope.
+    /// invariant true by construction.
     pub fn from_parts(state: u64, increment: u64) -> Pcg32 {
         Pcg32 { state, increment: increment | 1 }
     }
@@ -153,7 +153,7 @@ impl Pcg32 {
 
     /// A uniform value in `0..bound`, with no modulo bias.
     ///
-    /// Panics if `bound` is zero, because there is no value to return
+    /// Panics if `bound` is zero.
     /// and a silent zero would be a bug that reached the player as a
     /// unit that never moves.
     ///
@@ -241,7 +241,7 @@ impl Pcg32 {
     /// Pick an index into a collection of `len` items, or `None` when
     /// it is empty.
     ///
-    /// Returns an index rather than a reference so the caller keeps the
+    /// Returns an index so the caller keeps the
     /// borrow — and so the *index* can be recorded in a replay, which a
     /// reference cannot be.
     pub fn index(&mut self, len: usize) -> Option<usize> {

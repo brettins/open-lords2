@@ -208,7 +208,7 @@ fn an_unfinished_game_stays_unfinished_over_several_turns() {
 // The screen
 // ---------------------------------------------------------------------------
 
-/// The interstitial draws the branch the game actually reached rather than the
+/// The interstitial draws the branch the game actually reached
 /// shell's cycling default.
 #[test]
 fn the_conquest_screen_takes_its_branch_from_the_game() {

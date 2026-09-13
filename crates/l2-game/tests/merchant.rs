@@ -142,7 +142,7 @@ fn a_player_can_buy_grain_at_the_merchant_and_sell_it_back() {
 }
 
 /// Weapons are bought into the **realm's** armoury, not the county's store, and
-/// into the slot `L2.eng` group 6 names rather than the one its id suggests.
+/// into the slot `L2.eng` group 6 names.
 #[test]
 fn buying_swords_fills_the_realms_armoury_slot_group_six_names() {
     let (mut game, assets) = world!();
@@ -324,7 +324,7 @@ fn only_the_corner_hotspot_and_a_right_click_close_the_merchant() {
 /// **The mouseover shows the ware's two prices**, which is the tooltip the
 /// player said the original had and we did not.
 ///
-/// It is asserted as a difference on the canvas rather than by reading the
+/// It is asserted as a difference on the canvas.
 /// plaque back: pointing at a ware must paint something that pointing at the
 /// background does not, and moving to a *different* ware must paint something
 /// different again.

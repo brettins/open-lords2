@@ -425,7 +425,7 @@ All four are drawn as of **C189**, in `MapScreen::draw`, out of the player's own
 `g_penAdvance` is zeroed once before the name and **accumulates across both heading strings**,
 so each `+ 0x50` / `+ 0x60` is sixteen pixels past where the previous string ended; and
 `Ui_DrawYear` style 1 draws group 26's era *before* the digits and lifts an AD year by one
-pixel. **There is no season here** — C173's note calling for *"the map's name, the season and
+pixel. — C173's note calling for *"the map's name, the season and
 the year"* was prose, not the listing. `tests/chrome_text.rs`
 `the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction`.
 
@@ -606,7 +606,7 @@ reads county `+0x22C`. Its only writer is the **tail** of `Grain_LabourEstimate`
 (`0x0044D374`), after the search loop:
 
 ```c
-staff = county.labour[0].workers;                        /* the real staffing */
+staff = county.labour[0].workers; /* the real staffing */
 county.field_0x230 = Grain_Sow(county, staff, county.grain);          /* what sowing will cost */
 if (season == 4)                county.crop[2]      = Grain_Harvest(county, staff, county.crop[1]);
 if (season == 2 || season == 3) county.field_0x2FC   = Grain_Grow   (county, staff, county.crop[1]);

@@ -9,7 +9,7 @@
 //!
 //! One siege, caught at five moments. `docs/armies.md` §4 was written entirely
 //! from the decompiler because **there was no save with a castle under siege**;
-//! there is now, and every number in this file comes out of it rather than out
+//! there is now, and every number in this file comes out of it
 //! of the document.
 //!
 //! | file | what it holds |
@@ -54,7 +54,7 @@ const UNIT_BASE: u32 = 0x0052_F0B0;
 const UNIT_STRIDE: u32 = 0x1A4;
 
 /// The besieging army and the garrison, by slot, in every one of the five
-/// files. Named rather than searched for: a fixture is a file name plus a
+/// files. Named
 /// fingerprint (`docs/environment.md`), and these two slots are part of the
 /// fingerprint.
 const BESIEGER: u32 = 5;
@@ -153,10 +153,10 @@ fn one_catapult_and_forty_three_men_reproduce_every_snapshot_of_the_build() {
         assert_eq!(a.seasons_left, seasons, "{name}: seasons the screen prints");
 
         // The three arithmetic claims, each stated against the stored bytes
-        // rather than against each other.
+        //
         assert_eq!(total, 200, "a catapult costs 200 man-seasons");
         // A season adds the army's men — capped at what the record still
-        // needs, which is why the last step is 28 and not 43. Work is never
+        // needs Work is never
         // banked past the engine it was building.
         assert_eq!(
             work - previous_work,
@@ -246,7 +246,7 @@ fn the_staged_battle_carries_one_catapult_and_one_pot_of_oil() {
 /// what it left behind. Run [`battle::auto_resolve`] on the two records and the
 /// five surviving counts have to match — and they do at level 0 and at no other
 /// level, which is what makes this a measurement of
-/// `CASTLE_STRENGTH_PERCENT[0]` rather than a check that the arithmetic runs.
+/// `CASTLE_STRENGTH_PERCENT[0]`
 #[test]
 fn the_castle_bonus_for_a_palisade_is_the_only_one_that_reproduces_the_aftermath() {
     let before: Save = l2_testkit::fixture!("siege-sieging.sav");

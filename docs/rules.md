@@ -105,7 +105,7 @@ over the whole range most players use, it sits at nothing and does not budge. Th
 panel being right. The line only starts moving once you are taxing above a
 fifth, which is also the point at which your *other* counties begin to resent it.
 
-It is worth knowing that this half of the mechanic is effectively **human-only**: the highest
+This half of the mechanic is **human-only**: the highest
 rate an AI lord sets in a hundred turns of our own long game is 12, so nothing an AI does ever
 leaves the flat part of the table.
 
@@ -155,7 +155,7 @@ counties sit at 0% livestock and ten at 100%.
 nothing to divide.** Step 2 subtracts `herd × 5` people before step 3 runs; if that covers
 the population, the remaining requirement is zero, no grain is eaten, no beast is killed, and
 **every position of the slider produces the same numbers**. The thumb moves and the panel does
-not, in the original exactly as here.
+not, in the original.
 
 England, turn one, county 8 is that county: 435 people and 101 head, so 505 mouths' worth of
 dairy against 435 mouths. A player moved the slider there, saw nothing change, and reported it
@@ -164,7 +164,7 @@ as broken. It is not.
 **The panel tells you with a number.** The
 **Fed** row's third figure is *people fed by the standing herd*; when it is at or above the
 county's population, the herd is feeding everybody, nothing is being eaten, and the dial has
-nothing to divide. There is no line of text that says so — the game has no such string, and
+nothing to divide.
 the words that sound like it (*"Dairy produce feeds"*, *"RATIONS MET."*) belong to `L2.eng`
 group 62, the ration screen that was cut. So the Fed row is the whole of the explanation, and
 it is the first thing to look at when the slider seems dead.
@@ -298,7 +298,6 @@ deaths and the slaughter and nothing else — the weather's percentage swing and
 cattle event are applied by `Herd_SeasonTick` when the season runs, and the forecast
 does not see either. So the number the sidebar showed and the number the herd moved by will
 differ whenever the weather was anything but fair, and that is the original's own behaviour
-rather than a rounding error.
 
 ### Fields are painted on the map, and you start with none sown
 
@@ -306,7 +305,7 @@ A county owns up to twenty fields, and **what each one is being used for is a pr
 the map tile, not of the county**. The county's "6 grain, 8 pasture, 3 fallow" is recounted
 from those twenty tiles every time one of them changes.
 
-**You paint them by clicking them on the campaign map.** There is no field control on any
+**You paint them by clicking them on the campaign map.**
 county panel. Clicking one of your own fields opens a small popup of three buttons — fallow,
 grain, pasture — and clicking a tile that is waste or already being reclaimed offers two
 instead: begin reclaiming, or abandon it. A field ruined by this season's drought or flood
@@ -407,7 +406,7 @@ all, so the England turn-one fixture's numbers work out with no migration in the
 
 Peasants are assigned to **nine jobs**: grain farming, cattle farming, field reclamation,
 castle building, iron mining, stone quarrying, wood cutting, blacksmith, and **Idle
-Townsfolk**. A county without a mine still shows the slot; it just produces nothing.
+Townsfolk**. A county without a mine shows the slot; it produces nothing.
 
 The village draws them as **eight** clusters of people standing around the picture, not
 nine, because **iron and stone share one** — a county's mine and its quarry are painted at
@@ -451,7 +450,7 @@ are how the interface says "you have this wrong" without a word of text.
 **And "the idle figure" is meant literally: it is the same picture.** A worker past his job's
 ceiling and an idle townsman are drawn with the *same sprite*, out of the game's own icon
 table. So a mine full of surplus men and an empty square full of idle ones look identical,
-which is not a mistake — it is the interface saying they amount to the same thing.
+the interface says they amount to the same thing.
 
 ### Switching an industry off, and switching it on again by accident
 
@@ -493,12 +492,12 @@ population**. Anything cut off from it declares independence that same season:
 > independence and thrown out your officials."*
 
 Two counties count as joined if they are on each other's **neighbour list** — the adjacency
-the map was authored with — not because their tiles touch. If two blocks are equally
+the map was authored with. If two blocks are equally
 populous the game keeps the later one it found, which in practice means you cannot rely on
 keeping the half you expect.
 
 **This is the cheapest attack in the game and it is easy to miss.** Taking the one county
-that *bridges* an enemy's territory does not just take that county: everything on the far
+that *bridges* an enemy's territory takes that county: everything on the far
 side of it goes free at the end of the same season, without a siege, without a battle, and
 without costing you a man. A lord holding a long thin realm can be halved by one well-chosen
 assault, and the counties that fall off do not become yours — they become neutral, so you
@@ -511,7 +510,7 @@ You get told — *"Your lands divide."* when it is more than one — but the AI 
 in silence. Nothing else about the rule treats you differently from them.
 
 > **How well is this known?** Less well than everything around it. Every saved game we can
-> test has each lord holding exactly one county, so there is no position in which the rule
+> test has each lord holding exactly one county,
 > could be observed doing anything. What it rests on is the code, the two messages above,
 > and one player's memory of counties seceding in play. `docs/kingdom.md` §6.1.
 
@@ -778,7 +777,7 @@ The picker had been on the screen the whole time; what it lacked was a reader. A
 **No fixture can settle the table above.** All eleven `.sav` files this project keeps have
 the human on shield 1 or shield 5 — never a middle colour — so none of them exercises a
 collision that the two readings disagree about, and it is marked **[V]** from the walk
-rather than read off a save. What *can* be checked, and now is, is the road: four tests in
+What *can* be checked, and now is, is the road: four tests in
 `crates/l2-game/tests/newgame.rs` drive page 4 with real coordinates, take each of the five
 colours in turn, press *Continue* and then *Start*, and compare the realms against this
 table typed out by hand. The one row a save can confirm — the default — is checked against

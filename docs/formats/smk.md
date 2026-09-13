@@ -37,7 +37,7 @@ none is `SMK4`.
 | Ring frame | never set |
 | Keyframes | **none** — all 7,652 frame-size entries have the low two bits clear |
 
-Geometry, and what each group is — the sizes verified, and the "what" now verified too,
+Geometry, and what each group is — the sizes verified,
 from the call site that plays each (§ *Every film the game plays*):
 
 | Size | Files | What plays it |
@@ -56,7 +56,7 @@ The three Y-doubled files are the only ones with a non-zero header flags word (`
 
 `Axemen.smk` and `AXMEN.SMK` are **two separate NTFS directory entries** (distinct file
 IDs) with **identical content** (MD5 `E75F099B…`). NTFS stores names case-sensitively
-even though Win32 resolves them case-insensitively, so a GOG install can and does carry
+even though Win32 resolves them case-insensitively,
 both. Deduplicated, the corpus is 44 files and 79,867,952 bytes.
 
 The reason is visible in the exe: `Lords2.exe` asks for **`axmen.smk`**, which matches
@@ -68,15 +68,15 @@ against the directory:
 * Seven referenced names have no file: `cap_cnty.smk`, `cart_cts.smk`, `cart_hmn.smk`,
   `pill_bsp.smk` and `pill_hmn.smk`, which look like cut content; the placeholder
   `null.smk`; and `292822k.smk`, a literal with no file and no obvious meaning. **All seven
-  are in the debug viewer's table only** (below), and the game's own ending table gives the
-  Countess her pillory twice and the Bishop his cart twice rather than name them.
+  are in the debug viewer's table only** (below),
+  Countess her pillory twice and the Bishop his cart twice.
 
 So our loader is **case-insensitive and tolerant of missing videos**, as the original is.
 
 ### The DOS install has no videos at all
 
 `F:\games\LORDS2` contains zero `.smk` files. The exe's string table holds the
-subdirectory names `PL8`, `256`, `WAV`, `SMK`, and the DOS install has `PL8\` and `WAV\`
+subdirectory names `PL8`, `256`, `WAV`, `SMK`,
 but no `SMK\` — the videos lived on the CD. Verified. On such an install every `Smk_Open`
 fails and every caller takes its fail arm, which ours reproduces.
 
@@ -101,7 +101,7 @@ Header, 104 bytes, all little-endian:
 | 0x48 | u32[7] | Audio track descriptor, per track |
 | 0x64 | u32 | Unused |
 
-Then `frames` × u32 frame sizes, `frames` × u8 frame flags, the tree block, and the
+Then `frames` × u32 frame sizes, `frames` × u8 frame flags, the tree block,
 frame payloads back to back. With a ring frame the arrays hold `frames + 1` entries; no
 file here has one.
 
@@ -114,7 +114,7 @@ DCT. All 45 files read `0x8000_2B11` (mono) or `0x9000_2B11` (stereo) on track 0
 on tracks 1–6.
 
 **Frame sizes** carry flags in the low two bits (bit 0 = keyframe). In this corpus all
-7,652 entries are exact multiples of four, so the flags are unused and the sizes are
+7,652 entries are exact multiples of four,
 unambiguous.
 
 **Frame flags byte**: bit 0 = this frame carries a palette update, bits 1–7 = this frame
@@ -164,7 +164,7 @@ frame has already written is harmless; `Pill_brn.smk` frame 104 is the one film 
 one 8-bit delta tree per channel; the first sample of each channel as 8 raw bits, **right
 before left**; then one signed delta per sample, channels interleaved from the left.
 
-**Refused rather than guessed:** `SMK4`'s extra full-block modes and 16-bit audio. Neither
+**Refused:** `SMK4`'s extra full-block modes and 16-bit audio. Neither
 occurs here.
 
 ### How it was checked
@@ -237,17 +237,17 @@ tick and no frame rate, and `Smk_PlayLoop`'s body is entirely under
 `if (SmackWait(g_smack) == 0)`. So the film's clock is `smackw32`'s, polled.
 
 **And `SmackWait` reads `timeGetTime`.** `_SmackWait@4` is 320 bytes at RVA `0x3170` of
-`Smackw32.dll`, and the only imported function it calls is `WINMM.dll!timeGetTime`, at
+`Smackw32.dll`,
 `+0xB0` — `[V]`, by matching every `FF 15 <imm32>` in `BEGTEXT` against the import table and
 attributing each site to the export it falls inside. The deadline is therefore real
 milliseconds. Whether the sound driver slews it is `[O]`: the DirectSound path installs a
-`timeSetEvent` callback, `_TimerFunc@20`, which also reads `timeGetTime`, and the call sites
+`timeSetEvent` callback, `_TimerFunc@20`, which also reads `timeGetTime`,
 do not say what it writes.
 
 **It does not matter, and this is the measurement that settles it.** Every one of the 45
 films carries a track exactly `frames × period` long — **within 1 ms**, on films up to 131 s
 (`crates/l2-smk/tests/corpus.rs`, `every_track_is_as_long_as_its_picture`). "The audio
-buffer" and "the header's frame rate" are one clock to a part in 10⁵, so a player pacing the
+buffer" and "the header's frame rate" are one clock to a part in 10⁵,
 header's rate against a *real* clock gets the audio's answer. Ours does: `l2_game::clock`,
 and `docs/decisions.md` C193 for the two percent it used to lose instead.
 
@@ -269,7 +269,7 @@ site indexes. `crates/l2-game/src/movie.rs` carries the same table beside the co
 | `Battle_CheckOutcome` | the banner raised, animations on and the local player a side | `bat_win1.smk + (outcome * 4 + DAT_0053F084) * 0x10` — six rows of four; a second table under `DAT_0057A0F0` | (39, 73) | the banner, which leaves with it |
 | `Smk_ReplayIntro` | screen `0x44`'s replay thumb | any of 40 names at `0x004D4D60` | (39, 73) | **unreachable**: no `mov byte ptr [g_screenId], 0x44` anywhere in the image |
 
-**Which films no reachable path plays.** `axemen.smk` (never named), and the six films of
+**Which films no reachable path plays.** `axemen.smk` (never named),
 the third battle mode's table — `bat_win5`, `bat_win6`, `bat_los5`, `bat_los6`, `cas_win3`,
 `cas_los3`, the six dated 1997 — which play only under `DAT_0057A0F0`, a mode this engine
 does not have. `crates/l2-game/tests/movies.rs` pins that list against the install.
@@ -277,7 +277,7 @@ does not have. `crates/l2-game/tests/movies.rs` pins that list against the insta
 **Ending a film early** is `Smk_Skip`, and it has three callers: `Screen_FrameInput`'s `0x22`
 arm (the multiplayer sync latch; a **right release**; a **left release**; `DAT_004EABB4`, set
 on **any `WM_KEYDOWN`**), `FUN_0043AD25` from `Turn_Tick`'s end-of-season phase, and
-`Net_LeaveGame`. A skip is `Smk_OnFinished`, so a skip during start-up moves one film on.
+`Net_LeaveGame`. A skip is `Smk_OnFinished`,
 **Escape** is also a key, and during the front end the window procedure additionally sets
 `g_quitRequest = 1` — so Escape during the original's intro quits the program. Ours skips.
 
@@ -304,7 +304,7 @@ Not built, each recorded in `docs/arms.json` or `docs/audio.json`:
   exist. Film, window and voice are built and tested with a posted record.
 * **The fast-media ending layout** and the CD's `smk_high` films.
 * **The sync latch, the end-of-season skip and `Net_LeaveGame`'s skip.** The second cannot
-  arise here: only the top screen is stepped, so a film pauses our turn — where the
+  arise here: only the top screen is stepped,
   original's turn runs on under a capture film.
 * **Escape quitting the front end** (`App_WndProc`).
 * **The third battle mode's table.**
@@ -329,7 +329,7 @@ so **the odd rows are never written and stay as the buffer was cleared — black
 the doubling writers at `0x0040B24C` and no shipped file sets it. The three wide films set
 `0x02`, so the intro plays on alternate lines, and `l2_smk::YScale` is that. **The second
 source is the naming conflict this resolves**: libsmacker calls `0x02` Y-double and `0x04`
-interlace, FFmpeg the other way round, and the DLL agrees with FFmpeg.
+interlace, FFmpeg the other way round,
 
 **Inferred**: the meaning of `SmackOpen`'s `0x2000` / `0x400` bits (RAD's SDK constants);
 that a hard-disk install takes the slow-media ending layout (no `sierra.ini`, so
@@ -343,7 +343,7 @@ that a hard-disk install takes the slow-media ending layout (no `sierra.ini`, so
   reads it too. Undecidable from the call sites, and moot here — see *What paces a film*.
 * `0x004527A6(x, y, 0x14, 10, 1)` marks a dirty region in 16-pixel units — 320 × 160, smaller
   than any film. The unit or the argument meaning is not understood.
-* Seeking (`Smk_OnPaint`'s `SmackGoto`). No file flags a keyframe, so a re-seek re-decodes
+* Seeking (`Smk_OnPaint`'s `SmackGoto`). No file flags a keyframe,
   from frame 0; ours never seeks, because nothing here repaints a window from outside.
 * **Pixels against `smackw32` itself.** Correct bitstreams are not a correct presentation.
 

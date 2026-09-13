@@ -167,7 +167,7 @@ fn the_five_realms_are_in_play_with_a_thousand_crowns_each() {
 /// offset.
 ///
 /// What it does **not** establish: 8-way adjacency gives the same answer on
-/// this map, so the agreement confirms the two readings rather than the shape
+/// this map, so the agreement confirms the two readings
 /// of the adjacency rule.
 #[test]
 fn adjacency_derived_from_the_map_matches_the_list_stored_in_the_save() {
@@ -193,7 +193,7 @@ fn adjacency_derived_from_the_map_matches_the_list_stored_in_the_save() {
     assert_eq!(derived[2], vec![1, 3, 7], "and the lists are ids, not just counts");
 
     // **The stored order is not ascending**, and that is a fact about the file
-    // rather than a problem: county 2's list reads 3, 7, 1 — the order the
+    //
     // map loader happened to find them in. It is preserved as it is, because
     // it is the order the original's migration walks, and because it comes
     // from the file it is the same order on every peer. Sorting it here would
@@ -309,8 +309,8 @@ fn the_imported_map_is_real_terrain_and_survives_a_played_turn() {
 
 /// A turn ends on the shipped position without anything getting stuck.
 ///
-/// The unit phases wait on the unit array now rather than answering `true`, so
-/// a turn that never terminates is a live failure mode rather than an
+/// The unit phases wait on the unit array now
+/// a turn that never terminates is a live failure mode
 /// impossible one. The England position carries no armies, so this is the
 /// *empty* case — the one where every wait has to settle on its own.
 #[test]
@@ -385,7 +385,7 @@ fn the_six_shipped_merchants_take_the_next_county_on_their_own_route() {
 /// > armies now (`l2_kingdom::ai_army`), so by turn ten the unit array holds
 /// > merchants *and* armies and the old assertion failed on slot 7 — which is
 /// > the first evidence, from a test written before any of this existed, that
-/// > the AI's war actually runs. The subject of this test is merchants, so it
+/// > the AI's war
 /// > filters; the count is asserted separately below so the filter cannot
 /// > quietly become "no merchants at all".
 #[test]

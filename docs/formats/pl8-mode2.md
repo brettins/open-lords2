@@ -16,7 +16,7 @@ Verified against the GOG Windows release, `F:\games\Lords of the Realm II`.
 **Mode 2 is not a pixel encoding.** It marks a file as belonging to the
 isometric map-tile family. The *actual* per-frame encoding is chosen by
 **frame-record byte 12**, not by the file header. A mode-2 file can hold plain
-raw bitmaps and isometric diamonds side by side, which is why every attempt to
+raw bitmaps and isometric diamonds side by side
 find one uniform "mode 2 codec" failed.
 
 The isometric frames store **only the pixels inside the diamond**, packed
@@ -221,7 +221,7 @@ header and one frame record) is referenced only by `FUN_004357A6`,
 `FUN_0043582A` and `FUN_004398F5` — mouse/region code, never a blitter.
 
 So: a decoder should treat these as data, not sprites. They can be detected
-without a filename list — `shape == 0` and `dataSize == (w/8) * (h/8)` rather
+without a filename list — `shape == 0` and `dataSize == (w/8) * (h/8)`
 than `w * h`.
 
 ---
@@ -389,7 +389,7 @@ the Ghidra reading.
 Points this document adds that the prior art does not cover:
 
 - Header byte 0x01 is the map zoom level (0 = 58x30, 1 = 26x14, 2 = 10x6).
-- Type 1 ignores the extra-row byte, which 24 `Batlfix2` frames actually
+- Type 1 ignores the extra-row byte
   exercise.
 - The exact placement of overhang records: they are chevrons tracing the
   diamond's silhouette, stacked one screen row apart, not horizontal rows.

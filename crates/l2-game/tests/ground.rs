@@ -46,7 +46,7 @@
 //! converted to the wrong ground looks *more* right and is *more* wrong, and it
 //! is harder to find afterwards than the placeholder it replaced — so the
 //! expensive half of this job is establishing, per site, what the original
-//! actually draws there. Every row was read out of the decompiled painter named
+//! Every row was read out of the decompiled painter named
 //! in it. The rows marked *converted* are done; the rest are verified verdicts
 //! nobody needs to re-derive.
 //!
@@ -126,7 +126,7 @@
 //! county), `"<" ">"` (the ration slider), `"CLOSE"` (village), `"YES" "NO"`
 //! (battlefield, army). Each is a fallback, so the honest verdict is *not an
 //! invention* — but `tools/draws/screendraws.js` counts them all as English we
-//! wrote, which is why that figure stands at 16 rather than at 0.
+//! wrote, at 0.
 
 use l2_formats::pl8::DecodedFrame;
 use l2_game::game::Assets;
@@ -579,7 +579,7 @@ fn the_yes_no_box_is_the_shared_ground_and_the_thumb_pair() {
     let (mut g, a, s) = world!();
     let mut c = Canvas::screen();
     // The box is drawn by the battlefield's painter while a prompt is up, and
-    // there is no battle here — so this draws the two calls directly, at the
+    // — so this draws the two calls directly, at the
     // module's own constants, which is what the painter passes them.
     let pen = l2_game::shell::Pen {
         assets: &a.shell,

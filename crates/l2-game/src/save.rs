@@ -29,7 +29,7 @@
 //!   changes;
 //! * `l2_kingdom::save::VERSION`, which changes when the world does — it is at
 //!   4 today, and has been bumped three times already for the herd fields, the
-//!   campaign layer and the tile-derived fields.
+//! campaign layer and the tile-derived fields.
 //!
 //! Either one being unfamiliar is a refusal that names itself:
 //! [`LoadError::UnsupportedVersion`] for ours,
@@ -58,7 +58,7 @@ use l2_net::canonical::{Canonical, CodecError, Reader};
 use crate::game::Game;
 use crate::screens::setup::MAP_COUNT;
 
-/// Eight bytes, so a file command can name the format and a truncated file
+/// Eight bytes
 /// fails on the magic.
 ///
 /// Deliberately one letter from `l2_kingdom::save::MAGIC` (`L2KSAVE\x01`): a
@@ -72,7 +72,7 @@ pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 ///
 /// * 1 — the first layout: the ten fields `Game` carries on top of `Kingdom`.
 /// * 2 — the campaign section: which of the two campaigns, how many of its maps
-///   have been won, whether this one is over, and the ending messages still
+/// have been won
 ///   queued. Without it a saved campaign always resumed at map one.
 /// * 3 — `g_playerNames`: six 31-byte lord names, in the realms section beside
 ///   the colours. Without it the name a person typed on setup page 4 lasted
@@ -80,7 +80,7 @@ pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 /// * 4 — **the message ring**, in place of version 2's ending-message list. The
 ///   endings are no longer a queue of their own: they go into `g_messageQueue`
 ///   with every other message and are settled by being displayed and dismissed,
-///   so what has to survive a save is the whole ring and the record on screen.
+/// so what has to survive a save is the whole ring and the record on screen.
 ///   See [`crate::message`].
 /// * 5 — **`Game::event_posted`**, the half of `Event_Post`'s latch that moved
 ///   out of the kingdom so the lockstep digest would stop covering one peer's
@@ -180,7 +180,7 @@ impl From<l2_kingdom::save::LoadError> for LoadError {
 
 /// What the header says, without decoding anything behind it.
 ///
-/// The load screen reads this for every file it lists, so a save it cannot read
+/// The load screen reads this for every file it lists
 /// can be *named* as unreadable in the list
 /// clicks it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -510,7 +510,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // loaded game has no half-run turn and no half-made levy.
         //
         // The levy is the clearest case of the three: `g_levyBasket` is scratch
-        // that `Army_Create` spends and abandons, and the only durable half of
+        // that `Army_Create` spends and abandons
         // it — the realm's weapon stocks it was seeded from — is in the kingdom
         // already, encoded by `l2_kingdom::save` and hashed into the lockstep
         // digest with everything else.
@@ -520,7 +520,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         battle: None,
         // The same argument again, and a fifth and sixth field it covers: a
         // move order asked for from the information panel cannot outlive the
-        // frame that asked, and the zoom a person was looking at is
+        // frame that asked
         // presentation. A loaded game opens at the near zoom because
         // `MapScreen::new` does, and this is that projection's starting value.
         begin_move_order: None,
@@ -530,7 +530,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // full limit on its first tick. See `crate::turn_clock`.
         turn_clock: crate::turn_clock::TurnClock::default(),
         // And an eighth: the frame each unit's tick handler last wrote is one
-        // tick of presentation, and the first sweep after the load writes it.
+        // tick of presentation
         unit_frames: crate::game::UnitFrames::default(),
         map_slot: map_slot as usize,
         realm_colour,
@@ -561,7 +561,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // rotations over, as the original's start-up does.
         films: crate::movie::Reel::default(),
         // And a ninth and tenth: which page of the standings somebody had
-        // open, and the counter that makes the page speak. `DAT_0055CE7C` is
+        // open
         // in none of the original's save blocks either — `Game_NewGame` is its
         // only writer outside the page itself.
         nobles_category: 0,
@@ -807,7 +807,7 @@ mod tests {
 
     #[test]
     fn every_pass_in_the_pipeline_survives_the_round_trip() {
-        // The pass index *is* the pipeline position, so a pipeline that gained
+        // The pass index *is* the pipeline position
         // or lost an entry would silently renumber every save. This pins that
         // the mapping is total and one-to-one in both directions.
         for (i, pass) in SEASON_PIPELINE.iter().enumerate() {
@@ -886,7 +886,7 @@ mod tests {
         let mut game = a_game();
         game.player = 9;
         assert_eq!(decode(&encode(&game), Tables::DEFAULT), Err(LoadError::Player(9)));
-        // And the guard is on the *file*, not on the struct: a save whose
+        // And the guard is on the *file*
         // player byte was corrupted in transit is refused the same way.
         let mut bytes = encode(&a_game());
         bytes[HEADER_LEN] = MAX_REALMS as u8;

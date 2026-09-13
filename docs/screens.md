@@ -331,7 +331,7 @@ sentence *"the suffix **is** the season, four sets per zoom, entries 0–31 and 
 right for entries 0–31 and **wrong for 32–63**. The zoom-2 half of the table names
 `base2a`/`mtns2a`/`roads2a`/`town2a`/`castle2a` in **all four** of its season blocks: the far
 view is not seasonal, and `Base2b.pl8` and its eleven siblings ship and are never loaded,
-exactly as `Flags1b/c/d.pl8` do. The dead files are not
+The dead files are not
 interchangeable with the live one — `Town2a.pl8` has 61 frames and `Town2b/c/d.pl8` have 94 —
 so deriving the far zoom's filenames from the season letter draws a different sheet for three
 seasons in four. `maps-layers.md` §1.1b.
@@ -484,7 +484,7 @@ colours are unreachable in food mode.
 Corroborated from the user's own saved games: over every save on this machine, `+0x02` is
 only ever 0 or 6, `+0x03` only ever 0, 5 or 6, and `+0x01` is `happiness / 20` in every
 save where the bands have been computed at all — `l2-formats/tests/save.rs`. (A game whose
-overlay was never opened has all three zero, which the England turn-one fixture is.)
+overlay has all three zero, which the England turn-one fixture is.)
 
 **The four buttons are not radio buttons.** `Minimap_ModeButton` (`0x0043AB76`) reads a
 hotspot id from `DAT_0059154C` and is a two-state machine:
@@ -654,7 +654,7 @@ captured castle holding somebody else's garrison flies their colours.
 **Correction: only the *town* arm guards a zero shield, and this section said both did.**
 The town arm returns on `county.field_0x7 == '\0'` before it computes anything. The castle
 arm tests `garrisonUnit == 0` and then computes `shield * 8 - 8 + phase` with **no clamp at
-all** — there is no `1 … 5` clamp anywhere in `FUN_004071A0`; the clamp this paragraph was
+all** —; the clamp this paragraph was
 remembering is `FUN_004171EE`'s, on the menu bar's banners. A garrison whose `shield` is 0
 therefore asks for frame `−8 + phase`, the frame-record read fails the `dataOffset < 1`
 check, and the function writes `"ERR:top_it no data"` and sets `g_quitRequest = 1`. **[D]** —
@@ -896,7 +896,7 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   first three run with `DAT_0058FE2C` set, in `&g_fontHeading`; the last in `&g_fontBody`
   with it clear. So the far view reads *England · AD 1268* over that instruction — the game
   saying in its own words what the far zoom is for, which agrees with `Map_Click` doing
-  nothing at zoom 2. **There is no season in this box**, whatever C173's note and an earlier
+  nothing at zoom 2. **, whatever C173's note and an earlier
   version of this bullet said: the painter makes three heading draws and a season is not one
   of them. Ours draws its status line under them, debug overlay only.
   `docs/draws-map.md` §5.4, **C89**, **C189**;
@@ -922,7 +922,7 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   the clicked unit with it because `DAT_00553C64` is what the price is computed from. See
   `crates/l2-game/src/screens/merchant.rs`; the stall's hit test is `mercgrid.pl8` read as
   an 80 × 60 map of good ids, and the mouseover is the price plaque of
-  `Merchant_HoverPlaque` rather than any generic tooltip — **ours has no generic tooltip
+  `Merchant_HoverPlaque` — **ours has no generic tooltip
   mechanism**, and `0x00553ECC`, the only candidate on file, turned out to be a
   click guard on move-order mode (`docs/decisions.md` C54's neighbours in `symbols.md`).
 
@@ -946,7 +946,7 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   (`docs/decisions.md` C48);
 * **two of `Map_Click`'s three plane-0 arms**: a click on one of your own settlement tiles
   toggles that industry, and a click on one of your own fields opens the brush. Both are
-gated exactly as the original gates them, and both reach the rules
+gated and both reach the rules
   (`Kingdom::toggle_industry`, `Kingdom::paint_field`) that the original reaches.
 
 Five oracle tests in `crates/l2-view/tests/install.rs` read the shipped files and the user's
@@ -1036,7 +1036,7 @@ two. They are installed because `INSTALL.HST`, the installer's own manifest, lis
 are read by nothing.
 
 * `Lords2.exe` imports **`LoadCursorA`, `SetCursor` and `GetCursorPos` from `USER32.dll`, and
-  nothing else cursor-shaped**. There is no `LoadCursorFromFile`, no `LoadImageA`, no
+  nothing else cursor-shaped**., no `LoadImageA`, no
   `SetClassLongA`.
 * The binary contains **no `.cur` filename and no `Cursor%d`-style format string** — the only
   matches for "cursor" anywhere in it are the three import names above.
@@ -1233,6 +1233,6 @@ but it is *not* "parse the twelve files". Two of the three glyph cursors the gam
 draws exist only inside `Lords2.exe`. A faithful implementation reads the user's own binary,
 the way `crates/l2-view` already reads the realm ramp at `0x004D2900` (§7): walk `.rsrc` to
 `RT_GROUP_CURSOR` 102, 103, 104, 105, 110, 111 and 113, decode seven 32 × 32 1-bpp AND/XOR
-pairs, and hang them off a copy of `g_cursorByScreen` plus the §9.7 ladder. There is no new
+pairs, and hang them off a copy of `g_cursorByScreen` plus the §9.7 ladder.
 file format to learn: `.cur`, `.ico` and `RT_CURSOR` are the same three structures, and an
 `RT_CURSOR` is a `.cur` with the 22-byte directory replaced by a 4-byte hotspot.

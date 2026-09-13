@@ -202,7 +202,7 @@ The rule that would have prevented C21, stated as a check:
 
 > **Is there code in `Lords2.exe` that does the thing I am about to write? Have I read it?**
 
-For a format, a rule or an algorithm this is second nature here. It was never applied to a
+For a format, a rule or an algorithm this is second nature here.
 *screen*, because no phase was named after screens, and a whole layer got invented while
 every layer beneath it was verified to four decimal places.
 
@@ -310,7 +310,7 @@ C25 came out of this batch and is the best argument for the technique: the game'
 overturned a **[V]**-marked tile-flag claim that our own consistent mislabelling had preserved
 for months.
 
-### 7.4 "844 dark functions" was never true
+### 7.4 "844 dark functions"
 
 The figure has been repeated as though that many functions were unanalysable. Run
 `node tools/oracle/anchor.js dark`:
@@ -377,7 +377,7 @@ g_units[g_movingUnit].y = g_units[g_movingUnit].y - 1;
 **A grid indexed by byte offset needs no special shape.** The two 8-byte grids — `g_tiles`
 (4,096 tiles, 64 × 64) and `g_battlefield` (6,400 cells, 80 × 80) — are not indexed like the
 other six arrays. The game keeps a *pre-scaled* byte offset, `(y * 64 + x) * 8`, in a
-variable and adds `±8` for a column and `±0x200` for a row, so there is no `i * stride` for
+variable and adds `±8` for a column and `±0x200` for a row,
 `anchor.js stride` to find and no obvious way to tell Ghidra "divide by eight". The move that
 was expected to be needed — naming the eight plane bases as separate globals — turned out to
 be unnecessary. **A plain `Tile[4096]` array handles both idioms**, because the decompiler
@@ -430,7 +430,7 @@ its boundary, and none is.
   each. The documents are right and the Rust comment is wrong.
 * `crates/l2-kingdom`'s `Industry` carries `capacity`, `efficiency` and `disabled_seasons` as
   `i32`. In the original `capacity` is **two** bytes at industry `+0x0E` — `+0x10` is the
-  running total and there is no room — and the other two are single bytes at `+0x04` and
+  running total
 `+0x06`. Nothing overflows, so this is a widening, but the record is not
   four `i32`s and reading it as one would misplace every field after the first.
 
@@ -457,7 +457,7 @@ its boundary, and none is.
 * `docs/formats/maps-layers.md` §5.3 lists the run-time-only bits of the `bank` byte as
   `0x01`, `0x20` and `0x80`. Bit `0x40` is missing and is not idle: it has nine clears and
   six tests, and in `Map_RenderIso`'s two half-row loops `bank & 0x40` is the sole condition
-  for calling **`Map_DrawPathMarker`**, exactly as `bank & 0x80` is for the building overlay.
+  for calling **`Map_DrawPathMarker`**,
   (That function was named `Map_DrawCountyFlag` when this was written; C49 corrected it. The
   bit census below was right and the name it reported was not.)
 

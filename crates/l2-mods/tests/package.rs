@@ -200,7 +200,7 @@ fn a_loaded_platform_reports_its_mods_packaging_warnings() {
 }
 
 /// `is_platform_metadata` is the one place that decides which files in a mod
-/// belong to the platform rather than to the game. Both the report and the
+/// belong to the platform. Both the report and the
 /// per-mod effect analysis go through it, so they cannot disagree.
 #[test]
 fn the_manifest_and_the_rule_documents_are_the_platforms_files() {

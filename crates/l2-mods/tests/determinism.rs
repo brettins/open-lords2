@@ -1,4 +1,4 @@
-//! Order-determinism, which is a correctness property here rather than a
+//! Order-determinism
 //! preference.
 //!
 //! `docs/netcode.md` makes deterministic lockstep the architecture: two peers
@@ -114,7 +114,7 @@ fn where_the_files_live_does_not_change_the_digest() {
     // reads identically on another, and a bug report about
     // `longbows:rules/longbows.toml:12:11` means something to whoever wrote
     // the mod. That is a property of the origin, and it is asserted here
-    // rather than only in the type's own tests, because the digest's
+    //
     // path-independence would otherwise look like a coincidence.
     let origin = |p: &Platform| {
         p.rules.origin("battle.three_bridges.attacker.archers").unwrap().to_string()
@@ -197,7 +197,7 @@ fn documents_within_a_layer_apply_in_sorted_name_order_not_creation_order() {
 }
 
 /// Building the same document set twice in different insertion orders must
-/// give identical bytes, because the tree is ordered by key rather than by
+/// give identical bytes
 /// arrival.
 #[test]
 fn the_merged_tree_is_ordered_by_key_and_not_by_arrival() {
@@ -217,7 +217,7 @@ fn the_merged_tree_is_ordered_by_key_and_not_by_arrival() {
 /// A known answer for the encoder itself, over a document that will never
 /// change. If this ever moves, the byte stream moved — which means every
 /// previously recorded digest is now wrong, and a peer on an older build will
-/// be refused for no reason. That is why it is pinned rather than computed.
+/// be refused for no reason. That is why it is pinned
 ///
 /// This is the same argument `l2-net` makes for freezing `hash.rs` and
 /// `rng.rs`: the value stream is the product, not the code.
@@ -253,7 +253,7 @@ fn a_string_and_an_integer_that_look_alike_hash_differently() {
 }
 
 /// The engine's own rules must contain no decimals, and a mod that introduces
-/// one is reported rather than silently accepted.
+/// one is reported
 #[test]
 fn a_decimal_in_a_mod_is_reported_even_though_it_is_not_refused() {
     let base = TempDir::new("det-float-install");

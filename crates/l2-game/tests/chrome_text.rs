@@ -158,7 +158,7 @@ fn the_clock_and_the_treasury_are_drawn_in_the_game_s_body_font() {
 ///
 /// `Screen_DrawMenuBar` draws `Ui_DrawYear(g_year, 0x168, …)` and then puts the
 /// season at `g_penAdvance + 0x16C` — *after* it. We drew `"{season} {year}"`,
-/// which is the other way round and was never read against the function.
+/// which is the other way round.
 ///
 /// Ablated by swapping the two draw calls in `draw_menu_bar`: the season then
 /// lands left of the year and this goes red.
@@ -773,7 +773,7 @@ fn the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right() {
 /// ```
 ///
 /// Both suffixes are NUL. The old `"{n} "` lost four at the front and added four
-/// at the back, so the nouns landed right and the digits did not — which is why
+/// at the back, so the nouns landed right and the digits did not —
 /// the nouns are asserted as well: a fix that adds the lead and keeps the
 /// invented space moves them.
 ///
@@ -1056,7 +1056,7 @@ fn the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction() {
     let canvas = draw(&mut screen, &mut game, &assets);
 
     // The three heading draws run with `DAT_0058FE2C` set: capitals come out in
-    // colour 1 whatever the caller passed, which is why the probe carries the
+    // colour 1 whatever the caller passed,
     // mode as well as the face.
     let caps = Style { colour: font::TEXT, shadow: Some(font::SHADOW), caps: Some(1) };
 

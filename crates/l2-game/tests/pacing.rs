@@ -1,5 +1,5 @@
 //! **How fast the campaign map moves**, measured through the real screen
-//! machine rather than through the turn machine on its own.
+//! machine.
 //!
 //! ```text
 //! LORDS2_DIR="F:\games\Lords of the Realm II" LORDS2_FIXTURES="E:\dev\lords2-fixtures" \
@@ -92,7 +92,7 @@ fn merchant_slots(game: &l2_game::Game) -> Vec<usize> {
 /// Where every merchant stood at the end of each **frame** of a turn started by
 /// pressing End Turn on the campaign map, plus how many frames it took.
 ///
-/// The machine is driven exactly as `main.rs` drives it: one
+/// The machine is driven: one
 /// [`Machine::update`] a frame, and no other door into the simulation.
 fn watch_a_turn(game: &mut l2_game::Game, machine: &mut Machine) -> Vec<Vec<(u8, u8)>> {
     let assets = Assets::placeholder();
@@ -185,7 +185,7 @@ fn a_merchant_takes_at_least_eight_frames_to_cross_one_tile() {
 /// walking which followed was over in eleven frames, so the still part was
 /// three quarters of the whole turn.
 ///
-/// So the property to hold is the one that was actually violated: a phase that
+/// So the property to hold is the one that: a phase that
 /// waits for a class of unit to stop walking cannot finish before that class
 /// has walked, so **the turn is at least as long as its longest single leg**.
 /// A merchant on the England position walks ten tiles, which is eighty ticks;
@@ -259,7 +259,7 @@ fn a_frame_of_a_turn_is_exactly_one_turn_tick() {
         outcome.ticks,
     );
 
-    // And the load-bearing half of C59/C60 restated at this door rather than at
+    // And the load-bearing half of C59/C60 restated at this door
     // the turn machine's: spreading a turn over frames is a display change.
     for (id, u) in stepped.kingdom.campaign.units.iter() {
         let other = at_once.kingdom.campaign.units.get(id).map(|o| o.tile());
@@ -279,7 +279,7 @@ fn a_frame_of_a_turn_is_exactly_one_turn_tick() {
 ///
 /// and there is **no `g_screenId` test on it** — `[V]`, read whole. The message
 /// scroll is not a screen in the original at all (`g_messageGroup`, painted
-/// over whatever `g_screenId` is), which is why `Msg_Pump`'s own ladder goes on
+/// over whatever `g_screenId` is)
 /// treating the campaign map as the screen while a letter is up.
 ///
 /// Ours ran the turn out of `MapScreen::update`, which `Machine::update` gives
@@ -408,7 +408,7 @@ fn a_merchant_crossing_a_tile_is_audible() {
 
 /// **A merchant crosses a tile at the road-keyed rate and is drawn between
 /// tiles while he does it** — on a built map, so the rate is *measured* and
-/// not merely bounded from below the way the England tests above bound it.
+/// the way the England tests above bound it.
 ///
 /// Nothing in the original takes the interpolation off a cart (C213, C184):
 /// `Unit_StepOnce` (`0x0046634D`) has no kind test — `+0x14A` past the

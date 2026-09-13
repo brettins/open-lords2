@@ -4,7 +4,7 @@
 //! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -- --nocapture
 //! ```
 //!
-//! Skips (rather than fails) when unset, so the suite still runs on a machine
+//! Skips
 //! without the game. No assets live in this repository.
 
 use l2_formats::{Palette, Pl8, Shape, Storage};
@@ -136,7 +136,7 @@ fn palettes_are_768_bytes_of_6bit_vga() {
 /// The end-offset invariant proves we consume the right *bytes*. It cannot
 /// prove we produce the right *pixels* - a decoder that validates perfectly
 /// while emitting entirely blank frames would pass it. This checks that decoded
-/// frames actually contain something, per storage family.
+/// frames
 #[test]
 fn decoded_frames_are_not_blank() {
     let Some(dir) = asset_dir() else {
@@ -230,7 +230,7 @@ fn counts_that_the_documentation_quotes_still_hold() {
 ///
 /// This is the contract every caller of `decode` relies on, and it was broken
 /// in a way nothing here could see: the canvas height was decided on the *byte
-/// span*, so a frame that stored its rows came back `h + rows` tall and a frame
+/// span*,
 /// that declared the same rows and stored none came back `h` tall. The two body
 /// fonts sit on opposite sides of that split — `Fntl2_14.pl8` stores 47 blocks
 /// of overhang rows (45 of them nothing but `00 <width>`, one skip run covering

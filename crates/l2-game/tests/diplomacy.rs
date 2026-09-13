@@ -70,7 +70,7 @@ fn middle(r: l2_game::input::Rect) -> Event {
 /// on the next line is asserting about a press the game has not answered yet.
 ///
 /// It asserts the delay as it goes, which is what makes it a test of the
-/// gesture rather than a way round it: the screen stack must not move on any
+/// gesture: the screen stack must not move on any
 /// tick before the last. `docs/input.md` §4.
 fn press_and_wait(machine: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
     let before = machine.depth();
@@ -163,7 +163,7 @@ fn a_gift_travels_from_a_click_to_the_rivals_inbox() {
 }
 
 /// **The gift stepper cannot promise money the treasury does not have**, and
-/// the clamp is applied on every click rather than at the send.
+/// the clamp is applied on every click.
 #[test]
 fn the_gift_amount_is_clamped_to_the_purse_on_every_click() {
     let (mut game, assets) = world();
@@ -178,9 +178,9 @@ fn the_gift_amount_is_clamped_to_the_purse_on_every_click() {
     assert_eq!(game.kingdom.diplomacy.pending(2).next().unwrap().gold, 35);
 }
 
-/// **The menu is the gate on the two requests**, exactly as
+/// **The menu is the gate on the two requests**
 /// `docs/diplomacy.md` §4 says: only an ally can be asked for help or for an
-/// attack, and the rule is not a guard anywhere — it is which rows the screen
+/// attack — it is which rows the screen
 /// draws.
 #[test]
 fn asking_for_help_is_only_on_the_menu_of_an_ally() {
@@ -365,7 +365,7 @@ fn a_target_that_is_knocked_out_is_replaced_rather_than_kept() {
 
 /// `Transition::Pass` is not used by either screen: every click either belongs
 /// to it or is ignored. Stated because `screens/mod.rs` warns that *"passing by
-/// default rather than by decision is how two screens end up both acting on one
+/// default is how two screens end up both acting on one
 /// click"*, and these two sit over the map.
 #[test]
 fn neither_screen_ever_passes_a_click_to_the_map_underneath() {

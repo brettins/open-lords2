@@ -1,8 +1,8 @@
 //! The few pieces of chrome every screen draws: a framed panel, a button, a
 //! label with a number after it.
 //!
-//! These are drawing helpers that happen to know about [`Rect`], which is why
-//! they live here rather than in `l2-view`: a rectangle is only interesting
+//! These are drawing helpers that happen to know about [`Rect`]
+//! they live here: a rectangle is only interesting
 //! because something can be clicked in it, and clicking is this crate's
 //! business. Everything below writes palette indices through the ordinary
 //! canvas primitives, so it is all assertable without a window.

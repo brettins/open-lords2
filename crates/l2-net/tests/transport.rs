@@ -56,7 +56,7 @@ fn a_stream_delivered_one_byte_at_a_time_yields_the_same_messages() {
     assert_eq!(reader.buffered(), 0);
 }
 
-/// Every possible split point, not just the interesting-looking ones —
+/// Every possible split point —
 /// including splits inside the length prefix.
 #[test]
 fn every_split_of_a_stream_yields_the_same_messages() {
@@ -99,7 +99,7 @@ fn a_hostile_length_prefix_is_refused_before_it_is_believed() {
 }
 
 /// A busy stream must not become quadratic in the number of messages.
-/// The reader compacts rather than draining from the front each time.
+/// The reader compacts.
 #[test]
 fn a_long_stream_of_small_messages_does_not_accumulate() {
     let mut reader = FrameReader::new();

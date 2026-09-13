@@ -2,7 +2,7 @@
 //!
 //! The numbers come from `docs/battle.md` §6.1, read out of the original's
 //! per-type tick handlers and its melee attack table. They are facts about how
-//! the 1996 engine behaves, reimplemented here rather than copied.
+//! the 1996 engine behaves, reimplemented here.
 //!
 //! Every value is an integer. Nothing in this crate uses floating point, because
 //! a lockstep simulation has to be bit-identical across machines — see
@@ -54,7 +54,7 @@ impl Troop {
     /// **Deliberately not a table value.** Which of the eleven slots is a siege
     /// engine decides whether a code path runs at all, not how hard it hits. A
     /// ruleset that could turn a catapult into a melee unit would be describing
-    /// a different simulation rather than a different balance. The tunable
+    /// a different simulation. The tunable
     /// numbers are in [`TroopTable`]; this is structure.
     pub const fn is_siege(self) -> bool {
         matches!(
@@ -120,7 +120,7 @@ impl TroopTable {
             /* BatteringRams */ TroopStats::new([0; 4],          30,   0, 50,   0),
             // Oil's armour is 40, or 25 when the owner is human. That asymmetry
             // is real in the original but its intent was never established, so
-            // it is applied explicitly at the call site rather than hidden here.
+            // it is applied explicitly at the call site.
             /* Oil           */ TroopStats::new([0; 4],           8,   0, 40,   0),
         ],
         hits_per_casualty: [100, 100, 100, 100, 100, 100, 100, 160, 160, 160, 160],
@@ -143,7 +143,7 @@ impl Default for TroopTable {
 
 /// Per-type combat constants.
 ///
-/// Note what is *not* here: there is no separate melee defence value. A figure's
+/// Note what is *not* here: A figure's
 /// melee defence is its `recovery` — the interval between blows it suffers is
 /// its own recovery counter, so a slow-recovering figure is struck rarely.
 /// `armour` applies to missiles only and is never read during a melee exchange.
@@ -172,7 +172,7 @@ impl TroopStats {
         TroopStats { melee_attack, recovery, heavy_blow, armour, exchange }
     }
 
-    /// Attack for a strength band, clamped rather than panicking on a bad band.
+    /// Attack for a strength band, clamped.
     pub fn attack(&self, band: u8) -> u16 {
         self.melee_attack[(band as usize).min(3)]
     }
@@ -242,7 +242,7 @@ mod tests {
                     b - 1
                 );
             }
-            // Out-of-range bands clamp rather than panic.
+            // Out-of-range bands clamp.
             assert_eq!(s.attack(9), s.melee_attack[3]);
         }
     }

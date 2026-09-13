@@ -24,7 +24,7 @@
 //!   *path* was being treated as an *identity*.
 //!
 //! So this crate does three things: it puts the search for an install in one
-//! place, it makes a fixture something you name and verify rather than a file
+//! place, it makes a fixture something you name and verify
 //! you happen to open, and it gives every gate a shape that
 //! [`tests/census.rs`](../../tests/census.rs) can count.
 //!
@@ -43,7 +43,7 @@
 //! # Named fixtures
 //!
 //! A fixture is a *name*, a *file*, and a *fingerprint*. [`england_turn1`]
-//! returns [`FixtureState::WrongGame`] rather than a `Save` when the file at the
+//! returns [`FixtureState::WrongGame`]
 //! expected path is some other game, so the three states stay distinct:
 //!
 //! * **ready** — the file is there and it is the right game;
@@ -104,7 +104,7 @@ fn dir(var: &str, default: &str) -> Option<PathBuf> {
     match std::env::var(var) {
         Ok(v) if Path::new(&v).is_dir() => Some(PathBuf::from(v)),
         // An explicitly set variable pointing nowhere is a mistake worth
-        // hearing about, rather than a silent fall back to somebody else's
+        // hearing about,
         // machine.
         Ok(v) if !v.is_empty() => {
             eprintln!("{var} is set to {v:?}, which is not a directory - ignoring it");
@@ -160,7 +160,7 @@ pub enum Origin {
     Install,
 }
 
-/// One save file that is actually present, already opened.
+/// One save file that is present, already opened.
 pub struct SaveFile {
     /// The file name, lowercased, e.g. `battle-before.sav`.
     pub name: String,
@@ -187,7 +187,7 @@ impl SaveFile {
 /// neighbour-list symmetry is that it holds over all of them, including the
 /// ones nobody has looked at.
 ///
-/// Files that do not open are reported and skipped rather than silently
+/// Files that do not open are reported and skipped
 /// dropped — a `.sav` that is not a save is worth a line of output.
 pub fn every_available_save() -> Vec<SaveFile> {
     let Some(exe) = executable() else {
@@ -253,7 +253,7 @@ pub const ENGLAND_TURN1_FILE: &str = "england-turn1.sav";
 pub const ENGLAND_TURN1_COUNTIES: [usize; 5] = [1, 4, 8, 11, 13];
 
 /// Counties on the England map, in seventeen records. Records 0, 15 and 16 are
-/// array slots rather than places.
+/// array slots
 pub const ENGLAND_COUNTIES: i32 = 14;
 
 /// What [`england_turn1`] found.
@@ -287,7 +287,7 @@ pub enum FixtureState {
 /// the entire defect. Three directories on this machine hold a file of that
 /// name and they are three different games, so a path is not an identity — the
 /// fixture is a name plus [`england_turn1_fingerprint`], and a file that fails
-/// the fingerprint is [`FixtureState::WrongGame`] rather than a bare assertion
+/// the fingerprint is [`FixtureState::WrongGame`]
 /// diff sixteen tests deep.
 ///
 /// # Regenerating it
@@ -391,7 +391,7 @@ pub fn england_turn1_fingerprint(save: &Save) -> Result<(), String> {
 /// The county realm `r` starts on, in an England turn-one save.
 ///
 /// The assignment is rolled per game, so a test that wants "realm 5's county"
-/// has to ask the file rather than write down an index — which is the whole
+/// has to ask the file
 /// content of the correction that produced this function.
 pub fn england_county_of_realm(save: &Save, realm: u8) -> usize {
     save.counties()

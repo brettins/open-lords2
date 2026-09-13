@@ -91,7 +91,7 @@ impl std::error::Error for Error {}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Bounds-checked little-endian reads. Every parse goes through these so a
+/// Bounds-checked little-endian reads. Every parse goes through these
 /// malformed file returns an error instead of panicking.
 pub(crate) fn u16_at(b: &[u8], off: usize) -> Result<u16> {
     let end = off + 2;

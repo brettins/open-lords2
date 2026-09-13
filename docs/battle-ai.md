@@ -346,7 +346,7 @@ attacking me" branch. Anyone reimplementing this must not round 50 up to "until 
 decision".
 
 This is the *only* mechanism by which a unit acquires a target it did not walk into
-or find by proximity. There is no threat assessment.
+or find by proximity.
 
 ### 3.3 Figure picks a figure — `Melee_ChooseChaseTarget` (`0x004954DD`)
 
@@ -1029,4 +1029,4 @@ between two computer lords, but it
   no reload counter, no flight, no arrow. A unit ordered to shoot enters state
   17 and stands still, which is what the original does, except that in the
   original it is also shooting. Everything in §6 remains untested for the same
-  reason §12 gives: there is no castle to fight over.
+  reason §12 gives:

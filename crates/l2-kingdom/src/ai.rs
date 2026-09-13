@@ -23,7 +23,7 @@
 //! | 9 | `0x0049F977` | raise the main army and aim it | [`crate::Kingdom::run_ai_raise_army`] |
 //! | 10 | `0x004A0015` | send out the raiding force | [`crate::Kingdom::run_ai_raid`] |
 //! | 11 | `0x004A5667` | walk every army towards its target | [`crate::Kingdom::run_ai_move_armies`] |
-//! | 12 | `0x0049E77D` | **`AI_ChooseIndustry`** — the weapon rota, and the industry switches | [`choose_industry`] |
+//! | 12 | `0x0049E77D` | **`AI_ChooseIndustry`** — the weapon rota
 //! | 13 | `0x004A13A6` | **`AI_Taunt`** — gloat at the human when winning | [`taunt`] |
 //! | 14 | `0x0049D1E0` | **recompute the realm's totals** | [`update_realm_totals`] |
 //!
@@ -45,7 +45,7 @@
 //! and `docs/plan.md` §3 item 7's ordering — *"a game can be finished without
 //! diplomacy and cannot be finished without opponents that attack"* — held
 //! right up until the war steps landed and turned out to *read* four fields
-//! only diplomacy writes. [`crate::diplomacy`] is the answer, and the module
+//! only diplomacy writes. [`crate::diplomacy`] is the answer
 //! documentation there records what was unreachable while it was missing.
 //!
 //! # The two names that were one name
@@ -55,7 +55,7 @@
 //! allocators.** `Ai_ManageCountyFarms` (`0x0049DD01`) is step 5 and dispatches
 //! styles 0, 1 and 9 into three allocators; `AI_ManageFields` (`0x0049DFC6`) has
 //! exactly one caller, `AI_ManageFields(0)` in turn phase 1, and dispatches
-//! styles 0 and 1 into **two others**. There are five allocators in all, and the
+//! styles 0 and 1 into **two others**. There are five allocators in all
 //! one previously described as *"the AI's farming style"* is the one no AI realm
 //! can reach. [`crate::ai_farm`] carries the correction and all five.
 //!
@@ -72,7 +72,7 @@
 //! 2. **The finish test is `>=`, not `>`, and it is not the only condition.**
 //!    The realm finishes when `aiStep >= 15 + 2 * realmIndex` *and*
 //!    `FUN_004A4E3D(1, realm)` returns 0 — a call that sets every one of the
-//!    realm's idle armies moving and reports whether it found any. So a realm
+//! realm's idle armies moving and reports whether it found any. So a realm
 //!    with armies still to launch keeps stepping past the threshold, doing
 //!    nothing at each stop, until they are all away.
 //! 3. **The stored sentinel ends up 1000, not 999.** The increment at the
@@ -96,7 +96,7 @@
 //! by the realm's county count, which the document does not mention. Both are
 //! implemented, and both are read out of the [`Tables`] the caller hands in
 //! — the ladders are `if`/`else if` chains in the
-//! original, so a ruleset is the first time they have been data at all.
+//! original
 
 use crate::county::County;
 use crate::realm::{Realm, AI_STEP_DONE};
@@ -184,7 +184,7 @@ impl AiStep {
         self as i32
     }
 
-    /// The address of the handler in `Lords2.exe`, so a future differential
+    /// The address of the handler in `Lords2.exe`
     /// test knows where to look.
     pub fn address(self) -> u32 {
         match self {
@@ -214,7 +214,7 @@ impl AiStep {
 /// True where this crate runs the step — **all fourteen**, and
     /// the one that does nothing does nothing because the original's does.
     ///
-    /// > This used to exempt the diplomacy pair, *"which needs an inbox and the
+    /// > This used to exempt the diplomacy pair
     /// > seven reply handlers"*. [`crate::diplomacy`] is that inbox and those
     /// > seven handlers.
     pub fn is_implemented(self) -> bool {
@@ -338,9 +338,9 @@ pub fn begin_turn(realms: &mut [Realm]) {
 /// g_realms[r].aiStep = 1;
 /// ```
 ///
-/// **This function is only the first of those four lines**, and the omission was
+/// **This function is only the first of those four lines**
 /// player-visible: the second line is the only thing in the original that fills
-/// the score inputs, so a human — who never reaches step 14, the other caller —
+/// the score inputs
 /// scored 50 for ever. The whole prologue, at the call site the original puts it,
 /// is `l2_game::turn::step_zero`; this has no production caller and is the
 /// crate's own statement of the strength half.
@@ -425,7 +425,7 @@ pub fn set_tax_rates(
 /// meanHealth     = sumHealth / countyCount;            /* +0x58 */
 /// ```
 ///
-/// Every division is guarded on `countyCount != 0` and writes 0 instead, so a
+/// Every division is guarded on `countyCount != 0` and writes 0 instead
 /// realm about to be eliminated does not divide by zero.
 ///
 /// `armies` and `total_men` come from the unit array, which is not this
@@ -480,12 +480,12 @@ pub fn update_realm_totals(
 ///    the figures for a realm holding **one or two** counties. Three or four
 ///    counties halve them; **five or more get nothing at all.** See
 ///    [`crate::tables::AI_GRANT_TIERS`].
-/// 2. **The gold grant has two tables**, and the smaller
+/// 2. **The gold grant has two tables**
 ///    ([`crate::tables::AI_GOLD_GRANT_SMALL`]) is the one a realm below three
 ///    counties draws from. §8.2 mentions the second table; the crate did not
 ///    have it.
 /// 3. **The whole grant is gated on the realm holding at least one county.**
-///    `if (realm.countyCount != 0)` wraps both halves, so a realm reduced to
+/// `if (realm.countyCount != 0)` wraps both halves
 ///    armies alone gets neither gold nor goods.
 ///
 /// Taken together the grants **reward a realm that is already ahead** and
@@ -565,7 +565,7 @@ pub fn grant_resources(
 /// `+0x4C` for a finished castle and `+0x4D` for one under construction.
 ///
 /// The limit is tested **inside** the county loop and the count is not
-/// refreshed as builds are ordered, so a lord with a limit of 4 and five
+/// refreshed as builds are ordered
 /// castle-less counties can start five builds in one pass if he began the pass
 /// with none. Reproduced.
 ///
@@ -621,7 +621,7 @@ pub fn largest_castle_affordable(ladder: &[i32; AI_CASTLE_LADDER_LEN], gold: i32
 
 /// Step 12 — `FUN_0049E77D`, which this crate names `AI_ChooseIndustry`.
 ///
-/// Three loops over the realm's counties, and the first is **the weapon rota**:
+/// Three loops over the realm's counties
 /// each county takes the weapon type at the realm's cursor and the cursor
 /// advances. Because the cursor is a *realm* field advanced inside a loop over
 /// counties, a realm of four counties makes four different weapons at once and
@@ -642,7 +642,7 @@ pub fn largest_castle_affordable(ladder: &[i32; AI_CASTLE_LADDER_LEN], gold: i32
 /// ```
 ///
 /// With the four slots in [`crate::tables::Commodity`] order that reads:
-/// **while a castle is going up, the AI switches iron and the blacksmith off
+/// **while a castle is going up
 /// outright**, and keeps forestry and quarrying on only while the build still
 /// wants wood or stone. An AI at war stops making weapons the moment it starts
 /// a castle, which is a real strategic quirk and not an obvious one.
@@ -650,7 +650,7 @@ pub fn largest_castle_affordable(ladder: &[i32; AI_CASTLE_LADDER_LEN], gold: i32
 /// `docs/kingdom.md` calls county `+0x1B0` untraced; this loop sets it to **1
 /// on every county the realm holds, unconditionally**, and
 /// `AI_ManageFields(0)` sets it to 0 on the unowned ones. That is
-/// [`County::castle_switch`], and the pair of writes says what it is: *this
+/// [`County::castle_switch`]
 /// county's castle-building job slot is live*.
 ///
 /// **The departure this used to record is closed.** It said the original reads
@@ -749,15 +749,15 @@ fn castle_allows(slot: usize, county: &County) -> bool {
 ///   place** is human and is not this realm's ally, count to 8, then send
 ///   *"Helpful advice."* (group 192) to that realm and go back to stage 0.
 ///
-/// The two thresholds are `>` on 0x27 and 0x1B, and the timer test is `7 <
+/// The two thresholds are `>` on 0x27 and 0x1B
 /// timer`, so it is the **ninth** consecutive qualifying turn that sends. The
-/// timer only advances on a turn the share threshold is met, so a realm that
+/// timer only advances on a turn the share threshold is met
 /// slips below 39% pauses.
 ///
 /// `trailer` is the last-placed realm — `g_rankTrailer`, which the original
 /// keeps as a global and which is derived by the caller from
 /// [`rank_realms`]. `out` collects the letters; the caller decides what to do
-/// with them, because a realm-to-realm letter is not a season message.
+/// with them
 pub fn taunt(realm: &mut Realm, realm_id: u8, realms_snapshot: &[Realm], trailer: u8) -> Vec<Taunt> {
     let mut sent = Vec::new();
     if realm.rank >= 2 {
@@ -919,7 +919,7 @@ mod tests {
     // --- the turn machine --------------------------------------------------
 
     /// **All fourteen dispatch targets are named**, each with the address it
-    /// was decompiled from, and the counter maps onto them one for one.
+    /// was decompiled from
     #[test]
     fn the_fourteen_handlers_are_named_and_numbered_one_to_fourteen() {
         assert_eq!(AiStep::ALL.len(), AI_HANDLER_COUNT as usize);
@@ -954,7 +954,7 @@ mod tests {
             AiStep::ALL.iter().copied().filter(|s| !s.is_implemented()).collect();
         assert_eq!(blocked, Vec::<AiStep>::new(), "nothing is blocked any more");
         assert_eq!(AiStep::ALL.iter().filter(|s| s.is_implemented()).count(), 14);
-        // The two the diplomacy module discharged, and the four the expired
+        // The two the diplomacy module discharged
         // army comment was holding shut before them.
         for step in [
             AiStep::Diplomacy,
@@ -1310,7 +1310,7 @@ mod tests {
     }
 
     // The field ladder moved to `crate::ai_farm` with the rest of step 5; it is
-    // no longer a bare counter bump but a reclamation order, and the tests moved
+    // no longer a bare counter bump but a reclamation order
     // with it.
 
     // --- step 6: the castles -----------------------------------------------
@@ -1454,7 +1454,7 @@ mod tests {
         assert!(counties[1].industry[weapons].has_resource);
     }
 
-    /// **A castle going up switches iron and the blacksmith off**, and leaves
+    /// **A castle going up switches iron and the blacksmith off**
     /// forestry and quarrying running.
     #[test]
     fn a_castle_under_construction_switches_the_mine_and_the_smithy_off() {
@@ -1545,7 +1545,6 @@ mod tests {
     }
 
     /// The share threshold is `> 39`, and falling below it **pauses** the timer
-    /// rather than resetting it.
     #[test]
     fn slipping_below_the_share_threshold_pauses_the_count_rather_than_restarting_it() {
         let (mut me, realms) = taunting_realm(40);
@@ -1671,7 +1670,7 @@ mod tests {
         assert_eq!(realm.compute_score(T), 50 * 10 + 1000 / 10 + 65 * 2 + 52 * 2 + 600 / 5);
     }
 
-    /// Every division is guarded, so a realm losing its last county does not
+    /// Every division is guarded
     /// divide by zero.
     #[test]
     fn a_realm_with_no_counties_totals_to_zero_rather_than_dividing_by_it() {

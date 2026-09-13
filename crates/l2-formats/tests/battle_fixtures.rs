@@ -11,7 +11,7 @@
 //! and `save_england_turn1.rs` asserts one named position. These five sit
 //! between: they are a *different* scenario — a small map with two owned
 //! counties — preserved so that the campaign-army work has a real before and
-//! after to read rather than a synthetic one.
+//! after to read.
 //!
 //! | fixture | what happened |
 //! |---|---|
@@ -20,7 +20,7 @@
 //! | `battle-after.sav` | the player lost; both armies are gone and county 3 is still neutral |
 //! | `old_turn.sav`, `safeturn.sav` | earlier turns of the same game — a multi-turn economy |
 //!
-//! # Why this file exists rather than the army tests alone
+//! # Why this file exists
 //!
 //! **A fixture nobody checks is a fixture that quietly becomes something else.**
 //! That is the whole of `docs/decisions.md` C23: five tests asserted a saved
@@ -50,7 +50,7 @@ const COUNTY_THREE: [(&str, i32); 3] = [
     ("battle-after.sav", 582),
 ];
 
-/// A macro rather than a function because the gate skips by returning from the
+/// A macro.
 /// **test**, and a helper returning `Save` has nothing to return.
 macro_rules! open {
     ($name:expr) => {

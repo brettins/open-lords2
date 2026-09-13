@@ -17,7 +17,7 @@
 //! 2. **March.** A click on that army selects it (`Map_Click`'s army branch),
 //!    a click on a tile orders the march (`Map_ConfirmMoveOrder`), and ending
 //!    the turn walks it — because `Units_Tick` runs on every tick of the turn
-//!    rather than in a phase (`docs/decisions.md` C35).
+//!
 //! 3. **Divide.** `A` opens `0x11`, the buttons move men between the two
 //!    columns, and split and disband do what `Army_Split` and `Army_Disband`
 //!    do.
@@ -131,7 +131,7 @@ fn world() -> (Game, Assets) {
 /// county the player holds: the Irish — two hundred pikemen at 3,500 crowns — in
 /// county 1, whose realm holds 2,354. Until `g_mercBands` was imported, no
 /// loaded game offered any band: the kingdom had none in play and county
-/// `+0x1AD` was never read, so the marker C150 put back on the town tile pointed
+///
 /// at nothing on every save.
 ///
 /// Everything this reads was written by the import — the offer, the band, its
@@ -665,7 +665,7 @@ fn a_rack_the_realm_has_no_weapons_for_does_not_open() {
 
 /// The two size guards and the message each stands for. `FUN_00435B4D` refuses
 /// a levy of nothing (`0xA8`) and a levy under fifty (`0x94`), and both
-/// refusals leave the world exactly as it was — **and leave the player on the
+/// refusals leave the world
 /// armoury**, which is where the button is.
 #[test]
 fn a_levy_of_nothing_and_a_levy_under_fifty_are_both_refused() {
@@ -842,7 +842,7 @@ fn clicking_the_selected_army_again_ends_the_selection_and_orders_nothing() {
         "a destination the fill never reached is not an order",
     );
     // And the selection is gone, so the next click is a fresh selection
-    // rather than a destination.
+    //
     click(&mut m, &mut g, &a, pixel(there.0, there.1).unwrap());
     assert!(
         g.kingdom.campaign.units.get(id).is_some_and(|u| !u.moving),
@@ -1812,7 +1812,7 @@ fn watching_a_battle_and_giving_the_same_order_reproduces_the_headless_verdict()
 ///
 /// * `Battle_Start` runs `Battlefield_Build*`, `Battle_InitArmies`,
 ///   `FUN_00480F8B`, `Battle_UpdateAllMen` and
-///   `Battle_UpdateStrengthAdvantage`. **There is no `Order_*` call in it**, and
+/// `Battle_UpdateStrengthAdvantage`.
 ///   `Battle_RaiseSide` (`0x0047FEA7`) → `BattleUnit_Create` (`0x00480662`)
 ///   gives each figure `tg x`/`tg y` equal to the cell it stands on.
 /// * `Battle_UpdateAllUnits` (`0x00489401`) runs no order handler for a unit
@@ -2599,7 +2599,7 @@ fn the_end_of_a_turn_fades_the_screen_down_and_back_up() {
 /// Every hotspot on the map writes to state the phase machine is in the middle
 /// of reading. A click that landed mid-turn would race it, so it is refused —
 /// and pointer motion is *not*, because a frozen cursor would look like a hang
-/// rather than like a turn passing.
+///
 #[test]
 fn the_map_refuses_orders_while_the_turn_is_running() {
     let (mut g, a, mut m) = on_the_map();

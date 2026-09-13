@@ -157,7 +157,7 @@ fn drag_one_icon(m: &mut Machine, game: &mut Game, assets: &Assets, county: u8, 
     handle(m, game, assets, Event::Pointer { x: px, y: py });
     handle(m, game, assets, Event::Release { x: px, y: py });
     // Where the drop lands is `vill_gd8.pl8`, so the target point is read out
-    // of the grid rather than guessed.
+    // of the grid
     let art = assets.village.as_ref().expect("vill_gd8.pl8");
     let (dx, dy) = (vill::SCENE_Y..vill::SCENE_Y + 320)
         .step_by(4)
@@ -453,7 +453,7 @@ fn the_split_a_player_drags_is_the_split_the_season_deals_back() {
 ///    number below came out equal. Before this change ours had **no foresters,
 ///    155 idle, and all four forecasts zero**, because nothing had computed an
 ///    industry ceiling before the opening season's `Labour_AllocateAll` —
-///    `Industry_ProduceAll`'s estimates were not ported — and the person's
+/// `Industry_ProduceAll`'s estimates were not ported — and the person's
 ///    herd went into `Herd_SeasonTick` unminded, because
 ///    `Game_SetupRealmsAndCounties`' two allocation rounds were not either.
 /// 3. **The wood row draws it** on the first frame of the campaign.

@@ -13,7 +13,7 @@
 //! event stream at all — it resolved unit and figure state and nothing else.
 //! That, and not the sounds, was the gap.
 //!
-//! # Why counters, and why that is exact rather than a shortcut
+//! # Why counters
 //!
 //! Every one of those call sites goes through `Sound_PlaySlot` (`0x00426120`)
 //! or `Sound_PlayFile` (`0x00427990`), and **both drop the request while the
@@ -36,7 +36,7 @@
 //! `docs/netcode.md` D-3. The cue is written by the simulation and read by
 //! nothing in it; the listener is `l2_game::audio::Director`, which holds a
 //! shared reference to the whole game and cannot write. Two properties keep
-//! that true and both are tested rather than asserted:
+//! that true and both are tested
 //!
 //! * **the simulation never reads its cues** — `crate::runner`'s
 //!   `a_battle_whose_cues_are_wiped_every_tick_is_the_same_battle` runs two

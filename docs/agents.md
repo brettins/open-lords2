@@ -95,7 +95,7 @@ repository whose working tree disagrees with its `main` on every inventory.
 * **An unmerged agent branch is flagged whether it is live or long dead.** The check cannot
 tell a stopped agent from an abandoned one without a row.
   Deleting a dead branch is the fix, and it costs one command.
-* **The facts are this clone's.** A branch on another machine that was never fetched does not
+* **The facts are this clone's.**
   exist as far as `--status` knows.
 
 ## Ghidra
@@ -218,7 +218,7 @@ report so the cost is visible.
 the cursor and steals focus on a machine somebody is sitting at — this was found the way
 these things are always found, by the person whose mouse jumped.
 
-There is no reason to reach for it, because **everything our engine does is reachable as a
+**everything our engine does is reachable as a
 value**. `Event::Click { x, y }`, `Event::Pointer`, `Event::KeyDown`, handed to
 `Machine::handle` with a `Ctx`; `crates/l2-game/tests/screens.rs` and `tests/machine.rs`
 are both written that way already. For a visual result, render into a `Canvas` and inspect
@@ -327,12 +327,12 @@ The lockfile costs 10 KB, has no migration, changes nothing about how a citation
 and flagged the real historical failure with zero false positives across a merge that moved
 seven citations and drifted every line number in the tree. That is the general lesson too:
 **when two mechanisms are proposed, measure them against a failure that happened**
-rather than reasoning about which is more elegant.
+.
 
 **An honest note about the paragraph above, because the record is worth more than the rule
 looking effective.** The protocol in this section was written after four collisions and then
-did not prevent the fifth — but it was never tested: the branch that collided had
-been cut *before* the protocol landed, so the agent never read it. So there is no evidence
+did not prevent the fifth —: the branch that collided had
+been cut *before* the protocol landed, so the agent never read it. So
 either way about whether writing it down works, and there is now no need to find out.
 Documented process depends on an agent having read the document, which a long-running branch
 by construction may not have; a check in CI does not. That is the general lesson, and it is
@@ -481,7 +481,7 @@ Two practical consequences:
 
 ## A correct explanation sitting directly above the omission it describes
 
-This is a new one, and it is not a missing reader or a missing writer. **The comment was
+This is a new one. **The comment was
 right. It was load-bearing. It was in the file. And it did not cause the work to happen.**
 
 `crate::field`'s module docs had already worked out why the original's estimate round runs
@@ -535,7 +535,7 @@ wheat field is. The renderer dropped the term *because the document said to*, an
 said *"the wheat fields don't show the wheat growing."*
 
 That one is already covered by *name the branch* — a true statement about one of two callers,
-promoted to a statement about both — but it is worth reading beside the first, because the two
+promoted to a statement about both —
 together make the sharper point: **a document is an input to the code, not only a record of
 it.** A wrong `[V]` does not fail to help; it actively produces the defect, and it does
 so through a careful person who checked the reference. The correction log knows this about
@@ -655,7 +655,7 @@ appear.
 
 **It covers `docs/bugs.md`'s B-numbers in the same change, because they are the same race with
 less protection.** Three branches took overlapping B-numbers tonight — two claimed `B64` and two
-claimed `B65` — there is no lint on them at all. `BNEW-<slug>` and the
+claimed `B65` —. `BNEW-<slug>` and the
 same `--assign` pass.
 
 **The detail that makes the case is that one collision merged silently.** Two branches both added
@@ -730,7 +730,7 @@ red at merge once the row had a number. A placeholder is an entry now, so the br
 until `DISPOSITIONS` carries the placeholder, and `--assign` renames that line in the same pass
 as the document.
 
-### Why this is written here and not just done
+### Why this is written here
 
 Two renumbers were done by hand today. Both were clean because no file cited both colliding
 entries — the citation lockfile caught one drag on `symbols.md:307` and confirmed the rest — but
@@ -972,7 +972,7 @@ nothing to maintain and no scanner that can be fooled by a name.
 
 Compare the two honestly. The source-text check (`crates/l2-testkit/tests/encoding.rs`) reads
 text, resolves names, and got two resolutions wrong on its first run. The struct literal cannot
-be got wrong, because there is no step in which judgement happens. **Where that option exists we
+be got wrong,. **Where that option exists we
 should take it**, and the check should be reserved for the boundaries where it does not — which
 is most of them, because the compiler cannot read `L2.eng` or a decompilation.
 
@@ -1045,7 +1045,7 @@ have helped either time.
 **The first was the county-selection arm.** `Map_Click` was read, an arm was found, and the
 conclusion drawn was that C58 had been wrong to deny it. Every step of the reading was accurate
 except the one that mattered: what was found was the *prologue of the industry branch*, and the
-question being answered — *"is there a free-standing selection arm?"* — was never put to
+question being answered — *"is there a free-standing selection arm?"* —
 the text. `docs/decisions.md` C61.
 
 **The second was worse, because it was an experiment designed on purpose.** The question was
@@ -1140,7 +1140,7 @@ two days apart:
 
 **Each was dropped on every rebuild, and the pipeline reported success both times.** The
 name never reached the corpus; `ApplySymbols` printed one line among a hundred; an
-integrator happened to read it. That is not a control.
+integrator happened to read it.
 
 The general shape is the one this file keeps returning to: **the dangerous tool failure is
 not the one that errors, it is the one that returns a clean, plausible, wrong answer.**
@@ -1285,7 +1285,7 @@ records** — the addresses that write its id — and a screen with no writer is
 why `dead` has to be a distinguishable status, not an absence. Two enumerations from
 different directions are what has caught things all evening; one enumeration is a claim.
 
-### One entry here that is not a failure
+### One entry here
 
 Everything else under this heading is something going wrong, which makes the file read as a
 catalogue of carelessness. `docs/bugs.md` B65 is the good case and belongs beside them.
@@ -1298,7 +1298,6 @@ the coincidence and **declined to build the story on it**, marking the counters 
 match unexplained.
 
 That is rule 4 working — *a plausible story assembled from decompiler output is not a finding* —
-and it is worth naming, because every other example in this file is what happens when the same
 temptation wins.
 
 ### The rest of the pattern, recorded
@@ -1350,7 +1349,7 @@ The shape is one shape. **Every check we have is exhaustive over a set, and the 
 failures are outside the set.** A green check therefore licenses a statement of the form *"nothing
 inside this boundary is wrong"* — and it is read, always, as *"nothing is wrong."*
 
-There is no instrument for this and probably cannot be one, because an instrument that could see
+, because an instrument that could see
 its own boundary would need a larger boundary. What there can be is a **habit of naming the
 boundary in the same sentence as the number**, so that the overreach has to be written down
 deliberately instead of happening by omission. `docs/plan.md` §0's third row does this, and it
@@ -1369,7 +1368,7 @@ nobody can open scores 100%. The boundary there is the word *screen*.
 ## A document that promises "until X" keeps promising it long after X
 
 `crates/l2-view/src/text.rs` carried a header saying the interface draws its own letters *"until
-the real font is decoded."* The font had been decoded.
+The font had been decoded.
 screen written after that point read the header, believed it, and reached for the 5×7 debug font
 — and the draw-call audit later found **six modules drawing nothing at all through the game's own
 fonts or artwork**: castle, diplomacy, siege, job, menu, menubar. `menu.rs` drew the game's own
@@ -1414,7 +1413,7 @@ part:
 
 If two files can describe the same object, make one of them derive from the other, or make a
 check that joins them on whatever key they share. Absent that, assume they already disagree,
-because there is no evidence either way and no way to get any.
+and no way to get any.
 
 ## Merging is real work, and treating it as plumbing loses things silently
 
@@ -1501,7 +1500,7 @@ It did not stop this.
 `Readme.txt` says an army is destroyed when it has *"less than 50 men **after** retreating."*
 **This project has quoted that sentence twice** — in two different documents, both times as
 supporting evidence — while implementing the test on the total **before** the halving. The
-citation was accurate. The order of operations in it was never used.
+citation was accurate.
 the sentence for its order of operations; they were reading it for the number 50, which they
 already had.
 
@@ -1519,7 +1518,7 @@ file all along. `docs/decisions.md` C71.
 **The practice.** When an oracle is cited for a fact, **quote the whole sentence into the code or
 the document, and then read the quoted text once more against what is being written** — not
 against the claim it was fetched for. On this project the oracles are short: a `Readme.txt`
-paragraph, an `L2.eng` string, a decompiled function of forty lines. There is no excuse for
+paragraph, an `L2.eng` string, a decompiled function of forty lines.
 reading a clause of one.
 
 And the sharper version, for a `Readme.txt` line especially: **the words "after", "before",
@@ -1627,7 +1626,7 @@ missing is the step after — *now list the others*. Five setters, four lines of
 
 The third row was filed **`open`, not "probably fine"**, and reading it the next morning took
 ten minutes and found the same defect a third time — on the same panel as the first. **Nobody
-reported that one.** There is no player sentence for it, because the enumeration got there
+reported that one.** The enumeration got there
 first, and that is the entire argument: the third instance was the cheapest of the three to
 find and would have been the most expensive to ship, since by then three copies of one
 omission would have looked like a fact about our architecture.

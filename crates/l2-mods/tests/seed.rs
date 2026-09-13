@@ -63,7 +63,7 @@ fn a_troops_file_parses_into_the_documented_shape() {
     assert_eq!(table.counts[0][0][0][0], 0);
     assert_eq!(table.counts[9][2][1][5], 9 * 100 + 2 * 10 + 1 + 5);
     assert_eq!(table.counts[34][4][1][6], 34 * 100 + 4 * 10 + 1 + 6);
-    // The advantage is clamped on read, exactly as the engine clamps it.
+    // The advantage is clamped on read.
     assert_eq!(table.advantage[3], 10);
     assert_eq!(table.advantage[5], 5);
 }
@@ -140,7 +140,7 @@ fn the_generated_rules_reparse_and_mean_what_the_file_meant() {
 /// `docs/formats/eng.md` §3.2: the engine derives every difficulty group from
 /// Normal as `x * p / 100` with p = 116, 108, 100, 92, 84, for troop columns
 /// 0–6 only. All five percentages are asserted here, over every column, from
-/// the ruleset the seeder actually emits.
+/// the ruleset the seeder emits.
 ///
 /// **Corrected.** This test used to inject `scale_percent = 50` through a mod
 /// and then assert that the engine had applied 50 %, over a synthetic file:

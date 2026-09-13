@@ -522,7 +522,7 @@ fn furnish_campaign(k: &mut Kingdom) {
     // The diplomatic state that is not inside a realm record — the five-slot
     // inbox, the outstanding pay-for-help price, and the dice. One letter of
     // every kind, spread across realms so the walk over the array is exercised
-    // rather than one row of it.
+    //
     k.diplomacy.help_price = 3400;
     k.diplomacy.help_county = 9;
     for (n, kind) in l2_kingdom::DiploKind::ALL.iter().enumerate() {
@@ -1191,7 +1191,7 @@ fn a_truncated_save_is_refused() {
 
 /// Trailing rubbish is an error too: it means the writer and the reader
 /// disagree about the schema, and that is worth catching at the first save
-/// rather than at the tenth.
+///
 #[test]
 fn trailing_bytes_are_refused() {
     let mut bytes = encode(&furnished(2));
@@ -1267,7 +1267,7 @@ mod census {
                     fields.push(field);
                 }
             }
-            // A later definition never overwrites an earlier one: there is no
+            // A later definition never overwrites an earlier one:
             // duplicate struct name in this crate, and if one appears the
             // shape assertions in the test are what notice.
             out.entry(name).or_insert(fields);

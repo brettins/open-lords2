@@ -48,7 +48,7 @@
 //! So the jitter really can cancel Spring's +8 and Autumn's +12 outright, and
 //! bites two thirds of the way into Summer's +24. `[V]`
 //!
-//! **This crate keeps `l2_net::Pcg32` rather than porting the two LFSRs.** The
+//! **This crate keeps `l2_net::Pcg32`.** The
 //! *range* is what a rule turns on and it is the original's now; the exact bit
 //! sequence is not, and it would only matter for a save-state-level
 //! differential test, which would need the LFSR seeds out of a running game
@@ -93,7 +93,7 @@ pub const DRYNESS_LADDER: [i32; 4] = [5, 20, 70, 95];
 /// *Frost*.
 pub const FROST_SUNNY_THRESHOLD: i32 = 74;
 
-/// The range `random` in `random/8` actually has: `LFSR & 0x7F`, so 0..=127.
+/// The range `random` in `random/8` 0..=127.
 ///
 /// **No longer an invention.** This was the one constant in the crate with no
 /// evidence behind it — `docs/decisions.md` records it as an open question — and
@@ -122,9 +122,9 @@ pub const WEATHER_COUNTY_MASK: u32 = 0xF;
 /// ```
 ///
 /// **Nothing else in the binary writes `+0x21E`** — one writer, one reader
-/// ([`local_modifier`]) — so it is derived here rather than stored. A saved
+/// ([`local_modifier`]) — so it is derived here. A saved
 /// game holds the byte, and the byte is always this function of the index, so
-/// the two cannot disagree and there is no importer to forget it
+/// the two cannot disagree
 /// (`docs/agents.md`, *a field is only tested if something a test reads was
 /// written by something the game runs*). `[V]`
 pub fn climate_band(county_id: usize) -> u8 {
@@ -163,7 +163,7 @@ pub fn climate_band(county_id: usize) -> u8 {
 /// Reproduced literally — `docs/bugs.md` B92. Winter's ladder is
 /// complete: band 0 has no arm because its value is the fall-through 0.
 ///
-/// Spring and Autumn get nothing at all, which is why the two mild seasons are
+/// Spring and Autumn get nothing at all
 /// the same everywhere on the map and the two extreme ones are not.
 pub fn local_modifier(county_id: usize, season: Season) -> i32 {
     let band = climate_band(county_id);
@@ -207,11 +207,11 @@ pub fn seasonal_delta(t: &Tables, season: Season, rng: &mut Pcg32) -> i32 {
 /// g_weatherCounty = c;
 /// ```
 ///
-/// **`[V]`, and it is not a uniform draw over the counties.** The mask is a
+/// **`[V]`.** The mask is a
 /// flat 0..=15 whatever the map's county count is, so on a 14-county map the
 /// two out-of-range values fall through to *"the county after last season's"* —
 /// which makes the local swing walk steadily around the map about an eighth of
-/// the time, rather than jumping. `previous` is `g_weatherCounty`
+/// the time. `previous` is `g_weatherCounty`
 /// (`0x00554020`), which is its own four-byte save block.
 pub fn chosen_county(draw: u32, county_count: usize, previous: usize) -> usize {
     let mut c = (draw & WEATHER_COUNTY_MASK) as usize;
@@ -466,7 +466,7 @@ mod tests {
     }
 
     /// **`County_Reset`'s index ladder**, written out so that a change to it is
-    /// a change to a table rather than to a `match` nobody reads.
+    /// a change to a table.
     #[test]
     fn the_climate_band_is_cut_out_of_the_county_index() {
         let expected = [
@@ -485,7 +485,7 @@ mod tests {
     ///
     /// Summer's fourth test reads `band == 4` where the ladder wants `band ==
     /// 3`, so band 3 gets nothing and the −24 arm is dead. Spring and Autumn
-    /// return zero for every band, which is why the local swing is a
+    /// return zero for every band
     /// Summer-and-Winter term only.
     #[test]
     fn the_summer_climate_ladder_skips_band_three_and_never_reaches_minus_24() {
@@ -567,7 +567,7 @@ mod tests {
         assert_eq!(chosen_county(0x0F, 14, 3), 4);
         // ... and if that is beyond the map too, county 1.
         assert_eq!(chosen_county(0x0F, 14, 14), 1);
-        // A masked zero is pulled up to 1 rather than indexing the unused
+        // A masked zero is pulled up to 1
         // record.
         assert_eq!(chosen_county(0x10, 14, 3), 1, "0x10 & 0xF is 0");
         // Every possible draw lands inside the map.

@@ -656,7 +656,7 @@ with one checkout. Every test passed, every lint passed, every document was sile
 it was found only because the shared tree stopped compiling mid-merge. No file in this
 repository whose job it is to know that, and no check could have failed.
 
-The general form, which explains why this is a section rather than two anecdotes:
+The general form:
 
 > **A dimension nobody has enumerated cannot produce a failing test, however good the tests in
 > the dimensions somebody did enumerate.** Coverage is measured *inside* a taxonomy. It says
@@ -776,7 +776,7 @@ incomplete**, which is the part worth carrying: with the module built and nothin
 turns of England still produced *no standing below −10 anywhere on the map*, because
 `Diplo_Offend`'s four call sites are not in the diplomacy code at all — they are in the mover
 and in the battle return, two of them already sitting here as reported values with doc comments
-saying *"for a caller that has a diplomacy layer to drive"*. C68's test went red exactly as
+saying *"for a caller that has a diplomacy layer to drive"*. C68's test went red
 designed **and would have stayed green with the step 2 dispatch deleted.** A test written to
 fire when a gap closes inherits the gap's framing, which is always *"is the field non-zero"*;
 it should be replaced. `docs/decisions.md` C84, and
@@ -1085,7 +1085,7 @@ Written so the failure is recognisable early.
 * ~~**`FUN_0042FF10` turns out to matter.**~~ **Retired — it did matter, and it has been
   read.** It is `Screen_FrameInput`, and the rule nobody could find was the right mouse
   button: a player said *"right click would close a bunch of popups"* and the function is
-where that lives. The early warning fired exactly as written, from the player.
+where that lives. The early warning fired
   from us. `docs/decisions.md` C46 and `docs/screens-county.md` §2.6.
 * **The plan is followed and the game is unplayable anyway**, because none of it was shown to
   somebody who has played it. C21 and C22 were both overturned by a player looking at a

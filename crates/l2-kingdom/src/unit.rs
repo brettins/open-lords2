@@ -27,7 +27,7 @@
 //!
 //! # Determinism
 //!
-//! The array is fixed-size and walked by ascending index everywhere, exactly as
+//! The array is fixed-size and walked by ascending index everywhere
 //! the original's is. Nothing here allocates on a decision, branches on a
 //! pointer or iterates a hash (`docs/netcode.md` §3).
 
@@ -699,7 +699,7 @@ pub const STRENGTH_SCORE_BONUS: i32 = 20;
 
 /// The 151-slot array, and the operations that walk it.
 ///
-/// Slot 0 is never a unit, exactly as in the original. A free slot is `None`
+/// Slot 0 is never a unit. A free slot is `None`
 /// so "is this slot in use" cannot be asked two
 /// different ways.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -798,7 +798,7 @@ impl Units {
     /// any tile flag, so a garrison that occupied its own castle tile would turn
     /// every siege into a field battle fought on open ground — which is exactly
     /// what happened here until this line existed: the besieger walked up, met
-    /// the garrison as an obstacle, and `Army_BeginSiege` was never reached.
+    /// the garrison as an obstacle.
     /// `[V]`
     pub fn at(&self, x: u8, y: u8) -> Option<usize> {
         self.iter()
@@ -975,7 +975,7 @@ pub enum Starvation {
 ///
 /// `armies_eat` is `g_optArmiesEat`, `L2.eng` group 50 index 2 — the advanced
 /// option the game itself calls *"Army foraging"*, and it is **off in the
-/// shipped save**, in which case this only ever clears the counters.
+/// shipped save**
 pub fn starve(
     t: &Tables,
     units: &mut Units,

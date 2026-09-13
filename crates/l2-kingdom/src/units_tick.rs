@@ -71,7 +71,7 @@
 //! the order was given, in the same phase, before `Units_Tick` runs; nothing
 //! observes a unit sitting at 1. The one place the distinction has teeth is a
 //! *different* phase's units, and this driver steps every kind on every tick
-//! exactly as the original's frame loop does, so there is nothing for the extra
+//! exactly as the original's frame loop does,
 //! state to gate. **`[D]`** — recorded because if a mob is ever seen stepping a
 //! tick early, this is the paragraph that is wrong.
 
@@ -229,7 +229,7 @@ pub struct UnitsTick {
 
 impl UnitsTick {
     /// The battle this tick raised, if any. At most one: the sweep stops on the
-    /// first, exactly as `Units_Tick`'s latch does.
+    /// first,
     pub fn battle(&self) -> Option<Encounter> {
         self.contacts.iter().find_map(|c| match c {
             Contact::Battle(e) => Some(*e),
@@ -539,7 +539,7 @@ impl Kingdom {
     /// whatever it passes, in either direction. `[D]`
     ///
     /// Returns whether the pair were merged, in which case the mover's slot is
-    /// gone and there is no contact to classify.
+    /// gone
     fn merge_on_contact(&mut self, mover: usize, occupant: usize) -> bool {
         let units = &self.campaign.units;
         let (Some(m), Some(o)) = (units.get(mover), units.get(occupant)) else { return false };

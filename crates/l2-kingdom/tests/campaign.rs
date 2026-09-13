@@ -3,7 +3,7 @@
 //! The unit tests in `src/` each check one rule against the decompiled function
 //! it came from. This checks the things that only exist once the rules are
 //! *composed into a turn*, which is where the hooks `docs/armies.md` §6.4 calls
-//! *"the missing half"* actually bite:
+//! *"the missing half"*
 //!
 //! * the starvation ladder over five consecutive seasons, including the
 //!   ordering that makes an army desert and then be billed the reduced wage in
@@ -232,7 +232,7 @@ fn an_occupying_army_eats_the_countys_food() {
 }
 
 /// The recount is what puts an army on the county's food bill, and it is driven
-/// by where the army is standing rather than by who owns it.
+/// by where the army is standing.
 #[test]
 fn marching_an_army_across_a_border_moves_which_county_feeds_it() {
     let mut k = kingdom();
@@ -395,7 +395,7 @@ fn a_trampled_mine_is_dead_for_three_seasons_and_then_reopens() {
 }
 
 /// **An unowned county's trampled mine never reopens**, and that is a
-/// composition rather than a rule anybody wrote.
+/// composition.
 ///
 /// `Unit_TrampleTile` writes 3 into `disabled_seasons`; the *only* thing that
 /// counts it back down is `Industry_Produce`, and this crate's industry pass
@@ -403,7 +403,7 @@ fn a_trampled_mine_is_dead_for_three_seasons_and_then_reopens() {
 /// `docs/kingdom.md` §7.4). So marching over a neutral county's iron shuts it
 /// down for good, until somebody takes the county.
 ///
-/// Asserted so the interaction is visible rather than surprising. Whether the
+/// Asserted so the interaction is visible. Whether the
 /// original's driver also skips unowned counties was **not** checked — this
 /// asserts what our engine does, and it is worth checking against the binary
 /// before anyone treats it as a rule of the game.
@@ -450,7 +450,7 @@ fn an_army_cannot_shut_down_its_own_realms_mine() {
 // ---------------------------------------------------------------------------
 
 /// The one thing the whole layer exists to produce, driven through the kingdom
-/// rather than through the modules: an army that reaches a defenceless county's
+///: an army that reaches a defenceless county's
 /// castle takes it, and the realm's county count follows.
 #[test]
 fn an_army_that_reaches_a_castle_takes_the_county() {
@@ -475,7 +475,7 @@ fn an_army_that_reaches_a_castle_takes_the_county() {
 }
 
 /// A county that can defend itself produces a battle instead, and the layer
-/// hands the pair over rather than fighting it.
+/// hands the pair over.
 #[test]
 fn a_county_that_can_defend_itself_produces_a_battle_and_keeps_its_owner() {
     let mut k = kingdom();
@@ -583,7 +583,7 @@ fn two_identically_built_kingdoms_stay_byte_identical_through_a_year() {
     }
 }
 
-/// The array bound is the original's, and it is enforced rather than grown.
+/// The array bound is the original's, and it is enforced.
 #[test]
 fn the_unit_array_holds_a_hundred_and_fifty_and_refuses_the_hundred_and_fifty_first() {
     let mut k = kingdom();

@@ -358,7 +358,7 @@ pub fn set_type(
         crate::labour::allocate(&mut counties[county]);
         // The blacksmith's share moves with who is *staffed*, and the
         // allocation just above is what staffs them, so this is recomputed
-        // inside the loop exactly as the original recomputes it inside every
+        // inside the loop
         // `resourceLimit`.
         let share = crate::industry::weapon_shares(tables, counties, county_count, owner);
         let realm = realms.get(owner as usize).unwrap_or(&neutral);
@@ -457,7 +457,7 @@ pub fn refresh_estimates(
     //
     // A player: *"I right now have −11 cattle. If I move it so the people are
     // eating cattle, it still says −11 cattle in the sidebar."* He is right, and
-    // the number itself was never wrong — county `+0x258` (`herdOverallChange`,
+    // the number itself
     // `L2.eng` 77/28 *"Overall change"*, and named `herdChangeFromFarming`
     // after 77/7 until this was read) is
     // `(births − deaths) − herdEaten`, so slaughter **is** in it, and the name
@@ -513,7 +513,7 @@ pub fn paint_tile(map: &mut CampaignMap, tile: usize, terrain: u8) {
 /// `+0x1A7` is set and this is not the first tile matched, write `2` instead of
 /// the requested terrain* — which is `Grain_SeasonTick`'s business, not the
 /// herd's, and `Herd_UpdateCrowding` passes `first = 0x13`. Naming it here
-/// rather than silently narrowing the helper: a caller that wants the grain
+///
 /// half needs to bring it. **[V]**
 pub fn repaint_range(county: &County, map: &mut CampaignMap, terrain: u8, range: (u8, u8)) {
     for slot in 0..MAX_FIELDS {

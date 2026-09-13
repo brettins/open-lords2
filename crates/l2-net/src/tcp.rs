@@ -8,7 +8,7 @@
 //! no C toolchain. This module is that choice, built.
 //!
 //! Until it existed, §7's analysis was *static* — the crates were read
-//! rather than compiled and no socket had ever been opened. What
+//! What
 //! follows is the part that had to be run to be believed.
 //!
 //! # The rule this module lives under
@@ -23,7 +23,7 @@
 //! clock to consult — which is exactly how [`Session`] is written. A
 //! socket, by contrast, cannot avoid the scheduler: *how much has
 //! arrived by now* is a scheduler-dependent quantity, and it is
-//! precisely the value D-5 says must never reach a tick. Keeping it on
+//! the value D-5 says must never reach a tick. Keeping it on
 //! this side of the trait is what lets `tests/lockstep.rs` run two
 //! peers with no clock and no threads and still be a real test of the
 //! thing that matters, while this file deals with the part that is
@@ -57,7 +57,7 @@
 //!
 //! One caller thread, one non-blocking drain per frame, at the same
 //! fixed point in the loop `tests/lockstep.rs` already uses. If a
-//! future transport genuinely needs threads (a blocking TLS handshake,
+//! future transport needs threads (a blocking TLS handshake,
 //! say), it goes behind this same trait and the session does not learn
 //! about it.
 //!
@@ -75,7 +75,7 @@
 //! framing belongs *above* the trait, and `tests/lockstep.rs` frames
 //! above it before handing bytes to a [`Loopback`](crate::Loopback).
 //! Both can be true — a caller that frames on top of a transport that
-//! frames underneath simply pays eight bytes instead of four, and the
+//! frames underneath pays eight bytes instead of four, and the
 //! messages still come out whole — but only one of them is the trait's
 //! actual contract, and it is the one written on the trait. Sockets are
 //! framed here so that swapping [`Loopback`](crate::Loopback) for
@@ -125,7 +125,7 @@ use crate::transport::{frame, FrameReader, PeerId, Transport, TransportError};
 
 /// How much this transport will read from one socket in one visit.
 ///
-/// A bound rather than "until `WouldBlock`" so that one peer flooding
+/// A bound so that one peer flooding
 /// the link cannot make a single [`TcpTransport::poll`] run for
 /// unbounded time inside a caller's frame. The next poll picks up where
 /// this one stopped, and the round-robin cursor means it is somebody
@@ -287,7 +287,7 @@ impl Connection {
     }
 }
 
-/// The errors that mean "this peer is gone" rather than "something went
+/// The errors that mean "this peer is gone"
 /// wrong".
 ///
 /// Worth spelling out because the obvious form of the check — treat a
@@ -327,7 +327,7 @@ fn io(e: &std::io::Error) -> TransportError {
 /// # Peer ids are assigned in accept order and never reused
 ///
 /// The first peer a host accepts is `PeerId(0)`, the second `PeerId(1)`,
-/// and a player who drops and reconnects gets a *new* id rather than
+/// and a player who drops and reconnects gets a *new* id
 /// their old one. That is deliberate: a reconnecting player is the same
 /// [`PlayerSlot`](crate::PlayerSlot) on a different connection, and
 /// reusing the id would let a stale reference to the dead connection
@@ -400,10 +400,10 @@ impl TcpTransport {
     /// Connect, giving up after `timeout`.
     ///
     /// The only [`Duration`] in the crate, and it is the caller's
-    /// patience rather than a clock this code reads. It matters in
+/// patience this code reads. It matters in
     /// practice: connecting to a host that is up but not listening —
     /// the wrong port typed into a dialog, or a firewall dropping
-    /// rather than refusing — blocks for around twenty seconds on
+    /// — blocks for around twenty seconds on
     /// Windows before the OS gives up, which a player reads as a hang.
     pub fn connect_timeout(
         addr: SocketAddr,
@@ -441,7 +441,7 @@ impl TcpTransport {
     }
 
     /// The remote address of a peer, for logs and for the "who is
-    /// actually in this game" screen.
+/// in this game" screen.
     pub fn peer_addr(&self, peer: PeerId) -> Option<SocketAddr> {
         self.conns.iter().find(|c| c.id == peer)?.stream.peer_addr().ok()
     }
@@ -525,7 +525,7 @@ impl TcpTransport {
 
     /// Errors that killed a connection, since this was last called.
     ///
-    /// Reported rather than returned because they happen inside
+/// Reported because they happen inside
     /// [`Transport::poll`], whose signature is `Option` and not
     /// `Result` — a drain loop must not have to distinguish "nothing
     /// arrived" from "something broke" on every iteration. Pair it with
@@ -533,7 +533,7 @@ impl TcpTransport {
     /// per-peer fault here also produces a departure there.
     ///
     /// The `Option` is `None` for a failure of the *listener*, which
-    /// belongs to no peer. It is an `Option` rather than a reserved
+/// belongs to no peer. It is an `Option`
     /// [`PeerId`] value because a sentinel id is a value that looks
     /// like a peer to every piece of code that does not know about the
     /// convention.
@@ -652,7 +652,7 @@ impl Transport for TcpTransport {
     ///
     /// Accepts new connections, pushes pending writes, reads what has
     /// arrived, and returns one message. Never blocks — which is the
-    /// trait's promise and the reason there is no reader thread.
+    /// trait's promise.
     ///
     /// Call it in a loop until `None`, at **one fixed point per tick**.
     /// Not mid-tick: how much has arrived by a given instant is the
@@ -693,7 +693,7 @@ impl Transport for TcpTransport {
 
     /// Everyone connected, in id order, dead connections excluded.
     ///
-    /// Excluded the moment the link fails rather than when it is
+/// Excluded the moment the link fails
     /// reaped, so a caller that broadcasts from this list never
     /// addresses a socket that is already gone. Errata 7 is the whole
     /// argument for this method existing: the transport knows, and a

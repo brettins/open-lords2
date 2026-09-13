@@ -96,7 +96,7 @@
 //! 4 and `battle-before.sav` the opening of turn 5. Between them a person
 //! played: they may have moved the tax slider, changed the ration, ordered a
 //! castle, bought weapons, marched an army. None of that is in either file as
-//! an *action*, and no amount of simulation recovers it. There is no pair of
+//! an *action*, and no amount of simulation recovers it.
 //! consecutive saves that avoids this — a turn is where the player lives.
 //!
 //! That is why divergences are classified. [`Kind`] has four
@@ -208,7 +208,7 @@
 //!    measurement of a seam that had been documented and left unbuilt.
 //!
 //!    **The comment that documented it was wrong, and that is the lesson.**
-//!    `l2_kingdom::ai_farm::NoMarket` said *"there is no stall yet, so every
+//! `l2_kingdom::ai_farm::NoMarket` said *"
 //!    style's opening shopping cascade is refused."* County `+0x1A4`, the stall
 //!    gate, is **non-zero on every fixture county holding a merchant**, and the
 //!    purse at `+0x1F4` carries 186, 297 and 260 on county 1 and 195, 316 and

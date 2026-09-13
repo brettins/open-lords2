@@ -12,7 +12,7 @@ l2-game <game dir> [--mods <dir>]
 
 ---
 
-## Where this actually is
+## Where this
 
 Early. It runs, and it is nowhere near the whole game. The honest inventory:
 
@@ -30,7 +30,7 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 | Merchants, diplomacy, armies | documented in detail, implemented barely or not at all |
 
 **<!--fig:tests-->2,676<!--/fig--> tests pass**, and roughly a third of them assert things
-read out of the original binary rather than out of our own heads.
+read out of the original binary
 
 Two honest caveats. The one shipped save we test against exercises a narrow slice of the
 rules — every county in it sits at tax rate 0 with a well-staffed herd — and that is exactly

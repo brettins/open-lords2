@@ -27,7 +27,7 @@
 //! * [`Transport`] — the trait from §7, unchanged apart from a
 //!   `peers()` method argued for below.
 //! * [`FrameReader`] / [`frame`] — length-prefix framing. This is the
-//!   part of a TCP transport that is actually easy to get wrong — a
+//! part of a TCP transport that is easy to get wrong — a
 //!   message split across two `read` calls, or two messages arriving in
 //!   one — and it is fully tested here, byte-splitting included.
 //!
@@ -46,7 +46,7 @@
 //!   of four.
 //! * [`Loopback`] — a complete in-process network with controllable
 //!   latency, reordering and partitioning, so that [`Session`] and the
-//!   desync detector are exercised for real rather than in principle.
+//! desync detector are exercised for real.
 //!
 //! [`Session`]: crate::Session
 //!
@@ -189,7 +189,7 @@ pub const MAX_FRAME: usize = 1 << 20;
 
 /// Length-prefix a message: four little-endian bytes, then the payload.
 ///
-/// Framing lives above [`Transport`] rather than inside it precisely so
+/// Framing lives above [`Transport`] precisely so
 /// that both kinds of implementation present the same interface (§7).
 pub fn frame(payload: &[u8]) -> Result<Vec<u8>, TransportError> {
     if payload.len() > MAX_FRAME {
@@ -354,10 +354,10 @@ impl Loopback {
 
     /// Hold everything sent to `peer` for `polls` extra polls.
     ///
-    /// Latency in polls rather than milliseconds, because a clock has
+    /// Latency in polls, because a clock has
     /// no place in a deterministic test (D-5) and because "how many
     /// times did the loop go round before this arrived" is the quantity
-    /// the session actually cares about.
+    /// the session cares about.
     pub fn set_latency(&self, peer: PeerId, polls: u64) {
         self.with_box(peer, |b| b.latency = polls);
     }
@@ -380,17 +380,17 @@ impl Loopback {
     /// session, because tick `N` can never be simulated without it and
     /// nothing in the design retransmits. That is not a flaw in the
     /// session — it is the reason `docs/netcode.md` §7 lists reliable,
-    /// ordered delivery as a *requirement* rather than a preference,
+    /// ordered delivery as a *requirement*,
     /// and the reason lockstep has no use for an unreliable channel.
     ///
     /// Use [`Loopback::hold`] to model the case a reliable transport
-    /// actually produces.
+    /// produces.
     pub fn partition(&self, peer: PeerId, dropped: bool) {
         self.with_box(peer, |b| b.partitioned = dropped);
     }
 
     /// Stop delivering to `peer`, but **keep** what is sent — a stalled
-    /// connection rather than a lossy one.
+    /// connection.
     ///
     /// This is what a peer going quiet looks like over TCP: nothing is
     /// lost, everything is late, and the moment the link recovers the
@@ -464,7 +464,7 @@ impl Transport for Endpoint {
             return Err(TransportError::NoSuchPeer(peer));
         };
         if mailbox.partitioned {
-            // Silently dropped, exactly as a real partition does. The
+            // Silently dropped. The
             // sender of a lost packet gets no error either.
             return Ok(());
         }

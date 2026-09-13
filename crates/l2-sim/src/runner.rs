@@ -887,7 +887,7 @@ impl BattleRunner {
     /// *"won"* pair.
     ///
     /// **A field battle ends only when one side is annihilated or withdraws.**
-    /// There is no morale break, no rout threshold and no clock. The three
+    ///
     /// siege arms — the escape tile, *assault repulsed, repeat*, and *siege
     /// lifted* — are deliberately not here: sieges are out of scope, and
     /// `Battlefield_BuildCastle` has not been implemented, so a battle in this
@@ -1816,7 +1816,7 @@ impl BattleRunner {
     /// Ascending figure index, so ties break to the lowest index; a **square**
     /// range gate but a **Manhattan** score, so the corners of the box are
     /// reachable at twice the range; a siege engine costs `+35` and is invisible
-    /// to anything without a weapon; and the score is capped at 160, which is
+    /// to anything without a weapon; and the score is capped at 160
     /// also the "nothing found" sentinel.
     ///
     /// Returns a *simulation* figure index, which is what a figure's `target`
@@ -2293,7 +2293,7 @@ impl BattleRunner {
     /// `FUN_004926FB` answers 1 if the figure's own destination is already
     /// water, and otherwise hunts radii 1…19 for a cell that is and **retargets
     /// the figure at it**. So a man who has filled one cell walks to the next
-    /// one by himself, and only when there is no water within nineteen cells
+    /// one by himself
     /// does he leave state 9. Without that tail a figure sat on the cell it had
     /// just filled for the rest of the battle, and — because
     /// `Formation_SendFigure` will not re-issue to state 9 — could not be
@@ -2956,7 +2956,7 @@ impl BattleRunner {
 /// casualty of its own pour, so a garrison's oil is counted in
     /// pots and not in men. With a hundred records in flight the spawn fails
     /// and the original runs its four steps on a record past the array; here
-    /// there is no stream, and the pot is spent and the pour heard regardless,
+    ///
     /// as those writes are unconditional.
     ///
     /// The original's own loop in `BattleUnit_Order` walks figures by owner,
@@ -3161,7 +3161,7 @@ impl BattleRunner {
     }
 
     /// `BattleMan_Destroy` (`0x0046EBE4`) — **the figure is gone**, not dead:
-    /// the record is cleared, so there is no corpse, no death and no cry. Here
+    /// the record is cleared
     /// the figure keeps its index and is left with no men, dead, off its cell,
     /// and already at the last frame of falling so nothing is drawn falling.
     fn destroy_fighter(&mut self, i: usize) {
@@ -3414,7 +3414,7 @@ impl BattleRunner {
     /// is, nothing happens beyond resetting that unit's reform timer. If it is
     /// not — the player boxed half a unit, or figures from two — it **allocates
     /// a new unit** and moves every selected figure into it. From then on the
-/// selection *is* a unit, so [`Self::order_selected`] only ever
+/// selection *is* a unit
     /// orders one.
     ///
 /// Two details reproduced:
@@ -3558,7 +3558,7 @@ impl BattleRunner {
     /// formation orientation, so the unit turns its rectangle without moving.
     /// The original reads `DAT_0053E984` directly and does **not** regroup
     /// first; it also plays the acknowledgement cry unconditionally, even when
-    /// there is no unit to turn.
+    ///
     pub fn order_formation(&mut self, unit: usize, formation: Formation) {
         if unit == 0 || unit > MAX_UNITS || !self.units.get(unit).is_live() {
             return;

@@ -74,7 +74,7 @@ impl History {
 
     /// The oldest tick still remembered. A claim about a tick older
     /// than this cannot be checked — which is a real limitation and one
-    /// [`Session`](crate::Session) reports rather than hides.
+    /// [`Session`](crate::Session) reports.
     pub fn earliest(&self) -> Option<Tick> {
         self.entries.front().map(|(t, _)| *t)
     }
@@ -166,7 +166,7 @@ impl DesyncDump {
     ///
     /// Returns the subsystems whose digests differ, and the first tick
     /// at which the two checksum histories part company — which is the
-    /// sentence anyone reading a desync report actually wants: "the
+    /// sentence anyone reading a desync report wants: "the
     /// unit array diverged at tick 4,112".
     pub fn compare(&self, other: &DesyncDump) -> DumpComparison {
         let first_difference = self
@@ -260,7 +260,7 @@ impl core::fmt::Display for DumpComparison {
 /// dumps are used: *both* peers write their own dump locally and the
 /// two files are compared afterwards by a person. Nothing sends a dump
 /// over the wire, and [`DesyncDump::compare`] — which is what a
-/// comparison actually needs — works on the values, not on the bytes.
+/// comparison needs — works on the values, not on the bytes.
 /// A tool that wants to read dump files can decode this format without
 /// this crate's type.
 impl crate::canonical::Encode for DesyncDump {

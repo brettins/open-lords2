@@ -55,7 +55,7 @@
 //!   The split is the same one the original makes between `County_Reset`'s
 //!   defaults and the option rows that overwrite them.
 //! * **The starting garrison.** `Army_Create` at setup is
-//!   `Settings::unhonoured`'s, exactly as it is on the save path.
+//! `Settings::unhonoured`'s.
 
 use l2_formats::maps::{MapSlot, Plane, PLANE_DIM};
 use l2_kingdom::county::{MAX_COUNTIES, MAX_COUNTY_ID, MAX_FIELDS, MAX_NEIGHBOURS};
@@ -187,7 +187,7 @@ mod reset {
 /// A map slot that cannot be made into a world.
 ///
 /// Each of these is a refusal, for the reason
-/// [`crate::Scenario::from_save`]'s are: a map we have misread is not a map to
+/// [`crate::Scenario::from_save`]'s are:
 /// half-load.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MapError {
@@ -1031,7 +1031,7 @@ fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
         }
     }
     // The probe can leave an entry unplaced only if every slot was full, which
-// needs more sources than slots; there are exactly as many of each.
+// needs more sources than slots;
     debug_assert!(table[1..].iter().all(|&c| c != 0), "the deal placed every start");
     table[1..].to_vec()
 }
@@ -1393,7 +1393,7 @@ impl Scenario {
     /// The clock is `Game_NewGame`'s: **Autumn 1267, with Winter next.**
     /// `Kingdom::start_new_game` then runs the one immediate `Season_Advance`
     /// that puts a new game in Winter 1268, so this is deliberately the
-/// position *before* it, exactly as [`Scenario::starting_kingdom`] is for a
+/// position *before* it,
     /// save.
     pub fn from_map(slot: &MapSlot<'_>, setup: &NewGame) -> Result<Scenario, MapError> {
         let world = build(slot, setup)?;

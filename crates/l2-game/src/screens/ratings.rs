@@ -47,7 +47,7 @@
 //!
 //! Block pitch is exactly 160 and row pitch exactly 20. The column x is
 //! `c * 0x32 + 0xAD` in a **60-pixel box** at a 50-pixel pitch, so the boxes
-//! overlap by ten — and `Ui_DrawNumberRight` **centres** rather than
+//! overlap by ten — and `Ui_DrawNumberRight` **centres**
 //! right-aligning (`FUN_004025D7` is `(width − textWidth) / 2`, the same helper
 //! `Ui_DrawCentred` uses), which `docs/symbols.json` has wrong for every caller
 //! in the binary.
@@ -99,7 +99,7 @@
 //! The two sum to 300, which is the shape of the `3 * survive` term they were
 //! meant to replace. As decompiled, in every battle category except 0 — that is
 //! every castle battle and every `.skr` scenario — the handicap has no effect
-//! on either score. Marked `[D]` rather than `[V]` because it rests on Ghidra's
+//! on either score. Marked `[D]`
 //! dead-value elimination and not on the disassembly; one look at `0x0042C8xx`
 //! would settle it. [`HANDICAP_IS_DEAD`] is the switch, and it is *off*,
 //! because reproducing a dead computation is reproducing nothing.
@@ -136,7 +136,7 @@
 //! # `0x2F`, the rank sheet — `Screen_BattleMasterRank` (`0x00421D09`)
 //!
 //! Read as part of the draw-call audit and **not built**, so that the next
-//! person to reach for it starts from the painter rather than the name.
+//! person to reach for it starts from the painter.
 //! **Its six draw calls are all it has**, and the two `Screen_DrawWidgets`
 //! functions that looked like they might be hiding its content are not drawing
 //! functions at all:
@@ -196,10 +196,10 @@
 //! # What is not here, and why
 //!
 //! **The skirmish itself.** This engine has a campaign battlefield and no
-//! Battle Master mode: there is no `DAT_0057A0F0`, no eight-slot before/after
+//! Battle Master mode: no eight-slot before/after
 //! snapshot and no `score.dat`. So [`Ratings`] is a value the *battle* fills in
 //! and this screen draws, and until a skirmish exists the only thing that fills
-//! it is a test. That is stated rather than hidden: a screen whose input does
+//! it is a test. That is stated: a screen whose input does
 //! not exist yet is honest about it, and the scoring rule is the part worth
 //! having now, because it is a rule and it was written down nowhere.
 
@@ -341,7 +341,7 @@ impl Default for Ratings {
 /// realm * 0x2C, …)`. Group 37 has no word for a player, so the fallback when
 /// nothing filled the names is ours and is the one `screens/county.rs` uses:
 /// a world that never came through the front end has no lords in it, and an
-/// empty line beside a shield reads as a drawing fault rather than as missing
+/// empty line beside a shield reads as a drawing fault
 /// data.
 fn lord_name(ctx: &Ctx, realm: u8) -> String {
     match ctx.game.player_names.get(realm as usize).map(|n| n.as_str()) {
@@ -375,7 +375,7 @@ pub fn score(r: &Ratings) -> (i32, i32) {
     let lost_theirs = r.theirs.0.strength() - r.theirs.1.strength();
     let total = lost_mine + lost_theirs;
     // **The kill share is the share of destroyed strength that was the OTHER
-    // side's**, which is why the two arguments are crossed.
+    // side's**.
     let kill_mine = pct_of(lost_theirs, total);
     let kill_theirs = pct_of(lost_mine, total);
     let survive_mine = pct_of(r.mine.1.men, r.mine.0.men);
@@ -464,7 +464,7 @@ impl Screen for RatingsScreen {
                 Transition::Pass
             }
             // **Any press, either button, anywhere.** The OK picture is not
-            // tested and this fires on press rather than release.
+            // tested and this fires on press.
             //
             // The original goes *forward* to `0x2F`, the rank screen, which is
             // not built; `0x2F` returns to the skirmish setup page, which is
@@ -518,7 +518,7 @@ impl Screen for RatingsScreen {
             let name = lord_name(ctx, realm);
             // **[`Pen::body`] returns an absolute x, not a width** — see its
             // own doc comment and `docs/decisions.md` C61. These three lines
-            // added it to `NAME_AT.0` a second time, which with the real fonts
+            // added it to `NAME_AT.0` a second time
             // loaded put *"Scored"* and the score off the right of the block.
             let x = pen.body(canvas, NAME_AT.0, top + NAME_AT.1, &name, font::TEXT);
             let x = pen.eng(canvas, GROUP, SCORED, x, top + NAME_AT.1, font::TEXT);
@@ -547,7 +547,7 @@ impl Screen for RatingsScreen {
                 let hue = if after.troops[c] == 0 { font::TEXT } else { 0x20 };
                 // Lead `' '`, suffix `&DAT_004D43B8` … `&DAT_004D43D0` — six
                 // addresses, each holding a single space. Read out of the image
-                // rather than assumed: the suffix is inside what `FUN_004025D7`
+                //: the suffix is inside what `FUN_004025D7`
                 // measures, and `Panel_Ration`'s five sites pass an *empty* one.
                 // `docs/decisions.md` C140. **[V]**
                 pen.number_centred(

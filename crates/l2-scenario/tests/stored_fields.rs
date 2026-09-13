@@ -1,6 +1,6 @@
 //! **`docs/stored-fields.json` against the layout, the decompilation and the
 //! original's own saves** — the check that makes *"a stored field our importer
-//! drops"* a red test rather than a player's report.
+//! drops"* a red test.
 //!
 //! # Why it exists
 //!
@@ -18,7 +18,7 @@
 //!
 //! * [`every_stored_field_is_imported_derived_or_excluded_with_a_reason`] —
 //!   every row decides: `imported`, `derived`, or `excluded` with a one-line
-//!   `why`. There is no fourth status, because *"not decided"* is the defect.
+//! `why`.
 //! * [`every_field_the_layout_names_has_a_row_of_that_name_and_width`] — a field
 //!   added to `docs/records.json` goes red here until somebody decides about it.
 //! * [`every_offset_the_decompilation_touches_has_a_row`] — the original's side:
@@ -37,7 +37,7 @@
 //! against the decompilation; `fields.js` prints each offset's writers and
 //! readers so the reading is short. And a claimed row that is **zero in every
 //! save** is checked only against zero — the corpus cannot tell its offset from
-//! a zero neighbour — so the value check prints how many there are rather than
+//! a zero neighbour — so the value check prints how many there are
 //! letting a green run imply more than it measured.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -142,7 +142,7 @@ fn number_field(line: &str, key: &str) -> Option<u32> {
 /// Every row, in file order. **One object per line** is the file's contract,
 /// and it is what lets this read it without a JSON crate — the build must not
 /// grow a dependency for a test. A reformatted file loses its rows, and the
-/// count assertion says so rather than passing on nothing.
+/// count assertion says so.
 fn rows() -> Vec<Row> {
     let path = repo_root().join("docs/stored-fields.json");
     let text = std::fs::read_to_string(&path).expect("docs/stored-fields.json");
@@ -593,7 +593,7 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x297", |k, i, e| k.counties[i].industry[e].enabled as i64),
         at("County+0x29E", |k, i, e| k.counties[i].industry[e].capacity as i64),
         at("County+0x2A0", |k, i, e| k.counties[i].industry[e].total as i64),
-        // The snapshot is not a field of `Industry`: `output` is the difference
+        // The snapshot is not a field of `Industry`:
         // the pass takes, so the snapshot is what makes that difference.
         at("County+0x2A4", |k, i, e| {
             let ind = &k.counties[i].industry[e];

@@ -90,7 +90,7 @@ pub mod id {
 pub mod flag {
     pub const IMPASSABLE: u8 = 0x10;
     pub const BLOCKED: u8 = 0x80;
-    /// The mask movement actually tests.
+    /// The mask movement
     pub const NO_ENTRY: u8 = 0x90;
 }
 
@@ -205,7 +205,7 @@ pub struct Lfsr(u32);
 
 impl Lfsr {
     /// Any non-zero seed. Zero is an absorbing state in this LFSR, so it is
-    /// rejected rather than silently producing a constant.
+    /// rejected
     pub fn new(seed: u32) -> Self {
         Lfsr(if seed == 0 { 1 } else { seed })
     }
@@ -412,7 +412,7 @@ fn match_table(table: &[Pattern], counters: &mut [u8], mask: [bool; 8]) -> Optio
 
 /// The eight neighbours in the order `FUN_0047D816` tests them, derived from
 /// the cell-array offsets it indexes: N, NE, E, SE, S, SW, W, NW. Off-map
-/// neighbours take `edge` rather than being read.
+/// neighbours take `edge`
 fn neighbour_mask(terrain: &[u8], x: usize, y: usize, want: u8, edge: bool) -> [bool; 8] {
     let last = DIM - 1;
     let get = |dx: isize, dy: isize| -> bool {
@@ -444,7 +444,7 @@ fn neighbour_mask(terrain: &[u8], x: usize, y: usize, want: u8, edge: bool) -> [
 ///
 /// Two differences from the field's water, both the builder's: the frame it
 /// leaves comes out of **slot 1**, `t32_stn2` / `t32_wod2`, and a no-match
-/// cell keeps frame 0 rather than the id's own default.
+/// cell keeps frame 0
 pub fn moat_autotile(terrain: &[u8]) -> Vec<u8> {
     assert_eq!(terrain.len(), CELLS);
     let mut counters = Counters::new();
@@ -711,7 +711,7 @@ mod tests {
     }
 
     /// The auto-tiler's whole point: a cell's graphic depends on its
-    /// neighbours, not just on its own byte.
+    /// neighbours
     #[test]
     fn identical_terrain_bytes_get_different_graphics_from_their_surroundings() {
         let mut v = blank_layer();

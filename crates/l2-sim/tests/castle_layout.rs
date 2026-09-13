@@ -16,7 +16,7 @@ use l2_sim::terrain::DIM;
 use l2_sim::{BattleRunner, Muster, Troop};
 
 /// The layouts in an install directory, or `None` — every test here skips on
-/// `None` rather than failing, because a checkout with no install is a
+/// `None`, because a checkout with no install is a
 /// supported checkout and the castle's shape lives only in the player's file.
 fn layouts(dir: Option<std::path::PathBuf>) -> Option<CastleSheets> {
     let path = l2_testkit::find(&dir?, CastleSheets::FILE)?;
@@ -39,7 +39,7 @@ macro_rules! sheets {
 /// **The file is exactly its own directory plus ten layers.** The shipped
 /// `Stnfield.pl8` is 64,168 bytes: 168 of PL8 header and directory, then
 /// 10 × 6,400. Five castles, two layers each, and the builder's `castle * 0x20`
-/// stride is two 16-byte PL8 records — which is why a directory written for a
+/// stride is two 16-byte PL8 records — a directory written for a
 /// sprite sheet answers a question about castles.
 #[test]
 fn the_layout_file_holds_five_castles_of_two_layers_each() {
@@ -137,7 +137,7 @@ fn only_the_two_largest_castles_carry_a_drawbridge() {
 }
 
 /// **One way in, and it is a way in whatever else the castle has.** Structure
-/// code 6 appears exactly once in every one of the five layers, and the keep
+/// code 6 appears once in every one of the five layers, and the keep
 /// door's elevation is the one place the two castle families disagree: 4 for a
 /// stone keep and 1 for a wooden one.
 #[test]
@@ -245,7 +245,7 @@ fn the_structure_layer_fills_the_tables_the_ai_reads() {
 ///
 /// Boiling oil wants elevation 2 under the pot (`Oil_FindPourTarget`) and a
 /// tower wants elevation 2 in front of it (`FUN_00491492`). Both are counted by
-/// [`l2_sim::Cues`], so this runs the battle and reads the counters rather than
+/// [`l2_sim::Cues`], so this runs the battle and reads the counters
 /// asserting on geometry.
 ///
 /// Ablation, run: swap `deploy_siege_on_sheet` for `deploy_siege` with

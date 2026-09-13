@@ -33,7 +33,7 @@ use l2_formats::save::{Save, SaveError, COUNTY_RECORDS, NEIGHBOUR_SLOTS, REALM_R
 use l2_testkit::{executable, saves, skip, SaveFile};
 
 /// The arithmetic that validates the whole schema, and it is a property of the
-/// executable rather than of any save: `Save_Write`'s table accounts for
+/// executable: `Save_Write`'s table accounts for
 /// 267,028 bytes of live memory, then sixteen 12,800-byte castle blocks, and
 /// 267,028 + 16 × 12,800 = 471,828.
 ///
@@ -73,7 +73,7 @@ fn every_save_is_the_length_the_schema_predicts() {
     eprintln!("save length: {} files agree", saves.len());
 }
 
-/// A save whose size does not match the schema is refused rather than read from
+/// A save whose size does not match the schema is refused
 /// the wrong offsets. The failure mode this guards against is silent: wrong
 /// offsets still yield numbers.
 #[test]
@@ -96,7 +96,7 @@ fn a_save_of_the_wrong_size_is_refused() {
 }
 
 /// The array shapes: seventeen county records, six realm records, and record 0
-/// of each is a slot rather than a place. True of every save because it is the
+/// of each is a slot. True of every save because it is the
 /// shape of the game's `.data`, not of a scenario.
 #[test]
 fn the_arrays_are_the_shape_the_executable_gives_them() {
@@ -123,7 +123,7 @@ fn the_arrays_are_the_shape_the_executable_gives_them() {
 /// (`FUN_0043E9E2` writes `g_dpPlayerId` there; `Mp_DropDepartedPlayers`
 /// eliminates a human realm whose copy has gone to zero).
 ///
-/// Three things say the base is right rather than four bytes out, and each
+/// Three things say the base is right, and each
 /// fails loudly under the wrong reading:
 ///
 /// * `+0x00` is **zero** in every save — a single-player game has no
@@ -218,7 +218,7 @@ fn the_county_count_is_the_number_of_county_records() {
 ///
 /// Two independent fields saying the same thing is the point: `+0x05` of a
 /// county and `+0x29` of a realm are written by different code, so agreement is
-/// evidence the offsets are right rather than evidence about one scenario.
+/// evidence the offsets are right.
 #[test]
 fn owner_bytes_and_realm_tallies_agree_in_every_save() {
     let saves = saves!();
@@ -277,7 +277,7 @@ fn owner_bytes_and_realm_tallies_agree_in_every_save() {
 /// back, names no county twice, never names itself, stays inside the map, and
 /// leaves its unused slots zeroed.
 ///
-/// This is a property of the data rather than of this reader, so it fails if the
+/// This is a property of the data, so it fails if the
 /// ids are being read from the wrong offset — and it holds for every save,
 /// which is what its name has always claimed. The version of this test that
 /// broke also asserted a fourteen-county map and county 1's single neighbour;
@@ -384,7 +384,7 @@ fn every_bounded_field_is_inside_its_bound_in_every_save() {
 /// Migration conserves people: across a whole map, everyone who left arrived
 /// somewhere. A one-sided migration would be a rule bug in our engine and a
 /// misread offset here, and this cannot tell the two apart — which is exactly
-/// why it is worth having it fail.
+///
 #[test]
 fn migration_conserves_people_across_the_whole_map() {
     let saves = saves!();
@@ -455,7 +455,7 @@ fn opening_the_same_bytes_twice_reads_the_same_save() {
     }
 }
 
-/// A cheap census of what the machine actually offered, so a run that asserted
+/// A cheap census of what the machine offered, so a run that asserted
 /// almost nothing says so out loud instead of printing thirteen `ok`s.
 #[test]
 fn the_suite_reports_which_saves_it_ran_over() {
@@ -520,7 +520,7 @@ fn every_units_tile_offset_agrees_with_its_coordinates_in_every_save() {
 ///
 /// Slot 5 of that table is NULL while the dispatcher accepts types up to 5, so a
 /// type-5 unit would call address 0. Nothing spawns one, and this says so over
-/// every save rather than only over the one somebody looked at.
+/// every save.
 #[test]
 fn every_live_unit_is_one_of_the_four_types_and_owned_by_somebody() {
     let saves = saves!();
@@ -646,7 +646,7 @@ fn a_merchants_0x167_is_its_start_county_however_far_it_has_walked() {
 }
 
 /// **The three minimap rating bytes, `+0x01`, `+0x02` and `+0x03`, named from
-/// the saved games rather than from a decompiler.**
+/// the saved games.**
 ///
 /// `FUN_00451BBA` recomputes them on every minimap draw and `Minimap_DrawOverlay`
 /// reads them. `docs/screens.md` §3.2 used to call them `+0x0B1`, `+0x0B2` and
@@ -662,7 +662,7 @@ fn a_merchants_0x167_is_its_start_county_however_far_it_has_walked() {
 /// * **`+0x03` is the labour rating and it has three values** — 0 short of farm
 ///   workers, 5 carrying slack, 6 neither.
 /// * **`+0x01` is `happiness / 20`.** Checked only in saves where the bands have
-///   been computed at all: a game whose minimap overlay was never opened has all
+/// been computed at all: a game whose minimap overlay has all
 ///   three bytes zero, which the England turn-one fixture is.
 #[test]
 fn the_minimap_rating_bytes_are_food_labour_and_happiness_over_twenty() {

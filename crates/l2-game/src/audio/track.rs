@@ -1,5 +1,5 @@
 //! **Which track plays, and why.** The one part of the audio layer that is a
-//! *rule* rather than plumbing, so it is pure, has no dependencies, and is
+//! *rule*, so it is pure, has no dependencies, and is
 //! tested without a device or an install.
 //!
 //! # The campaign track is how much of the map you hold
@@ -52,7 +52,7 @@
 //! `DAT_0057A0F0` is not identified. It also picks how `g_castleLevel` is
 //! derived a few lines later in `FUN_00477C89`, so it distinguishes a battle
 //! fought on the campaign's own map from one that is not; [`BattleKind`]
-//! carries the two we can name and leaves the third out rather than guessing
+//! carries the two we can name and leaves the third out
 //! at it.
 //!
 //! # The branch that never runs
@@ -128,7 +128,7 @@ pub enum BattleKind {
 /// `county_count` counties, which is `share_of_map_pct` of the map.
 ///
 /// The two arguments are the two the original reads, in the order it reads
-/// them, so the first clause's precedence is visible rather than folded away.
+/// them, so the first clause's precedence is visible.
 pub fn campaign(county_count: u8, share_of_map_pct: i32) -> Music {
     // A realm down to its last county gets Scroll1 regardless of how small the
     // map is - on a four-county map one county is 25%, which the percentage
@@ -147,7 +147,7 @@ pub fn campaign(county_count: u8, share_of_map_pct: i32) -> Music {
 
 /// The pair of toggles `FUN_00477B2F` keeps, and the rule that steps them.
 ///
-/// It is a struct rather than two loose counters because the *state* is the
+/// It is a struct because the *state* is the
 /// finding: the original does not choose a battle track, it advances a
 /// counter, and two consecutive field battles are guaranteed to sound
 /// different.
@@ -162,7 +162,7 @@ pub struct BattleCycle {
 impl BattleCycle {
     /// Advance the right counter and answer the track — `FUN_00477B2F`.
     ///
-    /// Called once when a battle begins, exactly as the original calls it once
+    /// Called once when a battle begins,
     /// from `Battle_Begin` and again from `Opt_ToggleMusic` when music is
     /// switched back on mid-battle. Switching music off and on therefore
     /// *changes the track*, which is the original's behaviour and not a
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn england_turn_one_opens_on_scroll1() {
         // Fourteen counties, one owned: PctOf(1, 14) = 7. Both clauses agree
-        // here, which is why the fixture cannot tell them apart on its own -
+        // here-
         // hence the test above.
         assert_eq!(campaign(1, 7), Music::Scroll(1));
     }

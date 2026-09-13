@@ -3,7 +3,7 @@
 //! `docs/modding.md` §1 takes OpenXcom's lesson as the design: **the base game
 //! is itself the first mod**, and nothing in the engine can tell whether a
 //! value came from the original game or from someone's rebalance, because
-//! there is no other path for a value to arrive by. These documents are that
+//! These documents are that
 //! bottom layer.
 //!
 //! # Why these are shipped and `troops.toml` is generated
@@ -20,7 +20,7 @@
 //! they are ours — is worth stating because it is the only rule that decides
 //! where a future ruleset belongs.
 //!
-//! # Why compiled in rather than read from disk
+//! # Why compiled in
 //!
 //! A rules directory that can go missing is a rules directory that can go
 //! missing *on one peer only*, and two lockstep peers running different rules
@@ -52,10 +52,10 @@ pub const CORE_LAYER: &str = "core";
 
 /// Every core document, as `(source name, text)`, in the order they apply.
 ///
-/// The order is fixed here rather than derived from a directory listing, so it
+/// The order is fixed here,
 /// cannot depend on how a filesystem chooses to enumerate. The two documents
 /// share no keys, so the order changes nothing today — which is exactly when
-/// to pin it, rather than after something depends on it.
+/// to pin it,
 pub const DOCUMENTS: [(&str, &str); 2] =
     [("core:rules/kingdom.toml", KINGDOM_TOML), ("core:rules/units.toml", UNITS_TOML)];
 

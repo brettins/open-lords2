@@ -46,7 +46,7 @@ fn assets() -> Option<Assets> {
 /// The county the player was looking at, as his save holds it: 80 head on eight
 /// pastures, 114 milkmaids, 150 people, crowding 10.
 ///
-/// Written onto a real imported position rather than a bare `County`, so that
+/// Written onto a real imported position, so that
 /// the pipeline, the estimate call sites and the screens all see a county the
 /// rest of the game agrees exists.
 fn his_county(game: &mut Game) -> usize {
@@ -80,7 +80,7 @@ fn his_county(game: &mut Game) -> usize {
 /// `l2_kingdom::field::refresh_estimates` — red at claim 1, `Right` instead of
 /// `Short`. Drop it from `Kingdom::herd_season_tick` instead and the sibling
 /// test in `crates/l2-kingdom/tests/cattle.rs` is red where this one is green,
-/// which is why there are two.
+///.
 #[test]
 fn the_understaffed_herd_is_drawn_short_everywhere_the_original_draws_it() {
     let Some(_assets) = assets() else {

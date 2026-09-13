@@ -13,11 +13,11 @@
 //! * [`Kingdom`] is the whole state and the season driver.
 //! * [`phase::SEASON_PIPELINE`] is the end-of-season order, as data.
 //!   `docs/kingdom.md` §3.4 is explicit that **the order is the rule**, so it
-//!   is an array a test can assert against rather than a sequence of calls.
+//! is an array a test can assert against.
 //! * [`save`] is **our own** save format: a whole campaign as deterministic,
 //!   versioned bytes, so a player can quit and resume. It writes through
-//!   `l2_net::Canonical` rather than inventing a second encoder, and it refuses
-//!   an unknown version rather than guessing at the layout. It takes and
+//! `l2_net::Canonical`, and it refuses
+//! an unknown version. It takes and
 //!   returns a `Vec<u8>` and never touches a file — reading the *original's*
 //!   `.sav` is `l2-formats`' job, and importing one is `l2-scenario`'s.
 //! * [`tables`] holds every constant, each carrying the address it was read
@@ -34,7 +34,7 @@
 //!   [`math::pct`] and [`math::div_ceil`], which round exactly the way the
 //!   original's C rounds.
 //! * **No iteration in hash order.** Counties and realms are fixed arrays
-//!   walked by ascending index; there is no `HashMap` in the crate.
+//! walked by ascending index.
 //! * **No dependence on addresses or allocation.** Nothing branches on a
 //!   pointer.
 //! * **One generator, and it is frozen in-tree.** The two rules that draw a
@@ -99,7 +99,7 @@
 //!    ladders; it fires only on a season the counter rose; a human county's
 //!    warning season and its ladder season are exclusive, so a revolt lands on
 //!    the *fifth* season below 25; and a human county's counter is cleared
-//!    outright at happiness 25 rather than being sticky. All four are corrected
+//! outright at happiness 25. All four are corrected
 //!    in `docs/kingdom.md` §6 and reproduced in [`unrest`], which also now
 //!    implements `County_RaiseRevolt` — until this week a revolt raised no mob,
 //!    took no people and left the county in the realm's hands.
@@ -108,7 +108,7 @@
 //! 6. **§5's `deaths = pop` on a county that dies out stores a negative death
 //!    count.** The expression is quoted from decompiled C and is almost
 //!    certainly a lost negation or a `popLast`; it is reproduced as written and
-//!    flagged rather than silently corrected. See [`population::update_one`].
+//! flagged. See [`population::update_one`].
 //!
 //! 7. **§3.4 and §7.4 disagree on the industry order, and both are wrong.**
 //!    §3.4's call list says *"wood, iron, stone, weapons"* and §7.4's table
@@ -131,7 +131,7 @@
 //!    Normal, and the *second* — next season's preview — says Half. Feeding it
 //!    at Normal on an all-grain split costs `DivCeil(417 - 74*5, 6) = 8` sacks,
 //!    and the county stores none, so **the first call debits the store**. That
-//!    is [`ration::apply`] spending and [`ration::preview`] not, exactly as
+//! is [`ration::apply`] spending and [`ration::preview`]
 //!    written here.
 //!
 //!    §4.3 was also wrong about the numbers: it said the owned counties store
@@ -158,7 +158,7 @@
 //!    * rows 1..3 of `g_aiGoldGrant`, and the second, smaller table
 //!      [`tables::AI_GOLD_GRANT_SMALL`];
 //!    * the event table — [`event::EVENT_DECK`], which is a 256-slot deck
-//!      rather than a 24-entry table, with all 24 handlers in [`event`];
+//!, with all 24 handlers in [`event`];
 //!    * the history ring — [`kingdom::History`];
 //!    * the ale and army happiness terms — [`happiness::buy_ale`] and
 //!      [`happiness::raise_army`];
@@ -168,7 +168,7 @@
 //!      See [`tables::JOB_COUNT`].
 //!
 //! 10. **What is still a stub, and why.** These are named in the binary and
-//!     not reproduced, rather than invented:
+//! not reproduced:
 //!
 //!     * `localModifier` (`FUN_00449D6E`), the per-county weather swing;
 //!     * the sixth score input, realm `+0x4C` — the other five are identified
@@ -194,7 +194,7 @@
 //!       [`Kingdom::garrison_army`]; `docs/decisions.md` C61.
 //!
 //! 11. **§9's five-stage chain reproduces exactly**, and `tests/reproduction.rs`
-//!     now asserts it against `lastturn.sav` rather than against §9's prose:
+//! now asserts it against `lastturn.sav`:
 //!     ration → health meter → health band → happiness → birth rate →
 //!     population, twenty-six stored fields across all fourteen counties.
 //!     Nothing had to be adjusted to make it land.
@@ -209,12 +209,12 @@
 //! 12. **Two more layout errors, found by reading the bytes.**
 //!     `g_healthBandLadder` is five `{threshold, band}` pairs and §4.2's
 //!     *"else 4"* is an explicit `(100, 4)` row; `g_castleWorkforce` is two
-//!     ints per castle level rather than one. Both are confirmed by the
+//! ints per castle level. Both are confirmed by the
 //!     addresses either side of them closing exactly. See
 //!     [`tables::HEALTH_BAND_LADDER`] and [`tables::CASTLE_WORKFORCE`].
 //!
 //! 13. **`Score_RankRealms` is not in the `Season_Advance` pipeline** that
-//!     §3.4 lists it in, and realm `+0x04` is a strength count rather than the
+//! §3.4 lists it in, and realm `+0x04` is a strength count
 //!     `inPlay` flag §2 calls it. See [`phase::SEASON_PIPELINE`] and
 //!     [`ai::begin_realm_turn`].
 

@@ -18,14 +18,14 @@
 //! *passed*: it asserted the three buttons were left of `OK`, calling `OK`
 //! *"the original's tick"*. `OK` is the corner picture at (428, 436); the tick
 //! is somewhere else entirely. **A check that names a rectangle can name the
-//! wrong one**, which is why neither test here names one.
+//! wrong one**.
 //!
 //! # The two halves, and why they are different in kind
 //!
 //! * [`the_right_columns_geometry_is_the_exes_own_tables`] compares our
 //!   constants against **the player's `Lords2.exe`**, decoded at run time. That
 //!   is two artefacts maintained by different work — ours by us, the table by
-//!   Impressions in 1996 — which is the shape `docs/agents.md` says actually
+//! Impressions in 1996 —
 //!   catches things. It is install-gated and skips on CI.
 //! * [`no_overlay_swallows_the_campaign_minimap`] drives the machine with
 //!   `Event` values and asks a behavioural question no geometry can:
@@ -73,7 +73,7 @@ fn widget(t: &l2_testkit::pe::Table, i: usize, off: (i32, i32)) -> Rect {
 ///
 /// Ablation, which was run: change `SIDEBAR_BUTTONS[0].w` from 33 to 32 and the
 /// first assertion fails naming record 0. The probe is the exe and the subject
-/// is our constant, so there is no way for one to be computed from the other —
+/// is our constant,
 /// which is the trap `docs/agents.md` records: *ablating a constant while
 /// computing your probe from that same constant tests nothing at all.*
 #[test]
@@ -91,7 +91,7 @@ fn the_right_columns_geometry_is_the_exes_own_tables() {
     }
     // **Record 5 is End Turn**, and it is the one a button of ours was drawn on
     // top of. The table has six records and the module's array has five,
-    // because the sixth dispatches to `Turn_End` rather than to
+    // because the sixth dispatches to `Turn_End`
     // `Sidebar_Button` — so it is a constant of its own and this is what pins
     // it.
     assert_eq!(
@@ -106,7 +106,7 @@ fn the_right_columns_geometry_is_the_exes_own_tables() {
     }
     // The second record's `y1` is `0x42` where the pattern wants `0x3F`, so band
     // 2 is 34 pixels tall and overlaps band 3's first two rows. That is the
-    // original's own data and this is where it is pinned rather than described.
+    // original's own data and this is where it is pinned.
     assert_eq!(map::MINIMAP_MODE_BUTTONS[1].h, 34, "the overlapping band is the exe's");
 
     // And the army-division screen, which is where the third overlap was.
@@ -143,7 +143,7 @@ fn world() -> (Game, Assets) {
     // ending rule it has nothing to do with.
     //
     // The lesson is the fixture one: **a fixture in a degenerate state tests
-    // the degenerate state**, and it stays invisible for exactly as long as
+    // the degenerate state**, and it stays invisible for
     // the rule that would object is unimplemented.
     // Realms 2..5 each hold one, and the human holds county 1 because that is
     // the one every screen in this file is built against.
@@ -151,7 +151,7 @@ fn world() -> (Game, Assets) {
         g.kingdom.counties[realm as usize].owner = realm;
         // `Realm::in_play` is what the ranking counts, **not** county
         // ownership. Giving a realm land is not the same as it being alive, and
-        // the two are only ever equal because the loader sets both — which is
+        // the two are only ever equal because the loader sets both —
         // why a hand-built fixture can hold land for six lords and still be a
         // won game.
         g.kingdom.realms[realm as usize].in_play = true;
@@ -221,7 +221,7 @@ fn no_overlay_swallows_the_campaign_minimap() {
 /// them tests `x >= 0x1DE`. So for those five the answer to any press in the
 /// column is `Pass`; for the rest the answer is anything *except* acting on a
 /// rectangle of our own, which is what the second loop asserts by requiring the
-/// press to be declined or ignored rather than to change the screen.
+/// press to be declined or ignored.
 #[test]
 fn only_the_five_screens_with_the_sidebar_guards_claim_the_column() {
     let (mut g, a) = world();

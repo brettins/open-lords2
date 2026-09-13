@@ -44,7 +44,7 @@ pub const MIGRATION_CAP: i32 = 100;
 /// plague always costs at least ten, and a county under fifty people, whose
 /// 20% cap is below ten, loses the whole cap instead.
 ///
-/// A `const` rather than a ruleset key: `kingdom.event` has two keys today
+/// A `const`
 /// (`docs/modding.md`) and this is the first number the swing needed beyond the
 /// cap.
 pub const EVENT_SWING_FLOOR: i32 = 10;
@@ -138,13 +138,13 @@ pub fn migrate_all(counties: &mut [County], county_count: usize, quirks: Quirks)
 ///
 /// **This reproduces a documented bug.** `docs/kingdom.md` §5.3: *"the loop
 /// that records the source county in the destination's 16-byte inflow list has
-/// no `break`: it writes the source id into **every** free slot rather than the
+/// no `break`: it writes the source id into **every** free slot
 /// first."* The list therefore ends up holding one repeated value.
 ///
 /// It is marked **`[D]`** — read from decompiled C, not observed — and it is
 /// cosmetic: the pass that reads it back only takes a maximum, so the visible
 /// effect is limited to the *"arrive from"* line of the population panel naming
-/// the wrong county. It is reproduced rather than fixed because a
+/// the wrong county. It is reproduced
 /// reimplementation that quietly corrects the original's bugs cannot be
 /// differentially tested against it.
 ///
@@ -208,7 +208,7 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
     // **A percentage of the deaths or the births, not of the county.** This
     // read `Pct(population, pct)` until C169, which made a Winter
     // plague on 1,000 people in health band 2 at happiness 50 kill 200 extra
-    // rather than the original's 74 (`Pct(161, 40) + 10`).
+    //
     //
     // ```c
     // county.+0x2F8 = 0;
@@ -240,14 +240,14 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
     county.population += births - deaths;
     if county.population < 1 {
         births = 0;
-        // Written exactly as docs/kingdom.md §5 states it. `pop` is negative
+        // Written
         // here, so a county that dies out stores a *negative* death count -
         // see the errata note in the crate documentation.
         //
         // **Switchable** - [`Quirk::ExtinctCountyRecordsNegativeDeaths`],
-        // `docs/bugs.md` B16. The fixed path records the people who actually
+        // `docs/bugs.md` B16. The fixed path records the people who
         // died, which is what the county had before the pass: the negation
-        // that reading suggests was lost is put back rather than the whole
+        // that reading suggests was lost is put back
         // statement rewritten, so the shape of the original stays visible.
         deaths = if quirks.reproduces(Quirk::ExtinctCountyRecordsNegativeDeaths) {
             county.population
@@ -377,7 +377,7 @@ mod tests {
     /// which is `Pct(base, factor)`, where this crate tested the ladder's `base`.
     ///
     /// The two counties are the original's own after-saves, typed from the file
-    /// rather than computed: `siege-lastturn.sav` county 1 and
+    ///
     /// `siege-old_turn.sav` county 3, which `crates/l2-game/tests/differential.rs`
     /// had each one person out in births and one in deaths. Both are at factor
     /// 75 on a ladder rate of 14, so the scaled rate is 10 — below the death rate,
@@ -478,7 +478,7 @@ mod tests {
         assert!(c.deaths >= 1, "8% of one person still kills someone eventually");
     }
 
-    /// A county that dies out is emptied rather than going negative.
+    /// A county that dies out is emptied
     #[test]
     fn a_county_that_loses_everyone_is_emptied() {
         let mut c = County::new();
@@ -616,7 +616,7 @@ mod tests {
 
     /// `Population_UpdateAll` zeroes `+0x2F8` in every county before it looks
     /// at the event byte, so a season without an event clears last season's
-    /// figure rather than leaving the letter's number standing.
+    /// figure
     #[test]
     fn a_season_without_an_event_writes_the_figure_back_to_zero() {
         let mut c = County::new();

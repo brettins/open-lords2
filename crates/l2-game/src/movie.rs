@@ -50,7 +50,7 @@ use crate::screen::{Machine, ScreenId, Transition};
 /// **`FUN_004B3571(0)`** — `App_WinMain`'s last act before the message loop:
 /// play `intro.smk`, and on failure go straight to the front end.
 ///
-/// A function in the library rather than two lines in `main.rs`, for
+/// A function in the library, for
 /// `crate::audio::Director`'s reason: a binary's code cannot be called by a
 /// test.
 pub fn start_up(machine: &mut Machine) {
@@ -248,7 +248,7 @@ impl Film {
     ///   film — or, for an ending, the conquest screen `Msg_Dismiss` had
     ///   already entered.
     ///
-    /// # What each call site actually passes, `[V]` at all eight
+    /// # What each call site, `[V]` at all eight
     ///
     /// | call site | `returnScreen` | here |
     /// |---|---|---|
@@ -262,7 +262,7 @@ impl Film {
     /// | `Battle_CheckOutcome` | `g_screenId` | [`Transition::Pop`] |
     ///
     /// **Only the castle film names a screen that is not the one it was raised
-    /// over**, and that is why it is the only arm that is not a pop:
+    /// over**,:
     /// `Smk_Play(s_castle1_smk + g_castleSelection * 0x10, 0x9E, 0x14, 0, 0)`.
     /// Screen `0` is the campaign map, so the end of the film is the map and the
     /// chooser that ordered the castle goes with it — the original has one
@@ -290,7 +290,7 @@ impl Film {
     /// that will not parse. `Smk_Play` then sets `g_screenId` to the return
     /// screen directly and **`Smk_OnFinished` is never called**, so nothing
     /// chains: a missing `intro.smk` goes straight to the title page
-    /// (`FUN_004B3571`'s `DAT_005C9274 = 1`) rather than on to the logo.
+    /// (`FUN_004B3571`'s `DAT_005C9274 = 1`).
     pub fn on_failure(&self) -> Transition {
         match self {
             Film::Ending { game_over: true, .. } => Transition::Replace(ScreenId::Conquest),
@@ -379,7 +379,7 @@ impl Reel {
 
 /// The install's `.smk` files, by lower-cased name.
 ///
-/// An index rather than bytes: the films are 80 MB and a game plays a few of
+/// An index: the films are 80 MB and a game plays a few of
 /// them, so a film is read when it is asked for. Built through the same
 /// [`l2_mods::vfs::Vfs`] as every other asset, which is what makes
 /// `axmen.smk` find `AXMEN.SMK` and not `Axemen.smk` — two different files,

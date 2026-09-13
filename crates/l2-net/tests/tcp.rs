@@ -78,7 +78,7 @@ fn deadline() -> Instant {
 }
 
 fn breathe() {
-    // One millisecond, so a spin loop is not a busy loop. Nothing in
+    // One millisecond.
     // the crate depends on this number; it only trades CPU for latency
     // in the tests.
     std::thread::sleep(Duration::from_millis(1));
@@ -99,7 +99,7 @@ fn wait_for_message(net: &mut TcpTransport) -> (PeerId, Vec<u8>) {
 
 /// Accept until `count` peers are connected, or fail.
 ///
-/// Uses `accept_pending` rather than `poll` so that a message racing
+/// Uses `accept_pending` so that a message racing
 /// the connection is not swallowed.
 #[track_caller]
 fn wait_for_peers(net: &mut TcpTransport, count: usize) {
@@ -173,7 +173,7 @@ fn message_boundaries_survive_the_stream() {
 }
 
 /// A partial frame arriving across two reads — the case that happens on
-/// the day of the demo, here against a real socket rather than a
+/// the day of the demo.
 /// `FrameReader` fed by hand.
 ///
 /// Every split point is tried, including the three inside the
@@ -266,7 +266,7 @@ fn a_peer_that_connects_late_is_accepted_by_poll() {
     assert_eq!(host.peers(), vec![PeerId(0)]);
 }
 
-/// A clean close is not a loss. Everything sent before it is delivered
+/// A clean close is not a loss.
 /// first, and the departure is announced only once the last of it has
 /// been handed over — which is the difference between a session ending
 /// tidily and one that throws away its peer's final tick packets and
@@ -398,7 +398,7 @@ fn a_large_message_survives_a_partial_write() {
     client.send(PeerId(0), &payload).expect("sending");
 
     // The receiver has to be pumped for the sender's outbox to drain,
-    // which is what makes this a real partial write rather than a
+    // which is what makes this a real partial write
     // memcpy: both ends are in this thread, so nothing moves unless the
     // test moves it.
     let until = deadline();
@@ -516,7 +516,7 @@ fn the_handshake_crosses_the_same_socket_and_binds_a_slot_to_a_peer() {
     assert_eq!((peer, received.slot), (PeerId(0), PlayerSlot::new(1)));
 
     // And the check that earns the handshake its place: a peer running
-    // a different mod set is caught before tick 0 rather than desyncing
+    // a different mod set is caught before tick 0
     // an hour in.
     let modded = Hello { ruleset_hash: 0xdead_beef, ..received };
     assert_eq!(
@@ -577,7 +577,7 @@ impl NetPeer {
         // latency a keystroke lands on a later tick, which changes the
         // game correctly. Keying on the execution tick is what makes
         // "the socket changed nothing" a statement about the lockstep
-        // core rather than about the test's timing.
+        // core.
         let at = self.session.execution_tick();
         if self.issued_through.is_none_or(|last| at > last) {
             self.issued_through = Some(at);

@@ -45,7 +45,7 @@ use crate::tables::{Commodity, Tables, RESOURCE_LIMIT_UNLIMITED, WEAPON_TYPE_COU
 use l2_net::{Quirk, Quirks};
 
 /// `PctOf(a, b) = a * 100 / b` — `FUN_00404DC1`, the companion to
-/// [`crate::math::pct`]. Zero denominator gives zero, exactly as the original
+/// [`crate::math::pct`]. Zero denominator gives zero
 /// does.
 #[inline]
 pub fn pct_of(a: i32, b: i32) -> i32 {
@@ -810,7 +810,7 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
         wood -= had_wood;
         stone -= had_stone;
         // A negative difference is paid back into the store. `realm.wood -=
-        // wood` with `wood` negative, exactly as the original writes it.
+        // wood` with `wood` negative
         if wood < 0 {
             realm.wood -= wood;
             wood = 0;

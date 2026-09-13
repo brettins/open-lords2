@@ -937,7 +937,6 @@ impl<'a> Pen<'a> {
     // have: `Ui_DrawNumber`, `Ui_DrawCount`, `Ui_DrawNumberRight` and
     // `Ui_DrawInsetRect`, plus the two sheet blits every one of them uses.
     // Five screens graduated in one session needing all six, so they live here
-    // rather than being copied.
 
     /// `Ui_DrawInsetRect(x, y, w, h)` — the recessed well, in **pixels**.
     pub fn inset(&self, canvas: &mut Canvas, r: crate::input::Rect) {
@@ -1264,10 +1263,10 @@ mod tests {
     /// fell through to `base01.256`, and a player saw the battle in the
     /// campaign's colours. It needs no install: both halves are names.
     ///
-    /// **Both of the screen's palettes**, not just the one a field battle
+    /// **Both of the screen's palettes**
     /// names: `Screen_DrawBattlefield` chooses on `g_battleIsSiege`, and the
     /// siege arm went unloaded for as long as it was a comment, falling back
-    /// to `base01.256` exactly as the field battle had.
+    /// to `base01.256`
     ///
 /// The loop walks `Ground::ALL`, so a
     /// ground added later cannot bring a palette nobody loads: that is C201's

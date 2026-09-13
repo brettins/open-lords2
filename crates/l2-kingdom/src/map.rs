@@ -116,7 +116,7 @@ pub mod terrain {
     /// The one settlement terrain the cost map lets an army walk over for 3:
     /// the county town itself.
     ///
-    /// **It is also the bare castle plot**, and that is not a collision to tidy
+/// **It is also the bare castle plot**
     /// away. `County_FindCastleTile` stamps `0x14` over the 2×2 it finds on bit
     /// `0x80`, and `Unit_TryEnterTile` masks the settlement bit off whenever the
     /// terrain is `0x14` — which is exactly what lets an army walk across a
@@ -131,7 +131,7 @@ pub mod terrain {
     /// A **standing castle**: `CASTLE_PLOT + castleType`, so `0x15` is a wooden
     /// palisade and `0x19` a royal castle.
     ///
-    /// `[V]` from the writer rather than from coincidence. `Castle_StampTile`
+/// `[V]` from the writer. `Castle_StampTile`
     /// (`0x0046826C`) is an `if`/`else if` ladder over the five levels writing
     /// `0x15, 0x16, 0x17, 0x18, 0x19`, and `Unit_Step`'s code-6 branch fires
     /// `Unit_ReachCastleBuilding` on exactly `0x14 < terrain < 0x1A`. This
@@ -157,7 +157,7 @@ pub mod terrain {
         }
     }
 
-    /// A dwelling plot that is actually occupied. On plot tiles this is the
+/// A dwelling plot that is occupied. On plot tiles this is the
     /// only value that costs anything; every other plot is impassable.
     pub const DWELLING: u8 = 0x10;
 
@@ -243,7 +243,7 @@ pub fn industry_state(terrain: u8) -> Option<(crate::tables::Commodity, SiteStat
 /// it instead, from the two things that define it: the settlement bit and the
 /// terrain ladder.
 ///
-/// Derived rather than stored on purpose. A cached tile index is a field an
+/// Derived. A cached tile index is a field an
 /// importer has to fill and can silently fail to — which is
 /// `docs/decisions.md` C30's whole shape, and this project has already paid for
 /// it twice. The scan is over the county's own tiles in index order, so the
@@ -306,7 +306,7 @@ pub fn castle_tile(map: &CampaignMap, county: u8) -> Option<usize> {
 /// `(0x10 & 0x1C) >> 2 == 4`, which is `Castle1a.pl8` / `Castle2a.pl8`.
 ///
 /// Bit `0` is set by `Map_StampBlock` on every tile it touches and nothing we
-/// have read consumes it; it is carried rather than dropped.
+/// have read consumes it; it is carried.
 pub const CASTLE_BANK_BYTE: u8 = 0x11;
 
 /// **What a castle looks like** — `Castle_StampTile` (`0x0046826C`), which is
@@ -321,11 +321,11 @@ pub const CASTLE_BANK_BYTE: u8 = 0x11;
 /// ```
 ///
 /// Three appearances per level, twenty frames apart, and **the map file does
-/// not hold any of them**: unlike the mine, the quarry and the forest — which
-/// `L2_maps.dat` stores as real artwork that `County_PlaceResourceSites` merely
+/// not hold any of them**: unlike the mine,
+/// `L2_maps.dat` stores as real artwork that `County_PlaceResourceSites`
 /// flags — the castle plot is plain ground in the base bank and every castle on
 /// the screen is stamped in at run time. It is re-stamped **every season** by
-/// `Castle_BuildTick`, which is why it lives beside the build rules rather than
+/// `Castle_BuildTick`, so it lives beside the build rules
 /// in a load-time pass.
 ///
 /// `frames` are in the block's own order — north-west, north-east, south-west,
@@ -427,7 +427,7 @@ impl CampaignMap {
     }
 
     /// Build from three 4,096-byte planes. `None` if any is the wrong length —
-    /// a map we cannot read is not a map to half-load, which is the rule
+    /// a map we cannot read is not a map to half-load,
     /// `l2-scenario` already applies to a save.
     pub fn from_planes(terrain: &[u8], flags: &[u8], county: &[u8]) -> Option<CampaignMap> {
         if terrain.len() != MAP_TILES || flags.len() != MAP_TILES || county.len() != MAP_TILES {
@@ -493,7 +493,7 @@ impl CampaignMap {
     /// which classifies the same bits independently (`docs/armies.md` §2.2),
     /// and the field's 6 is assembled there from two separate `+3`s. `[D]` on
     /// the four 100s and the two 0s, which the stepper never has an opinion
-    /// about because those tiles are never actually entered.
+/// about because those tiles are never entered.
     ///
     /// **Nothing about units or ownership enters this.** Byte `+5` of the tile
     /// record — the occupying unit — is never read, so armies path straight
@@ -552,7 +552,7 @@ impl CampaignMap {
 
 /// `g_moveCost` (`0x004F4080`) — a 64×64 `i16` grid, **0 meaning impassable**.
 ///
-/// The zero is not a sentinel bolted on: the flood fill's only blocked test is
+/// The flood fill's only blocked test is
 /// `cost != 0`, so "free to enter" is not representable and never needs to be.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CostMap {
@@ -625,13 +625,13 @@ mod tests {
     }
 
     /// **The consequence of trampling that the cost map carries**: a ruined
-    /// resource site is not merely dead, it is a hole in the map.
+/// resource site is a hole in the map.
     #[test]
     fn a_ruined_resource_site_becomes_impassable() {
         for ruined in terrain::RUINED {
             assert_eq!(one_tile(flags::SETTLEMENT, ruined, 1), 0, "terrain {ruined}");
         }
-        // …where the same tile before it was ruined merely cost a lot.
+// …where the same tile before it was ruined cost a lot.
         assert_eq!(one_tile(flags::SETTLEMENT, 2, 1), 100);
     }
 

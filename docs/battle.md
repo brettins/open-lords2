@@ -382,7 +382,7 @@ pikeman 9   archer 13        knight 22
 **[V]** — and independently published by a third-party decompile of the same binary, which
 gives the identical seven values at the identical address. But **it is used only for the
 "is one side outnumbered by more than a third" flag and the strategic auto-resolve.** No
-part of the real-time simulation reads it. Anyone tuning battle balance from this table
+part of the real-time simulation reads it.
 would be tuning the wrong thing.
 
 ### 4.3 Sides are 0 and 4, and side 0 is the `0x04` marker
@@ -885,7 +885,6 @@ which is C3's failure mode exactly. The giveaway is that `262149` is `0x00040005
 numbers in a trenchcoat. The table is 11 rows × 4 **`u16`** = 88 bytes, and the 176 bytes a
 32-bit reading consumes run past its end into an unrelated array. `docs/symbols.json`
 already said "11 rows of 4 shorts", and had the tool been written from the symbol entry
-rather than around it, the error would never have happened. C8 says to verify prior art
 against the data; the converse also holds — **verify your reading against the notes you
 already wrote.**
 
@@ -983,7 +982,7 @@ So `routed` (`+0x166`) is incremented once per call to this machinery, and `barr
 (`+0x176`) counts consecutive failures. **[V]** The names are the game's own, from the
 debug panel, and the fields are only touched by the mover.
 
-### 8.3a `Path_LineIsClear` is not a line, not a predicate, and not free of side effects  **[V]**
+### 8.3a `Path_LineIsClear` is not a line, not a predicate, and not free of side effects **[V]**
 
 `0x004710F2`, and the early out above describes it as line of sight, which is what its name says
 and what everyone including us built. It is none of the three, and the difference is what decides
@@ -991,7 +990,7 @@ whether an army can press through a gap.
 
 * **It marks friendly figures.** It opens by copying the blocked template over `g_pathCost` and
   calling `Path_BuildBlockedMap` — the routine that writes **998** under every friendly figure — and
-  then tests that array as it walks. A comrade in the way blocks it exactly as terrain does. The
+then tests that array as it walks. A comrade in the way blocks it. The
   destination is the one exception: a 998 there is cleared to 0 first, so walking *onto* an occupied
   cell is allowed and the mover settles it by swapping or waiting.
 * **It is two greedy walkers, not a line.** Both set out from the start. Each step takes the
@@ -1001,7 +1000,7 @@ walker B anticlockwise, up to eight tries — so the walk *slips around* obstacl
   straight line; against a wall with a gap in it, it can round the wall.
 * **It leaves its cost field behind, and the caller uses it.** When `Path_Search` skips the flood
   fill because this succeeded, `BattleMan_Step` runs `Path_Extract` on `g_pathCost` **anyway** — so
-  the figure comes away with the walked route, comrade-avoiding detours and all. There is no branch
+the figure comes away with the walked route, comrade-avoiding detours and all.
   in which a blocked figure is given nothing.
 
 That third property is the one with teeth, and `docs/decisions.md` `C103` records what
@@ -1253,14 +1252,14 @@ both sheets. **[V]**
 **The palette does not split the same way.** `Screen_DrawBattlefield`
 (`0x004233F7`) ends on `Palette_Set(0x568EE0)` for a field battle and
 `Palette_Set(0x5675A0)` for *any* siege, and record 1 of `g_preloadTable` is
-`t32_stn1.256`. There is no `t32_wod1.256` — not in the table and not in the
+`t32_stn1.256`.
 install — so a wooden castle is drawn in the stone castle's colours. **[V]**
 
 #### The second pass is **damage**, not terrain
 
 After the base tile, the same cell gets a transparent, clipped blit out of
 **slot 1** at frame `cell[+0] + 0x8B` (capped at `0x9A`), whenever `cell[+0]`
-is non-zero and `cell[+4]` is 1, 2 or 3. On a castle `cell[+0]` is not a
+is non-zero and `cell[+4]` is 1, 2 or 3.
 terrain id but a counter, and both writers are damage:
 
 * `Missile_Step` (`0x00492C8B`): `if (cell.elevation < 4) { cell.terrain++; if (0xF <
@@ -1508,7 +1507,6 @@ delta. That is a second source for section 2.1's `dirc` table.
 
 The height term uses the sprite **width** for both axes, so a
 48-pixel man sits 8 pixels left of and 16 above his cell's corner. Reproduced
-rather than corrected.
 
 **`mapXY` is the cell he is walking *into*.** **[V]** `BattleMan_Step`
 (`0x0048F1DD`) tries the cell first and walks second — §7 has the whole

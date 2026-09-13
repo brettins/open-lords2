@@ -12,7 +12,7 @@ localiser would want to replace:
 
 Only `L2.eng` exists in the DOS install (`F:\games\LORDS2\L2.ENG`); the other
 four shipped with the Windows release. `.eng` is also the extension the German
-and French builds would swap, which is why the container matters for a mod
+and French builds would swap, so the container matters for a mod
 system.
 
 Status legend as in [`maps.md`](maps.md): **[V]** verified against file bytes
@@ -41,14 +41,14 @@ offset(g) = base[8 + g*4] | (base[9 + g*4] << 8) | (base[10 + g*4] << 16);
 shipped files, so treating the table as `u32` works, but a 24-bit reading is
 what the engine does and files are far below the 16 MB ceiling anyway.
 
-**[V] There is no count field.** The table runs from offset 8 up to where the
+**[V]** The table runs from offset 8 up to where the
 first string starts, so
 
 ```
 N = (offset(1) - 8) / 4
 ```
 
-**[V] Slot 0 is always `0` and is not a group.** Group ids therefore run `1 … N-1`.
+**[V] Slot 0 is always `0`.** Group ids therefore run `1 … N-1`.
 
 | File | `offset(1)` | N (slots) | Valid group ids | Strings |
 |---|---:|---:|---|---:|
@@ -92,11 +92,11 @@ while (*p < 0x20) p++;                               /* skip NULs / padding */
 
 So a string is addressed by **(group id, index within group)** and the walk is
 purely sequential — the format has no per-string index. A reimplementation
-should build `group -> string[]` once at load, exactly as `eng.js` does.
+should build `group -> string[]` once at load, as `eng.js` does.
 
 Two consequences worth knowing:
 
-* An empty group does not fail; the pointer simply walks on into the next
+* An empty group does not fail; the pointer walks on into the next
   group's strings. **[V]** `mapl2.exe` asks for group 41 indices 27–29 for its
   default map name, title and description.
 
@@ -117,7 +117,7 @@ Two consequences worth knowing:
 
 **[V]** Comparing the DOS (1996) and Windows (1997) files over the 299 group ids
 they share: **286 groups are byte-identical, 13 differ**, and the Windows
-release simply appends 18 new groups (ids 300–317). Ids `1 … 299` mean the same
+release appends 18 new groups (ids 300–317). Ids `1 … 299` mean the same
 thing in both. A translation table keyed on `(group, index)` is therefore a
 reasonable design.
 
@@ -146,7 +146,7 @@ A few landmarks (Windows ids):
  index 40..59  Britain, Imperium, The World, Japan, ... Cubium, Snowflake      20 names
 ```
 
-That is **[V]** precisely the used/empty slot census `maps.md` derived
+That is **[V]** the used/empty slot census `maps.md` derived
 independently from the map data — slots 0–23 used, 24–39 empty, 40–59 used.
 Group 101 names slots `0 … 59`; the 20 empty tail slots 60–79 have no entry at
 all, so the list is 60 long, not 80. **[I]** Group 100's 1,200 county names are
@@ -291,7 +291,7 @@ equal `Normal × p / 100` for our `p`, and the ratios that are there run 1.20,
 group 0 alone — hand-authored per battle, with 116 % nowhere in them. So
 **116/108/100/92/84 rests on the decompilation alone**; the corpus corroborates
 that the rows are dead but cannot corroborate the numbers. That gap is real and
-is recorded rather than closed.
+is recorded.
 
 ### 3.3 Which file is used
 
@@ -347,7 +347,7 @@ none of the other files.
 group is a descriptive label**: the file is 317 summaries the game wrote about itself.
 This section maps every group to the mechanic it serves and the code that reaches it.
 
-### 5.1 Coverage, and what "unreferenced" actually costs
+### 5.1 Coverage, and what "unreferenced" costs
 
 The measurement, re-derived here by a scanner that does not use `anchor.js`
 (`docs/method.md` §4 — re-derive anything load-bearing by a route that does not use the
@@ -387,7 +387,7 @@ differences are all explicable:
   same measurement seen from the other side (317 − 182 = 135).
 
 A figure of **52** was quoted when this work was commissioned. It could not be
-reproduced from any query here and is recorded as unexplained rather than adopted.
+reproduced from any query here and is recorded as unexplained.
 
 **39 non-empty groups are reached by nothing**, and they fall into four kinds, which is
 the useful part:
@@ -472,7 +472,7 @@ the shipped build stopped catching it.
 1. Every peer broadcasts its own 10-byte record (`Net_WriteField(&g_syncDigest[me], 10)`).
 2. `Sync_BlockAgrees(block)` (`0x00440DD2`) first requires every live human realm to
    carry the *same non-zero frame tag* — otherwise it returns 2, "not everyone is here
-   yet", and the caller stalls rather than declaring a divergence. Then it compares byte
+yet", and the caller stalls. Then it compares byte
    `block` across those realms; any difference sets a per-block flag in a 10-entry array
    at `0x0053F090` — one flag per group-14 name — and returns 0.
 3. On 0, `Sync_Rollback` (`0x0043F5C5`) restores the last agreed snapshot. In battle it
@@ -527,7 +527,7 @@ disagree; none does. Categories 5–9 are therefore "tip window with 1–5 parag
 
 `FUN_00476A5D` clears exactly 20 bytes from `g_tipShown + 200`, which fixes
 the tip range as groups **200–219** inclusive. Its only callers are `App_WinMain` and
-`Opt_ToggleTipScreens`, so a tip is shown **once per run**, not once per game: neither
+`Opt_ToggleTipScreens`, so a tip is shown **once per run**; neither
 `Game_NewGame` nor a load clears it.
 
 **Three of the fourteen cannot be posted `[I]`.** 212, 214 and 215 are guarded on
@@ -574,14 +574,14 @@ and the terrain names bear on the open questions in [`skr.md`](skr.md).
 
 ### 5.6 Two conventions the file uses that a reader will otherwise misread
 
-* **`FREE` at index 0 does not mean "unused".** It means *this message has no heading of
+* **`FREE` at index 0** means *this message has no heading of
   its own*. `Msg_DrawWindow` draws the county name — `Ui_DrawCentred(100, scenario * 20 +
   county)` — as the heading whenever the message record carries a county byte, and the
   group's own index 0 is then never read. That is groups 114–134, 258, 273, 276 and 277.
   `FREE` *inside* a group (43 indices 7–9, 62 indices 3–4, 49 indices 5–6) does mean an
   unused slot.
 * **A group's index may run past its own end.** §1.3 — an empty or short group does not
-  fail the lookup, the cursor simply walks into the next group's strings. Group 93 relies
+fail the lookup, the cursor walks into the next group's strings. Group 93 relies
   on this; group 215 falls into it by accident.
 
 ### 5.7 What this closed, and what it did not
@@ -595,7 +595,7 @@ Closed:
   promoted to `symbols.json` as `Sync_Rollback`.
 * Group 14, group 41 and the tip-screen subsystem, none of which was in any document.
 
-Not closed, and deliberately flagged rather than committed:
+Not closed, and deliberately flagged:
 
 * The **superseded-panel** reading of groups 9, 43, 44, 57, 60, 62, 63, 64, 65 and 88 is
   internally coherent and touches almost nothing external — exactly the shape
@@ -660,7 +660,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 43 | 18 | `Lords II - Game Options` | An earlier new-game/skill screen ("Choose a Skill Level", "Run the LORDS II Tutorial"). Superseded by group 11. | [I] dead |
 | 44 | 5 | `Novice` | Novice/Easy/Normal/Hard/Expert. Superseded by group 103 (off/on/easy/normal/hard/impossible) and group 11 42–46. | [I] dead |
 | 45 | 4 | `Help Options` | Help-options panel (tip screens / tool tips / start game help). | `Screen_HelpOptions` [V] |
-| 46 | 2 | `GAME OVER` | "GAME OVER" — index 1 is literally `"Medieval banter goes here......."`. **A placeholder that was never written and is never drawn**; the shipped endgame text is groups 224/225 and 238/239. | [I] dead placeholder |
+| 46 | 2 | `GAME OVER` | "GAME OVER" — index 1 is `"Medieval banter goes here......."`. **A placeholder**; the shipped endgame text is groups 224/225 and 238/239. | [I] dead placeholder |
 | 47 | 10 | `Group Information` | A cut battle "Group Information" panel. Its unit classes — Heavy Infantry, Light Infantry, Slingers, Mixed Troops, Auxiliaries — are not Lords II troop types. | [I] dead — cut content |
 | 48 | 3 | `Exit the game?` | The exit/save confirm box. | `FUN_00414790` [V] |
 | 49 | 12 | `Congratulations!` | The tutorial shell (section-complete text, back/forward buttons, "Exit the Tutorial"). No code reaches it; the shipped tutorial is a scripted campaign, not this screen. | [I] dead |

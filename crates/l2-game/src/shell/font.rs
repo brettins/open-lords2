@@ -24,7 +24,7 @@
 //! name in `docs/symbols.md` suggests; the widths come from the PL8's own frame
 //! records. The name is kept because it is the one in `symbols.json`.
 //!
-//! The mapping is self-checking, which is what makes it **[V]** rather than
+//! The mapping is self-checking, which is what makes it **[V]**
 //! **[D]**: it sends `'a'` to frame 0 and `'A'` to frame 26 in `Fntl2_14.pl8`,
 //! and the frames it sends `'g'`, `'j'`, `'p'`, `'q'`, `'y'` to are exactly the
 //! frames in that file that are four pixels taller than their neighbours.
@@ -47,7 +47,7 @@
 //! The two shadow colours are `0x10` and `0x1F` — **except** on the setup
 //! screen (`g_screenId == 0x1F`) and the conquest screen (`0x1C`), where the
 //! same function uses `0x36` and `0x2C` instead. Those two screens run under
-//! `gateway.256` rather than the campaign palette, so the indices that read as
+//! `gateway.256`
 //! shadow are different ones. That branch is at the top of `Ui_DrawText` and is
 //! the only thing in it that knows which screen it is on.
 //!
@@ -243,7 +243,7 @@ pub const SHADOW_GREY: (u8, u8) = (0x3F, 0x26);
 ///
 /// When `g_dropShadow` (`DAT_005AEB90`) is non-zero — and `DAT_005AEA40` and
 /// `g_embossGrey` are both zero, which `Ui_DrawText` tests first — each glyph is
-/// drawn twice rather than three times:
+/// drawn twice
 ///
 /// ```c
 /// g_drawY = y + 1; g_drawX = g_drawX + 1; DAT_0057d3bc = 0x3f; Glyph_Draw(font, c);
@@ -257,7 +257,7 @@ pub const SHADOW_GREY: (u8, u8) = (0x3F, 0x26);
 /// way out. `CountyStrip_Draw` clears `DAT_005AEA40` before it calls any of
 /// them, so every `&g_font10` draw in the image is a dropped one — and so are
 /// the castle cell's two `&g_fontSmall` captions. The two farm rows that set
-/// `DAT_005AEA40 = 1` do so *after* their delta, around the store, which is why
+/// `DAT_005AEA40 = 1` do so *after* their delta, around the store,
 /// the store is flat and the forecast above it is not.
 pub const DROP_SHADOW_COLOUR: u8 = 0x3F;
 
@@ -286,7 +286,7 @@ impl Style {
         Style { colour, shadow: Some(SHADOW), caps: None }
     }
 
-    /// The colour one character is actually drawn in.
+    /// The colour one character is
     fn colour_of(&self, c: char) -> u8 {
         match self.caps {
             Some(k) if c.is_ascii_uppercase() => k,
@@ -333,7 +333,7 @@ pub const SMALL: &str = "Fntl2_9.pl8";
 /// castle's seasons in `CountyStrip_DrawCastleIcon`.
 ///
 /// **It is a numeral face wearing the full layout.** The file has 108 frame
-/// records, exactly as `Fntl2_9.pl8` and `Fntl2_14.pl8` do, and
+/// records,
 /// [`GLYPH_MAP`] sends no character past the end of it — so it is read through
 /// the same table, at the same base, as the other four, and
 /// `Glyph_Draw` (`0x00402A14`) has no other table to read it through. What is
@@ -359,7 +359,6 @@ pub const TEN: &str = "Font_10.pl8";
 /// (`mov [ebp-4], 0x005CBFB0` at `0x004998ED`). Records 4…7 are `SMALL`,
 /// `TEN`, `BODY` and `HEADING` in that order.
 ///
-/// **No screen of ours draws with it, and that is the finding rather than a
 /// gap.** All 86 references to `0x005CBFB0` in `.text` were enumerated from
 /// the bytes: one is that loader line and the other 85 are inside six
 /// functions — `Net_DrawDebugOverlay` (`0x00423BA4`), `BattleDebug_Panel`
@@ -411,7 +410,7 @@ impl Font {
     /// is the exact split a player reported off a screenshot.
     ///
     /// `None` for a character the map sends nowhere: a space, or one of the
-    /// punctuation marks the font simply does not have.
+    /// punctuation marks the font simply
     fn glyph(&self, c: char) -> Option<DecodedFrame> {
         let code = c as u32;
         if code < GLYPH_MAP_BASE as u32 {
@@ -432,7 +431,7 @@ impl Font {
     /// **nothing for any other character whose table entry is zero** — `'@'`
     /// above all, the blank sign column. [`Font::draw`] advances four over
     /// `'@'` (`Ui_DrawText`, `0x00402637`) and this charges it nothing, so the
-    /// two disagree by four per `'@'` exactly as the original's pair does. No
+    /// two disagree by four per `'@'`
     /// trailing space either: the four pixels `Ui_DrawText` adds at the end go
     /// into `g_penAdvance`, not into the measure.
     ///
@@ -505,7 +504,7 @@ impl Font {
     /// in `colour`. Returns the pen advance, like [`Font::draw`]. **[V]**, see
     /// [`DROP_SHADOW_COLOUR`] for the arm and the eight painters that take it.
     ///
-    /// Glyph by glyph rather than a whole shadow pass and then a whole text
+    /// Glyph by glyph
     /// pass, because that is the order `Ui_DrawText` loops in. With a one-pixel
     /// gap between glyphs the two orders paint the same pixels; the loop is
     /// kept anyway so that a face with touching glyphs would not be a question.
@@ -526,7 +525,7 @@ impl Font {
 
     /// `FUN_004025D7`: centred inside `width`, and **never left of `x`** — the
     /// original clamps the offset at zero, so a string too long for its box
-    /// starts at the box's left edge and runs out of it rather than being
+    /// starts at the box's left edge and runs out of it
     /// centred off the other side.
     ///
     pub fn draw_centred(

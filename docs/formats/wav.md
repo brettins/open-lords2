@@ -68,7 +68,7 @@ reader gets loud noise instead of speech.
 bytes each: 44.1 kHz 16-bit stereo, **15 minutes 52 seconds**, dated 8 November 1996.
 Together they are 336 MB — **81% of the entire WAV footprint**. Both are referenced by
 `Lords2.exe` (the string table reads `… swor_p2.wav pumkin.wav pumkin2.wav …`), so they
-are real assets rather than build leftovers, and neither exists in the DOS install. What
+are real assets, and neither exists in the DOS install. What
 they contain has not been established here — the name and the November date suggest a
 Halloween easter egg.
 
@@ -96,7 +96,7 @@ no `PUMKIN`. Useful as a second corpus for the same validator.
 `Lords2.exe` imports `WINMM.dll` and `DSOUND.dll`. Audio file parsing is **not**
 hand-rolled: `0x004B95BA` walks the RIFF with `mmioSeek` + `mmioDescend` (`MMCKINFO`,
 `ckid = 'data'`, `MMIO_FINDCHUNK`) and logs `ERR:WAV start read data` on failure. So the
-engine does a proper chunk descent rather than assuming byte 44 — even though, in this
+engine does a proper chunk descent — even though, in this
 corpus, byte 44 would always have worked.
 
 Playback is DirectSound. There are two paths, distinguished by the log strings:
@@ -114,7 +114,7 @@ and `LIST`. That is roughly 60 lines including the unsigned-8-bit conversion, an
 comes with the same self-validating checks the script above already runs.
 
 Take **`hound` 3.5.1** as a **dev-dependency** instead, and cross-check our reader against
-it over a whole install, exactly as the PL8 corpus test does.
+it over a whole install.
 
 * Licence **Apache-2.0** — permissive, compatible with our MIT, no copyleft. It does add
   a NOTICE/patent-grant obligation that MIT alone does not have.
@@ -146,7 +146,7 @@ substantially larger than everything else in this workspace put together. That c
 for *playback*, and it is unavoidable in some form — it is not a cost of the file format.
 
 **Stream, don't slurp.** `PUMKIN.WAV` alone is 168 MB. Whatever we adopt must decode from
-a reader rather than requiring the file in memory; `hound`'s `WavReader` does, our own
+a reader; `hound`'s `WavReader` does, our own
 reader should, and the original engine had a dedicated streaming path for exactly this.
 
 ## Verified, inferred, and open

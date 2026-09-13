@@ -365,7 +365,7 @@ fn a_lord_winning_a_neutral_county_in_battle_is_reported_to_you() {
 // ------------------------------------------------------ with the player's game
 
 /// **The words are the player's own `L2.eng`**, and our transcription agrees
-/// with it string for string — which is what makes it a fallback rather than a
+/// with it string for string — which is what makes it a fallback
 /// rewrite. `CLAUDE.md` rule 6.
 #[test]
 fn every_arrival_letter_is_the_players_own_words_and_our_transcription_is_them() {

@@ -15,7 +15,7 @@
 //! battlemap editor, and `Lords2.exe` independently reads map *m* at
 //! `m * 0x1900 + 0x1674` — the same origin and stride computed against the file.
 //!
-//! See `docs/formats/skr.md`. The 328-byte pad is genuinely unexplained.
+//! See `docs/formats/skr.md`.
 
 use crate::{Error, Result};
 
@@ -43,7 +43,7 @@ pub const FILE_LEN: usize =
 /// are zero throughout the one shipped file. They are named from `TROOPS*.ENG`,
 /// whose eleven columns are the same slots in the same order, and `Lords2.exe`
 /// clamps exactly those four to a maximum of 9 — the behaviour you would expect
-/// of siege engines rather than troop counts.
+/// of siege engines
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Troop {
     Peasants = 0,
@@ -53,7 +53,7 @@ pub enum Troop {
     Pikemen = 4,
     Archers = 5,
     Knights = 6,
-    /// Slots 7-10 are inferred rather than verified.
+    /// Slots 7-10 are inferred
     Catapults = 7,
     SiegeTowers = 8,
     BatteringRams = 9,

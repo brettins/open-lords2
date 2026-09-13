@@ -19,7 +19,7 @@
 //! be hit. It was found by eye, in a `git diff` run for an unrelated reason,
 //! and only because that diff put the two identical halves next to each other.
 //!
-//! The check is trivial and belongs in the suite rather than in a reviewer's
+//! The check is trivial and belongs in the suite
 //! head: *prefer a shape that cannot be wrong to a check that notices when it
 //! is* — and where the shape cannot be fixed, at least let the noticing be
 //! automatic.
@@ -62,7 +62,7 @@ fn is_marker(line: &str) -> bool {
 
 /// Every marker line in the tracked tree, fenced ones included.
 ///
-/// Fenced hits are kept rather than filtered here so the caller can assert that
+/// Fenced hits are kept
 /// the exemption is actually exercised. An exemption no test travels is an
 /// exemption that could be swallowing everything.
 fn scan() -> Vec<Hit> {

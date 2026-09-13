@@ -18,13 +18,13 @@
 //! # The two terms this pass does not compute
 //!
 //! The *army* and *ale* terms exist as fields (`+0x15` and `+0x194`) and as
-//! `L2.eng` group 85 labels, and this pass **zeroes them**, exactly as the
+//! `L2.eng` group 85 labels, and this pass **zeroes them**.
 //! original does — they are written when the player acts, not once a season.
 //! `docs/kingdom.md` §12 records both writers as not found. Both are found now,
 //! and they are [`buy_ale`] and [`raise_army`].
 //!
 //! The ordering consequence is worth stating, because it is the whole reason
-//! both terms are "shown" fields rather than deltas: a season's
+//! both terms are "shown" fields:
 //! `Happiness_UpdateAll` **wipes** whatever ale and army did during the turn
 //! before it, so their contribution to happiness is permanent but their
 //! contribution to the *panel* lasts exactly one turn.
@@ -37,7 +37,7 @@ use l2_net::{Quirk, Quirks};
 pub const HAPPINESS_MIN: i32 = 0;
 pub const HAPPINESS_MAX: i32 = 100;
 
-/// An AI-owned county with nobody left in it is pinned here rather than
+/// An AI-owned county with nobody left in it is pinned here.
 /// drifting. `docs/kingdom.md` §4.4.
 pub const EMPTY_AI_COUNTY_HAPPINESS: i32 = 50;
 
@@ -58,8 +58,8 @@ pub const LEVY_SURCHARGE_DECAY: i32 = 5;
 
 /// Give back one season of [`crate::county::County::levy_surcharge`].
 ///
-/// Guarded on non-zero exactly as the original is, which is why it stops at 0
-/// rather than going negative — the surcharge is a `!= 0` test, not a `> 0`
+/// Guarded on non-zero.
+///.
 /// one, so a negative value would decay forever.
 pub fn decay_levy_surcharge(county: &mut County) {
     if county.levy_surcharge != 0 {
@@ -87,7 +87,7 @@ pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
     county.shown_ale = 0;
     // **And the ale allowance itself.** `Happiness_UpdateAll` clears `+0x219`
     // in the same breath as the display field beside it, which makes the five
-    // points a seasonal allowance rather than the lifetime one this crate,
+    // points a seasonal allowance.
     // `docs/kingdom.md` §7.6, `docs/mechanics.md` and `docs/symbols.json` all
     // claimed. Reading the reset off the wrong line for a whole subsystem is
     // C53; the line is here.
@@ -130,7 +130,7 @@ pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
 ///
 /// The cap is **cumulative within a season**: [`update`] clears
 /// `ale_happiness_given` every season, so a county can have five points of ale
-/// happiness a season and no more. Returns the happiness actually gained, which
+/// happiness a season and no more. Returns the happiness.
 /// is 0 once the county has had its five. See
 /// [`crate::county::County::ale_happiness_given`].
 ///
@@ -157,7 +157,7 @@ pub fn buy_ale(t: &Tables, county: &mut County, crowns: i32, quirks: Quirks) -> 
         step
     };
     let mut bonus = 0;
-    // Counted upward rather than as the original's nested `if`s; the ladder is
+    // Counted upward;
     // the same. A county of fewer than ten people has `step == 0`, and the
     // original's `crowns >= 5 * 0` is then true at the top rung — so any ale at
     // all buys the full five. Reproduced: `0 * n` is 0 for every rung.
@@ -206,10 +206,10 @@ pub fn buy_ale(t: &Tables, county: &mut County, crowns: i32, quirks: Quirks) -> 
 /// [`crate::tables::ARMY_HAPPINESS_COST`].
 ///
 /// Note the asymmetry in the clamp, reproduced as written: when the county
-/// cannot afford the full cost, `shownArmy` is debited only what was actually
+/// cannot afford the full cost, `shownArmy` is debited only what.
 /// taken, so the panel and the happiness always agree.
 ///
-/// Returns the happiness actually lost.
+/// Returns the happiness.
 pub fn raise_army(t: &Tables, county: &mut County, men: i32) -> i32 {
     if men <= 0 {
         return 0;
@@ -231,7 +231,7 @@ pub fn raise_army(t: &Tables, county: &mut County, men: i32) -> i32 {
 /// The happiness a county holds steady at, given its three terms. Zero means
 /// the county neither rises nor falls.
 ///
-/// This is not a rule of its own — it is the sum [`update`] adds — but it is
+/// This is not a rule of its own — it is the sum [`update`] adds — but it is.
 /// the number every player-facing statement about the game is really about, so
 /// it is worth being able to ask for directly.
 pub fn steady_state(t: &Tables, tax_rate: i32, health_band: u8, ration_level: i32) -> i32 {
@@ -430,7 +430,7 @@ mod tests {
 
     /// A county too small to have a tenth: `population / 10` is zero, every
     /// rung's threshold is zero, and any ale at all buys the full five.
-    /// Reproduced rather than guarded, because the guard would be ours.
+    /// Reproduced.
     #[test]
     fn a_county_of_nine_people_gets_the_whole_bonus_for_one_crown() {
         let mut c = County::new();
@@ -485,7 +485,7 @@ mod tests {
     }
 
     /// A county that cannot afford the cost is taken to zero and the panel
-    /// debits only what was actually taken.
+    /// debits only what.
     #[test]
     fn a_poor_county_pays_what_it_has_and_the_panel_agrees() {
         let mut c = County::new();

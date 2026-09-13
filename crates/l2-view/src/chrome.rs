@@ -328,7 +328,7 @@ impl Minimap {
 /// first four are used — `ramp[colour * 8 + (shade - 10)]`.
 ///
 /// **This is the executable's data, not ours**, and it is transcribed here
-/// rather than looked up at run time because the value is a constant of the
+///
 /// game and `l2-view` may not open files. `tests/install.rs` reads the same 48
 /// bytes back out of the user's own `Lords2.exe` and fails if they differ.
 pub const MINIMAP_REALM_RAMP: [[u8; 4]; 6] = [
@@ -385,7 +385,7 @@ pub enum MinimapMode {
 }
 
 impl MinimapMode {
-    /// `Minimap_ModeButton`'s hotspot id, 1…4. Button 4 is not a mode.
+    /// `Minimap_ModeButton`'s hotspot id, 1…4.
     pub fn from_button(button: usize) -> Option<MinimapMode> {
         match button {
             0 => Some(MinimapMode::Labour),
@@ -462,7 +462,7 @@ pub fn realm_colour(raw: u8) -> u8 {
 /// # It is derived from the shield, and this reproduces the derivation
 ///
 /// The pen is stored in the save, at realm `+0x08`, and **nothing computes it
-/// at draw time** — `CountyStrip_Draw` reads the byte. But it is only ever
+/// at draw time** — `CountyStrip_Draw` reads the byte.
 /// written from this table, from the shield, by the two functions that hand a
 /// realm its colour: `Realms_AssignLords` (`0x0049CAAA`) at new game and
 /// `FUN_0042BA40` when a custom battle invents an opponent. Both do
@@ -609,7 +609,7 @@ impl Chrome {
         }
     }
 
-    /// The 640 × 24 menu bar background, exactly as `Screen_DrawMenuBar` lays
+    /// The 640 × 24 menu bar background
     /// it out. The text on top of it is the caller's business.
     pub fn draw_menu_bar_background(&self, canvas: &mut Canvas) {
         self.draw_strip(canvas, 0, 0, 25);
@@ -796,7 +796,7 @@ impl Chrome {
     }
 }
 
-/// Draw the minimap: the shading raster recoloured per county, exactly as
+/// Draw the minimap: the shading raster recoloured per county
 /// `Minimap_DrawOverlay` (`0x00410CBD`) does it.
 ///
 /// A shade outside 10..=13 is left as the raster holds it, which is how the sea
@@ -958,7 +958,7 @@ mod tests {
         }
     }
 
-    /// The overlay leaves everything that is not a county shade alone, and
+    /// The overlay leaves everything that is not a county shade alone,
     /// marks the selected county with the original's own 0x20.
     #[test]
     fn the_minimap_overlay_recolours_only_the_four_county_shades() {

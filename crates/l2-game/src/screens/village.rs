@@ -29,19 +29,19 @@
 //!   `0xA0` = 160 more, and 480 + 160 is exactly the 640-byte screen stride.
 //!
 //! **The county sidebar starts at x = 478 and the menu bar ends at y = 23.**
-//! Neither is inside anything the village touches, which is precisely what the
+//! Neither is inside anything the village touches.
 //! player saw.
 //!
 //! Standing on the picture are **eight clusters** of up to twenty-five peasant
 //! icons each — seven jobs and *Idle townsfolk*, with iron and stone sharing
 //! cluster 0 because a county's mine and its quarry are painted at the same
-//! spot. One icon is `ceil(population / 25)` people, which is why a cluster has
+//! spot. One icon is `ceil(population / 25)` people.
 //! twenty-five slots: `+0xB8` and the grid are the same fact seen twice.
 //!
 //! # The gesture, which is three screens in the original
 //!
 //! `Screen_HandleInput` treats the drag as its own screen ids, and reading them
-//! is how the gesture is pinned down rather than guessed:
+//! is how the gesture is pinned down:
 //!
 //! | id | what | leaves when |
 //! |---|---|---|
@@ -57,7 +57,7 @@
 //!
 //! * **A band that reaches into two clusters selects nothing at all.**
 //!   `Village_BoxSelect` abandons the whole selection the moment a second
-//!   cluster contributes an icon. There is no partial answer.
+//! cluster contributes an icon.
 //! * **Shortfall icons cannot be picked up.** The box-selector skips icon value
 //!   1 explicitly, because those figures stand for workers the job *wants* and
 //!   has not got. They are drawn and they are not there.
@@ -67,7 +67,7 @@
 //! Not a rectangle. `FUN_004398F5` looks the pointer up in an 8-pixel grid that
 //! turns out to be `vill_gd8.pl8` — see [`l2_view::village`], where the three
 //! numbers that close it are set out. So the drop targets are painted, and this
-//! screen reads them rather than inventing them; on an install without the file
+//! screen reads them; on an install without the file
 //! it refuses to move anybody and says so.
 //!
 //! # What is ours, and says so
@@ -100,7 +100,7 @@ use crate::widget;
 ///
 /// `FUN_00403cf4(x, y, w, h, 0x20)`, and `0x20` in `Base01.256` — the palette
 /// `Screen_DrawCampaign` sets and the village never replaces, because
-/// `Village_Draw` paints over the campaign screen rather than clearing it — is
+/// `Village_Draw` paints over the campaign screen — is
 /// `rgb(255, 255, 255)`. Read out of the player's own install; the file is one
 /// 768-byte table of 6-bit VGA triples.
 const BAND_INK: u8 = 0x20;
@@ -134,7 +134,7 @@ pub struct VillageScreen {
     /// `g_peasantIconSelected` — which of the source cluster's twenty-five
     /// slots the band caught.
     selected: [bool; ICONS_PER_CLUSTER],
-    /// `g_villageDragCount`, in icons rather than people.
+    /// `g_villageDragCount`.
     drag_count: i32,
     /// A click that has landed and is **waiting to find out whether it is half
     /// of a double click** — `DAT_004E65E8`, and the position it recorded in
@@ -445,7 +445,7 @@ impl VillageScreen {
     /// nineteen ticks is 304 ms.
     ///
     /// It is why the job popup opens a fraction after the button comes up
-    /// rather than on it, and that delay is not an accident of ours: without it
+    ///, and that delay is not an accident of ours: without it
     /// there is nowhere for the double click to happen.
     pub const CLICK_SETTLE_TICKS: u32 = 19;
 
@@ -482,7 +482,7 @@ impl Screen for VillageScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         // **The sidebar stays live with the village open**, and it is the arm
-        // itself that says so rather than an inference from the inset's size.
+        // itself that says so.
         // `Screen_FrameInput`'s `g_screenId == 0x02` ladder runs six guards
         // before it reaches a single village verb:
         //
@@ -539,7 +539,7 @@ impl Screen for VillageScreen {
             //
             // This popped the screen from every phase, which meant a player who
             // picked up peasants and changed his mind lost the village as well
-            // as the selection. **A wrong arm rather than a missing one, and
+            // as the selection. **A wrong arm,
             // nothing looked broken** — `docs/decisions.md` C76.
             //
             // Escape is ours and mirrors whichever of the two applies; the

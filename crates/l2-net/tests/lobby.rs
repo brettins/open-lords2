@@ -11,7 +11,7 @@
 //! reaches `order_commands` and decides how contested commands are sequenced. A
 //! lobby that produced a roster in arrival order would look completely correct
 //! on screen and desync on the first tick where two players acted at once. The
-//! last test in this file closes that loop by actually starting a session from
+//! last test in this file closes that loop by
 //! the lobby's output and running it over a real socket.
 
 mod common;
@@ -302,7 +302,7 @@ fn a_player_who_drops_leaves_the_roster() {
 }
 
 /// A roster is the one message whose *order* is part of its meaning, so a peer
-/// claiming an out-of-order one is refused rather than trusted.
+/// claiming an out-of-order one is refused
 #[test]
 fn an_out_of_order_roster_is_rejected_by_the_decoder() {
     let good = Roster {
@@ -486,7 +486,7 @@ fn a_lobby_over_a_real_socket_starts_a_session_that_agrees() {
 }
 
 /// **A peer who has turned the original's bugs off cannot join a faithful
-/// game**, and is told which thing differs rather than being told his mods are
+/// game**, and is told which thing differs
 /// wrong.
 ///
 /// A quirk changes what the simulation computes, so it is part of the agreed
@@ -496,7 +496,7 @@ fn a_lobby_over_a_real_socket_starts_a_session_that_agrees() {
 /// **The per-tick digest would catch this too, and much too late.**
 /// `l2_kingdom::save::checksum` covers `Options::quirks`, so two peers who
 /// disagreed would eventually halt — but only at the first tick a quirk
-/// actually touches, which for the harvest rule is the end of the first Winter.
+///
 /// This refuses in the lobby, before a seed is chosen.
 #[test]
 fn a_peer_with_a_different_quirk_set_is_refused_in_the_lobby() {

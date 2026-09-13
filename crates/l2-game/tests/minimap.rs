@@ -11,12 +11,12 @@
 //! set of distinct palette indices drawn over the county land pixels of the
 //! user's own `Map01.pl8`.**
 //!
-//! Sampling the *land* pixels rather than the whole 128 × 128 rectangle is what
+//! Sampling the *land* pixels is what
 //! makes the sets exact. The panel artwork behind the minimap, and the sea, are
 //! full of the same greys the realm ramp uses, so a naive rectangle sweep
 //! reports colours nothing in this code path drew — it did, and the first
 //! version of this file failed on `0x2F` and `0x32` coming out of `Misc_cty`
-//! frame 54 rather than out of any ramp.
+//! frame 54.
 //!
 //! Shade 10 is skipped for the same reason: it is the shade the selected county
 //! has replaced with `0x20`, and leaving it in would put a colour in every set
@@ -105,7 +105,7 @@ fn with_band(
         .collect()
 }
 
-/// Every county id that actually has land pixels in this raster.
+/// Every county id that has land pixels in this raster.
 fn counties_in_raster(m: &Minimap) -> Vec<u8> {
     let mut ids: Vec<u8> = m
         .counties
@@ -121,7 +121,7 @@ fn counties_in_raster(m: &Minimap) -> Vec<u8> {
 }
 
 /// Give the local player every county, and put each one in a known state so a
-/// band is reached on purpose rather than by whatever the fixture holds.
+/// band is reached on purpose.
 fn hand_the_player_everything(game: &mut Game) -> Vec<usize> {
     let ids: Vec<usize> = (1..=game.kingdom.county_count as usize).collect();
     for &id in &ids {
@@ -144,7 +144,7 @@ fn hand_the_player_everything(game: &mut Game) -> Vec<usize> {
 /// With the player holding everything, the ownership tint over county land is
 /// exactly one row of the realm ramp; the happiness tint is exactly the rating
 /// ramp entries the counties' happiness bands select. Both sets are asserted
-/// whole, not merely for overlap.
+/// whole.
 #[test]
 fn the_happiness_overlay_recolours_the_minimap_from_the_rating_ramp() {
     let (mut game, assets, raster) = world!();
@@ -358,7 +358,7 @@ fn the_mode_strip_and_badge_are_drawn_beside_the_minimap() {
     click(&mut screen, &mut game, &assets, 2);
     let after = draw(&mut screen, &mut game, &assets);
 
-    // Every pixel the two frames actually paint — a blitter copies only
+    // Every pixel the two frames paint — a blitter copies only
     // non-zero indices, so "painted" is "not 0" on a blank canvas.
     let mut alone = Canvas::screen();
     assert!(art.draw_minimap_side(&mut alone, MinimapMode::Happiness));

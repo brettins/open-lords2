@@ -4,7 +4,7 @@
 //! citations, and assigns the placeholders branches write. CI runs its `--check`
 //! against this tree, which says the tree is clean and says nothing about
 //! whether the tool can see the things it exists to see. That second question is
-//! this file's, and each test is a shape that actually happened:
+//! this file's, and each test is a shape that
 //!
 //! * **a heading the tool cannot read** — two branches wrote a Markdown heading
 //!   over a placeholder, and C146's em-dash arrived double-encoded, so its
@@ -22,7 +22,7 @@
 //! here would be reported as unassigned.
 //!
 //! Every test states the ablation that turns it red; they were run, not assumed.
-//! Skipped when there is no `node` on the path, as `keyed_json.rs` is: CI has one.
+//! Skipped when, as `keyed_json.rs` is: CI has one.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -100,7 +100,7 @@ struct Tree {
 }
 
 impl Tree {
-    /// The base tree, relocked. `None` when there is no `node` to run.
+    /// The base tree, relocked. `None` when.
     fn new(name: &str) -> Option<Tree> {
         Command::new("node").arg("--version").output().ok()?;
         let dir = std::env::temp_dir().join(format!("l2-corrections-{}-{name}", std::process::id()));
@@ -262,7 +262,7 @@ fn a_heading_without_its_em_dash_is_an_error_naming_its_line() {
         tree.append(file, &format!("\n{line}\n"));
         assert_malformed(&tree, file, line, why);
     }
-    // A placeholder with no dash is the same error, not merely an unassigned tag.
+    // A placeholder with no dash is the same error.
     let Some(tree) = Tree::new("dash-placeholder") else { return };
     let line = format!("### {}: a colon", tag('B', "colon"));
     tree.append("docs/bugs.md", &format!("\n{line}\n"));
@@ -476,7 +476,7 @@ fn assign_changes_only_the_tag_bytes() {
 /// **`--assign` refuses, and changes nothing, when it cannot be right.**
 ///
 /// * a tag that is not in the tree, or is not a placeholder at all;
-/// * a tag that is cited and defined nowhere, so there is no series to take a
+/// * a tag that is cited and defined nowhere, so
 ///   number from;
 /// * **a malformed heading anywhere in the logs** — the case that matters. An
 ///   invisible `## C3` leaves the next free number at 3, so assigning would

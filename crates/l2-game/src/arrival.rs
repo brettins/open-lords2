@@ -32,7 +32,7 @@
 //! Nothing new. The categories are the original's, so the message scroll lays
 //! each out by its category and [`crate::audio`] voices each by its category
 //! and group — `ff_capt.wav` for the three notices `0x72`…`0x74`, the trumpet
-//! and a ninety-tick voice for a capture — exactly as it already did for the
+//! and a ninety-tick voice for a capture —
 //! categories that had senders.
 //!
 //! # The words

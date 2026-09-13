@@ -26,14 +26,14 @@
 //! costs on this project's licence position, and a stored-only zip writer is
 //! code we would own forever to save the user one right-click.
 //!
-//! Revisit when mods are distributed rather than hand-copied, which is the
+//! Revisit when mods are distributed, which is the
 //! same trigger as signing and checksums (`docs/modding.md` §13).
 //!
 //! # What inspection is for
 //!
 //! [`inspect`] answers the questions a mod author asks *before* trying to load
 //! the thing, and answers them one mod at a time: does the manifest parse, do
-//! all the rule documents parse, what does this mod actually claim, and is
+//! all the rule documents parse, and is
 //! this the same package I shipped? A load failure names one error and stops;
 //! an inspection reports everything at once, which is the right shape for a
 //! tool a person runs on their own work.
@@ -44,7 +44,7 @@ use crate::ruleset::{RuleError, Ruleset, RULES_DIR};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// True for files that belong to the platform rather than to the game.
+/// True for files that belong to the platform.
 ///
 /// `name` must already be normalised the way [`crate::Vfs`] keys its index:
 /// lowercase, forward slashes.
@@ -54,7 +54,7 @@ use std::path::{Path, PathBuf};
 /// * **`mod.toml`.** Every mod has one, so without this every *pair* of
 ///   enabled mods reports a conflict over their manifests — noise that would
 ///   bury the one real conflict underneath it.
-/// * **`rules/*.toml`.** Rules accumulate rather than shadow. Two mods each
+/// * **`rules/*.toml`.** Rules accumulate. Two mods each
 ///   carrying a `rules/rules.toml` are both read and both merged, so calling
 ///   the later one the winner would be exactly backwards.
 ///
@@ -95,7 +95,7 @@ pub struct ModPackage {
     pub rules_digest: u64,
 }
 
-/// Something worth telling the author, which is not a reason to refuse.
+/// Something worth telling the author.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Warning {
     /// A `.toml` outside `rules/`. Legal — it will be treated as an asset —
@@ -168,7 +168,7 @@ impl From<RuleError> for PackageError {
 
 /// Read and check one mod directory.
 ///
-/// Every rule document is parsed, so a syntax error is found here rather than
+/// Every rule document is parsed, so a syntax error is found here
 /// at the load that a player triggers.
 pub fn inspect(dir: &Path) -> Result<ModPackage, PackageError> {
     if !dir.join(MANIFEST).is_file() {

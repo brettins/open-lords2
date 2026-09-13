@@ -125,7 +125,7 @@ Both cases are common and the two body fonts are one of each:
 A stored-but-transparent row is six bytes for a nine-pixel-wide glyph, not
 twenty-seven: three RLE rows reading `00 09 00 09 00 09`, one skip run each. The
 flat surplus is what it looks like — the rows really are there and really are
-empty, and the exporter wrote them rather than eliding them.
+empty, and the exporter wrote them.
 
 Deciding the canvas height on the byte span instead cost a visible bug: it made
 `Fntl2_14`'s glyphs `h + rows` tall and `Fntl2_9`'s only `h`, so no caller could
@@ -145,7 +145,7 @@ Glyph_Draw:   frame = g_glyphWidths[c] - 1;  record = font + frame * 0x10 + 8;
               y += record[0x0D];  blit;  return record.width + 1;
 ```
 
-* **There is no per-face table.** `g_glyphWidths` (`0x004D71F0`) is indexed the same way
+* `g_glyphWidths` (`0x004D71F0`) is indexed the same way
   whichever `font` pointer is passed. **It is 224 bytes, not 128** — `Ui_DrawText` indexes
   it with `c - 0x20` for every byte above `0x1F` — and eleven of the last 96 are glyphs:
   `0xA0…0xA7` (frames 83, 91, 95, 99, 103, 103, 0, 14) and `0xDF…0xE1` (frame 105). No
@@ -176,7 +176,7 @@ Glyph_Draw:   frame = g_glyphWidths[c] - 1;  record = font + frame * 0x10 + 8;
   (The table's largest entry is 106, frame 105, for `0xDF…0xE1`. This table said 104 when
   it read only the first 128 bytes.)
 * **A gap is a zero entry, and only `Ui_DrawText` handles it**: four pixels of advance, no
-  blit. `Glyph_Draw` itself returns 0 for one. There is no substitution and no fallback
+  blit. `Glyph_Draw` itself returns 0 for one.
   face.
 * **The blit is a mask.** `0x004B41B7` writes the caller's colour (`DAT_0057D3BC`) wherever
   the source byte is non-zero, unless `DAT_005CD40C == 1`, when it copies the byte.
@@ -280,7 +280,7 @@ frames fully opaque until the binary corrected us.
 ## Palette files (`.256`)
 
 768 bytes: 256 entries of R, G, B. Values are **6-bit VGA (0..63)** and must be
-scaled to 8-bit (`v * 255 / 63`, so 63 maps to a true 255 rather than 252).
+scaled to 8-bit (`v * 255 / 63`, so 63 maps to a true 255).
 
 Palettes are per-context, not global. Using the wrong one gives a structurally
 correct but wildly miscoloured sprite. `T32_bat1.256` is the battle-sprite palette;

@@ -4,7 +4,7 @@
 //! The drawing is [`crate::screens::battlefield`]; this is the state and the
 //! rules, so that a test can play a battle with no window and no artwork.
 //!
-//! # What the battlefield's screens actually are
+//! # What the battlefield's screens
 //!
 //! `docs/screens-county.md` §1 lists four ids — `0x28`, `0x29`, `0x2A` and
 //! `0x2B` — and the input audit (`docs/decisions.md` C61) counted their arms as
@@ -24,7 +24,7 @@
 //! | `0x2A` | **the drag**, entered by pressing on the field | arm `'*'` |
 //! | `0x2B` | the outcome banner | arm `'+'` |
 //!
-//! `0x2A` is a mode here rather than a [`crate::screen::ScreenId`] of its own —
+//! `0x2A` is a mode here
 //! see [`Mode`] — because pushing and popping a screen per drag would put a
 //! stack operation on a pointer motion. Every arm of it is still reproduced
 //! individually and marked.
@@ -75,7 +75,7 @@ pub const BUTTON_COUNT: usize = 5;
 ///
 /// Every one of them is guarded by `g_battleChoiceOwner`, and three of the five
 /// want it to be **1** — the local player owns the take-the-field choice —
-/// rather than merely non-zero. A player watching somebody else's battle can
+///
 /// pause it and charge, and cannot retreat or autocalc it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Button {
@@ -218,7 +218,7 @@ pub enum Mode {
 /// of the three order arms read. It runs **after** the cursor is chosen in
 /// `Battle_Frame`, so the original's battle pointer is one frame behind the
 /// pointer; ours is not, and that is a deliberate difference recorded here
-/// rather than reproduced — a one-frame-stale cursor is a defect of the
+///
 /// original's frame order, not a rule.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Hover {
@@ -279,7 +279,7 @@ pub enum DragKind {
 }
 
 /// `FUN_00479CF7`'s threshold: a movement under 25 pixels on **both** axes is a
-/// click rather than a drag.
+/// click
 pub const DRAG_SLOP: i32 = 0x19;
 
 /// **One `Sound_PlayTroopCry(class)`** (`0x00499CB1`) — a player's men
@@ -526,7 +526,7 @@ impl LiveBattle {
 
     /// `Battle_UpdateHover` (`0x0047ED9B`), once a frame.
     ///
-    /// One clause is reproduced *corrected* rather than as found, and it is
+    /// One clause is reproduced *corrected*
     /// flagged here because it is the only place in this file that departs from
     /// the binary. The original's count of selected non-siege figures indexes
     /// the figure array by `g_curBattleMan` — a **different global**, left over
@@ -737,7 +737,7 @@ impl LiveBattle {
     ///
     /// Returns the `L2.eng` message the original enqueues when it refuses, or
     /// `Ok` when the bridge went down. `sallied` is set **only when the routine
-    /// actually fired**, which is the original's placement of the latch and
+    ///
     /// means a level-3 castle whose layout carries no `0x40` cell leaves the
     /// button live.
     ///
@@ -923,7 +923,7 @@ impl LiveBattle {
     /// `g_mouseLeftDoubleClick` was false.
     ///
     /// The test is `(g_mouseLeftReleased || g_mouseLeftDoubleClick) &&
-    /// g_screenId == 0x2A`, so a double click **commits an open drag exactly as
+    /// g_screenId == 0x2A`, so a double click **commits an open drag
     /// a release would**. It is not a verb of its own; it exists because Windows
     /// sends `WM_LBUTTONDBLCLK` instead of the second `WM_LBUTTONDOWN`, so
     /// without this clause the second click of a fast double click would leave
@@ -939,7 +939,7 @@ impl LiveBattle {
 
     /// `FUN_0043C57D` (`0x0043C57D`) → `FUN_0043C634` — **the order**.
     ///
-    /// Five guards, all of them refusals rather than fallbacks: the pointer must
+    /// Five guards, all of them refusals
     /// be on the field, it must **not** be over one of your own men (either
     /// hover flag blocks it, which is what makes clicking a friend a selection
     /// and never a destination), the button must have been *released*, something

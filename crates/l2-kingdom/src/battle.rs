@@ -3,7 +3,7 @@
 //!
 //! [`crate::conquest`] stops at `Attack::Battle { attacker, defender }` and
 //! says the caller hands the pair to `l2-sim`. This is what happens on either
-//! side of that hand-off, and none of it needs the real-time simulation:
+//! side of that hand-off:
 //!
 //! ```text
 //! Army_AttackCounty                 crate::conquest — a defender is settled
@@ -55,7 +55,7 @@ pub enum Settlement {
 /// `0x13` — a battle they are told about.
     Reported,
     /// Screen `0x12`: *"A Battle is to be fought. Will you take the field?"*
-    /// Taking the field is the real simulation; declining is
+    /// Taking the field is the real simulation;
     /// [`Settlement::Reported`] by another route, because `FUN_0043B622` runs
     /// the same autocalc.
     Prompt,
@@ -83,7 +83,7 @@ pub const FIGHT_HUMANS_ONLY_DEFAULT: u8 = 1;
 /// Note what is **not** here: no distance from the view, no army-size cutoff,
 /// no separate "quick battle" toggle. The mid-battle *"Autocalc battle?"*
 /// button is a fourth entry and re-runs [`auto_resolve`] from the counts as
-/// they stand; it is not a fifth outcome. `[V]` — one function, three callers,
+/// they stand; `[V]` — one function, three callers,
 /// all reading the same two expressions.
 pub fn settlement(units: &Units, a: usize, b: usize, fight_humans_only_byte: u8) -> Settlement {
     let human = |id: usize| units.get(id).is_some_and(|u| u.owner_is_human);
@@ -229,7 +229,7 @@ impl Verdict {
 ///
 /// **A tie goes to the attacker**, because the test is `sA < sB` and nothing
 /// else. And the castle bonus is applied to B alone — B is the defender at
-/// every one of the three call sites, so the asymmetry is not a bug in the
+/// every one of the three call sites,
 /// reading.
 ///
 /// The loser is *emptied* here and *destroyed* in [`return_to_campaign`]; the
@@ -252,7 +252,7 @@ pub fn auto_resolve(
     }
 
     // `PctOf(a, b) = a * 100 / b` — the larger over the smaller, so the ratio
-    // never falls below 100 and the ladder is only ever read from one side.
+    // falls below 100 and the ladder is only ever read from one side.
     let attacker_won = strength_a >= strength_b;
     let (bigger, smaller) =
         if attacker_won { (strength_a, strength_b) } else { (strength_b, strength_a) };
@@ -443,7 +443,7 @@ pub const AI_DEFENDER_MOVE_COST: i32 = 7;
 /// shape that correction produces.
 ///
 /// The county cannot change hands to a defender because `g_battleArmyB` is the
-/// defender at all three of the original's call sites: there is no
+/// defender at all three of the original's call sites:
 /// `County_ChangeOwner` anywhere in the B-wins branch. A defender that wins
 /// keeps a county it already had — or, for a neutral county's levy, keeps it
 /// neutral.
@@ -684,7 +684,7 @@ pub const WITHDRAWAL_WIPE_BELOW: i32 = 11;
 ///   [`auto_resolve`] uses.
 /// * **The army stops where it stands.** The path is thrown away and the move
 ///   state cleared, so a retreat cancels the order that walked into the battle
-///   rather than resuming it. That is the half of this function that is not a
+/// That is the half of this function that is not a
 ///   casualty rule at all, and it is why the army is not carried on into a
 ///   second fight on the same turn.
 ///
@@ -738,7 +738,7 @@ pub fn withdraw_casualties(
 /// ```
 ///
 /// **Every survivor, not a fraction**, and into the population *and* the
-/// panel's *"Army"* line, exactly as the levy debited both. Mark 2 — an army
+/// panel's *"Army"* line, Mark 2 — an army
 /// that already existed and was pressed into defending — is not disbanded at
 /// all; it only loses the mark.
 ///
@@ -987,7 +987,7 @@ mod tests {
     }
 
     /// The half `docs/armies.md` §7 inverted, stated as a test: **a defender
-    /// that wins never takes the county**, because there is no
+    /// that wins never takes the county**,
     /// `County_ChangeOwner` in that branch at all.
     #[test]
     fn a_winning_defender_leaves_the_county_exactly_where_it_was() {

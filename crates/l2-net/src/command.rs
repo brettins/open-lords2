@@ -1,6 +1,6 @@
 //! Ticks, player slots, and the commands that cross the wire.
 //!
-//! # Why there is no `enum Command` here
+//! # Why
 //!
 //! A command's *payload* is an opaque `Vec<u8>` as far as this crate is
 //! concerned, and that is a deliberate limit on how much this crate
@@ -48,7 +48,7 @@ impl Tick {
     }
 
     /// Saturating, so that "the tick two before the start" is the start
-    /// rather than a panic or a wrap to four billion.
+    ///
     pub fn minus(self, n: u32) -> Tick {
         Tick(self.0.saturating_sub(n))
     }
@@ -175,8 +175,8 @@ pub fn order_commands(commands: &mut [Command]) {
 /// True when no two commands share a `(slot, seq)`.
 ///
 /// **Assumes the slice has been through [`order_commands`]** — it
-/// compares neighbours rather than every pair, which is linear instead
-/// of quadratic and is exactly as strong once the list is sorted.
+/// compares neighbours
+/// of quadratic
 ///
 /// Called by the session immediately after ordering and before
 /// stepping. A duplicate means a packet was applied twice, which would

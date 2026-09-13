@@ -22,14 +22,14 @@
 //! order reaches the simulation. Two machines that ordered the roster by
 //! arrival — or, worse, by iterating a map — would disagree about command
 //! order on the very first contested tick, and the desync would look like a
-//! simulation bug rather than a lobby bug. Sorting here is D-4 applied to the
+//! simulation bug. Sorting here is D-4 applied to the
 //! one place it is easiest to forget.
 //!
 //! # Compatibility is checked before a slot is granted
 //!
 //! An incompatible peer never appears in a roster at all. [`Hello::check`]
 //! compares protocol, engine build, ruleset hash and seed; any mismatch is
-//! refused at the join, so the roster only ever holds peers that could actually
+//! refused at the join, so the roster only ever holds peers that could
 //! play. Refusing late — after other players have seen a name appear — is a
 //! worse experience and a larger surface.
 
@@ -40,7 +40,7 @@ use crate::transport::PeerId;
 
 /// The longest a player name may be, in bytes.
 ///
-/// Bytes rather than characters, for the same reason [`Canonical::str`] counts
+/// Bytes, for the same reason [`Canonical::str`] counts
 /// bytes: it is the only definition two implementations cannot disagree about.
 pub const MAX_NAME: usize = 32;
 
@@ -95,7 +95,7 @@ impl Roster {
 /// The host's declaration that the game is beginning.
 ///
 /// Carries the seed and the roster together because they must be the same on
-/// every machine and there is no reason to let them arrive separately.
+/// every machine.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Start {
     pub seed: u64,
@@ -106,7 +106,7 @@ pub struct Start {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LobbyError {
     /// The peer is not compatible. Never partially: all reasons at once, so a
-    /// player fixing their setup sees the whole list rather than one item per
+    /// player fixing their setup sees the whole list
     /// reconnect.
     Incompatible(Vec<Mismatch>),
     /// Every slot is taken.
@@ -184,7 +184,7 @@ pub struct Lobby {
     identity: Hello,
     name: String,
     roster: Roster,
-    /// Host only: which peer owns which slot. A `Vec` rather than a map,
+    /// Host only: which peer owns which slot. A `Vec`,
     /// because D-4 bans iterating a map and this is small enough that a scan
     /// is cheaper than the temptation.
     seats: Vec<(PeerId, PlayerSlot)>,
@@ -345,7 +345,7 @@ impl Lobby {
                 self.started = Some(start.clone());
                 Ok(LobbyEvent::Started(start))
             }
-            // A refusal is a message too: the host tells us why rather than
+            // A refusal is a message too: the host tells us why
             // dropping the connection and leaving us to guess.
             (Role::Client, Message::Refused(reasons)) => Err(LobbyError::Incompatible(reasons)),
 
@@ -508,7 +508,7 @@ impl Decode for Roster {
     fn decode(input: &mut Reader<'_>) -> Result<Self, CodecError> {
         let players = input.seq(Player::decode)?;
         // The sort order is part of the contract, so a peer that claims
-        // otherwise is refused rather than trusted. A roster out of order would
+        // otherwise is refused. A roster out of order would
         // hand Session::new a different slot list on one machine.
         if players.windows(2).any(|w| w[0].slot.index() >= w[1].slot.index()) {
             return Err(CodecError::BadTag {

@@ -3,7 +3,7 @@
 //!
 //! `docs/armies.md` §4 traces the chain; this is it. The gate it exists to open
 //! is [`crate::conquest::can_be_entered`]: **a county holding both a castle and
-//! a garrison cannot be walked into**, so without a siege there is no way to
+//! a garrison cannot be walked into**,
 //! take it and no way to win a game.
 //!
 //! # The chain, and where each piece is
@@ -52,7 +52,7 @@
 //! # Scope
 //!
 //! Everything here is campaign arithmetic. The battle a siege produces is
-//! `l2-sim`'s, and the two are joined in `l2-game`'s seam exactly as an
+//! `l2-sim`'s,
 //! ordinary battle is; the only difference this module makes to that seam is
 //! [`assault_castle_level`], which is the argument
 //! [`crate::battle::auto_resolve`] has always taken and nothing has ever
@@ -635,7 +635,7 @@ pub const CASTLE_DEGRADED_BUILDING: u8 = 1;
 /// > already under way, so **a wooden castle is repaired in wood and a stone
 /// > one in stone**, and a siege on a half-built castle makes the job bigger.
 /// >
-/// > **This is [`record_castle_damage`] now**, and the note that used to stand
+/// > **This is [`record_castle_damage`] now**,
 /// > here — *"not reproduced, because every number comes from two battle-side
 /// > accumulators `l2-sim` does not have"* — is out of date in the part that
 /// > matters and was right about the rest. `l2-sim` keeps both accumulators;
@@ -840,7 +840,7 @@ pub enum Assault {
 /// Works out the level, sums the three engine counts, applies the gate, and
 /// either names the battle or lifts the siege. **It does not fight the
 /// battle**: `Battle_ChooseSettlement` decides how that happens and the caller
-/// owns it, exactly as [`crate::conquest::attack_county`] hands back
+/// owns it,
 /// [`crate::conquest::Attack::Battle`].
 pub fn assault(counties: &[County; MAX_COUNTIES], units: &mut Units, army: usize) -> Assault {
     let Some(county) = units.get(army).map(|u| u.besieging_county) else { return Assault::NoSiege };
@@ -1254,7 +1254,6 @@ mod tests {
         begin_siege(T, &counties, &realms, &mut units, slow, 4, 1).unwrap();
         // Two armies cannot besiege the same castle in the original — the
         // second link overwrites the first — so this is the shape of the sweep
-        // rather than a legal position.
         units.get_mut(slow).unwrap().besieging_county = 4;
         units.get_mut(fast).unwrap().besieging_county = 4;
         units.get_mut(slow).unwrap().engines[0].ordered = 4; // 800 over 100 men

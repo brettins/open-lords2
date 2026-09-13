@@ -77,7 +77,7 @@ use crate::input::{Event, Key};
 /// 0x1F)`.
 pub const PLAYER_NAME_LEN: usize = 0x1F;
 
-/// **How many a person may actually type**, which is a different number and
+/// **How many a person may actually type**
 /// smaller: `Edit_Begin(&g_options, 0x10, 0xC0, 0)`.
 pub const NAME_MAX_TYPED: usize = 0x10;
 
@@ -116,7 +116,7 @@ impl PlayerName {
     /// Truncated at [`PLAYER_NAME_LEN`], which is `Edit_Commit`'s truncation.
     /// Characters above Latin-1 cannot come out of a [`TextField`] — the
     /// filter refuses everything above `0xE1` — but a caller with a `String`
-    /// from somewhere else drops them rather than writing half a code point.
+    /// from somewhere else drops them
     pub fn new(s: &str) -> PlayerName {
         let mut out = [0u8; PLAYER_NAME_LEN];
         for (slot, c) in out.iter_mut().zip(s.chars().filter(|c| (*c as u32) < 0x100)) {
@@ -187,7 +187,7 @@ pub enum State {
 
 /// How wide the field's font draws things.
 ///
-/// A trait rather than a borrow of the font, because [`TextField`] is stepped
+/// A trait
 /// from `Screen::handle`, which has `Ctx` and not a `Pen`, and because a test
 /// wants to drive the pixel limit without an install. `docs/agents.md`: the
 /// mechanism that needs nothing of the world.
@@ -213,7 +213,7 @@ impl Metrics for FontMetrics<'_> {
     fn advance(&self, c: char) -> i32 {
         match self.0 {
             // `Font::width` of one character is `FUN_004015B9` exactly: the
-            // frame width plus one, or `SPACE_ADVANCE` where there is no glyph.
+            // frame width plus one
             Some(f) => f.width(&c.to_string()),
             // No font is not "every character is zero wide" — that would make
             // the pixel limit unreachable and let a name overrun its plate on
@@ -541,7 +541,7 @@ impl TextField {
                     true
                 }
                 // **Swallowed, and this is not fussiness.** `main.rs` delivers
-                // a printable key as *both* messages, exactly as Windows does:
+                // a printable key as *both* messages
                 // `KeyDown(Key::Char('I'))` and then `Text('I')`. The character
                 // arrives above; if the `KeyDown` half were handed back, a
                 // screen whose `I` opens something would open it *and* type an
@@ -580,7 +580,7 @@ impl TextField {
     /// !g_caretPlaced) { g_caretX = g_penAdvance; … }`. The pen advance after
     /// `caret` characters *is* the width of the first `caret` characters, so
     /// this needs no cooperation from the drawing code — which is what lets the
-    /// caret be drawn by the field rather than by the font.
+    /// caret be drawn by the field
     pub fn caret_x(&self, m: &dyn Metrics) -> i32 {
         m.width(&self.buf[..self.caret.min(self.buf.len())])
     }
@@ -659,7 +659,7 @@ mod tests {
     }
 
     /// Typing past the end of a seeded field extends it, because the original
-    /// is writing into cleared buffer rather than off the end of a string.
+    /// is writing into cleared buffer
     #[test]
     fn overwriting_past_the_end_extends_the_text() {
         let mut f = text("ab", 16);

@@ -126,7 +126,6 @@ fn a_replay_is_small() {
     assert!(replay.hashes.len() > 190);
     // A few kilobytes for two hundred ticks. Most of it is the
     // per-tick checksums, which are what make a divergence localisable
-    // rather than merely detectable.
     assert!(bytes.len() < 16 * 1024, "{} bytes for 200 ticks", bytes.len());
 }
 

@@ -1029,7 +1029,7 @@ half-edges.
 
 **And a player has since confirmed it from memory: cut-off counties do secede in play.**
 That moves the mechanic from unanchored to corroborated and it is why
-`crates/l2-kingdom/src/territory.rs` exists. It is worth being exact about what the anchor
+`crates/l2-kingdom/src/territory.rs` exists.
 now is — *the code, two `L2.eng` strings, and one person's recollection*. It is not a
 reproduction against a save, and until a fixture exists in which some realm holds two
 counties there is nothing here that could become one.
@@ -2536,7 +2536,7 @@ check that caught two of this document's layout errors — `g_healthBandLadder`'
 Twenty-four of the 29 read initialised `.data`. **Five read `.text`**, because the rule
 they check is not a table at all:
 
-| check | what it reads | why there is no table |
+| check | what it reads | no table |
 |---|---|---|
 | `AI_SetTaxRates ladders` | 20 `CMP EAX, imm8` thresholds interleaved with 24 `MOV byte ptr [county+0xB9], imm8` rates | the four ladders of §8.2 are four `if`/`else if` chains |
 | `ale ladder` | `MOV EAX, 5` (the cap), `MOV ECX, 10` (the step divisor), and the `MOV dword ptr [ebp-8], imm32` rungs | §12's ale term is arithmetic |

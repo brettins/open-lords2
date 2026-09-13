@@ -48,7 +48,7 @@ macro_rules! world {
 
 /// A county the local player holds. The England fixture's realm→county
 /// assignment is **rolled per game** (`docs/environment.md`), so this is found
-/// rather than written down.
+///
 fn own_county(g: &Game) -> u8 {
     (1..=g.kingdom.county_count as u8)
         .find(|&id| g.is_players(id))

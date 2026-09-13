@@ -5,7 +5,7 @@
 //! asks a different question: **which rules have now run, and what breaks when
 //! they do.**
 //!
-//! Everything here is our own arithmetic agreeing with itself — there is no
+//! Everything here is our own arithmetic agreeing with itself —
 //! oracle for turn 100 of England and there will not be one until a person
 //! plays it (`docs/plan.md` §5 item 1). So the assertions are of two kinds only,
 //! and the distinction is the whole design:
@@ -14,7 +14,7 @@
 //!   are true whatever the numbers come out as. A labour split that no longer
 //!   sums to the population is a defect at any turn count.
 //! * **Reachability** — *a rule fired at all*. `docs/decisions.md` C27: a rule
-//!   with no way in is not a rule the game has, and until today none of these
+//! with no way in is not a rule the game has, and until today none of these
 //!   had a way in.
 //!
 //! Nothing here asserts a *value*, because nothing here could justify one.
@@ -228,7 +228,7 @@ impl Census {
 /// numbers are. Returns the first violation as a sentence.
 ///
 /// **Each clause names the original function that maintains it**, so a failure
-/// says which subsystem to look at rather than which line went red.
+/// says which subsystem to look at
 fn invariant(k: &Kingdom) -> Result<(), String> {
     for id in 1..=k.county_count {
         let c = &k.counties[id];
@@ -319,7 +319,7 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
         //   than dropping it, which is `l2_kingdom::diplomacy`'s own correction
         //   to `docs/diplomacy.md` §4.1);
         // * an in-play realm is not allied to a **lower-numbered** dead realm,
-        //   because the `handled` array the loop is filling can only ever see
+        // because the `handled` array the loop is filling can only ever see
         //   indices below the one being walked. A *higher*-numbered dead
         //   partner survives, and that asymmetry is the original's — see
         //   `docs/bugs.md` and `reconcile_alliances`, where it is reproduced
@@ -557,10 +557,10 @@ fn a_hundred_turns_of_england() {
 /// at 480 and 486, and the horizon here is [`TURNS_LONG`] to reach them. The
 /// other two are neither: **mutiny and a tax rate at or above 20 are no longer
 /// reached by this fixture at all**, at any horizon tried. Their assertions are
-/// gone from this test rather than being quietly stretched, because a
+/// gone from this test
 /// twelve-hundred-turn test that still fails is not evidence of anything. They
 /// need a *dealt* board — `england_with_an_empire` below already deals one for
-/// the tax term — and that is a real gap, recorded here rather than hidden by
+/// the tax term — and that is a real gap, recorded here
 /// an assertion nobody can satisfy.
 ///
 /// # Red a second time, and that assertion was wrong
@@ -730,7 +730,7 @@ fn a_hundred_turns_of_an_empire_taxed_at_thirty() {
 }
 
 /// **All 44 shipped maps, twenty turns each.** `docs/decisions.md` C26's
-/// warning applied to the map rather than to the rule: England is one input of
+/// warning applied to the map
 /// forty-four, and `tests/newgame.rs` only takes *one* turn in each.
 #[test]
 fn every_shipped_map_survives_twenty_turns() {

@@ -1,4 +1,4 @@
-//! **The castle the player actually built, on the battlefield** —
+//! **The castle the player
 //! `Battlefield_BuildCastle` (`0x0047C4BA`), `Battlefield_ReadStructureLayer` and the six
 //! surface passes of `Battlefield_ClassifySurfaces`.
 //!
@@ -78,9 +78,9 @@ impl CastleSheets {
     pub const SKIRMISH_FILE: &'static str = "stnfiel2.pl8";
 
     /// The five campaign castles, in `g_castleLevel` order. `castle * 0x20` is
-    /// the directory entry, exactly as `Battlefield_BuildCastle` indexes it, so
+    /// the directory entry,
     /// this stops at the first entry whose two offsets do not both hold a whole
-    /// layer rather than trusting a frame count.
+    /// layer
     pub fn parse(bytes: &[u8]) -> Option<CastleSheets> {
         let dir = bytes.get(..1000.min(bytes.len()))?;
         let u24 = |at: usize| -> Option<usize> {
@@ -134,7 +134,7 @@ pub const ESCAPE_GROUND: u8 = 0xEF;
 /// ```
 ///
 /// The ladder is [`code`], and it *overwrites* `flags` for six of its eight
-/// arms rather than setting a bit — so a structure cell is never impassable
+/// arms
 /// through `0x10` even where the table says the tile is. **[V]**
 ///
 /// `level` picks the table the same way `DAT_0057C910` does: `1 < level` is
@@ -469,7 +469,7 @@ pub const MARKER_SIDE4: u8 = 0x0F;
 /// * side 4's other kinds — a two-bit index from `buf[+0x50]`, `buf[+0x51]`
 ///   (`Marker_Index2Bit`).
 ///
-/// The walker zeroes each byte as it consumes it, which is why it is run over a
+/// The walker zeroes each byte as it consumes it,
 /// copy here: a `7` belonging to one marker must not be read again by the next.
 /// Points are stored `(x + 2, y + 2)`, except a deployment slot's `(x + 2, y)`
 /// and the reference cell's `(x, y - 2)` — the block's own corner offsets.
@@ -570,7 +570,7 @@ fn approach_row(kind: u8) -> Option<usize> {
     }
 }
 
-/// **The AI's view of a real castle**, out of [`tables`] rather than out of a
+/// **The AI's view of a real castle**, out of [`tables`]
 /// ring we drew.
 ///
 /// [`crate::siege::our_castle_ai_field`] is the same shape filled from our
@@ -580,7 +580,7 @@ fn approach_row(kind: u8) -> Option<usize> {
 /// Two of our fields alias one of the original's: `castle_approach[3]` and
 /// [`crate::AiField::staging`] are both `0x0055CDF0`, and `castle_approach[2]`
 /// and [`crate::AiField::castle_ref`] are both `0x0055CDD0`. They are filled
-/// consistently rather than allowed to disagree.
+/// consistently
 pub fn ai_field(field: &Battlefield, level: u8, t: &CastleTables) -> AiField {
     let mut f = crate::runner::ai_field_for(field);
     f.castle_approach = t.approach;
@@ -626,7 +626,7 @@ mod tests {
         assert!(field.cells.iter().all(|c| c.tileset() == 1));
     }
 
-    /// `parse` stops where the file does rather than trusting a count.
+    /// `parse` stops where the file does
     #[test]
     fn a_truncated_layout_file_yields_no_castles() {
         assert!(CastleSheets::parse(&[0u8; 40]).is_none());

@@ -76,7 +76,7 @@
 //! [`View`] is the projection, and [`View::of`] is where every mapping is
 //! written down — two of them are not one-to-one and are explained there.
 //!
-//! **The battle arms cannot fire, and that is recorded rather than decided.**
+//! **The battle arms cannot fire, and that is recorded.**
 //! Tips 212, 214 and 215 are guarded by `g_screenId == 0 && g_battlePhase == 2`.
 //! Every write of `g_battlePhase = 2` found — `Battle_Start`, `FUN_00477C89`,
 //! the skirmish set-up — writes `g_screenId = 0x29` beside it, and both battle
@@ -136,7 +136,7 @@ pub mod group {
 /// **The tip screens' state** — `g_tipShown[200..220]`, `DAT_004F0358`,
 /// `g_screenId == 0x27`, `DAT_00553210` and `DAT_0052F004`'s reset.
 ///
-/// not-encoded: per-peer display state, and per *run* rather than per game —
+/// not-encoded: per-peer display state, and per *run* —
 /// see the module header. Nothing in the world reads any of it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Tips {
@@ -282,9 +282,9 @@ impl View {
     /// **The projection, one question at a time.**
     ///
     /// * **`g_screenId`** is the top screen that is not the message scroll — the
-    ///   scroll is not a screen id in the original (`crate::screens::message`) —
+    /// scroll is not a screen id in the original (`crate::screens::message`) —
     ///   answered by [`crate::screen::Screen::mode_screen_id`] where the
-    ///   original's byte is not a function of our [`ScreenId`], and by
+    /// original's byte is not a function of our [`ScreenId`], and by
     ///   [`screen_byte`] otherwise. The one screen that needs the first is the
     ///   campaign map: `Map_BeginMoveSelection` writes `g_screenId = 0x10`, the
     ///   only writer of that value in the image (`docs/screens.md` §9.5), and
@@ -297,7 +297,7 @@ impl View {
     ///   field's three screen ids.
     /// * **`DAT_0057A0F0`** is set by the Battle Master's two set-up functions
     ///   (`0x0042B919` and its sibling) and cleared by `FUN_00497A34` on the
-    ///   campaign route. There is no skirmish mode here, so it is `false`.
+    /// campaign route.
     pub fn of(machine: &crate::screen::Machine, game: &Game) -> View {
         let ids = machine.ids();
         let job = match machine.top_screen_id() {

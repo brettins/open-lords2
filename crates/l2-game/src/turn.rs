@@ -65,7 +65,7 @@
 //! what `tests/turn.rs` asserts by running one twice. The unit sweep keeps that
 //! property because it walks slots 1 … 150 in order and stops at the first
 //! battle — `docs/netcode.md` §5's rule, and the reason the stop is reproduced
-//! rather than tidied away.
+//!
 
 use l2_kingdom::ai::{self, AiStep};
 use l2_kingdom::conquest::Attack;
@@ -313,7 +313,7 @@ pub fn answer_battle(game: &mut Game, answer: Answer) -> TurnStep {
 /// suspended exactly where it was: the two armies are still standing on one tile
 /// and neither record has been touched. [`finish_battle`] is the other end.
 ///
-/// Answers `false` when there is no question to fight or the armies could not be
+/// Answers `false` when
 /// mustered, and the caller should then fall back to [`answer_battle`], which
 /// settles it the way a headless turn would.
 pub fn take_the_field(game: &mut Game) -> bool {
@@ -369,7 +369,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
 /// and throws them away in a solo one**; the Retreat confirms have no such arm
 /// at all and discard in both. `docs/bugs.md` B76.
 ///
-/// It is worth stating what this does *not* mean, because the inference is easy
+/// It is worth stating what this does *not* mean,
 /// and wrong. A battle fought to its conclusion writes back — that is
 /// [`engagement::conclude_fight`], asserted by three tests that go red if the
 /// write-back is ablated. A battle between two AI realms never reaches the
@@ -380,7 +380,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
 /// And note what `Battle_AutoResolve` does *first*: it clears
 /// `g_battleWithdrawal`. Pressing Retreat therefore does not perform a retreat
 /// — it auto-resolves, so a player who loses the ladder has his army destroyed
-/// rather than withdrawn with half of it. `l2_kingdom::battle`'s withdrawal
+///
 /// rules are reachable only from `UnitOrder_SiegeAttKnight`.
 pub fn finish_battle(game: &mut Game) -> TurnStep {
     let Some(live) = game.battle.take() else { return TurnStep::Stuck };
@@ -450,7 +450,7 @@ pub fn tick_turn(game: &mut Game) -> TurnStep {
 /// made it
 ///
 /// This used to read: *"A battle raised here is settled by the standing policy
-/// rather than by a prompt: this is not a turn, there is no [`TurnProgress`] to
+///
 /// suspend, and a screen `0x12` raised from an idle frame would have nothing to
 /// carry on afterwards."*
 ///
@@ -468,8 +468,8 @@ pub fn tick_turn(game: &mut Game) -> TurnStep {
 /// `Turn_Tick` (`docs/decisions.md` C35), `Unit_EnterOccupiedTile` and
 /// `Army_AttackCounty` call the gate from inside it, and the gate raises
 /// `g_screenId = 0x12` on the spot — the campaign then stands still because
-/// `Units_Tick`'s own latch abandons the sweep, not because a turn is in
-/// flight. So the three settlements are answered here exactly as they are
+/// `Units_Tick`'s own latch abandons the sweep.
+/// flight. So the three settlements are answered here
 /// inside a turn, and the suspension is [`TurnProgress::idle`].
 ///
 /// Returns how many tiles were entered, so a caller can decide whether the
@@ -501,7 +501,7 @@ fn raise_idle_battle(game: &mut Game, e: Encounter) {
         // **Nobody's but the lords'**, and the gate's own return of 0: no
         // screen, no report, the autocalc and on with the frame. Through
         // [`record`] like every other battle, so the losing realm is recounted
-        // here too — there is no [`TurnProgress`] on this path, so the report
+        // here too —
         // itself has nowhere to go and `record` drops it, and the recount is
         // the half that must not be dropped with it.
         //
@@ -525,7 +525,7 @@ fn raise_idle_battle(game: &mut Game, e: Encounter) {
     }
     // `Settlement::Reported` — *Fight humans only?* is on and the other side is
     // the AI's. The autocalc runs and the player is **told** on screen `0x13`
-    // rather than asked on `0x12`. The report used to be dropped here too.
+// The report used to be dropped here.
     let answer = game.field_policy;
     settle_question(game, q, answer);
 }
@@ -765,7 +765,7 @@ fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
             continue;
         }
 
-        // **An idle-frame battle is over and there was never a turn behind
+// **An idle-frame battle is over**
         // it.** Falling through to the stage machine here is what would turn
         // *"he answered the prompt"* into *"the season advanced"*. See
         // [`TurnProgress::idle`].
@@ -1117,7 +1117,7 @@ fn settle_question(game: &mut Game, q: Question, answer: Answer) {
         Some(report) => record(game, Some(report)),
         None => {
 // Not resolvable — a slot is no longer a unit. Reported.
-            // swallowed, exactly as it always was.
+            // swallowed,
             if let Some(p) = game.turn.as_mut() {
                 p.pending_battles.push(Encounter {
                     mover: q.attacker,
@@ -1266,7 +1266,7 @@ fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
 /// >
 /// > What that costs is bounded: a realm
 /// > eliminated by a battle inside phase 4 is recounted at the end of the turn
-/// > by [`Game::rank_realms`](crate::game::Game::rank_realms) rather than
+/// > by [`Game::rank_realms`](crate::game::Game::rank_realms)
 /// > mid-phase, so it is noticed one phase later than the original notices it.
 /// > Nothing between the two reads the elimination. Interleaving the step 0s
 /// > properly is the fix, and it belongs with whoever next touches the AI
@@ -1302,7 +1302,7 @@ fn begin_phase(game: &mut Game, phase: Phase) {
             // the half of the pass this line used to refuse.
             //
             // > It used to pass `l2_kingdom::ai_farm::NoMarket`, with the
-            // > reason written at the type: *"there is no stall yet, so every
+            // > reason written at the type: *"
             // > style's opening shopping cascade is refused and the county
             // > farms what it already has."* **The stated reason was false and
             // > nothing had checked it.** `Ai_BuyGood`'s stall gate is county
@@ -1502,7 +1502,7 @@ fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut boo
         // An empty function in the shipped binary. Named, and it does nothing
         // here for the same reason it does nothing there.
         //
-        // **There is no `_ =>` arm below this**, and that is deliberate: the
+// **
         // wildcard was what let the two diplomacy steps sit undispatched
         // without the compiler having anything to say. A fifteenth handler
 // would now be a compile error.

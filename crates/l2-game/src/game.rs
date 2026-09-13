@@ -935,7 +935,7 @@ impl UnitFrames {
 /// in the original's data segment, which is the same reason.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LevyOrder {
-    /// The county being levied. 0 when there is no order.
+    /// The county being levied. 0
     pub county: u8,
     /// `g_levyPercent` (`0x0056D65C`) — **where the player put the slider**,
     /// which is not necessarily what the county gave up.
@@ -1180,7 +1180,7 @@ impl Game {
     ///
     /// `Map_DrawTile`, `Map_DrawTileApex`, `Sprite_TopIt` and `Map_DrawArmies`
     /// test it on the tile they are about to draw. **No input arm tests it** —
-    /// a click on a dark tile resolves exactly as on a lit one — so this is for
+    /// a click on a dark tile resolves
     /// painters. `l2_kingdom::explore` has the readers and the writers.
     pub fn hides_tile(&self, tile: usize) -> bool {
         l2_kingdom::explore::hides(
@@ -1221,7 +1221,7 @@ impl Game {
     ///   armies, the merchants, the transports — and
     ///   [`l2_kingdom::movement::Routing::PreferRoads`] records that asymmetry.
     /// * **it starts the unit immediately**, `moving = 2` in the original, so
-    ///   the army walks on the next tick whatever phase is current. There is no
+    /// the army walks on the next tick whatever phase is current.
     ///   phase for player movement, which is the finding
     ///   [`crate::turn`] is built on.
     /// * **the cost map is rebuilt for the order**, inside
@@ -1371,7 +1371,7 @@ impl Game {
         )
     }
 
-    /// Select a county, or clear the selection with 0. An id that is not a
+    /// Select a county, or clear the selection with 0. An id
 /// county on this map is refused.
     pub fn select(&mut self, id: u8) -> bool {
         if id == 0 {
@@ -1521,7 +1521,7 @@ impl Game {
     /// [`Game::balance_all_labour`] empties every job before refilling any.
     ///
     /// The floor is ignored when it is not positive and the ceiling when it is
-    /// [`l2_kingdom::county::LABOUR_CEILING_IGNORED`] or above, exactly as the
+    /// [`l2_kingdom::county::LABOUR_CEILING_IGNORED`] or above,
     /// original's two guards do. Returns how many people moved.
     pub fn balance_labour(&mut self, id: u8, cluster: usize, fill: bool) -> i32 {
         let Some(c) = self.kingdom.counties.get(id as usize) else { return 0 };

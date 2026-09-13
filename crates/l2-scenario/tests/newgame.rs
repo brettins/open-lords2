@@ -21,7 +21,7 @@
 //! `CLAUDE.md`'s *"two of our own implementations agreeing proves only that we
 //! ported our own misunderstanding faithfully"*, one level down. So the diff
 //! below reports three verdicts, not two: **agree**, **differ, because…**, and
-//! **both silent**, which is a finding rather than a pass. And
+//! **both silent**. And
 //! [`every_county_field_is_accounted_for`] reads the field list of
 //! `CountyState` **out of the source**, so a field added tomorrow fails this
 //! test until somebody says which verdict it takes.
@@ -31,7 +31,7 @@ use l2_kingdom::map::MAP_TILES;
 use l2_scenario::newgame::{self, MapError, NewGame};
 use l2_scenario::{CountyState, Scenario};
 
-/// `L2_maps.dat`, or skip. Its own gate rather than `l2_testkit::install!()`
+/// `L2_maps.dat`, or skip. Its own gate
 /// because a partial install can have the executable and not the maps.
 macro_rules! maps {
     () => {
@@ -59,7 +59,7 @@ const SEED: u64 = 7;
 
 /// **Every shipped map builds a world**, and each one closes on itself.
 ///
-/// Running all 44 rather than England alone is `docs/plan.md`'s C26: a rule can
+/// Running all 44 is `docs/plan.md`'s C26: a rule can
 /// be wrong at 45 of its 51 inputs and stay invisible behind a fixture that
 /// exercises one. Every claim here is a per-map invariant, so a map that breaks
 /// one names itself.
@@ -139,7 +139,7 @@ fn every_shipped_map_builds_a_world_that_closes_on_itself() {
 
     // **A correction, and it is worth more than the assertion it replaces.**
     // `docs/symbols.json` says of `County_PlaceBlacksmith` that the weapons
-    // site "is derived rather than authored, which is why every county has
+    // site "is derived
     // one". 433 of 434 do. County 4 of slot 8 (Africa) has **no tile whose
     // flags byte is zero at all** — its 57 tiles are all road, boundary, rough,
     // plot, farmland, town or site — and the candidate test is `flags == 0`
@@ -182,7 +182,7 @@ fn the_player_start_markers_are_contiguous_from_one_on_every_shipped_map() {
 }
 
 /// A map that seats two cannot be started with five lords, and the refusal is a
-/// refusal rather than a silently smaller game.
+/// refusal.
 #[test]
 fn a_two_seat_map_refuses_five_lords() {
     let bytes = maps!();
@@ -417,7 +417,7 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             ((22, 20, 0x20), 1),
             // **The castles.** Five 2x2 blocks stamped from the bare plot
             // (0x14) to a standing keep (0x17 = 23) by `FUN_0046826C`, which is
-            // keyed on the castle level rather than on the map and is
+            // keyed on the castle level and is
             // deliberately not this constructor's — see `newgame`'s module
             // documentation.
             ((23, 20, 0x80), 20),
@@ -496,7 +496,7 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     // save carries the file's cache and the map path carries nothing, because
     // `Scenario::skeleton` derives all five from the field tiles with
     // `field::recount` on both paths. So they are compared where they are
-    // actually written — on the kingdom.
+    // — on the kingdom.
     let ka = a.starting_kingdom(SEED);
     let kb = b.starting_kingdom(SEED);
     for id in 1..=a.county_count {
@@ -516,7 +516,7 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     // `Scenario::skeleton` that carries `farm_style` into the county left every
     // other assertion in this file green — which is exactly the shape of the
     // four defects `docs/agents.md` lists, one layer further out. So every
-    // field this file calls *agreed* is checked again where the rules actually
+    // field this file calls *agreed* is checked again where the rules
     // read it: on the county, on both paths.
     for id in 1..=a.county_count {
         let s = a.counties[id].as_ref().unwrap();
@@ -699,10 +699,10 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         "not carried on the map path — see fields_fallow; both are 0 because nobody has sown",
     );
 
-    // **Both silent, and each one is a claim about the game rather than a
+    // **Both silent, and each one is a claim about the game
     // shrug.** These are zero in the England turn-one save *and* zero at new
     // game, and the save's zero is the original's own byte — so they are
-    // corroborated, not merely unwritten.
+    // corroborated.
     judge("tax_rate", |c| c.tax_rate as i64, "nothing sets a tax rate at new game: the county \
          record is zeroed by FUN_0046EA28 and County_Reset does not write one");
     judge("tax_collected", |c| c.tax_collected as i64, "no tax has been collected at rate 0");
@@ -1123,7 +1123,7 @@ fn the_checks_are_sensitive_to_the_three_mistakes_they_exist_for() {
     assert_eq!(good.tiles.content[mine_tile()], 1, "the mine is iron, not a castle plot");
     assert_ne!(good.castle_tile[1], mine_tile(), "the castle did not eat the mine");
 
-    // 3. The twenty-slot table dropping rather than razing: a twenty-first
+    // 3. The twenty-slot table dropping: a twenty-first
     //    field would stay farmland with no entry, and the corpus test's
     //    `fields == surviving farm tiles` is what fails.
     let many = many_fields_slot();

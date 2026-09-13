@@ -3,7 +3,7 @@
 //!
 //! It was one of the shells in [`crate::screens::shells`]: it drew the window
 //! and the words and did nothing. It is the only place a player ever chooses
-//! what to build for a siege, so a siege that could be laid but not equipped
+//! what to build for a siege
 //! stopped here.
 //!
 //! # The painter, address by address
@@ -13,7 +13,7 @@
 //! is a filled rectangle** — a loop of `FUN_00403A8F` horizontal lines — and
 //! **`FUN_004093E0` is `Ui_DrawBoxBorder(1, …)` plus `Ui_DrawBoxInterior`**, so
 //! the window is border set **1**, not 0. Neither is in the draw-call
-//! extractor's primitive list, which is why the mechanical count of this
+//! extractor's primitive list
 //! painter (28) is eight short of the truth.
 //!
 //! ```text
@@ -138,7 +138,7 @@ pub const PLAN_AT: (i32, i32) = (0x150, 0x40);
 pub const ENGINE_FRAME0: usize = 0x43;
 
 /// `FUN_004093E0(0x10, 0x30, 0x1C, 0x19)` — the window: origin in **pixels**,
-/// size in 16-pixel **cells**, which is the call's own mixed convention and the
+/// size in 16-pixel **cells**
 /// same one `Panel_JobDetail` uses. 448 × 400 at (16, 48).
 pub const BOX_X: i32 = 0x10;
 pub const BOX_Y: i32 = 0x30;
@@ -205,7 +205,7 @@ pub const PROCEED: Rect = Rect::new(0x108, 0x18C, 100, 0x1C);
 /// and the odd ones the decrement buttons **26 pixels below each** drawing
 /// frame 23, with hotspot ids 0, 1, 2 for both. That table was read into
 /// `docs/hypotheses.json` before this screen existed and is what makes the
-/// layout the original's rather than ours.
+/// layout the original's
 ///
 /// The two handlers are `SiegePrep_OrderMore` (`0x0043B681`) and
 /// `SiegePrep_OrderFewer` (`0x0043B741`), and each row's button pair sits eight
@@ -214,7 +214,7 @@ pub const PROCEED: Rect = Rect::new(0x108, 0x18C, 100, 0x1C);
 /// **The table holds exactly six records and every caller passes six.** It was
 /// decoded to ten to look for `g_sendSuppliesWidgets`' cut row: records 6…9
 /// are `g_smackTestWidgets` (`0x004DDFA0`) — the minus/plus pair at (208, 232)
-/// and (240, 232) and the yes/no pair at (288, 280) and (324, 284), which
+/// and (240, 232) and the yes/no pair at (288, 280) and (324, 284)
 /// `docs/symbols.json` describes independently — so there is nothing hidden
 /// behind this count.
 pub const BUTTON_X: i32 = 38;
@@ -237,7 +237,7 @@ pub const WIDGET_FRAME_MINUS: usize = 23;
 ///
 /// That is the exact inverse of [`crate::shell::inset_rect`]'s lighting, which
 /// is what makes one read as raised and the other as recessed, and it is the
-/// whole of the function. It lives here rather than in [`crate::shell`] beside
+/// whole of the function. It lives here
 /// `inset_rect` and `button_recess` only because that module was not this
 /// audit's to edit; three screens want it.
 pub fn bevel_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {

@@ -15,7 +15,7 @@
 //! so the county was at 47 % staffing, and [`l2_kingdom::land::herd_growth`]
 //! adds `(100 − staffing) / 3` to the death rate for the shortfall: seventeen
 //! of the eighteen points that killed those cows were *nobody tending them*.
-//! There is no arrangement of 150 people that would have saved the herd.
+//!
 //!
 //! **The game has exactly one way of saying that, and it is a number we never
 //! computed.** `Herd_LabourEstimate` (`0x0044DD4D`) fills both spare words of
@@ -43,7 +43,7 @@
 //! inverted — the same standing as
 //! `tests/reproduction.rs::the_herds_own_forecast_reproduces_for_every_county`.
 //! [`the_cattle_floor_is_the_break_even_staffing_every_original_save_stored`]
-//! sweeps every `.sav` this machine can open rather than one fixture, because
+//! sweeps every `.sav` this machine can open, because
 //! one save agreeing proves nothing (`docs/decisions.md` C1) — and because the
 //! fallback arm only appears in some of them.
 
@@ -127,7 +127,7 @@ fn the_cattle_floor_is_the_break_even_staffing_every_original_save_stored() {
 /// Winter.
 ///
 /// Three assertions and they are three different claims. The herd really is
-/// shrinking; the shrinkage really is understaffing rather than crowding or the
+/// shrinking; the shrinkage really is understaffing
 /// season; and the floor the original would have drawn red really is above the
 /// staffing he had. The third is the one that was missing, and before the fix
 /// `labour_wanted[1]` was 0 and `is_short` was false.
@@ -188,7 +188,7 @@ fn the_herd_that_lost_sixteen_head_was_below_its_break_even_floor() {
 /// rewrites the record, so deleting this write and running a whole season
 /// leaves every number unchanged — measured, that ablation is **green** against
 /// [`the_season_writes_the_break_even_floor_into_the_labour_record`]. Nothing in
-/// the simulation reads the floor, so there is no downstream effect to catch it
+/// the simulation reads the floor,
 /// either; `Labour_Allocate` reads the ceiling and only the ceiling.
 ///
 /// So the pass is run **alone**. That is not a weaker test, it is the only one

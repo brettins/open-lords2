@@ -27,9 +27,9 @@
 //! the field that means *"how many of this weapon the armoury has"* on the
 //! raise-army screen. `docs/armies.md` §6.2 says the buffer is reused with
 //! different field meanings and this is the confirmation; `l2_kingdom::divide`
-//! models it as two arrays rather than as an alias, and says why.
+//! models it as two arrays, and says why.
 //!
-//! **Slot 7 is the mercenary band, and it is not a count.** It moves whole:
+//! **Slot 7 is the mercenary band.** It moves whole:
 //! hotspot 7 on either handler swaps which column holds it, and `Army_Split`
 //! carries `mercBand`, `mercMen`, `mercTroop` and the live table's `hiredBy`
 //! across in one piece.
@@ -140,7 +140,7 @@ pub const OK: Rect = Rect::new(0x1AC, 0x1B4, 24, 24);
 /// mercenaries does not leave a gap where the band would have been: the totals
 /// move up into its place. With a band they sit four pixels below it. That
 /// four-pixel offset is the whole of the layout difference, and it is why the
-/// painter carries two literals rather than one plus a step.
+/// painter carries two literals.
 pub fn totals_y(band: bool) -> i32 {
     if band {
         0x184
@@ -177,7 +177,7 @@ pub fn totals_y(band: bool) -> i32 {
 /// was: `row_y(row) - 8` is the table's `row * 0x20 + 0x78` exactly.
 ///
 /// That is the fifth time a hit box on this project has been placed by reading
-/// a painter rather than a table; `screens/map.rs`'s header carries the
+/// a painter; `screens/map.rs`'s header carries the
 /// standing warning and this is now one of its examples.
 pub const BUTTON_DIM: i32 = 24;
 pub const PARENT_BUTTON_X: i32 = 256;
@@ -196,7 +196,7 @@ pub const TO_PARENT_FRAME: usize = 27;
 pub const TO_DAUGHTER_FRAME: usize = 25;
 
 /// `Ui_OkButton`'s picture: `System.pl8` frame 0x33, **an arrow into a hole**.
-/// It is not a tick and it is not the word "OK", which is what we drew there —
+/// It is not a tick and it is not the word "OK",
 /// a caption invented where the original draws artwork.
 pub const OK_FRAME: usize = 0x33;
 
@@ -219,7 +219,7 @@ pub const TICK_INDEX: usize = (MERC_ROW + 1) * 2;
 /// **`g_splitWidgets` (`0x004DD388`) as a table, with the kind byte each record
 /// carries.**
 ///
-/// Eighteen records: two kind-**5** — the tick and the cross, which is why they
+/// Eighteen records: two kind-**5** — the tick and the cross, so they
 /// are first in the table and last here — and sixteen kind-**4** steppers, one
 /// pair per row. The order below is `row * 2` for a parent button and
 /// `row * 2 + 1` for a daughter one, which is the order the table itself is in
@@ -255,7 +255,7 @@ pub fn widgets() -> Vec<Widget> {
 /// one. `docs/arms.json` `ours/divide-click-moves-ten`.
 ///
 /// **The band is the exception and it is the original's**: hotspot id 7 swaps
-/// the whole band rather than one man of it, in both directions.
+/// the whole band, in both directions.
 // arm: ours/divide-click-moves-ten left-press
 pub const CLICK_MEN: i32 = 10;
 
@@ -328,7 +328,7 @@ impl DivideScreen {
             // **`SplitScreen_ToParent` (`0x00437D65`) and
             // `SplitScreen_ToDaughter` (`0x00437E9E`)** — sixteen widgets in
             // eight rows, `g_uiHotspotId` carrying the slot. Row 7 is the
-            // mercenary band and swaps whole rather than by one, in the
+// mercenary band and swaps whole, in the
             // function itself. The four arms are declared on [`widgets`].
             i if i < TICK_INDEX => {
                 self.row = i / 2;
@@ -337,7 +337,7 @@ impl DivideScreen {
             }
             TICK_INDEX => self.split(ctx),
             // The cross is the same handler reading `g_uiHotspotId == 0`, and
-            // it lands on `0x04` rather than on the map.
+// it lands on `0x04`.
             _ => Transition::Pop,
         }
     }
@@ -411,7 +411,7 @@ impl DivideScreen {
 
 /// One row's pair of arrow records — `System.pl8` frames 27 and 25 at the
 /// geometry `g_splitWidgets` gives them. Falls back to our own outline when
-/// the sheet is not loaded, rather than to a letter in the debug font.
+/// the sheet is not loaded.
 fn arrows(pen: &Pen, canvas: &mut Canvas, row: usize, press: &Press) {
     // `Widget_Draw` adds one to the frame while the press timer at `+0x0D`
     // runs. The index is [`widgets`]`: `row * 2` parent, `+ 1` daughter.
@@ -477,7 +477,7 @@ impl Screen for DivideScreen {
             // **`0x11` goes back to `0x04`, not to the map**, and all three of
             // its ways out say so: the turn-ended latch, the right release and
             // `Ui_OkButtonClicked` each write `g_screenId = 0x04`. Five of the
-            // nineteen right-close arms step back one level rather than to the
+// nineteen right-close arms step back one level
             // campaign map — `0x0C` → `0x08`, `0x0D` → `0x0A`, `0x11` → `0x04`,
             // `0x17` → `0x0A`, `0x2A` → `0x29` — and a stack pop is that, so
             // long as the screen underneath is the one the original names.
@@ -531,7 +531,7 @@ impl Screen for DivideScreen {
             },
             // The hold ends when the button comes up, and it also ends when the
             // pointer slides off the widget — the original never says so
-            // because it re-runs the hit test every frame and simply stops
+// because it re-runs the hit test every frame and stops
             // matching. [`Press::pointer`] is that, said out loud.
             Event::Release { x, y } => {
                 self.press.release();
@@ -606,7 +606,7 @@ impl Screen for DivideScreen {
             pen.number_in(Face::Body, canvas, DAUGHTER_NUMBER_X, y, right, '@', "", font::TEXT);
         }
 
-        // Row 7 — the band, drawn only when there is one, exactly as the
+        // Row 7 — the band, drawn only when there is one,
         // painter's `bVar1` gates it.
         if let Some(m) = band {
             let y = row_y(MERC_ROW);
