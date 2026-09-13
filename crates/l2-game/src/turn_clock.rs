@@ -344,6 +344,34 @@ impl TurnClock {
         core::mem::take(&mut self.end_turn)
     }
 
+    /// **`Screen_FrameInput`'s force-close guard**, which is the standing
+    /// latch and not the clock's own request:
+    ///
+    /// ```c
+    /// if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0)) …
+    /// ```
+    ///
+    /// Twenty-seven sites, twenty-six of which close their screen —
+    /// [`CLOSED_BY_TURN_END`]. `DAT_0055403C` is what `Turn_End`
+    /// (`0x0043AC23`) writes — `2` in single player — and `Turn_Tick`'s
+    /// restart clears it on the first frame of the person's next live turn, so
+    /// the guard stands for **the whole turn that follows**, not only for the
+    /// frame the clock ran out on. That is [`TurnClock::restart_pending`]
+    /// exactly, and it is a wider window than [`TurnClock::end_turn_pending`],
+    /// which the map takes as soon as it is on top.
+    ///
+    /// **Two clauses are not ours and are named so the reader knows what is
+    /// missing rather than finding a bare `restart_pending`.** `DAT_00553FC8`
+    /// is the multiplayer sync-wait latch, which nothing in this engine sets
+    /// (`docs/netcode.md`); `DAT_00553018` is the F12 debug override, whose one
+    /// setter is `App_WndProc`'s `VK_F12` arm and which we do not have. With
+    /// both absent the guard reduces to this one field.
+    ///
+    /// [`TurnClock::restart_pending`]: TurnClock
+    pub fn force_close(&self) -> bool {
+        self.restart_pending
+    }
+
     /// **`Turn_Tick`'s phase-2 arm: `DAT_0055403C = 0; Siege_LaunchAssault(…)`.**
     ///
     /// Every assault the phase launches — refused or fought, anybody's — clears
@@ -504,6 +532,41 @@ mod tests {
         assert!(c.end_turn_pending(), "Turn_End");
         assert_eq!(c.value(30, true, false), None, "-1 is not drawn either");
         assert_eq!(ticks_for(31_008), 1938);
+    }
+
+    /// **The force-close guard is `DAT_0055403C`, and it is wider than the
+    /// clock's own `Turn_End` request in both directions.**
+    ///
+    /// `Turn_End` (`0x0043AC23`) writes it whichever door the turn was ended
+    /// through — the clock's, or the person clicking End Turn — and `Turn_Tick`
+    /// clears it on the first frame of his next live turn. So twenty-six of
+    /// `Screen_FrameInput`'s twenty-seven guard sites close their screen for the
+    /// **whole turn in between**, not for the one frame the clock ran out on.
+    ///
+    /// `Machine::run_turn_clock` tested [`TurnClock::end_turn_pending`], which
+    /// is raised only by the clock and is taken by the map as soon as the map is
+    /// on top; both differences are asserted here.
+    ///
+    /// **Ablation, run:** make `force_close` return `self.end_turn` and the
+    /// first block goes red at once — ending the turn by hand raises no request.
+    #[test]
+    fn the_force_close_latch_stands_for_the_whole_turn_and_not_only_for_the_request() {
+        // 1 — ended by hand, with no limit at all, so the clock raises nothing.
+        let mut c = TurnClock::default();
+        assert_eq!(c.tick(players(0)), Tick::Running);
+        assert!(!c.force_close(), "a live turn closes nothing");
+        let ended = Frame { turn: TurnState::Ended, ..players(0) };
+        assert_eq!(c.tick(ended), Tick::Waiting);
+        assert!(c.force_close(), "Turn_End writes DAT_0055403C whichever door it came through");
+        assert!(!c.end_turn_pending(), "and it is NOT the clock's request: there is no limit");
+
+        // 2 — and it stands for every frame of the turn that follows.
+        assert_eq!(run(&mut c, ended, 500), Tick::Waiting);
+        assert!(c.force_close(), "still standing 500 ticks into the turn");
+
+        // 3 — cleared by the restart, on the first live frame and not before.
+        assert_eq!(c.tick(players(0)), Tick::Restarted);
+        assert!(!c.force_close(), "Turn_Tick's restart is the one writer that clears it");
     }
 
     /// No limit is `g_optTimeLimit == 0`: the countdown's guard fails, nothing is

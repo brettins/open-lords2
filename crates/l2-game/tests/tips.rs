@@ -243,6 +243,54 @@ fn a_tip_holds_its_screens_input_and_gives_it_back_when_dismissed() {
     assert_eq!(m.ids(), vec![ScreenId::Campaign, ScreenId::Options(Page::Advanced)]);
 }
 
+/// **The minimap is live under a tip, and it drops the byte with no restore.**
+///
+/// Screen `0x27` has no arm in `Screen_FrameInput` (`0x0042FF10`) and none in
+/// `Screen_HandleInput` (`0x004BA9C8`) — both were read, and the second really
+/// is a bare `return 0`. But every arm of the first ends `goto LAB_00431F25`,
+/// which jumps *over* the epilogue, and `0x27` has no arm to jump: it falls
+/// into
+///
+/// ```text
+/// if ((leftPressed || rightPressed) && g_screenId != 0x12 && FUN_004323FE()) {
+///     if (g_battlePhase == 0) g_screenId = 0;
+/// }
+/// ```
+///
+/// That is a bare assignment, not `Msg_Dismiss`, so `FUN_00476E21` does not run:
+/// the screen the tip was shown over is **not** put back and `DAT_004F0358` is
+/// **not** re-armed. Both halves are asserted, because the second is the whole
+/// difference between this and the dismissal above.
+///
+/// **Ablation, run:** make `TipScreen::handle` return `Transition::Stay` for
+/// everything again and the first assertion goes red — the options page comes
+/// back instead of the map, and the tip host is still seated.
+#[test]
+fn a_minimap_press_under_a_tip_drops_the_screen_without_re_arming_the_delay() {
+    let (mut g, a, mut m) = campaign();
+    assert_eq!(ticks_until_posted(&mut m, &mut g, &a, 100), Some(21));
+    assert!(g.tips.hosting(), "the tip is hosting 0x27");
+
+    // The tip window is on top and takes the click first; the minimap raster is
+    // outside it, so this reaches the tip host underneath.
+    let mini = l2_view::chrome::minimap_hit_area();
+    send(&mut m, &mut g, &a, Event::Click { x: mini.x0 + 4, y: mini.y0 + 4 });
+
+    assert!(!g.tips.hosting(), "g_screenId = 0, so the byte is not 0x27 any more");
+    assert_eq!(
+        g.tips.delay(),
+        0,
+        "the epilogue is an assignment, not FUN_00476E21: DAT_004F0358 is not re-armed",
+    );
+    assert!(g.messages.is_open(), "and the window stays: Msg_Pump runs on 0x00 too");
+
+    // The seat comes off on the next tick, and with no re-arm the ladder posts
+    // the next tip on that same tick — where a dismissal would have bought
+    // twenty quiet frames. Asserted as the difference, because that is what the
+    // missing re-arm *is*.
+    assert_eq!(ticks_until_posted(&mut m, &mut g, &a, 100), Some(1), "the next tip, immediately");
+}
+
 // ----------------------------------------------------------------- the window
 
 /// **Where the OK button is**, for the wraps that exercise every rule in the

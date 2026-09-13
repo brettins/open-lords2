@@ -1145,9 +1145,20 @@ impl Screen for CountyScreen {
             // [`crate::screens::belongs_to_the_right_column`] matches a press, a
             // release and a pointer and nothing else. That is recorded rather
             // than changed here; the column is the map's.
+            //
+            // **It does not start a drag, and this arm did.** `slider_held` is
+            // `g_mouseLeftDown`, and `App_WndProc` (`0x004B29BE`) answers
+            // `0x203` with `DAT_004EADA1 |= 1` and nothing else — only `0x201`
+            // sets the down bit. So `Ration_SliderClick`'s track branch,
+            // `g_mouseLeftDown && g_mouseInputChanged`, is false for as long as
+            // the second press is held, and moving the pointer after a double
+            // click on the track moves nothing. Ours latched the drag on and
+            // the thumb then followed the cursor with the button up.
+            // `crate::input::LeftButton` is the bit; this is one reader of it.
+            // `[V]`, and `crates/l2-game/src/screens/army.rs` is the same line
+            // on the levy slider, which already passed `down: false` here.
             Event::DoubleClick { x, y } => {
                 if self.split_click(ctx, x, y, true) {
-                    self.slider_held = true;
                     return Transition::Stay;
                 }
                 if let Some(i) = self.press.event(&self.arrows(), event) {

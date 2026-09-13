@@ -257,12 +257,22 @@ fn ale_gives_five_happiness_a_season_and_no_more_until_the_season_turns() {
 /// The original's two exits are the corner hotspot — `Ui_OkButtonClicked`
 /// (`0x0040E7E4`), a 24 x 24 box on a *left release* — and a right release.
 /// Both are asserted here, in both directions, on both screens.
+///
+/// **And the corner is the RELEASE, which this test asserted in its own prose
+/// and not in its code.** It sent an `Event::Click`, and so did both screens'
+/// handlers; `Ui_OkButtonClicked`'s first statement is
+/// `if (g_mouseLeftReleased == 0) return 0;`. `docs/arms.json`
+/// `0x0042FF10/merchant-ok` and `0x0042FF10/trade-ok`.
+///
+/// **Ablation, run:** move either `Ok.contains` test back into the screen's
+/// `Event::Click` arm and the matching press assertion below goes red.
 #[test]
 fn only_the_corner_hotspot_and_a_right_click_close_the_merchant() {
     let (mut game, assets) = world!();
     let (merchant, _) = stall(&mut game);
 
     let (bx, by) = empty_spot(&assets);
+    let corner = (STALL_OK.x + 4, STALL_OK.y + 4);
     let mut screen = MerchantScreen::new(merchant);
     assert_eq!(
         send(&mut screen, &mut game, &assets, Event::Click { x: bx, y: by }),
@@ -270,9 +280,19 @@ fn only_the_corner_hotspot_and_a_right_click_close_the_merchant() {
         "a click on the stall's background must not dismiss it",
     );
     assert_eq!(
-        send(&mut screen, &mut game, &assets, Event::Click { x: STALL_OK.x + 4, y: STALL_OK.y + 4 }),
+        send(&mut screen, &mut game, &assets, Event::Click { x: corner.0, y: corner.1 }),
+        Transition::Stay,
+        "and the PRESS on the corner does nothing: Ui_OkButtonClicked reads g_mouseLeftReleased",
+    );
+    assert_eq!(
+        send(&mut screen, &mut game, &assets, Event::Release { x: bx, y: by }),
+        Transition::Stay,
+        "a release off the corner is not an exit either",
+    );
+    assert_eq!(
+        send(&mut screen, &mut game, &assets, Event::Release { x: corner.0, y: corner.1 }),
         Transition::Pop,
-        "the corner hotspot closes it",
+        "the corner hotspot closes it, on the release",
     );
     let mut screen = MerchantScreen::new(merchant);
     assert_eq!(
@@ -282,15 +302,21 @@ fn only_the_corner_hotspot_and_a_right_click_close_the_merchant() {
     );
 
     // The panel, the same way: a click inside the window that is on none of its
-    // six widgets does nothing.
+    // six widgets does nothing, and its corner is a release too.
     let mut panel = TradeScreen::new(merchant, Good::Grain.id() as u8);
     let inside = (PANEL.x + 8, PANEL.y + 8);
+    let panel_corner = (PANEL_OK.x + 4, PANEL_OK.y + 4);
     assert_eq!(
         send(&mut panel, &mut game, &assets, Event::Click { x: inside.0, y: inside.1 }),
         Transition::Stay,
     );
     assert_eq!(
-        send(&mut panel, &mut game, &assets, Event::Click { x: PANEL_OK.x + 4, y: PANEL_OK.y + 4 }),
+        send(&mut panel, &mut game, &assets, Event::Click { x: panel_corner.0, y: panel_corner.1 }),
+        Transition::Stay,
+        "the press on the panel's corner does nothing",
+    );
+    assert_eq!(
+        send(&mut panel, &mut game, &assets, Event::Release { x: panel_corner.0, y: panel_corner.1 }),
         Transition::Pop,
     );
 }

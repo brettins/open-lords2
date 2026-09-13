@@ -11497,3 +11497,69 @@ pen rather than invented. Nothing the original's page-1 painter draws reaches be
 window's y 250. Deliberately **not** `build_id`'s plain `Fntl2_9.pl8`: that line is seven
 hex characters compared one at a time, and this is four digits read as a shape, like every
 other word on the screen.
+
+---
+
+**C207 — seven arms, and in five of them the rectangle was right and
+the EDGE was wrong. A screen can answer the correct 24 × 24 box on the wrong
+half of the click and every count in `docs/arms.json` stays green.**
+
+This is rule 5's two measurements pulling apart, and `docs/input.md` §6 names the
+split: the inventory counts *which* control a screen answers, the kind byte at
+`+0x0F` counts *how*. Four of these arms were already `reproduced` — the box was
+in the right place, the test drove a press, and the original wants a release.
+
+**`Ui_OkButtonClicked` (`0x0040E7E4`) opens `if (g_mouseLeftReleased == 0)
+return 0;`.** `[V]`. Four of `Screen_FrameInput`'s arms are that call, a right
+release, and nothing else — the merchant stall `0x08`, the trade panel `0x0C`,
+the castle chooser `0x1B` and the raise-army screen `0x17`. All four closed on
+our press. `0x0042FF10/merchant-ok`, `/trade-ok`, `/raise-army-ok` are new
+records; the castle chooser's was there and untested for its edge.
+
+**The release a double click does not raise.** `App_WndProc` (`0x004B29BE`):
+`0x201` sets `DAT_004EABC2` bit 0, `0x202` clears it, and `0x203` — the
+double-click message — sets `DAT_004EADA1` and **not** the down bit. The frame
+poll raises `g_mouseLeftReleased` only on a *change*, so the button-up that ends
+a double click raises no release at all. `crate::input::LeftButton` is that bit,
+moved into the library where a test can drive it; `main.rs` was synthesising the
+release.
+
+That is the same fact `Ration_SliderClick` (`0x0043A379`) turns on: its track
+branch reads `g_mouseLeftDown`, which a double click leaves clear. Ours latched
+`slider_held` on the double click and the thumb then followed the cursor with the
+button up.
+
+**Screen `0x27` has exactly one live control and nobody had read for it.** Every
+arm of `Screen_FrameInput`'s ladder ends `goto LAB_00431F25`, jumping the
+epilogue; `0x27` — a tip over the map — has **no arm**, so it falls out of the
+nest into the epilogue and a minimap press drops `g_screenId` to 0 directly, with
+no `Msg_Dismiss`, no `FUN_00476E21` restore and no re-arm of `DAT_004F0358`.
+`Tips::unhost` is that assignment. The negative was read at the same time and is
+worth as much: `Screen_HandleInput` (`0x004BA9C8`) is one ladder on `g_screenId`
+with **no `0x27` arm** in its 3,832 bytes, so there is no widget pass on that
+screen at all. `screens/tip.rs` said both were unknown.
+
+**Reproduced is the byte drop, and the window is left standing with it** — the
+epilogue writes the byte and nothing else, and `Msg_Pump` runs on `0x00` too. Not
+reproduced: the epilogue's own guard, `FUN_004323FE` → `Minimap_Click`
+(`0x0043253A`), which picks the county and recentres before the drop. That wants
+`MapScreen`'s county raster, which screen `0x27`'s handler cannot reach; the same
+behaviour is ours on the map's own ladder, through `Map_Click`. Two paths to one
+thing and we have the other one, said in the record rather than counted as a
+miss.
+
+**The force-close guard was built as the timer's request and it is a LATCH.**
+`DAT_0055403C` is what `Turn_End` (`0x0043AC23`) writes — 2 in single player,
+through whichever door the turn was ended — and `Turn_Tick`'s restart clears it on
+the first frame of the person's next live turn. So the guard stands for the
+**whole turn that follows**, and `run_turn_clock` tested `end_turn_pending`, the
+clock's own request, which the map takes the moment the map is on top: a panel
+opened during that turn stayed open, and ending the turn by hand with one up
+closed nothing. `TurnClock::force_close` is the field. The other two clauses are
+named in the code rather than folded away — `DAT_00553FC8` is the multiplayer
+sync-wait latch nothing in this engine sets, `DAT_00553018` the F12 override
+whose one setter is `App_WndProc`'s `VK_F12` arm.
+
+**Five ablations run**, each observed red against the pre-fix line; the two edge
+tests in `input.rs` are the ones that matter, because a release with no press
+behind it is not an edge and the button-up that ends a double click raises none.

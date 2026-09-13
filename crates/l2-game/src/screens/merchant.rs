@@ -632,10 +632,24 @@ impl Screen for MerchantScreen {
                     .map_or(0, |g| g.id());
                 Transition::Stay
             }
-            Event::Click { x, y } => {
+            // **`Ui_OkButtonClicked` (`0x0040E7E4`) is a RELEASE**, and this arm
+            // tested it on the press. Its first statement is
+            // `if (g_mouseLeftReleased == 0) return 0;`, and `Screen_FrameInput`'s
+            // `0x08` arm is nothing but that call and the right release:
+            //
+            // ```c
+            // if (g_mouseRightReleased == 0) { if (Ui_OkButtonClicked()) { g_screenId = 0; … } }
+            // else { g_screenId = 0; … }
+            // ```
+            //
+            // arm: 0x0042FF10/merchant-ok left-release
+            Event::Release { x, y } => {
                 if STALL_OK.contains(x, y) {
                     return Transition::Pop;
                 }
+                Transition::Stay
+            }
+            Event::Click { x, y } => {
                 let read = Ctx { game: ctx.game, assets: ctx.assets };
                 match self.pick(&read, x, y) {
                     // `FUN_004357A6` -> `FUN_0043530E`: the click on a ware is
@@ -962,17 +976,27 @@ impl Screen for TradeScreen {
             // The six widgets through the hit test, each on its own kind — a
             // double click is a press to kind 4. The corner picture is not a
             // widget and reads only the press here.
-            Event::Click { x, y } | Event::DoubleClick { x, y } => {
+            Event::Click { .. } | Event::DoubleClick { .. } => {
                 let table = trade_widgets(self.qty != 0);
                 if let Some(i) = self.press.event(&table, event) {
                     return self.fire(ctx, i);
                 }
-                if matches!(event, Event::Click { .. }) && PANEL_OK.contains(x, y) {
+                Transition::Stay
+            }
+            // **The corner picture, on the release.** `Screen_FrameInput`'s
+            // `0x0C` arm is `Ui_OkButtonClicked()` (`0x0040E7E4`) → `g_screenId
+            // = 8`, and that call opens `if (g_mouseLeftReleased == 0) return
+            // 0;`. This panel closed on the press.
+            // arm: 0x0042FF10/trade-ok left-release
+            Event::Release { x, y } => {
+                let fired = self.press.event(&trade_widgets(self.qty != 0), event);
+                debug_assert!(fired.is_none(), "no trade widget is a release widget");
+                if PANEL_OK.contains(x, y) {
                     return Transition::Pop;
                 }
                 Transition::Stay
             }
-            Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
+            Event::Pointer { .. } | Event::PointerLeft => {
                 let fired = self.press.event(&trade_widgets(self.qty != 0), event);
                 debug_assert!(fired.is_none(), "no trade widget is a release widget");
                 Transition::Stay

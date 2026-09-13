@@ -112,6 +112,10 @@ struct App {
     /// double and then a single rather than two doubles — which is what
     /// Windows itself does.
     last_press: Option<(Instant, (i32, i32))>,
+    /// **`DAT_004EABC2`'s left bit**, and the release edge the frame poll
+    /// derives from it. In the library so a test can drive it without a window;
+    /// see [`l2_game::input::LeftButton`].
+    left: l2_game::input::LeftButton,
 }
 
 impl App {
@@ -415,13 +419,17 @@ impl ApplicationHandler for App {
                         && (x - px).abs() <= DOUBLE_CLICK_SLOP
                         && (y - py).abs() <= DOUBLE_CLICK_SLOP
                 });
-                if doubled {
+                // `App_WndProc`'s three arms, in [`l2_game::input::LeftButton`]:
+                // `0x201` sets the down bit and `0x203` does not, which is what
+                // decides whether the matching `0x202` is an edge.
+                let e = if doubled {
                     self.last_press = None;
-                    self.deliver(GameEvent::DoubleClick { x, y });
+                    self.left.double_clicked(x, y)
                 } else {
                     self.last_press = Some((now, (x, y)));
-                    self.deliver(GameEvent::Click { x, y });
-                }
+                    self.left.pressed(x, y)
+                };
+                self.deliver(e);
             }
             WindowEvent::MouseInput {
                 state: ElementState::Released,
@@ -429,7 +437,13 @@ impl ApplicationHandler for App {
                 ..
             } => {
                 let (x, y) = self.last_cursor;
-                self.deliver(GameEvent::Release { x, y });
+                // **`None` after a double click.** `WM_LBUTTONUP` clears a bit
+                // `WM_LBUTTONDBLCLK` never set, so the frame poll sees no change
+                // and raises no `g_mouseLeftReleased`. We delivered one anyway
+                // until this branch existed.
+                if let Some(e) = self.left.released(x, y) {
+                    self.deliver(e);
+                }
             }
             // The original acts on the right button's **release** everywhere,
             // never its press — see `input::Event::RightClick`.
@@ -568,6 +582,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         last_cursor: (0, 0),
         ctrl: false,
         last_press: None,
+        left: l2_game::input::LeftButton::new(),
     };
 
     let event_loop = EventLoop::new()?;
