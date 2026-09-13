@@ -559,8 +559,9 @@ fn decode_frame0(a: &Assets, name: &str) -> l2_smk::Decoder {
 
 /// **`SmackToBuffer` at `Smk_Play`'s position, on black, under the film's
 /// palette.** The logo is 500 × 292 at (80, 80); the intro is stored 144 rows
-/// tall and drawn 288, each row twice. Ablation: pass `y_scale` 1, or drop
-/// `live_palette`.
+/// tall and drawn 288, **the even rows written and the odd ones left black** —
+/// `_SmackToBuffer@28` (`0x403AF0`) with bit `0x10`. Ablation: copy the row, or
+/// drop `live_palette`.
 #[test]
 fn a_film_is_drawn_where_smk_play_puts_it_under_its_own_palette() {
     let (_p, a) = install!();
@@ -598,8 +599,8 @@ fn a_film_is_drawn_where_smk_play_puts_it_under_its_own_palette() {
     for row in 0..h {
         for x in 0..w {
             let want = d.pixels()[row * w + x];
-            assert_eq!(canvas.at(40 + x, 80 + 2 * row), want, "intro ({x}, {row}) first copy");
-            assert_eq!(canvas.at(40 + x, 81 + 2 * row), want, "intro ({x}, {row}) second copy");
+            assert_eq!(canvas.at(40 + x, 80 + 2 * row), want, "intro ({x}, {row}) written");
+            assert_eq!(canvas.at(40 + x, 81 + 2 * row), 0, "intro ({x}, {row}) twin left black");
         }
     }
 }

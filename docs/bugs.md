@@ -955,13 +955,16 @@ budget shared between turns, and the restart clause exists precisely to give eac
 The fix the code wants is the restart above the count, or the start moved in `Turn_End`.
 
 **Evidence.** **[D]** on the order, and on every writer of `DAT_005440C8`, `_DAT_00568D9C` and
-`DAT_0055403C`, which were enumerated. **[I]** that it is reachable in a real game: that
-depends on how long a turn takes on real hardware, which nobody has measured.
-`docs/oracle-requests.md` §12 is the thirty-second question that settles it.
+`DAT_0055403C`, which were enumerated: the third clause is the **only** per-turn reset, it runs
+after the count, and its gate is set by `Turn_End` (`0x0043AC23`) and cleared by
+`Turn_BeginPlayersTurn` (`0x0049B6D3`). **[I]** only on **how often** it bites on real
+hardware, which is a matter of how long a turn takes to run. `docs/oracle-requests.md` §12 was
+a stopwatch request and was retired on that reading; nothing a person could watch would change
+the order of three clauses.
 
 **Reproduced.** `crates/l2-game/src/turn_clock.rs`, `TurnClock::tick` — the three clauses in
-the original's order, with the turn's running time counted in ticks. Tests
-`a_turn_ended_early_hands_its_running_time_to_the_next_turn` and
+the original's order, the count before the restart, with the turn's running time counted in
+ticks. Tests `a_turn_ended_early_hands_its_running_time_to_the_next_turn` and
 `a_siege_assault_leaves_the_next_turn_without_a_restart`.
 
 **Switching it off** is moving four lines. The clock is session state — not in the save, not
