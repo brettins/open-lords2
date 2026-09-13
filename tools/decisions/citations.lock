@@ -14,11 +14,6 @@
 # Regenerate with:  node tools/decisions/corrections.js --relock
 # Generated. Do not hand-edit except to accept a single deliberate change.
 .github/workflows/ci.yml	C26	8ee8f43c4642	e8179d1f76a8
-CLAUDE.md	C124	9cf9ee1c286d	38723617b085
-CLAUDE.md	C133	8ca6404191f1	91fcca97cc98
-CLAUDE.md	C143	d2376fb46498	2035c02750d9
-CLAUDE.md	C5	b0903798b42f	5751c743a83c
-CLAUDE.md	C61	e855f939c99b	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
 README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
@@ -96,7 +91,7 @@ crates/l2-game/src/screens/map.rs	C152	0572ee1cacc9	582988651236
 crates/l2-game/src/screens/map.rs	C158	12f4c2311571	3b5e22280a31
 crates/l2-game/src/screens/map.rs	C173	aaceff39270a	d5c09120ff4b
 crates/l2-game/src/screens/map.rs	C199	63aaf6fc1069	f4bda256f5f1
-crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c	f7bf296341ff
+crates/l2-game/src/screens/map.rs	C21	d1c133d85cfc	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C21	d7e286680856	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C22	9269ad59f313	0364b53a921d
 crates/l2-game/src/screens/map.rs	C25	23e8c28769c0	5d466f0cb89c

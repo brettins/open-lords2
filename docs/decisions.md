@@ -11769,7 +11769,7 @@ proved the byte was the only one written and nothing about two peers.
 
 ---
 
-**CNEW-mapdraw — three of the campaign map's four reported draw defects were
+**C211 — three of the campaign map's four reported draw defects were
 one sentence each in the painter, and the fourth was already built.**
 
 Four ledger rows, started from `Map_DrawArmies` (`0x00408438`) and the army pass
