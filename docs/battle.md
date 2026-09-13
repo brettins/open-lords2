@@ -155,7 +155,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x18C` | u8 | blowUsed | [D] | set once the heavy-blow bonus has been spent. |
 | `+0x194` | u8 | isSiegeEngine | [V] | 1 for troop types 7, 8, 9 — **not 10**. `BattleUnit_Create` writes it as `6 < troopType && troopType < 10`, beside the call that stamps `0x80` on the engine's 3 × 3. So a pot of oil burns at a man's threshold, §17.4. |
 | `+0x197` | u8 | band | [V] | strength band 0 … 3 from the men left (§5.3). Scales melee attack and missile damage. |
-| `+0x198` | i16 | heavyBlow | [V] | extra hits landed **once per melee exchange**: maceman 300, knight 200, swordsman 100, everyone else 0. |
+| `+0x198` | i16 | heavyBlow | [V] | extra hits landed **once per figure for the whole battle** (§6.1): maceman 300, knight 200, swordsman 100, everyone else 0. |
 | `+0x19A` | i16 | **hits** | [V] | accumulated damage. **100 hits kills one man** (160 for a siege engine). |
 | `+0x19C` | i16 | meleeAttack | [V] | hits per blow, from `g_meleeAttackTable[type][band]`. |
 | `+0x19E` | i16 | missileDamage | [V] | hits per hit, from `g_missileStats[class][3]`. |
@@ -608,10 +608,22 @@ Cross-check against the printed manual, which gives no numbers at all but does r
 | knights have the highest attack | 20, and the longest exchange ✓ |
 | archers are nearly useless against swordsmen and knights | attack 5, no bonus, no armour ✓ |
 
-`+0x18C` (`blowUsed`) is set to 1 and, in the code paths examined, never cleared. If that
-is the case a figure lands its heavy blow **once in the whole battle**, which
-would be a bug worth reproducing. **Not established** — the writers of `+0x18C` outside
-`Melee_Tick` were not traced.
+**`+0x18C` (`blowUsed`, `0x0055460C`) has exactly three absolute references in the
+executable**, counted over `.text`: `BattleUnit_Create` zeroes it at `0x00480D47`, and
+`Melee_Tick` (`0x00494908`, 1024 bytes) reads it at `0x00494BE7` and sets it at
+`0x00494C46`. Nothing clears it per exchange, so a figure lands its heavy blow once in the
+whole battle. **[V]**, with the one caveat an absolute-reference count carries: a write
+through a computed pointer would not appear in it.
+
+**And the maceman's 300 is in the bytes.** `TroopTick_Maceman` (`0x00482789`) reloads the
+figure's constants every tick, and at `0x004827D5` stores
+`66 c7 80 18 46 55 00 2c 01` — `mov word [eax + 0x554618], 0x12C`, which is `+0x198` off
+the figure base. The same instruction at the same offset in each of the eleven handlers
+carries `0x64` for the swordsman (`0x004828B1`), `0xC8` for the knight (`0x00482B3C`) and
+`0x0000` for everyone else. There is **no separate maceman attack routine**: all eleven
+handlers are the same 217 bytes with four immediates changed, and `g_troopTickTable`
+(`0x004D9140`) holds them in troop order. So the heavy blow *is* the distinct maceman
+blow, and it is one swing per figure, not a repeated special.
 
 ### 6.2 Missiles
 
@@ -885,7 +897,7 @@ which is C3's failure mode exactly. The giveaway is that `262149` is `0x00040005
 numbers in a trenchcoat. The table is 11 rows × 4 **`u16`** = 88 bytes, and the 176 bytes a
 32-bit reading consumes run past its end into an unrelated array. `docs/symbols.json`
 already said "11 rows of 4 shorts", and had the tool been written from the symbol entry
-rather than around it, the error would never have happened. C8 says to verify prior art
+the error would never have happened. C8 says to verify prior art
 against the data; the converse also holds — **verify your reading against the notes you
 already wrote.**
 
@@ -983,7 +995,7 @@ So `routed` (`+0x166`) is incremented once per call to this machinery, and `barr
 (`+0x176`) counts consecutive failures. **[V]** The names are the game's own, from the
 debug panel, and the fields are only touched by the mover.
 
-### 8.3a `Path_LineIsClear` is not a line, not a predicate, and not free of side effects  **[V]**
+### 8.3a `Path_LineIsClear` is not a line, not a predicate, and not free of side effects **[V]**
 
 `0x004710F2`, and the early out above describes it as line of sight, which is what its name says
 and what everyone including us built. It is none of the three, and the difference is what decides
@@ -1090,8 +1102,6 @@ Which side is the *attacker* remains open. §4.3.
 * **`ownerIsHuman`.** §6.2. The asymmetry is in the code; its intent is not established.
 * **The "Morale" display.** `L2.eng` group 47 index 9. No caller found; no backing field
   found.
-* **`+0x18C`** — whether the melee heavy blow is once per battle
-  per exchange.
 * **Ticks.** Everything above is in frames. The battle frame rate, and whether it is fixed
   or wall-clock, was not established, so no timing here can be converted to seconds.
 * **Siege specifics** — walls, gates, drawbridges, the `0x20` and `0x40` cell flags, the
@@ -1253,7 +1263,7 @@ both sheets. **[V]**
 **The palette does not split the same way.** `Screen_DrawBattlefield`
 (`0x004233F7`) ends on `Palette_Set(0x568EE0)` for a field battle and
 `Palette_Set(0x5675A0)` for *any* siege, and record 1 of `g_preloadTable` is
-`t32_stn1.256`. There is no `t32_wod1.256` — not in the table and not in the
+`t32_stn1.256`.
 install — so a wooden castle is drawn in the stone castle's colours. **[V]**
 
 #### The second pass is **damage**, not terrain
@@ -1419,7 +1429,7 @@ sheets**; set B is identical but with `a3_horse` and the `a3` sheets.
   `TROOPS*.ENG` column order and troop types 0 … 6. **[V]**
 * `Battle_Start` loads set A (`a2`); the skirmish and roster screens load set B
   (`a3`). Both sets have their own animation handlers, and the `a3` handlers
-  give different poses-per-facing. **Settled, and the answer is that the battle
+  give different poses-per-facing.
   state machine never uses `a3` at all: all six `a3` handlers are unreachable
   code.** §14.4. `crates/l2-view` draws `a2` at 32 pixels, which is right.
 
@@ -1508,7 +1518,6 @@ delta. That is a second source for section 2.1's `dirc` table.
 
 The height term uses the sprite **width** for both axes, so a
 48-pixel man sits 8 pixels left of and 16 above his cell's corner. Reproduced
-rather than corrected.
 
 **`mapXY` is the cell he is walking *into*.** **[V]** `BattleMan_Step`
 (`0x0048F1DD`) tries the cell first and walks second — §7 has the whole
@@ -1728,7 +1737,7 @@ screen = origin + (missile[+0x0A] − camX·0x20, missile[+0x0C] − camY·0x20)
 ```
 
 **A missile's position is already in pixels** — `+0x0A`/`+0x0C` are
-thirty-seconds of a cell and a battle tile is 32 pixels — and **there is no
+thirty-seconds of a cell and a battle tile is 32 pixels — and
 sprite-width centring**, where every figure has one. `DAT_004E5D44` is
 `param_11 / 2`, stored by `FUN_004BC020`.
 
@@ -1840,7 +1849,7 @@ propagating network catches and a reading does not:
   `BattleMan_TryStepDir` returns **5**, and §3 already established **[V]** that
   `Cell_TryEnter` returns 5 for cell flag `0x20` against a non-zero side.
 * **State 9 is the moat fill**, not "siege-wall movement". `docs/battle-ai.md`
-  §5 already said so; §2.2 was never reconciled with it.
+  §5 already said so; §2.2
 
 Two more states carry the game's own vocabulary. **State 1 is the wait state**:
 it counts `delay` (`+0x30`) down and restores `dly state` (`+0x2F`) — the two
@@ -1946,7 +1955,7 @@ Six sites, and they settle a field `crates/l2-sim` had called *"the moat flag"* 
   set. Two sibling flags are seeded from the same place: `DAT_00542CD4` (the layout flag two order
   handlers jump `orders` to 100 on) from `0x004D4AD8`, and `DAT_0057CB48` from `0x004D4A18`;
 * **incremented** by `BattleMan_StateAttackWall` and `BattleMan_StateRamGate`, in both cases at the
-  5,000 rampart threshold, beside `Wall_Smash` and the counter reset. **`Wall_Collapse` does not
+  5,000 rampart threshold, beside `Wall_Smash` and the counter reset.
   touch it**;
 * **read** three times — `BattleMan_StateRamGate` sends a ram off the wall at `1 < it`, and
   `Order_ToCastleObjective` and `UnitOrder_SiegeDefMissile` both branch on `it < 1`;
@@ -2223,11 +2232,11 @@ directly. **[V]**
                 y 448 … 479   five buttons, 32 x 32 each
 ```
 
-### 15.3 A battle starts paused, and the pause sound is dead code  **[V]**
+### 15.3 A battle starts paused, and the pause sound is dead code **[V]**
 
 `Battle_Start` writes `DAT_0053F238 = 0xFFFFFFFF` before it raises
 `g_screenId = 0x29`. Battle button 0 (`FUN_0043B9A1`) toggles that word with a
-bitwise NOT, so it flips between `-1` and `0`, and the **first thing a player
+bitwise NOT, so it flips between `-1` and `0`, and the
 does in every battle is press pause, to unpause it**.
 
 While it is set, `FUN_0043C57D` refuses to issue an order, `BattleMap_Click`
@@ -2242,7 +2251,7 @@ DAT_0053f238 = ~DAT_0053f238;
 if (DAT_0053f238 == 1) { _DAT_005533f0 = 1; Sound_PlayFile("s032_01.wav", 1, 0); }
 ```
 
-A word that only ever holds `0` or `-1` is never `1`, so **the pause sound never
+A word that only ever holds `0` or `-1` is never `1`, so
 plays**. `docs/bugs.md` D38.
 
 ### 15.4 The five buttons — `DAT_004DC710`, `Hotspot_Test(0x1E0, 0x1C0, …, 5)`
@@ -2711,7 +2720,7 @@ the longer axis (x wins a tie), and `FUN_004262CF(3)`. **The pot is spent by its
 four orthogonal neighbours** burning — each unless it is already 7 or 10 — with argument
 `(ticksFlown − 1) × 32 + bias`, the bias `0x28` for the centre and the north, **0** for the south,
 `0x19` east, 10 west. Half a cell a frame for sixteen frames is a strip about eight cells long and
-three wide, the head burning longest (≈ 470 frames) and the tail shortest (≈ 120). **Oil kills
+three wide, the head burning longest (≈ 470 frames) and the tail shortest (≈ 120).
 only by that fire**: nothing in `Missile_Step` can hurt a man with class 7. Why the south arm's
 bias differs is not established.
 
@@ -2757,7 +2766,7 @@ nothing from catching to burning. The garrison burns out an army hidden in a woo
 **And this answers §15.12's *"why surface 15 specifically"*.** A human's `+0x44` is not 1: it is
 the unit's `targetCell`, copied by `BattleMan_StateCloseToAttack`, and `BattleUnit_Order` writes
 `targetCell` only under its fifth argument — `DAT_0053E874`, *the hovered cell is surface 15* — for
-a missile unit of side 0. So a player's order onto a wood with missile men is **an order to set that
+a missile unit of side 0. So a player's order onto a wood with missile men is
 wood alight**. `[V]` on each write; `[I]` on how often a player's unit is in state 17 to shoot it,
 which is not built here.
 
@@ -2766,7 +2775,7 @@ which is not built here.
 `BattleMan_Step` (`0x0048F1DD`) calls it when a siege engine's step is refused. An engine tests a
 **leading edge**, not a cell — `Cell_TryEnterEngine` (`0x00490C59`) over the three cells of
 `g_engineEdgeOrtho` or the five of `g_engineEdgeDiag`, decoded from the executable as two cells
-ahead — so a tower's centre stops **two cells short** of a wall, and **any figure in that edge
+ahead — so a tower's centre stops **two cells short** of a wall, and
 stops it**, friend or foe.
 
 For troop type 8 only: from its polar facing (`+0x168`, which `FUN_00488436` keeps on the nearest

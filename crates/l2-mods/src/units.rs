@@ -66,13 +66,13 @@ const MAX_STAT: i64 = u16::MAX as i64;
 /// Every type must be present: unlike the army table, where an absent troop
 /// legitimately means "none of those", an absent `recovery` would mean a
 /// figure that can be struck every tick. A missing rule here is a mistake, and
-/// the error names the rule rather than the file, because after a merge the
+/// the error names the rule
 /// rule is the thing that is missing and no single file is to blame.
 ///
-/// Ranges are checked and refused rather than clamped. `recovery = 0` is the
+/// Ranges are checked and refused. `recovery = 0` is the
 /// one that matters: it is a divisor-shaped value in the melee loop and a
 /// figure with no recovery interval is struck on every tick by every
-/// neighbour, which reads as a hang rather than as a rebalance.
+/// neighbour, which reads as a hang.
 pub fn troop_table(rs: &Ruleset) -> Result<TroopTable, RuleError> {
     let mut table = TroopTable::DEFAULT;
     for troop in ALL_TROOPS {
@@ -186,7 +186,8 @@ pub fn render_toml(table: &TroopTable) -> String {
          #   recovery          ticks between blows suffered. THIS IS MELEE\n\
          #                     DEFENCE - there is no separate defence value.\n\
          #                     Must be at least 1\n\
-         #   heavy_blow        the once-per-exchange blow, and large\n\
+         #   heavy_blow        landed once per figure in the whole battle, and\n\
+         #                     large. Maceman 300 is the highest\n\
          #   armour            flat subtraction, missiles only; never read in\n\
          #                     a melee exchange\n\
          #   exchange          blows before attacker and defender swap roles\n\
