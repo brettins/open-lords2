@@ -105,7 +105,7 @@ The rest are untraced.
 
 The county array is indexed **1 … `g_countyCount`**; record 0 is never a county, and
 `Sync_CompareState` skips bytes `+0x00 … +0x04` of every record, so those five bytes are
-local UI state rather than simulation state. **[V]**
+local UI state, not simulation state. **[V]**
 
 ### 1.1 Identity, happiness and health
 
@@ -160,17 +160,17 @@ the battle debug overlay.
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
 | `+0xB9` | u8 | **taxRate** | [V] | group 86 index 1, *"Tax rate"*. |
-| `+0xBC` | i32 | taxCollected | [V] | what the treasury actually banks, at the moment `Tax_Collect` ran. |
+| `+0xBC` | i32 | taxCollected | [V] | what the treasury banks, at the moment `Tax_Collect` ran. |
 | `+0xC0` | i32 | taxShown | [V] | group 86 index 2, *"People pay"*. `Pct(Pct(population, castleBase), taxRate)`, checked against the original's own byte in eight counties across five saves. See the note below the table. |
 | `+0xC4 + job*0x0C` | i32 | labour | [V] | workers assigned to each of **nine** jobs. §7, §14. |
 | `+0xC4 + job*0x0C + 4` | i32 | labourWanted | [V] | the job's **wanted floor** — below it the count is drawn red and the shortfall appears as unselectable icons. −1 means no floor. §14. |
 | `+0xC4 + job*0x0C + 8` | i32 | labourUseful | [V] | its **useful ceiling** — the allocator fills the job to it and no further. 100,000 means none; 0 means the county has no such resource. §14. |
 | `+0x130 + job*4` | i32×8 | labourShare | [V] | eight percentages, jobs 0 … 7, in **two groups that each sum to 100**: farm (0 … 2) and industry (3 … 7). §14. |
-| `+0x08` | i8 | industryShare | [D] | the percentage of the county given to industry rather than to the farm. Starts at 25. §14. |
+| `+0x08` | i8 | industryShare | [D] | the percentage of the county given to industry, not to the farm. Starts at 25. §14. |
 | `+0x90 + i*2` | u16×20 | fieldProgress | [V] | reclamation progress of each field, 0 … 800. §7.2. |
 | `+0x15D` | i8 | **rationAchieved** | [V] | 0 … 5 = *None, Quarter, Half, Normal, Double, Triple* — `L2.eng` group 21, six strings. |
 | `+0x15E` | i8 | rationWanted | [V] | what the player asked for; group 87, *"Wanted:" / "Achieved:"*. |
-| `+0x15F` | i8 | rationSplit | [V] | percentage of the food requirement taken from livestock rather than grain. |
+| `+0x15F` | i8 | rationSplit | [V] | percentage of the food requirement taken from livestock, not grain. |
 | `+0x178` | i32 | grainEaten | [D] | sacks; see §4.3 for what does and does not reproduce. |
 | `+0x17C` | i32 | herdEaten | [D] | head slaughtered. |
 | `+0x180` `+0x184` | i32 | grain / herd available | [D] | the caps applied to the two above. |
@@ -210,7 +210,7 @@ say it did not know. Two causes, and the common one is not the interesting one:
   his people *would* pay while the treasury banks nothing. `[D]` — read off the two functions;
   no save on this machine carries a suppressed county.
 
-A third state says why the field has to be **read** on load rather than recomputed:
+A third state says why the field has to be **read** on load, not recomputed:
 `battle-during.sav` stores 245 where the current population gives 225, because the fighting
 has already taken the people and the preview still holds the pre-battle answer.
 `battle-after.sav` stores 225. `docs/decisions.md` C142.
@@ -250,7 +250,7 @@ this array's `+0x05` without naming the array.
 | `+0x120` `+0x128` `+0x130` | i32 | iron, stone, wood | [V] | the realm-wide stockpiles `Industry_Produce` credits. `L2.eng` group 70 is *"Gold, Arms, Iron, Stone, Wood"*. |
 | `+0x124` `+0x12C` `+0x134` | i32 | iron, stone, wood at the start of the season | [D] | snapshotted by the industry driver before the four passes run. |
 | `+0x140 + t*4` | i32×6 | weapons | [V] | one counter per weapon type. |
-| `+0x158` | u8 | bankruptStage | [V] | 0 … 5, the escalation in `Wages_PayAll`. **Wraps to 0 after the mutiny rather than saturating.** §7.4. |
+| `+0x158` | u8 | bankruptStage | [V] | 0 … 5, the escalation in `Wages_PayAll`. **Wraps to 0 after the mutiny, not saturating.** §7.4. |
 
 ---
 
@@ -422,7 +422,7 @@ Two more consequences fall out and both check:
 `Season_Advance` (`0x00448440`) calls 29 functions in a fixed order. **The order is the
 rule**: taxation reads the happiness that migration has not yet changed, population growth
 reads the happiness that this turn's update has already written, and so on. Every call now
-has a name, so here is the whole list rather than an abridgement:
+has a name, so here is the whole list, not an abridgement:
 
 ```
 Season_Advance                                                     0x00448440
@@ -473,7 +473,7 @@ same shape: every function that invalidates an estimate calls it before returnin
 the address space between `Merchant_AdvanceAll` and `Merchant_ResetStall`, so the guess is
 a merchant season hook that was compiled out — but an empty function contains no evidence,
 so that is `docs/hypotheses.json` material and nothing more. The slot is deliberately
-empty rather than missing, which is the only thing worth knowing about it.
+empty, not missing, which is the only thing worth knowing about it.
 
 **Two corrections to an earlier revision of this list.**
 
@@ -525,7 +525,7 @@ does nothing else, and `Event_RollAll` clears the byte at the start of every sea
 handler is guarded on the county's shown tax being at least 10 — there is no point robbing
 a collector who is carrying nothing. §8.1.
 
-**[V] An unowned county banks its own tax** into `+0x1F4` rather than into any treasury,
+**[V] An unowned county banks its own tax** into `+0x1F4`, not into any treasury,
 which is why the neutral tax ladder in §8.2 exists at all.
 
 > **And that sentence was here, correct, for months while `Kingdom::tax_collect` dropped
@@ -673,7 +673,7 @@ what the county can feed, then spends, in order:
    animal feeds ten) and **`Food_SacksForPeople` = `DivCeil(people, 6)`** (`g_foodPerSack`
    = 6, one sack of grain feeds six). **[V]** on the constants and the rounding;
    **[D]** on the commodity each side denotes.
-3. Each side is capped at what is actually in store, and the loop drops a ration level and
+3. Each side is capped at what is in store, and the loop drops a ration level and
    retries if the total will not fit.
 
 > **What reproduces — all of it, now. Corrected twice.** An earlier revision of this box
@@ -750,7 +750,7 @@ county.happinessAvg  = county.happinessSum / g_turnCount;
 **[V]** and reproduced exactly from the save — §9.
 
 The *army* and *ale* terms are **zeroed** by this pass, because they are written when the
-player acts rather than once a season. Both writers are traced now.
+player acts, not once a season. Both writers are traced now.
 
 **Ale — `FUN_00428C42`.** Buying ale is worth one happiness per **10 %** of the county's
 population in crowns spent, up to a cap of five:
@@ -921,7 +921,7 @@ four `Msg_Enqueue` calls are in the human branch only.** The asymmetry that is r
 **Two. It fires only on a season the counter went up.** Both branches guard it with
 `if (before < after)`. So a county left at 4 because the mob could not be placed **never
 tries again**, which is the mechanism behind the "sits at maximum unrest indefinitely"
-sentence below rather than a separate fact.
+sentence below, not a separate fact.
 
 **Three. The warning season and the ladder season are exclusive.** `Msg_Enqueue(0x92)` is
 the `if`, and the **entire** ladder — climb, reset, and the four `0x96`…`0x99` messages — is
@@ -947,14 +947,14 @@ the documented rules"* — no document said it.
 Together, three and four make revolt much harder to reach than we had it: a county needs
 **five consecutive seasons** below 25, not five seasons below 25 spread over a reign.
 
-**What a revolt actually does.** `County_RaiseRevolt` finds a free road tile in the county,
+**What a revolt does.** `County_RaiseRevolt` finds a free road tile in the county,
 or failing that a free open tile; spawns a **kind-2 unit** — revolting peasants, the ones
 turn phase 5 moves — of `Pct(population, 30)` men at morale 50 with no shield; takes those
 people out of the county's population; and calls `County_MakeIndependent`. All 30% land in
 `troops[0]`, the peasant slot, so a revolt is an unarmed mob. **[V]**
 
 If there is nowhere to put the mob it returns 0 and the unrest counter is left at 4, so a
-county with no free tile sits at maximum unrest indefinitely rather than revolting.
+county with no free tile sits at maximum unrest indefinitely instead of revolting.
 
 **And a dead branch worth reproducing.** The human ladder reads
 
@@ -1071,7 +1071,7 @@ end of Autumn   Grain_Harvest  store += crop
 
 **The three crop words are the seed, the standing crop, and the harvest — not three growth
 stages**, and this document's field table implied otherwise. `crop[0]` (`+0x240`) is written
-once a year, at sowing, and holds the sacks that actually went into the ground; `crop[1]`
+once a year, at sowing, and holds the sacks that went into the ground; `crop[1]`
 (`+0x244`) is the **one** word the whole year's crop lives in, rewritten in place by each
 `Grain_Grow`; `crop[2]` (`+0x248`) is cleared at the top of *every* season and holds what
 the harvest brought in. **[V]** — `Grain_SeasonTick`'s four arms, read together.
@@ -1099,7 +1099,7 @@ structure. **[V]**
 * **The crop is capped at `labour * perWorker` every season.** A county that sows a full
   crop and then puts nobody on the fields grows and reaps *nothing*. This is what
   `Grain_LabourEstimate` is searching for in Summer, Autumn and Winter, and why the grain
-  ceiling is a real number in all four seasons rather than only at sowing.
+  ceiling is a real number in all four seasons, not only at sowing.
 * **`Rules_InitConstants` writes four grain numbers, not two.** `g_grainLabourDivisorAdv`
   is 5, `0x00553538` is 10, `0x00553218` is 3, and `g_grainLabourDivisor` is 2. Each step
   picks between its own advanced value and the *same* basic value — so with *Advanced
@@ -1114,12 +1114,12 @@ structure. **[V]**
 * **Losing a grain field mid-year costs a share of the crop.** `Grain_FieldShare`
   (`0x0044D281`) scales the standing crop by `fieldsGrain / fieldsGrainSown` whenever the
   county now has fewer grain fields than it sowed — county `+0x202`, written at sowing
-  (and to **1** rather than the real count when the shortfall flag `+0x1A7` is set).
+  (and to **1**, not the real count when the shortfall flag `+0x1A7` is set).
   Painting *more* grain in July buys nothing until the next sowing.
 
 **And one thing that is a bug in the original and is reproduced because it is what the game
 does.** At the harvest, four of the six weather bands assign `crop[2]` from **`crop[1]`** —
-the standing crop — rather than from what `Grain_Harvest` just returned. So under *Sunny* a
+the standing crop — not from what `Grain_Harvest` just returned. So under *Sunny* a
 county reaps three halves of everything it grew however few reapers it sent, and under
 *Frost*, *Storms* or *Flooding* it reaps a fixed fraction of the same; only *Cloudy* and
 *Drought* leave the labour cap standing. The two branches at sowing and growing read their
@@ -1144,8 +1144,8 @@ both written by the constant initialiser `FUN_004983B7`).
 the function sets a shortfall flag at county `+0x1A7` and retries against the *sack count
 alone*, ignoring the field count: it returns the largest `s ≤ 10` with `s ≤ grainStore` and
 `12 × s / divisor ≤ labour`, and sows that as the whole county's seed. So a county too poor
-to sow properly plants a token handful rather than nothing, and `Grain_SeasonTick` then
-records its field usage as 1 rather than `fieldsGrain`.
+to sow properly plants a token handful, not nothing, and `Grain_SeasonTick` then
+records its field usage as 1, not `fieldsGrain`.
 
 > **This contradicts the manual, and the manual is wrong.** The manual says twice that *"up
 > to 5 sacks of grain can be planted in one field"*. The constant is **10**, and two
@@ -1258,7 +1258,7 @@ on one field of a county in *Drought* and `0x17` on one in *Flooding*, and `FUN_
 clears both back to `0` at the start of the next weather pass — so a blighted field becomes
 **waste** and has to be reclaimed. **[D]** on both.
 
-`+0x204` is the one count with a rule rather than a display attached: `Field_SetType` tests
+`+0x204` is the one count with a rule, not a display attached: `Field_SetType` tests
 it to decide whether field reclamation gets a share of the farm workforce at all.
 
 #### The brush
@@ -1362,7 +1362,7 @@ outright**: a wet spring is a real outcome, not an edge case. Only Summer's +24 
 The county that gets the local swing is picked by a flat `& 0xF` that takes no account of
 how many counties the map has, so on the fourteen-county England map the two out-of-range
 draws fall through to *"the county after last season's"*. The local swing therefore walks
-steadily around the map about an eighth of the time rather than jumping. `g_weatherCounty`
+steadily around the map about an eighth of the time instead of jumping. `g_weatherCounty`
 (`0x00554020`) is its own four-byte save block. **[V]**
 
 ### `localModifier` is `FUN_00449D6E`, and it is traced now
@@ -1378,12 +1378,12 @@ band and on the season:
 | 3 | 10 … 11 | **0** ← | −6 | 0 |
 | 4 | 12 up | **−12** | −10 | 0 |
 
-**[V]**, `0x00449D6E`. Two things fall out of it and both are the rule rather than a
+**[V]**, `0x00449D6E`. Two things fall out of it and both are the rule, not a
 transcription slip:
 
 * **The band is cut out of the county's index**, once, in `County_Reset` (`0x00451150`):
   `id < 4 → 0`, `< 6 → 1`, `< 10 → 2`, `< 12 → 3`, else `4`. **Nothing else in the binary
-  writes `+0x21E`** — one writer, one reader — so it is derived rather than stored in
+  writes `+0x21E`** — one writer, one reader — so it is derived, not stored in
   `crates/l2-kingdom/src/weather.rs::climate_band`, and a saved game's byte cannot disagree
   with it.
 * **Summer's ladder has a hole at band 3 and a dead arm at the bottom**, and they are the
@@ -1419,7 +1419,7 @@ is exactly the divisor column.
 **[V] The job column an earlier revision gave was one too high throughout**, because it
 read the numbers straight off `L2.eng` group 74. Group 74 has **ten** strings and the
 labour array has **nine** records: record *r* is group-74 string *r + 1*, because string 0,
-*"Idle people"*, is the remainder rather than a job anyone is assigned to. So the records
+*"Idle people"*, is the remainder, not a job anyone is assigned to. So the records
 are
 
 ```
@@ -1535,7 +1535,7 @@ five-stage bankruptcy escalation on `+0x158`.
 
 **The five stages, and what each does.** Each raises a message whose id is its own `L2.eng`
 group, and every one of those five strings describes, in prose, exactly what its handler
-does — which is the second source that makes this **[V]** rather than **[D]**:
+does — which is the second source that makes this **[V]**, not **[D]**:
 
 | stage | effect | message | `L2.eng` |
 |---:|---|---|---|
@@ -1550,7 +1550,7 @@ unpaid season, and four seasons is a year.
 
 **[V] A realm that cannot pay keeps its gold.** The `else` branch is the only place the
 treasury is debited, so an unpayable bill costs nothing at all — a realm one crown short
-pays no wages and loses no crowns. And the counter **wraps** rather than saturating: after
+pays no wages and loses no crowns. And the counter **wraps**, not saturating: after
 the mutiny it is 0 again, so a realm that never pays loses its armies once every six
 seasons.
 
@@ -1588,7 +1588,7 @@ stride is what puts the tax bonus at `0x004D8A28`, the free archers at `0x004D8A
 shipped `lastturn.sav` has `castleType = 3`, and `L2.eng` group 103 index 22 — the value
 word for the "Starting Castle" option — is `keep`.
 
-#### 7.5.1 Ordering one, and how the work is actually done  **[V]**
+#### 7.5.1 Ordering one, and how the work is done  **[V]**
 
 This section named the tables and left the *mechanism* to be guessed at, and the guess this
 project made was wrong in three ways at once. `Castle_Order` (`0x00436D02`), the castle
@@ -1621,7 +1621,7 @@ called *"the type under construction"*, is the opposite: it is the castle that *
 standing, written only on an upgrade and never cleared. Four readers all become obvious
 under that reading and were odd under the other — `Tax_CollectAll` (§4.1) charges the
 *standing* castle while `castleDegraded` is set and **0 when `castleBuilding` is 0**;
-`Siege_LaunchAssault` fights the standing castle rather than the scaffolding;
+`Siege_LaunchAssault` fights the standing castle, not the scaffolding;
 `Army_BeginSiege` refuses when `castleDegraded == 1 && castleBuilding == 0`, which is
 exactly *building the first castle on a bare plot — there is nothing there to besiege*; and
 `Castle_BuildTick` hands out free archers on `castleBuilding < castleType`, an upgrade.
@@ -1629,7 +1629,7 @@ exactly *building the first castle on a bare plot — there is nothing there to 
 **There is no affordability guard, and the materials are drawn down over seasons.** The OK
 button's only two refusals are *the castle you already have* (message `0x93`, `L2.eng` 147)
 and *anything smaller* (`0x122`, `L2.eng` 290). You may order a royal castle with an empty
-store; the bill simply stays owing in `+0x1D0` / `+0x1D4` and
+store; the bill stays owing in `+0x1D0` / `+0x1D4` and
 `Castle_DeliverMaterials` (`0x00450CCD`) takes whatever the realm has at the top of every
 season until it is clear. Until it *is* clear, `Castle_BuildEstimate` gives the castle job a
 ceiling of **zero** — so the builders stand idle and the county eats its own quarry output
@@ -1760,7 +1760,7 @@ Three things fall out, and each closes something this document had open:
   mechanic that was cut.
 
 The AI prices through the same markup (`Ai_BuyGood` `0x004A4B12`, `Ai_SellGood`
-`0x004A4A3F`), off the county's own stall slot rather than off a click, so this is the price
+`0x004A4A3F`), off the county's own stall slot, not off a click, so this is the price
 for everybody.
 
 **The four accumulators on the realm are not two horizons.** `Merchant_Trade` adds a
@@ -1773,7 +1773,7 @@ inside `if (realm != 0)`, so an **unowned** county trading on its own account ou
 is checked for neither: it can sell grain it does not have and buy with a purse it has
 emptied. The negative store is then erased by the tail's own `Ration_Apply`, whose
 `sacks = min(wanted, grain)` is negative against a negative store — so the bug is worth free
-crowns rather than a visible negative number, which is presumably why nobody has noticed it.
+crowns, not a visible negative number, which is presumably why nobody has noticed it.
 `Ai_BuyGood` reaches this path for every unowned county on the map. [`bugs.md`](bugs.md).
 
 ### 7.7 Bankruptcy is a six-season ladder  **[V]**
@@ -2055,7 +2055,7 @@ explicitly two statements before the loop.
 **The screen that shows this is not showing this.** Screen `0x20`, the standings, has
 seven tabs and only the seventh — *Greatest noble* — reads `+0x2B`, the rank this function
 writes; the other six are single raw fields against the leader's, through
-`GreatestNoble_Value` (`0x00415E42`) rather than through the weighted sum above. A reader
+`GreatestNoble_Value` (`0x00415E42`), not through the weighted sum above. A reader
 who takes *Most troops* for a score component in the ratio the bars show is reading a
 different mechanic. `crates/l2-game/src/screens/nobles.rs` and `docs/rules.md` §6.
 
@@ -2085,7 +2085,7 @@ difference is the whole reason it went unwritten for so long:
 | `+0x54` | ÷5 | `Realm_UpdateTotals` | total men over the realm's armies |
 | `+0x4C` | ×50 | **`Castle_BuildTick`** | the realm's counties holding a **finished** castle |
 
-**[V]** on all six. `+0x4C` was verified exhaustively rather than by reading: every
+**[V]** on all six. `+0x4C` was verified exhaustively, not by reading: every
 instruction in `Lords2.exe` whose operand mentions `g_realms + 0x4C` is one of **seven**, and
 they are `Castle_BuildTick`'s clear (`0x0045090E`) and increment (`0x00450CB1`),
 `Game_SetupRealmsAndCounties`' initial clear (`0x0049C14C`), `Score_RankRealms` three times,
@@ -2114,7 +2114,7 @@ of everything, and the chain is four functions:
 |---|---|
 | `Realm_RecountStrength` (`0x0049B42B`) | realm `+0x04` = `3 × counties + armies`; zero means eliminated. Guarded on `+0x04` already being non-zero, so it fires once. Raises group **224** if the realm is the local player, **194** if it is an AI, and **nothing** for a human who is not the local player — the split is on *"is this me"*, not on *"is this a human"*. Then `Score_RankRealms`. |
 | `Score_RankRealms` | if `g_rankLeader == g_rankTrailer` — two *realm indices*, so: one realm left standing — crowns it. An AI not yet crowned gets group **195** *"Just call me king."* and the one-shot guard `+0xED`; anyone else sends the local player group **225** *"Victory!"*. |
-| `Msg_DrawWindow`, category `0x0E` | writes `g_gameOutcome` (`0x0053F0C4`): **10** for group 225, **11** for any other ending message whose `from` is the local player, and — when `g_opponentsRemaining` is 0 — enqueues group 225 instead of writing anything. **That last branch is how a person actually wins.** |
+| `Msg_DrawWindow`, category `0x0E` | writes `g_gameOutcome` (`0x0053F0C4`): **10** for group 225, **11** for any other ending message whose `from` is the local player, and — when `g_opponentsRemaining` is 0 — enqueues group 225 instead of writing anything. **That last branch is how a person wins.** |
 | `Msg_Dismiss` (`0x00476768`) | on outcome 10 or 11, `Campaign_EnterConquest` and `g_screenId = 0x1C`. |
 
 **The victory condition compares realm indices, not scores.** "The trailer equals the leader"
@@ -2154,7 +2154,7 @@ counter **only on a win**, so a loss replays the same country.
 Campaign two is Australia (52), Central Am. (53), S. America (45), U.S.A. (44), Imperium (41)
 and The World (42), all on difficulty 2 — **six** maps, because `Setup_ChooseCampaign` starts
 its counter at **2** and the same `< 8` test ends it. The purse **resets to 5,000 at the top
-of each difficulty tier** rather than falling monotonically. Rows 8 and 9 of both tables are
+of each difficulty tier** instead of falling monotonically. Rows 8 and 9 of both tables are
 zeroed padding, which is what makes the eighth win's one-past-the-end read harmless.
 
 **All eight columns are named, and the fourth is a correction.** This table used to read the
@@ -2211,7 +2211,7 @@ places:
 
 `AI_PERSONALITY_FARM_STYLE` is `[1, 1, 0, 9]`: **two lords graze, one ploughs, one mixes.**
 
-Four things in the arithmetic can never fire, and all four are reproduced rather than tidied:
+Four things in the arithmetic can never fire, and all four are reproduced, not tidied:
 
 1. the Winter grain quota's `fertility < -50` rung sits **after** `fertility < -20`;
 2. turning **Advanced Farming off makes the AI plant more**, not less — the option's `else`
@@ -2263,7 +2263,7 @@ Eight independent predictions land:
    from the other side with `+0x29 = 1` apiece. The person is realm 1 and holds county 8
    alone. An earlier revision of this section said *"four counties owned by the human
    realm, ten unowned"*, and `crates/l2-kingdom/tests/reproduction.rs` was built on that
-   invented scenario rather than on the file — `docs/decisions.md` C12 a second time. Both
+   invented scenario, not on the file — `docs/decisions.md` C12 a second time. Both
    are fixed: the test now imports the save through `crates/l2-scenario` and compares
    against the stored bytes.
 6. **The tax term reproduces.** `taxRate` is 0 everywhere, and `dHapTax = 5 − 0 = 5`.
@@ -2272,7 +2272,7 @@ Eight independent predictions land:
    **65** for a medium county — which is band **2** on the same ladder, since `65 ≤ 65` —
    and `g_healthDeltaTable[Normal][band 2]` is **+2**, giving `65 + 2 = 67`. One number
    pins the ladder's comparison sense and the delta table's indexing at once. It was
-   **[I]**, taken from prior art rather than from this binary; it is **[V]** now — the
+   **[I]**, taken from prior art, not from this binary; it is **[V]** now — the
    starting-position table of §13.2 holds `65` in the health column of the row whose herd
    and population the save also carries.
 8. **Births and deaths reproduce exactly, on two different happiness bands.** Every county
@@ -2291,7 +2291,7 @@ That is a five-stage chain — ration → health meter → health band → happi
 population — reproducing on live data from a real game, with no free parameters. It is the
 strongest evidence in this document and the reason most of §4 and §5 is marked **[V]**.
 
-**And it is now a test rather than a paragraph.** `crates/l2-scenario` imports
+**And it is now a test, not a paragraph.** `crates/l2-scenario` imports
 `lastturn.sav` into a live `l2_kingdom::Kingdom` — the seam exists because `l2-kingdom` may
 not know what a file is and `l2-formats` may not know what a county is — and
 `crates/l2-kingdom/tests/reproduction.rs` rewinds it one season, runs `Season_Advance`, and
@@ -2345,7 +2345,7 @@ reader looking for a table will never find one for:
 The last three were exactly the rules `crates/l2-mods` was last to reach, which is not a
 coincidence: there is nothing to transcribe, so nobody transcribed anything. Those three
 are now checked against the binary by reading the instruction stream — see §13. The first
-two are not yet, and that is a gap rather than a decision.
+two are not yet, and that is a gap, not a decision.
 
 `0x004D8910` is worth one more note: it is the merchant base-price table, and indexing it
 by `L2.eng` group 6's fifteen good ids explains two slots that a published dump listed as
@@ -2413,7 +2413,7 @@ event table, the bankruptcy stages, the efficiency ramp, `resourceLimit`, both A
 tables, the history ring, the ale and army happiness terms and `Grain_Sow`'s labour slot.
 Each of those is now written out in the section it belongs to.
 
-**Still unknown, and named rather than guessed at:**
+**Still unknown, and named, not guessed at:**
 
 * **What seven of the fourteen AI handlers do in detail** (§3.2). Steps 3, 5, 6, 8, 12, 13
   and 14 are read and implemented. Of the rest, **steps 1, 2 and 11 are blocked on a
@@ -2429,7 +2429,7 @@ Each of those is now written out in the section it belongs to.
   check is where it shows.
 * ~~**The sixth score input**, realm `+0x4C`.~~ **Closed.** It is the realm's **finished
   castle count**, and the reason it looked like a seventh mystery is that it is written by
-  `Castle_BuildTick` (`0x004508DE`) rather than by the pass that writes the other five. §8.3.
+  `Castle_BuildTick` (`0x004508DE`), not by the pass that writes the other five. §8.3.
 * **The two denominators the weapons `resourceLimit` divides by** — `0x0057C904` and
   `0x0056D628`, written by `FUN_0044F15B` (§7.4).
 * **The second column of `g_castleWorkforce`** (§7.5). Both columns hold the same number in
@@ -2456,7 +2456,7 @@ Each of those is now written out in the section it belongs to.
   the shipped data files, `L2.eng`, the manual, and one turn-1 save. No game was run, per
   `decisions.md` D8 and the rule about processes an agent starts.
 
-**Bugs, which are findings rather than gaps.** The first three are reproduced in
+**Bugs, which are findings, not gaps.** The first three are reproduced in
 `crates/l2-kingdom` with a comment saying why; the rest are recorded here and not
 reproduced, for the reason each line gives.
 
@@ -2470,7 +2470,7 @@ reproduced, for the reason each line gives.
   sits outside the `if` that writes 999 (§3.2). *Reproduced, and every reader in the
   original tests `< 999`, so nothing in the original depends on it.*
 * **`Grain_Harvest`'s weather branches overwrite the labour-limited result** with a
-  multiple of the raw crop at `+0x244`, rather than scaling the value the labour check just
+  multiple of the raw crop at `+0x244` instead of scaling the value the labour check just
   returned — so in any weather but Drought or Cloudy the labour limit is discarded
   entirely. **[V]** on the reading — the four assignments are `crop[1]`-sourced and the two
   branches at sowing and growing are not. *Reproduced.* This line said *"not reproduced,
@@ -2522,7 +2522,7 @@ the game binary. The names are pushed into the Ghidra database with
 could run without holding the shared `lords2` project. Either will do; use whichever is
 free.
 
-**Checking the tables against the binary rather than against this document:**
+**Checking the tables against the binary, not against this document:**
 
 ```powershell
 powershell -File tools/oracle/kingdom.ps1 -Source File
@@ -2544,7 +2544,7 @@ they check is not a table at all:
 | `herd crowding bands` | the `MOV dword ptr [county+0x25C], imm32` stores and the `CMP [ebp-8], imm8` densities they hang off | §13.1's four bands are an `if`/`else if` chain, twice over — once for the level and once for the map graphic |
 | `herd births and deaths` | 31 tagged immediates: the staffing cap, the `/ 3` shortfall divisor, the four death rates, the four birth rates, the three small-herd bonuses and the two season codes | §13's whole rule is `FUN_0044DA99`'s instruction stream and there is no table anywhere in it |
 
-This is `decisions.md` **C16** applied to rules rather than to `Rules_InitConstants`'
+This is `decisions.md` **C16** applied to rules, not to `Rules_InitConstants`'
 globals: *when a value is absent from the data, read the code that produces it.* These
 three were the last rules `crates/l2-mods` could not reach, and that is not a
 coincidence — there was no table to transcribe, so nobody had transcribed one.
@@ -2555,8 +2555,8 @@ boundary from a byte inside an operand. That is safe here because each check com
 than passing it quietly.
 
 Three data checks were also widened at the same time. `g_armyHappinessCost` is checked
-over all 102 entries rather than the first 32; the AI personality records for lords 2 and
-3 are checked rather than only 1 and 4; and `0x004D8E18` — where a fifth record would
+over all 102 entries, not the first 32; the AI personality records for lords 2 and
+3 are checked, not only 1 and 4; and `0x004D8E18` — where a fifth record would
 begin — is pinned at `17, 0, 5000, …`, which is the evidence that the table holds four
 lords and not the five §2 implies.
 
@@ -2626,7 +2626,7 @@ independently from play and from the instruction stream.
 
 **A county with no pasture is not lightly penalised.** The `fieldsCattle == 0` branch above
 everything else halves the herd — or kills all of it below six head — and no other term
-runs. It is what makes `+0x200` load-bearing rather than decorative.
+runs. It is what makes `+0x200` load-bearing, not decorative.
 
 ### What this means for us — **done**
 
@@ -2686,7 +2686,7 @@ unowned ones. Modelling `FUN_0044F6E7` would bring both fields back.
 
 Also confirmed from the same description, and already correct: sowing debits the store
 (`Grain_Sow`'s `store -= sown`), dairy feeds people at `g_dairyPerHead`, cattle are eaten,
-and a population icon stands for `popBand` people rather than one.
+and a population icon stands for `popBand` people, not one.
 
 ### 13.1 Crowding is `herd / fieldsCattle`, in four bands  **[V]**
 
@@ -2731,7 +2731,7 @@ due to farming"*, which is the panel this whole calculation feeds.
 four levels. The binary had a four-way branch on an argument nobody had traced, `L2.eng` had
 four strings, and the bands closed. None of the three would have been conclusive alone:
 recollection does not give `herd / fieldsCattle` or the boundary at 11, and no amount of
-reading `FUN_0044DA99` volunteers that the four constants are *crowding* rather than a
+reading `FUN_0044DA99` volunteers that the four constants are *crowding*, not a
 ration level — which is what the earlier `[I]` in §13 guessed, wrongly.
 
 ### 13.2 The new-game starting position is a table  **[V]**
@@ -2812,7 +2812,7 @@ and `Industry_LabourEstimate` (`0x0044F318`) either the output-maximising smith 
 6. Whatever neither half could spend becomes **Idle townsfolk** (record 8).
 
 `Labour_RecomputeShares` (`0x00450000`) then rewrites the eight percentages from what
-actually happened, in two groups each renormalised to exactly 100, and
+happened, in two groups each renormalised to exactly 100, and
 `Labour_RecomputeIndustryShare` (`0x0044FF4A`) rewrites `+0x08` counting **half the idle
 count as industry**. `Labour_Move` — the village screen's drag — calls both.
 
@@ -2860,7 +2860,7 @@ pipeline, and that difference was the whole obstruction. §3.4.
 Three of the six could not be written before and now can:
 
 * **grain outside the sowing season** needed `Grain_Grow` and `Grain_Harvest` to be real
-  functions rather than weather multipliers — §7.1;
+  functions, not weather multipliers — §7.1;
 * **the four industries** needed the owning **realm**, so `County_RefreshEstimates` is not a
   one-county function at all, and needed `Industry_WeaponShares` (`0x0044F15B`), the two
   summed-cost denominators §7.4 left as `[D]`;
@@ -2869,7 +2869,7 @@ Three of the six could not be written before and now can:
   them up front (§7.5), so the gate is permanently open and the ceiling is the work
   outstanding. **[I]** on the model, not on the arithmetic.
 
-And one thing that would have made the wiring a **silent no-op** rather than a wrong number:
+And one thing that would have made the wiring a **silent no-op**, not a wrong number:
 `Field_ReclaimTick` spends `labour[2]` as a budget (§7.2) and this tree advanced every
 started field by a flat quarter. Reclamation labour now does something, so allocating it
 means something.
@@ -2969,7 +2969,7 @@ neutral county, get 100 extra grain.
 
 **Asking for more people than the map seats does nothing at all.** The *Start* handler's
 guard is `if (humanPlayers <= g_playerStartCount)`, with no message and no refusal — the
-button is simply inert. It can only fire in a network game.
+button is inert. It can only fire in a network game.
 
 ### 15.4 What a new game does with them — `Game_SetupRealmsAndCounties` `0x0049BD99`
 
@@ -2993,5 +2993,5 @@ easiest setting, four and the rest wild at the hardest), the difficulty setting 
 `g_campaignMap`, `g_optAdvancedFarming`, `g_optArmiesEat`, `g_optExploration`,
 `g_aiLordCount` and `g_optTimeLimit`. Nothing else in the range — **not the twelve
 selections, and not `g_optFightHumansOnly`**. Five of the unsaved ones are spent while the
-world is built and are genuinely not needed again. `g_optFightHumansOnly` is not; see
+world is built and are not needed again. `g_optFightHumansOnly` is not; see
 `docs/bugs.md`.
