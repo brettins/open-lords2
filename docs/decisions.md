@@ -12182,3 +12182,39 @@ Two rows opened from it: the sortie battle is not staged (`LeftCastle::Marched`
 carries the besieger's slot and nothing fights it), and a split daughter crossing
 the parent's tile halts on `try_enter`'s `Occupied` arm where the original asks
 "Combine armies?" (`L2.eng` 10/5).
+
+---
+
+**C225 — Bought cattle take a field for pasture; drought and flood ruin one.**
+
+County::pasture_cursor (`+0x15A`) and blight_cursor (`+0x15B`) walked together by
+`field::sweep` to find grain and fallow; field::fallow_to_pasture (`FUN_0046958F`)
+and field::grain_to_pasture (`FUN_0046965A`) flip the bytes, called by
+field::ensure_pasture (`County_EnsurePasture` `0x0046921D`). Blight walk uses
+field::blight_one_field (`FUN_00469A9C`) and field::clear_blight (`FUN_0046942C`);
+`FUN_0046942C` clears last season's 0x17/0x18 back to waste at the top of each
+county's weather pass, so blight lasts one season. Advanced Farming override is a
+second loop after blight; a flood still ruins a field with the option off, only the
+byte reads Cloudy [V].
+
+weather::update_all takes the map, an owner_is_human predicate and the message vec
+(`Weather_UpdateAll` `0x00449889`, `Msg_Enqueue` 0x8F/0x90 as
+`Message::Drought`/`Flooding`); trade::trade calls ensure_pasture on good == Cattle
+&& qty >= 0 (`Merchant_Trade` `0x004284CE`). Save VERSION 27 (+34 bytes, body
+63_338); docs/stored-fields.json rows 87/88 imported; scenario importer, newgame and
+both newgame-diff tables carry them. County +0x234, the crop-loss ledger, has three
+writers and no reader in the decompilation [V], so it is not carried. L2.eng 143/144
+moved [D] to [V] in docs/formats/eng.md §5. reproduction.rs's "a happy kingdom raises
+no messages" relaxed because a new game's weather pass posts weather letters.
+
+Tests the_pasture_sweep_starts_after_the_cursor_and_leaves_it_on_what_it_took,
+with_no_fallow_the_sweep_eats_a_grain_field_and_docks_the_crop,
+the_blight_sweep_walks_its_own_cursor_over_every_kind_of_field,
+buying_cattle_into_a_county_with_no_pasture_converts_a_field_in_cursor_order,
+a_drought_parches_one_field_and_posts_group_143, a_flood_floods_one_field_and_posts_group_144,
+basic_farming_flattens_the_byte_and_still_ruins_the_field, plus the cursors in the
+save round-trip; ablation removes the three paint_tile calls, all seven red.
+
+Tile panel ladder was mapped and not built: `TileInfo_Draw` `0x0041C208` branches on
+the plane-1 flags with group 30 words; mountain against woodland needs
+(tile.bank & 0x1c) == 4 and CampaignMap carries no bank plane.
