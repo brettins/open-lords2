@@ -4211,6 +4211,61 @@ mod tests {
         assert_ne!(run(1), run(2), "the seed does not reach the advantage");
     }
 
+    /// **A lopsided fight is seed-invariant because the threshold swallows the
+    /// jitter, not because no roll is taken.**
+    ///
+    /// Seven seeds at 400 v 200 and at 200 v 400 gave identical survivors and
+    /// tick counts; only an even fight varied. The roll is still drawn:
+    /// `Battle_UpdateStrengthAdvantage` (`0x0047FC01`) runs every hundred and
+    /// first frame and adds `(rand & 0x1F) - 10`, a span of 31 either side of
+    /// nothing. Two to one is an advantage of ±50 … 100, so no draw can carry
+    /// it across [`AGGRESSION_THRESHOLD`] (5) and every unit takes the same
+    /// branch in every battle — the aggressive one in `unit_order_advance`
+    /// (`ai.rs`), the cautious stand below it. An even fight sits inside the
+    /// jitter's reach and is the only place a seed decides anything.
+    ///
+    /// **Ablation.** Neutralise the `+= (rng & 0x1F) - 10` — keeping the draw,
+    /// so the generator still advances — and two seeds reach the same
+    /// advantage of 100: measured, `assertion left != right failed: 40 v 20`.
+    /// The even-fight half then goes red too, every seed on one branch.
+    #[test]
+    fn a_lopsided_fight_draws_its_jitter_and_the_threshold_swallows_it() {
+        let run = |seed: u64, ai_figs: u16, human_figs: u16| {
+            let a = vec![(Troop::Swordsmen, ai_figs)];
+            let b = vec![(Troop::Swordsmen, human_figs)];
+            let mut r = BattleRunner::deploy_armies(
+                blank_field(),
+                seed,
+                Army { troops: &a, owner: 1, human: false },
+                Army { troops: &b, owner: 2, human: true },
+            );
+            let fresh = r.ai.rng.clone();
+            r.run(101);
+            let adv = r.ai.strength_advantage;
+            (adv, r.ai.rng != fresh, adv > crate::ai::AGGRESSION_THRESHOLD)
+        };
+
+        for (ai_figs, human_figs) in [(40u16, 20u16), (20, 40)] {
+            let (adv1, drew1, branch1) = run(1, ai_figs, human_figs);
+            let (adv2, drew2, branch2) = run(2, ai_figs, human_figs);
+            assert!(drew1 && drew2, "{ai_figs} v {human_figs}: the generator never advanced");
+            assert_ne!(adv1, adv2, "{ai_figs} v {human_figs}: the seed did not reach the jitter");
+            assert_eq!(branch1, branch2, "{ai_figs} v {human_figs}: two seeds, two branches");
+            // 31 is the jitter's whole span, so this is *why* the branch holds.
+            assert!(
+                (adv1 - crate::ai::AGGRESSION_THRESHOLD).abs() > 31,
+                "{ai_figs} v {human_figs}: advantage {adv1} is within the jitter's reach"
+            );
+        }
+
+        // And the even fight, where the same draw does decide.
+        let branches: Vec<bool> = (1..=7).map(|s| run(s, 30, 30).2).collect();
+        assert!(
+            branches.iter().any(|&b| b) && branches.iter().any(|&b| !b),
+            "an even fight should split on the seed: {branches:?}"
+        );
+    }
+
     #[test]
     fn a_wall_of_obstacles_is_routed_around_rather_than_walked_through() {
         let mut layer = vec![0u8; terrain::CELLS];

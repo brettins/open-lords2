@@ -84,10 +84,12 @@ pub struct Figure {
     pub opponent: Option<usize>,
     /// Blows left before the roles swap.
     pub exchange: i32,
-    /// The heavy blow lands once. In the original this flag is set and, in the
-    /// paths that were traced, never cleared — which would mean one heavy blow
-    /// per figure per battle. `docs/battle.md` flags that as unresolved, so it
-    /// is reproduced faithfully and marked here.
+    /// The heavy blow lands **once per figure for the whole battle**. `+0x18C`
+    /// (`0x0055460C`) has exactly three absolute references in the executable:
+    /// `BattleUnit_Create` zeroes it (`0x00480D47`) and `Melee_Tick`
+    /// (`0x00494908`) reads and sets it (`0x00494BE7`, `0x00494C46`). Nothing
+    /// resets it per exchange. **[V]** — a computed pointer would not appear in
+    /// an absolute-reference count.
     pub blow_used: bool,
     /// Owner is a human player. Only observable effect found is that human-owned
     /// oil gets less armour, which is real in the original but unexplained.
@@ -133,7 +135,7 @@ pub struct Figure {
     /// This figure's combat constants, **copied in at construction** from the
     /// [`TroopTable`] in force.
     ///
-    /// Carried per figure, and that is the seam
+    /// Carried per figure
     /// that makes the numbers data: melee and missile code reads `f.stats`,
     /// never a constant, so whatever table built the figure is the table the
     /// whole battle runs on. It also means a table cannot change under a
@@ -153,7 +155,7 @@ pub struct Figure {
     ///
     /// `BattleMan_RecomputeStrength` compares a figure's men against three
     /// thresholds loaded from `g_strengthBandTable` *by battlefield size class*,
-    /// so the comparison is against the scale,
+    /// so the comparison is against the scale
     /// figure started with. It is carried per figure because a figure carries
     /// everything else it is judged by, and because the two sides of one battle
     /// can be on different scales (`docs/battle.md` §5.1).
@@ -165,13 +167,13 @@ pub struct Figure {
     /// Figure record `+0x09`, and the debug panel's own label **`selected`**:
     /// **which player has this figure picked**, `0` for nobody.
     ///
-    /// A player index, because that is what the original
+    /// A player index
     /// stores — `FUN_00479B58` writes `selected = param_1` and `FUN_00479A71`
     /// clears only the figures whose `selected` equals the player being cleared,
     /// so two players can hold disjoint selections in the same battle at the
     /// same time.
     ///
-    /// **Selection is simulation state, and that is not a
+    /// **Selection is simulation state, not interface state**
     /// modelling choice: `FUN_00478987` (`0x00478987`) walks the selection and
     /// *allocates a new unit* for it whenever the picked figures are not exactly
     /// one whole unit. A box drawn round half a unit therefore **splits** that

@@ -49,7 +49,7 @@
 //! | **not reproduced:** a right release dismisses the message scroll | `Msg_Dismiss` |
 //!
 //! *(The last three rows used to read* **not reproduced** *for the menu bar,
-//! `FUN_00439079` and the job rows. Those three lines were **twenty-one input
+//! `FUN_00439079` and the job rows.
 //! arms** between them — the menu bar alone is sixteen items over three
 //! drop-downs — which is what a one-line table row can hide.
 //! `docs/arms.json` groups `menu-bar` and `right-column`.)*
@@ -156,6 +156,7 @@ use l2_kingdom::industry;
 use l2_formats::maps::Plane;
 use l2_view::campaign::{self, Dir, Lattice, Viewport, Zoom, FAR, NEAR, PANEL_W, PANEL_X};
 use l2_view::chrome::{self, Minimap, MinimapMode, MinimapTint};
+use l2_view::village;
 use l2_view::{text, Canvas, Clip, Ink, Tags};
 
 use crate::input::{Event, Key, Rect};
@@ -525,9 +526,13 @@ pub struct MapScreen {
     /// site's *tile* never moves, only its terrain and its frame change.
     industry_sites: Vec<IndustrySite>,
     industry_slot: Option<usize>,
-    /// The fixed-tick counter the four pulses are derived from. See
+    /// The **gate** counter the four rungs are derived from — one step per
+    /// `Tick_Pulses` gate, not per fixed tick. See
     /// [`MapScreen::step_industry`].
     industry_tick: u32,
+    /// Milliseconds since the last gate, zeroed on each — `Tick_Pulses`
+    /// (`0x004BBC80`) sets `stamp = now`. See [`l2_view::village::GATE_MS`].
+    industry_gate_ms: u32,
     /// The two 128 × 128 rasters for this slot, decoded once.
     minimap: Option<Minimap>,
     minimap_slot: Option<usize>,
@@ -717,6 +722,7 @@ impl MapScreen {
             industry_sites: Vec::new(),
             industry_slot: None,
             industry_tick: 0,
+            industry_gate_ms: 0,
             minimap: None,
             minimap_slot: None,
             focus: Focus::None,
@@ -1080,7 +1086,7 @@ impl MapScreen {
     /// * **`County_FindTownTile` (`0x00467FD1`), which never reads `part` at
     ///   all.** It sweeps the grid in index order — `for y { for x { … } }`, the
     ///   same order [`MapScreen::tiles_with`] produces — counting the county's
-    ///   `flags & 0x40` tiles, and sets **bank bit `0x80` on the 0th and the
+    /// `flags & 0x40` tiles, and sets **bank bit `0x80` on the 0th and the
     ///   2nd**. Bank `0x80` is the *only* gate on `Sprite_TopIt` being called at
     ///   all (`FUN_00405EB5`: `if (tile.bank & 0x80) Sprite_TopIt(…)`), so the
     ///   original does not even *visit* the tile we were drawing on.
@@ -1380,15 +1386,24 @@ impl MapScreen {
     /// stores, and that is the idle frame in all four cases.
     ///
     /// The rate is [`campaign::industry_period_ms`], banded from the season's
-/// output. Converted here because the tick is this
-    /// crate's: `main::TICK` is 16 ms, so 640 ms is 40 ticks and 80 ms is 5.
+    /// output, and converted to *gates* by [`village::gates_per_rung`]: the
+    /// chain counts 20 ms gates, so 640 ms is 32 gates and 80 ms is 4. A gate
+    /// is every second 16 ms tick, because `Tick_Pulses` drops its remainder.
     ///
     /// **This is the only thing in the screen that a clock drives into a
     /// picture the base plane holds**, so it returns whether anything moved and
 /// the caller repaints on that.
     fn step_industry(&mut self, ctx: &Ctx) -> bool {
         self.rebuild_industry_sites(ctx);
-        self.industry_tick = self.industry_tick.wrapping_add(1);
+        // `Tick_Pulses` (`0x004BBC80`) gates on 20 ms and then sets
+        // `stamp = now`, so the remainder is dropped and a gate is every second
+        // 16 ms tick. The rungs count gates, not ticks. C179.
+        self.industry_gate_ms += crate::TICK_MS;
+        let gate = self.industry_gate_ms >= village::GATE_MS;
+        if gate {
+            self.industry_gate_ms = 0;
+            self.industry_tick = self.industry_tick.wrapping_add(1);
+        }
         let k = &ctx.game.kingdom;
         let mut moved = false;
         for site in &mut self.industry_sites {
@@ -1421,8 +1436,8 @@ impl MapScreen {
                 .counties
                 .get(site.county as usize)
                 .map_or(0, |c| c.industry[site.commodity].output);
-            let every = (campaign::industry_period_ms(output) / crate::TICK_MS).max(1);
-            if self.industry_tick % every != 0 {
+            let every = village::gates_per_rung(campaign::industry_period_ms(output));
+            if !gate || self.industry_tick % every != 0 {
                 continue;
             }
             site.frame = campaign::industry_step(site.commodity, site.frame);
@@ -1849,7 +1864,7 @@ impl MapScreen {
         self.centre_on_tile(x as usize, y as usize);
         self.cancel_move_selection();
         // `DAT_00553C64 = g_pickedTileUnit` — and this is the call that carries
-// it, as the paragraph above predicted it would have to.
+// it,
         Transition::Push(ScreenId::Merchant(unit))
     }
 
@@ -1865,7 +1880,7 @@ impl MapScreen {
     /// which is where [`l2_kingdom::movement::try_enter`] already puts it.
     ///
     /// The refusal is the whole rule: `Unit_OrderMove` writes **nothing at all**
-/// when no path is extracted. A refused order leaves the army as
+/// when no path is extracted. A refused order leaves the army
     /// it was — not half-ordered, not stopped. `docs/armies.md` §2.3.
     /// **`g_screenId = 0` and then `Map_ConfirmMoveOrder`** — the left press
     /// in move-order mode, in the order `Screen_FrameInput` does it:
@@ -2287,7 +2302,7 @@ const FAR_BOX_ADVICE_X: i32 = 0x50;
 const FAR_BOX_ADVICE_Y: i32 = 0x1C6;
 
 /// `Eng_DrawString(101, g_scenarioIndex, …)` — the map's own name, from the
-/// player's own file, with our slot number
+/// player's own file, with our slot number where there is no `L2.eng` to read.
 pub fn map_name(ctx: &Ctx) -> String {
     let s = ctx.assets.shell.text(FAR_BOX_MAP_GROUP, ctx.game.map_slot);
     if s.is_empty() {
@@ -2487,7 +2502,7 @@ impl Screen for MapScreen {
             // **Guard 2 of the arm, and it is tested before anything else the
             // right button does** — including the information panel below.
             // `FUN_00439079` consumes the click only when an overlay is up, so
-// with no overlay this falls through as the original's
+// with no overlay this falls through
             // `return 0` does.
             Event::RightClick { x, y } if self.clear_minimap_mode(x, y) => {}
             Event::RightClick { x, y } if self.map_clip().contains(x, y) => {
@@ -3231,7 +3246,7 @@ impl Screen for MapScreen {
 // so `Map_Click` does nothing at zoom 2. `docs/draws-map.md`
         // §5.4, C89, C189.
         //
-// **
+//
         // §7 both say *"the map's name, the season and the year"*; the painter
         // draws three things and a season is not one of them. The season is on
         // the menu bar, out of group 29.
@@ -3540,7 +3555,7 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
 ///   phase = 7` lands on the fortieth exactly.
 /// * **The castle flag carries the *garrison's* shield, not the county's.** A
 ///   captured castle whose garrison is still somebody else's flies the
-///   garrison's colours, and the two flags of one county can disagree.
+/// garrison's colours, and the two flags of one county can disagree.
 /// * **`content == 0x14` returns**: `0x14` is the bare castle plot and
 ///   `0x15 … 0x19` are castle types 1 … 5, so an unbuilt castle flies nothing
 ///   even with a garrison standing on it.
@@ -3953,7 +3968,7 @@ const GOLD_NOUN: usize = 0;
 ///   faces — so "the right font" here is the display one, not the plain one,
 ///   which is the opposite of where [`crate::build_id`] lands and worth stating
 ///   because the instinct is to reach for legibility. Verified twice:
-///   `docs/symbols.md` `0x005AF8F0`, and the preload table at `0x004D9FC0`
+/// `docs/symbols.md` `0x005AF8F0`, and the preload table at `0x004D9FC0`
 ///   gives `fntl2_14.pl8` a buffer of `0x36B0` bytes, which is exactly
 ///   `g_fontHeading - g_fontBody`.
 ///
@@ -4466,7 +4481,7 @@ mod tests {
         assert_eq!(run((1588.0, 781.0)), Viewport::new(40, 21), "and its right one");
 
         // 2. **The border scrolls too.** This is what was broken: the player
-        //    ran out of picture before he ran out of window, and the gesture
+        // ran out of picture before he ran out of window, and the gesture
         //    died in the black band.
         assert_eq!(run((0.0, 781.0)), Viewport::new(40, 19), "the far left of the window");
         assert_eq!(run((1897.0, 781.0)), Viewport::new(40, 21), "the far right");

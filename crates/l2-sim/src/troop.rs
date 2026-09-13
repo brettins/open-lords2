@@ -42,7 +42,7 @@ pub const ALL_TROOPS: [Troop; 11] = [
 ];
 
 impl Troop {
-    /// Position in [`ALL_TROOPS`], and the row this type occupies in a
+    /// Position in [`ALL_TROOPS`]
     /// [`TroopTable`].
     pub const fn index(self) -> usize {
         self as usize
@@ -119,7 +119,7 @@ impl TroopTable {
             /* SiegeTowers   */ TroopStats::new([0; 4],          15,   0, 35,   0),
             /* BatteringRams */ TroopStats::new([0; 4],          30,   0, 50,   0),
             // Oil's armour is 40, or 25 when the owner is human. That asymmetry
-            // is real in the original but its intent was never established, so
+            // is real in the original but its intent,
             // it is applied explicitly at the call site.
             /* Oil           */ TroopStats::new([0; 4],           8,   0, 40,   0),
         ],
@@ -143,9 +143,9 @@ impl Default for TroopTable {
 
 /// Per-type combat constants.
 ///
-/// Note what is *not* here: A figure's
+/// Note what is *not* here. A figure's
 /// melee defence is its `recovery` — the interval between blows it suffers is
-/// its own recovery counter, so a slow-recovering figure is struck rarely.
+/// its own recovery counter.
 /// `armour` applies to missiles only and is never read during a melee exchange.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TroopStats {
@@ -153,7 +153,10 @@ pub struct TroopStats {
     pub melee_attack: [u16; 4],
     /// Ticks between blows suffered. This *is* melee defence.
     pub recovery: u16,
-    /// Landed once per exchange, and large.
+    /// Landed **once per figure for the whole battle**, and large — maceman
+    /// 300, knight 200, swordsman 100, everyone else 0. `TroopTick_Maceman`
+    /// (`0x00482789`) stores it at `0x004827D5`, `66 c7 80 18 46 55 00 2c 01`
+    /// — `mov word [eax + 0x554618], 0x12C`, the figure's `+0x198`.
     pub heavy_blow: u16,
     /// Flat subtraction, missiles only.
     pub armour: u16,

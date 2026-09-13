@@ -497,7 +497,7 @@ fn the_county_town_flies_its_owners_flag_and_it_waves() {
 ///   is `(x, y + 1)` — the **third** tile in index order. We drew on the second,
 ///   `(x + 1, y)`, which is `part == 1` — and `County_FindTownTile` sets bank
 ///   bit `0x80`, the only gate on the overlay pass running at all, on the **0th
-///   and the 2nd** tiles it meets in index order. The original never so much as
+/// and the 2nd** tiles it meets in index order. The original never so much as
 ///   visits the tile we painted.
 /// * **The offset.** `(+0x10, −0x12)` at the near zoom, not the banner's
 ///   `(+0x1A, −0x1C)`. Both literals below are read out of the decompilation and
@@ -1703,7 +1703,7 @@ fn the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should
     // is empty.
     assert!(find_text(&canvas, "NOT SIMULATED", ink.bad).is_none());
 
-    // And the tax panel is gone, which is what "one panel at a time" means.
+    // And the tax panel is gone.
     assert!(find_body(&canvas, &assets, "Tax rate", font::TEXT).is_none());
 }
 
@@ -1867,7 +1867,7 @@ fn moving_the_ration_slider_changes_a_number_on_the_panel_in_the_same_frame() {
     let county = 8; // the player's, in the England turn-one fixture
     assert_eq!(game.kingdom.counties[county].owner, game.player);
 
-    // **The fixture's own county cannot demonstrate this, and the reason is a
+    // **The fixture's own county cannot demonstrate this.
     // rule worth knowing.** County 8 at England turn one has 435 people and
     // 101 head; the standing herd feeds five people a head *without being
     // slaughtered*, so 505 mouths' worth of dairy covers 435 and the county eats
@@ -2011,7 +2011,7 @@ fn stepping_the_tax_rate_changes_the_panel_in_the_same_frame() {
 ///   this screen: an equality.
 /// * **The *This county* line is right on the frame the game is loaded**, not
 ///   only after an arrow is pressed. `Tax_RecomputePreview` writes county
-///   `+0x0F = 5 - taxRate` and the original's own saves store exactly that, so
+/// `+0x0F = 5 - taxRate` and the original's own saves store exactly that, so
 ///   a county at rate 0 reads `( +5 ☺ )`. Nothing imported `+0x0F`, so ours
 ///   read `( 0 ☺ )` until the player touched a control.
 /// * **The *People pay* number is the arithmetic**, at a rate the fixture does
@@ -2492,7 +2492,7 @@ fn the_village_paints_an_inset_and_leaves_the_rest_of_the_screen_alone() {
     assert!(painted > 200, "only {painted} of 320 rows of the picture were painted");
 }
 
-/// And the machine paints what is underneath first, which is what
+/// And the machine paints what is underneath first.
 /// `Village_Draw` does for itself by calling `Map_DrawFrame`.
 ///
 /// With the campaign map on the stack and the village pushed on top, the
@@ -3076,7 +3076,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
     }
 
     // **`TileInfo_Draw`'s ladder reaches `0x80` only after six other bits have
-    // failed.** `FUN_0041BEFE` tests a shorter one, so a settlement tile that
     // also carried road or rough would take two different arms of two painters.
     // Asserted.
     let map = &game.kingdom.campaign.map;
@@ -3795,9 +3794,9 @@ fn town_view(game: &mut Game, assets: &Assets, county: u8) -> (MapScreen, Canvas
 /// 1. **It is drawn.** `Flags1a.pl8` frame `(shield − 1) * 8 + phase` — several
 ///    hundred opaque palette indices — stands somewhere on the canvas, exactly.
 /// 2. **The frame is keyed on the shield.** Move the owning realm's
-///    `shield_index` and the flag at the *same pixel* becomes the other
+/// `shield_index` and the flag at the *same pixel* becomes the other
 ///    shield's frame. Nothing else on the campaign map reads `shield_index` —
-///    the minimap and the menu-bar banner both read `realm_colour` — so this
+/// the minimap and the menu-bar banner both read `realm_colour` — so this
 ///    isolates the flag from everything drawn beside it.
 /// 3. **The wave advances.** Sixteen ticks is one phase (`phase = tick >> 4`),
 ///    and after them the flag at the same pixel is the next frame of the eight.
@@ -4486,7 +4485,7 @@ fn a_real_turn_turns_the_season_and_the_map_is_repainted_from_other_files() {
 }
 
 /// **A town drawn through `Overrides` in one season is still a town in the
-/// next** — which is the thing the season swap could have broken and the reason
+/// next** — which is the thing the season swap could have broken.
 /// `install.rs::the_four_seasons_of_a_bank_are_the_same_frame_table` exists.
 ///
 /// The overrides plane stores a **frame index**, not a picture. If frame 47 of
@@ -4693,10 +4692,11 @@ fn the_village_animates_and_the_iron_mine_comes_out_of_villani1() {
     let mut screen = VillageScreen::new(iron as u8);
     let first = draw(&mut screen, &mut game, &assets);
 
-    // One slow pulse: 160 ms at the 16 ms tick is ten ticks, and every one of
-    // the six overlays has moved at least once by then.
-    let ticks = village::PULSE_SLOW_MS / VillageScreen::TICK_MS;
-    assert_eq!(ticks, 10, "160 ms is ten fixed ticks");
+    // One slow pulse: eight 20 ms gates, and a gate is two 16 ms ticks because
+    // `Tick_Pulses` (`0x004BBC80`) drops its remainder — C179. Every one of the
+    // six overlays has moved at least once by then.
+    let ticks = village::PULSE_SLOW_MS / village::GATE_MS * 2;
+    assert_eq!(ticks, 16, "160 ms is eight gates, sixteen fixed ticks");
     for _ in 0..ticks {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         screen.update(&mut ctx);
@@ -4854,7 +4854,10 @@ fn every_village_overlay_run_fits_inside_its_own_sheet() {
     // Several full turns of the longest run, so every counter visits every
     // value it can take.
     for _ in 0..18 * 4 {
-        clock.tick(village::PULSE_SLOW_MS);
+        // One slow pulse is eight gates, and a gate takes whatever it takes.
+        for _ in 0..village::PULSE_SLOW_MS / village::GATE_MS {
+            clock.tick(village::GATE_MS);
+        }
         for overlay in &village::OVERLAYS {
             let f = clock.frame_of(overlay);
             let sheet = usize::from(!overlay.villani1);
@@ -5643,7 +5646,7 @@ fn the_pastures_have_cattle_in_them_and_the_herd_chooses_which() {
 ///
 /// 1. **The compiler owns the safety.** `Screen::draw` takes `&Ctx`, so a
 ///    renderer cannot reach the simulation at all - which is a stronger
-///    guarantee than any number this test could compare, and the reason the
+/// guarantee than any number this test could compare, and the reason the
 ///    Phase lives on the screen. Drawing the
 ///    same world at every phase and comparing the checksum is a *witness* to
 ///    that, not the proof.
@@ -5826,7 +5829,7 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
 ///    not decoration: the sign is the only thing on the row that says which way
 ///    the herd is going;
 /// 3. **zero draws nothing at all**, because every produce row passes `mode`
-///    0 and the function's first line is
+/// 0 and the function's first line is
 ///    `if ((value != 0) || (mode != 0))`.
 ///
 /// The search is [`find_font_text`], so it is the **glyphs of the user's own
@@ -6161,7 +6164,7 @@ fn the_end_turn_label_disappears_while_the_turn_runs() {
     let mut screen = MapScreen::new();
 
     // The band the label is centred in: `Ui_DrawCentred(4, 0, 0x1DE, 0x1CE,
-    // 0xA2, ...)`, so x 478..640 and the strip's own twenty rows from y 460.
+    // 0xA2,...)`, so x 478..640 and the strip's own twenty rows from y 460.
     let label_band = |canvas: &Canvas| -> Vec<u8> {
         let mut out = Vec::new();
         for y in 460..480usize {
@@ -6336,7 +6339,7 @@ fn the_ration_panels_five_numbers_centre_where_panel_ration_centres_them() {
 /// return. The `" {men} "` this used to build therefore charged the gap twice
 /// and put *"are foraging"* four pixels right of where `Eng_DrawString` lands
 /// it. The transcription in the comment above the line had the suffix right —
-/// `' ', ""` — and the line below it did not use it, which is
+/// `' ', ""` — and the line below it did not use it,
 /// `docs/agents.md`'s *a correct explanation sitting directly above the
 /// omission it describes*. `docs/decisions.md` C140.
 #[test]
@@ -6478,14 +6481,14 @@ fn the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel() {
 /// 1. **The two land sixteen pixels apart in `y` and are anchored differently
 ///    in `x`** — `0x204`/`0x133` against `0x20A`/`0x143`. Reading only
 ///    `CountyStrip_Draw` would give one figure; the offsets are the evidence
-///    there are two. The countdown's digits sit on its own `x` and the delta's
+/// there are two. The countdown's digits sit on its own `x` and the delta's
 ///    do **not**, because `Ui_DrawDelta` draws a `" "` prefix first and places
 ///    the number at `x + g_penAdvance` — so the two are asserted differently on
-///    purpose, and the delta's half is C127 on this row.
+/// purpose, and the delta's half is C127 on this row.
 /// 2. **The delta is a count of fields, not of work**, so a gang with enough
 ///    labour for two finished fields draws `+2` and not `+1`.
 /// 3. **The countdown is drawn only when it is non-zero** — the original's own
-///    `if`, so a county reclaiming nothing shows a bare icon.
+/// `if`, so a county reclaiming nothing shows a bare icon.
 ///
 /// The row is the second of the farm list here (cattle, then reclamation, with
 /// no grain), so the pitch is `0x3C` and both `y`s carry one row of it. That is
@@ -7110,7 +7113,7 @@ fn with_the_fog_on_the_sea_round_the_map_is_the_base_banks_first_frame() {
 /// its pastures and an army standing in it are all invisible.
 ///
 /// Stated as an equality: change every one of them and the map viewport does
-/// not move by a pixel. **And the control that stops the equality being
+/// not move by a pixel.
 /// vacuous**: the same changes with the fog off move it.
 #[test]
 fn a_county_in_the_dark_gives_nothing_away_on_the_map() {
