@@ -223,6 +223,37 @@ pub struct BattlefieldScreen {
     /// [`Screen::update`] and by [`Screen::draw`], both of which the presenter
     /// runs before it asks for a palette.
     ground: l2_view::scene::Ground,
+    /// `DAT_004E5B18`, the keep banner's eight-frame cycle —
+    /// `BattleBanner_Draw` (`0x004BD574`) steps it on `g_pulse80` and wraps it
+    /// past 7. Stepped here because `Screen::draw` is handed no clock.
+    banner: Banner,
+}
+
+/// `Tick_Pulses` (`0x004BBC80`)' 80 ms pulse, kept for the one counter the
+/// battlefield reads off it. The dividers and the rounding are
+/// [`crate::screens::armoury::Anim`]'s — a pulse is 20 ms rounded **up** to
+/// whole frames, and every fourth is `g_pulse80`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct Banner {
+    acc_ms: u32,
+    div: u8,
+    /// `DAT_004E5B18`, 0 … 7.
+    phase: u8,
+}
+
+impl Banner {
+    fn tick(&mut self) {
+        self.acc_ms += crate::screens::armoury::TICK_MS;
+        if self.acc_ms < crate::screens::armoury::PULSE_MS {
+            return;
+        }
+        self.acc_ms = 0;
+        self.div += 1;
+        if self.div >= crate::screens::armoury::PULSE80_DIVIDER {
+            self.div = 0;
+            self.phase = (self.phase + 1) % l2_view::scene::BANNER_PHASES;
+        }
+    }
 }
 
 /// **The overview panel's framebuffer and its row cursor.**
@@ -289,7 +320,21 @@ impl BattlefieldScreen {
             outcome_seen: false,
             overview: Overview::new(),
             ground: l2_view::scene::Ground::Field,
+            banner: Banner::default(),
         }
+    }
+
+    /// `g_units[g_battleArmyB] + 0x02` — the garrison's shield, a copy of its
+    /// realm's `+0x0A`. `g_battleArmyB` is the side-0 army, which in a siege is
+    /// the defender. A field battle has no keep cell, so it has no banner.
+    fn banner_of(&self, ctx: &Ctx) -> Option<(u8, u8)> {
+        let live = ctx.game.battle.as_ref()?;
+        if !live.is_siege() {
+            return None;
+        }
+        let owner = ctx.game.kingdom.campaign.units.get(live.defender)?.owner;
+        let shield = ctx.game.kingdom.realms.get(owner as usize)?.shield_index;
+        Some((shield, self.banner.phase))
     }
 
     /// Re-read `g_battleIsSiege` and the castle level. Returns whether the
@@ -620,6 +665,10 @@ impl Screen for BattlefieldScreen {
         // and [`Screen::palette`] cannot. First statement, ahead of every
         // early return; a change of ground repaints.
         self.redraw |= self.note_ground(ctx);
+        // `Tick_Pulses` runs once a frame regardless of the battle's pause, and
+        // `BattleBanner_Draw` reads only `g_pulse80` — a paused castle still
+        // flies its flag.
+        self.banner.tick();
         // `Widget_Test`'s countdown loop, which runs whether or not anything is
         // under the pointer. Index 0 is the tick, index 1 the cross. The first
         // answer closes the box, and a table nobody walks fires nothing more.
@@ -695,6 +744,7 @@ impl Screen for BattlefieldScreen {
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         self.note_ground(ctx);
+        let banner = self.banner_of(ctx);
         // `Screen_DrawBattlefield` (`0x004233F7`) opens the screen with
         // `g_mapRedraw = 1; FUN_004bc1d1(0x50);` — the panel is whole before the
         // first frame is presented, even if no frame has run yet.
@@ -717,7 +767,7 @@ impl Screen for BattlefieldScreen {
         match ctx.assets.battle.as_ref() {
             Some(art) => {
                 let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
-                l2_view::scene::draw(canvas, &live.runner, art, self.ground, cam);
+                l2_view::scene::draw(canvas, &live.runner, art, self.ground, cam, banner);
             }
             None => draw_placeholder_field(canvas, live, ink),
         }

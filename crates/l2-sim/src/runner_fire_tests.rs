@@ -49,6 +49,7 @@ fn stand(r: &mut BattleRunner, troop: Troop, side: Side, owner: u8, human: bool,
         moat_cell: None,
         moat_load: 0,
         polar: 0,
+        corpse: 0,
     });
     let i = r.fighters.len() - 1;
     r.occupant[cell(at.0, at.1)] = Some(i as u16);
@@ -401,10 +402,16 @@ fn a_catapult_shot_at_a_rampart_four_high_is_not_counted() {
     let wall = cell(proving::CATAPULT_AT.0, proving::HIGH_WALL_Y);
     assert!(r.sim.cues.walls_missed() >= 2, "{:?}", r.sim.cues);
     assert_eq!(r.sim.cues.walls_struck(), 0);
-    assert_eq!(r.wall_hits[wall], 0, "nothing counted against the cell");
+    // The count is cell byte `+0` itself — `Missile_Step`'s `cell.terrain++`.
+    let fresh = proving::deploy();
+    assert_eq!(
+        r.field.cells[wall].terrain, fresh.field.cells[wall].terrain,
+        "nothing counted against the cell"
+    );
     assert_ne!(r.field.cells[wall].flags & crate::siege::FLAG_WALL, 0, "and it stands");
 
     let mut lower = proving::deploy();
+    let seed = lower.field.cells[wall].terrain;
     for x in proving::HIGH_WALL_X {
         lower.field.cells[cell(x, proving::HIGH_WALL_Y)].elevation = 3;
     }
@@ -414,7 +421,7 @@ fn a_catapult_shot_at_a_rampart_four_high_is_not_counted() {
     }
     assert!(lower.sim.cues.walls_struck() >= 2, "{:?}", lower.sim.cues);
     assert_eq!(lower.sim.cues.walls_missed(), 0);
-    assert!(lower.wall_hits[wall] >= 2);
+    assert!(lower.field.cells[wall].terrain >= seed + 2, "the cell byte counted the hits");
 }
 
 // ----------------------------------------------------------------- the wood fire

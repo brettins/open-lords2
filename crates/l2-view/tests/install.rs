@@ -555,7 +555,7 @@ fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
         }
         let cam = scene::follow(&runner);
         let mut canvas = Canvas::screen();
-        let drawn = scene::draw(&mut canvas, &runner, &assets, scene::Ground::Field, cam);
+        let drawn = scene::draw(&mut canvas, &runner, &assets, scene::Ground::Field, cam, None);
         assert!(drawn > 0, "frame {frame} drew no figures at all");
         shots.push(canvas);
     }
@@ -572,8 +572,8 @@ fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
     let cam = scene::follow(&runner);
     let mut a = Canvas::screen();
     let mut b = Canvas::screen();
-    scene::draw(&mut a, &runner, &assets, scene::Ground::Field, cam);
-    scene::draw(&mut b, &runner, &assets, scene::Ground::Field, cam);
+    scene::draw(&mut a, &runner, &assets, scene::Ground::Field, cam, None);
+    scene::draw(&mut b, &runner, &assets, scene::Ground::Field, cam, None);
     assert_eq!(a.diff_count(&b), 0, "the renderer is not deterministic");
     eprintln!(
         "battle: {} figures, {} ticks, {} alive",

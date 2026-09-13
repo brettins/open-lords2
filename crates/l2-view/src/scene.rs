@@ -431,6 +431,11 @@ impl BattleAssets {
         &self.ground(Ground::Field).tiles
     }
 
+    /// `A2_miss.pl8` — the missiles and, at `0x21` and up, the banner.
+    pub fn missiles(&self) -> Option<&Sheet> {
+        self.missiles.as_ref()
+    }
+
     pub fn overview(&self) -> Option<&OverviewSheets> {
         self.ground(Ground::Field).overview.as_ref()
     }
@@ -594,6 +599,12 @@ pub fn draw_figures(
     let (camx, camy) = (cam.x as i32, cam.y as i32);
     let mut order: Vec<(i32, usize)> = (0..runner.fighters.len())
         .filter_map(|i| {
+            // A body the corpse state has counted out is gone — the original
+            // frees the record, so `FUN_004BD938` never collects it.
+            // [`BattleRunner::corpse_gone`].
+            if runner.corpse_gone(i) {
+                return None;
+            }
             let ((x, y), _) = drawn_cell(&runner.fighters[i]);
             let inside = x >= camx - 1
                 && x <= camx + VIEW_COLS as i32
@@ -691,6 +702,39 @@ pub fn draw_figures(
     drawn
 }
 
+/// **The castle's banner** — `BattleBanner_Draw` (`FUN_004BD574`,
+/// `0x004BD574`), the other arm of the overlap pass.
+///
+/// ```c
+/// if (g_pulse80) DAT_004e5b18++;
+/// if (DAT_004e5b18 < 0 || 7 < DAT_004e5b18) DAT_004e5b18 = 0;
+/// DAT_005c9288 = (&DAT_0052f0b2)[g_battleArmyB * 0x1a4] * 8 + DAT_004e5b18 + 0x21;
+/// blit(DAT_00566518 /* A2_miss.pl8 */, DAT_005c9288);
+/// ```
+///
+/// `0x0052F0B2` is `g_units` (`0x0052F0B0`) `+0x02` — the shield, a copy of
+/// realm `+0x0A` (`docs/armies.md`) — and `g_battleArmyB` is the **side-0**
+/// army, the castle's garrison. So one castle flies one realm's colours, in an
+/// eight-frame cycle off `g_pulse80`. **[V]** from the function's bytes; six
+/// shields × 8 lands on `A2_miss.pl8`'s last frame, 80.
+pub const BANNER_BASE: usize = 0x21;
+pub const BANNER_PHASES: u8 = 8;
+
+pub fn banner_frame(shield: u8, phase: u8) -> usize {
+    BANNER_BASE + shield as usize * BANNER_PHASES as usize + (phase % BANNER_PHASES) as usize
+}
+
+/// **Which cell flies it.** `Battlefield_BuildCastle`'s structure code 6 — the
+/// keep — is the one arm that sets cell byte `+2` bit `0x80`, and the frame
+/// byte that carries code 6 in both structure tables is **0**. The overlap pass
+/// branches on exactly that: `gfx ? FUN_004bd759(gfx) : FUN_004bd574()`. So the
+/// keep cell, and only the keep cell, takes the banner. **[V]** — `code::KEEP`
+/// in `l2_sim::siege`, and `frames_with_code(level, KEEP) == [0]` at every
+/// level.
+fn banner_cell(cell: l2_sim::terrain::Cell) -> bool {
+    cell.flags2 & 0x80 != 0 && cell.gfx == 0
+}
+
 /// **The pass after the men** — `FUN_004BD355` (`0x004BD355`), which walks the
 /// viewport plus a one-cell ring and, per cell, draws what overlaps the
 /// figures and then that cell's missiles.
@@ -707,9 +751,11 @@ pub fn draw_figures(
 /// reads *"a second terrain pass for cells flagged `0x04` on byte `+1`"*; the
 /// test here is byte **`+2`** bit **`0x80`**, and the thing drawn is not a
 /// terrain tile — it is `Engine.pl8` (a docked tower's stair,
-/// [`engines::dock_overlay_frame`]) or `A2_miss.pl8` (`FUN_004BD574`'s
-/// animated banner, which is **not built** — see the module head of
-/// [`crate::engines`] for what our cells carry instead of byte `+2`).
+/// [`engines::dock_overlay_frame`]) or `A2_miss.pl8` (`FUN_004BD574`'s animated
+/// banner — [`banner_frame`]).
+///
+/// `banner` is the garrison's `(shield, phase)`: `g_units[g_battleArmyB]+0x02`
+/// and `DAT_004E5B18`. `None` for a field battle, which has no keep cell.
 ///
 /// Returns how many missiles were drawn.
 pub fn draw_overlay_and_missiles(
@@ -717,6 +763,7 @@ pub fn draw_overlay_and_missiles(
     runner: &BattleRunner,
     assets: &BattleAssets,
     cam: Camera,
+    banner: Option<(u8, u8)>,
 ) -> usize {
     // Every live missile, filed by the cell it stands on, in ascending slot
     // order — `Missile_LinkToCell` (`0x0046EFBE`) appends to the tail and
@@ -739,6 +786,21 @@ pub fn draw_overlay_and_missiles(
             let (px, py) = (ORIGIN_X + col * TILE, ORIGIN_Y + row * TILE);
 
             dock_overlay(canvas, runner, assets, mx as usize, my as usize, px, py);
+
+            // The overlap pass's other arm — `gfx == 0` picks the banner.
+            if let Some((shield, phase)) = banner {
+                if banner_cell(runner.field.at(mx as usize, my as usize)) {
+                    if let Some(sheet) = assets.missiles.as_ref() {
+                        if let Some(frame) = sheet.frame(banner_frame(shield, phase)) {
+                            // `g_drawX += 0x10 - (w >> 1); g_drawY += 0x10 - (w >> 1);`
+                            // — the *width* on both axes, as `FUN_004BD759`
+                            // beside it also does. Reproduced, not corrected.
+                            let w = frame.width as i32;
+                            canvas.blit_clipped(&frame, px + (TILE / 2 - w / 2), py + (TILE / 2 - w / 2), FIELD_CLIP);
+                        }
+                    }
+                }
+            }
 
             let Some(slots) = by_cell.get(&(my as i16, mx as i16)) else { continue };
             for &slot in slots.iter().take(missiles::CELL_LIST_LIMIT) {
@@ -893,11 +955,12 @@ pub fn draw(
     assets: &BattleAssets,
     ground: Ground,
     cam: Camera,
+    banner: Option<(u8, u8)>,
 ) -> usize {
     let art = assets.ground(ground);
     draw_terrain(canvas, &runner.field, &art.tiles, art.tiles2.as_ref(), cam);
     let figures = draw_figures(canvas, runner, assets, cam);
-    draw_overlay_and_missiles(canvas, runner, assets, cam);
+    draw_overlay_and_missiles(canvas, runner, assets, cam, banner);
     figures
 }
 

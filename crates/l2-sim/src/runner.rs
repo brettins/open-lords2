@@ -142,7 +142,22 @@ pub struct Fighter {
     /// it set to the axis it pours along (`FUN_0047A814`). Zero, as the zeroed
     /// record has it, until one of them writes.
     pub polar: u8,
+    /// **How long this body has lain here** — figure record `+0x173`, counted
+    /// by the corpse state's own tick.
+    ///
+    /// `docs/battle.md` §14.2: **state 2 is a corpse**. Its handler steps the
+    /// collapse animation and counts `+0x173` to [`CORPSE_FRAMES`] before
+    /// freeing the slot; **state 15 is its siege-engine twin** at
+    /// [`ENGINE_CORPSE_FRAMES`]. Ours does not free the slot — the index is a
+    /// key here and is not in the original — so the count is what says the body
+    /// is gone, and [`BattleRunner::corpse_gone`] is what the renderer asks.
+    pub corpse: u16,
 }
+
+/// State 2's count — `docs/battle.md` §14.2.
+pub const CORPSE_FRAMES: u16 = 80;
+/// State 15's, the siege engine's.
+pub const ENGINE_CORPSE_FRAMES: u16 = 120;
 
 impl Fighter {
     fn pos(&self) -> Pos {
@@ -150,6 +165,19 @@ impl Fighter {
     }
     fn at_target(&self) -> bool {
         (self.x, self.y) == self.target
+    }
+
+    /// Which of the two counts this figure's corpse runs on.
+    ///
+    /// `BattleUnit_Create`'s `6 < troopType && troopType < 10` is the engine
+    /// test — [`crate::fire::is_engine`] — and **a pot of oil is not one of
+    /// them**: `FUN_0047A814` puts a spent pot into state **2**, not 15.
+    pub fn corpse_frames(&self) -> u16 {
+        if crate::fire::is_engine(self.troop) {
+            ENGINE_CORPSE_FRAMES
+        } else {
+            CORPSE_FRAMES
+        }
     }
 }
 
@@ -329,11 +357,6 @@ pub struct BattleRunner {
     /// where a shot is, and the original agrees — its own sync digest copies all
     /// hundred records (`Sync_RecordDigest(&g_missiles + i*0x4c, 0x4c, 4)`).
     pub missiles: crate::missile::Missiles,
-    /// Catapult hits taken by each wall cell, against
-    /// [`crate::missile::WALL_HITS_PER_COLLAPSE`]. The original counts them in
-    /// cell byte `+0`, which this crate models as terrain rather than as a
-    /// counter, so they live beside the field instead of inside it.
-    wall_hits: Vec<u8>,
     /// Impassable terrain, built once from the battlefield flags.
     blocked: Vec<bool>,
     /// The castle, the two damage accumulators and the way in.
@@ -549,7 +572,6 @@ impl BattleRunner {
             positions: Vec::new(),
             occupant: vec![None; DIM * DIM],
             missiles: crate::missile::Missiles::new(),
-            wall_hits: vec![0; DIM * DIM],
             blocked,
             withdrawn: None,
             men_per_figure: [MEN_PER_FIGURE, MEN_PER_FIGURE],
@@ -782,6 +804,7 @@ impl BattleRunner {
                         moat_cell: None,
                         moat_load: 0,
                         polar: 0,
+                        corpse: 0,
                     });
                 }
                 left -= unit_men;
@@ -971,6 +994,18 @@ impl BattleRunner {
         self.sim.figures[self.fighters[i].sim].is_alive()
     }
 
+    /// **The body has been cleared away** — the corpse state has counted
+    /// `+0x173` out and the original frees the record here. Ours keeps the
+    /// index, so nothing may draw it from this frame on.
+    ///
+    /// This is what stops a spent pot of oil holding its pouring picture for
+    /// the rest of the battle: `FUN_0047A814` puts it in state 2, and state 2
+    /// runs out. `docs/battle.md` §17.8.
+    pub fn corpse_gone(&self, i: usize) -> bool {
+        let f = &self.fighters[i];
+        f.anim == Motion::Dying && f.corpse >= f.corpse_frames()
+    }
+
     pub fn living(&self, side: Side) -> usize {
         self.sim.living(side)
     }
@@ -1072,7 +1107,15 @@ impl BattleRunner {
                 }
                 self.fighters[i].anim = Motion::Dying;
                 self.fighters[i].phase = 0;
+                self.fighters[i].corpse = 0;
                 self.fighters[i].path.clear();
+            } else if self.fighters[i].anim == Motion::Dying {
+                // The corpse state's own count, `+0x173`. It stops at the
+                // bound instead of freeing the slot — see [`Fighter::corpse`].
+                let limit = self.fighters[i].corpse_frames();
+                if self.fighters[i].corpse < limit {
+                    self.fighters[i].corpse += 1;
+                }
             }
         }
         self.tick += 1;
@@ -1829,6 +1872,14 @@ impl BattleRunner {
                         self.sync_cell(c);
                     }
                 }
+                // **Debris falls on every other frame.** `Missile_UpdateAll`'s
+                // class-4 arm ends `if (m[+0x31] == 1) m[+0x31] = 0; else
+                // m[+0x31] = 1;` — `+0x31` is the sub-step count, so the
+                // rubble is stepped one frame in two. `[V]`.
+                missile::CLASS_DEBRIS => {
+                    let m = self.missiles.get_mut(slot);
+                    m.sub_steps = i8::from(m.sub_steps != 1);
+                }
                 missile::CLASS_OIL => self.oil_cross(slot),
                 _ => {}
             }
@@ -2054,10 +2105,25 @@ impl BattleRunner {
             self.sim.cues.wall_missed();
         } else {
             self.sim.cues.wall_struck();
-            self.wall_hits[cell] = self.wall_hits[cell].saturating_add(1);
+            // **The count lives in the cell, and that is why a shot shows.**
+            // `Missile_Step` writes `cell.terrain++` — byte `+0`, which on a
+            // castle is not a terrain id but the damage counter the renderer's
+            // second pass reads at `frame = cell[+0] + 0x8B` out of slot 1
+            // (`Battlefield_Draw32`, `l2_view::scene::OVERLAY_BASE`). It was
+            // kept in a `wall_hits` vector beside the field, so the arithmetic
+            // was right and **nothing ever changed on screen**.
+            //
+            // `Battlefield_BuildCastle` seeds every non-moat cell's byte at 1
+            // and a ditch's at 11, so the counter starts where the picture
+            // does and `BattleMan_StateFillMoat` raises the same byte.
+            let t = &mut self.field.cells[cell].terrain;
+            *t = t.saturating_add(1);
         }
-        if !high && self.wall_hits[cell] >= missile::WALL_HITS_PER_COLLAPSE {
-            self.wall_hits[cell] = 0;
+        // `if (0xF < cell.terrain) Wall_Collapse(cell);` — the threshold is on
+        // the cell byte, not on a hit count, and nothing zeroes it: the
+        // collapse drops the cell to elevation 0, which is what takes it out
+        // of the overlay's `1 ..= 3`.
+        if !high && self.field.cells[cell].terrain > missile::WALL_DAMAGE_MAX {
             // `Wall_Collapse` (`FUN_0047DFE0`) — surface 9, flags 2, elevation
             // 0, and one point of breach score *and* one of wall damage for
             // each of the four orthogonal neighbours still at
@@ -2085,6 +2151,12 @@ impl BattleRunner {
         m.sub_steps = 1;
         m.dx = 0;
         m.dy = 0;
+        // `m[+0x0A] -= 0x10; m[+0x0C] -= 0x10;` — the last two statements of
+        // the arm. Sixteen thirty-seconds is **half a cell**, so the rubble
+        // pile is drawn up and left of the masonry it came off rather than
+        // centred on it. Ours never moved it, and the sprite is 32 pixels.
+        m.x -= missile::DEBRIS_NUDGE;
+        m.y -= missile::DEBRIS_NUDGE;
     }
 
     /// **Lower the drawbridge** — `FUN_00496B9F` (`0x00496B9F`), from the
@@ -4225,6 +4297,7 @@ mod tests {
                 moat_cell: None,
                 moat_load: 0,
                 polar: 0,
+                corpse: 0,
             });
             r.occupant[40 * DIM + x as usize] = Some((r.fighters.len() - 1) as u16);
         }
@@ -4299,6 +4372,7 @@ mod tests {
             moat_cell: None,
             moat_load: 0,
             polar: 0,
+            corpse: 0,
         });
         r.occupant[40 * DIM + 24] = Some((r.fighters.len() - 1) as u16);
         let before = r.sim.figures[screen].hits;
@@ -4369,6 +4443,7 @@ mod tests {
             moat_cell: None,
             moat_load: 0,
             polar: 0,
+            corpse: 0,
         });
         r.occupant[40 * DIM + 22] = Some((r.fighters.len() - 1) as u16);
         r.run(600);
