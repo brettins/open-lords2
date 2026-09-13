@@ -14,7 +14,9 @@ const PHRASES = ["rather than","is not a","there is no","actually","which is why
   "the real","simply","was never","merely","only ever","without a","genuinely","precisely",
   "it is worth","not just","note that","not because","that said","nothing to do with",
   "is in no","does not mean","this only","never was","in fact","in no way","importantly",
-  "not a skin","not a target","not a manual","to be clear","of course","crucially","needless to say"];
+  "not a skin","not a target","not a manual","to be clear","of course","crucially","needless to say",
+  "what was in doubt","which is the question","now answers","should be","and the","it looked like","instead of","so a",
+  "two things","three things","four things","several things","everything below","everything above","it ships","it decodes","in the game"];
 const RX = new RegExp("\\b(" + PHRASES.map(p => p.replace(/ /g, "\\s+")).join("|") + ")\\b", "i");
 if (args[0] === "--phrases") { console.log(PHRASES.join("\n")); process.exit(0); }
 // --apply <file> <replacements.json> [--commit]: {"<line number>": "<new line text or empty to delete>"}
