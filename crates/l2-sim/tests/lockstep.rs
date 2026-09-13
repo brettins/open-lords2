@@ -736,6 +736,14 @@ impl Simulation for RunnerNetBattle {
             // a wall to dock with starts: two peers that disagreed would dock
             // the same tower against different walls.
             out.u8(f.polar);
+            // **How long the body has lain here** — `+0x173`, stepped by the
+            // corpse state's own tick. Simulation state, not a picture:
+            // `BattleRunner::corpse_gone` is the slot's end, and in the
+            // original a pot of oil still inside its eighty frames is a spent
+            // pot that cannot pour. Two peers that disagreed would clear
+            // different bodies. Added at merge — C209's branch left it out and
+            // this check named it.
+            out.u16(f.corpse);
         }
         out.end_section();
 
