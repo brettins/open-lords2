@@ -11903,3 +11903,44 @@ merchant exactly as it interpolates an army. What differs is only the walk
 cycle — `g_merchantWalkFrames` (`0x004D6AB8`) advances **six frames per facing**
 against an army's three — and that is a sprite index, not motion. Recorded in
 `cross_sub_tile`'s doc comment so the next reader does not re-open it.
+
+---
+
+**C214 — the field brush sounds the terrain it paints, and `setup3.wav` is the
+skirmish bed rather than the credits.**
+
+`FUN_00438B02` (`0x00438B02`) is the one handler every field-brush button
+reaches (`crates/l2-kingdom/tests/oracle.rs` asserts that of all six records in
+`g_infoFieldBrush` `0x004DC4D0` and the waste table `0x004DC530`). It picks a
+one-shot **bank slot from the brush id**: `0x13` → slot 4 (`moo_2.wav`), `2` →
+slot 7 (`wheat.wav`), `1`/`0`/`0x19` → slot 6 (`fallow.wav`). Five
+`docs/audio.json` sites — `FUN_00438b02#1`..`#5` — go from unreproduced to
+reproduced.
+
+`audio::names::field_brush_slot` keys the slot off `County_RecountFields`'
+terrain **ranges**, not off the raw byte, because `Field_SetType`'s call to
+`Herd_UpdateCrowding` regrades a fresh pasture from `0x13` to `0x14..0x16`
+before anything downstream sees it: a byte comparison would go quiet on the
+second cow. `Director::hear_the_brush` fires off the info panel's tile terrain
+changing, which is the diff the `Director` can see — the handler ends in
+`g_screenId = 0`, so by the next tick the panel is gone and there is no
+screen-local state left to read.
+
+Checked: `the_field_brush_sounds_what_it_paints` in
+`crates/l2-game/tests/audio_wiring.rs` paints all three terrains and the waste
+arm; ablated, all four arms fail.
+
+**The second half: which bed `setup3.wav` is.** `FUN_00433155` plays it on
+`g_setupPage` `0xC` and `0xB`, `[V]`. `Screen_FrameInput`#1 and #2 leave screen
+`0x2F` after `0x2E`, `[V]`, and `FUN_00497A34`#1 is the `DAT_0057A0F0 == 1` arm
+of the return to the front end, `[V]` — `[I]` that the flag is the skirmish
+flag. So the track is the **skirmish** bed. It is not the credits and not the
+ending: both are films carrying their own audio, and **none of the 22
+`Music_Play` sites is a credits bed**.
+
+**Conquest music is left alone.** `Screen_DrawConquest` (`0x0041E1DD`) plays
+`setup.wav` looped for map < 8 and `setup2.wav` **once** otherwise; ours cannot
+express the second, because `Mixer::set_music` always loops, and the
+`audio_wiring` assertion
+`every_in_game_screen_over_the_front_end_is_campaign_music` would fail on the
+screen besides. Two blockers, one site, recorded rather than forced.
