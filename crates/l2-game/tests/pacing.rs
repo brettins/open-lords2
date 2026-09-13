@@ -405,3 +405,114 @@ fn a_merchant_crossing_a_tile_is_audible() {
          not merchant.wav — `Unit_MoveInFacing`'s call site is not reached",
     );
 }
+
+/// **A merchant crosses a tile at the road-keyed rate and is drawn between
+/// tiles while he does it** — on a built map, so the rate is *measured* and
+/// not merely bounded from below the way the England tests above bound it.
+///
+/// Nothing in the original takes the interpolation off a cart (C213, C184):
+/// `Unit_StepOnce` (`0x0046634D`) has no kind test — `+0x14A` past the
+/// road-keyed divider (0 on road, 3 off), then `+0x149 += 2` and the tile is
+/// entered at 16 — and `Map_DrawArmies` (`0x00408438`) reads its six 8 x 16
+/// offset tables (`l2_view::campaign::walk_offset`) **before** its first kind
+/// comparison. So: 8 ticks a road tile, 32 an open one, and a non-zero walk
+/// offset on the ticks in between. The numbers are typed; see the module note.
+///
+/// **Ablated**: gating `l2_kingdom::units_tick`'s `cross_sub_tile` on
+/// `kind == UnitKind::Army` — the "a cart steps tile to tile" reading — makes
+/// every gap 1 and leaves every sample at `sub_tile == 0`.
+#[test]
+fn a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tiles() {
+    use l2_kingdom::map::{flags, CampaignMap, MAP_TILES};
+    use l2_kingdom::unit::Unit;
+    use l2_kingdom::{movement, Kingdom};
+    use l2_view::campaign;
+
+    /// An open tile is admitted one tick in four: `cVar1 = onRoad ? 0 : 3`.
+    const TICKS_PER_OPEN_TILE: u32 = 32;
+
+    let mut k = Kingdom::new(0x2E5);
+    assert!(k.set_county_count(1));
+    let mut map = CampaignMap::empty();
+    for i in 0..MAP_TILES {
+        map.county[i] = 1;
+    }
+    for x in 0..64u8 {
+        map.set_flags(x, 10, flags::ROAD);
+    }
+    k.campaign.map = map;
+    k.counties[1].population = 500;
+    k.counties[1].happiness = 70;
+
+    // Two carts, same kind, same owner byte (realm 6, the merchants'), one on
+    // the road at y = 10 and one on open ground at y = 20.
+    let mut carts = Vec::new();
+    for (y, dest) in [(10u8, (16u8, 10u8)), (20, (13, 20))] {
+        let mut cart = Unit::new(UnitKind::Merchant, 6, 10, y);
+        cart.county = 1;
+        let id = k.campaign.units.spawn(cart).expect("a slot");
+        movement::order_move(&k.campaign.map, &mut k.campaign.units, id, dest, movement::Routing::Direct)
+            .expect("a route");
+        carts.push(id);
+    }
+
+    // One `(tile, sub_tile, facing)` a tick, for each cart.
+    let mut trail: Vec<Vec<((u8, u8), u8, u8)>> = vec![Vec::new(); carts.len()];
+    for _ in 0..600 {
+        k.tick_units();
+        for (i, &id) in carts.iter().enumerate() {
+            let u = k.campaign.units.get(id).expect("a merchant is never lost");
+            trail[i].push((u.tile(), u.sub_tile, u.facing));
+        }
+    }
+
+    let zoom = campaign::NEAR;
+    // The open cart walks fewer tiles for the same reason it walks them slower:
+    // `STEP_COST_OPEN` against a merchant's move allowance ends its turn after
+    // two. Both are the original's and neither is this test's subject.
+    for (i, (expected, fewest)) in
+        [(FEWEST_TICKS_PER_TILE, 4usize), (TICKS_PER_OPEN_TILE, 2)].into_iter().enumerate()
+    {
+        let path: Vec<(u8, u8)> = trail[i].iter().map(|&(t, _, _)| t).collect();
+        let on = entries(&path);
+        assert!(
+            on.len() >= fewest,
+            "cart {} walked {} tiles and {fewest} are needed to time it",
+            carts[i],
+            on.len(),
+        );
+        for pair in on.windows(2) {
+            assert_eq!(
+                pair[1] - pair[0],
+                expected,
+                "cart {} entered a tile on tick {} and the next on tick {}; \
+                 `Unit_StepOnce` takes {expected} ticks over this ground",
+                carts[i],
+                pair[0],
+                pair[1],
+            );
+        }
+
+        // And between two entries he is somewhere inside the tile, and drawn
+        // there: `Map_DrawArmies` reads the table for a cart as for an army.
+        let mut between = 0;
+        for tick in (on[0] as usize)..(*on.last().expect("entries") as usize) {
+            let (_, sub_tile, facing) = trail[i][tick];
+            // 1 on the tile just entered, then `+= 2` an admission: 1..=15.
+            assert!(sub_tile < 16, "`+0x149` never reaches 16 without entering a tile: {sub_tile}");
+            // 0 is a unit at rest and 15 is the table's own last admission,
+            // which it draws on the centre; the twelve in between are not.
+            if sub_tile == 0 || sub_tile == 15 {
+                continue;
+            }
+            assert_ne!(
+                campaign::walk_offset(&zoom, facing, sub_tile),
+                (0, 0),
+                "cart {} is {sub_tile}/16 across its tile on tick {tick} and drawn on the centre",
+                carts[i],
+            );
+            between += 1;
+        }
+        assert!(between >= 20, "only {between} ticks caught mid-tile for cart {}", carts[i]);
+    }
+}
