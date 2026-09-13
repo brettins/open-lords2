@@ -18,6 +18,7 @@
 //! and noted because a parent standing between the daughter and the castle
 //! makes the split look broken.
 
+use l2_kingdom::conquest::{leave_castle, LeftCastle};
 use l2_kingdom::county::County;
 use l2_kingdom::divide::{split, SplitBasket, SplitInto};
 use l2_kingdom::map::{flags, index, terrain, MAP_TILES};
@@ -140,4 +141,79 @@ fn a_castle_split_may_be_under_fifty_men() {
     until_still(&mut k);
     assert_eq!(k.counties[1].garrison_unit, daughter);
     assert_eq!(k.campaign.units.get(daughter).expect("the garrison").men, 20);
+}
+
+/// **A garrison ordered out of its castle** — `Army_LeaveCastle` (`0x004374C4`)
+/// and its body `FUN_00437535`: a free tile from `Map_FindFreeTileNear`
+/// (`0x0046733C`), both links cleared, **no moves charged** and no order given.
+#[test]
+fn a_garrison_marches_out_onto_a_free_tile_and_pays_nothing() {
+    let mut k = kingdom();
+    let g = army(&mut k, CASTLE, 150);
+    {
+        let u = k.campaign.units.get_mut(g).expect("the garrison");
+        u.garrison_county = 1;
+        u.moves_used = 0;
+    }
+    k.counties[1].garrison_unit = g;
+
+    let Kingdom { counties, realms, campaign, .. } = &mut k;
+    let out = leave_castle(&campaign.map, counties, realms, &mut campaign.units, g, 1);
+
+    let LeftCastle::Marched { tile, sortie } = out else { panic!("she marched: {out:?}") };
+    assert_eq!(sortie, None, "nobody was besieging");
+    assert_ne!(tile, CASTLE, "off the castle tile");
+    assert_eq!(k.counties[1].garrison_unit, 0, "county +0x1BC cleared");
+    let u = k.campaign.units.get(g).expect("standing in the open");
+    assert_eq!(u.garrison_county, 0, "unit +0x198 cleared");
+    assert_eq!(u.tile(), tile);
+    assert_eq!(u.men, 150, "the men came out with her");
+    assert_eq!(u.moves_used, 0, "the way out is free; only the way in costs five");
+    assert_eq!(u.move_allowance - u.moves_used, 15, "and she can march this season");
+}
+
+/// **A besieged garrison's sortie names its besieger.** `FUN_00437535` hands
+/// `besiegedBy` to `Battle_BeginFromCampaign` and leaves the link standing.
+#[test]
+fn a_besieged_garrison_leaves_carrying_its_besieger() {
+    let mut k = kingdom();
+    let g = army(&mut k, CASTLE, 150);
+    let besieger = army(&mut k, (24, 20), 200);
+    {
+        let u = k.campaign.units.get_mut(g).expect("the garrison");
+        u.garrison_county = 1;
+        u.besieged_by = besieger as u8;
+    }
+    k.counties[1].garrison_unit = g;
+    k.campaign.units.get_mut(besieger).expect("the besieger").besieging_county = 1;
+
+    let Kingdom { counties, realms, campaign, .. } = &mut k;
+    let out = leave_castle(&campaign.map, counties, realms, &mut campaign.units, g, 1);
+    assert!(matches!(out, LeftCastle::Marched { sortie: Some(b), .. } if b == besieger));
+    assert_eq!(
+        k.campaign.units.get(g).expect("the garrison").besieged_by as usize,
+        besieger,
+        "the siege link survives the step out"
+    );
+}
+
+/// **Nowhere to stand is the end of the army** — `Army_Destroy`, the branch a
+/// player can be surprised by.
+#[test]
+fn a_garrison_with_nowhere_to_stand_is_destroyed() {
+    let mut k = kingdom();
+    let g = army(&mut k, CASTLE, 150);
+    k.campaign.units.get_mut(g).expect("the garrison").garrison_county = 1;
+    k.counties[1].garrison_unit = g;
+    // Sea to the horizon: nothing within five is passable, so the search fails.
+    for i in 0..MAP_TILES {
+        k.campaign.map.county[i] = 0;
+        k.campaign.map.flags[i] |= flags::NO_COUNTY;
+    }
+
+    let Kingdom { counties, realms, campaign, .. } = &mut k;
+    let out = leave_castle(&campaign.map, counties, realms, &mut campaign.units, g, 1);
+    assert_eq!(out, LeftCastle::Destroyed);
+    assert!(k.campaign.units.get(g).is_none(), "Army_Destroy");
+    assert_eq!(k.counties[1].garrison_unit, 0);
 }
