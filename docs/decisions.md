@@ -12177,11 +12177,26 @@ panel's garrisoned first button via `Game::leave_castle`; free tile from
 moves charged; `besiegedBy` kept. Tests `a_garrison_marches_out_onto_a_free_tile_and_pays_nothing`,
 `a_besieged_garrison_leaves_carrying_its_besieger`, `a_garrison_with_nowhere_to_stand_is_destroyed`;
 ablation leaves `garrison_county` set, first red.
+**C226 — A garrison marching onto its besieger raises the battle; marching onto your own army asks to combine.**
 
-Two rows opened from it: the sortie battle is not staged (`LeftCastle::Marched`
-carries the besieger's slot and nothing fights it), and a split daughter crossing
-the parent's tile halts on `try_enter`'s `Occupied` arm where the original asks
-"Combine armies?" (`L2.eng` 10/5).
+Army_LeaveCastle (`0x004374C4`) ends `FUN_00437535` with `if (unit.besiegedBy &&
+Battle_BeginFromCampaign(unit, unit.besiegedBy)) g_battleCounty = county`;
+Battle_BeginFromCampaign (`0x004A7158`) takes marcher as g_battleArmyA and besieger as
+g_battleArmyB, caller overwrites g_battleCounty with the county left. Built as
+turn::raise_sortie off raise_idle_battle gate (Battle_ChooseSettlement `0x004A6A30`,
+called from Game::leave_castle); stale "not staged" notes in conquest.rs, game.rs,
+screens/info.rs corrected. Test a_garrison_that_marches_out_onto_its_besieger_raises_the_battle_prompt, ablation red.
+
+Map_ConfirmMoveOrder (`0x004A9252`, priority list off g_hoverMergeUnit `0x00553F44`)
+raises Ui_OpenConfirm(5, ...) (`0x0040E6F2` = L2.eng 10/5); callback MoveOrder_ConfirmCombine
+(`0x004A975D`) merges into standing army (Unit_OrderMove's fifth argument, Army_Combine
+`0x004AA181`). The original asks at order time, never halts mid-route (tiles stack); ours
+halts on Entry::Occupied, so words, direction, machinery are [V] and timing is [I], marked
+in code. Built as turn::ask_combine off Contact::Blocked, Game::combine_ask; map screen
+battlefield confirm box (g_confirmWidgets frames 29/31, CONFIRM_WIDGETS, kind-5 press)
+held modally, yes merges, no leaves both halted. Refusals speak L2.eng 274 (1500 cap) and
+167 (two mercenary bands). Tests a_march_onto_your_own_army_asks_to_combine_and_yes_merges_them
+and a_march_onto_your_own_army_answered_no_leaves_both_armies_standing, ablation red.
 
 ---
 
