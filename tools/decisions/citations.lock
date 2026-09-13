@@ -45,6 +45,7 @@ crates/l2-game/src/game.rs	C61	243e22401be3	60611046b40d
 crates/l2-game/src/game.rs	C62	1f489b238ce0	ebb6a7ec3711
 crates/l2-game/src/input.rs	C61	39c868ef7985	60611046b40d
 crates/l2-game/src/main.rs	C117	5d9721284057	b20f3a227f0f
+crates/l2-game/src/main.rs	C193	eff18505112b	ded1409ebea0
 crates/l2-game/src/main.rs	C193	fa55c65b9590	ded1409ebea0
 crates/l2-game/src/movie.rs	C193	921629355a9c	ded1409ebea0
 crates/l2-game/src/save.rs	C113	292ef2506465	6fbe8ffeb1fb
@@ -158,6 +159,8 @@ crates/l2-game/src/turn_clock.rs	C140	9266033b8ec5	e3a1ede42a95
 crates/l2-game/src/victory.rs	C44	81209403d144	caaab37ee8ce
 crates/l2-game/src/victory.rs	C44	eb2da78efce9	caaab37ee8ce
 crates/l2-game/src/victory.rs	C44	fa73148cbb7c	caaab37ee8ce
+crates/l2-game/src/wallclock.rs	C193	6f742c0b2109	ded1409ebea0
+crates/l2-game/src/wallclock.rs	C206	4847f2d0176e	ec1965fdc6d6
 crates/l2-game/tests/ai_war.rs	C26	1e92346b988f	e8179d1f76a8
 crates/l2-game/tests/armoury.rs	C21	7b180bf100d0	f7bf296341ff
 crates/l2-game/tests/armoury.rs	C58	b9ae26438b9f	2a1ff4d5966d
@@ -759,6 +762,7 @@ docs/decisions.md	C189	cb3224233a9e	a640e552a733
 docs/decisions.md	C189	e6efefd0abf5	a640e552a733
 docs/decisions.md	C190	68f8ca643e9f	036491ce2ede
 docs/decisions.md	C192	de1973c3ff09	b39ebc129fac
+docs/decisions.md	C193	5a0fe55307ab	ded1409ebea0
 docs/decisions.md	C195	168811bca0a3	f0bf50bfaad1
 docs/decisions.md	C197	0e9ff5152cc2	e7abe71da733
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874

@@ -78,6 +78,9 @@ pub mod tooltip;
 pub mod turn;
 pub mod turn_clock;
 pub mod victory;
+/// **Ours, not the original's** — the MST clock on the title screen. Pure
+/// arithmetic on a reading `main.rs` hands in; see the module header.
+pub mod wallclock;
 pub mod widget;
 
 pub use game::{Assets, Game};

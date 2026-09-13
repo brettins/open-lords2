@@ -322,6 +322,20 @@ pub struct Assets {
     pub map: MapAssets,
     /// Presentation switches. See [`Quirks`].
     pub quirks: Quirks,
+    /// **The shell's reading of the wall clock, in seconds since the Unix
+    /// epoch — and the only one in the program.**
+    ///
+    /// `main.rs` samples `SystemTime` and projects it here once a tick, exactly
+    /// as it projects [`Game::presentation_quirks`] into [`Assets::quirks`] on
+    /// the line above; `crate::wallclock` turns it into the title screen's MST
+    /// clock face and nothing else reads it. `None` everywhere the shell is not
+    /// running — every test, and every headless driver — so a screen that wants
+    /// a clock has to be handed one and can never reach for it.
+    ///
+    /// It is on [`Assets`] rather than on [`Game`] deliberately: `docs/netcode.md`
+    /// D-5 forbids a wall clock in the simulation, and `Assets` is in no save,
+    /// no digest and no `Kingdom`. `crate::wallclock` states the whole argument.
+    pub wall_clock: Option<i64>,
     /// The original's interface artwork — `Panels.pl8` and `Misc_cty.pl8`.
     ///
     /// `None` when the install does not supply them, which is the placeholder
@@ -401,6 +415,7 @@ impl Assets {
         Ok(Assets {
             ink: Ink::for_palette(&palette),
             quirks: Quirks::default(),
+            wall_clock: None,
             palette,
             map,
             chrome,
@@ -455,6 +470,7 @@ impl Assets {
         Assets {
             ink: Ink::for_palette(&palette),
             quirks: Quirks::default(),
+            wall_clock: None,
             palette,
             map,
             chrome: None,

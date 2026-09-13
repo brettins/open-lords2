@@ -11442,3 +11442,58 @@ whose first line is the game's own — `Eng_DrawString(40, ERROR_INDEX)` — so 
 player is told rather than silently robbed. `docs/arms.json`
 `ours/save-refuses-mid-battle`; the feature is `partial`, not `done`, and the gap
 names the reason.
+
+---
+
+**C206 — the title screen's clock is OURS, and the interesting part is
+the channel it came down, not the arithmetic.**
+
+A player asked for the time in MST on the title screen. There is none in `Lords2.exe`:
+`FUN_0041EA14` is 143 bytes — `FUN_00409346(Panels2, 0xA0, 10, 0x14, 0xF)`, two
+`Ui_DrawCentred` calls, then `FUN_0041EAA3`'s four items — and the binary's **one**
+calendar clock anywhere is `Log_Timestamp` (`0x004B049B`), `time` → `localtime` →
+`asctime` into `g_logTimestamp`, whose only two readers are in `Log_Write`'s buffer and
+file path. `[V]`, read whole, both. So the game's answer to *what time is it* is *write it
+in a log file*, and a clock on the front page is a **deliberate divergence** — marked
+`ours/title-mst-clock` in `tools/draws/screens.json`, and said in the code beside it so
+that nobody later "fixes" it toward the binary or cites it as a reproduction.
+
+**The rule that shaped the design is D-5, and the shape it forced is C193's.**
+*No wall clock, no scheduler* binds everything under the renderer, so `crate::wallclock`
+is pure arithmetic on a reading it is **handed** — `hhmm(unix_secs)`, `minute(unix_secs)`,
+`draw(canvas, pen, unix_secs)` — exactly as `clock::Ticker` takes monotonic nanoseconds
+from `main.rs` rather than reading them. `l2-game` the library contains no `SystemTime`
+at all; `main.rs` samples one and projects it into `Assets::wall_clock`.
+
+**`Assets` rather than `Ctx` or `Game`, and that is the whole trick.** `Ctx` is
+constructed at something like eighty sites and `Game` is the simulation, but `main.rs`
+already writes `self.assets.quirks = self.game.presentation_quirks` on the line before it
+draws — an existing, one-directional channel from the shell into every painter, through a
+struct that is in no save, no digest and no `Kingdom`. The clock rides it. The field is
+`Option<i64>` and **every test and every headless driver leaves it `None`**, which is what
+turns *nothing below the shell may read a clock* from an intention into something a test
+can fail on: `a_page_with_no_reading_draws_no_clock` asserts the page is clockless without
+one, and `the_clock_cannot_reach_the_simulation` steps two copies of one game under
+readings six months apart and demands the same checksum.
+
+**Two things the build turned up that the plan did not have.**
+
+* **A reading sampled only at redraw can never go stale.** The first version sampled in
+  `App::redraw`, beside the quirks projection, which is the obvious place — and `redraw`
+  only runs when something is *already* dirty, so the clock would have frozen at the
+  minute the page opened and nothing would have said so. The sample is now taken on the
+  tick as well, and `SetupScreen::update` compares `wallclock::minute` against the minute
+  already painted. That is also what keeps a still screen still: `take_redraw` fires once
+  a minute, not sixty times a second for a picture that changes once in thirty-six hundred.
+* **MST is a fixed offset, and the test for that is an ablation.** MST is UTC−7 all year;
+  the zone that shifts is MDT, and the host's own zone is a third answer again. There is no
+  daylight rule in the module, and `mst_does_not_shift_in_summer` pins two instants six
+  months apart to the same clock face — which is the assertion that fails the moment
+  somebody reaches for a local-time crate.
+
+Bottom **right**, opposite the build stamp, in the page's own body face at `0x3F`, flat —
+the face and colour the subtitle and all four menu captions use, taken from the page's own
+pen rather than invented. Nothing the original's page-1 painter draws reaches below the
+window's y 250. Deliberately **not** `build_id`'s plain `Fntl2_9.pl8`: that line is seven
+hex characters compared one at a time, and this is four digits read as a shape, like every
+other word on the screen.
