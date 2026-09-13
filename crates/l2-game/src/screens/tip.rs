@@ -87,12 +87,26 @@ impl Screen for TipScreen {
     /// `Screen_FrameInput`'s epilogue and runs on every id but `0x12`. See the
     /// module header.
     ///
-    /// The press: `Minimap_Click` picks and recentres, and the byte goes to `0`
-    /// with no restore behind it. Ours says that as
-    /// [`crate::tip::Tips::unhost`] — so [`crate::screen::Machine::seat_tip_host`]
-    /// takes this screen off and does not put it straight back — and a
-    /// [`Transition::Pass`] down to the campaign map, which does the picking and
-    /// asks for everything above it to go.
+    /// The press drops the byte: [`crate::tip::Tips::unhost`], so
+    /// [`crate::screen::Machine::seat_tip_host`] takes this screen off and — the
+    /// delay not being re-armed — the ladder may post the next tip at once.
+    ///
+    /// **The window stays up, and that is the original.** The epilogue writes
+    /// `g_screenId = 0` and nothing else; `Msg_Pump` runs on `0x00` as well as
+    /// on `0x27`, so the tip window the player was reading is still there over
+    /// the map. Returning [`Transition::Stay`] rather than [`Transition::Pass`]
+    /// is what says that: the campaign map underneath is **not** `g_screenId`
+    /// while this screen is up and its own ladder must not run — `Map_Click`'s
+    /// first guard is `Msg_DismissUnlessQuestion`, which would throw the window
+    /// away.
+    ///
+    /// **Not reproduced, and it is the other half of the epilogue's `if`:**
+    /// `FUN_004323FE` → `Minimap_Click` (`0x0043253A`) picks the county under
+    /// the pointer and recentres the map on it before the byte is dropped. That
+    /// needs the county raster, which belongs to `MapScreen` and is not reachable
+    /// from here; `docs/arms.json` `0x0043253A/minimap-click` is that arm, and it
+    /// is reproduced on the map's own ladder and not on this path. So a minimap
+    /// press under a tip closes the tip's hold and does not yet move the map.
     ///
     /// **The left press only**, exactly as the six other screens that carry this
     /// arm do. The epilogue's guard is `g_mouseLeftPressed || g_mouseRightPressed`
@@ -101,18 +115,17 @@ impl Screen for TipScreen {
     /// right-button arms read. The half we cannot say is recorded here rather
     /// than approximated with the release, which would fire on the wrong edge.
     ///
-    /// **Only the raster, not the column.** Passing the whole column would
+    /// **Only the raster, not the column.** Answering the whole column would
     /// invent five more arms; see `crates/l2-game/src/screens/job.rs` at the
     /// same arm.
     // arm: 0x0042FF10/minimap-under-a-tip left-press
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        match event {
-            Event::Click { x, y } if l2_view::chrome::minimap_hit_area().contains(x, y) => {
+        if let Event::Click { x, y } = event {
+            if l2_view::chrome::minimap_hit_area().contains(x, y) {
                 ctx.game.tips.unhost();
-                Transition::Pass
             }
-            _ => Transition::Stay,
         }
+        Transition::Stay
     }
 
     fn draw(&mut self, _ctx: &Ctx, _canvas: &mut Canvas) {}

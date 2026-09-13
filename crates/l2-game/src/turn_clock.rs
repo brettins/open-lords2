@@ -534,6 +534,41 @@ mod tests {
         assert_eq!(ticks_for(31_008), 1938);
     }
 
+    /// **The force-close guard is `DAT_0055403C`, and it is wider than the
+    /// clock's own `Turn_End` request in both directions.**
+    ///
+    /// `Turn_End` (`0x0043AC23`) writes it whichever door the turn was ended
+    /// through — the clock's, or the person clicking End Turn — and `Turn_Tick`
+    /// clears it on the first frame of his next live turn. So twenty-six of
+    /// `Screen_FrameInput`'s twenty-seven guard sites close their screen for the
+    /// **whole turn in between**, not for the one frame the clock ran out on.
+    ///
+    /// `Machine::run_turn_clock` tested [`TurnClock::end_turn_pending`], which
+    /// is raised only by the clock and is taken by the map as soon as the map is
+    /// on top; both differences are asserted here.
+    ///
+    /// **Ablation, run:** make `force_close` return `self.end_turn` and the
+    /// first block goes red at once — ending the turn by hand raises no request.
+    #[test]
+    fn the_force_close_latch_stands_for_the_whole_turn_and_not_only_for_the_request() {
+        // 1 — ended by hand, with no limit at all, so the clock raises nothing.
+        let mut c = TurnClock::default();
+        assert_eq!(c.tick(players(0)), Tick::Running);
+        assert!(!c.force_close(), "a live turn closes nothing");
+        let ended = Frame { turn: TurnState::Ended, ..players(0) };
+        assert_eq!(c.tick(ended), Tick::Waiting);
+        assert!(c.force_close(), "Turn_End writes DAT_0055403C whichever door it came through");
+        assert!(!c.end_turn_pending(), "and it is NOT the clock's request: there is no limit");
+
+        // 2 — and it stands for every frame of the turn that follows.
+        assert_eq!(run(&mut c, ended, 500), Tick::Waiting);
+        assert!(c.force_close(), "still standing 500 ticks into the turn");
+
+        // 3 — cleared by the restart, on the first live frame and not before.
+        assert_eq!(c.tick(players(0)), Tick::Restarted);
+        assert!(!c.force_close(), "Turn_Tick's restart is the one writer that clears it");
+    }
+
     /// No limit is `g_optTimeLimit == 0`: the countdown's guard fails, nothing is
     /// drawn and nothing ends, however long the person sits there.
     #[test]

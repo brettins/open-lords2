@@ -377,6 +377,94 @@ fn a_double_click_on_a_prompt_thumb_answers_it() {
     assert_eq!(m.clicks(), 1, "Widget_Test's press, so it clicks");
 }
 
+/// **A double click on the ration slider's track does not start a drag.**
+///
+/// `Ration_SliderClick` (`0x0043A379`) has two doors: the arrows want
+/// `g_mouseLeftPressed || g_mouseLeftDoubleClick`, and the **track** wants
+/// `g_mouseLeftDown && g_mouseInputChanged`. `App_WndProc` (`0x004B29BE`)
+/// answers `WM_LBUTTONDBLCLK` with `DAT_004EADA1 |= 1` and nothing else — only
+/// `WM_LBUTTONDOWN` sets the down bit — so after a double click the button is
+/// not down and moving the pointer moves nothing.
+///
+/// Ours latched `slider_held` on the double click, so the thumb then followed
+/// the cursor with the button up.
+///
+/// **Ablation, run:** put `self.slider_held = true;` back in the
+/// `Event::DoubleClick` arm of `CountyScreen::handle` and the second assertion
+/// goes red — the pointer drags the split to the far end.
+#[test]
+fn a_double_click_on_the_ration_slider_does_not_leave_a_drag_running() {
+    use l2_game::screens::county::split_track;
+    let (mut g, a) = world();
+    g.prefs.tip_screens = false;
+    let mut m = Machine::new(ScreenId::County(1, Panel::Ration));
+    let track = split_track();
+    let (low, high) = (track.x + 10, track.x + 90);
+    let y = track.y + track.h / 2;
+
+    // The double click still jumps the value: the arm is entered on either flag.
+    send(&mut m, &mut g, &a, Event::DoubleClick { x: low, y });
+    assert_eq!(g.kingdom.counties[1].ration_split, 10, "the double click still jumps");
+
+    send(&mut m, &mut g, &a, Event::Pointer { x: high, y });
+    assert_eq!(
+        g.kingdom.counties[1].ration_split, 10,
+        "a double click must not leave the drag latched on",
+    );
+
+    // A real press does latch it, which is the other half of the same field.
+    send(&mut m, &mut g, &a, Event::Click { x: low, y });
+    send(&mut m, &mut g, &a, Event::Pointer { x: high, y });
+    assert_eq!(g.kingdom.counties[1].ration_split, 90, "and the press does drag");
+}
+
+/// **The castle chooser's corner picture closes on the release, not the press.**
+///
+/// `Screen_FrameInput`'s `0x1B` arm is `Ui_OkButtonClicked()` (`0x0040E7E4`),
+/// whose first statement is `if (g_mouseLeftReleased == 0) return 0;`. The
+/// marker in `castle.rs` said `left-release` and the code read `Event::Click`.
+///
+/// **Ablation, run:** move the `CORNER_OK.contains` test back into the
+/// `Event::Click` arm and the first assertion goes red.
+#[test]
+fn the_castle_choosers_corner_closes_on_the_release() {
+    use l2_game::screens::castle::CORNER_OK;
+    let (mut g, a) = world();
+    g.prefs.tip_screens = false;
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Castle(1));
+    let opened = m.top_id();
+    let at = on(CORNER_OK);
+    send(&mut m, &mut g, &a, Event::Click { x: at.0, y: at.1 });
+    assert_eq!(m.top_id(), opened, "the press does nothing: the corner reads g_mouseLeftReleased");
+    send(&mut m, &mut g, &a, Event::Release { x: at.0, y: at.1 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the release closes it");
+}
+
+/// **The raise-army screen's corner picture closes on the release too.**
+///
+/// `Screen_FrameInput`'s `0x17` arm asks `Levy_SliderClick()` (`0x00435CEF`)
+/// first — which cannot answer a release: its arrow branches want
+/// `g_mouseLeftPressed || g_mouseLeftDoubleClick` and its track branch
+/// `g_mouseLeftDown` — and then `Ui_OkButtonClicked()`.
+///
+/// **Ablation, run:** move the `OK.contains` test back into the `Event::Click`
+/// arm and the first assertion goes red.
+#[test]
+fn the_raise_army_screens_corner_closes_on_the_release() {
+    use l2_game::screens::army::OK;
+    let (mut g, a) = world();
+    g.prefs.tip_screens = false;
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::RaiseArmy(1));
+    let opened = m.top_id();
+    let at = on(OK);
+    send(&mut m, &mut g, &a, Event::Click { x: at.0, y: at.1 });
+    assert_eq!(m.top_id(), opened, "the press does nothing");
+    send(&mut m, &mut g, &a, Event::Release { x: at.0, y: at.1 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the release closes it");
+}
+
 /// **A double click on the supplies thumb down restarts its twenty frames and
 /// then leaves.** `Screen_HandleInput`'s `0x18` arm runs `Widget_Test` on
 /// `g_sendSuppliesWidgets`, kinds 4 and 5, whose guards read the double click;
