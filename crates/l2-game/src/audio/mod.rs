@@ -1009,6 +1009,11 @@ pub struct Director {
     ///
     /// Empty until the first tick, which is what makes the first tick silent.
     weapons: Vec<usize>,
+    /// **The tile the information panel was about at the previous tick and its
+    /// terrain byte then**, so that the field brush *painting* it is an edge
+    /// this can see. `None` whenever no tile panel is up. See
+    /// [`Director::hear_the_brush`].
+    brush_tile: Option<(usize, u8)>,
     /// **The live battle's [`l2_sim::Cues`] at the previous tick**, so that an
     /// event inside the tick since is an edge this can see. `None` while no
     /// battle is up. See [`Director::hear_the_battle`].
@@ -1515,6 +1520,8 @@ impl Director {
 
         self.hear_the_smithy(audio, game);
 
+        self.hear_the_brush(audio, game);
+
         self.hear_the_battle(audio, game);
 
         // **The message window, which is where nearly all of the game's audio
@@ -1694,6 +1701,45 @@ impl Director {
             }
         }
         self.weapons = now;
+    }
+
+    /// **The field brush.** `FUN_00438B02` (`0x00438B02`) is the handler all
+    /// five brush buttons call, and its first statement after `Map_ResolvePick`
+    /// is the sound: [`names::field_brush_slot`] is that ladder.
+    ///
+    /// **Found rather than reported**, for [`Director::hear_the_smithy`]'s
+    /// reason — a "the brush painted" flag on [`crate::Game`] would be in the
+    /// save and in the lockstep digest, for a sound, and a screen cannot reach
+    /// [`Audio`] at all (`docs/netcode.md` D-3). What the original's handler
+    /// does is observable instead: it paints the tile the information panel is
+    /// about and then sets `g_screenId = 0`, so the panel is already gone by
+    /// the tick this runs on and the remembered tile is the only thing left to
+    /// diff.
+    ///
+    /// `[D]` that the diff is the same occasion: while the tile panel is up
+    /// nothing else writes that tile's terrain — the weather and
+    /// `Field_ReclaimTick` run on the turn, which the panel covers.
+    // sfx: FUN_00438b02#1,FUN_00438b02#2,FUN_00438b02#3,FUN_00438b02#4,FUN_00438b02#5
+    fn hear_the_brush(&mut self, audio: &mut Audio, game: &crate::Game) {
+        use crate::screen::ScreenId;
+        let map = &game.kingdom.campaign.map;
+        if let Some((tile, was)) = self.brush_tile {
+            if let Some(&is) = map.terrain.get(tile) {
+                if is != was {
+                    if let Some(name) = names::field_brush_slot(is)
+                        .and_then(|s| names::slot(names::Bank::Kingdom, s))
+                    {
+                        audio.play_effect(name);
+                    }
+                }
+            }
+        }
+        self.brush_tile = self.stack.iter().find_map(|id| match id {
+            ScreenId::Info(crate::screens::info::Target::Tile(t)) => {
+                map.terrain.get(*t).map(|&g| (*t, g))
+            }
+            _ => None,
+        });
     }
 
     fn hear_the_click(&mut self, audio: &mut Audio, machine: &crate::screen::Machine) {
