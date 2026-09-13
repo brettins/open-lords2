@@ -11,7 +11,7 @@
 //!
 //! # Simulation time is not frame time
 //!
-//! `docs/plan.md` is explicit, and the battle viewer had to learn it the hard
+//! `docs/plan.md` is explicit
 //! way: pacing with `WaitUntil` decides **when to draw**, never what a tick
 //! contains. Without a throttle the loop repaints as fast as the machine can
 //! manage — about ten thousand frames a second — which is more than the surface
@@ -48,7 +48,7 @@ use winit::application::ApplicationHandler;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key as WinitKey, NamedKey};
-use winit::window::{Window, WindowId};
+use winit::window::{CursorIcon, Window, WindowId};
 
 const CANVAS_W: u32 = l2_view::canvas::WIDTH as u32;
 const CANVAS_H: u32 = l2_view::canvas::HEIGHT as u32;
@@ -60,7 +60,7 @@ const CANVAS_H: u32 = l2_view::canvas::HEIGHT as u32;
 /// How long after a left press a second one is a **double** click.
 ///
 /// The original never measures this: Windows does, against the user's own
-/// `GetDoubleClickTime()`, and hands the game `WM_LBUTTONDBLCLK` instead of the
+/// `GetDoubleClickTime()`
 /// second `WM_LBUTTONDOWN`. `winit` has no such event, so this file measures it
 /// — and it is this file's business alone, because it is a *clock*, and
 /// `docs/netcode.md` allows one only above [`l2_game::input`]. 500 ms is the
@@ -98,7 +98,7 @@ struct App {
     /// `docs/netcode.md`'s lockstep argument rests on, held by the type
     /// system
     audio: Audio,
-    /// **What decides what is audible**, and the edge counters it needs to
+    /// **What decides what is audible**
     /// notice that something has *become* true. It lives in the library so that
     /// a test runs this code —
     /// `crates/l2-game/tests/audio_wiring.rs`.
@@ -112,18 +112,23 @@ struct App {
     /// double and then a single — which is what
     /// Windows itself does.
     last_press: Option<(Instant, (i32, i32))>,
-    /// **`DAT_004EABC2`'s left bit**, and the release edge the frame poll
+    /// **`DAT_004EABC2`'s left bit**
     /// derives from it. In the library so a test can drive it without a window;
     /// see [`l2_game::input::LeftButton`].
     left: l2_game::input::LeftButton,
+    /// The pointer the window is showing, so `set_cursor` is called on a change
+    /// and not on every frame. `Battle_Frame` re-chooses every frame and hands
+    /// `Cursor_Set` the answer regardless; `SetCursor` on an unchanged
+    /// `HCURSOR` is free and `winit`'s is not.
+    pointer: l2_game::cursor::Pointer,
 }
 
 impl App {
     fn present(&mut self) {
         let Some(pixels) = self.pixels.as_mut() else { return };
-        // Which palette, and the end-of-turn fade. Most screens run under the
+        // Which palette
         // campaign's; the front end, the merchant, the armoury, castle building,
-        // the battlefield and the ratings each read a `.256` of their own, and a
+        // the battlefield and the ratings each read a `.256` of their own
         // window drawn over one of those runs under it; a film runs under its
         // own, which changes as it plays. `Machine::present` is
         // the whole decision, in the library, where a test can see its colours.
@@ -150,6 +155,38 @@ impl App {
         if let Some(w) = window {
             w.set_title(&title);
         }
+        self.apply_pointer();
+    }
+
+    /// **`Cursor_Set` (`0x004B1CF3`)**, the binary's only caller of
+    /// `SetCursor`, driven from where its only caller `Battle_Frame`
+    /// (`0x004B99C0`) drives it: the frame. The choice is
+    /// [`l2_game::screen::Machine::pointer`] and is entirely in the library;
+    /// what is here is the one thing that cannot be, the window call.
+    ///
+    /// **The pictures are the system's, not the original's.** The seven the
+    /// game draws live as `RT_GROUP_CURSOR` resources inside the player's own
+    /// `Lords2.exe` and nothing in the workspace reads them yet
+    /// (`docs/screens.md` §9.8). The mapping below is **ours**: `Help` is
+    /// Windows' arrow-plus-question-mark, which is the same picture resource
+    /// 110 holds; the other three are the nearest system cursor to a kind, and
+    /// they are a stand-in, not a reproduction.
+    fn apply_pointer(&mut self) {
+        let want = self.machine.pointer(&self.game);
+        if want == self.pointer {
+            return;
+        }
+        self.pointer = want;
+        let Some(w) = &self.window else { return };
+        use l2_game::cursor::Pointer;
+        w.set_cursor(match want {
+            Pointer::Arrow | Pointer::ArrowAlt => CursorIcon::Default,
+            Pointer::Question => CursorIcon::Help,
+            Pointer::Cross | Pointer::CrossTarget => CursorIcon::Crosshair,
+            Pointer::Ring => CursorIcon::Pointer,
+            Pointer::Peasant => CursorIcon::Grabbing,
+            Pointer::Scythe => CursorIcon::Move,
+        });
     }
 
     /// **The only wall clock in the program, and it is in the shell.**
@@ -162,7 +199,7 @@ impl App {
     /// only channel into a painter.
     ///
     /// `docs/netcode.md` D-5 — *no wall clock, no scheduler* — is why it cannot
-    /// live any lower: `l2-game` the library has no `SystemTime` anywhere, so a
+    /// live any lower: `l2-game` the library has no `SystemTime` anywhere
     /// simulation path physically has nothing to read. The same discipline
     /// [`l2_game::clock::Ticker`] holds for the monotonic clock
     /// (`docs/decisions.md` C193), for the same reason.
@@ -239,7 +276,7 @@ impl App {
     /// One fixed simulation tick.
     fn tick(&mut self) {
         // Sampled here as well as in [`Self::redraw`], and it has to be: the
-        // redraw only happens when something is already dirty, so a reading
+        // redraw only happens when something is already dirty
         // taken there alone could never *become* stale and the title screen's
         // clock would stop at the minute the page opened. The tick is what
         // notices the minute turning; nothing under the shell may notice it.
@@ -374,7 +411,7 @@ impl ApplicationHandler for App {
                 self.ctrl = mods.state().control_key();
             }
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
-                // F5 never reaches a screen: it is about the window, and the
+                // F5 never reaches a screen: it is about the window
                 // window is this file's business alone.
                 if event.logical_key == WinitKey::Named(NamedKey::F5) {
                     self.snap_to_whole_scale();
@@ -524,7 +561,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // whether the product has the same bug.
     //
     // The front end is up from the first frame and `Setup`'s own *Start* builds
-    // the real game, so this world is only what stands behind the title page
+    // the real game
     // until then. `docs/decisions.md` C117.
     let game = scenario::new_game(
         &assets,
@@ -549,7 +586,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Sound is opened through the same vfs every other asset comes through, so
     // the install is found once and a mod layer can replace a `.wav` for free.
     // `Audio::open` cannot fail: no device, no files, or a device that refuses
-    // a stream all end at the same silent object, and the game runs
+    // a stream all end at the same silent object
     // it did before sound existed.
     let audio = if sound { Audio::open(&platform.vfs) } else { Audio::silent() };
     println!(
@@ -583,6 +620,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ctrl: false,
         last_press: None,
         left: l2_game::input::LeftButton::new(),
+        pointer: l2_game::cursor::Pointer::Arrow,
     };
 
     let event_loop = EventLoop::new()?;

@@ -1224,15 +1224,32 @@ next frame's head.
 
 ### 9.8 What our engine does  **[V]**
 
-**Nothing.** `crates/l2-view` draws the OS cursor everywhere, and no code in the workspace
-reads a `.cur` file, a cursor resource or `g_cursorByScreen`. That is a gap, and
-`docs/mechanics.md` now carries it as one.
+**The choice, not the pictures.** `l2_game::cursor::by_screen` is `g_cursorByScreen`
+(`0x004E3098`) and `Machine::pointer` is `Battle_Frame`'s two-way choice (`0x004B99C0`) —
+the battlefield ids run `LiveBattle::cursor`, which was already §9.7's ladder, and every
+other screen is the table. `VillageScreen::mode_screen_id` answers `0x02` / `0x05` / `0x06`
+so the village's three ids are askable; `main.rs`'s `apply_pointer` is the only `set_cursor`
+call in the workspace, once per redraw on a change. `crates/l2-game/tests/cursor.rs`.
 
-The cost of closing it is small, and worth writing down because it is smaller than it looks —
-but it is *not* "parse the twelve files". Two of the three glyph cursors the game actually
-draws exist only inside `Lords2.exe`. A faithful implementation reads the user's own binary,
-the way `crates/l2-view` already reads the realm ramp at `0x004D2900` (§7): walk `.rsrc` to
-`RT_GROUP_CURSOR` 102, 103, 104, 105, 110, 111 and 113, decode seven 32 × 32 1-bpp AND/XOR
-pairs, and hang them off a copy of `g_cursorByScreen` plus the §9.7 ladder.
-file format to learn: `.cur`, `.ico` and `RT_CURSOR` are the same three structures, and an
+**Which screens change the pointer, built or not:**
+
+| `g_screenId` | screen | kind | ours |
+|---:|---|---:|---|
+| `0x02` | the village, idle | 2, question mark | built |
+| `0x05` | the village, rubber band | 0, arrow — the row is zero | built |
+| `0x06` | the village, carrying a selection | 12, peasant | built |
+| `0x10` | campaign map, army movement | 14, scythe | built — `MapScreen::move_order` |
+| `0x28`, `0x29` | the battlefield | 0/4/5/6 by the §9.7 ladder | built |
+| `0x2A` | the battlefield, drag | 0, arrow — the ladder's first rung | built |
+| `0x07`, `0x0E` | — | 13, 2 | dead rows; nothing writes either id |
+| every other id | — | 0, arrow | built, by falling through the table |
+
+**The pictures are still the system's.** The seven `RT_GROUP_CURSOR` resources live only
+inside `Lords2.exe` and nothing in the workspace reads them; the shell maps a kind onto the
+nearest system cursor (`Help` for the question mark, which is the same picture resource 110
+holds; `Crosshair`, `Pointer`, `Grabbing`, `Move` for the rest) and that mapping is **ours**.
+Closing it is not "parse the twelve files": a faithful implementation reads the user's own
+binary, the way `crates/l2-view` already reads the realm ramp at `0x004D2900` (§7) — walk
+`.rsrc` to `RT_GROUP_CURSOR` 102, 103, 104, 105, 110, 111 and 113 and decode seven 32 × 32
+1-bpp AND/XOR pairs. `.cur`, `.ico` and `RT_CURSOR` are the same three structures, and an
 `RT_CURSOR` is a `.cur` with the 22-byte directory replaced by a 4-byte hotspot.

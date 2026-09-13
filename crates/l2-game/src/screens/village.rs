@@ -99,7 +99,7 @@ use crate::widget;
 /// **The rubber band's colour, `FUN_00412795`'s literal fifth argument.**
 ///
 /// `FUN_00403cf4(x, y, w, h, 0x20)`, and `0x20` in `Base01.256` — the palette
-/// `Screen_DrawCampaign` sets and the village never replaces, because
+/// `Screen_DrawCampaign` sets and the village never replaces,
 /// `Village_Draw` paints over the campaign screen — is
 /// `rgb(255, 255, 255)`. Read out of the player's own install; the file is one
 /// 768-byte table of 6-bit VGA triples.
@@ -155,7 +155,7 @@ pub struct VillageScreen {
     /// also what the original does — `Village_Draw`'s reload path resets the
     /// counters through `FUN_004050C0`.
     clock: vill::AnimationClock,
-    /// Whether the last tick moved an animation, so a still village costs no
+    /// Whether the last tick moved an animation,
     /// repaint. The same economy `MapScreen`'s flag phase makes.
     animated: bool,
 }
@@ -284,7 +284,7 @@ impl VillageScreen {
     /// FUN_00403cf4(x0, y0, w, h, 0x20);
     /// ```
     ///
-    /// Both branches are `else if`, so a band that starts off the left edge is
+    /// Both branches are `else if`,
     /// never clamped on the right. That is the original's, kept.
     ///
     /// `FUN_00403CF4` is the four-line rectangle outline — it draws top,
@@ -476,6 +476,19 @@ impl Screen for VillageScreen {
         ScreenId::Village(self.county)
     }
 
+    /// **The village is three `g_screenId`s, not one** — `0x02` idle, `0x05`
+    /// the band, `0x06` the carried selection, the table at the top of this
+    /// file. The pointer is chosen from the byte (`g_cursorByScreen`,
+    /// `0x004E3098`), so the mode has to be askable: the question mark belongs
+    /// to `0x02` alone and `0x06` gets the peasant.
+    fn mode_screen_id(&self) -> Option<u8> {
+        Some(match self.phase {
+            Phase::Idle => 0x02,
+            Phase::Band => 0x05,
+            Phase::Carry => 0x06,
+        })
+    }
+
     fn title(&self, _ctx: &Ctx) -> String {
         format!("Village of county {}", self.county)
     }
@@ -502,7 +515,7 @@ impl Screen for VillageScreen {
         // and every one of the six hit-tests `x >= 0x1DE` — 478, which is
         // [`campaign::PANEL_X`]. So the rule is exactly *"the column at x >=
         // 478 keeps working"*, and nothing else does: `Map_Click` is **not** in
-        // this ladder, so a click on the terrain round the inset does nothing.
+        // this ladder,
         //
         // **The two drag states do not do this.** The `0x05` (banding) and
         // `0x06` (carrying) arms test no sidebar guard at all — they run

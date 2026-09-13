@@ -259,11 +259,11 @@ pub enum Transition {
     /// selects that county, centres the map on it **and drops the whole
     /// management surface**. Our stack says that as: the overlay passes the
     /// event down, the campaign map acts, and the campaign map asks for
-    /// everything above it to be thrown away — which is `g_screenId = 0` with a
+    /// everything above it to be thrown away —
     /// stack underneath.
     ///
     /// It is deliberately not `Replace(self.id())`: that rebuilds the screen,
-    /// and the campaign map's viewport is exactly what a re-centre is *about*.
+    /// and the campaign map's viewport is re-centre is *about*.
     Reveal,
     /// **Go to screen X, unwinding the stack** — `g_smkReturnScreen`.
     ///
@@ -304,7 +304,7 @@ pub trait Screen {
     /// What the window is called while this screen is on top.
     fn title(&self, ctx: &Ctx) -> String;
 
-    /// One input event. The default ignores everything, so a screen only writes
+    /// One input event. The default ignores everything,
 /// down what it responds to.
     fn handle(&mut self, _event: Event, _ctx: &mut Ctx) -> Transition {
         Transition::Stay
@@ -387,7 +387,7 @@ pub trait Screen {
     ///   autosave. [`crate::screens::map::MapScreen`] raises it there.
     /// * `Game_NewGame` (`0x00497CED`), after `Season_Advance` and
     ///   `Move_BuildCostMap`. [`crate::screens::setup::SetupScreen`] raises it
-///   there, so a fresh install's `lastturn.sav` reads Winter 1268.
+/// there,
     ///
 /// **It goes up**, as [`Screen::take_clicks`] does and
     /// for the same reason: a screen may report that a turn came round, and may
@@ -447,7 +447,7 @@ pub trait Screen {
     /// the ordinary full-brightness palette.
     ///
     /// **The canvas is not involved.** `FUN_004B0CB4` is entirely a palette
-    /// effect — no dither table, no half-brightness blit — so a screen that is
+    /// effect — no dither table, no half-brightness blit —
     /// fading draws exactly what it always draws and answers this instead. The
     /// presenter turns the number into colour, which is the same division
     /// [`Screen::palette`] already makes and for the same reason: a [`Canvas`]
@@ -590,7 +590,7 @@ pub struct Machine {
     /// would lose exactly the presses a player notices most.
     ///
 /// Drained out of the screens by [`Machine::handle`]
-    /// them, so a screen cannot see the total and cannot be told what was done
+    /// them,
     /// with it. See [`Screen::take_clicks`].
     clicks: u32,
     /// `(g_mouseX, g_mouseY)` — the last canvas pixel an event put the pointer
@@ -685,6 +685,24 @@ impl Machine {
         s.mode_screen_id().or_else(|| crate::tip::screen_byte(s.id(), game))
     }
 
+    /// **The pointer this frame** — `Battle_Frame`'s two-way choice
+    /// (`0x004B99C0`): the battlefield ids run the hover ladder, every other
+    /// screen is one lookup in `g_cursorByScreen` (`0x004E3098`). See
+    /// [`crate::cursor`].
+    ///
+    /// A screen whose byte [`crate::tip::screen_byte`] does not assert takes
+    /// the arrow, which is what the table gives every screen but five.
+    pub fn pointer(&self, game: &Game) -> crate::cursor::Pointer {
+        let byte = self.top_screen_byte(game).unwrap_or(0);
+        if (0x28..0x2B).contains(&byte) {
+            return match game.battle.as_ref() {
+                Some(b) => b.cursor().into(),
+                None => crate::cursor::Pointer::Arrow,
+            };
+        }
+        crate::cursor::by_screen(byte)
+    }
+
     pub fn take_dirty(&mut self) -> bool {
         core::mem::replace(&mut self.dirty, false)
     }
@@ -707,7 +725,7 @@ impl Machine {
     /// Deliver one event, top screen first, down through anything that passes.
     ///
     /// **The top screen still gets first refusal, and almost always keeps it.**
-    /// A screen that does not return [`Transition::Pass`] ends the walk, so a
+    /// A screen that does not return [`Transition::Pass`] ends the walk,
     /// popup is modal by default and two screens never act on one click.
     ///
     /// The exception is written down where it is used: `Screen_FrameInput`'s
@@ -718,7 +736,7 @@ impl Machine {
     /// # A pass lands at the depth it came from
     ///
     /// The original has no stack: `g_screenId` is one byte, and 57 of the 100
-    /// writes to it in `Screen_FrameInput` are the literal `0`. So a screen
+    /// writes to it in `Screen_FrameInput` are the literal `0`.
     /// opened from the sidebar *while the village was up* still exits to the
     /// campaign map, because its arm's exit is a constant and not a memory of
     /// where it was opened from — the village goes with it. A player who tried
@@ -856,13 +874,13 @@ impl Machine {
     /// [`crate::game::Game::battle`] plus the battlefield screen.
     ///
     /// **The defect this replaces**: [`Screen::update`] is run for the top
-    /// screen only, and the campaign map is what wound the turn, so a letter —
+    /// screen only, and the campaign map is what wound the turn,
     ///
     /// [`crate::screens::message`] — stopped the turn while it was open. So did
     /// walking into a county panel. `docs/decisions.md` C197.
     ///
 /// **And the `else if` is the battle's**, so this is one function.
-    /// The second arm has no `g_screenId` test either, so a battle runs under
+    /// The second arm has no `g_screenId` test either,
 /// whatever is on top of *it* as a turn runs under whatever is on
     /// top of the map. That mattered the moment the battlefield got a menu bar:
     /// the drop-down is screen `0x32`, a push here, and
@@ -918,7 +936,7 @@ impl Machine {
     /// at `depth` while something else is on top of the battlefield.
     ///
     /// The original's inner loop is one `if / else if` on `g_battlePhase` with
-    /// **no `g_screenId` test on either side**, so a battle steps under an open
+    /// **no `g_screenId` test on either side**,
 /// drop-down as a campaign turn steps under an open letter. Ours
     /// stepped only from [`Screen::update`], which the machine gives to the top
     /// screen alone, so the menu bar this screen has just been given would have
@@ -954,13 +972,13 @@ impl Machine {
     /// decompilation; this is the three things only the machine can see.
     ///
     /// * **A repaint.** `Screen_Draw` opens with `FUN_0047703A`, which drops the
-    ///   tip and keeps its stamp. A painter runs when the screen changes, so a
+    /// tip and keeps its stamp. A painter runs when the screen changes,
     ///   change in the screens on the stack — looking through the message
     /// scroll — is that call. `[I]`, and the module
     ///   header says what it does not cover.
     /// * **`Opt_ToggleToolTips` (`0x004347C7`)** is three statements, and the
     ///   second is `_DAT_004EA830 = 0`. `g_optToolTips` has no other writer in
-    ///   play, so a flip seen between two ticks is that function having run.
+    /// play,
     /// * **`Map_InitMode` (`0x00498270`)** writes the same zero, from
     ///   `FUN_00497A34`, the campaign's bring-up: the campaign map arriving on
     ///   the stack.
@@ -1201,7 +1219,7 @@ impl Machine {
     /// up, after it.
     ///
     /// Not a painter's draw: `Battle_Frame` calls it once a frame near the end of
-/// its tail, after the widgets and the message window, so it is
+/// its tail, after the widgets and the message window,
     /// drawn here after the stack and not by the campaign map. Whether it is
     /// drawn at all is `DAT_004D2E80[g_screenId]`, the table in
     /// [`crate::turn_clock::SCREENS`].
@@ -1225,7 +1243,7 @@ impl Machine {
     /// screen, as it always did.
     ///
 /// **The original has no screen clear anywhere**:
-    /// `Screen_Draw` picks a painter and the painter fills a rectangle, so
+    /// `Screen_Draw` picks a painter and the painter fills a rectangle,
     /// whatever is outside it is still there from the last frame.
     /// `Village_Draw` repaints the campaign map itself and blits its picture on
     /// top of it; `Panel_JobDetail` draws a window over the village.
@@ -1260,7 +1278,7 @@ impl Machine {
     /// that draws over a page touches it.
     /// `Tip_Show` (`0x00476DA9`) saves `g_screenId`, writes `0x27` and posts a
     /// message; `FUN_00476E21` puts the byte back; `Msg_DrawWindow`
-    /// (`0x0047309E`) has no `Palette_Set` anywhere in its 10,915 bytes. So a
+    /// (`0x0047309E`) has no `Palette_Set` anywhere in its 10,915 bytes.
     /// window over the armoury is in the armoury's colours. `[V]`
     ///
     /// This used to ask the top screen alone, and an overlay that names no
