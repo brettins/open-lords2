@@ -1573,6 +1573,40 @@ fn saving_is_refused_while_a_battle_is_live() {
         "the box closed on a refusal, so the player was told nothing"
     );
 
+    // **And what it says.** Group 40 index 4 is the heading the painter draws;
+    // the detail under it has to name the thing being lost, so a player who
+    // reads it knows the battle is not in the file. The same refusal, reached
+    // on a screen the test holds, because `Machine` hands out no screen.
+    {
+        let mut screen = l2_game::screens::saveload::SaveLoadScreen::new(
+            l2_game::screens::saveload::Mode::Save,
+        );
+        let mut ctx = Ctx { game: &mut g, assets: &assets };
+        for c in "MIDFIGHT2".chars() {
+            l2_game::Screen::handle(&mut screen, Event::Text(c), &mut ctx);
+        }
+        let mut t = l2_game::Screen::handle(
+            &mut screen,
+            Event::KeyDown(l2_game::input::Key::Enter),
+            &mut ctx,
+        );
+        for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
+            t = l2_game::Screen::update(&mut screen, &mut ctx);
+        }
+        assert_eq!(t, l2_game::Transition::Stay, "a refused save leaves the box open");
+        assert_eq!(
+            screen.status(),
+            &l2_game::screens::saveload::Status::Failed(
+                l2_game::screens::saveload::BATTLE_REFUSAL.into()
+            ),
+            "the refusal must say the battle is not saved"
+        );
+        assert!(
+            l2_game::screens::saveload::BATTLE_REFUSAL.contains("NOT SAVED"),
+            "and it must say it in words, not in a format name"
+        );
+    }
+
     // **The discrimination**: the same screen and the same keystrokes with no
     // battle live. A refusal that fired on every save would pass the half above
     // on its own.
