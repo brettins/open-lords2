@@ -125,6 +125,18 @@ struct App {
 
 impl App {
     fn present(&mut self) {
+        // **The canvas and the palette must be the same frame.**
+        // `Machine::present` reads the palette off the *live* stack — it has to,
+        // because `Screen::fade` and a film's `live_palette` change with no
+        // redraw at all — and `RedrawRequested` arrives after
+        // `request_redraw`
+        // while the canvas still holds the old one. Presenting then is one
+        // frame of the defect `tests/overlay_palette.rs` records, in reverse:
+        // the old page's indices under the new page's colours. Redrawing
+        // whatever went dirty first is the whole guard.
+        if self.machine.take_dirty() {
+            self.redraw();
+        }
         let Some(pixels) = self.pixels.as_mut() else { return };
         // Which palette
         // campaign's; the front end, the merchant, the armoury, castle building,
