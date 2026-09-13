@@ -1482,6 +1482,30 @@ mod tests {
     /// A category nobody enqueues draws nothing **and cannot be left with the
     /// left button**, because every `Ui_OkButton` call is inside an arm.
     #[test]
+    /// **The event window's height is a rule, and the corner button rides on
+    /// it.** `Msg_DrawWindow`'s category-`0x0F` arm opens
+    /// `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0 : 0xE0;` and the group *is*
+    /// the event id. The constant was documented here and not applied, so the
+    /// sixteen ids from `0x12E` up drew in a box `0x20` short with their
+    /// `Ui_OkButton`, and its 48 × 48 hit box, `0x20` too high.
+    ///
+    /// Ablation, run: `event_height(record.group)` back to a literal `0xC0` →
+    /// this alone goes red.
+    #[test]
+    fn a_high_numbered_event_gets_the_taller_window_and_its_button_moves_with_it() {
+        let at = |group: u16| {
+            frame_of(&Record { group, category: category::EVENT, ..Record::default() })
+                .expect("the event category has a frame")
+        };
+        assert_eq!(at(0x87).h, 0xC0, "Rats: the eight with a number line");
+        assert_eq!(at(0x8E).h, 0xC0, "Wedding fever, the last of them");
+        assert_eq!(at(0x12E).h, 0xE0, "Healthy eating: the first without one");
+        assert_eq!(at(0x13D).h, 0xE0, "No songs, the last id in the deck");
+        assert_eq!(at(0).h, 0xC0, "a county that never drew: the test is signed");
+        assert_eq!(at(0x12E).ok_button().1 - at(0x87).ok_button().1, 0x20);
+    }
+
+    #[test]
     fn an_unhandled_category_has_no_button() {
         assert_eq!(Shape::of(0x15), Shape::Unhandled);
         assert!(!Shape::of(0x15).has_ok_button());
