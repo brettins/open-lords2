@@ -65,7 +65,7 @@
     {"id": "result-banner", "area": "battles", "name": "Battle result banner", "status": "partial", "evidence": ["crates/l2-game/src/screens/battlefield.rs","C221","crates/l2-game/tests/messages.rs"], "gap": "the animated version", "rows": []},
     {"id": "burning", "area": "battles", "name": "Soldiers catching fire", "status": "partial", "evidence": ["C181","audio:BattleMan_BurnTick#1"], "gap": "the player's fire arrow", "rows": ["siege-leftovers"]},
     {"id": "closing-archers", "area": "battles", "name": "Archers loosing as they close", "status": "missing", "evidence": ["audio:BattleMan_StateCloseToAttack#1"], "gap": "", "rows": ["battle-close-attack-and-elimination"]},
-    {"id": "third-mode", "area": "battles", "name": "A third battle mode", "status": "missing", "evidence": ["C223"], "gap": "it is the stand-alone custom battle, the skirmish feature", "rows": []},
+    {"id": "third-mode", "area": "battles", "name": "A third battle mode", "status": "missing", "evidence": ["C223"], "gap": "the custom battle, see skirmish", "rows": []},
     {"id": "prisoners", "area": "battles", "name": "Prisoners and ransom", "status": "not-assessed", "evidence": [], "gap": "", "rows": []},
     {"id": "skirmish", "area": "battles", "name": "Skirmish battles and ratings", "status": "missing", "evidence": ["crates/l2-game/src/screens/ratings.rs","C213","crates/l2-game/tests/screens.rs"], "gap": "", "rows": ["skirmish-battles"]},
     {"id": "castle-building", "area": "sieges", "name": "Building castles", "status": "done", "evidence": ["C64","C216","crates/l2-game/tests/castles.rs"], "gap": "", "rows": []},
