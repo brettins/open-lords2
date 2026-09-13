@@ -354,7 +354,7 @@ fn the_court_s_stores_are_drawn_in_the_heading_face_at_court_draw_s_x() {
 /// wide enough to hold it — so it reported the caption present on a canvas that
 /// did not have it, on the strength of a patch of sea. A negative assertion is
 /// only worth what its positive twin is, so this pins the colour the line it is
-/// about actually used.
+/// about
 fn debug_font_absent(canvas: &Canvas, s: &str, colour: u8) -> bool {
     let w = l2_view::text::width(s).max(1);
     let h = l2_view::text::GLYPH_H;
@@ -1129,6 +1129,77 @@ fn the_battle_master_score_is_in_the_heading_face() {
         find_on_row_from(&canvas, heading, &mine.to_string(), font::TEXT, SCORE_Y, NAME_X),
         Some(SCORE_X + advance + LEAD),
         "the score is not in the heading face at g_penAdvance + 0xEC, 0x69"
+    );
+}
+
+/// **The fourth thing *Army foraging* gates is the unit panel's own lines**, and
+/// ours drew none of them — not even the army's body line.
+///
+/// `UnitPanel_Draw` (`0x0041B19D`), the `kind == 1` arm: with `g_optArmiesEat`
+/// off the body is one line at `row * 0x10 + 0x70`; with it on the body moves to
+/// `+0x5E` and the supply state (31/23…26) and the starvation band
+/// (31/27 + `+0x155`, red once the counter leaves zero) follow at `+0x72` and
+/// `+0x86`. `docs/armies.md` §3.4 tabulates the supply strings.
+///
+/// Ablated: dropping the `armies_eat` branch leaves the body at `+0x70` with the
+/// option on — the supply line is `None` at `+0x72`.
+#[test]
+fn army_foraging_moves_the_unit_panels_body_line_and_adds_two() {
+    use l2_game::screens::info::{InfoScreen, Target};
+    use l2_kingdom::unit::{Unit, UnitKind};
+    let (mut game, assets) = world!();
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
+    let county = own_county(&game);
+    let mut u = Unit::new(UnitKind::Army, game.player, 10, 10);
+    u.men = 100;
+    u.county = county;
+    u.home_county = county;
+    u.owner_is_human = true;
+    u.starvation = 2;
+    let id = game.kingdom.campaign.units.spawn(u).expect("a free slot");
+
+    // `FUN_0041BEFE` puts a local player's army on row 2.
+    const ROW: i32 = 2;
+    let line = |i: usize| assets.shell.text(0x1F, i).to_string();
+    // 31/16 is an own army's body, 31/23 "Fed in your county.", 31/29 the
+    // third starvation band.
+    let (text, fed, starving) = (line(0x10), line(0x17), line(0x1B + 2));
+    assert!(!fed.is_empty() && !starving.is_empty(), "L2.eng 31/23 and 31/29");
+
+    game.kingdom.options.armies_eat = false;
+    let canvas = draw(&mut InfoScreen::new(Target::Unit(id)), &mut game, &assets);
+    assert_eq!(
+        find_on_row(&canvas, body, &text, font::TEXT, ROW * 0x10 + 0x70),
+        Some(0x68),
+        "with foraging off the army's body line is not at row * 0x10 + 0x70"
+    );
+    assert_eq!(
+        find_on_row(&canvas, body, &fed, font::TEXT, ROW * 0x10 + 0x72),
+        None,
+        "the supply line is drawn with foraging off"
+    );
+
+    game.kingdom.options.armies_eat = true;
+    let canvas = draw(&mut InfoScreen::new(Target::Unit(id)), &mut game, &assets);
+    assert_eq!(
+        find_on_row(&canvas, body, &text, font::TEXT, ROW * 0x10 + 0x5E),
+        Some(0x68),
+        "with foraging on the body line has not moved up to row * 0x10 + 0x5E"
+    );
+    assert_eq!(
+        find_on_row(&canvas, body, &fed, font::TEXT, ROW * 0x10 + 0x72),
+        Some(0x68),
+        "{fed:?} is not the supply line at row * 0x10 + 0x72"
+    );
+    assert_eq!(
+        find_on_row(&canvas, body, &starving, font::TEXT, ROW * 0x10 + 0x86),
+        None,
+        "the starvation line is drawn at 0x3F with the counter at 2"
+    );
+    assert_eq!(
+        find_on_row(&canvas, body, &starving, 0xF9, ROW * 0x10 + 0x86),
+        Some(0x68),
+        "{starving:?} is not the starvation line in 0xF9 at row * 0x10 + 0x86"
     );
 }
 

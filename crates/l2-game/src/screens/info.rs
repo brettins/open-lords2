@@ -334,6 +334,10 @@ pub const MOVES_LEFT: usize = 0x16;
 /// 31/23…26 the four supply states, 31/27…31 the five health states.
 pub const SUPPLY0: usize = 0x17;
 pub const HEALTH0: usize = 0x1B;
+/// The starvation line's colour once the counter leaves zero —
+/// `local_8 = 0xF9` in `UnitPanel_Draw` (`0x0041B19D`), the same red the county
+/// panel's negative deltas take.
+pub const STARVING: u8 = 0xF9;
 /// 16/0 *"No mercenaries in the army."*, 16/1…12 the nationalities.
 pub const MERC_GROUP: usize = 16;
 
@@ -374,7 +378,6 @@ pub const COUNTY_TOWN_ICON: usize = 0x1B;
 /// **The castle arm's three headings and its icon.** `TileInfo_Draw`'s `0x80`
 /// branch at `0x0C < graphic < 0x1A`: 30/8 *"Castle."*, or 30/14 and 30/15
 /// while `castleDegraded` is 1 or 2, and `Icon_tmp.pl8` frame `0x1C`. The body
-/// is 30/`graphic + 7` and so is not a constant. See [`draw_castle`].
 pub const CASTLE_HEADING: usize = 8;
 pub const CASTLE_HEADING_BUILDING: usize = 0x0E;
 pub const CASTLE_HEADING_REPAIR: usize = 0x0F;
@@ -534,7 +537,6 @@ pub const BRUSH_WASTE_ID: [u8; 2] = [0x19, 0];
 /// row for row, by `tests/screens.rs`
 /// `the_farmland_table_is_the_images_own`. Row `0x1D` onward is other data —
 /// the image carries no bound, and `Terrain_Set` writes nothing above `0x1C`
-/// onto a farm tile — so a terrain past the end draws no field text at all.
 pub const FARM_TILE_INFO: [[usize; 4]; 0x1D] = [
     [6, 33, 0, 17],
     [6, 34, 1, 18],
@@ -1426,6 +1428,47 @@ impl Screen for InfoScreen {
                 if u.kind != UnitKind::Army {
                     let s = a.text(UNIT_GROUP, body).to_string();
                     pen.body_wrapped(canvas, BODY_X, l.y(BODY_DY), BODY_WRAP, &s, font::TEXT);
+                } else {
+                    // **The army's body line is the fourth thing `g_optArmiesEat`
+                    // gates** — `UnitPanel_Draw` (`0x0041B19D`), the `kind == 1`
+                    // arm. With foraging off it is one line at `+0x70`; with it
+                    // on the body moves up to `+0x5E` and two more follow:
+                    //
+                    // ```c
+                    // if (g_optArmiesEat == 1) {
+                    //   FUN_0040328E(0x1f, local_1c,  0x68, R*0x10+0x5e, 0x120, …, 0x3f);
+                    //   FUN_0040328E(0x1f, local_18,  0x68, R*0x10+0x72, 0x120, …, 0x3f);
+                    //   local_8 = unit.starvation == 0 ? 0x3f : 0xf9;
+                    //   FUN_0040328E(0x1f, unit.starvation + 0x1b, 0x68, R*0x10+0x86, 0x140, …, local_8);
+                    // } else FUN_0040328E(0x1f, local_1c, 0x68, R*0x10+0x70, 0x120, …, 0x3f);
+                    // ```
+                    //
+                    // `local_18` is 31/23…26 by the two owners — the supply
+                    // state `docs/armies.md` §3.4 tabulates, and 31/26 is
+                    // unreachable here because an enemy army in your county
+                    // takes 24. The starvation line is 31/27…31 off `+0x155`,
+                    // red once the counter leaves zero.
+                    let armies_eat = k.options.armies_eat;
+                    let s = a.text(UNIT_GROUP, body).to_string();
+                    let dy = if armies_eat { 0x5E } else { 0x70 };
+                    pen.body_wrapped(canvas, BODY_X, l.y(dy), BODY_WRAP, &s, font::TEXT);
+                    if armies_eat {
+                        let county_owner =
+                            k.counties.get(u.county as usize).map_or(0, |c| c.owner as i32);
+                        let supply = if u.owner == ctx.game.player {
+                            if county_owner == ctx.game.player as i32 { SUPPLY0 } else { SUPPLY0 + 1 }
+                        } else if county_owner == u.owner as i32 {
+                            SUPPLY0 + 2
+                        } else {
+                            SUPPLY0 + 1
+                        };
+                        let s = a.text(UNIT_GROUP, supply).to_string();
+                        pen.body_wrapped(canvas, BODY_X, l.y(0x72), BODY_WRAP, &s, font::TEXT);
+                        let band = (u.starvation.clamp(0, 4)) as usize;
+                        let colour = if band == 0 { font::TEXT } else { STARVING };
+                        let s = a.text(UNIT_GROUP, HEALTH0 + band).to_string();
+                        pen.body_wrapped(canvas, BODY_X, l.y(0x86), 0x140, &s, colour);
+                    }
                 }
                 if u.kind == UnitKind::Transport {
                     // `troops[0]` is grain and `troops[2]` cattle — group 8
