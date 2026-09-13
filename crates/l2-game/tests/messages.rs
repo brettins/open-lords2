@@ -605,7 +605,8 @@ fn selecting_a_county_with_a_waiting_event_opens_its_letter() {
     assert_eq!(record.county, 3);
     assert_eq!(record.to, 1, "Msg_Enqueue(0, g_localPlayer, …) — from nobody, to this player");
     assert_eq!(record.from, 0);
-    assert!(!g.kingdom.counties[3].event_fired, "the poster cleared the latch");
+    assert!(g.event_posted[3], "the poster took the letter");
+    assert!(g.kingdom.counties[3].event_fired, "and left the kingdom's latch alone");
     assert_eq!(g.kingdom.counties[3].event_id, 0x134, "and cleared nothing else");
 }
 
@@ -640,18 +641,18 @@ fn a_rivals_county_swallows_its_letter_when_you_look_at_it() {
         tick(&mut m, &mut g, &a);
     }
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "not your county, not your letter");
-    assert!(!g.kingdom.counties[4].event_fired, "and the latch is gone all the same");
+    assert!(g.event_posted[4], "and the letter is swallowed all the same");
 }
 
-/// **Posting a letter moves exactly one byte of the kingdom.**
+/// **Posting a letter moves no byte of the kingdom at all.**
 ///
 /// `County::event_fired` is `County+0x000` and sits in `Encode for County`, so
-/// this per-peer write is inside the lockstep digest. The claim that it is
-/// harmless is that **nothing in the simulation reads it** — which is checkable:
-/// run the poster and compare the whole kingdom against a copy with that one
-/// field put back. `docs/netcode.md` §6, `docs/decisions.md` CNEW-events.
+/// a per-peer write there is inside `l2_kingdom::save::checksum`, the lockstep
+/// digest. `Event_Post` (`0x00448D7E`) does exactly that write and may, being
+/// one machine; ours marks [`Game::event_posted`] instead. `docs/netcode.md`
+/// §6, `docs/decisions.md` CNEW-events.
 #[test]
-fn the_poster_touches_the_event_latch_and_nothing_else_in_the_kingdom() {
+fn the_poster_touches_nothing_in_the_kingdom() {
     let (mut g, _a, _m) = world();
     g.kingdom.counties[5].owner = 1;
     waiting(&mut g, 5, l2_kingdom::event::EventKind::NoSongs);
@@ -659,14 +660,95 @@ fn the_poster_touches_the_event_latch_and_nothing_else_in_the_kingdom() {
     let before = g.kingdom.clone();
 
     assert!(message::post_event(&mut g), "the letter went out");
-    assert!(!g.kingdom.counties[5].event_fired);
+    assert!(g.event_posted[5], "on the Game");
+    assert!(g.kingdom.counties[5].event_fired, "and not in the kingdom");
 
-    let mut after = g.kingdom.clone();
-    after.counties[5].event_fired = true;
     assert_eq!(
         l2_net::Canonical::hash_of(&before),
-        l2_net::Canonical::hash_of(&after),
-        "the poster wrote something other than the latch"
+        l2_net::Canonical::hash_of(&g.kingdom),
+        "the poster wrote into the hashed kingdom"
+    );
+}
+
+/// **Two peers looking at different counties still agree on the tick.**
+///
+/// The defect this is written against: `post_event` wrote `event_fired` from
+/// [`Game::selected`], a per-peer cursor, into the byte at `County+0x000` that
+/// `l2_kingdom::save::checksum` — `Canonical::hash_of(kingdom)` — covers. One
+/// frame of two `Game`s over the same `Kingdom`, each with its own selection
+/// and each with a letter waiting, and the two digests part. Observed red
+/// before the fix: the checksums differed after the single frame.
+///
+/// The original cannot answer this. `Battle_Frame` posts for
+/// `g_selectedCounty` (`0x004BA187`) on **one** machine with one selection; the
+/// question only exists here. `docs/netcode.md` §6, *What the original actually
+/// did* — networking is the one place the binary is not the authority.
+#[test]
+fn two_peers_with_different_selections_hash_the_same_kingdom() {
+    let (mut red, a, mut m_red) = world();
+    red.kingdom.realms[2].is_human = true;
+    red.kingdom.counties[3].owner = 1;
+    red.kingdom.counties[6].owner = 2;
+    waiting(&mut red, 3, l2_kingdom::event::EventKind::Witch);
+    waiting(&mut red, 6, l2_kingdom::event::EventKind::Rats);
+
+    // The same world on both peers, which is what tick 0 of a lockstep session
+    // is, and then two players with two different cursors.
+    let mut blue = red.clone();
+    blue.player = 2;
+    let mut m_blue = Machine::new(ScreenId::Campaign);
+    assert_eq!(
+        l2_kingdom::save::checksum(&red.kingdom),
+        l2_kingdom::save::checksum(&blue.kingdom),
+        "setup: the peers start agreed"
+    );
+    assert!(red.select(3));
+    assert!(blue.select(6));
+
+    tick(&mut m_red, &mut red, &a);
+    tick(&mut m_blue, &mut blue, &a);
+
+    assert_eq!(
+        l2_kingdom::save::checksum(&red.kingdom),
+        l2_kingdom::save::checksum(&blue.kingdom),
+        "the selected county reached the lockstep digest"
+    );
+    // And each peer really did post its own letter, so the test is not passing
+    // by doing nothing.
+    assert!(red.event_posted[3] && !red.event_posted[6]);
+    assert!(blue.event_posted[6] && !blue.event_posted[3]);
+}
+
+/// **A second event on a county whose first letter was read still arrives.**
+///
+/// `Event_RollAll` (`0x00448819`) does `eventFired = 1` and the original needs
+/// nothing more, because `Event_Post` had cleared the same byte. Ours keeps the
+/// clearing on the `Game`, so the raising has to reach it — `crate::turn`
+/// lowers the mark for every county the season report names.
+#[test]
+fn a_fresh_event_rearms_a_county_whose_letter_was_already_read() {
+    let (mut g, _a, _m) = world();
+    g.kingdom.counties[1].owner = 1;
+    waiting(&mut g, 1, l2_kingdom::event::EventKind::Witch);
+    assert!(g.select(1));
+    assert!(message::post_event(&mut g), "the first letter");
+    assert!(!message::post_event(&mut g), "and only once");
+
+    // What a season in which `Event_RollAll` dealt the county an event looks like
+    // on the way out: the latch is up (it never came down) and the report names
+    // the county.
+    let mut report = l2_kingdom::report::SeasonReport::default();
+    report.message(l2_kingdom::report::Message::Event {
+        county: 1,
+        kind: l2_kingdom::event::EventKind::Rats,
+    });
+    g.kingdom.counties[1].event_id = l2_kingdom::event::EventKind::Rats.id();
+    message::rearm_events(&mut g, &report);
+
+    assert!(message::post_event(&mut g), "the new letter goes out too");
+    assert_eq!(
+        g.messages.waiting().last().expect("the second letter").group,
+        l2_kingdom::event::EventKind::Rats.id()
     );
 }
 

@@ -11527,15 +11527,34 @@ in this engine during which the right button is down, so the guard would be fals
 every one of them, and a flag invented to satisfy it would be a flag nothing sets.
 Recorded in `docs/arms.json` rather than papered over.
 
-**What it moves in the lockstep digest, stated rather than fixed.**
+**It moved a byte of the lockstep digest, and now it moves none.**
 `County::event_fired` is `County+0x000` and sits in `Encode for County`, which is
-both the save and the desync hash — so the poster writes a hashed byte from
-`Game::selected`, one peer's cursor. The claim that this is harmless is that
-**nothing in the simulation reads `event_fired`**: it is written by `Event_RollAll`
-and the handlers and read by the poster alone, in the original and here. Two peers
-can disagree about the byte and compute identical futures. That makes it a false
-desync report rather than a divergence, and the real fix is separating the save
-encoding from the digest encoding, which is not this branch's change.
-`the_poster_touches_the_event_latch_and_nothing_else_in_the_kingdom` hashes the
-kingdom before and after with the latch put back and asserts the two are equal, so
-the claim is checked rather than asserted.
+both the save and `save::checksum` — `Canonical::hash_of(kingdom)`, the per-tick
+desync digest. So the poster wrote a hashed byte from `Game::selected`, **a
+per-peer cursor**: two peers looking at different counties hashed differently on
+the next tick. `Event_Post` may do that because the original is one machine with
+one `g_selectedCounty`; we may not, and `docs/netcode.md` §6 is the one place the
+binary is not an authority to copy from.
+
+**The clearing moved out of the kingdom, not out of the digest.** Two routes were
+open. Excluding the field from the digest but not the save needs a second encoder
+— `l2_net::Canonical` has one stream and `Encode` has one method, so that is a new
+mechanism. Moving the mark to presentation state is the tree's existing precedent:
+`Game::player_names` is off `Kingdom` for the same stated reason, that the digest
+is over the kingdom and nothing one player's interface does may live there. So
+`Game::event_posted` carries `Event_Post`'s `eventFired = 0`, in the same place in
+the same order — before the owner test, so a rival's county still swallows its
+letter — and `County::event_fired` is now written only by `Event_RollAll` and the
+24 handlers, identically on every peer. `Event_RollAll`'s *raising* of the latch
+has to be mirrored, since the kingdom's is never lowered: `message::rearm_events`
+clears the mark for every county the season report names, which is exactly the set
+whose `fire` succeeded. It is in the save (`l2_game::save::VERSION` 5) or a reload
+would re-post a read letter.
+
+In single player the two halves are the original's latch byte for byte. Checked:
+`two_peers_with_different_selections_hash_the_same_kingdom` ticks two `Game`s over
+one kingdom with different selections and asserts equal checksums — red before the
+change, with the two digests differing after a single frame — and
+`the_poster_touches_nothing_in_the_kingdom` hashes the kingdom either side of a
+post. The branch's earlier test restored the latch in a test-local clone, which
+proved the byte was the only one written and nothing about two peers.

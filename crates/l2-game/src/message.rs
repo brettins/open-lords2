@@ -1045,16 +1045,23 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// original's effect is to hold a letter back while the button is held; ours
 /// posts on the next frame either way.
 ///
-/// # What it moves in the lockstep digest
+/// # It moves no byte of the lockstep digest
 ///
-/// `County::event_fired` is `County+0x000` and is in `Encode for County`, so
-/// this writes a byte the desync hash covers — from `Game::selected`, which is
-/// one peer's cursor. **Nothing in the simulation reads `event_fired`**: it is
-/// written by `Event_RollAll` and the 24 handlers and read by this function
-/// alone, in the original and here. So two peers can disagree about the byte and
-/// still compute identical futures; the digest would report a divergence that
-/// has no consequence. Separating the save encoding from the digest encoding is
-/// what fixes that properly and it is not this branch's change —
+/// `Event_Post` writes `g_counties[county].eventFired = 0`, and it may, because
+/// the original is one machine with one `g_selectedCounty`. We may not:
+/// `County::event_fired` is `County+0x000` and is in `Encode for County`, so it
+/// is inside `l2_kingdom::save::checksum` — `Canonical::hash_of(kingdom)`, the
+/// per-tick lockstep digest — and [`Game::selected`] is a per-peer cursor. Two
+/// peers looking at different counties would hash differently on the next tick
+/// over a byte **nothing in the simulation reads**: `event_fired` is written by
+/// `Event_RollAll` and the 24 handlers and read here alone, in the original and
+/// here.
+///
+/// So the clearing lives on [`Game::event_posted`], which is presentation state
+/// and never reaches the kingdom — the same split as [`Game::player_names`],
+/// and the alternative (a field in the save but out of the digest) would need a
+/// second encoder that `l2_net::Canonical` does not have. The latch itself
+/// stays exactly as `Event_RollAll` wrote it, identical on every peer.
 /// `docs/netcode.md` §6, `docs/decisions.md` CNEW-events.
 ///
 /// Returns whether a letter was enqueued.
@@ -1062,13 +1069,16 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 pub fn post_event(game: &mut Game) -> bool {
     let county = game.selected as usize;
     let player = game.player;
+    let Some(&posted) = game.event_posted.get(county) else { return false };
     let Some(c) = game.kingdom.counties.get_mut(county) else { return false };
-    if !c.event_fired {
+    if !c.event_fired || posted {
         return false;
     }
     // `g_counties[county].eventFired = 0` — inside the condition, *before* the
-    // owner test, so it happens whoever holds the county.
-    c.event_fired = false;
+    // owner test, so it happens whoever holds the county. Ours marks instead of
+    // clearing, in the same place, so the swallowing below is unchanged.
+    game.event_posted[county] = true;
+    let c = &game.kingdom.counties[county];
     if c.owner != player {
         return false;
     }
@@ -1088,6 +1098,30 @@ pub fn post_event(game: &mut Game) -> bool {
         payload: 0,
     };
     game.messages.enqueue(record, player)
+}
+
+/// **The other half of [`post_event`]'s latch: `Event_RollAll` raising it.**
+///
+/// `Event_RollAll` (`0x00448819`) does `eventFired = 1; eventId = <slot>;` on
+/// every county it deals to, and the original needs nothing further, because
+/// `Event_Post` had cleared that same byte. Ours clears
+/// [`Game::event_posted`] instead — the kingdom's latch is never lowered — so
+/// the raising has to be mirrored here, once per season, from the report
+/// `l2_kingdom::event::roll_all` already writes.
+///
+/// **The report is exactly the right set.** `roll_all` pushes
+/// `Message::Event` only where `fire` returned true; a handler whose guard
+/// fails clears `eventFired` itself and pushes nothing, which is the original's
+/// "a new event destroys an unread letter" (`l2_kingdom::event::fire`) and
+/// wants no mark cleared.
+pub fn rearm_events(game: &mut Game, report: &l2_kingdom::report::SeasonReport) {
+    for message in &report.messages {
+        if let l2_kingdom::report::Message::Event { county, .. } = message {
+            if let Some(slot) = game.event_posted.get_mut(*county as usize) {
+                *slot = false;
+            }
+        }
+    }
 }
 
 /// **`Msg_DrawWindow`'s side effects on the frame the window opens** — the arms
