@@ -1005,6 +1005,60 @@ fn the_field_brush_sounds_what_it_paints() {
     }
 }
 
+/// **The castle chooser's five pictures say their own names** —
+/// `CastleBuild_Select` (`0x00436B22`), whose last statement is
+/// `FUN_004B3940(g_uiHotspotId)`: `S071_02.wav + hotspot * 0x10`.
+///
+/// The selection is the screen's own field, so the screen reports the line on
+/// `Game::spoken` and `Director::listen` plays it — the channel six other
+/// screen-local `Sound_PlayFile` sites already use.
+///
+/// **Ablations, run:** delete the `ctx.game.spoken = …` in `castle.rs`'s click
+/// arm and every level goes silent; index `PICKED_CASTLE` by anything but the
+/// hotspot and the wrong file is asserted against.
+#[test]
+fn picking_a_castle_picture_speaks_that_castles_name() {
+    use l2_game::screens::castle;
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no S071 lines");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+
+    for level in 0..5usize {
+        let mut audio = Audio::headless(&platform.vfs);
+        let mut director = audio::Director::new();
+        let mut game = world();
+        let mut machine = Machine::new(APP_ROOT);
+        machine.push(ScreenId::Campaign);
+        machine.push(ScreenId::Castle(1));
+
+        director.listen(&mut audio, &machine, &game);
+        let want = l2_game::audio::names::speech::PICKED_CASTLE[level].to_ascii_lowercase();
+        assert!(!audio.heard().contains(&want.as_str()), "opening the chooser picks nothing");
+
+        let r = castle::type_rect(level);
+        let at = (r.x + r.w / 2, r.y + r.h / 2);
+        send(&mut machine, &mut game, &assets, Event::Click { x: at.0, y: at.1 });
+        send(&mut machine, &mut game, &assets, Event::Release { x: at.0, y: at.1 });
+        director.listen(&mut audio, &machine, &game);
+
+        let spoken: Vec<&str> = l2_game::audio::names::speech::PICKED_CASTLE
+            .iter()
+            .map(|n| n.to_ascii_lowercase())
+            .enumerate()
+            .filter(|(_, n)| audio.heard().contains(&n.as_str()))
+            .map(|(i, _)| l2_game::audio::names::speech::PICKED_CASTLE[i])
+            .collect();
+        assert_eq!(
+            spoken,
+            [l2_game::audio::names::speech::PICKED_CASTLE[level]],
+            "picture {level} at {at:?}: heard {:?}",
+            audio.heard()
+        );
+    }
+}
+
 /// **The wreck** — `dest_ind.wav`, all six `Sound_RestartSlot(3)` sites, heard
 /// by `Director::hear_the_wreck` off the content plane it diffs.
 ///

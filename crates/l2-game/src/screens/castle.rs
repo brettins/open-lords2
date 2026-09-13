@@ -4,7 +4,7 @@
 //! It was one of the shells in [`crate::screens::shells`]: it drew a window and
 //! did nothing. It is **the only place a player can order a castle**, and a
 //! county with no castle cannot be besieged, so without it half the campaign
-//! layer had no way in — `docs/decisions.md` C27's shape, and the reason
+//! layer had no way in — `docs/decisions.md` C27's shape
 //! [`l2_kingdom::County::castle_degraded`] had no reachable writer.
 //!
 //! # The five buttons and the OK, from the widget tables
@@ -518,7 +518,7 @@ impl Screen for CastleScreen {
             // **And it is the release, not the press.** `Ui_OkButtonClicked`
             // (`0x0040E7E4`) opens `if (g_mouseLeftReleased == 0) return 0;`.
             // The marker below said `left-release` from the day it was written
-            // and the code beneath it read `Event::Click`, which is the exact
+            // and the code beneath it read `Event::Click`.
             // drift `docs/arms.json`'s gesture field exists to catch and could
             // not here: this arm is dispatched from `Screen_FrameInput`'s own
             // ladder, so it has no kind byte for the third check to read
@@ -548,6 +548,25 @@ impl Screen for CastleScreen {
                 for level in 0..5 {
                     if type_rect(level).contains(x, y) {
                         self.select(level);
+                        // **The picture says its own name.**
+                        // `CastleBuild_Select` (`0x00436B22`) ends
+                        // `FUN_004B3940(g_uiHotspotId)`, which is
+                        // `Sound_PlayFile(&S071_02 + hotspot * 0x10, 1, 0)` —
+                        // the same five files the information panel's tile
+                        // branch speaks, indexed by the button
+                        // `castleType - 1`.
+                        //
+                        // Reported: the selection is this
+                        // screen's own field and gone by the next tick, so
+                        // there is nothing for `Director::listen` to diff
+                        // (`docs/netcode.md` D-3, and `Game::spoken` is the
+                        // channel six other sites already use). Bare
+                        // `Sound_PlayFile(name, 1, 0)`, so it is dropped over
+                        // anything still sounding.
+                        // sfx: FUN_004b3940#1
+                        if let Some(&line) = crate::audio::names::speech::PICKED_CASTLE.get(level) {
+                            ctx.game.spoken = (ctx.game.spoken.0.wrapping_add(1), line);
+                        }
                         break;
                     }
                 }
@@ -644,7 +663,7 @@ impl Screen for CastleScreen {
         pen.eng(canvas, GROUP, TO_BUILD, TO_BUILD_AT.0, TO_BUILD_AT.1, font::TEXT);
 
         // `Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)` — border **set 0**, unlike the
-        // court's and the trade panel's `FUN_004093E0`, which is set 1.
+        // court's and the trade panel's `FUN_004093E0`.
         pen.window(canvas, TAX_PLAQUE.0, TAX_PLAQUE.1, TAX_PLAQUE.2, TAX_PLAQUE.3, 0);
         let bonus = t.castle.tax_bonus_pct[level.min(t.castle.tax_bonus_pct.len() - 1)];
         let x = pen.eng(canvas, GROUP, BOOSTS_TAX, BOOSTS_TAX_AT.0, BOOSTS_TAX_AT.1, font::TEXT);

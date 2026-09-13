@@ -603,7 +603,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "S011_01.wav, the front end’s one-per-session welcome line."
+      "note": "S011_01.wav, the front end's one-per-session welcome line. BLOCKED on the page, not on the line: FUN_00497A34 is the RETURN to the front end, and the page it returns to has no ScreenId -- our front end is ScreenId::Setup(SetupPage) and nothing in this engine leaves a running game for it, which is why #1 and #3 on this same function are both unreached. Director::listen's stack diff is the mechanism and it needs an arrival it can see. Unblocks with the page; the line is then one play_file. (The ledger row calls this 'screen 0x20'; 0x20 is the standings page, FUN_004b3994#1, which is reproduced -- the number does not belong to this site.)"
     },
     {
       "id": "FUN_004a6c68#1",
@@ -669,7 +669,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The confirm box's prompt, S010_01..16 by L2.eng group 10 index. The caller IS known - Ui_OpenConfirm (0x0040E6F2), whose last statement it is - and the mechanic is what is missing: the original has thirteen call sites for that box and we have one, the battlefield's autocalc, which is a flag on BattlefieldScreen rather than a ScreenId, so the Director cannot see it open. A confirm box of our own that is a screen unlocks all thirteen at once."
+      "note": "BLOCKED, and the blocker is the confirm box itself, not the sound. The caller is known: Ui_OpenConfirm (0x0040E6F2), whose last statement it is, playing S010_01..16 by L2.eng group 10 index. We have 1 of its 13 call sites, and the one we have is a field on BattlefieldScreen rather than a ScreenId -- so there is no confirm screen to hang the line on and twelve of the thirteen prompts cannot be reached at all. Unblocks when the confirm box is a screen in its own right; the Game::spoken channel then carries it in one line, as the castle chooser's does."
     },
     {
       "id": "FUN_004b3714#1",
@@ -710,10 +710,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S071_02_wav_004e2118 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The castle chooser's five picture buttons speaking their own name, S071_02 + hotspot * 0x10. The caller IS known - CastleBuild_Select (0x00436B22), whose last statement it is - and what is missing is that the selection is CastleScreen's own field rather than anything on the Game, so a click that changes it is invisible to the Director (netcode D-3). Unlike every other site here the trigger is a click INSIDE a screen and not the screen arriving."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/castle.rs",
+      "sound": "S071_02.wav",
+      "note": "The castle chooser's five picture buttons speaking their own name, S071_02 + hotspot * 0x10, from CastleBuild_Select (0x00436B22)'s last statement. The selection is the screen's own field and gone by the next tick, so the screen reports the line on Game::spoken and Director::listen plays it -- the channel the other six screen-local Sound_PlayFile sites already use. Same five files as FUN_004b37bc#3, indexed by the button rather than by castleType - 1."
     },
     {
       "id": "FUN_004b3994#1",
@@ -757,7 +757,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The letter’s lord sting, S246_02.wav + lord*0x10, 90 ticks in. It needs Msg_DrawWindow’s category 1 branch to carry WHICH lord, which our message record has (from) - but the tick is a second schedule inside the one voice_tick already implements and wiring it needs that function to return a list rather than one value."
+      "note": "BLOCKED on the schedule, not on the data. The letter's lord sting, S246_02.wav + lord * 0x10, 90 ticks into a category-1 window. Msg_DrawWindow's category-1 branch carries WHICH lord and our message record has it (Record::from); what it does not have is a second schedule inside the one voice tick -- voice_tick answers with at most one line per window and this one has to sound alongside the window's own ff_msg.wav. Unblocks when voice_tick returns a list rather than an Option."
     },
     {
       "id": "Game_NewGame#1",
