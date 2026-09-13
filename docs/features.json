@@ -1051,19 +1051,19 @@
       "id": "click-feel",
       "area": "screens",
       "name": "Clicks and double-clicks",
-      "status": "partial",
+      "status": "done",
       "evidence": [
         "C131",
         "C148",
         "C182",
         "C207",
         "crates/l2-game/tests/gestures.rs",
-        "crates/l2-game/src/input.rs"
+        "crates/l2-game/src/input.rs",
+        "C212",
+        "crates/l2-game/tests/audio_screens.rs"
       ],
-      "gap": "the save and trade spoken lines",
-      "rows": [
-        "save-trade-speech"
-      ]
+      "gap": "",
+      "rows": []
     },
     {
       "id": "text-entry",
@@ -1192,14 +1192,14 @@
       "id": "battle-speech",
       "area": "sound",
       "name": "Speech before a battle",
-      "status": "missing",
+      "status": "done",
       "evidence": [
-        "audio:Siege_LaunchAssault#1"
+        "audio:Siege_LaunchAssault#1",
+        "C212",
+        "crates/l2-game/tests/audio_screens.rs"
       ],
       "gap": "",
-      "rows": [
-        "battle-speech"
-      ]
+      "rows": []
     },
     {
       "id": "battle-sounds",
@@ -1309,17 +1309,15 @@
       "id": "unit-walk",
       "area": "sound",
       "name": "Armies walking smoothly on the map",
-      "status": "partial",
+      "status": "done",
       "evidence": [
         "docs/screens.md",
         "C184",
-        "crates/l2-game/tests/screens.rs"
+        "crates/l2-game/tests/screens.rs",
+        "C211"
       ],
-      "gap": "row offset; draw order",
-      "rows": [
-        "map-row-column-offset",
-        "map-unit-draw-order"
-      ]
+      "gap": "",
+      "rows": []
     },
     {
       "id": "animations-option",
