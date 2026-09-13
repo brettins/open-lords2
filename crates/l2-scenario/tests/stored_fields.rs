@@ -559,6 +559,8 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x1FC", |k, i, _| k.counties[i].event_grain_pct as i64),
         at("County+0x1FD", |k, i, _| k.counties[i].event_herd_pct as i64),
         at("County+0x1FE", |k, i, _| k.counties[i].farm_style as i64),
+        at("County+0x15A", |k, i, _| k.counties[i].pasture_cursor as i64),
+        at("County+0x15B", |k, i, _| k.counties[i].blight_cursor as i64),
         at("County+0x1FF", |k, i, _| k.counties[i].fields_fallow as i64),
         at("County+0x200", |k, i, _| k.counties[i].fields_cattle as i64),
         at("County+0x201", |k, i, _| k.counties[i].fields_grain as i64),

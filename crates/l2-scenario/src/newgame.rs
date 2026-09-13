@@ -1311,6 +1311,9 @@ fn county_reset(id: usize) -> CountyState {
         castle_wood_total: 0,
         siege_scars: l2_kingdom::siege::SiegeScars::default(),
         crop: [0; 3],
+        // `County_Reset` zeroes both field cursors.
+        pasture_cursor: 0,
+        blight_cursor: 0,
         fields_grain_sown: 0,
         fields_grain_standing: 0,
         sow_shortfall: false,

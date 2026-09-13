@@ -37,6 +37,14 @@ pub const MSG_ARMY_UNFED: u16 = 0x116;
 pub const MSG_ARMY_STARVING: u16 = 0x117;
 pub const MSG_ARMY_PERISHES: u16 = 0x118;
 
+/// `Weather_UpdateAll` (`0x00449889`) raises `0x8F` — `L2.eng` group 143,
+/// *"Drought."* — for a county the recipient owns that banded Drought, and
+/// `0x90`, group 144 *"Flooding."*, for one that flooded. Each sits directly in
+/// front of the `FUN_00469A9C` call that ruins the field. `docs/formats/eng.md`
+/// §5 had both rows as `[D]`; the two `Msg_Enqueue` sites make them `[V]`.
+pub const MSG_DROUGHT: u16 = 0x8F;
+pub const MSG_FLOODING: u16 = 0x90;
+
 /// Something the season did that a player would be told about.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Message {
@@ -64,6 +72,10 @@ pub enum Message {
     /// step, 1..=5, and it selects the message: 1 warns, 2..=4 desert, 5 is the
     /// army perishing. `docs/armies.md` §3.3b. See [`crate::unit::starve`].
     ArmyStarving { realm: u8, unit: usize, county: u8, stage: i32 },
+    /// The county banded *Drought* and one of its fields was parched.
+    Drought { county: u8 },
+    /// …and *Flooding*, which floods one.
+    Flooding { county: u8 },
 }
 
 impl Message {
@@ -78,6 +90,8 @@ impl Message {
             // up: see `crate::event`.
             Message::Event { kind, .. } => Some(kind.id()),
             Message::Bankrupt { action, .. } => action.message_id(),
+            Message::Drought { .. } => Some(MSG_DROUGHT),
+            Message::Flooding { .. } => Some(MSG_FLOODING),
             Message::CountySeceded { .. } => Some(MSG_COUNTY_SECEDED),
             Message::LandsDivide { .. } => Some(MSG_LANDS_DIVIDE),
             Message::ArmyStarving { stage, .. } => Some(match stage {
@@ -126,7 +140,9 @@ impl SeasonReport {
             | Message::Event { county: c, .. }
             | Message::CastleBuilt { county: c, .. }
             | Message::ArmyStarving { county: c, .. }
-            | Message::CountySeceded { county: c, .. } => *c == county,
+            | Message::CountySeceded { county: c, .. }
+            | Message::Drought { county: c }
+            | Message::Flooding { county: c } => *c == county,
             // *"Your lands divide."* names no county — the original's message
             // carries only the realm.
             Message::Bankrupt { .. } | Message::LandsDivide { .. } => false,

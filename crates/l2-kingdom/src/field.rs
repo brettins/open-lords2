@@ -14,7 +14,7 @@
 //! are a **cache**, recomputed by `County_RecountFields` (`FUN_00469b8d`,
 //! `0x00469B8D`) from the terrain byte of the twenty map tiles named in
 //! `g_countyFieldTiles` (`0x0053EA00`, 17 × 20 × `u32`). A field's *type is a
-//! property of the map*, and the county record only counts them.
+//! property of the map*
 //!
 //! # The ladder
 //!
@@ -77,12 +77,12 @@
 //! the connection to fields is this one call. See
 //! [`crate::labour::toggle_share`].
 //!
-//! And the estimate/allocate round runs **twice**. That looked like a fixpoint
+//! And the estimate/allocate round runs **twice**.
 //! and it is not one: reading the five estimate bodies, **no ceiling depends on
 //! the current assignment** — every one comes from a search over
 //! `0 … population` or from a stock figure. What the second round is for is the
 //! `Herd_UpdateCrowding` in the middle, which does move an estimate's input,
-//! and the panel forecasts, which the estimates fill from whatever the
+//! and the panel forecasts
 //! allocator last decided. `[I]` on the reading, `[D]` on the shape.
 //! [`crate::field::set_type`] reproduces the parts this crate has and says
 //! plainly which it does not.
@@ -134,7 +134,7 @@ pub mod terrain {
     pub const PARCHED: u8 = 0x18;
     /// Reclamation, first quarter — the value the brush paints.
     pub const RECLAIM_FIRST: u8 = 0x19;
-    /// …and the fourth, at 600 of 800 units of progress.
+    /// …and the fourth
     pub const RECLAIM_LAST: u8 = 0x1C;
 }
 
@@ -158,7 +158,7 @@ impl FieldType {
     /// type no button offers.
     ///
     /// Grain is painted as `2` and pasture as `0x13` — the *first* grain stage
-    /// and the *middle* of the pasture range, which is what the hotspot table
+    /// and the *middle* of the pasture range
     /// holds.
     pub const fn brush(self) -> u8 {
         match self {
@@ -196,7 +196,7 @@ pub const BRUSHES: [FieldType; 5] = [
     FieldType::Waste,
 ];
 
-/// The three offered on a tile that is already a field, and the two offered on
+/// The three offered on a tile that is already a field
 /// a tile that is not.
 ///
 /// `FUN_00438990` picks between them on the *tile's own* terrain: `0` or above
@@ -257,6 +257,134 @@ pub fn recount_all(counties: &mut [County], county_count: usize, map: &CampaignM
     }
 }
 
+/// **Twenty tries and no more.** All three sweeps count `0 … 0x13`
+/// county whose fields are all the wrong kind is left alone
+/// searched exhaustively — and with twenty slots and twenty tries the give-up
+/// is only reachable when the cursor wraps inside the run.
+pub const SWEEP_TRIES: usize = 20;
+
+/// The round-robin step `FUN_0046958F`, `FUN_0046965A` and `FUN_00469A9C`
+/// share: advance the cursor, wrap it at the county's used-slot count
+/// (`+0x205`, [`County::field_slots_used`]), and stop on the first tile `want`
+/// accepts.
+///
+/// The cursor is advanced **before** the wrap test and before the tile is read,
+/// and it is left where the search stopped — including when the search failed,
+/// which is the original's (it writes the byte on every try). `[V]`
+fn sweep(
+    county: &County,
+    map: &CampaignMap,
+    cursor: &mut u8,
+    want: impl Fn(u8) -> bool,
+) -> Option<usize> {
+    let bound = county.field_slots_used() as u8;
+    for _ in 0..SWEEP_TRIES {
+        *cursor = cursor.wrapping_add(1);
+        if bound <= *cursor {
+            *cursor = 0;
+        }
+        // Slot 0 is the original's "no field" — `g_countyFieldTiles` stores a
+        // byte offset, so 0 doubles as empty.
+        if let Some(tile) = county.field_tile(*cursor as usize) {
+            if want(map.terrain[tile]) {
+                return Some(tile);
+            }
+        }
+    }
+    None
+}
+
+/// `FUN_0046958F` — turn one **fallow** field into pasture, cursor `+0x15A`.
+pub fn fallow_to_pasture(county: &mut County, map: &mut CampaignMap) -> Option<usize> {
+    let mut cursor = county.pasture_cursor;
+    let tile = sweep(county, map, &mut cursor, |t| t == terrain::FALLOW);
+    county.pasture_cursor = cursor;
+    if let Some(tile) = tile {
+        paint_tile(map, tile, terrain::PASTURE);
+    }
+    tile
+}
+
+/// `FUN_0046965A` — turn one **grain** field into pasture and dock the standing
+/// crop for it. Same cursor, `+0x15A`.
+///
+/// The share is `Pct(crop[1], PctOf(1, fieldsGrain))` — one field's worth of
+/// the crop at the count *before* the field is taken away, so the divisor is
+/// the old one.
+pub fn grain_to_pasture(county: &mut County, map: &mut CampaignMap) -> Option<usize> {
+    let mut cursor = county.pasture_cursor;
+    let tile = sweep(county, map, &mut cursor, |t| {
+        t > terrain::FALLOW && t < terrain::PASTURE_FIRST
+    });
+    county.pasture_cursor = cursor;
+    let tile = tile?;
+    paint_tile(map, tile, terrain::PASTURE);
+    let loss = crate::math::pct(county.crop[1], crate::math::pct_of(1, county.fields_grain));
+    county.crop[1] -= loss;
+    // The original also does `+0x234 += loss`. **Nothing reads `+0x234`**: the
+    // whole decompilation holds three writers (this, `County_DestroyField` and
+    // a clear in `Season_Advance`) and no reader
+    // add it to. `[V]`
+    if county.fields_grain <= county.fields_grain_standing {
+        county.fields_grain_standing -= 1;
+    }
+    county.fields_grain -= 1;
+    Some(tile)
+}
+
+/// `County_EnsurePasture` (`0x0046921D`) — buying cattle into a county with no
+/// pasture converts a field into one.
+///
+/// `Merchant_Trade` (`0x004284CE`) calls it on `good == 2 && qty >= 0`, and
+/// `Transport_Deliver` on a cattle delivery.
+pub fn ensure_pasture(county: &mut County, map: &mut CampaignMap) {
+    recount(county, map);
+    if county.fields_cattle != 0 {
+        return;
+    }
+    // Fallow first; grain only when there is no fallow left to take.
+    if county.fields_fallow != 0 {
+        fallow_to_pasture(county, map);
+    } else if county.fields_grain != 0 {
+        grain_to_pasture(county, map);
+    }
+    recount(county, map);
+}
+
+/// `FUN_00469A9C` — paint `blight` over the next field in the round-robin at
+/// `+0x15B`, **whatever that field is**: this sweep tests only that the slot
+/// holds a tile.
+///
+/// `Weather_UpdateAll` passes [`terrain::PARCHED`] in a drought and
+/// [`terrain::FLOODED`] in a flood.
+pub fn blight_one_field(
+    county: &mut County,
+    map: &mut CampaignMap,
+    blight: u8,
+) -> Option<usize> {
+    let mut cursor = county.blight_cursor;
+    let tile = sweep(county, map, &mut cursor, |_| true);
+    county.blight_cursor = cursor;
+    if let Some(tile) = tile {
+        paint_tile(map, tile, blight);
+    }
+    tile
+}
+
+/// `FUN_0046942C` — last season's ruined fields go back to waste.
+///
+/// `Weather_UpdateAll` runs it over every county before this season's blight,
+/// so a flooded or parched field is wild for exactly one season and then
+/// wasteland the player has to reclaim.
+pub fn clear_blight(county: &County, map: &mut CampaignMap) {
+    for slot in 0..MAX_FIELDS {
+        let Some(tile) = county.field_tile(slot) else { continue };
+        if map.terrain[tile] == terrain::FLOODED || map.terrain[tile] == terrain::PARCHED {
+            paint_tile(map, tile, terrain::WASTE);
+        }
+    }
+}
+
 /// Why a brush stroke was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BrushRefusal {
@@ -306,9 +434,9 @@ pub fn menu_for(terrain: u8) -> Option<&'static [FieldType]> {
 /// # All nine ceilings are computed here
 ///
 /// [`refresh_estimates`] is `County_RefreshEstimates` in full — the recount,
-/// reclamation, grain in every season, the herd, the four industries and the
+/// reclamation
 /// castle. That is why this takes the **realms**: the industry ceilings read the
-/// owning realm's stockpile, so `County_RefreshEstimates` is not a one-county
+/// owning realm's stockpile
 /// function at all.
 ///
 /// The one thing still inferred is the castle's materials gate; see
@@ -356,7 +484,7 @@ pub fn set_type(
     let neutral = crate::realm::Realm::new();
     for _ in 0..2 {
         crate::labour::allocate(&mut counties[county]);
-        // The blacksmith's share moves with who is *staffed*, and the
+        // The blacksmith's share moves with who is *staffed*
         // allocation just above is what staffs them, so this is recomputed
         // inside the loop
         // `resourceLimit`.
@@ -432,14 +560,14 @@ pub fn refresh_estimates(
     }
     // **`Grain_LabourEstimate`'s tail, which is one function in the original and
     // two here.** The estimate above is its search loop; this is what it writes
-    // afterwards — the sowing, growth and harvest forecasts and the signed
+    // afterwards — the sowing
     // change the sidebar's grain row draws. It runs unconditionally because the
     // original's `+0x22C = 0` is *outside* the `popBand` guard, so an empty
 // county forecasts nothing.
     //
 // It is called from here
     // where the original computes it: `County_RefreshEstimates` runs **after**
-    // `Labour_Allocate` in each of the round's two passes, and the tail reads
+    // `Labour_Allocate` in each of the round's two passes
     // `labour[0].workers` — the allocator's answer, not the search's.
     // `docs/decisions.md` C123.
     crate::land::grain_preview(tables, county, season_next, advanced_farming);
@@ -453,14 +581,14 @@ pub fn refresh_estimates(
         county.labour_wanted[JOB_CATTLE_FARMING] = herd.wanted;
         county.labour_useful[JOB_CATTLE_FARMING] = herd.useful;
     }
-    // **`Herd_LabourEstimate`'s tail, and the same split as grain's above.**
+    // **`Herd_LabourEstimate`'s tail**.
     //
     // A player: *"I right now have −11 cattle. If I move it so the people are
     // eating cattle, it still says −11 cattle in the sidebar."* He is right, and
     // the number itself
     // `L2.eng` 77/28 *"Overall change"*, and named `herdChangeFromFarming`
     // after 77/7 until this was read) is
-    // `(births − deaths) − herdEaten`, so slaughter **is** in it, and the name
+    // `(births − deaths) − herdEaten`
     // is what misleads. What was wrong is *when it is computed*.
     //
     // `Herd_LabourEstimate` (`0x0044DD4D`) is one function: a search loop that
@@ -472,7 +600,7 @@ pub fn refresh_estimates(
     // tail in `herd_season_tick` alone, so the number only moved once a season.
     //
     // That is the third time this exact split has bitten: the loop is the part
-    // that looks like the function, and the tail is the part the interface
+    // that looks like the function
     // reads. `docs/decisions.md` C128.
     crate::land::herd_preview(tables, county, season_next.index());
 
@@ -480,7 +608,7 @@ pub fn refresh_estimates(
         // **`Industry_LabourEstimate`, loop and tail.** The tail is one
         // function in the original and a second half here for the same reason
         // `grain_preview` is: the search loop answers a question and the tail
-        // *writes* four things, and the four were carried by nothing. The
+        // *writes* four things
         // forecast is the one the sidebar draws. `docs/decisions.md` C123 is
         // the grain case; C136 is this one.
         crate::industry::refresh(tables, county, c, realm, weapon_share, advanced_farming);
@@ -510,7 +638,7 @@ pub fn paint_tile(map: &mut CampaignMap, tile: usize, terrain: u8) {
 ///
 /// **The `param_4 == 2` clause is not reproduced and this is why.** The
 /// original carries an extra arm — *if the range starts at 2 and the county's
-/// `+0x1A7` is set and this is not the first tile matched, write `2` instead of
+/// `+0x1A7` is set and this is not the first tile matched
 /// the requested terrain* — which is `Grain_SeasonTick`'s business, not the
 /// herd's, and `Herd_UpdateCrowding` passes `first = 0x13`. Naming it here
 ///
@@ -549,12 +677,12 @@ pub fn herd_update_crowding(
 
 /// Whether `terrain` is a field the **AI's brush** counts as `kind`.
 ///
-/// This is deliberately *not* [`classify`], and the difference is a real one
+/// This is deliberately *not* [`classify`]
 /// worth stating. `FUN_004697CD` and `FUN_0046988D` both test grain as
 /// `1 < t && t < 0x0F` — the whole crop range, which agrees with the recount —
 /// but pasture as `0x12 < t && t < 0x17`, which is only `0x13 … 0x16`. **A
 /// pasture at terrain `0x0F … 0x12` is counted by the recount and invisible to
-/// the AI's brush.** `[D]`, and the two comparisons sit four lines apart in
+/// the AI's brush.** `[D]`
 /// both functions,
 fn ai_brush_matches(kind: FieldType, terrain: u8) -> bool {
     match kind {
@@ -576,7 +704,7 @@ fn ai_brush_matches(kind: FieldType, terrain: u8) -> bool {
 /// `Field_ReclaimTick` finish it over four stages; the county's counts follow
 /// from the map, as everything in this module does.
 ///
-/// The walk is one pass in slot order with a quota, and the quota is spent by
+/// The walk is one pass in slot order with a quota
 /// two different things:
 ///
 /// ```c
@@ -620,7 +748,7 @@ pub fn order_reclamation(county: &County, map: &mut CampaignMap, mut want: i32) 
 /// `FUN_004697CD` — turn every field of one type back to fallow.
 ///
 /// The AI's farming styles open with this: *"forget what I said last year"*.
-/// It matches by `ai_brush_matches` above, so a grain field halfway through its
+/// It matches by `ai_brush_matches` above
 /// thirteen stages is cleared as readily as a freshly sown one.
 pub fn clear_type(county: &County, map: &mut CampaignMap, kind: FieldType) {
     for slot in 0..MAX_FIELDS {
@@ -683,8 +811,60 @@ mod tests {
         (c, map)
     }
 
+    /// `County_EnsurePasture` takes the fallow field **after** the one the
+    /// cursor sits on, and moves the cursor there.
+    #[test]
+    fn the_pasture_sweep_starts_after_the_cursor_and_leaves_it_on_what_it_took() {
+        let (mut c, mut map) = county_with(6);
+        c.pasture_cursor = 2;
+        recount(&mut c, &map);
+        ensure_pasture(&mut c, &mut map);
+        assert_eq!(map.terrain[c.field_tile(3).unwrap()], terrain::PASTURE);
+        assert_eq!(c.pasture_cursor, 3);
+        assert_eq!((c.fields_cattle, c.fields_fallow), (1, 5), "the counts are recounted");
+        // A second call finds pasture already there and changes nothing.
+        ensure_pasture(&mut c, &mut map);
+        assert_eq!(c.pasture_cursor, 3, "the cursor does not move when there is pasture");
+    }
+
+    /// No fallow left: `FUN_0046965A` takes a grain field instead, docks one
+    /// field's share of the standing crop and steps `+0x206` down.
+    #[test]
+    fn with_no_fallow_the_sweep_eats_a_grain_field_and_docks_the_crop() {
+        let (mut c, mut map) = county_with(4);
+        for slot in 0..4 {
+            map.terrain[c.field_tile(slot).unwrap()] = terrain::GRAIN;
+        }
+        c.crop[1] = 400;
+        c.fields_grain_standing = 4;
+        ensure_pasture(&mut c, &mut map);
+        assert_eq!(map.terrain[c.field_tile(1).unwrap()], terrain::PASTURE);
+        assert_eq!(c.pasture_cursor, 1);
+        // `Pct(400, PctOf(1, 4))` = 400 * 25 / 100.
+        assert_eq!(c.crop[1], 300);
+        assert_eq!(c.fields_grain_standing, 3, "`fieldsGrain <= +0x206`, so it steps down");
+        assert_eq!((c.fields_grain, c.fields_cattle), (3, 1));
+    }
+
+    /// The blight cursor is its own
+    #[test]
+    fn the_blight_sweep_walks_its_own_cursor_over_every_kind_of_field() {
+        let (mut c, mut map) = county_with(3);
+        map.terrain[c.field_tile(1).unwrap()] = terrain::PASTURE;
+        blight_one_field(&mut c, &mut map, terrain::PARCHED);
+        assert_eq!(map.terrain[c.field_tile(1).unwrap()], terrain::PARCHED);
+        assert_eq!((c.blight_cursor, c.pasture_cursor), (1, 0), "`+0x15B`, not `+0x15A`");
+        blight_one_field(&mut c, &mut map, terrain::FLOODED);
+        assert_eq!(map.terrain[c.field_tile(2).unwrap()], terrain::FLOODED);
+        // `FUN_0046942C`: both go back to waste next pass.
+        clear_blight(&c, &mut map);
+        recount(&mut c, &map);
+        assert_eq!(c.fields_waste, 2);
+        assert_eq!(map.terrain[c.field_tile(1).unwrap()], terrain::WASTE);
+    }
+
     /// The ladder, at every boundary the original branches on. This is the
-    /// whole rule, and the boundaries are where a transcription slip would
+    /// whole rule
     /// hide.
     #[test]
     fn the_ladder_classifies_every_terrain_the_original_branches_on() {
@@ -708,7 +888,7 @@ mod tests {
         }
     }
 
-    /// Every one of the 256 terrain bytes lands in exactly one bucket, and the
+    /// Every one of the 256 terrain bytes lands in exactly one bucket
     /// five buckets tile the range with no gap — which is what makes the five
     /// counts sum to the field total.
     #[test]

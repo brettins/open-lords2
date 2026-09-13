@@ -89,17 +89,11 @@
 //!
 //! # What this module does not reproduce, and where to find it
 //!
-//! `Merchant_Trade`'s tail runs seven more calls on the county. Five are here
-//! ([`Order::apply`]'s tail). Two are not, and both are named
-//! quietly dropped:
+//! `Merchant_Trade`'s tail runs seven more calls on the county. Six are here
+//! now — `FUN_0046921D`, **buying cattle into a county with no pasture converts
+//! a field into one**, is [`crate::field::ensure_pasture`] and is called from
+//! [`trade`] on `good == Cattle && qty >= 0`. One is still not:
 //!
-//! * `FUN_0046921D` — **buying cattle into a county with no pasture converts a
-//!   field into one.** It recounts the fields, and if `fieldsCattle == 0` it
-//!   turns one fallow field (`FUN_0046958F`) or, failing that, one grain field
-//!   (`FUN_0046965A`) into pasture, walking a per-county round-robin cursor at
-//!   `+0x15A` that this crate does not model. The grain case also docks a share
-//!   of the standing crop. It needs the tile map, a cursor field and a save
-//!   entry; it is a rule of its own and it is left whole for whoever takes it.
 //! * `FUN_00450CCD` — a degraded castle draws its owed wood and stone out of
 //!   the realm's stockpile, so it is called here: it is what makes
 //!   stone bought at the merchant reach the castle. `Readme.txt` says the
@@ -114,7 +108,7 @@ use crate::tables::{Tables, WEAPON_TYPE_COUNT};
 use l2_net::{Quirk, Quirks};
 
 /// `L2.eng` group 6 has fifteen strings and `g_goodsPrice` fifteen entries;
-/// index 0 is a placeholder in both, so a good id runs 1 … 14.
+/// index 0 is a placeholder in both.
 pub const GOOD_COUNT: usize = 15;
 
 /// One good, by its `L2.eng` group 6 id. The discriminants **are** the ids the
@@ -365,7 +359,7 @@ impl Order {
 /// `Merchant_Trade` (`0x004284CE`).
 ///
 /// `Ok(Receipt::default())` for a zero quantity: the original's whole body is
-/// inside `if (qty != 0)`, so a zero order does not even run the tail that
+/// inside `if (qty != 0)`.
 /// recomputes the county.
 ///
 /// # Two guards that only fire for an owned county
@@ -373,7 +367,7 @@ impl Order {
 /// Both the stock check and the gold check are inside `if (realm != 0)`. An
 /// **unowned** county trading on its own account is checked for neither: it can
 /// sell grain it does not have and buy with a purse it has emptied, and the
-/// stores and the purse both go negative. Reproduced, because `Ai_BuyGood`
+/// stores and the purse both go negative. Reproduced,
 /// reaches this path with a realm of 0 for every unowned county on the map and
 /// its own purse test is the only thing standing in front of it — so the
 /// behaviour is live, not theoretical. `docs/bugs.md`.
@@ -439,6 +433,12 @@ pub fn trade(kingdom: &mut Kingdom, order: Order) -> Result<Receipt, Refusal> {
         }
     }
 
+    // `Merchant_Trade`'s own `if (good == 2 && qty >= 0) County_EnsurePasture(county)`,
+    // between `Castle_DeliverMaterials` and the tail below.
+    if order.good == Good::Cattle && order.qty >= 0 {
+        let Kingdom { counties, campaign, .. } = &mut *kingdom;
+        crate::field::ensure_pasture(&mut counties[order.county], &mut campaign.map);
+    }
     settle(kingdom, order.county);
     Ok(receipt)
 }
@@ -468,7 +468,7 @@ fn move_stock(kingdom: &mut Kingdom, good: Good, qty: i32, realm: usize, county:
 /// The original runs `Ration_Apply` and `County_RefreshEstimates` **twice**,
 /// with `Labour_Allocate` between them — the first pair sizes the ration off
 /// the new stock, the reallocation moves people onto the work that ration
-/// implies, and the second pair re-reads it. Reproduced in that order, because
+/// implies, and the second pair re-reads it. Reproduced in that order,
 /// the order is the rule: a single pass leaves the estimate describing the
 /// labour split from before the trade.
 fn settle(kingdom: &mut Kingdom, county: usize) {
@@ -568,6 +568,39 @@ mod tests {
         k.counties[1].herd = 50;
         k.realms[1].gold = 1000;
         k
+    }
+
+    /// `Merchant_Trade`'s `County_EnsurePasture`: a county with no pasture gets
+    /// one made for the cattle it just bought — the fallow field after the
+    /// cursor first, and a grain field once the fallow are gone.
+    #[test]
+    fn buying_cattle_into_a_county_with_no_pasture_converts_a_field_in_cursor_order() {
+        let mut k = kingdom();
+        for slot in 0..4 {
+            let tile = crate::map::index(slot as u8, 8);
+            k.counties[1].set_field_tile(slot, Some(tile));
+            k.campaign.map.terrain[tile] = crate::field::terrain::FALLOW;
+        }
+        let q = quote(T, Good::Cattle, 100);
+        trade(&mut k, Order::buy(Good::Cattle, 1, q, 1, 1)).unwrap();
+        let tile = |k: &Kingdom, slot| k.counties[1].field_tile(slot).unwrap();
+        // `Herd_UpdateCrowding` runs after and restocks the picture, so the
+        // test asks the ladder, not the byte.
+        assert_eq!(crate::field::classify(k.campaign.map.terrain[tile(&k, 1)]), crate::field::FieldType::Pasture);
+        assert_eq!(k.counties[1].pasture_cursor, 1);
+
+        // Sell the pasture back to grain by hand and buy again: with no fallow
+        // left the sweep takes the grain field after the cursor.
+        for slot in 0..4 {
+            let t = tile(&k, slot);
+            k.campaign.map.terrain[t] = crate::field::terrain::GRAIN;
+        }
+        k.counties[1].crop[1] = 400;
+        k.counties[1].fields_grain_standing = 4;
+        trade(&mut k, Order::buy(Good::Cattle, 1, q, 1, 1)).unwrap();
+        assert_eq!(crate::field::classify(k.campaign.map.terrain[tile(&k, 2)]), crate::field::FieldType::Pasture);
+        assert_eq!(k.counties[1].pasture_cursor, 2);
+        assert_eq!(k.counties[1].crop[1], 300, "one field's share of the standing crop");
     }
 
     /// The headline: at the merchant's shipped morale of 100 the buy price is
@@ -686,7 +719,7 @@ mod tests {
         k.counties[1].happiness = 50;
         let q = quote(T, Good::Ale, 100);
         assert_eq!(q.buy, 1, "a barrel is a crown");
-        // population 1000, so a tenth is 100 crowns a point.
+        // population 1000.
         let r = trade(&mut k, Order::buy(Good::Ale, 300, q, 1, 1)).unwrap();
         assert_eq!(r.ale_happiness, 3);
         assert_eq!(r.moved, 0);

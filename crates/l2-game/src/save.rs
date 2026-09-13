@@ -685,6 +685,15 @@ fn encode_message(out: &mut Canonical, message: &Message) {
             out.u8(realm);
             out.u8(counties);
         }
+        // `Weather_UpdateAll`'s two, `L2.eng` groups 143 and 144.
+        Message::Drought { county } => {
+            out.u8(10);
+            out.u8(county);
+        }
+        Message::Flooding { county } => {
+            out.u8(11);
+            out.u8(county);
+        }
     }
 }
 
@@ -694,6 +703,8 @@ fn decode_message(input: &mut Reader<'_>) -> Result<Result<Message, LoadError>, 
         1 => Ok(Message::UnrestWarning { county: input.u8()? }),
         2 => Ok(Message::UnrestRising { county: input.u8()?, level: input.u8()? }),
         3 => Ok(Message::Revolt { county: input.u8()? }),
+        10 => Ok(Message::Drought { county: input.u8()? }),
+        11 => Ok(Message::Flooding { county: input.u8()? }),
         4 => {
             let realm = input.u8()?;
             let stage = input.u8()?;

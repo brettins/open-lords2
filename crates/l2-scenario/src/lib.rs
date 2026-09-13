@@ -438,6 +438,10 @@ mod stored {
     pub const EVENT_POPULATION_PCT: u32 = 0x1FB;
     pub const EVENT_GRAIN_PCT: u32 = 0x1FC;
     pub const EVENT_HERD_PCT: u32 = 0x1FD;
+    /// `County_EnsurePasture`'s round-robin field cursor…
+    pub const PASTURE_CURSOR: u32 = 0x15A;
+    /// …and `Weather_UpdateAll`'s, for the field it floods or parches.
+    pub const BLIGHT_CURSOR: u32 = 0x15B;
     pub const FIELDS_GRAIN_SOWN: u32 = 0x202;
     /// The sown fields still standing — `County_DestroyField` steps it down
     /// and `Grain_SeasonTick`'s wheat picture divides by it.
@@ -801,6 +805,9 @@ pub struct CountyState {
     pub castle_wood_total: i32,
     pub siege_scars: l2_kingdom::siege::SiegeScars,
     pub crop: [i32; 3],
+    /// `+0x15A` and `+0x15B` — the two round-robin field cursors.
+    pub pasture_cursor: u8,
+    pub blight_cursor: u8,
     pub fields_grain_sown: i32,
     pub fields_grain_standing: i32,
     pub sow_shortfall: bool,
@@ -1384,6 +1391,8 @@ impl Scenario {
                     save.i32_at(at(stored::CROP + 4))?,
                     save.i32_at(at(stored::CROP + 8))?,
                 ],
+                pasture_cursor: save.u8_at(at(stored::PASTURE_CURSOR))?,
+                blight_cursor: save.u8_at(at(stored::BLIGHT_CURSOR))?,
                 fields_grain_sown: save.u8_at(at(stored::FIELDS_GRAIN_SOWN))? as i32,
                 fields_grain_standing: save.u8_at(at(stored::FIELDS_GRAIN_STANDING))? as i32,
                 sow_shortfall: save.u8_at(at(stored::SOW_SHORTFALL))? != 0,
@@ -1726,6 +1735,8 @@ impl Scenario {
                 castle_wood_total,
                 siege_scars,
                 crop,
+                pasture_cursor,
+                blight_cursor,
                 fields_grain_sown,
                 fields_grain_standing,
                 sow_shortfall,
@@ -1813,6 +1824,10 @@ impl Scenario {
             c.castle_wood_total = *castle_wood_total;
             c.siege_scars = *siege_scars;
             c.crop = *crop;
+            // Where the two field sweeps left off — `l2_kingdom::save` entry 27:
+            // which field a cattle purchase eats depends on it.
+            c.pasture_cursor = *pasture_cursor;
+            c.blight_cursor = *blight_cursor;
             c.fields_grain_sown = *fields_grain_sown;
             c.fields_grain_standing = *fields_grain_standing;
             c.sow_shortfall = *sow_shortfall;

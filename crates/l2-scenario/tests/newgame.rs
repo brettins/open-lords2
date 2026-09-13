@@ -800,6 +800,10 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         ("fields_grain_sown", |c| c.fields_grain_sown as i64),
         ("fields_grain_standing", |c| c.fields_grain_standing as i64),
         ("sow_shortfall", |c| c.sow_shortfall as i64),
+        // The two field cursors: `County_Reset` zeroes both and no sweep has
+        // run by turn one.
+        ("pasture_cursor", |c| c.pasture_cursor as i64),
+        ("blight_cursor", |c| c.blight_cursor as i64),
     ] {
         judge(field, f, "nobody has reclaimed a field or sown grain by turn one");
     }
@@ -888,6 +892,10 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             // reclaimed, levied, bought ale, drawn an event or moved house.
             "ale_happiness_given",
             "army",
+            // Neither field cursor has been stepped: no cattle bought, no
+            // county blighted.
+            "pasture_cursor",
+            "blight_cursor",
             "castle_degraded",
             "castle_level_left",
             "castle_percent",
@@ -1049,6 +1057,8 @@ const JUDGED: &[&str] = &[
     "crop",
     "fields_grain_sown",
     "fields_grain_standing",
+    "pasture_cursor",
+    "blight_cursor",
     "sow_shortfall",
     "weapon_type",
     "mercenary_offer",

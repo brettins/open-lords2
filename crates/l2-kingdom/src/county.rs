@@ -65,7 +65,7 @@ pub const MAX_INFLOW_SOURCES: usize = 16;
 
 /// [`County::labour_wanted`] for a job that asks for nobody in particular.
 ///
-/// **`[D]`.** Every writer but grain's and cattle's stores −1, and the two
+/// **`[D]`.** Every writer but grain's and cattle's stores −1
 /// readers both compare `labour < wanted`, which −1 can never satisfy.
 pub const LABOUR_NO_FLOOR: i32 = -1;
 
@@ -96,7 +96,7 @@ pub const LABOUR_CEILING_IGNORED: i32 = 99_999;
 /// nobody.
 pub const LABOUR_UNSET: i32 = 999_999;
 
-/// **The grain-to-livestock split's range**, and the widget's geometry is the
+/// **The grain-to-livestock split's range**
 /// same number by construction: `Ration_SliderClick` (`0x0043A379`) clamps
 /// `mouseX - 224` to `0 … 100` over a track exactly 100 pixels wide.
 ///
@@ -187,7 +187,7 @@ pub struct Industry {
     /// The running total at `+0x2A0`, which the pass adds this season's output
 /// to.
     pub total: i32,
-    /// **What the sidebar's industry row forecasts for next season**, and the
+    /// **What the sidebar's industry row forecasts for next season**
     /// value `Ui_DrawDelta` draws beside the icon.
     ///
     /// County **`+0x2A8 + c*0x18`** — `+0x14`, the last field of this
@@ -200,13 +200,13 @@ pub struct Industry {
     /// | weapons `[2]` | `+0x2D8` | `[2] +0x14` |
     /// | stone `[3]` | `+0x2F0` | `[3] +0x14` |
     ///
-    /// # This said it was the next record's head, and the base was wrong
+    /// # This said it was the next record's head
     ///
     /// Under the `+0x290` base `docs/records.json` carried, `+0x2A8 + c*0x18`
     /// looked like the head word of record `c + 1` — *"a second per-commodity
     /// array … shifted one whole record along"* — and stone's `+0x2F0` looked
     /// one past the end. The base was four bytes low. `+0x290` is
-    /// [`County::weapon_type`], a byte of its own, and the array runs
+    /// [`County::weapon_type`], a byte of its own
     /// `+0x294 … +0x2F3`. `docs/decisions.md` C153.
     ///
     /// `[V]`, three ways. `Industry_LabourEstimate` (`0x0044F318`) zeroes
@@ -300,7 +300,7 @@ pub struct County {
     /// and `docs/symbols.json` all said *"nothing in the binary resets it, so
     /// the cap is for the life of the game"*. `Happiness_UpdateAll`
     /// (`0x0044BAEA`) resets it, in the same statement that clears
-    /// [`County::shown_ale`] and the other five display terms, every season for
+    /// [`County::shown_ale`] and the other five display terms
     /// every county. So the five points are a **seasonal** allowance, which is
     /// also what `Readme.txt`'s *"Ale Limitations"* describes. See
     /// [`crate::tables::ALE_HAPPINESS_MAX`] and `docs/decisions.md` C53.
@@ -372,7 +372,7 @@ pub struct County {
     /// [`crate::trade::trade`] pays out of it whenever the realm argument is 0 —
     /// which is every trade `Ai_BuyGood` makes on behalf of an unowned county.
     ///
-    /// **`[V]`, and two things this comment used to get wrong.**
+    /// **`[V]`
     ///
     /// * The banker is **`Tax_CollectAll` itself** (`0x0044B59B`), not
 ///   `FUN_0044B4F3` — it is inside
@@ -418,7 +418,7 @@ pub struct County {
     /// `+0xC4 + job*0x0C + 0x04` — **the wanted floor**: how many workers this
     /// job needs before it stops going backwards.
     ///
-    /// **`[D]`.** The second word of the twelve-byte labour record, and the
+    /// **`[D]`.** The second word of the twelve-byte labour record
     /// first of the two this project imported as nothing at all. Three
     /// different passes write it, and all three mean the same thing:
     ///
@@ -435,7 +435,7 @@ pub struct County {
     /// (`Castle_BuildEstimate`, `0x00450E46`) and the four industries
     ///   (`FUN_0044F318`) all set it to −1, meaning *no requirement*.
     ///
-    /// Two things read it, and both are interface: `Panel_JobDetail` colours
+    /// Two things read it
     /// the worker count **red** when `labour < labour_wanted`, and
     /// `Village_RebuildIcons` draws the shortfall as extra, unselectable icons
     /// in the cluster. Nothing in the season pipeline reads it — it is a
@@ -466,7 +466,7 @@ pub struct County {
     /// away. [`LABOUR_UNSET`] means the estimate
     /// allocator reads it as 0.
     pub labour_useful: [i32; JOB_COUNT],
-    /// `+0x130 + job*0x04` — **eight percentages, one per job**, and the
+    /// `+0x130 + job*0x04` — **eight percentages, one per job**
     /// allocator's only instruction about where people should go.
     ///
     /// **`[V]`.** `FUN_00450000` recomputes them from the worker counts and
@@ -634,7 +634,7 @@ pub struct County {
     /// castle), so two seasons of the same castle look different on the map.
     /// Completion is `> 99`, tested on the byte.
     pub castle_percent: u8,
-    /// `+0x1CC` / `+0x1D8` — **man-work still outstanding**, and the total the
+    /// `+0x1CC` / `+0x1D8` — **man-work still outstanding**
     /// work was ordered at.
     ///
     /// The original counts *down*: [`crate::industry::order_castle`] sets both
@@ -643,7 +643,7 @@ pub struct County {
     /// repair becomes a bigger job than the castle it is repairing.
     pub castle_work_left: i32,
     pub castle_work_total: i32,
-    /// `+0x1D0` / `+0x1DC` — **stone still owed**, and the stone the job was
+    /// `+0x1D0` / `+0x1DC` — **stone still owed**
     /// costed at. `+0x1D4` / `+0x1E0` are the same pair for wood.
     ///
     /// > **The materials are drawn down over seasons, not paid up front**, and
@@ -697,6 +697,18 @@ pub struct County {
     /// [`crate::field`]. Save block 12 is 1,360 bytes = 17 × 80 exactly, which
     /// is where the width comes from.
     pub field_tiles: [u16; MAX_FIELDS],
+    /// `+0x15A` — the round-robin slot the pasture sweeps last stopped on.
+    ///
+    /// `FUN_0046958F` (fallow → pasture) and `FUN_0046965A` (grain → pasture)
+    /// share it, both under `County_EnsurePasture` (`0x0046921D`). Each
+    /// advances it before reading a slot and wraps it at [`County::field_slots_used`]
+    /// (`+0x205`), so which field a cattle purchase eats depends on where the
+    /// last purchase left off. `[V]`
+    pub pasture_cursor: u8,
+    /// `+0x15B` — the same cursor for `FUN_00469A9C`, the field
+    /// `Weather_UpdateAll` (`0x00449889`) floods or parches. Separate from
+    /// `+0x15A` in the original and kept separate here.
+    pub blight_cursor: u8,
     /// `+0x1FF` — read positively by the fertility rule.
     ///
     /// **Derived.** [`crate::field::recount`] is the only thing that should
@@ -708,7 +720,7 @@ pub struct County {
     /// `+0x201` — the field count `Grain_Sow` multiplies by sacks-per-field,
     /// and the term the fertility rule subtracts.
     pub fields_grain: i32,
-    /// `+0x203` — fields in no use: terrain `0`, and the two blighted terrains
+    /// `+0x203` — fields in no use: terrain `0`
     /// `0x17` and `0x18` a drought or a flood leaves behind for one season.
     pub fields_waste: i32,
     /// `+0x204` — fields under reclamation.
@@ -768,7 +780,7 @@ pub struct County {
     /// show. `docs/stored-fields.json` filed it as *"a second copy of +0x202
     /// that only the tile graphic reads"*; three functions read it and two
     /// write it. `[D]`, and not derivable from `+0x202` and `fieldsGrain`:
-    /// destroy a field, then paint two more, and the two orders disagree.
+    /// destroy a field, then paint two more
     /// `docs/decisions.md` C195.
     pub fields_grain_standing: i32,
     /// `+0x1A7` — `Grain_Sow` could not afford one sack a field and fell back
@@ -788,7 +800,7 @@ pub struct County {
     /// *"Herd overcrowded."* and *"Massive overcrowding!!"*
     /// (`docs/kingdom.md` §13.1).
     ///
-/// **Stored**, because the original stores it and the
+/// **Stored**
     /// difference is observable: `FUN_0044D913` recomputes it at the *end* of
     /// the herd's tick,
     /// crowding the herd had when the season began. See
@@ -796,7 +808,7 @@ pub struct County {
     pub herd_crowding: i32,
     /// `+0x268`, `+0x26C` and `+0x258` — next season's forecast: group 77's
     /// *"Calf births expected"*, *"Cow deaths expected"* and *"Change due to
-    /// farming"*. Written by [`crate::land::herd_preview`], and the three
+    /// farming"*. Written by [`crate::land::herd_preview`]
     /// numbers `crates/l2-kingdom/tests/reproduction.rs` holds against the
     /// England turn-one save.
     pub herd_births_expected: i32,
@@ -864,7 +876,6 @@ pub struct County {
     /// else                  county.field_0x22C = -county.grainEaten;
     /// ```
     ///
-    /// **The forecast is not a by-product of the search and cannot be recovered
     /// from it.** The loop calls `Grain_Sow(county, workers, grain − grainEaten)`
     /// and the tail calls `Grain_Sow(county, staff, grain)` — a different third
     /// argument and a different worker count. That is the whole reason
@@ -909,7 +920,7 @@ pub struct County {
     /// `docs/kingdom.md` §7.4 says weapons are credited to
     /// `realm +0x140 + type*4` without saying what picks `type`.
     pub weapon_type: usize,
-    /// `+0x1FE` — **the farming style the county is farmed by**, and the one
+    /// `+0x1FE` — **the farming style the county is farmed by**
 /// piece of AI personality that lives on the county
     /// realm.
     ///
@@ -1033,6 +1044,8 @@ impl County {
             event_grain_pct: 0,
             event_herd_pct: 0,
             field_tiles: [0; MAX_FIELDS],
+            pasture_cursor: 0,
+            blight_cursor: 0,
             fields_fallow: 0,
             fields_cattle: 0,
             fields_grain: 0,
@@ -1160,7 +1173,7 @@ impl County {
     /// them. See [`MinimapBands`].
     pub fn minimap_bands(&self) -> MinimapBands {
         // +0x01. The original divides an `i8` happiness by 20 and stores an
-        // `i8`, and the draw then reads the byte *unsigned*: a negative
+        // `i8`
         // happiness of -20 or worse wraps past 5 and the county is left
 // uncoloured. Reproduced with the same
         // cast, so the edge behaves the same if happiness ever goes negative.

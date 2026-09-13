@@ -6,7 +6,7 @@
 //!
 //! `l2_kingdom::save` encodes through `l2_net::Canonical`, and
 //! `docs/netcode.md` §6's per-tick digest is `Canonical::hash_of(kingdom)` over
-//! **the same `Encode` impl**. So a field missing from this encoding is missing
+//! **the same `Encode` impl**.
 //! from the lockstep checksum too: two peers can diverge on it and every
 //! checksum they exchange reports agreement. That is the failure lockstep
 //! exists to prevent, and it has now happened three times
@@ -27,7 +27,7 @@
 //!   the decoded kingdom against it with `#[derive(PartialEq)]` — the only
 //!   exhaustive reader of a struct this project has. Over a saturated fixture
 //!   that single `assert_eq!` *is* the completeness check: drop a field from
-//! `Encode` and the decoded value comes back holding the default, which the
+//! `Encode` and the decoded value comes back holding the default.
 //!   fixture does not hold.
 //! * **[`every_field_of_the_state_is_furnished`] keeps it saturated.** It reads
 //!   the source of `crates/l2-kingdom/src`, derives the fields of every struct
@@ -65,7 +65,7 @@ use l2_kingdom::{Kingdom, Options};
 /// Saturation is what makes `a_furnished_kingdom_round_trips_field_for_field`
 /// a completeness check. Over a kingdom of zeros, a
 /// field that the encoder drops round-trips perfectly — the decoder hands back
-/// the constructor's default and the default is what went in. Over this one it
+/// the constructor's default and the default is what went in.
 /// cannot: the default is the one value no field here holds.
 ///
 /// So when adding a field to this fixture, **give it a value the constructor
@@ -343,6 +343,10 @@ fn furnished(seed: u64) -> Kingdom {
         // leaves it
         c.fields_grain_standing = 4;
         c.sow_shortfall = id % 2 == 1;
+        // The two round-robin field cursors, `VERSION` 27 — distinct per county
+        // and distinct from each other.
+        c.pasture_cursor = (3 + n) as u8;
+        c.blight_cursor = (11 + n) as u8;
 
         c.herd = 60 + n * 3;
         c.herd_crowding = 30 + n;
@@ -466,12 +470,12 @@ fn furnish_campaign(k: &mut Kingdom) {
         // `+0x167`, the county-defence mark — `docs/armies.md` §8.1
         // second half of what `VERSION` 10 restored.
         u.defence_mark = (n % 2 + 1) as u8;
-        // `+0x1A` and `+0x19B`, the AI mission byte and the county it is about
+        // `+0x1A` and `+0x19B`.
         // — `l2_kingdom::ai_army::Mission`, `VERSION` 14. Every value 2..=7 is
         // walked, because they are six different handlers.
         u.mission = (n % 6 + 2) as u8;
         u.mission_county = n as u8 + 4;
-        // The siege build records and the countdown, saturated the same
+        // The siege build records and the countdown.
 // way: every unit carries one, so
         // the round trip covers them on every slot it walks.
         for (e, record) in u.engines.iter_mut().enumerate() {
@@ -521,7 +525,7 @@ fn furnish_campaign(k: &mut Kingdom) {
     k.campaign.explored.reveal_square(4, 16, 44, 3);
 
     // The diplomatic state that is not inside a realm record — the five-slot
-    // inbox, the outstanding pay-for-help price, and the dice. One letter of
+    // inbox.
     // every kind, spread across realms so the walk over the array is exercised
     //
     k.diplomacy.help_price = 3400;
@@ -703,7 +707,9 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +272 at version 26 for `Industry::last_efficiency`, county `+0x29C`: four
     // bytes a commodity over four commodities over 17 county slots. It is the
     // ramp's own input, and `Industry_Produce` is the only writer.
-    assert_eq!(c.finish().len, 63_304, "the state encoding changed - bump VERSION?");
+    // +34 at version 27 for the two round-robin field cursors, county `+0x15A`
+    // and `+0x15B`: one byte each over 17 county slots.
+    assert_eq!(c.finish().len, 63_338, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,
@@ -788,7 +794,7 @@ fn no_record_slot_is_silenced() {
             });
         }
     }
-    // The seen plane, every realm bit at the two corners and the middle — a
+    // The seen plane.
     // plane walked for fewer tiles or fewer realms than it holds fails here.
     for tile in [0usize, l2_kingdom::MAP_TILES / 2, l2_kingdom::MAP_TILES - 1] {
         for realm in 1..MAX_REALMS as u8 {
@@ -830,7 +836,7 @@ const NOT_IN_THE_BODY: &[(&str, &str, &str)] = &[(
      body (docs/modding.md); every_sub_table_reaches_the_fingerprint covers it",
 )];
 
-/// Fields the fixture cannot name, and the call it must make instead.
+/// Fields the fixture cannot name.
 ///
 /// A private field, or one only a constructor writes. **This table is the only
 /// remembered part of the census and its length is the exact size of the hole
@@ -860,7 +866,7 @@ const FURNISHED_BY_CALL: &[(&str, &str, &str)] = &[
 /// This is the guard `docs/decisions.md` C30 said was missing and C39 wrote.
 /// The old one was an enumeration of mutations: it checked the fields somebody
 /// had listed, so the four fields C30 is about were absent from the encoding
-/// *and* from the list, and the list agreed with itself. Six more were found
+/// *and* from the list.
 /// later by matching it against `County` by hand, and twelve more — the whole
 /// diplomacy record and the county-defence mark — were found by the first run
 /// of this test.
@@ -875,7 +881,7 @@ const FURNISHED_BY_CALL: &[(&str, &str, &str)] = &[
 /// Saturation is what gives `a_furnished_kingdom_round_trips_field_for_field`
 /// its power: `#[derive(PartialEq)]` reads every field exhaustively, and over a
 /// value with no defaults in it, a field the encoder drops comes back as the
-/// default and the comparison fails. This test and that one are one guard in
+/// default and the comparison fails.
 /// two halves; neither is worth much alone.
 #[test]
 fn every_field_of_the_state_is_furnished() {
@@ -927,14 +933,14 @@ fn every_field_of_the_state_is_furnished() {
 
 // **A floor under the walk.** Everything above is a check
     // that each field *found* is furnished, and a walk that found nothing would
-    // satisfy all of it. The bounds are deliberately far below the real numbers
+    // satisfy all of it.
     // so that adding a field never has to touch them, and far above what a
     // broken walk would return.
     assert!(reachable.len() >= 15, "only {} structs reached from Kingdom", reachable.len());
     assert!(fields >= 200, "only {fields} fields reached from Kingdom");
 
 // The exact counts are printed: a number to argue
-    // with, in the spirit of `crates/l2-testkit/tests/census.rs`, without a
+    // with.
     // second place to update every time a field lands.
     println!(
         "{} structs reachable from Kingdom, {fields} fields, all furnished",
@@ -954,14 +960,14 @@ fn every_field_of_the_state_is_furnished() {
 /// numbers.
 ///
 /// This is that check. It reads `src/save.rs`, pulls the `* N —` entries out of
-/// `VERSION`'s doc comment, and asserts three things:
+/// `VERSION`'s doc comment.
 ///
 /// * the entries are `1 … n` with no gap and no duplicate — a duplicate is
 ///   exactly what a two-branch collision leaves behind;
 /// * `VERSION` equals the highest of them — so a merge that keeps one branch's
 ///   constant and both branches' entries goes red;
 /// * every entry says something, so the changelog
-/// exists: an older save's *absence* of a field is a question, and the answer
+/// exists: an older save's *absence* of a field is a question.
 ///   belongs here.
 ///
 /// It cannot prevent two branches choosing the same number. It fails the moment
@@ -1166,7 +1172,7 @@ fn a_flipped_byte_is_caught_by_the_checksum() {
     let k = furnished(2);
     let bytes = encode(&k);
     // Walk the body in strides so the test stays quick but still covers
-    // counties, realms and the history ring.
+    // counties.
     let body = HEADER_LEN..bytes.len() - 8;
     let mut caught = 0;
     for at in body.step_by(997) {
@@ -1368,7 +1374,7 @@ mod census {
     /// **Every line of an exemption table names a field that exists.**
     ///
     /// A stale line is worse than no line: it looks like a considered decision
-    /// and covers nothing, and the field it used to name is now checked by
+    /// and covers nothing.
     /// neither the table nor anybody's memory.
     pub fn check_tables_are_live(structs: &Structs, table: &[(&str, &str, &str)], which: &str) {
         for (name, field, _) in table {
@@ -1409,7 +1415,7 @@ mod census {
     /// read) or as `field:` (a struct literal)?
     ///
     /// `.field(` does not count: that is a method call, and `History::len` is
-    /// both a field and a method. The distinction is the reason this is not a
+    /// both a field and a method.
     /// bare substring search.
     pub fn mentions(region: &str, field: &str) -> bool {
         let dotted = format!(".{field}");
