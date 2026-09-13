@@ -551,6 +551,8 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // only writer outside the page itself.
         nobles_category: 0,
         nobles_spoken: 0,
+        // And an eleventh: the line a screen last asked the narrator for.
+        spoken: (0, ""),
     })
 }
 

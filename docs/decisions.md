@@ -11468,3 +11468,29 @@ one-shot buffer and bare `Sound_PlayFile` drops what follows. We reproduce that
 by making the two calls in the original's order through the same verb rather
 than by writing the rule down; the test asserts both halves, the take with the
 effects switch off and the drop with it on.
+
+## CNEW-sounds, second half — the six lines a screen decides and cannot play
+
+`SaveLoad_Tick` (`0x004AD9F0`) and the merchant's four quantity handlers
+(`FUN_00435339`, `FUN_0043543D`, `FUN_00435541`, `FUN_004355DB`) are the sound
+sites whose condition is **screen-local state that is gone by the next tick**:
+which box is up when the thumb up's latch is taken, and what the quantity was
+*before* the step. `Director` derives sound by diffing the world, and there is
+nothing here to diff — so the screen reports the line it has already decided on,
+through `Game::spoken`, a count and a file name. That is `Game::nobles_spoken`'s
+mechanism, and the count rather than the name is the edge for its reason: two
+presses of one button are two lines.
+
+**The trade guard is a crossing, not a value.** All four handlers end in
+`if (0 < qty && oldQty < 1) Sound_PlayFile(take, 1, 0)`, so holding the up arrow
+says the line once — on the step that turns a sale or a standstill into a
+purchase — and stays quiet while the number climbs. Up and the ceiling button
+say `S068_01.wav`; down and the floor button say `S068_02.wav`. The down
+arrow's copy is *very nearly* dead: a step down cannot raise the quantity, so it
+can only fire when the clamp does it, with a floor above zero. Written as the
+original writes it rather than pruned.
+
+`SaveLoad_Tick`'s pair is two `if`s and not an `if`/`else`: `g_screenId == '6'`
+(the save box) speaks `S040_02.wav`, anything else `S040_01.wav`. Ours collapses
+the latch and the tick's take-up into `SaveLoadScreen::begin`, so the line is one
+frame earlier than the original's and on the same occasion.

@@ -741,10 +741,10 @@ impl TradeScreen {
     fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         let by = if self.press.repeat_step() < TRADE_FAST_STEP { 1 } else { 10 };
         match widget {
-            0 => self.step(&Ctx { game: ctx.game, assets: ctx.assets }, by),
-            1 => self.step(&Ctx { game: ctx.game, assets: ctx.assets }, -by),
-            2 => self.jump_to_limit(&Ctx { game: ctx.game, assets: ctx.assets }, true),
-            3 => self.jump_to_limit(&Ctx { game: ctx.game, assets: ctx.assets }, false),
+            0 => self.step(ctx, by),
+            1 => self.step(ctx, -by),
+            2 => self.jump_to_limit(ctx, true),
+            3 => self.jump_to_limit(ctx, false),
             // `FUN_00435286`: `Merchant_Trade(…)`, then `g_screenId = 8`.
             4 => return self.confirm(ctx),
             // `FUN_004352F2`: `g_screenId = 8`.
@@ -784,8 +784,13 @@ impl TradeScreen {
 
     /// `FUN_00435339` / `FUN_0043543D` — step, then clamp, and set the flag
     /// only when the limit clamped to was zero.
-    fn step(&mut self, ctx: &Ctx, by: i32) {
-        let (floor, ceiling) = self.limits(ctx);
+    ///
+    /// The up arrow is `S068_01.wav` and the down arrow `S068_02.wav`; see
+    /// [`TradeScreen::crossed_into_buying`] for the guard both share.
+    // sfx: FUN_00435339#1,FUN_0043543d#1
+    fn step(&mut self, ctx: &mut Ctx, by: i32) {
+        let (floor, ceiling) = self.limits(&Ctx { game: ctx.game, assets: ctx.assets });
+        let before = self.qty;
         self.limit = 0;
         self.qty += by;
         if self.qty > ceiling {
@@ -800,14 +805,54 @@ impl TradeScreen {
                 self.limit = -1;
             }
         }
+        self.crossed_into_buying(ctx, before, if by > 0 {
+            crate::audio::names::speech::TRADE_BUYING_UP
+        } else {
+            crate::audio::names::speech::TRADE_BUYING_DOWN
+        });
+    }
+
+    /// **The tail all four quantity handlers share**, and the whole of what
+    /// they do with sound:
+    ///
+    /// ```c
+    /// if (0 < qty && oldQty < 1) { Sound_PlayFile(take, 1, 0); }
+    /// ```
+    ///
+    /// `[V]` at `FUN_00435339`, `FUN_0043543D`, `FUN_00435541` and
+    /// `FUN_004355DB`. It is the *crossing* and not the value: a player who
+    /// holds the up arrow hears it once, on the step that turns a sale or a
+    /// standstill into a purchase, and not again while the number climbs.
+    ///
+    /// **The down arrow's copy is very nearly dead and is not quite.** A step
+    /// down cannot raise the quantity, so the guard can only be met when the
+    /// clamp does it — the floor is above zero and the quantity was at or
+    /// below it. Written as the original writes it rather than pruned.
+    ///
+    /// A screen cannot reach the audio layer (`docs/netcode.md` D-3), so the
+    /// line is reported on [`crate::game::Game::spoken`].
+    fn crossed_into_buying(&self, ctx: &mut Ctx, before: i32, take: &'static str) {
+        if self.qty > 0 && before < 1 {
+            ctx.game.spoken = (ctx.game.spoken.0.wrapping_add(1), take);
+        }
     }
 
     /// `FUN_004355DB` and `FUN_00435541` — the two buttons that go straight to
     /// a limit. Neither sets the flag.
-    fn jump_to_limit(&mut self, ctx: &Ctx, ceiling: bool) {
-        let (floor, top) = self.limits(ctx);
+    ///
+    /// The ceiling button says `S068_01.wav` and the floor button
+    /// `S068_02.wav`, on the same crossing the arrows use.
+    // sfx: FUN_004355db#1,FUN_00435541#1
+    fn jump_to_limit(&mut self, ctx: &mut Ctx, ceiling: bool) {
+        let (floor, top) = self.limits(&Ctx { game: ctx.game, assets: ctx.assets });
+        let before = self.qty;
         self.limit = 0;
         self.qty = if ceiling { top } else { floor };
+        self.crossed_into_buying(ctx, before, if ceiling {
+            crate::audio::names::speech::TRADE_BUYING_UP
+        } else {
+            crate::audio::names::speech::TRADE_BUYING_DOWN
+        });
     }
 
     /// What the panel is about to charge or pay — `g_tradeCrowns`.
@@ -931,32 +976,31 @@ impl Screen for TradeScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        let read = Ctx { game: ctx.game, assets: ctx.assets };
         match event {
             Event::KeyDown(Key::Escape) | Event::RightClick { .. } => Transition::Pop,
             Event::KeyDown(Key::Enter) => self.confirm(ctx),
             Event::KeyDown(Key::Up) => {
-                self.step(&read, 1);
+                self.step(ctx, 1);
                 Transition::Stay
             }
             Event::KeyDown(Key::Down) => {
-                self.step(&read, -1);
+                self.step(ctx, -1);
                 Transition::Stay
             }
             Event::KeyDown(Key::Right) => {
-                self.step(&read, 10);
+                self.step(ctx, 10);
                 Transition::Stay
             }
             Event::KeyDown(Key::Left) => {
-                self.step(&read, -10);
+                self.step(ctx, -10);
                 Transition::Stay
             }
             Event::KeyDown(Key::Char('M')) => {
-                self.jump_to_limit(&read, true);
+                self.jump_to_limit(ctx, true);
                 Transition::Stay
             }
             Event::KeyDown(Key::Char('S')) => {
-                self.jump_to_limit(&read, false);
+                self.jump_to_limit(ctx, false);
                 Transition::Stay
             }
             // The six widgets through the hit test, each on its own kind — a

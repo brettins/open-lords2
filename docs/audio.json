@@ -358,10 +358,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s068_01_wav_004d5760,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S068_01 / S068_02 from four handlers of a setup spinner, unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "sound": "s068_01.wav",
+      "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
       "id": "FUN_0043543d#1",
@@ -369,10 +369,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s068_02_wav_004d576c,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S068_01 / S068_02 from four handlers of a setup spinner, unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "sound": "s068_02.wav",
+      "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
       "id": "FUN_00435541#1",
@@ -380,10 +380,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s068_02_wav_004d5778,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S068_01 / S068_02 from four handlers of a setup spinner, unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "sound": "s068_02.wav",
+      "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
       "id": "FUN_004355db#1",
@@ -391,10 +391,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s068_01_wav_004d5784,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S068_01 / S068_02 from four handlers of a setup spinner, unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "sound": "s068_01.wav",
+      "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
       "id": "FUN_004376bb#1",
@@ -644,10 +644,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s040_02_wav_004df074,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S040_01 / S040_02, caller unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "sound": "s040_02.wav",
+      "note": "SaveLoad_Tick's two: g_screenId == 0x36 (the save box) speaks S040_02, anything else S040_01. Decided in SaveLoadScreen::begin and reported on Game::spoken, because a screen cannot reach Audio."
     },
     {
       "id": "FUN_004ad9f0#2",
@@ -655,10 +655,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s040_01_wav_004df080,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S040_01 / S040_02, caller unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "sound": "s040_01.wav",
+      "note": "SaveLoad_Tick's two: g_screenId == 0x36 (the save box) speaks S040_02, anything else S040_01. Decided in SaveLoadScreen::begin and reported on Game::spoken, because a screen cannot reach Audio."
     },
     {
       "id": "FUN_004b36c0#1",

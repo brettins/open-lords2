@@ -973,6 +973,9 @@ pub struct Director {
     /// `FUN_004B3994`'s edge. `None` until the first tick, so a loaded game
     /// does not announce a category nobody asked for.
     nobles_spoken: Option<u32>,
+    /// [`crate::game::Game::spoken`]'s count at the previous tick — the edge
+    /// for the six sites a screen has to report rather than a director find.
+    spoken: Option<u32>,
     /// **Where every unit stood at the last tick**, so that a unit *entering a
     /// tile* can be noticed without the simulation reporting it. See
     /// [`Director::hear_the_march`].
@@ -1490,6 +1493,22 @@ impl Director {
                 }
             }
             self.nobles_spoken = Some(game.nobles_spoken);
+        }
+
+        // **The lines a screen decided on and could not play.** Six of the
+        // original's `Sound_PlayFile` sites are inside a screen's own handler,
+        // guarded by state that screen keeps to itself and that is gone by the
+        // next tick — so there is nothing here to diff and the screen reports
+        // the line instead. See [`crate::game::Game::spoken`] for why the
+        // count rather than the name is the edge.
+        //
+        // Both groups are bare `Sound_PlayFile(name, 1, 0)`, so a line asked
+        // for while the buffer sounds is dropped: [`Audio::play_file`].
+        if self.spoken != Some(game.spoken.0) {
+            if self.spoken.is_some() && !game.spoken.1.is_empty() {
+                audio.play_file(game.spoken.1, true);
+            }
+            self.spoken = Some(game.spoken.0);
         }
 
         self.hear_the_march(audio, game);

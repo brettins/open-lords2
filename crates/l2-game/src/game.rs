@@ -744,6 +744,27 @@ pub struct Game {
     ///
     /// not-encoded: presentation, and one tick of it.
     pub nobles_spoken: u32,
+
+    /// **A narrator line a screen has already decided on** — a monotone count
+    /// and the file, the newest of which [`crate::audio::Director`] plays.
+    ///
+    /// Ours, and the same mechanism as [`Game::nobles_spoken`] for the same
+    /// reason: a screen may not reach [`crate::audio::Audio`]
+    /// (`docs/netcode.md` D-3), and six of the original's `Sound_PlayFile`
+    /// sites sit *inside* a screen handler with their condition on state the
+    /// screen keeps to itself. `SaveLoad_Tick` (`0x004AD9F0`) has two, on the
+    /// frame the thumb up's latch is taken up; the merchant's four quantity
+    /// handlers — `FUN_00435339`, `FUN_0043543D`, `FUN_00435541`,
+    /// `FUN_004355DB` — have one each, on the step that crosses from selling
+    /// into buying. Neither condition survives to the next tick, so a diff
+    /// cannot see it and the screen has to say so.
+    ///
+    /// The count and not the name is the edge, because two presses of the same
+    /// button are two lines: [`Game::nobles_spoken`]'s note is the argument.
+    ///
+    /// not-encoded: presentation, and one tick of it. What a screen asked the
+    /// narrator for cannot change a number in the world.
+    pub spoken: (u32, &'static str),
 }
 
 /// **`+0x07` — the frame each unit's tick handler wrote, which is not the frame
@@ -944,6 +965,7 @@ impl Game {
             // new game opens the standings on *"Most counties,"*.
             nobles_category: 0,
             nobles_spoken: 0,
+            spoken: (0, ""),
         }
     }
 
