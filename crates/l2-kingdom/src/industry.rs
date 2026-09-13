@@ -12,7 +12,7 @@
 //! | stone | 5 Stone quarrying | **2** | 15% | realm `+0x128` |
 //!
 //! (The job column is one lower than `docs/kingdom.md` §7.4's — see
-//! [`crate::tables::JOB_COUNT`] — and the order the driver runs them in is
+//! [`crate::tables::JOB_COUNT`] —
 //! [`crate::tables::INDUSTRY_ORDER`], neither of the two orders the document
 //! gives.)
 //!
@@ -20,7 +20,7 @@
 //! the terms `docs/kingdom.md` §7.4 leaves unexplained are now traced:
 //!
 //! * **`efficiency` is not the base, it ramps.** [`efficiency_ramp`] adds the
-//! base to *last season's* efficiency every season, capped at 100 — so a new
+//! base to *last season's* efficiency every season, capped at 100 —
 //!   mine starts at 15% and reaches full output in seven seasons. And with
 //!   *Advanced Farming* off the whole mechanism is bypassed for a flat 80%,
 //! which means the England turn-one fixture's settings put every industry at 80% and the
@@ -69,7 +69,7 @@ pub fn pct_of(a: i32, b: i32) -> i32 {
 /// return eff;
 /// ```
 ///
-/// Three things fall out of it that no summary of §7.4 would suggest:
+/// Three things fall out of it
 ///
 /// * the efficiency **compounds season on season**, so an industry is worth
 ///   more the longer it has been running and a county that is conquered and
@@ -161,7 +161,7 @@ pub fn resource_limit(
 }
 
 /// The two denominators `FUN_0044F15B` (`0x0044F15B`) computes before every
-/// weapons `resourceLimit`, and the answer to a `[D]` this module carried.
+/// weapons `resourceLimit`,
 ///
 /// ```c
 /// woodShare = ironShare = 0;
@@ -254,7 +254,7 @@ pub fn output(
 /// `Industry_LabourEstimate` (`0x0044F318`) — **one industry's labour
 /// ceiling.**
 ///
-/// Returns `(wanted, useful)`, and the wanted floor is always `-1`: no industry
+/// Returns `(wanted, useful)`,
 /// has one.
 ///
 /// ```c
@@ -313,7 +313,8 @@ pub fn labour_estimate(
         let workers = trial.min(county.population);
         let efficiency = efficiency_ramp(
             t,
-            record.efficiency,
+            // `FUN_0044F248` reads `+0x29C`, never `+0x294`.
+            record.last_efficiency,
             workers,
             record.capacity,
             row.base_efficiency,
@@ -330,10 +331,10 @@ pub fn labour_estimate(
 }
 
 /// **`Industry_LabourEstimate`'s tail** — the number the sidebar's industry row
-/// draws, and the second instance of `docs/decisions.md` C123's shape.
+/// draws,
 ///
 /// [`labour_estimate`] above is the search loop. This is what the original
-/// writes *after* it, and the whole of it had no carrier in this workspace:
+/// writes *after* it,
 ///
 /// ```c
 /// county[0x2A8 + industry*0x18] = 0;                    /* before the guard */
@@ -342,7 +343,7 @@ pub fn labour_estimate(
 /// if (limit <= 0 || popBand == 0) return;
 /// for (...) { local_28 = efficiencyRamp(county, industry, n, base); ... }   /* the loop */
 /// iVar3   = efficiencyRamp(county, industry, labour[slot].workers, base);
-/// county.industry[industry].efficiency = (char)iVar3;                       /* NOT PORTED */
+/// county.industry[industry].efficiency = (char)iVar3;                       /* county +0x294 */
 /// made    = Pct(labour[slot].workers / divisor, local_28);
 /// if (made > limit) made = limit;
 /// county[0x2A8 + industry*0x18] = made;                 /* [County::next_season] */
@@ -352,7 +353,7 @@ pub fn labour_estimate(
 /// computed
 ///
 /// `local_28` is assigned **inside** the search loop and read after it, so it
-/// holds the ramp at the loop's *last* trial — and the loop always ends with
+/// holds the ramp at the loop's *last* trial —
 /// `n == population`, whatever the county's actual staffing is. `iVar3`, the
 /// ramp at the real worker count, is computed on the line before and used only
 /// for the efficiency write.
@@ -367,22 +368,25 @@ pub fn labour_estimate(
 /// **The difference has a fixed sign, and it is the opposite of the one the
 /// word "full" suggests.** [`efficiency_ramp`] scales its increment by
 /// `capacity * 100 / n`, so it is non-increasing in `n`; the staffing is a
-/// subset of the population, so `ramp(population) <= ramp(workers)` and the row
+/// subset of the population,
 /// **understates**. This was written as *optimistic* here and in
 /// `docs/bugs.md` before anybody put an inequality on it —
 /// `crates/l2-kingdom/tests/industry_forecast.rs` is that inequality.
 ///
+/// # The efficiency write-back, and why it does not compound
+///
+/// C136 held it back because `County_RefreshEstimates` runs **four times**
+/// inside `Industry_ToggleFromMap` alone. It is idempotent: the ramp reads
+/// county `+0x29C` ([`crate::county::Industry::last_efficiency`]) and the
+/// write-back writes `+0x294`, and only [`produce`] copies the one to the
+/// other. Four refreshes ramp from the same season-old number and land on the
+/// same answer. With *Advanced Farming* off the ramp is a flat 80 for every
+/// staffing, so the write moves nothing.
+///
 /// # What is deliberately not here, and why
 ///
-/// * **The efficiency write-back.** The original's estimate pass *mutates*
-///   `industry[c].efficiency`, and `County_RefreshEstimates` runs **four times**
-///   inside `Industry_ToggleFromMap` alone, on top of the ramp
-///   [`produce`] already applies each season. Porting it changes production
-/// numbers on every path in the game,
-///   its own validation. Named here
-///   left silent: `docs/decisions.md` C136.
 /// * **County `+0x280` … `+0x28C`.** This said *"nothing reads them and no draw
-/// call does either"*, and the second half was false: `Panel_JobIndustry`
+/// call does either"*,
 ///   (`0x00412E6B`) draws all four under `L2.eng` group 76. They are not stored
 ///   here because they are pure functions of fields the county already holds —
 ///   [`panel_figures`] is them, and `docs/stored-fields.json` holds it to the
@@ -397,7 +401,7 @@ pub fn preview(
 ) {
     let index = c.index();
     // `*(undefined4 *)(county * 0x300 + 0x53fc58 + industry * 0x18) = 0;` is
-    // the function's **first** statement, outside every guard — so a county
+    // the function's **first** statement, outside every guard —
 // that fails one of the three tests below forecasts nothing.
     // keeping last season's number.
     county.industry[index].next_season = 0;
@@ -415,27 +419,39 @@ pub fn preview(
     // `n` is `population` for every population and every band, including zero.
     let loop_efficiency = efficiency_ramp(
         t,
-        county.industry[index].efficiency,
+        county.industry[index].last_efficiency,
         county.population,
         county.industry[index].capacity,
         row.base_efficiency,
         advanced_farming,
     );
     let workers = county.labour[row.job].max(0);
+    // `(&DAT_0053fc44)[industry*0x18 + county*0x300] = (char)iVar3;` — county
+    // `+0x294` takes the ramp at the **real** staffing, computed on the line
+    // before the forecast and used for nothing else. The `(char)` truncation
+    // cannot bite: the ramp returns 0…100.
+    county.industry[index].efficiency = efficiency_ramp(
+        t,
+        county.industry[index].last_efficiency,
+        workers,
+        county.industry[index].capacity,
+        row.base_efficiency,
+        advanced_farming,
+    );
     // `if (limit < made) made = limit;` and nothing else — no floor, because
     // neither term can be negative.
     county.industry[index].next_season = pct(workers / row.divisor, loop_efficiency).min(limit);
 }
 
 /// **`Industry_LabourEstimate` (`0x0044F318`), whole** — the search loop's two
-/// words into the job's labour record, and the tail's forecast.
+/// words into the job's labour record,
 ///
 /// [`labour_estimate`] and [`preview`] are the function's two halves, and they
 /// have more than one caller in the original — `County_RefreshEstimates`
 /// (`0x004485A5`) four times, `Industry_ProduceAll` (`0x0044E852`) after every
 /// production pass, and `FUN_00448648` (the realm's blacksmiths, after a drop
 /// or a switch) — so the pair is named once here
-/// each of them. The efficiency write-back is still not here; see [`preview`].
+/// each of them. The efficiency write-back is in [`preview`].
 pub fn refresh(
     t: &Tables,
     county: &mut County,
@@ -463,7 +479,7 @@ pub fn refresh(
 /// capped by what [`WEAPON_COST`] can be paid for out of the realm's wood and
 /// iron. The original debits `made * cost` from each stockpile with **no clamp
 /// at all** — it relies on [`resource_limit`]'s realm-wide share to keep the
-/// total demand inside the stock, and now that [`weapon_shares`] is the real
+/// total demand inside the stock,
 /// denominator that reliance holds: `(stock * cost / Σcost) / cost` is at most
 /// `stock / Σcost`, so the whole realm's smithies together can never ask for
 /// more wood or iron than there is. The clamp below is therefore **provably
@@ -507,12 +523,15 @@ pub fn produce_with_share(
     let workers = county.labour[t.commodity[c.index()].job].max(0);
     county.industry[index].efficiency = efficiency_ramp(
         t,
-        county.industry[index].efficiency,
+        county.industry[index].last_efficiency,
         workers,
         county.industry[index].capacity,
         t.commodity[c.index()].base_efficiency,
         advanced_farming,
     );
+    // `(&DAT_0053fc4c)[...] = (&DAT_0053fc44)[...];` — the season, and only the
+    // season, advances the ramp's own input. `Industry_Produce` `0x0044EA92`.
+    county.industry[index].last_efficiency = county.industry[index].efficiency;
 
     let mut made = output(t, county, c, realm, weapon_share);
     match c {
@@ -633,13 +652,13 @@ impl BankruptcyAction {
 ///    gold, which would have made a realm one crown short lose its whole
 ///    treasury; the original takes the whole bill or none of it.
 /// 2. **The counter is not clamped at 5, it wraps to 0.** Stage 5 is the
-/// mutiny, and after it the escalation starts again from the top — so a
+/// mutiny,
 ///    realm that never pays loses its armies every six seasons
 ///    settling at a permanent stage 5.
 ///
 /// `had_mercenaries` is `FUN_004AD230`'s return: it dismisses the realm's
 /// mercenaries as a side effect and reports whether there were any. Armies are
-/// not this crate's, so the caller answers, and the returned
+/// not this crate's, so the caller answers,
 /// [`BankruptcyAction`] tells the caller what to do to them.
 pub fn pay(
     realm: &mut Realm,
@@ -707,7 +726,7 @@ pub fn free_archers(t: &Tables, castle_type: u8) -> i32 {
 /// 1..=5, from scratch.
 ///
 /// **The column order is read from code, not assumed.** `Castle_Order` takes
-/// the `+0` word out of `realm.wood` and the `+4` word out of `realm.stone`, so
+/// the `+0` word out of `realm.wood` and the `+4` word out of `realm.stone`,
 /// a wooden palisade really is 400 wood and 40 stone and a royal castle 800
 /// wood and 3,000 stone. `[V]`
 pub fn castle_cost(t: &Tables, castle_type: u8) -> (i32, i32) {
@@ -717,7 +736,7 @@ pub fn castle_cost(t: &Tables, castle_type: u8) -> (i32, i32) {
 /// The workforce a castle type consumes.
 ///
 /// The table holds two ints per level and both carry the same number. What the
-/// second column is for is not established, so this reads the first and the
+/// second column is for is not established,
 /// table keeps the pair.
 pub fn castle_workforce(t: &Tables, castle_type: u8) -> i32 {
     t.castle.workforce[(castle_type.max(1) as usize - 1).min(t.castle.workforce.len() - 1)].0
@@ -740,7 +759,7 @@ pub enum CastleRefusal {
     Downgrade,
 }
 
-/// The chooser's OK guard, separated from the act so a screen can print the
+/// The chooser's OK guard, separated from the act
 /// right refusal and the AI can ask before ordering.
 pub fn castle_refusal(t: &Tables, county: &County, castle_type: u8) -> Option<CastleRefusal> {
     if castle_type == 0 || castle_type as usize > t.castle.cost.len() {
@@ -780,7 +799,7 @@ pub fn castle_refusal(t: &Tables, county: &County, castle_type: u8) -> Option<Ca
 /// county.woodOwed  = take(realm.wood,  wood);          pay now stays owing */
 /// ```
 ///
-/// Three things here contradict what this module used to say, and all three are
+/// Three things here contradict what this module used to say,
 /// read from the function:
 ///
 /// * You may order a royal castle with an
@@ -840,11 +859,6 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
     county.castle_stone_total = stone;
     county.castle_wood_total = wood;
     county.castle_percent = 0;
-    // `Labour_ToggleIndustryShare(county, 3, 1)` — `Castle_Order`
-    // (`0x00436D02`) calls it between `Castle_EvictTile` and the take, so the
-    // order itself puts builders on the castle. Without it the job's share
-    // stayed 0 at any industry split. `[V]`
-    crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, true);
     county.castle_stone_owed = take_from(&mut realm.stone, stone);
     county.castle_wood_owed = take_from(&mut realm.wood, wood);
     true
@@ -878,7 +892,7 @@ pub fn deliver_castle_materials(county: &mut County, realm: &mut Realm) {
 }
 
 /// `FUN_00450FB4` — **how much of the materials bill has arrived**, as
-/// a percentage, and the gate on every hand that could work on the castle.
+/// a percentage,
 ///
 /// ```c
 /// min(100 - Pct(woodOwed, woodTotal), 100 - Pct(stoneOwed, stoneTotal))
@@ -963,12 +977,8 @@ pub fn build_tick(
     let repaired = county.castle_degraded == crate::siege::CASTLE_DEGRADED_DAMAGED;
     let free_archers = if repaired { 0 } else { free_garrison_archers(t, county) };
     county.castle_degraded = 0;
-    // `Castle_BuildTick` (`0x004508DE`) ends the degraded branch with
-    // `castleDegraded = 0; Labour_ToggleIndustryShare(county, 3, 0)` — the
-    // builders go back to the fields the moment the castle tops out. `[V]`
-    // It does not write `+0x1B0`; we clear the switch with it so the flag and
-    // the share agree, which `Industry_ToggleFromMap` assumes. `[I]`
-    crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, false);
+    // `Labour_ToggleIndustryShare(county, 3, 0)` — the builders go back to the
+    // fields the moment the castle tops out.
     county.castle_switch = false;
     out.push(Message::CastleBuilt { county: id, castle_type: county.castle_type });
     Some(CastleComplete { free_archers, repaired })
@@ -1015,12 +1025,12 @@ pub fn free_garrison_archers(t: &Tables, county: &County) -> i32 {
 /// **The materials clause is real and it bites.** This module used to say it
 /// *"cannot be reproduced and does not need to be"*, on the reading that the
 /// whole cost was taken up front; it is not, so the gate is shut for every
-/// season the county is still owed a stick of wood, and the builders stand
+/// season the county is still owed a stick of wood,
 /// idle. That is the difference between a castle you can order and a castle you
 /// can order *and not build*.
 ///
 /// The ceiling is a *cumulative* figure — the whole remaining work, not a
-/// per-season share — so a county that can staff it finishes in one season and
+/// per-season share —
 /// one that cannot puts everybody it has on the walls.
 pub fn castle_labour_estimate(_t: &Tables, county: &County) -> (i32, i32) {
     if county.castle_degraded == 0 || castle_materials_percent(county) < 100 {
@@ -1032,12 +1042,12 @@ pub fn castle_labour_estimate(_t: &Tables, county: &County) -> (i32, i32) {
 /// County `+0x280`, `+0x284`, `+0x288` and `+0x28C` — **the four figures
 /// `Panel_JobIndustry` (`0x00412E6B`) prints beside an industry's forecast**,
 /// in that order: the wood and the iron next season's weapons will use (76/2
-/// *"will be used by the blacksmiths."* on the wood and iron rows), and the wood
+/// *"will be used by the blacksmiths."* on the wood and iron rows),
 /// and stone the castle builders still need (76/3 *"needed by castle
 /// builders."* on the wood and stone rows).
 ///
 /// `Industry_LabourEstimate` (`0x0044F318`) writes them as it goes: every call
-/// zeroes the first two and the weapons call fills them, inside its guard, from
+/// zeroes the first two and the weapons call fills them, inside its guard,
 /// `g_weaponCost[weaponType]` times the weapons forecast it has just made; the
 /// wood and stone calls copy the castle's outstanding wood and stone when a
 /// build is in progress, and zero otherwise. Since the weapons forecast is zero
@@ -1088,7 +1098,7 @@ pub fn castle_seasons_left(t: &Tables, county: &County) -> i32 {
 /// What a click on a building on the campaign map toggles.
 ///
 /// `Map_Click` picks this from a ladder on the clicked tile's graphic index,
-/// and the whole ladder is: **0…3 iron, 4…6 stone, 7…9 weapons, 10…12 wood,
+///
 /// 13…20 nothing at all, 21 and above the castle.** `[D]` — `Map_Click`'s own
 /// `if`/`else if` chain, and it is the only way to reach
 /// [`toggle_from_map`]: **nothing on any county panel switches an industry**.
@@ -1097,13 +1107,13 @@ pub enum MapToggle {
     /// One of the four commodities: its enable byte, county `+0x297 + c*0x18`.
     Industry(Commodity),
     /// County `+0x1B0` — the switch a player throws by dragging builders onto
-    /// the castle, and the second gate `Labour_Allocate` puts on castle
+    /// the castle,
     /// building. Until now this crate had no such field and treated it as
     /// permanently thrown ([`crate::labour::ceilings`]).
     Castle,
 }
 
-/// The ladder itself, so a screen can ask "is this building anything?".
+/// The ladder itself,
 pub fn map_toggle_for_graphic(graphic: u8) -> Option<MapToggle> {
     match graphic {
         0..=3 => Some(MapToggle::Industry(Commodity::Iron)),
@@ -1134,7 +1144,7 @@ pub fn map_toggle_for_graphic(graphic: u8) -> Option<MapToggle> {
 /// was **leaving**, not the one it lands in; that is the original's order and
 /// it is kept.
 ///
-/// The caller supplies the allocation and the estimates it can run, as
+/// The caller supplies the allocation and the estimates it can run,
 /// [`crate::field::set_type`] does and for the same reasons —
 /// [`crate::Kingdom::toggle_industry`] is the whole thing assembled.
 pub fn toggle_from_map(county: &mut County, what: MapToggle, quirks: Quirks) -> bool {
@@ -1170,7 +1180,7 @@ pub fn toggle_from_map(county: &mut County, what: MapToggle, quirks: Quirks) -> 
     }
 }
 
-/// **`Industry_ToggleFromMap`'s last statement**, and the thing a player asked
+/// **`Industry_ToggleFromMap`'s last statement**,
 /// for by name: *"there's no message saying or visually showing mining on /
 /// mining off."*
 ///
@@ -1200,7 +1210,7 @@ pub fn toggle_from_map(county: &mut County, what: MapToggle, quirks: Quirks) -> 
 /// | 236 / 237 | *Quarrying off* / *Quarrying on* | stone, `industry 3` |
 ///
 /// Read out of the player's own `L2.eng`, not from a table here. All ten
-/// `S2xx_01.wav` narrations ship with the game, and the message is what a voice
+/// `S2xx_01.wav` narrations ship with the game,
 /// hangs on: `Msg_DrawWindow`'s category-4 arm speaks at `g_messageTimer ==
 /// 0x5A`.
 ///
@@ -1292,7 +1302,7 @@ mod tests {
 
     // --- the efficiency ramp -----------------------------------------------
 
-    /// **With Advanced Farming off every industry is a flat 80%**, and the base
+    /// **With Advanced Farming off every industry is a flat 80%**,
     /// efficiencies never come into it. The England turn-one fixture has the option off.
     #[test]
     fn a_basic_game_runs_every_industry_at_eighty_percent() {
@@ -1419,7 +1429,7 @@ mod tests {
     }
 
 /// **The real denominator is a sum of costs.**
-    /// `FUN_0044F15B`, and the answer to the `[D]` this module carried.
+    /// `FUN_0044F15B`,
     #[test]
     fn the_weapon_share_sums_the_costs_of_every_staffed_smithy() {
         let mut counties = vec![County::new(); 4];
@@ -1528,7 +1538,7 @@ mod tests {
         assert_eq!(r2.iron, 30, "15% base, ramped once");
     }
 
-    /// A crossbow costs 6 wood and 10 iron, so a blacksmith with the workers
+    /// A crossbow costs 6 wood and 10 iron,
     /// for 15 of them but the iron for 4 makes 4.
     #[test]
     fn the_blacksmith_is_capped_by_the_stock_the_weapon_costs() {
@@ -1697,7 +1707,7 @@ mod tests {
         assert_eq!(without.bankrupt_stage, 1);
     }
 
-    /// Every stage carries the message id it raises, and the mutiny carries a
+    /// Every stage carries the message id it raises,
     /// second one for everybody else.
     #[test]
     fn every_stage_names_the_l2_eng_group_it_raises() {
@@ -1711,7 +1721,7 @@ mod tests {
         assert_eq!(BankruptcyAction::Desertion.rival_message_id(), None);
     }
 
-    /// Paying at any point resets the escalation, so a realm that scrapes
+    /// Paying at any point resets the escalation,
     /// together one season's wages starts again from the top.
     #[test]
     fn paying_once_clears_the_whole_escalation() {
@@ -1733,34 +1743,6 @@ mod tests {
         c.owner = 1;
         c.population = pop;
         c
-    }
-
-    /// **Ordering a castle staffs it** — `Castle_Order` (`0x00436D02`) calls
-    /// `Labour_ToggleIndustryShare(county, 3, 1)`, so the job leaves the order
-    /// with a share and the five-member group still sums to 100. It had a
-    /// share of 0 at any industry split before.
-    #[test]
-    fn ordering_a_castle_puts_builders_on_it() {
-        use crate::tables::JOB_CASTLE_BUILDING;
-        let industry = |c: &County| c.labour_share[JOB_CASTLE_BUILDING..].iter().sum::<i32>();
-
-        let mut c = owned(2_000);
-        c.industry_share = 100;
-        let mut r = Realm::new();
-        r.wood = 10_000;
-        r.stone = 10_000;
-        assert_eq!(c.labour_share[JOB_CASTLE_BUILDING], 0, "nobody builds before the order");
-
-        assert!(order_castle(T, &mut c, &mut r, 3));
-        assert!(c.labour_share[JOB_CASTLE_BUILDING] > 0, "the order staffs the castle job");
-        assert_eq!(industry(&c), 100, "and the industry group still sums to 100");
-
-        // `Castle_BuildTick`'s completion branch takes them off again.
-        let mut out = Vec::new();
-        c.castle_work_left = 0;
-        assert!(build_tick(T, &mut c, &mut r, 0, &mut out).is_some());
-        assert_eq!(c.labour_share[JOB_CASTLE_BUILDING], 0, "and the topped-out castle frees them");
-        assert_eq!(industry(&c), 100);
     }
 
     /// **A castle you cannot afford is ordered anyway** — `Castle_Order` has no

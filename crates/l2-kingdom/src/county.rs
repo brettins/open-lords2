@@ -150,7 +150,21 @@ pub struct Industry {
     pub output: i32,
     /// County `+0x294`, the efficiency percentage. It **ramps**: see
     /// [`crate::industry::efficiency_ramp`], which is `FUN_0044F248`.
+    ///
+    /// Production multiplies by **this** byte, and both
+    /// `Industry_Produce` (`0x0044EA92`) and `Industry_LabourEstimate`
+    /// (`0x0044F318`) write it.
     pub efficiency: i32,
+    /// County `+0x29C` — the **ramp's input**
+    /// pass can write [`Industry::efficiency`] without compounding.
+    ///
+    /// `Industry_EfficiencyRamp` (`0x0044F248`) reads `+0x29C`; only
+    /// `Industry_Produce` (`0x0044EA92`) writes it, as a copy of `+0x294`
+    /// right after the season's ramp. So the four `County_RefreshEstimates`
+    /// calls inside one `Industry_ToggleFromMap` all ramp from the same
+    /// season-old number and land on the same answer. `[V]`, both offsets read
+    /// out of the two functions.
+    pub last_efficiency: i32,
     /// County `+0x29E` — the worker count this industry can absorb at full
     /// value. Above it the ramp's increment is scaled down by
     /// `capacity / workers`, so piling on more serfs raises the output but
@@ -214,6 +228,7 @@ impl Industry {
         Industry {
             output: 0,
             efficiency: c.base_efficiency(),
+            last_efficiency: c.base_efficiency(),
             capacity: 0,
             has_resource: true,
             enabled: true,
@@ -363,7 +378,7 @@ pub struct County {
 ///   `FUN_0044B4F3` — it is inside
     ///   `Territory_BlockContains`. Its last statement is
     ///   `if (realm == 0) county.purse += county.taxCollected;` against the
-    ///   `else` that credits `realm.gold` and the two realm accumulators.
+    /// `else` that credits `realm.gold` and the two realm accumulators.
     ///   [`crate::tax::bank`] is that branch.
     /// * *"It is 0 in every fixture"* was **false**, and it is the sentence
     ///   that kept the neutral counties from shopping. Read out of the six
@@ -417,7 +432,7 @@ pub struct County {
     ///   cannot break even at any staffing, the least-bad count.
     /// * **Every other job** writes [`LABOUR_NO_FLOOR`]: reclamation
     ///   (`Field_ReclaimEstimate`, `0x0044C278`), castle building
-    ///   (`Castle_BuildEstimate`, `0x00450E46`) and the four industries
+    /// (`Castle_BuildEstimate`, `0x00450E46`) and the four industries
     ///   (`FUN_0044F318`) all set it to −1, meaning *no requirement*.
     ///
     /// Two things read it, and both are interface: `Panel_JobDetail` colours
@@ -448,7 +463,7 @@ pub struct County {
     ///
     /// and **0 whenever the county has no such resource**, which is how a
     /// county with no mine ends up with no miners without the slot ever going
-    /// away. [`LABOUR_UNSET`] means the estimate has never run and the
+    /// away. [`LABOUR_UNSET`] means the estimate
     /// allocator reads it as 0.
     pub labour_useful: [i32; JOB_COUNT],
     /// `+0x130 + job*0x04` — **eight percentages, one per job**, and the
@@ -638,7 +653,7 @@ pub struct County {
     /// > `Castle_DeliverMaterials` (`0x00450CCD`) then takes whatever the realm
     /// > has at the top of every season until the debt is clear. Until it *is*
     /// > clear `Castle_BuildEstimate` gives the castle job a ceiling of **zero**
-    /// > — so a castle ordered without the stone for it stands still, with the
+    /// > —
     /// > builders idle, and eats the realm's quarry output as it arrives.
     pub castle_stone_owed: i32,
     pub castle_stone_total: i32,
@@ -737,7 +752,6 @@ pub struct County {
     /// crop, and repainting *more* land as grain does nothing until next
     /// year's sowing.
     ///
-    /// **`+0x206` is not a second copy of this**
     /// used to say. The two are written together, once, by the sowing clause,
     /// but only `+0x206` is ever stepped down again — see
     /// [`County::fields_grain_standing`].
@@ -763,7 +777,7 @@ pub struct County {
     /// `Grain_SeasonTick` reads it immediately afterwards and records the
 /// county's field usage as **1** when it is set.
     /// It is deliberately *not* cleared on `Grain_Sow`'s two early exits — no
-    /// store, or nobody on the fields — so a county that sowed nothing at all
+    /// store, or nobody on the fields —
     /// carries last year's flag. That is the original's; nothing observable
     /// depends on it, because the crop is 0 either way.
     pub sow_shortfall: bool,
@@ -776,7 +790,7 @@ pub struct County {
     ///
 /// **Stored**, because the original stores it and the
     /// difference is observable: `FUN_0044D913` recomputes it at the *end* of
-    /// the herd's tick, so a season's births and deaths are worked out at the
+    /// the herd's tick,
     /// crowding the herd had when the season began. See
     /// [`crate::land::herd_crowding`].
     pub herd_crowding: i32,
@@ -861,7 +875,7 @@ pub struct County {
     /// *derived* — every estimate round recomputes them from state the digest
     /// already carries — so they cannot diverge on their own and could have been
     /// left out. They are in anyway, for the reason the three cattle fields
-    /// above them are: **nothing re-runs the estimate round on load**, so a
+    /// above them are: **nothing re-runs the estimate round on load**,
     /// reloaded game would show a blank produce row until the next turn ended,
     /// and a blank row is exactly the defect this field exists to fix. A field
     /// that is cheap to carry and visible when absent is carried.
@@ -901,7 +915,7 @@ pub struct County {
     ///
     /// `Ai_ManageCountyFarms` (`0x0049DD01`) writes the owning lord's
     /// `farmStyle` here every pass and dispatches on it. The unowned counties'
-    /// pass, `AI_ManageFields(0)` (`0x0049DFC6`), only *reads* it — so a county
+    /// pass, `AI_ManageFields(0)` (`0x0049DFC6`), only *reads* it —
     /// that has fallen out of a realm keeps farming the way its last lord
     /// farmed, and one whose last lord was a style-9 mixer is farmed by nobody
     /// at all, because the neutral pass dispatches only 0 and 1.

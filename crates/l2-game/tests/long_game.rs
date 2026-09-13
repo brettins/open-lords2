@@ -8,13 +8,12 @@
 //! Everything here is our own arithmetic agreeing with itself —
 //! oracle for turn 100 of England and there will not be one until a person
 //! plays it (`docs/plan.md` §5 item 1). So the assertions are of two kinds only,
-//! and the distinction is the whole design:
+//!
 //!
 //! * **Invariants** — statements the original's own functions maintain, which
 //!   are true whatever the numbers come out as. A labour split that no longer
 //!   sums to the population is a defect at any turn count.
 //! * **Reachability** — *a rule fired at all*. `docs/decisions.md` C27: a rule
-//! with no way in is not a rule the game has, and until today none of these
 //!   had a way in.
 //!
 //! Nothing here asserts a *value*, because nothing here could justify one.
@@ -43,7 +42,7 @@ const TURNS_LONG: usize = 600;
 // The census: which late-game rules have fired, and when they first did.
 // ---------------------------------------------------------------------------
 
-/// One rule, and the turn it first fired on.
+/// One rule,
 #[derive(Debug, Default)]
 struct Census {
     first: BTreeMap<&'static str, usize>,
@@ -73,7 +72,7 @@ impl Census {
     }
 
     /// Everything the pass reads out of one turn's messages and one turn's
-    /// state. Kept in one place so the England run and the synthetic run
+    /// state. Kept in one place so the England run
     /// measure the same things.
     fn observe(&mut self, k: &Kingdom, messages: &[Message], turn: usize) {
         for m in messages {
@@ -227,7 +226,7 @@ impl Census {
 /// Everything that must be true of a kingdom between two turns, whatever the
 /// numbers are. Returns the first violation as a sentence.
 ///
-/// **Each clause names the original function that maintains it**, so a failure
+/// **Each clause names the original function that maintains it**,
 /// says which subsystem to look at
 fn invariant(k: &Kingdom) -> Result<(), String> {
     for id in 1..=k.county_count {
@@ -289,7 +288,7 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
     for r in 1..l2_kingdom::MAX_REALMS {
         let realm = &k.realms[r];
         // `Realm_Recount` (`0x0049B3AC`) rewrites `county_count` from a sweep
-        // of the counties, so it and the sweep must agree.
+        // of the counties,
         let held = (1..=k.county_count).filter(|&id| k.counties[id].owner == r as u8).count();
         if realm.county_count as usize != held {
             return Err(format!(
@@ -456,7 +455,7 @@ fn scoreline(k: &Kingdom, label: &str) {
 // The runs.
 // ---------------------------------------------------------------------------
 
-/// **A hundred turns of England.** The real position, the real map.
+/// **A hundred turns of England.** The real position,
 #[test]
 fn a_hundred_turns_of_england() {
     let save = l2_testkit::england!();
@@ -527,7 +526,7 @@ fn a_hundred_turns_of_england() {
 /// a change to any economic rule can move that legitimately. If one goes red,
 /// read the census this test prints before assuming a defect: the question to
 /// ask is whether the rule became **unreachable**, which is C27's failure and a
-/// real one, or merely late.
+/// real one,
 ///
 /// # It has gone red once, and this is the reading it asked for
 ///
@@ -543,25 +542,36 @@ fn a_hundred_turns_of_england() {
 /// | battles in 400 turns | 65 | 30 |
 /// | *THE GAME WAS WON* | turn 212 | never |
 /// | first bankruptcy | turn 144 | turn 480 |
-/// | mutiny (stage 5) | turn 151 | not in 1200 |
-/// | a tax rate ≥ 20 | turn 136 | not in 1200 |
+/// | mutiny (stage 5) | turn 151 | turn 103 |
+/// | a tax rate ≥ 20 | turn 136 | turn 78 |
 ///
 /// **The mechanism is interception.** Half as many battles, because an army
-/// sent at an enemy now spends most of a season walking and the enemy has
+/// sent at an enemy now spends most of a season walking
 /// moved by the time it arrives — which is what the original does, at the
 /// original's speed. Realm 3 runs away with the map but cannot catch realm 2's
 /// last 42-man army, so nobody wins, so the endgame collapse that used to
 /// bankrupt the losers never happens inside four hundred turns.
 ///
 /// So: **late, not unreachable** — bankruptcy and its desertion arm still fire,
-/// at 480 and 486, and the horizon here is [`TURNS_LONG`] to reach them. The
-/// other two are neither: **mutiny and a tax rate at or above 20 are no longer
-/// reached by this fixture at all**, at any horizon tried. Their assertions are
-/// gone from this test
-/// twelve-hundred-turn test that still fails is not evidence of anything. They
-/// need a *dealt* board — `england_with_an_empire` below already deals one for
-/// the tax term — and that is a real gap, recorded here
-/// an assertion nobody can satisfy.
+/// at 480 and 486, and the horizon here is [`TURNS_LONG`].
+///
+/// # The last two rows read `not in 1200`, and they were wrong
+///
+/// They were one build's trajectory written down as a property of the fixture.
+/// On this one the mutiny fires 3 times from turn 103 and a tax rate ≥ 20 is
+/// carried 25 times from turn 78. Both are the binary's rules, and neither
+/// needs the dealt board this said they needed:
+///
+/// * **The mutiny re-fires because the counter wraps.** `Wages_PayAll`
+/// (`0x004ACBD4`) sets stage 5 → 0 at the mutiny, so a
+///   realm that never pays loses its armies every six seasons for ever.
+/// * **A tax rate ≥ 20 is on no ladder at all.** `AI_SetTaxRates`' four ladders
+///   top out at 15 ([`l2_kingdom::tables::AI_TAX_LADDERS`]). The rates above 19
+///   come from `FUN_0049F431`, AI step 7's abandon pass, which sets 32, 28, 23
+///   or 35 by the lord's personality on a county it has decided it cannot hold
+///   — [`l2_kingdom::tables::AI_PERSONALITY_ABANDON_TAX_RATE`], `[V]`.
+///
+/// So both assertions are back, as trajectory assertions like the two above.
 ///
 /// # Red a second time, and that assertion was wrong
 ///
@@ -579,8 +589,7 @@ fn a_hundred_turns_of_england() {
 /// The reachability claim therefore moved to
 /// [`a_realm_cut_in_two_loses_the_far_half_through_the_turn_machine`], which
 /// deals the cut. What stays here is the invariant: nobody is left holding two
-/// blocks. Measured, not asserted: the mutiny fires again at turn 100 and a tax
-/// rate ≥ 20 at turn 78, which the table above calls unreachable.
+/// blocks.
 #[test]
 fn four_hundred_turns_of_england_reaches_the_rules_nothing_else_can() {
     let save = l2_testkit::england!();
@@ -602,6 +611,22 @@ fn four_hundred_turns_of_england_reaches_the_rules_nothing_else_can() {
          `Wages_PayAll` has never executed",
         census.max_bankrupt_stage
     );
+    // `Wages_PayAll` (`0x004ACBD4`) wraps stage 5 to 0, so a realm that
+    // pays mutinies every six seasons.
+    assert!(
+        census.fired("bankruptcy: MUTINY"),
+        "the bankruptcy counter reached {} and never wrapped — the mutiny arm of \
+         `Wages_PayAll` has never executed",
+        census.max_bankrupt_stage
+    );
+    // No tax ladder goes above 15. A rate this high is `FUN_0049F431`, AI step
+    // 7's abandon pass, stripping a county it has given up on.
+    assert!(
+        census.fired("a tax rate the empire term can see (>= 20)"),
+        "no county was ever taxed at 20 or more, so `TAX_HAPPINESS_OTHER`'s first row is \
+         the only one the happiness term has ever used; max rate {}",
+        census.max_tax_rate
+    );
     // The invariant, not the trajectory: `SECESSION` firing needs this map's
     // one cut vertex to be dealt, so its absence says nothing about the pass.
     assert!(
@@ -617,7 +642,7 @@ fn four_hundred_turns_of_england_reaches_the_rules_nothing_else_can() {
 /// nothing but county 2, so handing county 1's owner a second county past it
 /// splits the realm into `{1}` and `{3}`. County 2 need not be an enemy's:
 /// `Territory_ExtendBlock` joins through `County_IsNeighbour` (`0x00467E2C`) on
-/// **same-owner** adjacency, so a neutral county is a gap too. Which block is
+/// **same-owner** adjacency,
 /// kept depends on populations the season moves, so nothing below names one.
 fn england_cut_in_two() -> Option<Game> {
     let save = match l2_testkit::england_turn1() {
@@ -676,7 +701,7 @@ fn a_realm_cut_in_two_loses_the_far_half_through_the_turn_machine() {
 /// **A realm holding many counties**, which is the position `docs/plan.md`
 /// §2.5 says the project has no evidence about at all.
 ///
-/// The board is dealt by hand — realm 2 takes six of England's fourteen and the
+/// The board is dealt by hand — realm 2 takes six of England's fourteen
 /// person takes four — and then the rules run. **Nothing here asserts a value**,
 /// because a dealt board is not an oracle for anything; what it does is make
 /// the multi-county rules *reachable*, which is what §2.5 asks for.
@@ -692,7 +717,7 @@ fn england_with_an_empire() -> Option<Game> {
     {
         game.kingdom.counties[id as usize].owner = owner;
     }
-    // A tax rate the empire term can actually see: `TAX_HAPPINESS_OTHER` is
+    // A tax rate the empire term can see: `TAX_HAPPINESS_OTHER` is
     // flat zero from rate 0 to 19 (`docs/decisions.md` C26), so every fixture
     // this project has exercises the one value of the input that cannot
     // distinguish the table from a constant.
@@ -716,7 +741,7 @@ fn a_hundred_turns_of_an_empire_taxed_at_thirty() {
     census.print("empire, 100 turns");
 
     // **Reachability, not values.** Each of these is a rule that had no way in
-    // before this file existed; the assertion is that it has one now, and the
+    // before this file existed; the assertion is that it has one now,
     // message says which rule stayed dark.
     for what in [
         "a realm holding more than one county",
@@ -755,7 +780,7 @@ fn every_shipped_map_survives_twenty_turns() {
         let settings = l2_game::setup::Settings { ai_lords: lords as i32 - 1, ..settings };
         // **A different colour on every map**, cycling 1 … 5 across the 44.
         // The shield moves which realm flies which colour *and which lord sits
-        // behind it*, so a constant here would play forty-four games of the
+        // behind it*,
         // one arrangement `docs/rules.md` §7a's first row describes and leave
         // the other four rows never simulated at all.
         let shield = (slot % 5 + 1) as u8;

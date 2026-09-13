@@ -162,7 +162,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-kingdom/tests/cattle.rs", "saves", 3),
     ("crates/l2-kingdom/tests/defence.rs", "fixture", 2),
     ("crates/l2-kingdom/tests/fields.rs", "england", 11),
-    ("crates/l2-kingdom/tests/industry_forecast.rs", "england", 2),
+    ("crates/l2-kingdom/tests/industry_forecast.rs", "england", 4),
     ("crates/l2-kingdom/tests/oracle.rs", "executable", 6),
     ("crates/l2-kingdom/tests/reproduction.rs", "england", 25),
     ("crates/l2-kingdom/tests/siege.rs", "fixture", 5),
@@ -189,7 +189,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 562;
+const GATED_TOTAL: usize = 564;
 
 /// The workspace root, from this crate's manifest.
 fn repo_root() -> PathBuf {
@@ -255,7 +255,7 @@ fn test_bodies(src: &str) -> Vec<&str> {
 
 /// **One level of indirection has to be followed**, or the census undercounts
 /// badly: most gated tests call a file-local `macro_rules!` or helper that
-/// holds the gate, and the fifteen screen tests would have counted as zero.
+/// holds the gate
 ///
 /// So the preamble is chopped into named items and each is given the gate its
 /// own text names; a test naming such an item inherits it.
@@ -349,7 +349,7 @@ fn the_install_gated_tests_are_the_ones_we_have_written_down() {
     eprintln!("gate census: {GATED_TOTAL} install-gated tests across {} files", INVENTORY.len());
 }
 
-/// **, printed every time and asserted at the
+/// **What this run **
 /// ends.
 ///
 /// Run it with `--nocapture` to see the breakdown. The two ends are the ones
