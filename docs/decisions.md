@@ -11278,3 +11278,62 @@ disagrees, but asserts the total in a separate statement, so a total that is wro
 by a constant survives every run that does not change the list. It is measured at
 merge now — 541 — against the census's own count rather than against the last
 number anybody typed.
+
+---
+
+**C204 — the mine's description is a SIZE band, and the brief that
+opened the arm called it fertility.**
+
+`TileInfo_Draw`'s `flags & 0x80` arm below graphic `0x0D` — the mine, the quarry, the
+blacksmith and the lumber mill — drew nothing at all in our tile panel, so a player who
+clicked a mine got an empty well where a field gets five lines. The gap was inventoried
+and handed on with its addresses; what the handoff got wrong is the one thing a careful
+person would have transcribed straight into the code.
+
+The body index is the site's base plus an offset, and the offset was described as *"a
+fertility-band table"*. **Group 22 is never touched in this arm.** The painter's
+arithmetic is
+
+```c
+iVar2 = industry[c].total - industry[c].totalSnapshot;
+if (industry[c].disabledSeasons == 0) {
+    if (9 < iVar2) { if (iVar2 < 0x19) local_1c += 1; else if (iVar2 < 0x32) local_1c += 2; else local_1c += 3; }
+} else                                  local_1c += 4;
+```
+
+— last season's output, bucketed at 10 / 25 / 50, and `+4` when the record is knocked out.
+`L2.eng` 30/53…57 read *"A small mine."*, *"A medium mine."*, *"A large mine."*, *"A very
+large mine."*, *"A destroyed mine."*, and the other three sites the same, which is what
+settles it: a fertility band on a mine would have been four wrong sentences a player could
+read off the screen. `Sprite_TopIt` (`0x004071A0`) picks the tile's own picture off the
+same difference with the same three thresholds, so the bucketing is `[V]` from two
+painters that share no code.
+
+**And the status line is a different byte from the band.** The working-or-idle tail is
+`industry[c].enabled`, 30/77 and 30/78, while the band's `+4` is `disabledSeasons`. A site
+an army has just trampled therefore reads **operational and destroyed at once** — two
+fields, one screen, and it is the original's. Reproduced rather than tidied, and asserted:
+the arm's test sets one and not the other and demands both sentences.
+
+**Three things the specification did not say, found by building it.**
+
+* **Not all four sites exist in one county.** Every county of the England position carries
+  a blacksmith and a lumber mill and *either* a mine *or* a quarry, never both; county 5
+  has neither. A test that picked four sites out of the player's own county failed on the
+  quarry.
+* **`TileInfo_Draw` and `FUN_0041BEFE` test different ladders.** The painter excludes
+  `0x01` road and `0x08` rough before reaching `0x80`; the *layout* chooser does not. Our
+  `castle_tile` had copied the layout chooser's shorter set, so the shared
+  `settlement_tile` predicate this arm factored out is the painter's, and two bits wider
+  than what stood. No tile in the England position distinguishes them and the test asserts
+  that, so it is a correctness fix with no behaviour behind it yet.
+* **The arm's four `Sound_RestartSlot` calls were already built.** `docs/audio.json`
+  `TileInfo_Draw#1…#4` were `reproduced` before the panel could say a word, fired on the
+  panel opening by `crate::audio`. A player has been hearing the mine ring on a panel that
+  would not name it.
+
+`tools/oracle/sounds.js` could not run from an agent worktree at all — `decomp/` is
+gitignored, so it exists only in the main checkout — and `tools/draws/screendraws.js`
+already carried the three-clause fallback that fixes it. The gate was green everywhere it
+was run and unrunnable everywhere else, which is the shape of a check nobody notices
+losing.
