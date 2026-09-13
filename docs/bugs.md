@@ -910,9 +910,30 @@ The human's way out is to click the buildings off on the campaign map. The AI's 
 `AI_ChooseIndustry`, which switches iron and the blacksmith off outright while a castle is up
 and keeps wood and stone only while `+0x1D4` / `+0x1D0` are still owed — a rule that looks
 like an odd strategic preference until you see it is the only way an AI lord ever finishes
-anything. `docs/kingdom.md` §7.5.2, and
-`a_county_with_its_mines_running_never_gets_round_to_the_castle` in
-`crates/l2-game/tests/castles.rs`.
+anything. `docs/kingdom.md` §7.5.2.
+
+**Correction, and half of this entry goes with it.** `Castle_Order` (`0x00436D02`) ends
+with `Labour_ToggleIndustryShare(county, 3, 1)`, so in the original the castle job leaves
+the order **holding a share**. Ours did not call it; the share stayed 0, and *"none on the
+walls, for ever"* was measured against that. With the share ported a palisade's 200
+man-seasons are done in four seasons with every industry still running —
+`the_orders_labour_share_is_what_gets_a_castle_built` in `crates/l2-game/tests/castles.rs`.
+What survives is the ceiling asymmetry above: wood, iron and stone at 100,000 are never
+full, so the castle gets its share and no more. `[V]` on the call.
+
+### B105 — A county with no castle is told it has barracks for 2500 troops
+
+`Castle_DrawStatusBlock` (`0x0041DEDB`) indexes both of its tables one word low:
+`&DAT_004D8A0C + type*4` and `&DAT_004D8A24 + type*4` are right for types 1 … 5,
+and at type **0** they read `g_castleWorkforce[4].1` and `g_castleGarrisonCap[5]` —
+bytes `c4 09 00 00` and `00 00 00 00`. So the castle block of a county with no
+castle says *"Boosts tax revenues by 0 %"* and *"Barracks for 2500 troops."*
+
+`[V]` on the bytes and on the painter; `siege-aftersie.sav` holds such a county of
+the player's. Reproduced on both screens that draw the block: `screens::job::castle_word`
+is the one function, and the job page and the tile panel both call it. Unswitchable —
+the two words are the whole of what the block says about a castle that is not there,
+and a corrected pair is a different screen, not a variation of it.
 
 ## 2.11 The turn timer
 

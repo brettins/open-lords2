@@ -20,10 +20,10 @@
 //! the terms `docs/kingdom.md` §7.4 leaves unexplained are now traced:
 //!
 //! * **`efficiency` is not the base, it ramps.** [`efficiency_ramp`] adds the
-//!   base to *last season's* efficiency every season, capped at 100 — so a new
+//! base to *last season's* efficiency every season, capped at 100 — so a new
 //!   mine starts at 15% and reaches full output in seven seasons. And with
 //!   *Advanced Farming* off the whole mechanism is bypassed for a flat 80%,
-//!   which means the England turn-one fixture's settings put every industry at 80% and the
+//! which means the England turn-one fixture's settings put every industry at 80% and the
 //!   published *"30 serfs working at 15% efficiency"* describes the advanced
 //!   game only.
 //! * **`resourceLimit` is a literal 999 for wood, iron and stone** once the
@@ -45,7 +45,7 @@ use crate::tables::{Commodity, Tables, RESOURCE_LIMIT_UNLIMITED, WEAPON_TYPE_COU
 use l2_net::{Quirk, Quirks};
 
 /// `PctOf(a, b) = a * 100 / b` — `FUN_00404DC1`, the companion to
-/// [`crate::math::pct`]. Zero denominator gives zero
+/// [`crate::math::pct`]. Zero denominator gives zero.
 /// does.
 #[inline]
 pub fn pct_of(a: i32, b: i32) -> i32 {
@@ -76,7 +76,7 @@ pub fn pct_of(a: i32, b: i32) -> i32 {
 ///   restarted is not;
 /// * **overstaffing is self-defeating** — past `capacity` the increment is
 ///   scaled by `capacity / workers`, so twice the workers ramp at half the
-///   rate, and the season's raw output rises while the improvement slows;
+/// rate, and the season's raw output rises while the improvement slows;
 /// * with *Advanced Farming* off none of it happens and every industry sits at
 ///   a flat 80%, which is more than five times the base.
 ///
@@ -271,7 +271,7 @@ pub fn output(
 /// }
 /// ```
 ///
-/// **Three things this makes concrete.** The owner test is why an unowned
+/// **Three things this makes concrete.** The owner test
 /// county's wood ceiling is 0 and an owned one's is 100,000, which is the whole
 /// difference between the shipped save's county of foresters and its county of
 /// idlers. The search steps by **`popBand`**, one peasant icon, not by one
@@ -378,11 +378,11 @@ pub fn labour_estimate(
 ///   `industry[c].efficiency`, and `County_RefreshEstimates` runs **four times**
 ///   inside `Industry_ToggleFromMap` alone, on top of the ramp
 ///   [`produce`] already applies each season. Porting it changes production
-///   numbers on every path in the game, which is a simulation change needing
+/// numbers on every path in the game,
 ///   its own validation. Named here
 ///   left silent: `docs/decisions.md` C136.
 /// * **County `+0x280` … `+0x28C`.** This said *"nothing reads them and no draw
-///   call does either"*, and the second half was false: `Panel_JobIndustry`
+/// call does either"*, and the second half was false: `Panel_JobIndustry`
 ///   (`0x00412E6B`) draws all four under `L2.eng` group 76. They are not stored
 ///   here because they are pure functions of fields the county already holds —
 ///   [`panel_figures`] is them, and `docs/stored-fields.json` holds it to the
@@ -633,7 +633,7 @@ impl BankruptcyAction {
 ///    gold, which would have made a realm one crown short lose its whole
 ///    treasury; the original takes the whole bill or none of it.
 /// 2. **The counter is not clamped at 5, it wraps to 0.** Stage 5 is the
-///    mutiny, and after it the escalation starts again from the top — so a
+/// mutiny, and after it the escalation starts again from the top — so a
 ///    realm that never pays loses its armies every six seasons
 ///    settling at a permanent stage 5.
 ///
@@ -810,7 +810,7 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
         wood -= had_wood;
         stone -= had_stone;
         // A negative difference is paid back into the store. `realm.wood -=
-        // wood` with `wood` negative
+        // wood` with `wood` negative.
         if wood < 0 {
             realm.wood -= wood;
             wood = 0;
@@ -840,6 +840,11 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
     county.castle_stone_total = stone;
     county.castle_wood_total = wood;
     county.castle_percent = 0;
+    // `Labour_ToggleIndustryShare(county, 3, 1)` — `Castle_Order`
+    // (`0x00436D02`) calls it between `Castle_EvictTile` and the take, so the
+    // order itself puts builders on the castle. Without it the job's share
+    // stayed 0 at any industry split. `[V]`
+    crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, true);
     county.castle_stone_owed = take_from(&mut realm.stone, stone);
     county.castle_wood_owed = take_from(&mut realm.wood, wood);
     true
@@ -958,8 +963,12 @@ pub fn build_tick(
     let repaired = county.castle_degraded == crate::siege::CASTLE_DEGRADED_DAMAGED;
     let free_archers = if repaired { 0 } else { free_garrison_archers(t, county) };
     county.castle_degraded = 0;
-    // `Labour_ToggleIndustryShare(county, 3, 0)` — the builders go back to the
-    // fields the moment the castle tops out.
+    // `Castle_BuildTick` (`0x004508DE`) ends the degraded branch with
+    // `castleDegraded = 0; Labour_ToggleIndustryShare(county, 3, 0)` — the
+    // builders go back to the fields the moment the castle tops out. `[V]`
+    // It does not write `+0x1B0`; we clear the switch with it so the flag and
+    // the share agree, which `Industry_ToggleFromMap` assumes. `[I]`
+    crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, false);
     county.castle_switch = false;
     out.push(Message::CastleBuilt { county: id, castle_type: county.castle_type });
     Some(CastleComplete { free_archers, repaired })
@@ -1724,6 +1733,34 @@ mod tests {
         c.owner = 1;
         c.population = pop;
         c
+    }
+
+    /// **Ordering a castle staffs it** — `Castle_Order` (`0x00436D02`) calls
+    /// `Labour_ToggleIndustryShare(county, 3, 1)`, so the job leaves the order
+    /// with a share and the five-member group still sums to 100. It had a
+    /// share of 0 at any industry split before.
+    #[test]
+    fn ordering_a_castle_puts_builders_on_it() {
+        use crate::tables::JOB_CASTLE_BUILDING;
+        let industry = |c: &County| c.labour_share[JOB_CASTLE_BUILDING..].iter().sum::<i32>();
+
+        let mut c = owned(2_000);
+        c.industry_share = 100;
+        let mut r = Realm::new();
+        r.wood = 10_000;
+        r.stone = 10_000;
+        assert_eq!(c.labour_share[JOB_CASTLE_BUILDING], 0, "nobody builds before the order");
+
+        assert!(order_castle(T, &mut c, &mut r, 3));
+        assert!(c.labour_share[JOB_CASTLE_BUILDING] > 0, "the order staffs the castle job");
+        assert_eq!(industry(&c), 100, "and the industry group still sums to 100");
+
+        // `Castle_BuildTick`'s completion branch takes them off again.
+        let mut out = Vec::new();
+        c.castle_work_left = 0;
+        assert!(build_tick(T, &mut c, &mut r, 0, &mut out).is_some());
+        assert_eq!(c.labour_share[JOB_CASTLE_BUILDING], 0, "and the topped-out castle frees them");
+        assert_eq!(industry(&c), 100);
     }
 
     /// **A castle you cannot afford is ordered anyway** — `Castle_Order` has no
