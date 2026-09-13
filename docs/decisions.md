@@ -12132,3 +12132,17 @@ Lost-rule-inputs blocker: +0x15A is the round-robin cursor of `FUN_0046958F` and
 under `County_EnsurePasture` (`0x0046921D`); +0x15B the same sweep in `FUN_00469A9C` twice from
 `Weather_UpdateAll` (`0x00449889`, weather 1 → 0x18 parched, 5 → 0x17 flooded, messages
 0x8F/0x90). The blocker is state; `County` carries neither field.
+
+---
+
+**C223 — Four gates on foraging, AI castle personalities, border greeting, battle message drain, and custom battle mode.**
+
+`g_optArmiesEat` gates four things (docs/armies.md §3.1); ours read three. Fourth: `UnitPanel_Draw` 0x0041B19D kind==1 arm drew nothing, not army body line (±0x70, ±0x5E on screen, supply 31/23..26 at +0x72, starvation 31/27+ at +0x86 in 0xF9). Built in `screens/info.rs`; test `army_foraging_moves_the_unit_panels_body_line_and_adds_two` (chrome_text).
+
+AI castle personalities exist exactly as ours: `AI_BuildCastles` 0x0049EDC7 reads `g_aiPersonality` 0x004D8A58 +0xCC..+0xDC. Knight 200/-/1000/-/10000, Baron -/500/-/4000/-, Countess -/300/-/2000/-, Bishop -/-/100/-/2000 (royal at 2,000; 0 means never). Tables::`AI_PERSONALITY_CASTLE_GOLD` and `ai::build_castles`. Tests `a_zero_gold_threshold_means_the_type_is_not_offered_rather_than_free` and `a_lord_builds_only_where_the_county_is_big_enough_and_has_no_castle`.
+
+Border violation letter: `L2.eng` 134, message 0x86. `County_GreetArmy` 0x004ABF77 calls from `Unit_EnterCounty` 0x004ABB36 under 20% of population. Posted by `l2_kingdom::arrival::greeting` (GROUP_OUTRAGE). Tests `a_neutral_county_answers_by_its_mood_first_and_the_armys_size_second` and `marching_into_a_neutral_county_opens_its_greeting_in_the_countys_own_words`.
+
+Message ring drain: `Msg_Pump` 0x00472E46 is `if (g_battlePhase==2 && g_messageGroup!=0) Msg_Dismiss(); else pull`. Guard on open window: battle drains ring one letter per two frames, does not hold it. Docs/arms.json corrected from opposite claim. Built in `Machine::pump_messages`; test `a_battle_drains_the_message_ring_one_frame_at_a_time`, arms test 7/7.
+
+Custom battle: `Battle_CheckOutcome` 0x00477DFC picks between two 16-byte name tables indexed `(g_battleOutcome*4 + DAT_0057A0F0)*0x10`. `s_bat_win1_smk` 0x004D9278 when `DAT_0057A0F0 == 0`, `s_bat_win5_smk` 0x004D93F8 otherwise. `Skirmish_Setup` 0x0042B7F7 sets `DAT_0057A0F0`. `NetCmd_Write_56` 0x004463D9 carries definition. Front-end callers 0x00433155/0043338E/00433551. Docs/battle.md §4.4a.
