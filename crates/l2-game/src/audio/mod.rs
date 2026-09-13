@@ -973,6 +973,9 @@ pub struct Director {
     /// `FUN_004B3994`'s edge. `None` until the first tick, so a loaded game
     /// does not announce a category nobody asked for.
     nobles_spoken: Option<u32>,
+    /// [`crate::game::Game::spoken`]'s count at the previous tick — the edge
+    /// for the six sites a screen has to report rather than a director find.
+    spoken: Option<u32>,
     /// **Where every unit stood at the last tick**, so that a unit *entering a
     /// tile* can be noticed without the simulation reporting it. See
     /// [`Director::hear_the_march`].
@@ -1144,6 +1147,29 @@ impl Director {
         // sfx: Battle_ChooseSettlement#1
         if opened(&|id| matches!(id, ScreenId::BattlePrompt)) {
             audio.play_file(names::fanfare::BATTLE, false);
+            // **And the spoken question on top of it**, which is the *caller's*
+            // statement rather than `Battle_ChooseSettlement`'s: all three
+            // functions that raise screen `0x12` follow the return with the
+            // same three-way ladder on `g_battleChoiceOwner` —
+            // `Battle_BeginFromCampaign` (`0x004A7158`), `FUN_004A6C68` and
+            // `Siege_LaunchAssault` (`0x004A8AAB`). One edge, because there is
+            // one screen and the three callers are three routes onto it.
+            //
+            // `docs/audio.json` filed all nine as *"which of the three a given
+            // call plays is unread"*. It is `g_battleChoiceOwner`, which is
+            // [`crate::turn::Question::choice_owner`], and the mapping is not
+            // the group-80 one: see [`names::speech::BATTLE_PROMPT`].
+            //
+            // **The fanfare above will usually swallow this**, in the original
+            // and here, because both go through the one-shot buffer and bare
+            // `Sound_PlayFile` drops what it cannot fit. That is reproduced by
+            // making the calls in the original's order rather than by a rule.
+            // sfx: Battle_BeginFromCampaign#1,Battle_BeginFromCampaign#2,Battle_BeginFromCampaign#3,FUN_004a6c68#1,FUN_004a6c68#2,FUN_004a6c68#3,Siege_LaunchAssault#1,Siege_LaunchAssault#2,Siege_LaunchAssault#3
+            if let Some(q) = crate::turn::pending_question(game) {
+                if let Some(&name) = names::speech::BATTLE_PROMPT.get(q.choice_owner as usize) {
+                    audio.play_file(name, true);
+                }
+            }
         }
 
         // **The narrator's interface commentary**, five screens' worth. Every
@@ -1467,6 +1493,22 @@ impl Director {
                 }
             }
             self.nobles_spoken = Some(game.nobles_spoken);
+        }
+
+        // **The lines a screen decided on and could not play.** Six of the
+        // original's `Sound_PlayFile` sites are inside a screen's own handler,
+        // guarded by state that screen keeps to itself and that is gone by the
+        // next tick — so there is nothing here to diff and the screen reports
+        // the line instead. See [`crate::game::Game::spoken`] for why the
+        // count rather than the name is the edge.
+        //
+        // Both groups are bare `Sound_PlayFile(name, 1, 0)`, so a line asked
+        // for while the buffer sounds is dropped: [`Audio::play_file`].
+        if self.spoken != Some(game.spoken.0) {
+            if self.spoken.is_some() && !game.spoken.1.is_empty() {
+                audio.play_file(game.spoken.1, true);
+            }
+            self.spoken = Some(game.spoken.0);
         }
 
         self.hear_the_march(audio, game);
@@ -2183,6 +2225,98 @@ mod tests {
         a.follow(Scene::Campaign { county_count: 3, share_of_map_pct: 20 });
         a.follow(Scene::Battle(BattleKind::Field));
         assert_ne!(a.battle, after_one);
+    }
+
+    /// **"Will you take the field?" — spoken, and which take is the answer to
+    /// what `docs/audio.json` filed as unread.**
+    ///
+    /// The nine `S080` sites are three call sites carrying one ladder on
+    /// `g_battleChoiceOwner`, and all three run on the return from
+    /// `Battle_ChooseSettlement` that raises screen `0x12`. So the take is the
+    /// same field the prompt already draws its sentence from, and the mapping
+    /// is *not* the group-80 one: 1 -> `_03`, 2 -> `_01`, 0 -> `_02`.
+    ///
+    /// **The effects switch is off**, and that is not a convenience: the
+    /// fanfare `Battle_ChooseSettlement` plays first goes into the same
+    /// one-shot buffer, and bare `Sound_PlayFile` drops what will not fit. The
+    /// last block asserts exactly that — with the trumpet on, the line the
+    /// ladder picked is never opened at all.
+    ///
+    /// Ablations, each observed red: rotate [`names::speech::BATTLE_PROMPT`]
+    /// by one and all three rows fail on the take; drop the `play_file` and
+    /// they fail with an empty `heard`; move the call above the fanfare and
+    /// the last block fails.
+    #[test]
+    fn the_battle_prompt_speaks_the_take_its_choice_owner_picks() {
+        let Some(dir) = l2_testkit::install_dir() else { l2_testkit::skip!("no game install") };
+        let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+
+        for (owner, want, others) in [
+            (1u8, "s080_03.wav", ["s080_01.wav", "s080_02.wav"]),
+            (2, "s080_01.wav", ["s080_02.wav", "s080_03.wav"]),
+            (0, "s080_02.wav", ["s080_01.wav", "s080_03.wav"]),
+        ] {
+            let mut audio = Audio::headless(&platform.vfs);
+            // The trumpet is an effect and the line is speech, so this leaves
+            // the buffer empty for the line the ladder picks.
+            let mut game = prompt_world(owner);
+            game.prefs.effects = false;
+            let mut machine = crate::screen::Machine::new(crate::screen::ScreenId::Campaign);
+            let mut director = Director::new();
+            director.listen(&mut audio, &machine, &game);
+
+            machine.push(crate::screen::ScreenId::BattlePrompt);
+            director.listen(&mut audio, &machine, &game);
+            assert!(
+                audio.heard().contains(&want),
+                "choice_owner {owner} should speak {want} - heard {:?}",
+                audio.heard()
+            );
+            for other in others {
+                assert!(!audio.heard().contains(&other), "choice_owner {owner} also said {other}");
+            }
+        }
+
+        // And with the effects switch on, the fanfare takes the buffer first
+        // and the line is dropped — the original's own behaviour at these nine
+        // sites, and the reason they are worth naming rather than guessing at.
+        let mut audio = Audio::headless(&platform.vfs);
+        let game = prompt_world(1);
+        let mut machine = crate::screen::Machine::new(crate::screen::ScreenId::Campaign);
+        let mut director = Director::new();
+        director.listen(&mut audio, &machine, &game);
+        machine.push(crate::screen::ScreenId::BattlePrompt);
+        director.listen(&mut audio, &machine, &game);
+        assert!(audio.heard().contains(&"ff_batl.wav"), "heard {:?}", audio.heard());
+        assert!(
+            !audio.heard().contains(&"s080_03.wav"),
+            "the trumpet is still sounding, so Sound_PlayFile drops the line"
+        );
+    }
+
+    /// A game suspended on the battle prompt, with the choice in one hand.
+    fn prompt_world(choice_owner: u8) -> crate::Game {
+        let mut game = crate::Game::new(5);
+        game.kingdom.set_county_count(3);
+        game.player = 1;
+        crate::turn::suspend_on(
+            &mut game,
+            crate::turn::Question {
+                attacker: 0,
+                defender: 1,
+                county: 1,
+                is_siege: false,
+                attacker_owner: 1,
+                defender_owner: 2,
+                attacker_men: 100,
+                defender_men: 80,
+                attacker_roster: [0; l2_kingdom::unit::TROOP_TYPES],
+                defender_roster: [0; l2_kingdom::unit::TROOP_TYPES],
+                choice_owner,
+                castle_level: None,
+            },
+        );
+        game
     }
 
     #[test]

@@ -460,9 +460,25 @@ impl SaveLoadScreen {
 
     /// **`DAT_005CD41C = 100`**, which is the whole of the thumb up's handler
     /// and of Enter's: arm the latch, and let [`WORK_FRAMES`] run.
-    fn begin(&mut self) {
+    ///
+    /// **And the line the box speaks**, which is `SaveLoad_Tick`'s rather than
+    /// the handler's: the tick that takes the latch up plays `S040_02.wav` on
+    /// `g_screenId == '6'` — the save box — and `S040_01.wav` on anything else,
+    /// which here is the load box. `[V]`, two `if`s and not an `if`/`else`.
+    /// Ours collapses the arm and the take-up into this one call, so the line
+    /// is a frame earlier than the original's and on the same occasion.
+    ///
+    /// A screen cannot reach the audio layer (`docs/netcode.md` D-3), so the
+    /// decision is made here and reported on [`crate::game::Game::spoken`].
+    // sfx: FUN_004ad9f0#1,FUN_004ad9f0#2
+    fn begin(&mut self, ctx: &mut Ctx) {
         self.working = WORK_FRAMES;
         self.status = Status::Working;
+        let line = match self.mode {
+            Mode::Save => crate::audio::names::speech::SAVE_GAME,
+            Mode::Load => crate::audio::names::speech::LOAD_GAME,
+        };
+        ctx.game.spoken = (ctx.game.spoken.0.wrapping_add(1), line);
     }
 
     /// Frames left before the load or the save runs; 0 when nothing is armed.
@@ -471,11 +487,11 @@ impl SaveLoadScreen {
     }
 
     /// One `g_saveLoadWidgets` record's handler. The index is [`widgets`]'.
-    fn fire(&mut self, widget: usize) -> Transition {
+    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
             // `FUN_004342F3`.
             0 => {
-                self.begin();
+                self.begin(ctx);
                 Transition::Stay
             }
             // `SaveLoad_Cancel` (`0x00434308`): `g_screenId = g_screenIdSaved`.
@@ -620,7 +636,7 @@ impl Screen for SaveLoadScreen {
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         self.name.tick();
         for widget in self.press.tick() {
-            let t = self.fire(widget);
+            let t = self.fire(ctx, widget);
             if t != Transition::Stay {
                 return t;
             }
@@ -677,7 +693,7 @@ impl Screen for SaveLoadScreen {
             //
             // arm: 0x00401C5B/enter-confirms key
             Event::KeyDown(Key::Enter) => {
-                self.begin();
+                self.begin(ctx);
                 Transition::Stay
             }
             // **Space no longer confirms, and could not**: the field takes it
@@ -708,7 +724,7 @@ impl Screen for SaveLoadScreen {
             // The arms are declared on [`widgets`].
             Event::Click { x, y } | Event::DoubleClick { x, y } => {
                 if let Some(i) = self.press.event(&widgets(), event) {
-                    return self.fire(i);
+                    return self.fire(ctx, i);
                 }
                 if let (Event::Click { .. }, Some(i)) = (event, self.at(x, y)) {
                     self.select(i);

@@ -11813,3 +11813,57 @@ flags and touches no tile, and those two functions hold every call site of
 `base + 1`, the *working* value `Sprite_TopIt` (`0x004071A0`) animates, and its
 wheel turned for the rest of the game. Deleting the gate is the whole fix.
 **Not a `docs/bugs.md` entry**: the original repaints it the next season.
+
+---
+
+**CNEW-sounds — the battle prompt's spoken question, and the take that was "unread".**
+
+`docs/audio.json` filed nine `S080` sites across `Battle_BeginFromCampaign`
+(`0x004A7158`), `FUN_004A6C68` and `Siege_LaunchAssault` (`0x004A8AAB`) as
+*"which of the three a given call plays is unread, and playing the first every
+time would be a guess rather than a reproduction."* It is read. All three sites
+carry the **same ladder on `g_battleChoiceOwner`**, immediately after
+`g_screenId = 0x12`: 1 → `S080_03.wav`, 2 → `S080_01.wav`, else → `S080_02.wav`.
+`[V]` at all three. That field is already ours as
+`crate::turn::Question::choice_owner`, so the wiring is one arm on the edge that
+was already firing `ff_batl.wav` — the battle prompt opening — and the three
+call sites are three routes onto one screen.
+
+**The mapping is not the group-80 one.** The prompt draws `L2.eng` group 80
+indices 1, 2, 3 for the same three cases, in that order; the takes are 3, 1, 2.
+A table generated from the string index would have been wrong in two cases of
+three and would have looked right.
+
+**The line is usually dropped, in the original and here.** `ff_batl.wav` is
+`Battle_ChooseSettlement`'s (`0x004A6A30`), on the branch that returns 1 — which
+is the branch every one of these three sites runs on — so the fanfare holds the
+one-shot buffer and bare `Sound_PlayFile` drops what follows. We reproduce that
+by making the two calls in the original's order through the same verb rather
+than by writing the rule down; the test asserts both halves, the take with the
+effects switch off and the drop with it on.
+
+**The second half: the six lines a screen decides and cannot play.**
+
+`SaveLoad_Tick` (`0x004AD9F0`) and the merchant's four quantity handlers
+(`FUN_00435339`, `FUN_0043543D`, `FUN_00435541`, `FUN_004355DB`) are the sound
+sites whose condition is **screen-local state that is gone by the next tick**:
+which box is up when the thumb up's latch is taken, and what the quantity was
+*before* the step. `Director` derives sound by diffing the world, and there is
+nothing here to diff — so the screen reports the line it has already decided on,
+through `Game::spoken`, a count and a file name. That is `Game::nobles_spoken`'s
+mechanism, and the count rather than the name is the edge for its reason: two
+presses of one button are two lines.
+
+**The trade guard is a crossing, not a value.** All four handlers end in
+`if (0 < qty && oldQty < 1) Sound_PlayFile(take, 1, 0)`, so holding the up arrow
+says the line once — on the step that turns a sale or a standstill into a
+purchase — and stays quiet while the number climbs. Up and the ceiling button
+say `S068_01.wav`; down and the floor button say `S068_02.wav`. The down
+arrow's copy is *very nearly* dead: a step down cannot raise the quantity, so it
+can only fire when the clamp does it, with a floor above zero. Written as the
+original writes it rather than pruned.
+
+`SaveLoad_Tick`'s pair is two `if`s and not an `if`/`else`: `g_screenId == '6'`
+(the save box) speaks `S040_02.wav`, anything else `S040_01.wav`. Ours collapses
+the latch and the tick's take-up into `SaveLoadScreen::begin`, so the line is one
+frame earlier than the original's and on the same occasion.

@@ -530,6 +530,19 @@ fn raise_idle_battle(game: &mut Game, e: Encounter) {
     settle_question(game, q, answer);
 }
 
+/// **Put a question on the table without playing a turn to get one.**
+///
+/// [`TurnProgress`]'s fields are private to this module on purpose — a
+/// suspended turn is a state only this machine may create — so a test that is
+/// about what happens *while* one is on the table would otherwise have to march
+/// two armies together first. `cfg(test)` and crate-internal: it cannot be a
+/// route in a running game.
+#[cfg(test)]
+pub(crate) fn suspend_on(game: &mut Game, question: Question) {
+    game.turn =
+        Some(TurnProgress { idle: true, question: Some(question), ..TurnProgress::default() });
+}
+
 /// Whether a turn is suspended waiting on an answer.
 pub fn pending_question(game: &Game) -> Option<Question> {
     game.turn.as_ref().and_then(|p| p.question)
