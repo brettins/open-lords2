@@ -775,9 +775,8 @@ pub enum LeftCastle {
     /// Out on `tile`, and carrying the besieger's slot when one was waiting:
     /// `FUN_00437535` hands that pair to `Battle_BeginFromCampaign` and sets
     /// `g_battleCounty` to the county. **The battle is not staged here** —
-    /// this crate's caller has to, and `l2-game`'s door does not yet. `[I]`
-    /// only on that omission; the field itself is the original's `besiegedBy`
-    /// test.
+    /// this crate cannot fight one; `l2_game::turn::raise_sortie` is the
+    /// caller that does. The field is the original's `besiegedBy` test.
     Marched { tile: (u8, u8), sortie: Option<usize> },
     /// `Map_FindFreeTileNear` found nowhere to stand, so `Army_Destroy` —
     /// **the garrison is lost**, which is the one branch of this function a
@@ -813,7 +812,7 @@ pub enum LeftCastle {
 ///   marches the same season it left.
 /// * **it clears no siege.** `besiegedBy` survives the step out — it is the
 ///   argument to the battle, not a link to break.
-/// * **it gives no order.** No path, no destination: the army simply stands on
+/// * **it gives no order.** No path,
 ///   the tile the search found.
 ///
 /// The tile search is `Map_FindFreeTileNear` (`0x0046733C`), which is

@@ -1263,9 +1263,10 @@ impl Screen for InfoScreen {
                     // `Army_LeaveCastle` (`0x004374C4`) — **leave the castle**,
                     // the garrisoned table's first slot, and `g_screenId = 0`
                     // is the pop. [`crate::game::Game::leave_castle`] is its
-                    // body `FUN_00437535`. The besieged case starts a sortie
-                    // battle in the original and is dropped here; the
-                    // `docs/arms.json` record stays as the lead left it.
+                    // body `FUN_00437535`, whose tail starts the sortie battle
+                    // when the castle is besieged — `Battle_BeginFromCampaign`
+                    // (`0x004A7158`), staged by `Game::leave_castle`; the
+                    // prompt comes up on the map behind this pop.
                     (0, true) => match ctx.game.leave_castle(id) {
                         LeftCastle::Marched { tile, .. } => {
                             self.status = format!("MARCHED OUT TO {},{}", tile.0, tile.1);
