@@ -1324,6 +1324,37 @@ mod tests {
         assert_eq!(units.get(id).unwrap().dest, Some((30, 30)));
     }
 
+    /// **A march of 10 to 30 open tiles is ordered, whole.** The ledger row
+    /// `order-move-long-march-none` reported one finding no path; it does not
+    /// reproduce, and this is the guard.
+    ///
+    /// The three numbers a long march depends on, each the original's:
+    ///
+    /// * the search bound — `Move_FloodFill` (`0x0046F700`) wraps its frontier
+    ///   queue at `0x3FF`, which is [`QUEUE_CAP`]. A fill of open ground never
+    ///   queues more than 250 of those 1,024 cells, so it never truncates;
+    /// * the step cost — 3 an open tile, `Unit_StepOnce` (`0x0046634D`);
+    /// * the length cap — 150 steps, `Path_CopyToUnit` (`0x004707BE`).
+    #[test]
+    fn a_march_of_ten_to_thirty_open_tiles_is_ordered_whole() {
+        let m = open_map();
+        let mut units = Units::new();
+        let id = army_at(&mut units, 1, 16, 16);
+        for d in 10..=30u8 {
+            let dest = (16, 16 + d);
+            assert_eq!(
+                order_move(&m, &mut units, id, dest, Routing::Direct),
+                Some(d as usize),
+                "a march of {d} open tiles"
+            );
+            assert_eq!(units.get(id).unwrap().path.len(), d as usize);
+        }
+        // The fill that answered them reached every tile: no wrapped queue.
+        let f = flood_fill(&m.cost_map(), (16, 16), Routing::Direct);
+        assert_eq!(f.reached().count(), MAP_TILES, "the whole map, so nothing was cut short");
+        assert_eq!(f.cost_to(16, 46), Some(90), "30 open tiles at 3 each");
+    }
+
     #[test]
     fn a_path_is_capped_at_a_hundred_and_fifty_steps() {
         let m = open_map();
@@ -1489,7 +1520,7 @@ mod tests {
         assert_eq!(m.cost_map().at(11, 10), 3, "bare farmland is ordinary ground");
     }
 
-    /// A pasture takes its share off the herd instead of off the crop.
+    /// A pasture takes its share off the herd.
     #[test]
     fn trampling_a_pasture_takes_a_share_of_the_herd() {
         let mut m = open_map();
