@@ -130,22 +130,24 @@ from a **bad** one.
 
 ---
 
-## 1. An empire, taxed hard — the biggest single gap
+## 1. An empire, with more than one county — the averages, not the tax table
 
-**Do:** play England (or any map) until **you hold four or more counties**. Then set the tax
-rates apart on purpose: one county at **0%**, one at **20%**, one at **35%**, one at
-**50%**. End the turn once. Save.
+**Retired, the tax half.** `[V]` The *"other counties' tax"* penalty is one unconditional
+lookup: `Tax_RecomputePreview` (`0x0044B80B`) is the **only** writer of county `+0x16` and it
+reads `g_taxHappinessOther[rate]` with no branch. The table is the 51 `i32` at `0x004D63D8` —
+nineteen zeros, `-1` from 20%, `-2` from 24%, steepening to `-15` at 50% — and
+`tools/oracle/kingdom.ps1` already reads all 51 entries out of the running binary. A save with
+counties at 20/35/50 would confirm what the array says, entry for entry. Not worth twenty
+minutes of anybody's time.
+
+**Still open:** the **realm-wide averages**. A save is the only way to read a realm's
+empire-wide happiness figure and its population, happiness and health averages, none of which
+can be non-trivial with one county, and none of which is a table we can look up.
+
+**Do:** play until **you hold four or more counties**, with their tax rates set apart (one at
+0%, one at 20%, one at 35%, one at 50% will do). End the turn once. Save.
 
 **Save as:** `empire-taxed.sav`, and the two rotated files with it.
-
-**Settles:** the *"other counties' tax"* happiness penalty — a table, not a formula, that we
-believe is flat zero up to 19% and then slides to −15 at 50%. **No saved game has ever had a
-county above 0%, so the whole table above the first row is unchecked.** It also gives the
-first reading of a realm's empire-wide happiness figure, and of the realm-wide population,
-happiness and health averages, none of which can be non-trivial with one county.
-
-**Why the spread matters:** four counties at the same rate cannot tell a table from a
-constant. Four different rates in one save is four data points.
 
 ---
 
@@ -355,25 +357,17 @@ what the narrator actually says.
 dairy"*, correctly found nothing, and concluded the readout did not exist. It exists, and it
 is spoken. If the clip says something else entirely, that is a finding too — and a cheap one.
 
-## 12. The turn timer, which needs a stopwatch and no save
+## 12. The turn timer — **retired, answered by reading**
 
-Start a **custom game** — one player is enough — with **Time limit: 30 secs**. Then, on the
-campaign map:
+**`[V]`** The **only** per-turn reset of the countdown is `Turn_Tick`'s (`0x0049A010`) third
+clause, `DAT_005440C8 = g_optTimeLimit; _DAT_00568D9C = timeGetTime();`. It runs **after** the
+count, and it is gated on `aiStep != 999` — which `Turn_End` (`0x0043AC23`) has just set, and
+which `Turn_BeginPlayersTurn` (`0x0049B6D3`) clears when the turn comes round. So a turn ended
+early carries its own running time into the next one, the next one's first frame can compute a
+negative count and call `Turn_End` on a counter that was just cleared, and the restart clause
+below it then sees 999 and does nothing.
 
-1. **Is there a number in a small plate just left of the right-hand panel, near the bottom,
-   while it is your turn?** We read it as counting down from 30 while you play. Another
-   reading of the same code, which two of our documents had written down, would show it only
-   *after* you press End Turn.
-2. **Let it run out without touching anything.** We think the turn ends when the number has
-   been gone for about a second — 31 seconds, not 30 — and that any village or county panel
-   you had open closes.
-3. **The one that matters.** Play a turn for about **twenty-five seconds**, press End Turn,
-   and watch the next turn begin. **Does the End Turn caption vanish again straight away, with
-   no click, so that turn is over before you have done anything?** We think it does whenever
-   your twenty-five seconds and the time the turn took to run add up to more than 31 — more
-   likely with armies or merchants on the move — and that the turn after it is normal again.
-   `docs/bugs.md` B99.
-
-Question 3 is the difference between a defect we copy on purpose and a misreading we have
-built into the engine. Nothing we have can answer it: it depends on how long a real turn takes
-on a real machine.
+That is the whole of the question this section used to ask a person with a stopwatch: the
+order of the three clauses settles it, and the same order is now `TurnClock::tick`'s. What a
+stopwatch would still add is only **how often it bites on real hardware**, which is a matter of
+how long a turn takes to run, not of what the code does. `docs/bugs.md` B99.

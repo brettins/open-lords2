@@ -321,6 +321,16 @@ callers; the start-up chain; **that nothing in the original throttles the frame 
 `timeGetTime`, and that every film's track is `frames × period` long to within a
 millisecond**.
 
+**Y-scaling, read out of `Smackw32.dll` (base `0x400000`).** `_SmackOpen@12` (`0x404EF0`)
+maps header flags `&6 == 2` to `struct+0x392 |= 0x10` and `== 4` to `|= 0x20`, doubling the
+height either way. With `0x10`, `_SmackToBuffer@28` (`0x403AF0`) sets the row step to
+`pitch * 2` but keeps the ordinary block writers at `0x0040CCFC`, which write one row each,
+so **the odd rows are never written and stay as the buffer was cleared — black**; `0x20` uses
+the doubling writers at `0x0040B24C` and no shipped file sets it. The three wide films set
+`0x02`, so the intro plays on alternate lines, and `l2_smk::YScale` is that. **The second
+source is the naming conflict this resolves**: libsmacker calls `0x02` Y-double and `0x04`
+interlace, FFmpeg the other way round, and the DLL agrees with FFmpeg.
+
 **Inferred**: the meaning of `SmackOpen`'s `0x2000` / `0x400` bits (RAD's SDK constants);
 that a hard-disk install takes the slow-media ending layout (no `sierra.ini`, so
 `g_fastMedia` stays 0); `FUN_004B1867` clearing the back buffer before the front-end films;
@@ -331,11 +341,6 @@ that a hard-disk install takes the slow-media ending layout (no `sierra.ini`, so
 * **Whether `smackw32` slews `SmackWait`'s deadline to the sound buffer.** It reads
   `timeGetTime`; `_TimerFunc@20` (a `timeSetEvent` callback the DirectSound path installs)
   reads it too. Undecidable from the call sites, and moot here — see *What paces a film*.
-* **Y-scaling.** libsmacker calls flag `0x02` Y-double and `0x04` interlace; FFmpeg names
-  them the other way round. Both make the picture twice as tall, which is certain from
-  `Credits.smk` (640 × 240 on a 640 × 480 screen). Whether the second row of each pair is a
-  copy or black is not in the file; ours copies. **One captured frame of the running intro
-  settles it.**
 * `0x004527A6(x, y, 0x14, 10, 1)` marks a dirty region in 16-pixel units — 320 × 160, smaller
   than any film. The unit or the argument meaning is not understood.
 * Seeking (`Smk_OnPaint`'s `SmackGoto`). No file flags a keyframe, so a re-seek re-decodes

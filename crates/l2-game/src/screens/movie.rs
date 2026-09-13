@@ -241,8 +241,10 @@ impl Screen for MovieScreen {
         let State::Playing(player) = &self.state else { return };
         let (w, _) = player.decoder().size();
         let (x, y) = self.film.at();
-        let scale = player.smk().header().y_scale() as usize;
-        canvas.blit_raster(player.decoder().pixels(), w, x, y, scale);
+        // **`_SmackToBuffer@28` (`0x403AF0`) writes a doubled film's even rows
+        // only**, and the three that are doubled are exactly the three the
+        // clear above covers, so the odd rows are the black it left.
+        canvas.blit_raster(&player.decoder().display(), w, x, y, 1);
         for (line, at) in player.subtitles.lines.iter().zip(SUBTITLE_Y) {
             if let Some(i) = line {
                 let s = ctx.assets.shell.text(GROUP_SUBTITLES, *i).to_string();

@@ -34,9 +34,9 @@
 //!    its output compared, its source never opened — and its numbers are pinned
 //!    in the corpus test. See `docs/formats/smk.md`.
 //!
-//! None of those is the original's `smackw32.dll` drawing a frame, which is the
-//! only oracle that would settle the one thing the data cannot: see
-//! [`Header::y_scale`].
+//! None of those is the original's `smackw32.dll` drawing a frame. The one
+//! thing the data cannot settle — what happens to the second row of a doubled
+//! film — was read out of that DLL instead: see [`YScale`].
 //!
 //! # What it does not do
 //!
@@ -94,9 +94,28 @@ pub mod flag {
     pub const RING: u32 = 0x01;
     /// The two vertical-scaling bits. The three wide films — `Intro.smk`,
     /// `LOM.SMK` and `Credits.smk` — set `0x02` and nothing else does. See
-    /// [`super::Header::y_scale`] for what is and is not known about them.
+    /// [`super::YScale`] for what each does.
     pub const Y_SCALE_1: u32 = 0x02;
     pub const Y_SCALE_2: u32 = 0x04;
+}
+
+/// **What the header's two scaling bits do to the picture.** `[V]` from
+/// `Smackw32.dll` (base `0x400000`): `_SmackOpen@12` (`0x404EF0`) maps
+/// `flags & 6 == 2` to `struct+0x392 |= 0x10` and `== 4` to `|= 0x20`, and
+/// doubles the height either way.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum YScale {
+    /// Neither bit: one display row per stored row.
+    One,
+    /// **`0x02`** — bit `0x10`. `_SmackToBuffer@28` (`0x403AF0`) sets the row
+    /// step to `pitch * 2` and keeps the ordinary block writers at
+    /// `0x0040CCFC`, which write one row each, so **every odd display row is
+    /// never written** and stays as the destination was cleared: black. The
+    /// three wide films are these.
+    Interlace,
+    /// **`0x04`** — bit `0x20`, the doubling writers at `0x0040B24C`, which
+    /// write each value twice. No shipped file sets it.
+    Double,
 }
 
 /// The 104-byte header, field for field.
@@ -189,21 +208,19 @@ impl Header {
     }
 
     /// **How many display rows each stored row becomes: 1 or 2.**
-    ///
-    /// `[I]` The format reserves two bits for vertical scaling and the two
-    /// references this project has looked at name them the other way round
-    /// from each other — one calls `0x02` doubling and `0x04` interlacing, the
-    /// other the reverse. **Both readings make the picture twice as tall**, and
-    /// that much is certain from the data alone: `Credits.smk` is stored
-    /// 640 × 240 and the game has one 640 × 480 screen. Whether the second row
-    /// of each pair is a copy of the first or is left black is **not** in the
-    /// file, and the renderer here copies it. Settling it needs a frame of the
-    /// intro captured from the running original.
     pub fn y_scale(&self) -> u32 {
-        if self.flags & (flag::Y_SCALE_1 | flag::Y_SCALE_2) != 0 {
-            2
-        } else {
-            1
+        match self.y_scale_mode() {
+            YScale::One => 1,
+            _ => 2,
+        }
+    }
+
+    /// **What the two scaling bits do**, from the DLL. See [`YScale`].
+    pub fn y_scale_mode(&self) -> YScale {
+        match self.flags & (flag::Y_SCALE_1 | flag::Y_SCALE_2) {
+            flag::Y_SCALE_1 => YScale::Interlace,
+            flag::Y_SCALE_2 => YScale::Double,
+            _ => YScale::One,
         }
     }
 
@@ -605,6 +622,7 @@ struct Chunks<'a> {
 pub struct Decoder {
     width: usize,
     height: usize,
+    y: YScale,
     next: usize,
     pixels: Vec<u8>,
     palette: [[u8; 3]; 256],
@@ -619,6 +637,7 @@ impl Decoder {
         Decoder {
             width: w,
             height: h,
+            y: smk.header.y_scale_mode(),
             next: 0,
             pixels: vec![0; w * h],
             palette: [[0; 3]; 256],
@@ -642,6 +661,25 @@ impl Decoder {
     /// Stored width × stored height palette indices, row by row.
     pub fn pixels(&self) -> &[u8] {
         &self.pixels
+    }
+
+    /// **The frame as `_SmackToBuffer@28` (`0x403AF0`) leaves a cleared
+    /// destination**: stored width × [`Header::display_height`], borrowed when
+    /// there is no scaling. [`YScale::Interlace`] writes the even rows and
+    /// leaves the odd ones black; [`YScale::Double`] writes each row twice.
+    pub fn display(&self) -> std::borrow::Cow<'_, [u8]> {
+        if self.y == YScale::One {
+            return std::borrow::Cow::Borrowed(&self.pixels);
+        }
+        let mut out = vec![0u8; self.width * self.height * 2];
+        for row in 0..self.height {
+            let src = &self.pixels[row * self.width..(row + 1) * self.width];
+            out[2 * row * self.width..][..self.width].copy_from_slice(src);
+            if self.y == YScale::Double {
+                out[(2 * row + 1) * self.width..][..self.width].copy_from_slice(src);
+            }
+        }
+        std::borrow::Cow::Owned(out)
     }
 
     /// The palette as 8-bit triples.

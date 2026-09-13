@@ -11563,3 +11563,47 @@ whose one setter is `App_WndProc`'s `VK_F12` arm.
 **Five ablations run**, each observed red against the pre-fix line; the two edge
 tests in `input.rs` are the ones that matter, because a release with no press
 behind it is not an edge and the button-up that ends a double click raises none.
+
+---
+
+**C208 — the intro has played at double height on every row since we
+wrote it, and the timer bug we were going to ask a player about was already
+answered in the DLL.**
+
+**1. The films.** `Smackw32.dll` (base `0x400000`) settles what no `.smk` file
+carries. `_SmackOpen@12` (`0x404EF0`) maps header flags `&6 == 2` to
+`struct+0x392 |= 0x10` and `== 4` to `|= 0x20`, doubling the height either way.
+With `0x10`, `_SmackToBuffer@28` (`0x403AF0`) sets the row step to `pitch * 2`
+and keeps the **ordinary** block writers at `0x0040CCFC`, one row each — so the
+odd display rows are never written and stay as the destination was cleared:
+black. `0x20` uses the doubling writers at `0x0040B24C`, and **no shipped file
+sets it**. All three doubled films — `Intro.smk`, `LOM.SMK`, `Credits.smk` —
+carry `0x02`, so the original's intro plays on alternate lines and ours copied
+the row into the gap. `l2_smk::YScale` and `Decoder::display` are that, and
+`a_doubled_frame_has_black_odd_rows_and_a_written_one_has_none` pins both arms.
+The clear was already there: `Screen::draw` clears to 0 for exactly the films
+that are not over a screen, which are exactly the three doubled ones.
+`crates/l2-game/tests/movies.rs` asserted the second copy and now asserts the
+black. **The second source is the disagreement this settles**: libsmacker calls
+`0x02` Y-double and `0x04` interlace, FFmpeg names them the other way round, and
+the DLL agrees with FFmpeg — `0x02` is the interlace. `docs/formats/smk.md`,
+*Verified*. [V]
+
+**2. The turn timer.** `docs/oracle-requests.md` §12 asked a player with a
+stopwatch whether ending a turn early can end the next one on its first frame.
+The code is not ambiguous about it: `Turn_Tick`'s (`0x0049A010`) third clause is
+the **only** per-turn reset of
+`DAT_005440C8`, it runs after the count, and its `aiStep != 999` gate is set by
+`Turn_End` (`0x0043AC23`) and cleared by `Turn_BeginPlayersTurn` (`0x0049B6D3`).
+`TurnClock::tick` already ran the clauses in that order — C158 landed it — so
+nothing moved; what was wrong was two documents still calling the mechanism
+open. §12 is retired and B99's `[I]` is narrowed to **how often** it bites,
+which is a property of the machine and not of the code.
+
+**3. `docs/oracle-requests.md` §1, the tax half.** `Tax_RecomputePreview`
+(`0x0044B80B`) is the only writer of county `+0x16` and reads
+`g_taxHappinessOther[rate]` unconditionally; `tools/oracle/kingdom.ps1` already
+reads all 51 `i32` at `0x004D63D8` out of the running binary. A save with
+counties at 20/35/50 would re-confirm an array we have entry for entry. The
+section keeps its **realm-wide averages** half, which a save is still the only
+way to read.

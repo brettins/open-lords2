@@ -250,8 +250,8 @@ impl Canvas {
     /// original's `SmackToBuffer` the game's own 640 × 480 back buffer and the
     /// film's position, and nothing else: no transparency, no clip rectangle of
     /// its own. The raster is a plain `&[u8]` so that this crate never learns a
-    /// film decoder exists. Doubling a row rather than leaving its twin black is
-    /// `[I]` — see `l2_smk::Header::y_scale`.
+    /// film decoder exists — a doubled film arrives already `display_height`
+    /// rows tall, with `y_scale` 1; see `l2_smk::YScale`.
     pub fn blit_raster(&mut self, pixels: &[u8], width: usize, ox: i32, oy: i32, y_scale: usize) {
         if width == 0 || y_scale == 0 {
             return;

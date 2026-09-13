@@ -254,6 +254,44 @@ fn every_block_type_draws_what_the_description_says() {
     assert!(total - read < 8, "{read} of {total} bits read");
 }
 
+/// **`_SmackToBuffer@28` (`0x403AF0`): flag `0x02` writes the even rows and
+/// leaves the odd ones as the cleared buffer; `0x04` writes each row twice.**
+/// Ablation: copy the row for `Interlace` and the black rows go.
+#[test]
+fn a_doubled_frame_has_black_odd_rows_and_a_written_one_has_none() {
+    let film = |flags: u8| {
+        let mut f = synthetic();
+        f[0x14] = flags;
+        Smk::parse(f).unwrap()
+    };
+    let frame0 = |smk: &Smk| {
+        let mut d = smk.decoder();
+        d.next_frame(smk).unwrap();
+        d
+    };
+
+    let smk = film(flag::Y_SCALE_1 as u8);
+    assert_eq!(smk.header().display_height(), 16);
+    let d = frame0(&smk);
+    let out = d.display();
+    assert_eq!(out.len(), 8 * 16);
+    for row in 0..8 {
+        assert_eq!(&out[row * 16..][..8], &d.pixels()[row * 8..][..8], "row {row} is written");
+        assert!(out[row * 16 + 8..][..8].iter().all(|&p| p == 0), "row {row}'s twin is black");
+    }
+
+    let smk = film(flag::Y_SCALE_2 as u8);
+    let d = frame0(&smk);
+    let out = d.display();
+    for row in 0..8 {
+        assert_eq!(&out[row * 16..][..8], &out[row * 16 + 8..][..8], "row {row} written twice");
+    }
+    assert!(out.iter().any(|&p| p != 0), "and it is not a black frame either way");
+
+    let smk = film(0);
+    assert_eq!(frame0(&smk).display().len(), 8 * 8, "no flag, no scaling");
+}
+
 #[test]
 fn the_palette_copies_from_the_palette_before_this_frame() {
     let smk = Smk::parse(synthetic()).unwrap();
