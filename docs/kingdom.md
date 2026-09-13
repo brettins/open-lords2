@@ -111,7 +111,7 @@ local UI state rather than simulation state. **[V]**
 
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
-| `+0x00` | u8 | eventFired | [D] | set by `Event_RollAll` when this county drew a random event. |
+| `+0x00` | u8 | **eventFired** | [V] | *"this county has an event letter nobody has read"*. Set by `Event_RollAll`, cleared by a handler whose guard fails and by **`Event_Post` (`0x00448D7E`)**, which is its only reader in the binary. Not cleared by the season, so it waits. §8.1. |
 | `+0x05` | u8 | **owner** | [V] | realm index 1 … 5; **0 = unowned**. The first byte the desync comparator checks. |
 | `+0x09` | i8 | **healthBand** | [V] | 0 … 4 = *Diseased, Sick, Average, Good, Perfect* — `L2.eng` group 20, five strings. |
 | `+0x0B` | i8 | healthMeter | [V] | 0 … 100. Banded into `+0x09` through `g_healthBandLadder`. |
@@ -1901,6 +1901,40 @@ and the code built from them took the percentage of the county — `docs/decisio
 C169. **[V]** on the guard that matters
 most: **the AI never draws random events** — the test is on the *owner realm's* `isHuman`
 byte.
+
+**How the player is told, and why he often is not.** `Event_RollAll` does not show
+anything; it sets `eventFired` and `eventId` and walks on. The letter is posted by
+**`Event_Post` (`FUN_00448D7E`, `0x00448D7E`)**, whose whole body is:
+
+```c
+if (county.eventFired != 0 && g_mouseRightDown == 0 &&
+   (county.eventFired = 0, county.owner == g_localPlayer))
+    Msg_Enqueue(0, g_localPlayer, county.eventId, 0, 0x0F, county, 0, 0);
+```
+
+`Battle_Frame` is its **only** caller, once a frame, as `Event_Post(g_selectedCounty)` at
+`0x004BA187`, with no `g_screenId` test — so a letter can open over any screen, and only
+for the county the player is looking at. **[V]**
+
+Four things follow, and none of them is visible in `Event_RollAll`:
+
+* **the latch is not cleared by the roll.** The loop head clears the three modifiers and
+  the tax gate and neither of these two, so an event in a county nobody selects **waits** —
+  a season, a dozen seasons, or the whole game — and arrives the frame that county is
+  picked. Four of the siege fixtures hold such a letter, unread.
+* **`eventId` is cleared by nothing at all.** It is overwritten by the county's next event
+  and otherwise stands for ever, which is why a county panel keeps showing an old event's
+  line long after the event.
+* **the figure can go stale underneath the letter.** `Population_UpdateAll` zeroes `+0x2F8`
+  every season and rewrites it only when `+0x1FB` is non-zero, and `Event_RollAll` clears
+  `+0x1FB` — so a Wedding-fever letter read two seasons late prints `0 extra births.`
+* **the clear is outside the owner test**, one comma expression before it, so a county that
+  changed hands between the roll and the click loses its letter unread.
+
+`Msg_DrawWindow`'s category-`0x0F` arm draws it: the group's own label centred, the body at
+index 1, and — for the eight ids below `0x12E` only — a number and a word from `L2.eng`
+group 77. Its window is `0xC0` tall for an id below `0x12E` and `0xE0` for one above, so the
+sixteen with no number line get the *taller* box.
 
 ### 8.2 The AI's advantages
 

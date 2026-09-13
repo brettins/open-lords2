@@ -2642,6 +2642,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x00448D7E/event-letter-post",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "frame",
+      "addr": "0x00448D7E",
+      "what": "THE ONLY THING IN THE BINARY THAT POSTS A COUNTY'S RANDOM-EVENT LETTER, and it is a frame arm on the SELECTED county: `if (eventFired != 0 && g_mouseRightDown == 0 && (eventFired = 0, owner == g_localPlayer)) Msg_Enqueue(0, g_localPlayer, eventId, 0, 0x0F, county, 0, 0);`. Battle_Frame is its only caller, once a frame, as FUN_00448d7e(g_selectedCounty) at 0x004BA187 -- between Msg_Pump (line 107) and Turn_Tick (262), with no g_screenId test. Event_RollAll clears the three modifiers and NOT this latch, so an event in a county nobody looks at waits, for seasons if need be, and arrives the frame that county is picked.",
+      "note": "A whole mechanic was invisible without it: the rule rolled, the county's fields moved, the painter existed, and no function of ours posted the record -- twenty turns of play and no event letter. The clear sits OUTSIDE the owner test (one comma expression), so a county that changed hands between the roll and the click swallows its letter. g_mouseRightDown is NOT reproduced and cannot be: our Event has no right PRESS -- RightClick is the release, because the original's fifty-odd right-button arms all read DAT_004E6900 -- so there is no frame here during which the button is held and the guard would be false on every one of them.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/message.rs"
+    },
+    {
       "id": "0x00472E46/battle-phase-swallows-messages",
       "status": "missing",
       "group": "messages",

@@ -561,6 +561,115 @@ fn an_ai_obituary_carries_the_lords_own_line() {
     assert_eq!(r.body_index(), 11, "and the body is variant + 1, past the label");
 }
 
+// --------------------------------------------- 3b. meet a county's own event
+
+/// Give a county a waiting event letter the way `Event_RollAll` does: the latch
+/// and the id, set together, cleared by nothing but the posting.
+fn waiting(g: &mut Game, county: usize, kind: l2_kingdom::event::EventKind) {
+    // Tip screens off. The ladder posts its own paragraph windows on the
+    // campaign map and one of them would be the record these tests read — a
+    // real behaviour (`tests/tips.rs`) and not this one.
+    g.prefs.tip_screens = false;
+    let c = &mut g.kingdom.counties[county];
+    c.event_fired = true;
+    c.event_id = kind.id();
+}
+
+/// **A random event reaches the player, and it reaches him by being looked at.**
+///
+/// `FUN_00448D7E`, `Battle_Frame`'s `FUN_00448d7e(g_selectedCounty)` at
+/// `0x004BA187`. Nothing here enqueues: the county is selected and the frame
+/// driver runs.
+///
+/// Ablation, run: the `crate::message::post_event` call removed from
+/// `Machine::update` → the scroll never opens, which is the state this branch
+/// found the game in.
+#[test]
+fn selecting_a_county_with_a_waiting_event_opens_its_letter() {
+    let (mut g, a, mut m) = world();
+    g.kingdom.counties[3].owner = 1;
+    waiting(&mut g, 3, l2_kingdom::event::EventKind::Witch);
+
+    // Not selected: the frame runs and nothing happens, however long.
+    for _ in 0..20 {
+        tick(&mut m, &mut g, &a);
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "an unlooked-at county says nothing");
+    assert!(g.kingdom.counties[3].event_fired, "and its latch is untouched");
+
+    assert!(g.select(3));
+    open_the_scroll(&mut m, &mut g, &a);
+    let record = *g.messages.open().expect("the letter");
+    assert_eq!(record.category, category::EVENT);
+    assert_eq!(record.group, l2_kingdom::event::EventKind::Witch.id());
+    assert_eq!(record.county, 3);
+    assert_eq!(record.to, 1, "Msg_Enqueue(0, g_localPlayer, …) — from nobody, to this player");
+    assert_eq!(record.from, 0);
+    assert!(!g.kingdom.counties[3].event_fired, "the poster cleared the latch");
+    assert_eq!(g.kingdom.counties[3].event_id, 0x134, "and cleared nothing else");
+}
+
+/// **The latch is cleared once**, so the same letter is not posted every frame
+/// the county stays selected.
+#[test]
+fn a_letter_is_posted_once_however_long_the_county_stays_picked() {
+    let (mut g, a, mut m) = world();
+    g.kingdom.counties[2].owner = 1;
+    waiting(&mut g, 2, l2_kingdom::event::EventKind::Treasure);
+    assert!(g.select(2));
+    open_the_scroll(&mut m, &mut g, &a);
+    send(&mut m, &mut g, &a, Event::RightClick { x: 300, y: 300 });
+    for _ in 0..30 {
+        tick(&mut m, &mut g, &a);
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "no second letter");
+    assert!(g.messages.waiting().is_empty());
+}
+
+/// **The clear is outside the owner test**, so a county that changed hands
+/// between the roll and the click loses its letter without anyone reading it.
+/// `[V]` — `(eventFired = 0, owner == g_localPlayer)` is one comma expression:
+/// the assignment runs, then the test.
+#[test]
+fn a_rivals_county_swallows_its_letter_when_you_look_at_it() {
+    let (mut g, a, mut m) = world();
+    g.kingdom.counties[4].owner = 3;
+    waiting(&mut g, 4, l2_kingdom::event::EventKind::Rats);
+    assert!(g.select(4));
+    for _ in 0..8 {
+        tick(&mut m, &mut g, &a);
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "not your county, not your letter");
+    assert!(!g.kingdom.counties[4].event_fired, "and the latch is gone all the same");
+}
+
+/// **Posting a letter moves exactly one byte of the kingdom.**
+///
+/// `County::event_fired` is `County+0x000` and sits in `Encode for County`, so
+/// this per-peer write is inside the lockstep digest. The claim that it is
+/// harmless is that **nothing in the simulation reads it** — which is checkable:
+/// run the poster and compare the whole kingdom against a copy with that one
+/// field put back. `docs/netcode.md` §6, `docs/decisions.md` CNEW-events.
+#[test]
+fn the_poster_touches_the_event_latch_and_nothing_else_in_the_kingdom() {
+    let (mut g, _a, _m) = world();
+    g.kingdom.counties[5].owner = 1;
+    waiting(&mut g, 5, l2_kingdom::event::EventKind::NoSongs);
+    assert!(g.select(5));
+    let before = g.kingdom.clone();
+
+    assert!(message::post_event(&mut g), "the letter went out");
+    assert!(!g.kingdom.counties[5].event_fired);
+
+    let mut after = g.kingdom.clone();
+    after.counties[5].event_fired = true;
+    assert_eq!(
+        l2_net::Canonical::hash_of(&before),
+        l2_net::Canonical::hash_of(&after),
+        "the poster wrote something other than the latch"
+    );
+}
+
 // -------------------------------------------------------------- 4. the save
 
 /// **A save taken with messages queued keeps them.**

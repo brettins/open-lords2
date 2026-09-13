@@ -11442,3 +11442,100 @@ whose first line is the game's own — `Eng_DrawString(40, ERROR_INDEX)` — so 
 player is told rather than silently robbed. `docs/arms.json`
 `ours/save-refuses-mid-battle`; the feature is `partial`, not `done`, and the gap
 names the reason.
+**CNEW-events — a whole mechanic was invisible because one latch was cleared a
+season too early, and the function that reads it was never ported.**
+
+Twenty turns of play and no event letter. Random events were graded `partial`
+because the dice roll existed: `Event_RollAll` (`0x00448819`) drew, the twenty-four
+handlers fired, `Msg_DrawWindow`'s category-`0x0F` painter was written and tested.
+**Nothing posted the record.** The painter's own doc comment said so — *"nothing
+posts this record yet … the painter is here so that the day something does, the
+letter says what the original's says"* — which is an honest note that stood for
+months next to a mechanic no player could meet.
+
+**The path, end to end, all `[V]`:**
+
+| | function | |
+|---|---|---|
+| roll, store, dispatch | `Event_RollAll` | `0x00448819`, once a season |
+| the handlers | `FUN_00448E12` … `FUN_00449826` | a failing guard clears both flags |
+| **post** | `FUN_00448D7E` | once a **frame**, for `g_selectedCounty` |
+| draw | `Msg_DrawWindow` cat `0x0F` | `0x0047309E` |
+| clear the latch | `FUN_00448D7E` | and **nothing clears `eventId`, ever** |
+
+**The poster is nine lines and its only caller is the frame loop.**
+
+```c
+void FUN_00448d7e(int county) {
+    if ((g_counties[county].eventFired != 0) && (g_mouseRightDown == '\0') &&
+       (g_counties[county].eventFired = 0, g_counties[county].owner == g_localPlayer))
+        Msg_Enqueue(0, g_localPlayer, (short)g_counties[county].eventId, 0, '\x0f',
+                    (uchar)county, '\0', 0);
+}
+```
+
+`Battle_Frame` calls it at `0x004BA187` as `FUN_00448d7e(g_selectedCounty)`, between
+`Msg_Pump` and `Turn_Tick`, with no `g_screenId` test. `RefsTo` gives one caller, so
+that is the whole of it.
+
+**The rule half was wrong in a way that made the port impossible.** Our `roll_all`
+cleared `event_fired` and `event_id` at the top of every county's loop iteration.
+`Event_RollAll` clears **four fields and neither of those**:
+
+```c
+eventPopulationPct = 0; eventGrainPct = 0; eventHerdPct = 0; taxSuppressed = 0;
+```
+
+The three modifiers must go every season or they would be applied twice. The latch
+must not, because the *only* thing that clears it is the letter being posted — and
+that happens when the player looks at the county, which may be seasons later or
+never. A latch cleared at the roll is a latch no frame can ever find set. So even
+with the poster written, nothing would have reached a player.
+
+**Four consequences a player meets, none of them guessable from the roll:**
+
+* **the letter waits.** An event in a county you are not looking at arrives the
+  frame you click it. The swing agent's *"county 3's Wedding-fever id in four siege
+  saves is stale"* was this, seen from the save file: those are letters the
+  original's own player never read.
+* **`eventId` is never cleared.** It is overwritten by the next event that county
+  draws and otherwise stands for the rest of the game, which is why the county
+  panels keep showing an old event's line.
+* **the figure can go stale under the letter.** `Population_UpdateAll` zeroes
+  `+0x2F8` every season and rewrites it only when `+0x1FB` is non-zero — and
+  `Event_RollAll` *does* clear `+0x1FB`. A Wedding-fever letter opened two seasons
+  late reads **`0 extra births.`** The test
+  `a_letter_left_waiting_for_seasons_prints_a_figure_its_season_has_zeroed` pins it
+  on `siege-aftersie.sav`.
+* **a county that changed hands swallows its letter.** The clear is one comma
+  expression *before* the owner test, so the flag goes whoever holds the county.
+
+**Two defects in the painter, found by finally having a caller.** The number line
+for `0x8A` and `0x8E` was not drawn because `+0x2F8` *"is not carried"* — it is
+carried now (`County+0x2F8`, imported), so all eight of `Msg_DrawWindow`'s number
+lines are drawn rather than six. And the window's height is a rule the code had
+written down and not applied: `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0 : 0xE0`,
+so the sixteen high-numbered events were drawing in a box `0x20` too short with their
+corner button, and its 48 × 48 hit box, `0x20` too high. The note beside the constant
+had the rule backwards as well — it is the events with **no** number line that get
+the taller box.
+
+**What is not reproduced.** `g_mouseRightDown`. `crate::input::Event` has no right
+*press*: `RightClick` is the release, deliberately, because the original's fifty-odd
+right-button arms all read `DAT_004E6900` and never the held flag. There is no frame
+in this engine during which the right button is down, so the guard would be false on
+every one of them, and a flag invented to satisfy it would be a flag nothing sets.
+Recorded in `docs/arms.json` rather than papered over.
+
+**What it moves in the lockstep digest, stated rather than fixed.**
+`County::event_fired` is `County+0x000` and sits in `Encode for County`, which is
+both the save and the desync hash — so the poster writes a hashed byte from
+`Game::selected`, one peer's cursor. The claim that this is harmless is that
+**nothing in the simulation reads `event_fired`**: it is written by `Event_RollAll`
+and the handlers and read by the poster alone, in the original and here. Two peers
+can disagree about the byte and compute identical futures. That makes it a false
+desync report rather than a divergence, and the real fix is separating the save
+encoding from the digest encoding, which is not this branch's change.
+`the_poster_touches_the_event_latch_and_nothing_else_in_the_kingdom` hashes the
+kingdom before and after with the latch put back and asserts the two are equal, so
+the claim is checked rather than asserted.

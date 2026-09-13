@@ -4938,7 +4938,7 @@
       "name": "Event_RollAll",
       "section": "kingdom",
       "confidence": "verified",
-      "comment": "Draws a random-event id from g_eventTable for each human-owned county after year 1268 and dispatches one of 24 handlers (0x87..0x8E, 0x12E..0x13D) that write the modifiers at county +0x1FB..+0x1FD or move happiness/health directly."
+      "comment": "Draws a random-event id from g_eventTable for each human-owned county after year 1268 and dispatches one of 24 handlers (0x87..0x8E, 0x12E..0x13D) that write the modifiers at county +0x1FB..+0x1FD or move happiness/health directly. Its loop head clears FOUR fields -- eventPopulationPct, eventGrainPct, eventHerdPct, taxSuppressed -- and NOT eventFired or eventId: it sets those two before dispatching, and only a handler whose guard fails clears them again. So an unposted letter survives every season that deals its county nothing, and Event_Post is the only thing that ever clears the latch."
     },
     {
       "addr": "0x00448D16",
@@ -4946,7 +4946,15 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Event_ClearCountyModifiers(void)",
-      "comment": "Season pass 25: clears eventPopulationPct, eventGrainPct, eventHerdPct and taxSuppressed in every county. A random event's swing therefore lasts exactly one season, and it is cleared after Population_UpdateAll has read it and before Event_RollAll deals the next one - which is why taxSuppressed's gate looked unfindable: nothing sets it except an event, and nothing clears it except this."
+      "comment": "Season pass 25: clears eventPopulationPct, eventGrainPct, eventHerdPct and taxSuppressed in every county. A random event's swing therefore lasts exactly one season, and it is cleared after Population_UpdateAll has read it and before Event_RollAll deals the next one - which is why taxSuppressed's gate looked unfindable: nothing sets it except an event, and nothing clears it except this. It does NOT clear eventFired or eventId: those are the letter's, not the swing's, and only Event_Post clears the first."
+    },
+    {
+      "addr": "0x00448D7E",
+      "name": "Event_Post",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Event_Post(int county)",
+      "comment": "THE ONLY THING IN THE BINARY THAT POSTS A COUNTY'S RANDOM-EVENT LETTER. `if (eventFired != 0 && g_mouseRightDown == 0 && (eventFired = 0, owner == g_localPlayer)) Msg_Enqueue(0, g_localPlayer, eventId, 0, 0x0F, county, 0, 0);` -- nine lines, one caller: Battle_Frame at 0x004BA187, once a frame, as Event_Post(g_selectedCounty), with no g_screenId test. So the letter is posted only for the county the player is looking at, and an event elsewhere waits, for seasons if need be. The clear is inside a comma expression BEFORE the owner test, so a county that changed hands loses its letter unread. eventId is cleared by nothing, anywhere."
     },
     {
       "addr": "0x00449889",

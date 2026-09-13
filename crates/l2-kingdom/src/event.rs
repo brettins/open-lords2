@@ -73,6 +73,22 @@
 //! needs a herd of 40, *Plague* needs 100 people, *Fraud* needs 500 crowns to
 //! steal. That is why a county with nothing left is not kicked while it is
 //! down.
+//!
+//! # The whole path, and the half that is not here
+//!
+//! | | function | |
+//! |---|---|---|
+//! | roll, store, dispatch | `Event_RollAll` | `0x00448819`, once a season, [`roll_all`] |
+//! | the 24 handlers | `FUN_00448E12` … `FUN_00449826` | a failing guard clears both flags, [`fire`] |
+//! | **post the letter** | `Event_Post` (`FUN_00448D7E`) | `0x00448D7E`, once a **frame**, for `g_selectedCounty` — `l2_game::message::post_event` |
+//! | draw it | `Msg_DrawWindow` category `0x0F` | `0x0047309E`, `l2_game::screens::message::draw_event` |
+//! | clear `eventFired` | `Event_Post` again | and **nothing at all clears `eventId`** |
+//!
+//! **The letter is posted for the selected county only**, so an event in a
+//! county the player is not looking at waits — for a frame, a season or the rest
+//! of the game — and arrives the moment that county is picked. That is not a
+//! rule this crate can carry: `g_selectedCounty` is one peer's cursor, not
+//! simulation state, so the poster lives in `l2-game`.
 
 use crate::county::County;
 use crate::report::Message;
@@ -523,6 +539,18 @@ pub fn guard_passes(
 /// Apply an event to a county and its realm's purse. Returns `false` — changing
 /// nothing — if the guard failed, which is the original's "clear the flag and
 /// show nothing" case.
+/// **The flags are set before the handler runs, and a failing guard clears
+/// them.** `[V]` — `Event_RollAll` does `eventFired = 1; eventId = <slot>;`
+/// *then* dispatches, and every guarded handler's failing branch is the same two
+/// writes: `FUN_00448F1F` (*Wolves*) is
+/// `if (herd < 0x28) { eventId = 0; eventFired = 0; } else { … }`, and
+/// `FUN_0044934A` (*Mother nature*) clears the same pair when its field change
+/// could not happen.
+///
+/// The order matters because **nothing else clears them** (see [`roll_all`]): a
+/// county carrying a letter nobody has read yet has that letter *destroyed* by a
+/// new event whose guard fails, and left alone by a season that deals it
+/// nothing.
 pub fn fire(
     county: &mut County,
     id: usize,
@@ -531,18 +559,21 @@ pub fn fire(
     season: Season,
     quirks: Quirks,
 ) -> bool {
-    if !guard_passes(&kind.guard(), county, id, purse, quirks) {
-        return false;
+    county.event_fired = true;
+    county.event_id = kind.id();
+    let mut failed = !guard_passes(&kind.guard(), county, id, purse, quirks);
+    if !failed {
+        let effect = kind.effect(season);
+        failed = !apply(county, id, purse, effect, quirks);
     }
-    let effect = kind.effect(season);
-    if !apply(county, id, purse, effect, quirks) {
+    if failed {
+        county.event_id = 0;
+        county.event_fired = false;
         return false;
     }
     if let Some(extra) = kind.health_side_effect() {
         apply(county, id, purse, extra, quirks);
     }
-    county.event_fired = true;
-    county.event_id = kind.id();
     true
 }
 
@@ -593,7 +624,14 @@ pub fn eligible(t: &Tables, county: &County, owner_is_human: bool, year: i32) ->
     year > t.event.first_year && !county.is_unowned() && owner_is_human
 }
 
-/// `Event_RollAll` — clear last season's modifiers, then walk the deck.
+/// `Event_RollAll` (`0x00448819`) — clear last season's modifiers, then walk the
+/// deck.
+///
+/// **It clears three modifiers and the tax gate, and not the letter's latch.**
+/// See the loop body: `eventFired` and `eventId` survive a season in which the
+/// county drew nothing, which is the whole reason a letter can still be read
+/// several seasons after the event that wrote it. `l2_game::message::post_event`
+/// is the only thing that clears `eventFired`.
 ///
 /// `purses` is indexed by realm id and is only read for the seven events that
 /// touch a treasury or a stockpile; the caller copies the values back.
@@ -633,10 +671,19 @@ pub fn roll_all(
         rng.below(EVENT_DECK_SLOTS as u32) as usize
     };
     for id in 1..=county_count {
-        // The original clears all four every season, whether or not this county
-        // draws — which is what stops a modifier being applied twice.
-        counties[id].event_fired = false;
-        counties[id].event_id = 0;
+        // **Four writes, and `eventFired`/`eventId` are not among them.** `[V]`
+        // — `Event_RollAll`'s loop head is exactly
+        // `eventPopulationPct = 0; eventGrainPct = 0; eventHerdPct = 0;
+        //  taxSuppressed = 0;` and nothing else. The three modifiers must go
+        // every season or they would be applied twice; the *letter's* latch must
+        // not, because the only thing that clears it is the letter being posted
+        // — `Event_Post` (`0x00448D7E`), once a frame, for the **selected**
+        // county. A county whose event nobody has looked at keeps its flag and
+        // its id for as long as it takes.
+        //
+        // Ours cleared both here, every season, so the latch was gone before any
+        // frame could read it and no event letter could ever reach a player.
+        // `docs/decisions.md` CNEW-events.
         counties[id].event_population_pct = 0;
         counties[id].event_grain_pct = 0;
         counties[id].event_herd_pct = 0;
@@ -796,6 +843,7 @@ mod tests {
         assert!(!fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring, Q));
         assert_eq!(c, before);
         assert!(!c.event_fired);
+        assert_eq!(c.event_id, 0);
 
         c.herd = 40;
         assert!(fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring, Q));
@@ -1097,6 +1145,58 @@ mod tests {
             roll_all(T, &mut c, 16, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, Q, &mut out);
         }
         assert!(out.is_empty(), "five hundred seasons and not one event");
+    }
+
+    /// **The latch survives the seasons that deal nothing.**
+    ///
+    /// `Event_RollAll` clears the three modifiers and the tax gate and *not*
+    /// `eventFired`/`eventId`, so an unread letter waits. This is the whole
+    /// reason a player ever meets one: ours cleared both here, every season, and
+    /// the frame that posts the letter never found a flag set.
+    ///
+    /// Ablation: put `counties[id].event_fired = false; counties[id].event_id =
+    /// 0;` back at the top of `roll_all`'s loop → the flag is gone by the time
+    /// the assert runs and the county reports no waiting letter.
+    #[test]
+    fn a_letter_nobody_read_is_still_waiting_seasons_later() {
+        let mut c = county(1);
+        c.herd = 500;
+        let mut purse = RealmPurse::default();
+        assert!(fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring, Q));
+        assert!(c.event_fired);
+
+        // Ten seasons of a deck that deals this county nothing: an all-AI
+        // kingdom takes the same number of values from the generator and fires
+        // no handler.
+        let mut counties = vec![County::new(); 17];
+        counties[1] = c;
+        let mut rng = Pcg32::from_seed(11);
+        let mut purses = vec![RealmPurse::default(); 6];
+        let mut out = Vec::new();
+        for _ in 0..10 {
+            roll_all(T, &mut counties, 16, &|_| false, &mut purses, 1300, Season::Summer, &mut rng, Q, &mut out);
+        }
+        assert!(out.is_empty(), "nothing new was dealt");
+        assert!(counties[1].event_fired, "the letter is still waiting");
+        assert_eq!(counties[1].event_id, EventKind::Wolves.id());
+        assert_eq!(counties[1].event_herd_pct, 0, "but the modifier was spent and cleared");
+        assert!(!counties[1].tax_suppressed);
+    }
+
+    /// **A new event whose guard fails destroys the letter that was waiting.**
+    /// The handler's failing branch writes zero into both fields, and it was the
+    /// *roll* that put the new id there a moment earlier — so the county is left
+    /// with neither event.
+    #[test]
+    fn a_new_event_that_cannot_fire_takes_the_old_letter_with_it() {
+        let mut c = county(1);
+        c.herd = 500;
+        let mut purse = RealmPurse::default();
+        assert!(fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring, Q));
+        c.herd = 0; // the wolves and a bad winter between them
+        assert!(!fire(&mut c, 1, &mut purse, EventKind::MadCows, Season::Spring, Q));
+        assert!(!c.event_fired, "the Wolves letter went with the failed Mad cows");
+        assert_eq!(c.event_id, 0);
     }
 
     #[test]

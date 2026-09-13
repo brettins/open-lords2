@@ -630,18 +630,20 @@ fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: 
 /// [`draw_notice`] would have put the county there, and this arm has no county
 /// name on it at all. The body is index 1 whatever the variant.
 ///
-/// **Six of the eight number lines are drawn and two are not.** Plague and
-/// Wedding fever print county `+0x2F8`, `Population_UpdateAll`'s event swing,
-/// which no import or rule of ours carries: our population rule computes that
-/// swing differently (`docs/decisions.md` C164), so a carried byte would print
-/// a number the rule did not apply. Their word starts at the pen after that
-/// number, so it cannot be placed without it and is not drawn either.
+/// **All eight number lines are drawn.** The last two were not: *Plague* and
+/// *Wedding fever* print county `+0x2F8`, `Population_UpdateAll`'s event swing,
+/// which nothing of ours carried. It is carried now —
+/// `County::event_population_swing`, written by the population pass and imported
+/// from the save (`docs/stored-fields.json`, `County+0x2F8`) — so the two draw
+/// `Ui_DrawNumber(+0x2F8, '@', " ", …)` and 77/`0x1D` *"extra deaths."* or
+/// 77/`0x1E` *"extra births."* after it.
 ///
-/// **And nothing posts this record yet.** `FUN_00448D7E` runs once a frame
-/// from the loop at `0x004B99C0` for `g_selectedCounty`, and posts when the
-/// county's `eventFired` is set and it is the local player's; no function of
-/// ours does. The painter is here so that the day something does, the letter
-/// says what the original's says.
+/// The lead is `'@'` — the blank digit — and the suffix is one space:
+/// `DAT_004D7050` and `DAT_004D7054` are both `" "`, dumped rather than assumed.
+///
+/// **The record is posted by [`message::post_event`]**, the port of
+/// `FUN_00448D7E`, which `Machine::update` runs once a frame for
+/// `Game::selected` exactly as `Battle_Frame` does for `g_selectedCounty`.
 fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     pen.heading_centred(
         canvas,
@@ -655,18 +657,32 @@ fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: mes
     pen.body_wrapped(canvas, f.x + 0x20, f.y + 0x40, f.w - 0x40, &text, font::TEXT);
 
     let Some(c) = ctx.game.kingdom.counties.get(record.county as usize) else { return };
-    let (value, noun, word) = match c.event_id {
-        0x87 => (c.grain_event_change, EVENT_NOUN_SACK, 0x19),
-        0x8B => (c.grain_event_change, EVENT_NOUN_SACK, 0x1A),
-        0x88 => (c.herd_event_change, EVENT_NOUN_ANIMAL, 0x14),
-        0x89 => (c.herd_event_change, EVENT_NOUN_ANIMAL, 0x15),
-        0x8C => (c.herd_event_change, EVENT_NOUN_ANIMAL, 0x16),
-        0x8D => (c.herd_event_change, EVENT_NOUN_ANIMAL, 0x17),
-        // 0x8A and 0x8E: `+0x2F8`, not carried — see above.
+    // `Ui_DrawCount(value, noun, …)` for six, `Ui_DrawNumber(value, '@', " ", …)`
+    // for the two that print people rather than sacks or animals.
+    enum Line {
+        Count(i32, usize),
+        Number(i32),
+    }
+    let (line, word) = match c.event_id {
+        0x87 => (Line::Count(c.grain_event_change, EVENT_NOUN_SACK), 0x19),
+        0x8B => (Line::Count(c.grain_event_change, EVENT_NOUN_SACK), 0x1A),
+        0x88 => (Line::Count(c.herd_event_change, EVENT_NOUN_ANIMAL), 0x14),
+        0x89 => (Line::Count(c.herd_event_change, EVENT_NOUN_ANIMAL), 0x15),
+        0x8C => (Line::Count(c.herd_event_change, EVENT_NOUN_ANIMAL), 0x16),
+        0x8D => (Line::Count(c.herd_event_change, EVENT_NOUN_ANIMAL), 0x17),
+        0x8A => (Line::Number(c.event_population_swing), 0x1D),
+        0x8E => (Line::Number(c.event_population_swing), 0x1E),
+        // The sixteen ids from `0x12E` up have no number line at all — and the
+        // taller window, see `message::event_height`.
         _ => return,
     };
     let (x, y) = (f.x + 0x20, f.y + 0x90);
-    let next = pen.count(canvas, x, y, value, noun, font::TEXT);
+    let next = match line {
+        Line::Count(value, noun) => pen.count(canvas, x, y, value, noun, font::TEXT),
+        Line::Number(value) => {
+            pen.number_in(shell::Face::Body, canvas, x, y, value, '@', " ", font::TEXT)
+        }
+    };
     pen.eng(canvas, EVENT_GROUP, word, next, y, font::TEXT);
 }
 
