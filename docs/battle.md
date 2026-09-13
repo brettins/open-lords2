@@ -3,7 +3,7 @@
 The real-time tactical battle in `Lords2.exe`: the structures, where they live, and how
 damage, movement and orders are computed.
 
-This is the first document about game *rules* rather than a file format, and rules are
+This is the first document about game *rules*, not a file format, and rules are
 much harder to validate — there is no end-offset invariant to close. Read the status
 legend as a real claim about evidence:
 
@@ -43,7 +43,7 @@ value, and a zero owner byte marks a free slot.
 
 There is no allocation and no dynamic sizing anywhere in the battle. **An army that needs
 more than the free slots is silently truncated** — `BattleMan_Create` returns 0 and the
-caller breaks out of its loop. §5.4 shows this actually happens in shipped data.
+caller breaks out of its loop. §5.4 shows this happens in shipped data.
 
 ### The single best piece of evidence in this whole subsystem
 
@@ -77,7 +77,7 @@ contiguous *range* of figure indices.
 |---|---|---|---|---|
 | `+0x00` | u8 | owner | [V] | player index. **0 means the slot is free** — this is the allocation test in `BattleUnit_Alloc`. |
 | `+0x01` | u8 | humanControlled | [V] | copied from realm record `+0x05`. When set, `Battle_UpdateAllUnits` skips the unit's order handler entirely, so this is "a person is driving this unit". |
-| `+0x02` | u8 | figureCount | [V] | number of figures actually created, counted up in `BattleUnit_Create`. |
+| `+0x02` | u8 | figureCount | [V] | number of figures created, counted up in `BattleUnit_Create`. |
 | `+0x03` | u8 | side | [V] | **0 or 4**, not 0/1. See §4.3. |
 | `+0x04` | i16 | firstFigure | [V] | lowest figure index belonging to this unit. |
 | `+0x06` | i16 | lastFigure | [V] | highest. Every sweep over a unit's men is `for (i = first; i <= last; i++)` plus a check that the figure's `+0x178` points back here. |
@@ -108,7 +108,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x09` | u8 | selected | [V] | debug-panel label. |
 | `+0x0A` | u8 | selctd seen | [V] | debug-panel label. |
 | `+0x0B` | u8 | fidget tick | [V] | counts up once per frame in `Anim_StandA2`. |
-| `+0x0C` | u8 | fidget period | [V] | seeded once in `BattleMan_Create` as `((index*9 + x*16) & 0x3F) + 0xB4`, so 180 … 243. **This is not an animation phase** — §13.8 was right that the handlers step `+0x0E` instead, and this is what `+0x0C` is actually for: when `+0x0B` passes it, `Anim_StandA2` resets `+0x0B` and turns `facingDrawn` one step, left on an even map x and right on an odd one. A standing figure shifts its feet every 180–243 frames and no two neighbours do it together. One writer, two readers (`Anim_StandA2` and `Anim_StandA3`). |
+| `+0x0C` | u8 | fidget period | [V] | seeded once in `BattleMan_Create` as `((index*9 + x*16) & 0x3F) + 0xB4`, so 180 … 243. **This is not an animation phase** — §13.8 was right that the handlers step `+0x0E` instead, and this is what `+0x0C` is for: when `+0x0B` passes it, `Anim_StandA2` resets `+0x0B` and turns `facingDrawn` one step, left on an even map x and right on an odd one. A standing figure shifts its feet every 180–243 frames and no two neighbours do it together. One writer, two readers (`Anim_StandA2` and `Anim_StandA3`). |
 | `+0x12` | u8 | troopType | [V] | 0 … 10, the `TROOPS*.ENG` column order: peasant, crossbowman, maceman, swordsman, pikeman, archer, knight, catapult, siege tower, ram, oil. |
 | `+0x13` | u8 | ownerIsHuman | [I] | 1 when the owning realm's byte `+0x05` is set. Same source as unit `+0x01`. **This byte changes the damage this figure takes** — §6.2. |
 | `+0x14` | u8 | mercenary | [D] | set for the mercenary contingent of an army. |
@@ -171,7 +171,7 @@ reaches zero the figure enters the dead state and is removed.
 
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
-| `+0x164` | u8 | **on route** | [V] | 1 while the figure is following a stored path rather than walking straight at its target. |
+| `+0x164` | u8 | **on route** | [V] | 1 while the figure is following a stored path instead of walking straight at its target. |
 | `+0x165` | u8 | **hold it** | [V] | ticks to wait before asking the pathfinder again; set to 64 after each attempt. |
 | `+0x166` | i16 | **routed** | [V] | how many times this figure has been **re-routed**. Not morale — §8.3. |
 | `+0x168` | u8 | **polar dirc** | [V] | facing chosen when knocked back or thrown. |
@@ -196,7 +196,7 @@ own side: both callers of the isometric grid renderer pass
 | Off | Ev | Meaning |
 |---|---|---|
 | `+0` | [V] | terrain id (`skr.md`'s "Lords2 id" column: 1 open, 3 rocks, 4 hills, 6 unused, 7/8/9 bridge parts, 11 water, 12 woodland, 13 the `0x15` lines). |
-| `+1` | [V] | flags. **`0x10` and `0x80` make the cell impassable** — `Cell_TryEnter` rejects `flags & 0x90`. `0x40` blocks everyone too; `0x20` blocks side ≠ 0 only and makes the figure wait rather than reroute. |
+| `+1` | [V] | flags. **`0x10` and `0x80` make the cell impassable** — `Cell_TryEnter` rejects `flags & 0x90`. `0x40` blocks everyone too; `0x20` blocks side ≠ 0 only and makes the figure wait, not reroute. |
 | `+2` | [D] | further flags; bits `0x1C` are cleared and rewritten per cell during the build. |
 | `+3` | [D] | graphic index. |
 | `+4` | [V] | **elevation**. Governs missile damage (§6.2) and blocks movement between cells more than 1 apart (§7). |
@@ -566,7 +566,7 @@ Three things fall out of that, and all three match the manual's prose:
   slowly is hit rarely. This is the only melee defence in the game: `armour` (`+0x172`) is
   never read by `Melee_Tick`.
 * **The heavy blow lands once per figure, for the whole battle** — not once per exchange, as
-  this line read until a player said macemen felt like steady high damage rather than one
+  this line read until a player said macemen felt like steady high damage, not one
   spike. Checking settled it: `blowUsed` (`+0x18C`, `0x0055460C`) has exactly three
   references in the binary — set in `Melee_Tick`, read in `Melee_Tick`, and zeroed in
   `BattleUnit_Create`, which is figure *initialisation* beside a dozen other fields. Nothing
@@ -609,7 +609,7 @@ Cross-check against the printed manual, which gives no numbers at all but does r
 | archers are nearly useless against swordsmen and knights | attack 5, no bonus, no armour ✓ |
 
 `+0x18C` (`blowUsed`) is set to 1 and, in the code paths examined, never cleared. If that
-is genuinely the case a figure lands its heavy blow **once in the whole battle**, which
+is the case a figure lands its heavy blow **once in the whole battle**, which
 would be a bug worth reproducing. **Not established** — the writers of `+0x18C` outside
 `Melee_Tick` were not traced.
 
@@ -630,7 +630,7 @@ figure's `missileDamage` scaled by its strength band, and resets.
 and a faster rate of fire than crossbowmen but do less damage per shot"* — 15 > 8 cells,
 50 < 100 ticks, 50 < 200 damage. Three independent agreements from one sentence.
 
-#### A shot genuinely traverses, and can be intercepted
+#### A shot traverses, and can be intercepted
 
 **[V]**, and it is the question everything else about missiles turns on. A shot is **not**
 resolved at launch and animated afterwards. `Missile_Step`'s hit test is:
@@ -664,7 +664,7 @@ consequences, all of them visible in play:
 `flags & 0x80` (which `FUN_0049207E` stamps over a siege engine's 3 × 3 footprint), sets a
 sticky `blocked` flag. A blocked arrow or bolt is discarded once `blockedTicks` passes `0x20`
 — the counter is seeded `(shooterIndex & 0x10) + 4`, so 4 or 20, and a blocked volley gives
-up raggedly rather than all at once — or the moment the ground comes back down to the launch
+up raggedly, not all at once — or the moment the ground comes back down to the launch
 elevation. Catapults are exempt.
 
 #### The damage
@@ -713,7 +713,7 @@ realm record `+0x05`, and the only evidence for what that byte means is that
 "a person is driving this side". With it set, a figure gets *less* protection from high
 ground, takes more crossbow damage as a siege engine, and burns faster (§6.3). Whether
 this is a deliberate handicap, an inverted test, or a different meaning for realm `+0x05`
-entirely is **not established**. It is flagged here precisely because it is the kind of
+entirely is **not established**. It is flagged here because it is the kind of
 finding that is easy to over-narrate.
 
 ### 6.3 Fire
@@ -794,7 +794,7 @@ pikeman is exactly 1 : 5.
 **Corrected.** This section read `walking += 2; if (walking < 17) return; commit`, counting
 2, 4 … 18 from zero, and gave `9 * (moveDelay + 1)`. `walking` is never zero during a
 crossing — the commit seeds it at 1 — so the ninth increment does not exist, and the
-commit is at the *start* of the crossing rather than the end. `docs/symbols.json`'s entry
+commit is at the *start* of the crossing, not the end. `docs/symbols.json`'s entry
 for `BattleMan_Step` carried the same reading. Every relative speed the manual states is a
 ratio and is unchanged; what changed is that a figure is on the cell it is walking into for
 the whole crossing, which is what §13.6 draws.
@@ -861,7 +861,7 @@ order handlers (`0x0048A9C7`, `0x0048ACD2`, `0x0048B02B` and the twenty siege on
 
 `Dest_FindReachableNear` then does an expanding-ring search of radius 0…19 around the
 requested cell for one with the same surface and elevation, so an order onto impassable
-ground lands beside it rather than failing. **[V]**
+ground lands beside it instead of failing. **[V]**
 
 ### 8.2a The tables, checked against the oracle
 
@@ -880,7 +880,7 @@ Three things came out of it beyond the confirmation.
 
 **A reading-comprehension failure worth recording, because it was mine and not the
 document's.** The first version of the tool read `g_meleeAttackTable` as 32-bit and produced
-`262149`, `131075`, `387389207` — numbers that look like data rather than obvious garbage,
+`262149`, `131075`, `387389207` — numbers that look like data, not obvious garbage,
 which is C3's failure mode exactly. The giveaway is that `262149` is `0x00040005`: two small
 numbers in a trenchcoat. The table is 11 rows × 4 **`u16`** = 88 bytes, and the 176 bytes a
 32-bit reading consumes run past its end into an unrelated array. `docs/symbols.json`
@@ -952,7 +952,7 @@ four times (`barred`) and its `hold it` timer has expired.
   ```
 
   so a cell of cost *k* expands on its (*k*+1)-th pop, and what is written down is
-  accumulated cost rather than hop count. See correction **C12** in `docs/decisions.md`;
+  accumulated cost, not hop count. See correction **C12** in `docs/decisions.md`;
 * **the cost field is never relaxed.** A neighbour is considered only while
   `g_pathCost[nb] == 0`, so the first cost written to a cell stands even when a cheaper
   route reaches it later. The field is therefore not a metric, and this is not Dijkstra;
@@ -1015,9 +1015,9 @@ for two more things this section does not have.** Before it re-routes at all, th
 two rotations, up to five each way, taking the first that `BattleMan_TryStepDir` accepts. It is
 guarded by `field_0x169 < 2`, and `field_0x169` is the Chebyshev distance to the target set a few
 lines above — so **a figure only side-steps within one cell of where it is going**, which is a
-figure shuffling for a slot rather than one navigating. And after the search, `Path_DetourTooLong`
+figure shuffling for a slot, not one navigating. And after the search, `Path_DetourTooLong`
 can make the figure **give up and stand where it is** by setting `tgX, tgY` to its own position.
-Neither is reproduced; both are recorded here rather than in a correction, because neither has been
+Neither is reproduced; both are recorded here, not in a correction, because neither has been
 shown to matter yet.
 
 ---
@@ -1075,7 +1075,7 @@ so nothing on a `.skr` map is high ground. §3.
 **`docs/formats/skr.md` — terrain `0x15`, unidentified.** Impassable. §3.1.
 
 **`docs/formats/skr.md` — which deployment marker belongs to which side.** Side 0 deploys
-at the `0x04` marker, side 4 at the `0x0F` marker, and side is 0 or 4 rather than 0 or 1.
+at the `0x04` marker, side 4 at the `0x0F` marker, and side is 0 or 4, not 0 or 1.
 Which side is the *attacker* remains open. §4.3.
 
 ---
@@ -1318,7 +1318,7 @@ record's own 24-bit offset field. The shipped `Stnfield.pl8` is **64,168
 bytes** = 8 header + 160 directory + 10 × 6,400 — ten uncompressed 80 × 80
 frames, five castles of two layers, `castle` being `g_castleLevel` 0…4. **[V]**,
 and `the_layout_file_holds_five_castles_of_two_layers_each` re-derives it from
-the player's own file rather than trusting this paragraph.
+the player's own file instead of trusting this paragraph.
 
 **The structure layer is a grammar, not a raster.**
 `Battlefield_ReadStructureLayer` (`0x0047CEC1`) walks it for 2 × 2 marker
@@ -1339,7 +1339,7 @@ troop type only to garrison slots **0, 1, 4 and 8** of the twelve, and every
 one of the five shipped layouts fills exactly those four and no others —
 nothing in the decode arranges for that.
 
-What the five actually contain, measured from the shipped file:
+What the five contain, measured from the shipped file:
 
 | level | family | moat (`0xEE`) | keep (6) | curtain (8) | drawbridge (9) | cells at elevation 2 |
 |---:|---|---|---:|---:|---:|---:|
@@ -1394,9 +1394,9 @@ Four tables, all in `.data`:
 The first table's declared 11 entries physically overlap the second's first
 entry, but its tenth is a catch-all, so the eleventh is unreachable. Likewise
 the water table's last two entries sit behind its own catch-all. Reproduced as
-found rather than tidied.
+found, not tidied.
 
-The genuinely random cases are open ground with no obstacle neighbour
+The random cases are open ground with no obstacle neighbour
 (`rand & 0x0F`), rocks (`(rand & 7) + 0x20`) and id 6 (`(rand & 7) + 0x7C`).
 `rand` is `0x00404B2C`, **a 31-bit LFSR with taps at bits 0 and 4, stepped 31
 times per call and returning the low seven bits** — and it is stepped **once per
@@ -1625,7 +1625,7 @@ layout above.
   `l2_game::screens::battlefield`, not by this pass.
 * **Nothing has been compared against the original's framebuffer.** Every claim
   here is arithmetic over the binary and the shipped art. The renderer produces
-  an indexed 640 x 480 buffer precisely so that comparison stays possible, but
+  an indexed 640 x 480 buffer so that comparison stays possible, but
   it has not been made — D8 blocks driving the original's UI, and the proxy-DLL
   route has not been taken this far.
 
@@ -1747,7 +1747,7 @@ so an eleventh missile on one cell is not drawn.
 **`+0x0C` for a ram (9), `+8` for a pot of oil (10)**. Nothing for a catapult
 or a tower, and nothing anywhere else in the game.
 
-#### What `FUN_004BD759` actually is
+#### What `FUN_004BD759` is
 
 `FUN_00491492` (§17.6) writes `DAT_004D9DD0[k + polarDirc × 9]` into the
 graphic byte of every cell of a docked tower's 3 × 3 and sets byte `+2` bit
@@ -1833,7 +1833,7 @@ They also settle the `animSet` column §2.2 records as **[D]**: 1, 1, 2, 3, 2, 1
 The **[I]** rows live in `docs/hypotheses.json`, not `symbols.json`.
 
 **§2.2's state list had two entries wrong**, and both are the kind of error a
-propagating network catches rather than a reading does:
+propagating network catches and a reading does not:
 
 * **State 6 is not "blocked".** It is a figure hitting the castle wall it just
   walked into. A figure gets there from `BattleMan_Step` when
@@ -1850,7 +1850,7 @@ when a friendly figure blocks the step. **State 2 is a corpse**: it steps the
 collapse animation and counts `+0x173` to 80 before freeing the slot, and state
 15 is its siege-engine twin at 120. `+0x173` is a field §2.3 does not list.
 
-### 14.3 How a castle actually comes down
+### 14.3 How a castle comes down
 
 Not written down anywhere before. Two accumulators, and they are not
 interchangeable:
@@ -1877,7 +1877,7 @@ breaches; the rampart counter does, so a wall can be chewed through repeatedly.
 Surface 4 is what `Siege_FindCellSurface4` then hunts for, which is how the
 order layer learns the wall is down.
 
-State 14 is reachable **only by a ram**, and that is a fact rather than a
+State 14 is reachable **only by a ram**, and that is a fact, not a
 reading: `BattleMan_TryStepDir` sends any siege engine to `Cell_TryEnterEngine`,
 whose two leaf tests — `Cell_TryEnterEngineOrtho` and `Cell_TryEnterEngineDiag`,
 sweeping the engine's leading edge from `g_engineEdgeOrtho` (three cells for a
@@ -1887,7 +1887,7 @@ orthogonal step) and `g_engineEdgeDiag` (five for a diagonal one, which is what 
 value `BattleMan_Step` turns into state 14.
 
 `Cell_TryEnter` also carries a flag §3 does not list: **`0x08` is impassable for
-side 4 and merely occupied for side 0**, and it raises `0x00553F3C` on the way
+side 4 and occupied for side 0**, and it raises `0x00553F3C` on the way
 past. A side-4 figure entering a **surface-7** cell — the bridge — calls
 `0x0048551D` first.
 
@@ -2039,7 +2039,7 @@ the flight direction `+0x2E` to the nearer octant when one axis is more than
 twice the other. The snap moves the *direction* only, never the position; it
 matters because `dir` is what the missile coasts along once its line is spent.
 `Missile_StepError` (`0x00493B61`) is one error update per sub-step over the
-**remaining** counts rather than the original ones (they shrink together, so the
+**remaining** counts, not the original ones (they shrink together, so the
 slope it re-derives is the same slope), and it decrements the major axis.
 `Missile_StepTowardTargetX` / `…Y` move the 1/32-cell position one unit at a
 time. `Missile_OffMap` retires a missile that leaves 0…79 in either axis — the
@@ -2146,7 +2146,7 @@ the reading that the original has a determinism switch one could lean on. It
 does not; it has a network session, and determinism is what the session costs
 it. Nothing in `docs/netcode.md` ever cited the flag — its case for lockstep is
 made from first principles about our own engine — so no argument there had to be
-withdrawn, but the flag is now positive evidence *for* that case rather than a
+withdrawn, but the flag is now positive evidence *for* that case, not a
 name that happened to agree with it: the original ships commands, not state
 (`docs/armies.md` §8c), and checksums the result (`Sync_Checksum`).
 
@@ -2309,7 +2309,7 @@ state.** `FUN_00478987` (`0x00478987`) asks whether the selection is exactly one
 whole unit; if it is not — the player boxed half a unit, or figures from two —
 it calls `BattleUnit_Alloc` and moves every selected figure into a **new unit**.
 So a box drawn round half a unit *splits* it, and every later order applies to
-the new one. Two details reproduced rather than tidied: the new unit's category
+the new one. Two details reproduced, not tidied: the new unit's category
 is written **inside** the move loop, so the **last** selected figure decides
 whether the whole unit is missile (1) or melee (3); and if `BattleUnit_Alloc`
 finds no free slot the regroup silently does nothing, at which point
@@ -2390,7 +2390,7 @@ overview is live on `0x29`, `0x2A` and `0x2B` alike.
 ### 15.9 The keyboard — the window procedure, `0x004B29BE`
 
 **[V]** The battlefield is the only screen in the game with real keyboard verbs,
-and they are dispatched from `WndProc` rather than from `Screen_FrameInput`.
+and they are dispatched from `WndProc`, not from `Screen_FrameInput`.
 
 | key | arm | gate |
 |---|---|---|
@@ -2440,7 +2440,7 @@ original's battle pointer is one frame stale.
 
 `0x2B`'s whole arm is one line: a right release sets `DAT_00568470 = 0x1389`.
 `Battle_CheckOutcome` counts that word up once a frame and gives way past 5000,
-so the right button **skips** the banner rather than dismissing it.
+so the right button **skips** the banner instead of dismissing it.
 
 ### 15.11 The count
 
@@ -2452,7 +2452,7 @@ so the right button **skips** the banner rather than dismissing it.
 | `0x2B` | 3 | the skip, and the overview's two outcomes |
 | **total** | **38** | |
 
-**This is not 49, and the difference is a counting rule rather than a
+**This is not 49, and the difference is a counting rule, not a
 disagreement about the code.** One (screen, gesture, guard) a player can tell
 apart is one arm here; a table of N identical widgets hit-tested in one call is
 **one** arm (the menu bar's three titles, the nine control-group keys) and a
