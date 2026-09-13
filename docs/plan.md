@@ -1,7 +1,7 @@
 # Plan — 1:1 with the original, all of it, start to finish
 
-**Revision 5.** Written to be attacked, like its predecessors, and rewritten rather than edited:
-the goal moved, and a plan whose goal moved is not a longer version of the old plan. The
+**Revision 5.** Written and rewritten:
+the goal moved. The
 adversarial review that reshaped revision 2 is still in [`plan-review.md`](plan-review.md), its
 numbers frozen at the day it was written, and it is still the model for how to argue with this
 file.
@@ -25,7 +25,7 @@ stale counts as current — one of them mine. Numbers that are frozen measuremen
 ## 0.0 Starting position — read this first
 
 **Written at the end of a session in which ten agents worked in parallel and one integrator
-landed twenty merges.** It is not a summary of that evening; it is where the next person
+landed twenty merges.** It is where the next person
 starts. It goes stale the moment the queue moves, so **check it against `git log` and
 `git branch` before trusting a line of it.**
 
@@ -46,8 +46,8 @@ that is the part worth keeping:
 
 * `merchant-pacing` was held on **"8 tests red in `military.rs`"**. The branch's own author had
   already diagnosed it — a fixture defect, not the fix, the same shape as C115 — and had
-  reverted a half-measure rather than leave one. The fixtures were repaired and the branch was
-  green on arrival: 2,149 passing, verified independently rather than taken from the branch's
+reverted a half-measure. The fixtures were repaired and the branch was
+green on arrival: 2,149 passing, verified independently
   claim.
 * `industry-sites` was held on **"no tests of its own, and its author says so plainly"**. True of
   its first commit and of nothing since: four later commits added `tests/industry.rs` (501 lines)
@@ -56,20 +56,20 @@ that is the part worth keeping:
 **A hold recorded against a branch is a claim with a timestamp, and this file has no timestamps.**
 Both entries were accurate when written and both were read months of work later as though they
 still were. If you hold a branch here, say what would lift the hold, in a form somebody can
-*check* rather than re-argue — "8 red in `military.rs`" is checkable, "no tests of its own" was
+*check* — "8 red in `military.rs`" is checkable, "no tests of its own" was
 checkable, and nobody checked either before quoting them.
 
-### What landed with debt, named rather than absorbed
+### What landed with debt
 
 `industry-sites` carries one narrowed claim that must not re-widen. Its test asks whether the
 industry wheel's animation phase reaches the encoded kingdom, and the honest scope is *narrower
 than the test's name suggests*: `step_industry` takes `&Ctx`, so it cannot write to the kingdom
-at all — the ablation is a borrow error rather than a red test. Staged in `update`, where a
+at all — the ablation is a borrow error. Staged in `update`, where a
 `&mut Ctx` exists, **the first leak tried was green**: a county holds up to four sites and only
-the last writer survives, so the two runs' last-per-county frames coincided. What is actually
+the last writer survives, so the two runs' last-per-county frames coincided.
 asserted is that the phase does not reach the encoding *in a way that survives to the end of the
 run* — which is what a lockstep peer would see, and no more. A leak that collides is one it
-cannot detect and there is no cheap check that can.
+cannot detect and a cheap check cannot do so.
 
 That is a second instance of an ablation that passed for the wrong reason, and it was found only
 because somebody tried the ablation twice. **One green ablation is not evidence; it is a single
@@ -117,7 +117,7 @@ wrong** — the denominator because the enumeration was one primitive short
 with the code since it was typed.
 
 **Nothing anywhere compares what the original and our engine *do*.** Everything we check is a set
-of names or a block of static data. There is no test that starts both from the same state, steps
+of names or a block of static data. Both begin from the same state,
 both, and compares — and the material for one is already on disk: `battle-before.sav` /
 `battle-after.sav` and the four `siege-*` saves are before-and-after pairs across a single End
 Turn. That is the largest missing instrument on this project and it needs no new reverse
@@ -133,7 +133,7 @@ misaligned.** Five were wrong anyway — `Panel_Ration` is the only painter in t
 passes an **empty** suffix, we passed a space, and the suffix is inside what the centring tail
 measures, so all five columns sat two pixels left.
 
-**What is still open from it** is the count rather than the placement: five `Ui_DrawNumberRight`
+**What is still open from it**: the count, not the placement; five `Ui_DrawNumberRight`
 sites have no draw of ours (the besieger's siege-seasons mark, the battle HUD's two men
 counters, and two on a skirmish panel — the turn timer was a sixth, and is drawn now,
 `docs/decisions.md` C158), and `Ui_DrawNumber`'s **190** live call sites have
@@ -162,7 +162,7 @@ is written to be losable, so here is what losing looks like. Any one of these, d
 the goal is not met — not "mostly met".
 
 1. **A player performs a gesture the original responds to and ours does not.** This is now
-   countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
+countable: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
    arms enumerated so far we reproduce **<!--fig:arms-reproduced-->225<!--/fig--> of
    <!--fig:arms-live-->252<!--/fig--> live arms (<!--fig:arms-pct-->89<!--/fig-->%)** — so
@@ -185,7 +185,7 @@ the goal is not met — not "mostly met".
    <!--fig:draws-ours-->483<!--/fig-->: <!--fig:draws-pct-->48<!--/fig-->%.
    <!--fig:draws-missing-->48<!--/fig--> things the original draws are enumerated as missing,
    and **<!--fig:draws-inventions-->38<!--/fig--> things we draw that it does not** — the
-   figure that answers row 2 for pictures rather than gestures, and the one nobody had.
+figure that answers row 2 for pictures, not gestures; the one nobody had.
    `docs/draws.md`, via `tools/draws/screendraws.js` and `tools/draws/screens.json`.
 
    Set either beside the input measurement, where `arms.json` marks
@@ -227,13 +227,13 @@ the goal is not met — not "mostly met".
 The first **three** have instruments now. The third has **two**, built independently — the
 campaign map (`docs/draws-map.md`) and the other 51 screens (`docs/draws.md`) — and between
 them **they have fired ahead of the player three times in one evening.** Both are partial and
-the bullets below are why the row is still a falsification condition rather than a tick. The
+the bullets below explain why the row is still a falsification condition. The
 fourth has a partial one; the fifth is what the fixtures do.
 
 ### The third row's instrument, and what it still cannot see
 
 `docs/draws-map.md` is the campaign map's draw-call inventory — **139 calls, 121 live, 59
-reproduced (49 %)**, derived by `tools/draws/mapdraws.js` rather than typed. Beside it,
+reproduced (49 %)**, derived by `tools/draws/mapdraws.js`. Beside it,
 `docs/arms.json` reports **20 of 25** input arms on the same two screen ids. So:
 
 > **On the screen a player spends most of the game looking at, we answer four gestures in five
@@ -245,11 +245,11 @@ shit everywhere"* and *"why do the pastures not have cows in them?"* Neither is 
 
 **Twice on 9 September the inventory named a defect before the player did**, and after a week
 in which every player-visible defect was explained *after* he found it, that is the row
-changing state rather than the row being ticked:
+changing state:
 
 * §5.5 counted the eight `Ui_DrawDelta` calls as missing. Hours later: *"Sidebar doesn't show
   grain being planted as a negative number."* The listing could then say which of three causes
-  it was — the value never arrives — by reading rather than guessing.
+it was — the value never arrives — by reading.
 * §5.5 also counted the sidebar's five **industry** rows as undrawn, 21 of 31 row-painter draw
   calls missing. He asked about the icons the same evening.
 
@@ -258,7 +258,7 @@ than none:**
 
 * **It is one screen.** Twenty-two others have no inventory, and `0x04` — two painters, eleven
   layouts — is measured at 174 draw calls against our 24.
-* **It counts calls, not correctness — and that is now measured rather than feared.** A call
+* **It counts calls, not correctness — and that is now measured.** A call
   we make at the wrong coordinate, in the wrong font, or with the wrong frame counts as
   reproduced. Of the eighteen sidebar draws read back line-by-line against their call sites,
   **three were four pixels wrong** — the population, the happiness and the tax rate, every one
@@ -276,7 +276,7 @@ than none:**
   that a hundred ticks leave `Kingdom` byte-identical, which is the *correct* invariant for
   display state and says nothing whatever about whether the display moved. A true check about
   the wrong claim — `docs/agents.md`'s standing pattern, and the reason the industry sites
-  being static was reported by a person rather than by us.
+being static was reported by a person.
 
 **The third row was the most valuable line in this file when it read *"instrument: none"*, and
 the rule written here then was that it must not vanish on acquiring one.** It has not. What it
@@ -287,13 +287,13 @@ now says is **which** instrument covers it and **what that instrument still cann
   each.
 * It counts **static call sites**, so a ladder drawing a different frame per state is one call.
   What is drawn *correctly* is a different question with no instrument at all.
-* And it inherits the three hiding places below, which is why its own misses cluster there.
+* And it inherits the three hiding places below; its own misses cluster there.
 
 A falsification condition that vanishes on acquiring a partial instrument has been quietly
-weakened rather than met, and this list is the one place in the project where nothing else would
+weakened, and this list is the one place in the project where nothing else would
 catch that.
 
-**The honest caveat on the headline, stated here rather than in a footnote:** `arms.json` covers
+**The honest caveat on the headline:** `arms.json` covers
 **<!--fig:arms-groups-done-->15<!--/fig--> of <!--fig:arms-groups-->20<!--/fig-->** enumerated
 groups, and those two are the battlefield and the battle seam. It is not yet the project's
 number. The wider, coarser measurement is `docs/decisions.md` C61's — **80 of 185 arms across
@@ -315,8 +315,8 @@ purpose and the switches that turn them off.
 
 Two consequences worth stating so nobody re-derives them:
 
-* **A multiplayer feature is not a 1:1 requirement.** The lobby, the handshake and the quirk
-  exchange exist because *our* determinism needs them, not because the original had them.
+* **Multiplayer features are not 1:1 requirements.** The lobby, the handshake and the quirk
+exchange exist because *our* determinism needs them.
 * **The rest of the engine still pays lockstep's costs** — no floats where ordering matters, a
   frozen PRNG, no hash-order iteration — because those constraints are nearly free while the
   simulation is being written and ruinous to retrofit.
@@ -327,13 +327,13 @@ Two consequences worth stating so nobody re-derives them:
 Every plan before revision 4 measured a **path**: one route through the game, walked once, by
 somebody who knows where to click. *Start to finish* measures a **loop that survives
 repetition** — a hundred turns, five realms, all of them acting. **1:1** adds a second axis to
-that: not just *does the loop survive*, but *is each turn of it the turn the original would
+that: *does the loop survive*, and *is each turn of it the turn the original would*
 have played*. Three classes of defect appear only under the first, and this project has been
 bitten by all three:
 
 * **C26** — a rule can be wrong at 45 of its 51 inputs and stay invisible, because the only
   fixture exercises one value of its input. Found twice in one afternoon, behind a green suite.
-* **C27** — a rule with no way in is not a rule the game has. The whole grain economy was
+* **C27** — a rule with no way in is absent from the game. The whole grain economy was
   finished, tested and unreachable in play, for the player *and* for the AI. **Nobody farmed.**
 * **C21** — work outside every named category gets no rigour, and its absence is invisible
   because nothing tracks it. A plan's categories decide what gets checked.
@@ -343,13 +343,13 @@ A fourth class belongs to the new axis and is numbered too:
 * **C61** — a behaviour nobody enumerated cannot be missing, because nothing names it. The
   march preview appears on hover in the original and only after the click in ours; an army
   could not be deselected. Both had been true for weeks behind a green suite, and both were
-  found by a player rather than by us. §0 and §2.10 are the two instruments that came out of it.
+found by a player. §0 and §2.10 are the two instruments that came out of it.
 
 So this plan is organised by **what the goal requires**, not by what is left to build.
 
 ---
 
-## 1. The definition, argued rather than assumed
+## 1. The definition
 
 ### 1.1 Start
 
@@ -394,7 +394,7 @@ The game ends, and somebody wins it.
 **Status: the ending is built; reaching it in play still needs sieges.** A game *can* now end
 — constructed positions are driven to a win and to a loss in `tests/ending.rs`, land on the
 right outcome byte and the right sentence of screen `0x1C`, and a campaign steps map to map.
-What is still missing is the way a person actually gets to that position on the board.
+What is missing: the way a person gets to that position on the board.
 
 **Sieges are on the critical path.** `crates/l2-kingdom/src/conquest.rs:114` implements the
 gate, and it is one `if`: a county with a castle *and* a garrison that is not yours cannot be
@@ -418,7 +418,7 @@ message that set it calls `Campaign_EnterConquest` and enters screen `0x1C`.
 
 Implemented in `l2_kingdom::victory` (the rules) and `l2_game::victory` (the campaign and the
 message queue), with `crates/l2-game/tests/ending.rs` driving a won game and a lost game
-through the real phase machine. `docs/decisions.md` C32 records the four ways the reading
+through the real phase machine. `docs/decisions.md` C32 identifies four points.
 above was wrong and the two bugs of ours that only an ending could expose.
 
 ---
@@ -426,7 +426,7 @@ above was wrong and the two bugs of ours that only an ending could expose.
 ## 2. What the goal requires that was on nobody's list
 
 `docs/mechanics.md` exists to answer this question; this section exists because it did not
-answer all of it. Each item is something the goal needs, that no plan named, that is not a
+answer all of it. Each item is something the goal needs that no plan named.
 restatement of a known gap.
 
 ### 2.1 Nothing moves during a turn
@@ -449,7 +449,7 @@ Three facts that only bite together:
 2. `levy.rs` implements raising one, and nothing in `l2-game` calls it.
 3. The door is shell `0x17`, and `crates/l2-game/src/screens/shells.rs` calls it **"Hire
    mercenaries"** — while `docs/symbols.json` names its painter `0x00418653`
-   **`Screen_RaiseArmy`**, and `docs/armies.md` §5 records that there is no separate
+the end against realms that starve does not win. It is also **cheap** — three
    mercenaries screen at all: the mercenary offer lives *on* the raise-army screen.
 
 So a game started from the fixture has no army, no way to make one, and the door to making one
@@ -532,9 +532,9 @@ assignment; buying grain, the labour allocation and the herd share run every sea
 
 So the answer to *"is the AI farming style on the critical path?"* is **yes**. Ours already
 adds fallow fields and never grain, which is C27 restated for the opponent: a game played to
-the end against realms that starve is not a game that was won. It is also **cheap** — three
-readable functions, 657 and 300 bytes and one unmeasured — which is why it gets its own item
-in §3 rather than waiting behind the AI's army work.
+the end against realms that starve does not win. It is also **cheap** — three
+readable functions, 657 and 300 bytes and one unmeasured — and it gets its own item
+in §3, not waiting behind the AI's army work.
 
 *(Two names in `ai.rs`'s table need reconciling first. Row 5 cites `0x0049DD01` as
 `AI_ManageFields`, while `symbols.json` has `0x0049DD01` as `Ai_ManageCountyFarms` **[V]** and
@@ -562,14 +562,14 @@ revolt; alliances; every AI ladder at an interesting treasury.
 > `Pct(Pct(population, castleBase), taxRate)`, which is the **first oracle this project has
 > had for a non-zero tax rate**, and it had been sitting in the fixture directory the whole
 > time. What survives the correction is the part about `TAX_HAPPINESS_OTHER`, which is flat
-> below rate 20 and so genuinely untested at every rate any save carries. `docs/decisions.md`
+below rate 20, untested at every rate any save carries. `docs/decisions.md`
 > C142, and `docs/agents.md`'s *name the branch* applied to a corpus
-> rather than to a call site.
+applied to a corpus.
 
 **The project has no evidence about the game it is now trying to finish.** C26 measured this
 failure mode at turn one and found two wrong rules in an afternoon. The late game is a much
 larger version of the same exposure and, unlike turn one, is not covered by a reproduction
-test that could go red. The fix is §5's first ask and should be made now rather than when the
+test that could go red. The fix is §5's first ask, to be made now.
 code is ready for it.
 
 > **Partly instrumented, and the first run paid for itself.**
@@ -604,7 +604,7 @@ so the item listed last on every plan for months is the one the goal most direct
 > since the day it was traced and `docs/audit-method.md` re-derived it independently; this
 > section and `docs/decisions.md`'s open-questions list were both stale.
 >
-> **What was actually still open in the same paragraph was `localModifier`**, which returned
+> **Still open in the same paragraph was `localModifier`**,
 > zero and was marked *"never traced"* — a per-county term worth up to 12 a season, which is
 > the compounding this section is about. It is `FUN_00449D6E`: a climate band 0…4 cut out of
 > the county's **index** by `County_Reset`, applied in Summer and Winter only, with a hole at
@@ -637,7 +637,7 @@ This project measures two things well and one thing not at all.
 * **Input arms** — what the original responds to. `docs/arms.json`, checked both ways.
 * **Fields and rules** — what the simulation computes. Fixtures, the encode/decode check, the
   hundred-turn assertions.
-* **What the screen should show.** Nothing. There is no inventory of the original's *draw* calls
+* **What the screen should show.** Nothing. Inventory of the original's *draw* calls
   the way there is of its input arms.
 
 Two findings in one evening say that gap is not theoretical, and they are the same shape.
@@ -652,11 +652,11 @@ told which screens were shells — are the same gap at a coarser grain. That his
 shell table's agree is the only corroboration either has.
 
 **Nothing was checking where an agent works.** Seven agents ran today in one shared checkout
-rather than seven worktrees. Every test passed, every lint passed, every document was silent, and
-it was found only because the shared tree stopped compiling mid-merge. There is no file in this
+with one checkout. Every test passed, every lint passed, every document was silent, and
+it was found only because the shared tree stopped compiling mid-merge. No file in this
 repository whose job it is to know that, and no check could have failed.
 
-The general form, and it is the reason this is a section rather than two anecdotes:
+The general form, which explains why this is a section rather than two anecdotes:
 
 > **A dimension nobody has enumerated cannot produce a failing test, however good the tests in
 > the dimensions somebody did enumerate.** Coverage is measured *inside* a taxonomy. It says
@@ -687,13 +687,13 @@ form of the estimate — the work was happening anyway, and the by-product answe
 question that matters before scoping the rest, which is *how many records per screen* and *how
 long each takes to establish*. If its rate is close to the arms enumeration's, the shape holds
 and the audit is schedulable; if it is much worse, the reason will be visible in its records
-rather than argued about.
+and visible in its records.
 
 ---
 
 ## 2.11 Which of our checks would survive their own assumptions changing
 
-**Also new, and it is about the instruments rather than the game.** Under a 1:1 goal the checks
+**Also new, and it is about the instruments, not the game.** Under a 1:1 goal the checks
 *are* the project: the claim "we match the original" is only as good as the things that would
 notice if we stopped. Two measurements from this month say the instruments need auditing as much
 as the code does.
@@ -702,7 +702,7 @@ as the code does.
 reading — a duplicated correction heading, a doc comment attached to the wrong constant, and a
 misaligned symbol merge that would have put one function's comment on another's address. Two of
 the nine were caught by the compiler, which is the cheap case and the argument for making a
-mistake unrepresentable rather than checkable. The rest were caught by checks built for other
+mistake unrepresentable. The rest were caught by checks built for other
 purposes.
 
 **Three checks passed for reasons unrelated to why they were written.** `JSON.parse` caught the
@@ -737,7 +737,7 @@ merge-by-key driver).
 > plan reads as current long after it is not, and §0.0 and §0.0b went stale the same way. What
 > is in flight is now rows in `docs/work.json`, with `node tools/pm/work.js --status` deriving
 > from git whether each has merged. What stays here is the order, which is a claim about
-> priorities rather than about which branches exist.
+> priorities and which branches exist.
 
 ```text
   DONE ─┬─ victory & defeat                    THEN, in this order
@@ -761,13 +761,13 @@ done, and §2.5's hundred-turn item no longer has an excuse.
 
 ### What moved, and why
 
-**Diplomacy moved from last to blocking, and it was found by measurement rather than by
+**Diplomacy moved from last to blocking, found by measurement.** Revision 4 put it at item 7
 argument.** Revision 4 put it at item 7 on the grounds that the AI can fight without talking.
 That was wrong in a way nobody could see until the AI handlers were written: **four of the AI's
 inputs — `standing`, `war_target`, `ally`, `target_county` — have exactly one writer each, and it
 is diplomacy.** So AI step 10, the raid, is implemented, dispatched, tested and **cannot fire in
 a played game** (`docs/decisions.md` C68). That is C27's seventh instance and the first where the
-missing writer is an unbuilt *subsystem* rather than a missing line. A test holds both halves and
+missing writer is an unbuilt *subsystem*. A test holds both halves and
 goes red the day it changes.
 
 **And diplomacy is built** — `crates/l2-kingdom/src/diplomacy.rs`, AI turn steps 1 and 2, and
@@ -779,7 +779,7 @@ and in the battle return, two of them already sitting here as reported values wi
 saying *"for a caller that has a diplomacy layer to drive"*. C68's test went red exactly as
 designed **and would have stayed green with the step 2 dispatch deleted.** A test written to
 fire when a gap closes inherits the gap's framing, which is always *"is the field non-zero"*;
-it should be replaced rather than merely satisfied. `docs/decisions.md` C84, and
+it should be replaced. `docs/decisions.md` C84, and
 `docs/diplomacy.md` §10 is the nine things implementing the document corrected in it.
 
 **The siege battle screen is a one-way door, and it arrived in the place nobody was watching.**
@@ -815,7 +815,7 @@ which build he was running, and nothing on screen could have told him or us.
 The fix was a build stamp on the title screen: short commit, dirty marker, and the commit's date,
 in the bottom-left in the dim ink. Hours, not days. It carries a date as well as a hash because
 *"is this old?"* is the actual question and a hash cannot answer it without a lookup, and it says
-`NO GIT` rather than inventing a version when the source is not a checkout. A static `0.1.0`
+`NO GIT` when the source is not a checkout. A static `0.1.0`
 would have been worse than nothing, because it looks like an answer.
 
 **It is in the field as of tonight** — the player has rebuilt and is running a binary that
@@ -836,7 +836,7 @@ Two things this is evidence for, beyond the stamp:
 
 ## 4. The cheapest items, named — because this project defers them
 
-This is not a suspicion. **Save and load has been the cheapest item on every plan for months
+**Save and load has been the cheapest item on every plan for months**
 and last on every one of them**, including revision 3, where the review moved persistence to
 *first* and it still did not get done. Naming the pattern is the point of this table.
 
@@ -860,7 +860,7 @@ names them.**
 > **`docs/oracle-requests.md` is this section rewritten for the person who has the game**:
 > ten numbered things to do and save, in plain language, with what each would settle and why
 > it cannot be got any other way. It is longer than this list because it says *how*, and it
-> is ordered by what the hundred-turn game proved we cannot reach on our own rather than by
+> is ordered by what the hundred-turn game proved we cannot reach on our own.
 > what we happened to want. Hand that file over; keep this one for arguing about priority.
 
 Several things cannot be verified without saves that do not exist. This costs a person with
@@ -881,9 +881,9 @@ In order of yield:
    What it settles: `County.purse` (`+0x1F4`) on an unowned county should be non-zero and
    equal `tax banked + 100 per season − purchases`, which promotes it; and the same save gives
    the first non-zero trade accumulators **from the original**, confirming our arithmetic
-   writes the same numbers rather than merely writing consistent ones.
+writes the same numbers.
 
-   **This item was four fields longer until C54 settled them without a save.** It used to ask
+**This item was four fields longer until C54 settled them without a save.** Four fields.
    for a merchant transaction to promote seven fields; `Realm +0x104…+0x110` turned out to
    have only two writers and no readers at all, which refuted the `thisSeason`/`total`
    reading and promoted all four from the code. `County.aleHappinessGiven` (`+0x219`) went
@@ -926,7 +926,7 @@ field offsets of three arrays that were already named. Seventy-two functions cro
 `Battlefield_BuildCastle` should all be costed lower than revision 3 would have costed them.
 
 **Constraint propagation by subsystem.** A guess is a set of predictions about its neighbours;
-test the predictions rather than the guess. Measured on one campaign-map pass
+test the predictions. Measured on one campaign-map pass
 (`docs/method.md` §7.7, frozen): **21 role predictions made, 15 held, 6 refuted** — against the
 one-at-a-time role rate of **58%** measured in §7.3. Three of the six refutations were the
 pass's most valuable results, because a refuted prediction invalidates its neighbours and stops
@@ -986,7 +986,7 @@ worries instead of dead ones.
   the battle that reads the *campaign* map's orientation, and it rotates the figure facing by
   it. Either the battlefield honours a rotation nothing else implements, or this is a paste
   from the campaign renderer whose extra branches never run. Both coherent, neither anchored,
-  written down as unresolved rather than narrated into place.
+written down as unresolved.
 
 And two that are unknown only because nobody has looked, which is a cheaper kind: the seven
 battle outcomes' selector (`FUN_00478419`, 177 bytes) and how casualties return from a battle
@@ -1038,7 +1038,7 @@ So a player gets a castle with no designer at all, and the battlefield you besie
 layout keyed by the type byte. **`docs/mechanics.md`'s line — *"the castle designer. One of the
 game's signature features. Untouched."* — is not supported by anything in the traced binary.**
 The likeliest explanation is that the wall-drawing designer people remember belongs to the
-*Siege Pack* edition rather than to the retail executable this repo decompiles; **that
+*Siege Pack* edition; **that
 attribution is inferred and unverified**, and it is exactly the sort of question a player can
 settle in one sentence, as in C21 and C22. Ask before writing it down.
 
@@ -1055,10 +1055,10 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->54<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and
-  the conclusion survives for a different reason: we are inventing our interface rather than
+the conclusion survives: we are inventing our interface.
   cloning the original's. Name what a plan item needs, when it needs it.
 * **Pixel comparison against the original's framebuffer.** Follows from the point above and
-  should be said plainly rather than left as an aspiration: for every screen we invent, it is
+should be said plainly: for every screen we invent, it is
   off the table. It stays available for what we do reproduce — the map, the sprites, the fonts.
 
 Refused outright until §1's three gates are green: sound, video and D5a's licence choice with
@@ -1069,7 +1069,7 @@ and any screen not required by a turn.
 
 ## 9. How this plan fails
 
-Written so the failure is recognisable early rather than in hindsight.
+Written so the failure is recognisable early.
 
 * **The AI's steps turn out to be nine subsystems.** Costed here as reading, on the strength of
   §6's cheaper corpus. *Early warning:* naming the three army steps does not produce three
@@ -1085,7 +1085,7 @@ Written so the failure is recognisable early rather than in hindsight.
 * ~~**`FUN_0042FF10` turns out to matter.**~~ **Retired — it did matter, and it has been
   read.** It is `Screen_FrameInput`, and the rule nobody could find was the right mouse
   button: a player said *"right click would close a bunch of popups"* and the function is
-  where that lives. The early warning fired exactly as written, from the player rather than
+where that lives. The early warning fired exactly as written, from the player.
   from us. `docs/decisions.md` C46 and `docs/screens-county.md` §2.6.
 * **The plan is followed and the game is unplayable anyway**, because none of it was shown to
   somebody who has played it. C21 and C22 were both overturned by a player looking at a
@@ -1099,7 +1099,7 @@ Three targets, in the order I would take them:
 
 1. **That sieges are on the critical path.** It rests on one `if` in `conquest.rs`. Check
    whether the original really has no route past a defended castle — a starved-out garrison, a
-   county taken by revolt or secession rather than by arms, or the county town while the castle
+county taken by revolt or secession, or the county town while the castle
    stands, which is what C25's own evidence says: *"Your troops may capture a castleless county
    by attacking its county town."* If any such route exists, sieges move down and this plan's
    biggest reordering is wrong.
@@ -1108,10 +1108,10 @@ Three targets, in the order I would take them:
    in a sentence, and if they do, §8 is wrong and a large phase reappears.
 3. **The ordering of item 10.** Building the whole game against an imported fixture and only
    then teaching it to start a new one is exactly how an interface gets built around
-   assumptions the real entry path breaks. §3 is honest about the trade and could still be the
+assumptions the real entry path breaks. §3 is honest about the trade and could still be the
    wrong call.
 
-Everything in §2 is a finding rather than an opinion, and each names the file or address it
+Everything in §2 is a finding, and each names the file or address it
 came from. Those are the claims to check first if you think this plan points the wrong way.
 
 ## 0.0a Two loose ends recorded before the session ended
