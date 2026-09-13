@@ -876,6 +876,93 @@ fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
     assert!(!audio.is_playing("click3.wav"), "letting go of the arrow clicked");
 }
 
+/// **The field brush's three sounds.** `FUN_00438B02` (`0x00438B02`) answers
+/// every one of the five buttons and picks the slot off the terrain it is
+/// about to paint: `0x13` → 4 `moo_2.wav`, `2` → 7 `wheat.wav`, and `1`, `0`
+/// and `0x19` → 6 `fallow.wav`.
+///
+/// Driven through the panel's own handler at the pixels the hotspot table
+/// gives, with [`audio::Director`] between the two ticks — the brush closes
+/// the panel (`g_screenId = 0`), so the tile it painted is gone from the stack
+/// by the tick that hears it.
+///
+/// **Ablation, run:** delete the `hear_the_brush` call in `Director::listen`
+/// and all four arms go red.
+#[test]
+fn the_field_brush_sounds_what_it_paints() {
+    use l2_game::screens::info::{Target, BRUSH_DIM, BRUSH_FIELD_X, BRUSH_ROW_Y, BRUSH_WASTE_X};
+    use l2_kingdom::field::terrain;
+    use l2_kingdom::map::flags;
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no fallow.wav");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+
+    // brush x, the terrain the tile starts on, and what the original plays.
+    let arms: [(i32, bool, u8, &str); 4] = [
+        (BRUSH_FIELD_X[1], true, terrain::FALLOW, "wheat.wav"),
+        (BRUSH_FIELD_X[2], true, terrain::FALLOW, "moo_2.wav"),
+        (BRUSH_FIELD_X[0], true, terrain::GRAIN, "fallow.wav"),
+        (BRUSH_WASTE_X[0], false, terrain::WASTE, "fallow.wav"),
+    ];
+    for (bx, field_menu, from, want) in arms {
+        let mut audio = Audio::headless(&platform.vfs);
+        let mut director = audio::Director::new();
+        let mut game = world();
+        // Twenty fields for county 1, which `world` gives the player. The flag
+        // is not enough: `field::set_type` refuses a tile that is in no slot.
+        let tile = {
+            let map = &mut game.kingdom.campaign.map;
+            let c = &mut game.kingdom.counties[1];
+            for slot in 0..20u8 {
+                let (x, y) = (10 + slot % 5, 20 + slot / 5);
+                map.set_flags(x, y, flags::FARMLAND);
+                map.terrain[l2_kingdom::map::index(x, y)] = from;
+                // The panel takes the county off the *map*, not off the slot.
+                map.county[l2_kingdom::map::index(x, y)] = 1;
+                c.set_field_tile(slot as usize, Some(l2_kingdom::map::index(x, y)));
+            }
+            l2_kingdom::map::index(10, 20)
+        };
+
+        let mut machine = Machine::new(APP_ROOT);
+        machine.push(ScreenId::Campaign);
+        machine.push(ScreenId::Info(Target::Tile(tile)));
+        // The panel's own arrival sound is `scroll1.wav`; none of the brush's
+        // three is heard until a button is hit. (`heard` is a set, so this is
+        // membership and not a sequence.)
+        const BRUSH_WAVS: [&str; 3] = ["moo_2.wav", "wheat.wav", "fallow.wav"];
+        director.listen(&mut audio, &machine, &game);
+        assert!(
+            !BRUSH_WAVS.iter().any(|w| audio.heard().contains(w)),
+            "opening the panel painted nothing: {:?}",
+            audio.heard()
+        );
+
+        let at = (bx + BRUSH_DIM / 2, BRUSH_ROW_Y + BRUSH_DIM / 2);
+        send(&mut machine, &mut game, &assets, Event::Click { x: at.0, y: at.1 });
+        send(&mut machine, &mut game, &assets, Event::Release { x: at.0, y: at.1 });
+        assert_ne!(
+            game.kingdom.campaign.map.terrain[tile], from,
+            "the click at {at:?} never reached Field_SetType"
+        );
+        assert_eq!(machine.top_id(), Some(ScreenId::Campaign), "the brush closes the panel");
+
+        director.listen(&mut audio, &machine, &game);
+        let brushes: Vec<&str> =
+            BRUSH_WAVS.into_iter().filter(|w| audio.heard().contains(w)).collect();
+        assert_eq!(
+            brushes,
+            [want],
+            "brush at x {bx} on the {} menu: all {:?}, terrain now {:#x}",
+            if field_menu { "field" } else { "waste" },
+            audio.heard(),
+            game.kingdom.campaign.map.terrain[tile]
+        );
+    }
+}
+
 /// **The narrator has to stop when the window he is reading closes.**
 ///
 /// A player reported it on build `EE0CB9233`: *"VO doesn't seem to stop when

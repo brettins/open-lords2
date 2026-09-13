@@ -333,6 +333,38 @@ pub fn resource_site_slot(graphic: u8) -> Option<usize> {
     })
 }
 
+/// **`FUN_00438B02` (`0x00438B02`) — the bank slot a field brush button
+/// plays.**
+///
+/// The original's ladder is on `g_uiHotspotId`, the raw terrain the button
+/// paints, and it is five arms over three slots. `[V]`:
+///
+/// ```c
+/// if      (id == 0x13) Sound_RestartSlot(4);   /* moo_2.wav  — pasture */
+/// else if (id == 2)    Sound_RestartSlot(7);   /* wheat.wav  — grain   */
+/// else if (id == 1)    Sound_RestartSlot(6);   /* fallow.wav — fallow  */
+/// else if (id == 0)    Sound_RestartSlot(6);   /* …abandon             */
+/// else if (id == 0x19) Sound_RestartSlot(6);   /* …start reclaiming    */
+/// ```
+///
+/// Taken here over the *ranges* `County_RecountFields` counts rather than the
+/// five brush values, because the brush value is not what is on the ground a
+/// statement later: `Field_SetType` runs `Herd_UpdateCrowding`, which repaints
+/// a fresh pasture `0x13` to its grazing grade `0x14 … 0x16`
+/// (`l2_kingdom::field::herd_update_crowding`). The five brush values are each
+/// inside the range that answers with their slot, so on the brush's own arms
+/// the two readings agree. `[D]` on the widening.
+pub fn field_brush_slot(terrain: u8) -> Option<usize> {
+    use l2_kingdom::field::terrain as t;
+    Some(match terrain {
+        t::PASTURE_FIRST..=t::PASTURE_LAST => 4,
+        t::GRAIN..=t::GRAIN_LAST => 7,
+        t::WASTE | t::FALLOW => 6,
+        t::RECLAIM_FIRST..=t::RECLAIM_LAST => 6,
+        _ => return None,
+    })
+}
+
 /// **The narrator's interface commentary** — `Sound_PlayFile("S0nn_mm.wav", 1,
 /// 0)`, the *speech* flag, played by name from a screen's own handler.
 ///

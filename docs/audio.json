@@ -350,7 +350,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "SETUP3.WAV - the credits and ending bed, on screens 0x2E and 0x2F. Ships, never asked for."
+      "note": "SETUP3.WAV is the SKIRMISH bed, not the credits and not the ending. [V] FUN_00433155 is the setup screen’s OK: with DAT_0055302c == 3 it sets g_setupPage 0xC single / 0xB multiplayer, plays setup3.wav looped and calls Skirmish_Setup. Nothing built here opens the skirmish pages."
     },
     {
       "id": "FUN_00435339#1",
@@ -413,10 +413,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "4",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "moo_2.wav",
+      "note": "The field brush: pasture. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_00438b02#2",
@@ -424,10 +424,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "7",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "wheat.wav",
+      "note": "The field brush: grain. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_00438b02#3",
@@ -435,10 +435,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "6",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "fallow.wav",
+      "note": "The field brush: fallow, abandon and start-reclaiming. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_00438b02#4",
@@ -446,10 +446,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "6",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "fallow.wav",
+      "note": "The field brush: fallow, abandon and start-reclaiming. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_00438b02#5",
@@ -457,10 +457,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "6",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "fallow.wav",
+      "note": "The field brush: fallow, abandon and start-reclaiming. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_0043a997#1",
@@ -581,7 +581,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "SETUP3.WAV - the credits and ending bed, on screens 0x2E and 0x2F. Ships, never asked for."
+      "note": "The skirmish bed again, on the DAT_0057A0F0 == 1 arm of the return to the front end — the arm that does not reload the map or reset g_setupPage. [V] the branch; [I] that DAT_0057A0F0 is the skirmish flag, from FUN_00433155 clearing it on the way to setup page 1. The credits and the ending are FILMS and carry their own track: no Music_Play site plays a bed for either."
     },
     {
       "id": "FUN_00497a34#2",
@@ -1329,7 +1329,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "SETUP3.WAV - the credits and ending bed, on screens 0x2E and 0x2F. Ships, never asked for."
+      "note": "The same skirmish bed, restarted as you LEAVE the rank sheet. [V] Screen_FrameInput’s own ladder: screen 0x2E (the Battle Master ratings, ScreenId::Ratings) goes to 0x2F on a press, and on 0x2F a RIGHT press plays setup3.wav looped and calls FUN_0042B780. Blocked on the skirmish front end, not on the sheet."
     },
     {
       "id": "Screen_FrameInput#2",
@@ -1340,7 +1340,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "SETUP3.WAV - the credits and ending bed, on screens 0x2E and 0x2F. Ships, never asked for."
+      "note": "The LEFT press on screen 0x2F, the same statement pair as #1: setup3.wav looped, then FUN_0042B780. [V]"
     },
     {
       "id": "Setup_ChooseCampaign#1",
