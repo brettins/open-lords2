@@ -170,6 +170,7 @@
 //! `herd_event_change`, `grain_weather_change` and `herd_weather_change`, the
 //! same four `Panel_JobGrain` and `Panel_JobCattle` draw on the job page.
 
+use l2_kingdom::conquest::LeftCastle;
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
@@ -881,7 +882,7 @@ impl InfoScreen {
     /// names.
     ///
     /// **`FUN_0041BEFE` tests a shorter ladder than its callee** — `0x20`,
-    /// `0x04`, `0x10`, `0x40`, `0x80`, with no `0x01` and no `0x08` — so a
+    /// `0x04`, `0x10`, `0x40`, `0x80`, with no `0x01` and no `0x08` —
     /// settlement tile that also carried road or rough would take the `0x80`
     /// *row* and the road's *words*. No such tile exists in the England
 /// position; `tests/screens.rs` asserts that.
@@ -1174,7 +1175,7 @@ impl Screen for InfoScreen {
         //
         // **Only the raster, not the column.** `0x04`'s arm does not run the
         // six sidebar guards — the village's and the four county panels' do,
-        // and this one does not — so the sidebar, the county strip and the
+        // and this one does not —
         // split slider are all dead with the information panel up, and only the
         // 128 × 128 minimap is not. See `screens/court.rs` at the same arm and
         // `docs/arms.json` `0x0042FF10/minimap-closes-the-surface`, which is the
@@ -1259,13 +1260,23 @@ impl Screen for InfoScreen {
                         ctx.game.begin_move_order = Some(id);
                         Transition::Pop
                     }
-                    // `FUN_004374C4` — **leave the castle**, the garrisoned
-                    // table's first slot. Not built: see `docs/arms.json`
-                    // `0x004374C4/info-leave-castle`.
-                    (0, true) => {
-                        self.status = "THE SORTIE IS NOT BUILT".into();
-                        Transition::Stay
-                    }
+                    // `Army_LeaveCastle` (`0x004374C4`) — **leave the castle**,
+                    // the garrisoned table's first slot, and `g_screenId = 0`
+                    // is the pop. [`crate::game::Game::leave_castle`] is its
+                    // body `FUN_00437535`. The besieged case starts a sortie
+                    // battle in the original and is dropped here; the
+                    // `docs/arms.json` record stays as the lead left it.
+                    (0, true) => match ctx.game.leave_castle(id) {
+                        LeftCastle::Marched { tile, .. } => {
+                            self.status = format!("MARCHED OUT TO {},{}", tile.0, tile.1);
+                            Transition::Pop
+                        }
+                        LeftCastle::Destroyed => {
+                            self.status = "NOWHERE TO STAND - THE GARRISON IS LOST".into();
+                            Transition::Pop
+                        }
+                        LeftCastle::NotAGarrison => Transition::Stay,
+                    },
                     // **`Panel_DisbandButton` (`0x0043733A`)**, in both tables.
                     // It picks the county the men would join — the home county,
                     // or the one the army stands in when the home county has
@@ -1761,9 +1772,9 @@ impl Screen for InfoScreen {
 ///
 /// **Note what the two arms do not share.** The intact arm's tax and barracks
 /// lines are `Castle_DrawStatusBlock`'s first two written out again at a
-/// different y, and the degraded arm reaches the block itself — so a county
+/// different y, and the degraded arm reaches the block itself —
 /// building its first castle is the one that shows the stone and wood owed and
-/// the seasons left. And the ruined county (`+0x1C2`) draws **nothing**: the
+/// the seasons left.
 /// heading above it says *"Castle."* and the block below is empty
 /// the original's, not a gap of ours.
 ///
@@ -1874,7 +1885,7 @@ fn draw_castle(
 ///    group 22 is never touched here and 53…57 run *"A small mine."* to *"A
 ///    destroyed mine."*
 /// 3. the working-or-idle line at [`SITE_STATUS_DY`], a **separate** tail block
-/// keyed on `industry.enabled` — so a site reads *operational* and
+/// keyed on `industry.enabled` —
 ///    *destroyed* at once whenever an army has just trampled it, which is the
 ///    original's and not a bug of ours.
 ///
@@ -1920,7 +1931,7 @@ pub fn draw_resource_site(
 ///
 /// [`l2_kingdom::county::Industry::output`] is the original's
 /// `total − totalSnapshot`: the same difference, held as a field
-/// recomputed. `disabledSeasons` **bypasses** the buckets, so a
+/// recomputed. `disabledSeasons` **bypasses** the buckets,
 /// destroyed site is never also large.
 pub fn site_band(site: &l2_kingdom::county::Industry) -> usize {
     if site.disabled_seasons != 0 {

@@ -14,7 +14,7 @@
 //! # How a county is attacked at all
 //!
 //! **By stepping onto its castle tile.** `Unit_StepOnce` returns 5 for a
-//! `plane0 & 0x40` tile, the move ends, and the mover then calls
+//! `plane0 & 0x40` tile, the mover then calls
 //! `Transport_Deliver` and `Army_AttackCounty` with the tile's county. So the
 //! castle site is expensive terrain the pathfinder routes around —
 //! it is the objective, and `docs/armies.md` §2.2's castle row (*"5 →
@@ -36,7 +36,7 @@
 //! # Scope
 //!
 //! Sieges and the battle handoff are out of this crate's scope. What is here is
-//! the guard, the defence decision, and the capture; when the outcome is a
+//! the guard, the defence decision, when the outcome is a
 //! battle this reports it and stops, exactly the way
 //! [`crate::movement::Offence`] reports a diplomatic hit
 //! a diplomacy layer.
@@ -89,7 +89,7 @@ impl Restore {
 /// ```
 ///
 /// **Switching all four industries off is the mechanism, not a flourish.** It
-/// is what turns the county's four industry ceilings to zero, and the
+/// is what turns the county's four industry ceilings to zero,
 /// re-allocation on the next line is what moves those people into *Idle
 /// townsfolk*.
 ///
@@ -190,8 +190,8 @@ pub enum Refusal {
     Ownerless,
     /// It is already yours.
     AlreadyYours,
-    /// A castle **and** a garrison, and the garrison is not yours. This is the
-/// siege gate, and the only refusal that is a rule.
+    /// A castle **and** a garrison, This is the
+/// siege gate,
     Garrisoned,
 }
 
@@ -434,7 +434,7 @@ pub fn march_and_fight(
 /// **The asymmetric `−2 … +1` window is the tell that the reading is right.**
 /// It looks like an off-by-one until you know the county town is a 2×2 block
 /// whose *bottom-right* corner is the anchor — with that, the window is exactly
-/// the town plus the one-tile ring around it, and the rule states in a
+/// the town plus the one-tile ring around it,
 /// sentence: **an army defends its county town by standing on it or beside it.**
 ///
 /// The two readings disagree on shipped data. In `battle-before.sav` county 2's
@@ -535,7 +535,7 @@ pub fn find_defender(units: &Units, counties: &[County; MAX_COUNTIES], county: u
 ///
 /// **A county that borders none of the taker's lands, taken by a realm that
 /// already holds one, is not given to the taker at all**: the taker is posted
-/// 129 and the county is made independent. `[V]`, and the branch is read whole
+/// 129 and the county is made independent. `[V]`,
 /// — it does **not** increment `countyCount`, does not call
 /// `Realm_RecountStrength` on the loser, does not take the happiness penalty,
 /// does not write the shield and does not raise the peak. The one thing it does
@@ -619,7 +619,7 @@ pub fn change_owner(
 
     // The original also writes county `+0x07` from the taker's shield byte, so
     // the county draws the new banner. [`County`] has no such field — it is
-    // presentation, and the realm's own `shield_index` is where a renderer
+    // presentation,
     // would read it from.
 
     // The castle, if any, is no longer garrisoned by the loser. The original
@@ -711,7 +711,7 @@ pub enum CastleArrival {
     /// It is your county: the army is inside. The slot is the garrison — which
     /// is **not** the arriving army when it merged into one already there.
     Garrisoned(usize),
-    /// Your county, and the castle will not hold that many men. Nothing moved.
+    /// Your county, Nothing moved.
     GarrisonFull,
     /// Somebody else's: a siege is laid, or was refused for one of
     /// [`crate::siege::SiegeRefusal`]'s reasons.
@@ -721,7 +721,6 @@ pub enum CastleArrival {
 }
 
 /// `Unit_ReachCastleBuilding` (`0x004686A0`) — **the fork an army walks into**,
-/// and the only route into either half.
 ///
 /// ```c
 /// if (unit.kind != 1) return;
@@ -767,6 +766,91 @@ pub fn reach_castle_building(
 
 /// The moves `Army_GarrisonApply` charges for stepping inside.
 pub const GARRISON_MOVE_COST: i32 = 5;
+
+/// What became of a garrison told to leave — [`leave_castle`]'s answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LeftCastle {
+    /// The slot held no garrison of that county.
+    NotAGarrison,
+    /// Out on `tile`, and carrying the besieger's slot when one was waiting:
+    /// `FUN_00437535` hands that pair to `Battle_BeginFromCampaign` and sets
+    /// `g_battleCounty` to the county. **The battle is not staged here** —
+    /// this crate's caller has to, and `l2-game`'s door does not yet. `[I]`
+    /// only on that omission; the field itself is the original's `besiegedBy`
+    /// test.
+    Marched { tile: (u8, u8), sortie: Option<usize> },
+    /// `Map_FindFreeTileNear` found nowhere to stand, so `Army_Destroy` —
+    /// **the garrison is lost**, which is the one branch of this function a
+    /// player can be surprised by.
+    Destroyed,
+}
+
+/// **`Army_LeaveCastle` (`0x004374C4`) and its body `FUN_00437535`** — the
+/// garrison marches out.
+///
+/// ```c
+/// /* 0x004374C4: the garrisoned info panel's first button */
+/// g_screenId = 0;
+/// if (!g_multiplayer) FUN_00437535(g_pickedTileUnit, g_pickedTileCounty);
+/// else                Net_SendCommand(0x36, 0);
+///
+/// /* 0x00437535 */
+/// if (!Map_FindFreeTileNear(unit.x, unit.y)) { Army_Destroy(unit); return; }
+/// Unit_UnlinkFromTile(unit);
+/// unit.x = g_foundTileX;  unit.y = g_foundTileY;
+/// unit.garrisonCounty = 0;  counties[county].garrisonUnit = 0;
+/// Unit_LinkToTile(unit);
+/// if (unit.besiegedBy && Battle_BeginFromCampaign(unit, unit.besiegedBy))
+///     g_battleCounty = county;
+/// Army_RecountCountyTroops();
+/// ```
+///
+/// Three things the original does **not** do, each of which a reimplementation
+/// adds by reflex:
+///
+/// * **it charges no moves.** `Army_GarrisonApply` charges
+/// [`GARRISON_MOVE_COST`] on the way in; the way out is free,
+///   marches the same season it left.
+/// * **it clears no siege.** `besiegedBy` survives the step out — it is the
+///   argument to the battle, not a link to break.
+/// * **it gives no order.** No path, no destination: the army simply stands on
+///   the tile the search found.
+///
+/// The tile search is `Map_FindFreeTileNear` (`0x0046733C`), which is
+/// [`crate::divide::free_tile_near`] — the road-preferred five-ring
+/// `Army_Split` uses for the daughter. `[V]`: the same call in both bodies.
+pub fn leave_castle(
+    map: &CampaignMap,
+    counties: &mut [County; MAX_COUNTIES],
+    realms: &[Realm; MAX_REALMS],
+    units: &mut Units,
+    unit: usize,
+    county: u8,
+) -> LeftCastle {
+    let Some(u) = units.get(unit).filter(|u| u.garrison_county == county) else {
+        return LeftCastle::NotAGarrison;
+    };
+    let (from, sortie) = (u.tile(), (u.besieged_by != 0).then_some(u.besieged_by as usize));
+    let spot = crate::divide::free_tile_near(map, units, from.0, from.1);
+    if let Some(c) = counties.get_mut(county as usize) {
+        if c.garrison_unit == unit {
+            c.garrison_unit = 0;
+        }
+    }
+    let Some((x, y)) = spot else {
+        // `Army_Destroy`: nowhere to stand is the end of the army.
+        units.remove(unit);
+        units.recount_county_troops(counties, realms);
+        return LeftCastle::Destroyed;
+    };
+    if let Some(u) = units.get_mut(unit) {
+        u.x = x;
+        u.y = y;
+        u.garrison_county = 0;
+    }
+    units.recount_county_troops(counties, realms);
+    LeftCastle::Marched { tile: (x, y), sortie }
+}
 
 /// `Army_GarrisonApply` (`0x004A79A3`) — **put an army in the castle**.
 ///
@@ -968,7 +1052,7 @@ mod tests {
         assert_eq!(units.get(a).unwrap().moves_used, 0, "not even the eight moves");
     }
 
-    /// A wretched neutral county surrenders without a fight — and that is the
+    /// A wretched neutral county surrenders without a fight —
     /// only walk-in there is.
     #[test]
     fn a_wretched_neutral_county_surrenders_and_a_contented_one_fights() {
@@ -1074,7 +1158,7 @@ mod tests {
 
     /// **The case that was wrong on shipped data.**
     ///
-    /// In `battle-before.sav` county 2's town anchor is (31, 50) and the only
+    /// In `battle-before.sav` county 2's town anchor is (31, 50)
     /// army its owner has — its castle garrison — stands at (30, 46), one
     /// column left and *four rows north*. The reading this function used to
     /// carry, *"the lowest-numbered army of the county's owner standing in the
@@ -1142,7 +1226,7 @@ mod tests {
     }
 
     /// Only the owner's own armies, and only armies. A besieger of another
-    /// realm sitting on the town, and the owner's own merchant, are both
+    /// realm sitting on the town,
     /// invisible to it.
     #[test]
     fn the_defence_search_ignores_other_realms_and_other_unit_kinds() {
@@ -1200,7 +1284,7 @@ mod tests {
 
     // --- changing hands ----------------------------------------------------
 
-    /// The capture penalty, and the surprise in it: it is drawn on the
+    /// The capture penalty,
 /// *"From events"* line.
     #[test]
     fn a_captured_county_loses_happiness_on_the_events_line() {
@@ -1324,7 +1408,7 @@ mod tests {
 
     /// **What `County_ChangeOwner` reads before it writes**, which is what its
     /// letter is chosen from: the taker's holding without the county, the peak
-    /// as it stood, and the loser.
+    /// as it stood,
     ///
     /// Ablation: count `held_before` after the owner write and it reads 2.
     #[test]
@@ -1348,7 +1432,7 @@ mod tests {
     /// new high — the difference between *"Bravo!!"* and *"The county is yours.
     /// May you rule it wisely."*
     ///
-    /// Ablation: write `peak = held_after` unconditionally and the retaking
+    /// Ablation: write `peak = held_after` unconditionally
     /// lowers nothing but the loss does.
     #[test]
     fn the_peak_remembers_ground_lost_and_retaking_it_is_not_a_new_high() {
@@ -1383,7 +1467,7 @@ mod tests {
     /// neutral county where his army is standing.
     ///
     /// Ablation: hand the county over in that branch — what this function did
-    /// before — and the owner reads 1, the count reads 2 and the industry
+    /// before — and the owner reads 1, the count reads 2
     /// switches stay on.
     #[test]
     fn a_county_far_from_the_takers_lands_declares_independence_instead() {

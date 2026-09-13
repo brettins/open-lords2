@@ -1250,6 +1250,28 @@ impl Game {
         )
     }
 
+    /// **`Army_LeaveCastle` (`0x004374C4`)** — the garrison marches out, by the
+    /// first button of the garrisoned info panel's table (`0x004DC5A8`).
+    ///
+    /// The original stashes `g_pickedTileUnit` and `g_pickedTileCounty`, closes
+    /// the panel and runs `FUN_00437535`, which is
+    /// [`l2_kingdom::conquest::leave_castle`]; under `g_multiplayer` it sends
+    /// command `0x36` instead. **The sortie battle that body starts when the
+    /// castle is besieged is not staged here** — the answer carries the
+    /// besieger's slot and this door drops it.
+    pub fn leave_castle(&mut self, unit: usize) -> l2_kingdom::conquest::LeftCastle {
+        let county = self.kingdom.campaign.units.get(unit).map_or(0, |u| u.garrison_county);
+        let l2_kingdom::Kingdom { counties, realms, campaign, .. } = &mut self.kingdom;
+        l2_kingdom::conquest::leave_castle(
+            &campaign.map,
+            counties,
+            realms,
+            &mut campaign.units,
+            unit,
+            county,
+        )
+    }
+
     /// The player's units, in ascending slot order — what a map screen would
     /// draw and cycle through.
     pub fn player_units(&self) -> Vec<usize> {
