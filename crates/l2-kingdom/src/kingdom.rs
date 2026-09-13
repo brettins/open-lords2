@@ -2191,6 +2191,23 @@ impl Kingdom {
         ordered
     }
 
+    /// `FUN_0049DF48` — the **last call of `Battle_ReturnToCampaign`**
+    /// (`0x004AB383`): `FUN_004AD426(); Panels_RefreshAll(); FUN_0049DF48();`.
+    ///
+    /// It is the fourth caller of `Ai_ManageCountyFarms` and the same loop as
+    /// [`Kingdom::ai_manage_farms_all`] (`Ai_ManageFarmsAll`, `0x0049A990`)
+    /// with its two tests written the other way round — `isHuman == 0 &&
+    /// strength != 0` there against `strength != 0 && isHuman == 0` here.
+    /// Neither test has a side effect, so the predicate is one predicate and
+    /// this delegates
+    ///
+    /// So **every battle re-farms every AI realm on the map**, not only the two
+    /// that fought and not only the county fought over: an AI whose army died
+    /// three counties away re-lays its fields the same instant.
+    pub fn ai_manage_farms_after_battle(&mut self) -> i32 {
+        self.ai_manage_farms_all()
+    }
+
     /// AI step 6 — `AI_BuildCastles`.
     pub fn run_ai_castles(&mut self, realm: u8) -> Vec<u8> {
         ai::build_castles(
