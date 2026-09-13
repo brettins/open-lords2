@@ -160,7 +160,19 @@ impl Mixer {
     /// Music is mixed at three quarters so that a fanfare on top of it is
     /// still a fanfare.
     pub fn set_music(&mut self, name: String, sound: Arc<Sound>) {
-        self.music = Some(Voice::new(name.clone(), sound, self.out_rate, true, 192));
+        self.start_music(name, sound, true);
+    }
+
+    /// Start a track that plays **once** and then stops — `Music_Play`
+    /// (`0x004263AD`)'s third argument 0, which only `Screen_DrawConquest`
+    /// (`0x0041E1DD`) passes: `setup2.wav` over the interstitial once the
+    /// campaign is past its eighth map.
+    pub fn set_music_once(&mut self, name: String, sound: Arc<Sound>) {
+        self.start_music(name, sound, false);
+    }
+
+    fn start_music(&mut self, name: String, sound: Arc<Sound>, looping: bool) {
+        self.music = Some(Voice::new(name.clone(), sound, self.out_rate, looping, 192));
         self.music_name = Some(name);
     }
 
@@ -288,6 +300,20 @@ mod tests {
         let mut buf = [0f32; 64];
         m.fill(&mut buf);
         assert!(buf[62] != 0.0, "still playing well past three frames");
+    }
+
+    /// `Music_Play(name, 0, 0)` — `Screen_DrawConquest` (`0x0041E1DD`) above
+    /// the eighth campaign map, and the only call site that passes it.
+    ///
+    /// Ablation: `set_music_once` forwarding to `set_music` and this is red.
+    #[test]
+    fn a_one_shot_track_stops_at_its_end_instead_of_starting_again() {
+        let mut m = Mixer::new(11025);
+        m.set_music_once("x".into(), constant(11025, 4000, 3));
+        let mut buf = [0f32; 64];
+        m.fill(&mut buf);
+        assert!(buf[0] != 0.0, "it played");
+        assert_eq!(buf[62], 0.0, "and it did not come round again");
     }
 
     #[test]

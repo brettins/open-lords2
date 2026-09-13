@@ -90,6 +90,11 @@ pub enum Music {
     /// the music, played with `Music_Play(name, 0, 1)` — channel 0, loop 1 —
     /// which is the same call `Music_StartCampaign` ends in.
     Setup,
+    /// **`setup2.wav`, played once** — `Screen_DrawConquest` (`0x0041E1DD`)'s
+    /// other arm: `Music_Play(g_campaignMap < 8 ? "setup.wav" : "setup2.wav",
+    /// 0, g_campaignMap < 8)`. The finished campaign's interstitial is the
+    /// only screen in the game whose bed does not loop.
+    Setup2,
 }
 
 impl Music {
@@ -99,7 +104,14 @@ impl Music {
             Music::Scroll(n) => super::names::MUSIC_SCROLL[(n.max(1).min(5) - 1) as usize],
             Music::Battle(n) => super::names::MUSIC_BATTLE[(n.max(1).min(5) - 1) as usize],
             Music::Setup => super::names::MUSIC_SETUP,
+            Music::Setup2 => super::names::MUSIC_SETUP2,
         }
+    }
+
+    /// `Music_Play`'s third argument. Every track in the game loops except
+    /// [`Music::Setup2`]; see it for the one call site that passes 0.
+    pub fn loops(self) -> bool {
+        !matches!(self, Music::Setup2)
     }
 }
 

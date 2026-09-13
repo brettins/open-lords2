@@ -207,6 +207,14 @@ pub enum Scene {
     /// The campaign map, a county panel, the village — anything in the
     /// management surface. Carries what the ladder reads.
     Campaign { county_count: u8, share_of_map_pct: i32 },
+    /// **The conquest interstitial, screen `0x1C`** — the one screen over a
+    /// running game that is not campaign music. `Screen_DrawConquest`
+    /// (`0x0041E1DD`) opens with
+    /// `Music_Play(g_campaignMap < 8 ? "setup.wav" : "setup2.wav", 0,
+    /// g_campaignMap < 8)`, so `ended` — the campaign past its eighth map,
+    /// [`crate::victory::Campaign::is_complete`] — picks both the file **and**
+    /// the loop flag.
+    Conquest { ended: bool },
     /// A battle, of a kind that picks the pair.
     Battle(BattleKind),
     /// **A film is up, and the bed is silent.** Every one of `Smk_Play`'s
@@ -445,6 +453,13 @@ impl Audio {
             Scene::Campaign { county_count, share_of_map_pct } => {
                 Some(track::campaign(county_count, share_of_map_pct))
             }
+            // `Screen_DrawConquest` (`0x0041E1DD`)'s first statement after its
+            // early return, both arms of it.
+            // sfx: Screen_DrawConquest#1,Screen_DrawConquest#2
+            Scene::Conquest { ended } => Some(match ended {
+                false => Music::Setup,
+                true => Music::Setup2,
+            }),
             Scene::Battle(kind) => {
                 // Step the counter only on the way *into* a battle. Calling
                 // `next` once a frame would flip tracks sixty times a second.
@@ -510,7 +525,12 @@ impl Audio {
             return;
         };
         if let Ok(mut m) = self.mixer.lock() {
-            m.set_music(name.to_string(), sound);
+            // `Music_Play`'s loop flag, which only the finished campaign's
+            // interstitial passes as 0. See [`Music::loops`].
+            match music.loops() {
+                true => m.set_music(name.to_string(), sound),
+                false => m.set_music_once(name.to_string(), sound),
+            }
         }
     }
 
@@ -825,6 +845,12 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
     }
     if ids.iter().copied().all(before_the_campaign) {
         return Scene::FrontEnd;
+    }
+    // `g_screenId == 0x1C`. The interstitial is the top of the stack while it
+    // is up — it is entered by `Transition::Replace` — and it plays its own
+    // bed rather than the campaign's. `Screen_DrawConquest` (`0x0041E1DD`).
+    if matches!(machine.top_id(), Some(ScreenId::Conquest)) {
+        return Scene::Conquest { ended: game.campaign.is_complete() };
     }
     let county_count = game
         .kingdom
