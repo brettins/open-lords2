@@ -342,22 +342,17 @@ fn the_ok_button_refuses_the_castle_you_have_and_anything_smaller() {
     }
 }
 
-/// **You have to close the mines to build a castle**, and that is the
-/// original's rule rather than this fixture's shape.
+/// **The order's own labour share is what gets a castle built**, and it is the
+/// original's, not this fixture's shape.
 ///
-/// `Labour_Allocate` serves the industry half as a round robin — wood, stone,
-/// iron, blacksmith, **and castle building only as the tail**, reached when all
-/// four of those are at their ceilings. `Industry_LabourEstimate` gives wood,
-/// iron and stone a ceiling of **100,000** in any owned county that has the
-/// site, so those four are never full and the tail is never reached: a county
-/// with its industries running puts every spare hand down the mine and none on
-/// the walls, for ever.
-///
-/// It is not a defect and it is not ours. It is why `AI_ChooseIndustry`
-/// switches iron and the blacksmith off outright the moment a lord orders a
-/// castle, and keeps wood and stone only while the build still owes some — a
-/// rule that reads as an odd strategic quirk until you see what it is *for*.
-/// For a human the switch is a click on the building on the campaign map.
+/// `Castle_Order` (`0x00436D02`) ends with
+/// `Labour_ToggleIndustryShare(county, 3, 1)`, so the castle job leaves the
+/// order holding a share of the five-member industry group. Ours did not call
+/// it, the share stayed 0, and this test used to assert the consequence — a
+/// county with its mines running putting nobody on the walls *for ever*. With
+/// the share ported a palisade's 200 man-seasons are done in four, every
+/// industry still running. `docs/bugs.md` B68's *"for ever"* was the missing
+/// toggle; what survives it is the ceiling asymmetry the entry describes.
 ///
 /// **The click is not driven here and it is worth saying why.** The industry
 /// toggle goes through `MapScreen::county_at`, which reads the *painted* county
@@ -365,10 +360,9 @@ fn the_ok_button_refuses_the_castle_you_have_and_anything_smaller() {
 /// supplies as 4,096 zero bytes. So no click on any tile of these synthetic
 /// worlds ever finds a county. `tests/screens.rs`'s
 /// `every_painted_pixel_of_a_mine_reaches_the_industry_toggle` drives that half
-/// against the real sheet and the real map, which is where it belongs; what is
-/// asserted here is the *rule*, which is the half that was never stated.
+/// against the real sheet and the real map.
 #[test]
-fn a_county_with_its_mines_running_never_gets_round_to_the_castle() {
+fn the_orders_labour_share_is_what_gets_a_castle_built() {
     let (mut g, a, mut m) = on_the_map();
     let here = visible_in(&g, 1);
     plot(&mut g, 1, here);
@@ -377,24 +371,20 @@ fn a_county_with_its_mines_running_never_gets_round_to_the_castle() {
     click(&mut m, &mut g, &a, on(castle::type_rect(0)));
     press_and_wait(&mut m, &mut g, &a, on(castle::OK));
 
+    assert!(
+        g.kingdom.counties[1].labour_share[3] > 0,
+        "the order staffs the castle job — Labour_ToggleIndustryShare(county, 3, 1)",
+    );
+
     for _ in 0..4 {
         end_turn(&mut m, &mut g, &a);
     }
     let c = &g.kingdom.counties[1];
-    assert_eq!(c.labour_useful[3], 200, "the castle's ceiling is a real number");
-    assert_eq!(c.labour[3], 0, "and not one person is standing at it");
-    assert_eq!(c.castle_work_left, 200, "four seasons and no work done");
-    assert!(c.labour[6] > 0, "they are all in the forest, which never fills up");
-
-    // Shut the four industries — the state a click on each building produces.
-    for slot in 0..4 {
-        g.kingdom.counties[1].industry[slot].enabled = false;
-    }
-    end_turn(&mut m, &mut g, &a);
-    assert!(
-        g.kingdom.counties[1].labour[3] > 0,
-        "with the mines shut the builders finally have somewhere to be",
-    );
+    assert_eq!(c.castle_work_left, 0, "four seasons finish a palisade's 200");
+    assert_eq!(c.castle_degraded, 0, "and the castle is standing");
+    assert_eq!(c.castle_type, 1, "a wooden palisade");
+    assert_eq!(c.labour_share[3], 0, "the builders go back to the fields");
+    assert!(c.labour[6] > 0, "who are in the forest, which never fills up");
 }
 
 /// **A castle ordered from the map is finished by ending turns**, and it comes

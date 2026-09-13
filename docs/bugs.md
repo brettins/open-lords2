@@ -910,9 +910,16 @@ The human's way out is to click the buildings off on the campaign map. The AI's 
 `AI_ChooseIndustry`, which switches iron and the blacksmith off outright while a castle is up
 and keeps wood and stone only while `+0x1D4` / `+0x1D0` are still owed — a rule that looks
 like an odd strategic preference until you see it is the only way an AI lord ever finishes
-anything. `docs/kingdom.md` §7.5.2, and
-`a_county_with_its_mines_running_never_gets_round_to_the_castle` in
-`crates/l2-game/tests/castles.rs`.
+anything. `docs/kingdom.md` §7.5.2.
+
+**Correction, and half of this entry goes with it.** `Castle_Order` (`0x00436D02`) ends
+with `Labour_ToggleIndustryShare(county, 3, 1)`, so in the original the castle job leaves
+the order **holding a share**. Ours did not call it; the share stayed 0, and *"none on the
+walls, for ever"* was measured against that. With the share ported a palisade's 200
+man-seasons are done in four seasons with every industry still running —
+`the_orders_labour_share_is_what_gets_a_castle_built` in `crates/l2-game/tests/castles.rs`.
+What survives is the ceiling asymmetry above: wood, iron and stone at 100,000 are never
+full, so the castle gets its share and no more. `[V]` on the call.
 
 ### B105 — A county with no castle is told it has barracks for 2500 troops
 
