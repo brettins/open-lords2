@@ -12044,3 +12044,35 @@ Seed invariance when outnumbered is the threshold, not a dead RNG:
 every unit takes the same arm of `unit_order_advance` (ai.rs:1273). Test
 `a_lopsided_fight_draws_its_jitter_and_the_threshold_swallows_it`, ablation gives
 both seeds 100 at 40 v 20.
+
+---
+
+**C218 — the efficiency ramp writes back; C134's table says both states are the rules; the milkmaid's +1 is the birth floor.**
+
+`Industry_LabourEstimate` (`0x0044F318`) ends
+`(&DAT_0053fc44)[...] = (char)iVar3;` — county `+0x294` takes the ramp at real
+staffing. C136 left it unported because `County_RefreshEstimates` runs four times
+inside `Industry_ToggleFromMap` and a compounding ramp would climb four steps;
+`Industry_EfficiencyRamp` (`0x0044F248`) ramps from county `+0x29C`, not `+0x294`,
+and only `Industry_Produce` (`0x0044EA92`) copies the one into the other, so four
+refreshes ramp from the same season-old number — `[V]` both offsets, both
+functions. `County::Industry::last_efficiency` is `+0x29C`; save VERSION 26,
++272 bytes, refusal. The importer sets it from `+0x00` — `+0x08` is not in
+`docs/stored-fields.json` and with *Advanced Farming* off both are the flat 80
+every save stores. Tests `the_refresh_ramps_the_efficiency_and_four_refreshes_land_on_one_answer`
+and `with_advanced_farming_off_the_write_back_is_the_flat_eighty`, ablation red
+at 20 against 26.
+
+C134's before/after read `not in 1200` for the mutiny and rate >= 20; the binary
+says both are rules: `Wages_PayAll` (`0x004ACBD4`) sets bankruptcy stage 5 -> 0
+rather than clamping, so a never-paying realm mutinies every six seasons `[V]`;
+`FUN_0049F431`, AI step 7's abandon pass, sets 32/28/23/35 by personality
+(`AI_PERSONALITY_ABANDON_TAX_RATE`) on a county it cannot hold `[V]`. Census:
+mutiny x3 from turn 103, rate >= 20 x25 from turn 78. Table rows and assertions
+in `four_hundred_turns_of_england_reaches_the_rules_nothing_else_can` corrected.
+
+`Herd_BirthsAndDeaths` (`0x0044DA99`) is ours arm for arm. Summer, crowding 10:
+herd 4 with 1/3/6 hands births 1,1,1; herd 40 births 0,1,1. `births = per_myriad(herd, Pct(bandRate, staffing))` truncates to 0 below full staffing; `if (births == 0 && rate != 0) births = 1` is the +1.
+Staffing is `PctOf(labour, herd * 3)`, cliff is three hands a head: 12 on herd 4
+(births 4), 120 on herd 40 (births 5). Hands past the ceiling `Herd_LabourEstimate`
+picks are idle by C151. No code changed.
