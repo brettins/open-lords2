@@ -391,7 +391,7 @@ fn the_last_kingdom_mod_in_the_load_order_is_the_one_the_economy_runs_on() {
 
     // **And it is not four times, which is the labour cap talking.** The yield
     // per sack is in `Grain_Sow`'s own labour test — `yield * seed / divisor`
-    // hands are needed to tend the seed — so a fourfold yield makes each sack
+    // hands are needed to tend the seed —
     // four times as hungry for farmhands
     // less of it. `Grain_Grow` and `Grain_Harvest` then cap the standing crop
     // at `labour * multiplier` twice more. Quadrupling the number in the file
@@ -692,28 +692,36 @@ fn which_way_an_ai_lord_farms_is_a_rule_a_mod_sets() {
          garrison_min_population = 300\nraid_interval = 6\nabandon_tax_rate = 32\n\
          castle_concurrent = 4\n\
          castle_min_population = 700\ncastle_gold = [200, 0, 1000, 0, 10000]\n\
-         weapon_rota = [0, 1, 4, 2, 5, 2]\nsiege_doctrine = 8\n\n\
+         weapon_rota = [0, 1, 4, 2, 5, 2]\nsiege_doctrine = 8\n\
+         trade_gold_floor = 1000\nweapon_buy_qty = 100\n\
+         reserve_wood = 250\nreserve_stone = 250\nreserve_iron = 250\n\n\
          [[kingdom.ai.personality]]\nlord = 2\nfarm_style = 1\ntax_ladder = 2\n\
          gift_increment = 100\nhelp_price = 1000\ngrudge_tolerance = 10\noffer_interval = 10\n\
          help_population_floor = 800\nmuster_pct = 30\nmuster_patience = 4\nmuster_arms = 120\n\
          garrison_min_population = 300\nraid_interval = 10\nabandon_tax_rate = 28\n\
          castle_concurrent = 3\n\
          castle_min_population = 650\ncastle_gold = [0, 500, 0, 4000, 0]\n\
-         weapon_rota = [3, 5, 4, 4, 4, 5]\nsiege_doctrine = 9\n\n\
+         weapon_rota = [3, 5, 4, 4, 4, 5]\nsiege_doctrine = 9\n\
+         trade_gold_floor = 1500\nweapon_buy_qty = 80\n\
+         reserve_wood = 300\nreserve_stone = 300\nreserve_iron = 300\n\n\
          [[kingdom.ai.personality]]\nlord = 3\nfarm_style = 0\ntax_ladder = 2\n\
          gift_increment = 200\nhelp_price = 1600\ngrudge_tolerance = 15\noffer_interval = 8\n\
          help_population_floor = 900\nmuster_pct = 40\nmuster_patience = 4\nmuster_arms = 200\n\
          garrison_min_population = 250\nraid_interval = 5\nabandon_tax_rate = 23\n\
          castle_concurrent = 2\n\
          castle_min_population = 600\ncastle_gold = [0, 300, 0, 2000, 0]\n\
-         weapon_rota = [0, 1, 1, 2, 4, 0]\nsiege_doctrine = 7\n\n\
+         weapon_rota = [0, 1, 1, 2, 4, 0]\nsiege_doctrine = 7\n\
+         trade_gold_floor = 2500\nweapon_buy_qty = 70\n\
+         reserve_wood = 500\nreserve_stone = 500\nreserve_iron = 500\n\n\
          [[kingdom.ai.personality]]\nlord = 4\nfarm_style = 9\ntax_ladder = 1\n\
          gift_increment = 50\nhelp_price = 1500\ngrudge_tolerance = 20\noffer_interval = 4\n\
          help_population_floor = 1000\nmuster_pct = 50\nmuster_patience = 2\nmuster_arms = 250\n\
          garrison_min_population = 150\nraid_interval = 10\nabandon_tax_rate = 35\n\
          castle_concurrent = 1\n\
          castle_min_population = 600\ncastle_gold = [0, 0, 100, 0, 2000]\n\
-         weapon_rota = [4, 4, 3, 4, 4, 3]\nsiege_doctrine = 7\n",
+         weapon_rota = [4, 4, 3, 4, 4, 3]\nsiege_doctrine = 7\n\
+         trade_gold_floor = 4000\nweapon_buy_qty = 150\n\
+         reserve_wood = 1000\nreserve_stone = 1000\nreserve_iron = 1000\n",
     );
     assert_eq!(arable.ai.personality[0].farm_style, 0);
 
@@ -767,7 +775,8 @@ fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
              raid_interval = 6\nabandon_tax_rate = 32\n\
              castle_concurrent = {concurrent}\ncastle_min_population = {min_pop}\n\
              castle_gold = [{gold}]\nweapon_rota = [0, 1, 2, 3, 4, 5]\n\
-             siege_doctrine = 8\n\n"
+             siege_doctrine = 8\ntrade_gold_floor = 1000\nweapon_buy_qty = 100\n\
+             reserve_wood = 250\nreserve_stone = 250\nreserve_iron = 250\n\n"
         )
     }
     let rows = lord(1, 1, 0, 100, 500, 5, 12, 1000, 30, 4, 700, "200, 0, 1000, 0, 10000")

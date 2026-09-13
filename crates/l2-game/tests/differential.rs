@@ -105,7 +105,7 @@
 //! * [`Kind::Simulated`] — we compute it, and a divergence is **ours to
 //!   explain**;
 //! * [`Kind::PlayerInput`] — a person or an AI lord set it during the turn we
-//! cannot replay, so a divergence is a **missing input**, not a wrong rule;
+//! cannot replay, so a divergence is a **missing input**
 //! * [`Kind::Unsimulated`] — nothing of ours ever writes it. A field we never
 //!   write is a different fact from a field we write differently, and lumping
 //!   them produces a number that means nothing;
@@ -715,6 +715,19 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 ///
 /// **Both together, measured at the merge that brought them together**: 913 of 932 agree and 270 of
 /// 279 moved fields agree, and neither branch's BASELINE rows remain.
+///
+/// **The hundred maces, settled.** `Ai_TradeForCounty` (`0x0049E39B`) is built
+/// — `l2_kingdom::ai_farm::Market::trade_for_county` — and it is exactly what
+/// realm 2's siege 13->14 rows were. The Knight's personality `+0x7C` orders a
+/// hundred of the county's own weapon type once `+0x78`'s floor of 1,000 is
+/// cleared; the county makes maces, good 11 quotes 10 + `Pct(10, 100)` = 20,
+/// and 100 × 20 = 2,000 crowns. `realm.weapons.1` left the baseline and
+/// `realm.gold` on realm 2 went **+2,005 → +5**, which is the standing
+/// `realm.wages` (−5) divergence and nothing else; `realm.score` went +47 → −3.
+/// 913 → **914** of 932 and 270 → **271** of 279. **Ablated**: returning
+/// `trade_for_county` to the trait's empty default puts all four rows back.
+/// Realm 1's `realm.gold` (+510) did not move — its lord's floor is not
+/// cleared on this pair.
 #[rustfmt::skip]
 const BASELINE: &[(&str, &str, usize)] = &[
     ("battle 3->4", "global.ai_lords", 1),
@@ -729,7 +742,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 13->14", "realm.score", 2),
     ("siege 13->14", "realm.strength", 1),
     ("siege 13->14", "realm.wages", 2),
-    ("siege 13->14", "realm.weapons.1", 1),
 ];
 
 /// How many field comparisons the four pairs make between them, stated
@@ -743,14 +755,14 @@ const COMPARED_TOTAL: usize = 932;
 /// one**: most of a county record is inert across a season, so a field neither
 /// side touched agrees for free and this number is mostly a measure of how much
 /// of the record the import carried unchanged.
-const AGREE_TOTAL: usize = 913;
+const AGREE_TOTAL: usize = 914;
 
 /// How many comparisons are of a field **the original's own End Turn moved**.
 const MOVED_TOTAL: usize = 279;
 
 /// How many of *those* agree. This is the number that means something, and it
 /// is the one to quote.
-const MOVED_AGREE_TOTAL: usize = 270;
+const MOVED_AGREE_TOTAL: usize = 271;
 
 // --- the tests --------------------------------------------------------------
 
