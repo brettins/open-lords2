@@ -528,6 +528,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // presentation. A loaded game opens at the near zoom because
         // `MapScreen::new` does, and this is that projection's starting value.
         begin_move_order: None,
+        combine_ask: None,
         map_zoom_far: false,
         // And a seventh: `Setup_StartGame` sets `DAT_005440C8 = g_optTimeLimit`
         // for a loaded game as for a new one, so the turn timer starts from the

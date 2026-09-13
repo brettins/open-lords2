@@ -4,7 +4,7 @@
 //! `Turn_AdvancePhase` wraps 7 back to 1. `l2-kingdom` models that as
 //! [`TurnMachine`](l2_kingdom::phase::TurnMachine) and deliberately stops
 //! there: **three** of the seven phases wait on units moving, one waits on
-//! sieges, one on the AI, and the machine answers none of them itself. The
+//! sieges, one on the AI,
 //! caller does. This module is that caller.
 //!
 //! > The line above used to say *"four of the seven phases wait on units
@@ -19,7 +19,7 @@
 //!
 //! # What the spine has to supply
 //!
-//! Three things, and none of them is in `l2-kingdom` because none of them is a
+//! Three things,
 //! rule:
 //!
 //! 1. **The waits, and the mover they wait on.** This used to read:
@@ -64,7 +64,7 @@
 //! started from: the same save ended twice produces the same numbers, which is
 //! what `tests/turn.rs` asserts by running one twice. The unit sweep keeps that
 //! property because it walks slots 1 … 150 in order and stops at the first
-//! battle — `docs/netcode.md` §5's rule, and the reason the stop is reproduced
+//! battle — `docs/netcode.md` §5's rule,
 //!
 
 use l2_kingdom::ai::{self, AiStep};
@@ -89,7 +89,7 @@ use crate::game::Game;
 /// **512 was set when a unit crossed a tile per tick**, which it no longer
 /// does: `Unit_StepOnce`'s sub-tile counter costs 8 ticks a road tile and 32
 /// an open one ([`l2_kingdom::units_tick`]). Three of the seven phases wait for
-/// a whole class of unit to stop walking, one after another, and the AI's phase
+/// a whole class of unit to stop walking, one after another,
 /// keeps taking steps while any of its armies is still moving —
 /// `docs/armies.md` §3.2. So the bound is four consecutive waits, each as long
 /// as the slowest possible leg.
@@ -117,7 +117,7 @@ pub struct TurnOutcome {
     /// [`Outcome::InPlay`] almost always. See [`crate::victory`].
     pub outcome: Outcome,
     /// How many tiles were entered by anything, over the whole turn. Zero on a
-    /// turn where nobody had anywhere to go — and the number that was
+    /// turn where nobody had anywhere to go —
     /// necessarily zero while four phases did nothing.
     pub steps: usize,
     /// Everything the unit sweep reported, in the order it happened. Battles,
@@ -266,7 +266,7 @@ pub struct Question {
     ///
     /// Carried on the question because [`take_the_field`] needs it to raise the
     /// battlefield — `Battle_Start` picks `Battlefield_BuildCastle` over
-    /// `Battlefield_BuildRandom` on exactly this — and the question is the only
+    /// `Battlefield_BuildRandom` on exactly this —
     /// thing that survives from the assault to the answer.
     pub castle_level: Option<u8>,
 }
@@ -347,13 +347,13 @@ pub fn take_the_field(game: &mut Game) -> bool {
 ///
 /// Takes the live battle off [`Game`] and settles the suspended question with
 /// it, which produces the [`TurnStep::Report`] screen `0x13` draws. The two ways
-/// out of a battle land here differently, and the difference is the original's:
+/// out of a battle land here differently,
 ///
-/// * **it ended** — `Battle_CheckOutcome` (`0x00477DFC`) — and the casualties
+/// * **it ended** — `Battle_CheckOutcome` (`0x00477DFC`) —
 ///   the simulation produced are written back;
 /// * **the player retreated or autocalculated** — `FUN_0043BE65`, which runs
 ///   `Battle_AutoResolve` and **never calls `Battle_WriteBackCasualties`**. So
-/// every man killed so far is unkilled, and the result is computed from the
+/// every man killed so far is unkilled,
 ///   armies as they walked on. Reproduced by dropping the runner on the floor
 ///   and answering [`Answer::Decline`], which is the same autocalc.
 ///
@@ -466,11 +466,11 @@ pub fn tick_turn(game: &mut Game) -> TurnStep {
 /// `Battle_ChooseSettlement` (`0x004A6A30`) has no opinion about which frame an
 /// army arrived on. `Units_Tick` is called from the frame loop next to
 /// `Turn_Tick` (`docs/decisions.md` C35), `Unit_EnterOccupiedTile` and
-/// `Army_AttackCounty` call the gate from inside it, and the gate raises
+/// `Army_AttackCounty` call the gate from inside it,
 /// `g_screenId = 0x12` on the spot — the campaign then stands still because
 /// `Units_Tick`'s own latch abandons the sweep.
 /// flight. So the three settlements are answered here
-/// inside a turn, and the suspension is [`TurnProgress::idle`].
+/// inside a turn,
 ///
 /// Returns how many tiles were entered,
 /// frame needs repainting.
@@ -484,7 +484,36 @@ pub fn tick_units_only(game: &mut Game) -> usize {
     if let Some(e) = moved.battle() {
         raise_idle_battle(game, e);
     }
+    ask_combine(game, &moved.contacts);
     stepped
+}
+
+/// **The halt where the original walks on** — [`Contact::Blocked`] with the
+/// player's own army standing on the tile.
+///
+/// `Unit_EnterOccupiedTile`'s rung 3 is *"same owner — merge, but only on an
+/// explicit merge order"*,
+/// army walks over its own. Ours stops (`Contact::Blocked`'s own note). The
+/// question it stops on is the original's: `Map_ConfirmMoveOrder`
+/// (`0x004A9252`) raises `L2.eng` 10/5 *"Combine armies?"* off
+/// `g_hoverMergeUnit` and `MoveOrder_ConfirmCombine` (`0x004A975D`) merges into
+/// the standing unit. **When** we ask is ours — [`Game::combine_ask`].
+///
+/// Only the local player's own two armies: an AI's pair merges with no prompt
+/// (`Contact::Merged`), and nobody may be asked about another realm's units.
+fn ask_combine(game: &mut Game, contacts: &[Contact]) {
+    if game.combine_ask.is_some() {
+        return;
+    }
+    let units = &game.kingdom.campaign.units;
+    game.combine_ask = contacts.iter().find_map(|c| {
+        let Contact::Blocked { mover, occupant } = *c else { return None };
+        let (m, o) = (units.get(mover)?, units.get(occupant)?);
+        let mine = |u: &l2_kingdom::Unit| {
+            u.owner == game.player && u.kind == l2_kingdom::unit::UnitKind::Army
+        };
+        (mine(m) && mine(o)).then_some((mover, occupant))
+    });
 }
 
 /// `Battle_ChooseSettlement` for a battle raised outside a turn. See
@@ -498,11 +527,11 @@ fn raise_idle_battle(game: &mut Game, e: Encounter) {
         game.kingdom.options.fight_humans_only_byte,
     );
     if settlement == Settlement::Silently || game.turn.is_some() {
-        // **Nobody's but the lords'**, and the gate's own return of 0: no
+        // **Nobody's but the lords'**,
         // screen, no report, the autocalc and on with the frame. Through
         // [`record`] like every other battle, so the losing realm is recounted
         // here too —
-        // itself has nowhere to go and `record` drops it, and the recount is
+        // itself has nowhere to go and `record` drops it,
         // the half that must not be dropped with it.
         //
 // The `game.turn.is_some()` half is a guard: the map
@@ -701,7 +730,7 @@ struct Tail {
 /// It lives on the [`Game`] because
 /// a half-run turn is not something a caller may drop: the kingdom is in a state
 /// no rule describes — two armies on one tile, a season report computed and not
-/// yet delivered — and the only safe thing to do with it is finish it.
+/// yet delivered —
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TurnProgress {
 /// A battle raised by [`tick_units_only`] on an
@@ -911,7 +940,7 @@ fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
     crate::message::rearm_events(game, &report);
     game.last_report = Some(report.clone());
     // `Turn_Tick`'s phase 7 calls `Score_RankRealms` after `Season_Advance` —
-    // one of its five callers, and the one that can crown a survivor at the end
+    // one of its five callers,
     // of a season in which nobody died. `Pass::ScoreRank` inside the pipeline
     // has already ranked; this adds the leader/trailer scan that the pass
     // deliberately does not own, because the pass does not know who the local
@@ -924,7 +953,7 @@ fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
     // screen, — and ends the same way.
     //
     // `turn::begin_turn`, the interactive door, does **not** call this: there
-    // the map screen is up, `Machine::update` pumps, and the person presses the
+    // the map screen is up, `Machine::update` pumps,
     // corner button. See `docs/arms.json`, group `messages`.
     let outcome = if interactive {
         game.campaign.outcome
@@ -1196,7 +1225,7 @@ fn siege_seed(kingdom: &Kingdom) -> u64 {
 /// > This was written as a marked stub — the mover landed while battle
 /// > resolution was being built on another branch, and an unfought pair went
 /// > into [`TurnOutcome::pending_battles`] so that filling the seam in would
-/// > change a test. Both have landed, and the
+/// > change a test. Both have landed,
 /// > handoff is a real call now. `pending_battles` stays, because there is
 /// > still one case that does not resolve: see below.
 ///
@@ -1205,7 +1234,7 @@ fn siege_seed(kingdom: &Kingdom) -> u64 {
 /// This used to carry a note saying `end_turn` had no screen to raise *"will
 /// you take the field?"* on and therefore answered [`Answer::Decline`], and
 /// that when the map screen could raise the prompt *"this is the one line that
-/// changes"*. It was not one line, and the note was wrong about where the
+/// changes"*. It was not one line,
 /// change belonged: a prompt has to **suspend the turn**, because the campaign
 /// is left mid-tick with two armies on one tile while the player thinks. So the
 /// interactive path is [`begin_turn`] and [`answer_battle`], and this function
@@ -1266,7 +1295,7 @@ fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
 ///   cursor and `Merchant_AdvanceAll`. **Phase 2 is sieges and originates
 ///   nothing** — see [`l2_kingdom::units_tick`].
 ///
-/// # The one difference from the original, and the condition it rested on has
+/// # The one difference from the original,
 /// gone
 ///
 /// `AI_RunTurnStep` interleaves: realm 1 takes step 0, then realm 2 takes step 0,
@@ -1359,13 +1388,13 @@ fn begin_phase(game: &mut Game, phase: Phase) {
 /// }
 /// ```
 ///
-/// **The `isHuman` test guards the handlers and the counter's increment, not
+/// **The `isHuman` test guards the handlers and the counter's increment,
 /// this.** `Turn_BeginPlayersTurn` (`0x0049B6D3`) writes `aiStep = 0` into every
 /// realm — 999 only for a realm at zero strength —
 /// 0 exactly like an AI one and then stops, its counter parked at 1 until
 /// `Turn_End` (`0x0043AC23`) writes 999.
 ///
-/// # What this fixes, and the differential is what found it
+/// # What this fixes,
 ///
 /// This used to be `game.recount_realm(id)` alone — the first of the prologue's
 /// three writes. `Realm_UpdateTotals` is **the only thing in the original that
@@ -1407,7 +1436,7 @@ fn step_zero(game: &mut Game, realm: u8) {
 ///
 /// > `launched_army` **used to be passed `false`**, on the grounds that "it
 /// > asks whether the realm found an idle army to start moving, and there are
-/// > no armies". There are armies now, and the argument is the real predicate:
+/// > no armies". There are armies now,
 /// > `FUN_004A4E3D(1, realm)`, which is
 /// > [`Kingdom::realm_units_moving`](l2_kingdom::Kingdom::realm_units_moving).
 /// > It matters because it is half of the finish test — `docs/armies.md` §3.2:
@@ -1555,7 +1584,7 @@ mod tests {
 
     /// **`Screen_DrawMenuBar`'s `aiStep < 999`, mapped onto our turn.**
     ///
-    /// Three claims, and the first is the trap: between turns every counter is
+    /// Three claims,
     /// where a finished turn left it — 999 for the person, 1000 for an AI — and
     /// yet nobody has ended anything, because the map between turns is the
     /// original's phase 4 before anybody has pressed a button.

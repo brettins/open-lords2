@@ -117,7 +117,7 @@ pub struct Prefs {
     pub tool_tips: bool,
     /// `g_optScrollSpeed` (`0x0053F234`) — **0, 10, 20 … 100, eleven settings**,
     /// because `Ui_OpenSlider` is opened with step 10, minimum 0 and maximum
-    /// 100 and the two arrows are the only writers. Shown as 0…10, because the
+    /// 100 and the two arrows are the only writers. Shown as 0…10,
     /// spinner's format 1 divides by ten.
     ///
     /// `Map_ScrollThrottle` (`0x004BBBE3`) turns it into a delay:
@@ -133,7 +133,7 @@ pub struct Prefs {
     pub game_speed: i32,
     /// **Ours: the debug overlay** — every marker, outline and line of our own
     /// 5 × 7 text that the original does not draw, on every screen. **Off by
-    /// default**, so a normal session shows what `Lords2.exe` shows and nothing
+    /// default**, and nothing
     /// else. Ctrl+D flips it, from anywhere, in [`crate::screen::Machine::handle`].
     ///
     /// A player: *"debug text everywhere, i'd like a toggle or hotkey."* The
@@ -144,7 +144,7 @@ pub struct Prefs {
     ///
     /// **What it does not gate**, deliberately: a fallback that runs only when a
     /// file of the install is missing (a normal install never shows one), the
-    /// title page's build stamp, which exists so a report names its build, and
+    /// title page's build stamp, which exists so a report names its build,
     /// the two screens that are wholly ours (`screens::index`, `screens::menu`).
     ///
     /// A preference, so never in the save, never in the digest and never below
@@ -195,7 +195,7 @@ impl Prefs {
     /// Step a speed the way `Ui_SliderUp` / `Ui_SliderDown` do.
     ///
     /// **Not a clamp, a gate**: the original's arrows are
-    /// `if (*v < max) *v += step` and `if (min < *v) *v -= step`, so a value
+    /// `if (*v < max) *v += step` and `if (min < *v) *v -= step`,
 /// already at the end does not move. That is the same shape as
     /// `l2_kingdom::mercenary::bands_in_play`'s "clamped" that turned out not to
     /// be a clamp, and it is written the original's way for the same reason.
@@ -336,7 +336,7 @@ pub struct Assets {
     /// as it projects [`Game::presentation_quirks`] into [`Assets::quirks`] on
     /// the line above; `crate::wallclock` turns it into the title screen's MST
     /// clock face and nothing else reads it. `None` everywhere the shell is not
-    /// running — every test, and every headless driver — so a screen that wants
+    /// running — every test, and every headless driver —
     /// a clock has to be handed one and can never reach for it.
     ///
 /// It is on [`Assets`] deliberately: `docs/netcode.md`
@@ -366,7 +366,7 @@ pub struct Assets {
     /// without the install, and it is safe here for a reason the campaign map's
     /// hit test was not (`docs/decisions.md` C61): **every hotspot on this
     /// screen is a constant out of the binary**, not a consequence of the
-    /// artwork, so the placeholder and the real install hit-test identically.
+    /// artwork,
     pub battle: Option<l2_view::scene::BattleAssets>,
     /// What the shell screens draw with: `L2.eng`, the two panel fonts, and
     /// the per-screen artwork the front end and the management screens load.
@@ -387,7 +387,7 @@ pub struct Assets {
 }
 
 impl Assets {
-    /// Load through the mod overlay, so a mod that supplies its own `Base2a.pl8`
+    /// Load through the mod overlay,
     /// or its own palette is picked up with no change to any drawing path.
     pub fn load(vfs: &Vfs) -> Result<Assets, String> {
         let maps = vfs.read("L2_maps.dat").map_err(|e| format!("L2_maps.dat: {e}"))?;
@@ -531,7 +531,7 @@ pub struct Game {
     ///
 /// **Here, and it changes what it is covered by.**
     /// The original keeps names outside `g_realms` too — they are a save block
-    /// of their own — and the reason holds for us: the lockstep digest is
+    /// of their own —
     /// `Canonical::hash_of(kingdom)` and a name cannot change a number. Putting
     /// it in the kingdom would make a cosmetic string a desync source. It is in
     /// the save, in the prefix beside [`Game::realm_colour`], which is the
@@ -613,7 +613,7 @@ pub struct Game {
     /// describes — two armies on one tile with the battle unresolved — and the
     /// only safe thing to do with it is finish it. See [`crate::turn`].
     ///
-    /// not-encoded: session state, and the same argument as
+    /// not-encoded: session state,
     /// [`Game::field_policy`] — a half-run turn cannot be in a file because the
     /// only door to the save screen is between turns.
     pub(crate) turn: Option<crate::turn::TurnProgress>,
@@ -650,7 +650,7 @@ pub struct Game {
     ///
     /// Session state, exactly like [`Game::field_policy`] and [`Game::turn`]
     /// above, and not in the save for the same reason: the original saves from
-    /// the campaign map and nowhere else, so a levy is
+    /// the campaign map and nowhere else,
     /// file is written. See [`LevyOrder`].
     ///
     /// not-encoded: session state. The durable half — the realm's weapon stocks
@@ -673,7 +673,7 @@ pub struct Game {
     /// `Screen_HandleInput` has no arm for `0x29`. Whether the original refuses
     /// or misbehaves there was not established.
     ///
-    /// not-encoded: session state, and the paragraph above is the whole
+    /// not-encoded: session state,
     /// argument — the original cannot save inside a battle either.
     pub battle: Option<Box<crate::battlefield::LiveBattle>>,
     /// **`Map_BeginMoveSelection`, asked for by something that is not the map.**
@@ -681,7 +681,7 @@ pub struct Game {
     /// `Panel_MoveButton` (`0x004371CE`) is two statements — `g_screenId = 0`
     /// and `Map_BeginMoveSelection()` — because in the original the selection
     /// is a global and the screen is a byte. Ours has neither: move-order mode
-    /// is [`crate::screens::map::MapScreen`]'s own state, and the information
+    /// is [`crate::screens::map::MapScreen`]'s own state,
     /// panel that holds the button is a *different screen* with no handle on
     /// it. So the panel writes the request here and pops, and the map picks it
     /// up on its next tick — which is the same two steps in the same order.
@@ -691,6 +691,25 @@ pub struct Game {
     /// not-encoded: session state. It cannot outlive the frame that set it, and
     /// the original's `g_selectedUnit` is not saved either.
     pub begin_move_order: Option<usize>,
+    /// **A halted march wants to know whether to combine** — `(mover,
+    /// occupant)`, both the local player's armies.
+    ///
+    /// `Map_ConfirmMoveOrder` (`0x004A9252`) asks *"Combine armies?"* —
+    /// `L2.eng` group 10 index 5, `g_hoverMergeUnit` (`0x00553F44`) — and
+    /// `MoveOrder_ConfirmCombine` (`0x004A975D`) passes the standing unit as
+    /// `Unit_OrderMove`'s fifth argument, so the merge happens on arrival
+    /// through `Army_Combine` (`0x004AA181`). **We ask later than that**: the
+    /// original's tile carries a stack and ours does not,
+    /// crosses your own army halts on `Entry::Occupied` where the original
+    /// walks over it. Same question, same words, same merge; a different
+    /// moment, which is `[I]`. Written by [`crate::turn::tick_units_only`],
+    /// consumed by the map screen's yes/no box.
+    ///
+    /// **Not for multiplayer as it stands**: the original's combine is network
+    /// command `0x2C`, and this answer is local.
+    ///
+    /// not-encoded: session state, like `begin_move_order` above.
+    pub combine_ask: Option<(usize, usize)>,
     /// **`g_mapZoom` (`0x0057CB18`), projected out of the campaign map.**
     ///
     /// The zoom is a global in the original and three arms that are *not* on
@@ -720,7 +739,7 @@ pub struct Game {
     /// [`crate::message`], which has the whole argument.
     ///
     /// not-encoded: per-peer display state. The original saves from the campaign
-    /// map with `Msg_Pump` running, so a save is written between messages and
+    /// map with `Msg_Pump` running,
     /// never during one.
     pub messages: crate::message::MessageQueue,
     /// **The tip screens** — `g_tipShown`, the twenty-frame re-arm, whether
@@ -748,7 +767,7 @@ pub struct Game {
     /// cannot outlive being replaced.
     ///
     /// not-encoded: session state. `Setup_StartGame` restarts the count on a
-    /// start and on a load, so a save that carried it would be carrying a number
+    /// start and on a load,
     /// the original throws away; and it is not the world's — the only thing it
     /// can do to the world is press End Turn.
     pub turn_clock: crate::turn_clock::TurnClock,
@@ -808,7 +827,7 @@ pub struct Game {
     /// frame the thumb up's latch is taken up; the merchant's four quantity
     /// handlers — `FUN_00435339`, `FUN_0043543D`, `FUN_00435541`,
     /// `FUN_004355DB` — have one each, on the step that crosses from selling
-    /// into buying. Neither condition survives to the next tick, so a diff
+    /// into buying. Neither condition survives to the next tick,
     /// cannot see it and the screen has to say so.
     ///
     /// The count and not the name is the edge, because two presses of the same
@@ -967,7 +986,7 @@ pub struct LevyOrder {
     /// **The armoury's animation state** — `DAT_005679D0`, `DAT_0056D630`,
     /// `DAT_0052F008`, `DAT_0057CB10`, `DAT_005681F8`, `DAT_00568228` and the
     /// two frame counters `Tick_Pulses` steps for the torches and the turning
-    /// weapon. Six more globals the armoury and the rack panel share, which is
+    /// weapon. Six more globals the armoury and the rack panel share,
     /// exactly why they are here beside the other five.
     ///
     /// **Display state, and it must stay that way.** Nothing in
@@ -1007,6 +1026,7 @@ impl Game {
             levy: LevyOrder::default(),
             battle: None,
             begin_move_order: None,
+            combine_ask: None,
             map_zoom_far: false,
             messages: crate::message::MessageQueue::new(),
             tips: crate::tip::Tips::new(),
@@ -1014,7 +1034,7 @@ impl Game {
             turn_clock: crate::turn_clock::TurnClock::default(),
             films: crate::movie::Reel::default(),
             unit_frames: UnitFrames::default(),
-            // `Game_NewGame` (`0x00497CED`) writes 0 into `DAT_0055CE7C`, so a
+            // `Game_NewGame` (`0x00497CED`) writes 0 into `DAT_0055CE7C`,
             // new game opens the standings on *"Most counties,"*.
             nobles_category: 0,
             nobles_spoken: 0,
@@ -1064,7 +1084,6 @@ impl Game {
     /// to `0x17`, `FUN_00435CBF` on the *Continue* button, and the right-release
     /// arm of `0x17`. So walking back to the levy screen and forward again
     /// throws away everything the player equipped — the original's behaviour,
-    /// and the reason a slider move appears to strip the army even though the
     /// slider itself never touches the basket.
     ///
     /// **Its last three statements are the armoury's**, not the basket's:
@@ -1092,7 +1111,7 @@ impl Game {
     ///
     /// **Called for every realm, the human included.** `AI_RunTurnStep`'s
     /// `isHuman` test guards the fourteen handlers, not the step-0
-    /// initialisation above them, so the human's strength is recounted and the
+    /// initialisation above them,
     /// human's defeat detected on the human's own turn. Skipping humans here is
     /// the one way to build a game that cannot be lost.
     pub fn recount_realm(&mut self, realm: u8) {
@@ -1115,7 +1134,7 @@ impl Game {
     /// **The filter is the interesting part and it is not ours.** `recount_realm`
     /// raises an AI's obituary with `to == 0` and your own defeat with
     /// `to == g_localPlayer`, and `Msg_Enqueue` keeps a record only when
-    /// `to == 0 || to == g_localPlayer` — so a *second human* in a network game
+    /// `to == 0 || to == g_localPlayer` —
     /// is told nothing, which `l2_kingdom::victory::recount_strength` already
     /// records and which this is the other half of. See [`crate::message`].
     fn post_ending(&mut self, msg: l2_kingdom::victory::Ending) {
@@ -1202,7 +1221,7 @@ impl Game {
     /// with the frame each unit's tick handler writes before it steps held for
     /// the painter. See [`UnitFrames`]. Both doors into the sweep in this crate,
     /// [`crate::turn::tick_units_only`] and the turn machine's phase tick, come
-    /// through here, so a frame and the step it precedes cannot come apart.
+    /// through here,
     pub fn sweep_units(&mut self) -> l2_kingdom::units_tick::UnitsTick {
         let written = UnitFrames::written(&self.kingdom.campaign.units);
         let moved = self.kingdom.tick_units();
@@ -1232,7 +1251,7 @@ impl Game {
     ///   phase for player movement, which is the finding
     ///   [`crate::turn`] is built on.
     /// * **the cost map is rebuilt for the order**, inside
-    /// [`l2_kingdom::movement::order_move`], so a tile trampled two steps ago
+    /// [`l2_kingdom::movement::order_move`],
     ///   is already impassable to this one.
     ///
     /// Returns the number of steps ordered, or `None` if the unit is not the
