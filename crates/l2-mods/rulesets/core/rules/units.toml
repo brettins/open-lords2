@@ -28,7 +28,8 @@
 #   recovery          ticks between blows suffered. THIS IS MELEE
 #                     DEFENCE - there is no separate defence value.
 #                     Must be at least 1
-#   heavy_blow        the once-per-exchange blow, and large
+#   heavy_blow        landed once per figure in the whole battle, and
+#                     large. Maceman 300 is the highest
 #   armour            flat subtraction, missiles only; never read in
 #                     a melee exchange
 #   exchange          blows before attacker and defender swap roles
