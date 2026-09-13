@@ -317,7 +317,7 @@ fn a_right_click_closes_an_offer_without_answering_it() {
 
 /// **An offer that arrives when you already have an ally closes itself.**
 /// `Msg_DrawWindow`'s category-`0x0B` arm opens with the guard, so the window is
-/// never drawn and the player never sees it.
+/// and the player never sees it.
 #[test]
 fn an_offer_lapses_unseen_when_you_already_have_an_ally() {
     let (mut g, a, mut m) = world();
@@ -735,7 +735,7 @@ fn a_fresh_event_rearms_a_county_whose_letter_was_already_read() {
     assert!(!message::post_event(&mut g), "and only once");
 
     // What a season in which `Event_RollAll` dealt the county an event looks like
-    // on the way out: the latch is up (it never came down) and the report names
+    // on the way out: the latch is up and the report names
     // the county.
     let mut report = l2_kingdom::report::SeasonReport::default();
     report.message(l2_kingdom::report::Message::Event {
@@ -916,4 +916,62 @@ fn the_window_frame_covers_the_map_under_it() {
         "sixteen pixels of the window's top edge and not one of them changed -- \
          the frame was not drawn, or it was drawn somewhere else",
     );
+}
+
+/// **A battle swallows its own letters.** `Msg_Pump` (`0x00472E46`) opens with
+///
+/// ```c
+/// if (g_battlePhase == 2 && g_messageGroup != 0) Msg_Dismiss();
+/// else { …pull, count down, draw… }
+/// ```
+///
+/// — the guard is on an *open* window, so the pull still happens and each
+/// record is drawn for one frame before the next frame closes it. The ring
+/// drains during a battle; it is not held.
+///
+/// Ablated: dropping the `fighting` test in `Machine::pump_messages` leaves the
+/// scroll up over the battlefield for every frame of the loop.
+#[test]
+fn a_battle_drains_the_message_ring_one_frame_at_a_time() {
+    use l2_game::battlefield::LiveBattle;
+    use l2_sim::runner::{Army, BattleRunner};
+    use l2_sim::Troop;
+    let (mut g, a, mut m) = world();
+    // A live battle, so the battlefield screen stays on the stack: two
+    // deployment markers eight rows apart, as `tests/audio_battle.rs` builds it.
+    let mut layer = vec![0u8; l2_sim::terrain::CELLS];
+    layer[36 * l2_sim::terrain::DIM + 40] = 0x04;
+    layer[44 * l2_sim::terrain::DIM + 40] = 0x0F;
+    let runner = BattleRunner::deploy_armies(
+        l2_sim::terrain::build(&layer, 1),
+        0x5EED,
+        Army { troops: &[(Troop::Peasants, 40)], owner: 2, human: false },
+        Army { troops: &[(Troop::Peasants, 40)], owner: 1, human: true },
+    );
+    let mut live = LiveBattle::new(runner, 0, 0, 0, None, 1, 1);
+    live.paused = true;
+    g.battle = Some(Box::new(live));
+    post(&mut g, notice(130));
+    post(&mut g, notice(131));
+    m.push(ScreenId::Battlefield);
+
+    let mut frames_up = 0;
+    for _ in 0..12 {
+        tick(&mut m, &mut g, &a);
+        if m.top_id() == Some(ScreenId::Message) {
+            frames_up += 1;
+        }
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::Battlefield), "the battle left the stack");
+    assert_eq!(frames_up, 2, "both records are drawn once each and never for a second frame");
+    assert!(!g.messages.is_open(), "a message is still open with the battlefield on the stack");
+
+    // The control: the same record with no battle stays up.
+    let (mut g, a, mut m) = world();
+    post(&mut g, notice(130));
+    open_the_scroll(&mut m, &mut g, &a);
+    for _ in 0..4 {
+        tick(&mut m, &mut g, &a);
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::Message), "off the battlefield the scroll stays up");
 }
