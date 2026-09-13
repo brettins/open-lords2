@@ -11816,7 +11816,7 @@ wheel turned for the rest of the game. Deleting the gate is the whole fix.
 
 ---
 
-**CNEW-sounds — the battle prompt's spoken question, and the take that was "unread".**
+**C212 — the battle prompt's spoken question, and the take that was "unread".**
 
 `docs/audio.json` filed nine `S080` sites across `Battle_BeginFromCampaign`
 (`0x004A7158`), `FUN_004A6C68` and `Siege_LaunchAssault` (`0x004A8AAB`) as
