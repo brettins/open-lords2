@@ -100,9 +100,16 @@ pub struct Prefs {
     /// `0x0053F20C` — which is harmless as shipped and means one of that
     /// function's five sound lines lost its target. `docs/bugs.md` B66.
     pub speech: bool,
-    /// `g_optAnimations` (`0x0053F248`). Read by `Screen_BattleOutcome`
-    /// (`0x00423241`), `Msg_DrawWindow` (`0x0047309E`) and `Map_ClampScroll`
-    /// (`0x00429B1D`).
+    /// `g_optAnimations` (`0x0053F248`) — **five reads in four functions, and
+    /// every one of them is answered here**. This list used to name
+    /// `Map_ClampScroll` (`0x00429B1D`), which does not read the flag.
+    ///
+    /// | reader | what it chooses | ours |
+    /// |---|---|---|
+    /// | `Screen_BattleOutcome` `0x00423241` | the tall box with the film recess, not the short one | [`crate::screens::battlefield`] |
+    /// | `CastleBuild_Confirm` `0x00436B59` | `Castle1..5.smk` over the chooser | [`crate::screens::castle`] |
+    /// | `Msg_DrawWindow` `0x0047309E` ×2 | the capture and ending films, each dismissing its own letter | [`crate::message::animate`] |
+    /// | `Battle_CheckOutcome` `0x00477DFC` | `bat_win1.smk` … by outcome and take | [`crate::screens::battlefield`] |
     pub animations: bool,
     /// `g_optTipScreens` (`0x0053F24C`), read by `Tip_Update` (`0x00476AA7`).
     pub tip_screens: bool,
