@@ -1469,10 +1469,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A dwelling plot going content 0x10 -> 0x13; the Entry::Plot arm is the writer."
     },
     {
       "id": "Unit_CrossField#1",
@@ -1480,10 +1480,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A standing field going to content 0; movement::destroy_field is the writer."
     },
     {
       "id": "Unit_MoveInFacing#1",
@@ -1535,10 +1535,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. An iron site trampled to content 3; movement::trample is the writer."
     },
     {
       "id": "Unit_TrampleTile#2",
@@ -1546,10 +1546,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A stone site trampled to content 6."
     },
     {
       "id": "Unit_TrampleTile#3",
@@ -1557,10 +1557,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A weapons site trampled to content 9."
     },
     {
       "id": "Unit_TrampleTile#4",
@@ -1568,10 +1568,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A wood site trampled to content 12."
     },
     {
       "id": "Widget_Test#1",

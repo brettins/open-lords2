@@ -14,7 +14,7 @@
 //!
 //! # Three planes, not six
 //!
-//! `l2_formats::maps` reads six 64×64 planes out of `L2_maps.dat`, and the
+//! `l2_formats::maps` reads six 64×64 planes out of `L2_maps.dat`
 //! runtime tile record the original builds from them is eight bytes wide. Only
 //! three of those bytes are read by any rule in this crate:
 //!
@@ -25,7 +25,7 @@
 //! | `+7` | [`CampaignMap::county`] | the cost map, border crossings, trampling |
 //!
 //! The other five are graphics (`+2`, `+3`, `+6`), a plane the renderer uses
-//! (`+4`), and the occupying unit index (`+5`) — which is *not* stored here,
+//! (`+4`)
 //! because [`crate::unit::Units::at`] answers the same question from the unit
 //! array and a second copy is a second thing to keep in step. `l2-kingdom` has
 //! no loader and never learns what `L2_maps.dat` is; building one of these out
@@ -42,7 +42,7 @@ pub const MAP_TILES: usize = MAP_DIM * MAP_DIM;
 /// The bits of the flags byte (`+1`, plane 0). Verified in
 /// `docs/formats/maps-layers.md` §2 except where noted.
 pub mod flags {
-    /// A road. Makes a step cost 1 instead of 3, and — the half
+    /// A road. Makes a step cost 1 instead of 3
     /// `docs/armies.md` missed — stops the flood fill expanding diagonally out
     /// of the tile at all. See [`crate::movement::flood_fill`].
     pub const ROAD: u8 = 0x01;
@@ -96,14 +96,14 @@ pub mod flags {
     pub const SETTLEMENT: u8 = 0x80;
 
     /// `plane0 & 0x0C` — sea, mountain or woodland. The **first** test the
-    /// cost map makes, and the only source of true impassability.
+    /// cost map makes
     pub const IMPASSABLE: u8 = NO_COUNTY | ROUGH;
 }
 
 /// Terrain byte (`+0`) values the rules test by name.
 ///
 /// The observed set on a live run is `0, 1, 4, 7, 10, 11, 20, 21, 22, 23`
-/// (`maps-layers.md` §5.3), and the ladders below tile it exactly: three
+/// (`maps-layers.md` §5.3)
 /// unruined states per industry, a ruined state per industry, and four crop
 /// states on farmland.
 pub mod terrain {
@@ -140,7 +140,7 @@ pub mod terrain {
     /// **Confirmed a third time, by a branch that did not know about the first
     /// two.** `ai-lords-play` derived the same range independently: the England
     /// fixture's five *owned* counties carry a `0x17` block and the nine
-    /// unowned ones carry `0x14`, and the AI's own castle-tile finder
+    /// unowned ones carry `0x14`
     /// (`FUN_004A65A3`) tests exactly `0x14 < terrain < 0x1A` — a third writer
     /// and a third reader agreeing with `Castle_StampTile` and `Unit_Step`.
     /// Its duplicate constant is gone; this is the one.
@@ -160,6 +160,18 @@ pub mod terrain {
 /// A dwelling plot that is occupied. On plot tiles this is the
     /// only value that costs anything; every other plot is impassable.
     pub const DWELLING: u8 = 0x10;
+
+    /// **A dwelling burnt down by an army that marched through it.**
+    /// `Unit_BurnDwelling` (`0x00468AE2`) writes `content = 0x13` over a `0x10`
+    /// plot and `frame = 0x3C` beside it; the frame is the renderer's and this
+    /// crate carries no frame plane.
+    ///
+    /// `[V]` and it is the *only* writer of this value: `County_UpdateDwellings`
+    /// (`0x004684C6`) never leaves a live dwelling at `0x13` — every branch
+    /// steps it up to `0x12` or beyond — so a plot at `0x13` was burnt.
+    /// `docs/draws-map.md` §3.2, whose arm 3 draws the sixteen damage frames
+    /// over exactly this.
+    pub const DWELLING_BURNT: u8 = 0x13;
 
     /// A farmland tile below this is bare or ploughed and costs an ordinary 3.
     pub const FIELD_STANDING_FROM: u8 = 2;
@@ -208,7 +220,7 @@ pub enum SiteState {
     /// different pulses.
     Working,
     /// `base + 2` — trampled. Three seasons or more of
-    /// [`crate::county::Industry::disabled_seasons`] and the damage animation
+    /// [`crate::county::Industry::disabled_seasons`]
     /// is drawn over it as well.
     Wrecked,
 }
@@ -216,7 +228,7 @@ pub enum SiteState {
 /// The commodity and state a settlement terrain byte names, or `None` when the
 /// tile is a town, a castle plot or plain ground.
 ///
-/// The inverse of [`terrain::INDUSTRY_IDLE`], and the same ladder
+/// The inverse of [`terrain::INDUSTRY_IDLE`]
 /// [`crate::industry::map_toggle_for_graphic`] reads from the click side — kept
 /// as two functions because the click ladder folds terrain 0 into iron and
 /// everything from 21 up into the castle, which are `Map_Click`'s concerns and
@@ -240,7 +252,7 @@ pub fn industry_state(terrain: u8) -> Option<(crate::tables::Commodity, SiteStat
 /// **Where one county's industry sits.** The original keeps the answer on the
 /// record — `Industry.siteTile`, county `+0x298 + c*0x18`, a byte offset into
 /// `g_tiles` that `County_PlaceResourceSites` stores at load — and this derives
-/// it instead, from the two things that define it: the settlement bit and the
+/// it instead
 /// terrain ladder.
 ///
 /// Derived. A cached tile index is a field an
@@ -260,7 +272,7 @@ pub fn industry_site(
     })
 }
 
-/// Where a tile sits, as the cost map and the distance field index it:
+/// Where a tile sits
 /// `y * 64 + x`.
 #[inline]
 pub fn index(x: u8, y: u8) -> usize {
@@ -356,14 +368,14 @@ pub const CASTLE_HALF_PERCENT: u8 = 0x32;
 /// **The simulation's half of `Castle_StampTile`** — write the castle's
 /// `content` byte onto its 2×2 block.
 ///
-/// The frame and the bank are the renderer's, but the content byte is a *rule*:
+/// The frame and the bank are the renderer's
 /// `Unit_TryEnterTile` masks the settlement bit off at
 /// [`terrain::CASTLE_PLOT`] and leaves it set above it, so this write is what
 /// turns a tile an army walks over into a castle it has to garrison or besiege.
 /// Ordering a castle stamps the new level at once — the scaffolding is already
 /// an obstacle — which is the original's ordering in `Castle_Order`.
 ///
-/// Returns the tiles written, so a caller can tell whether the county had a
+/// Returns the tiles written
 /// plot at all.
 pub fn stamp_castle_terrain(map: &mut CampaignMap, county: u8, castle_type: u8) -> usize {
     let Some(t) = terrain::CASTLE_PLOT.checked_add(castle_type.min(5)) else { return 0 };
@@ -492,7 +504,7 @@ impl CampaignMap {
     /// `[V]` — road 1, open 3 and field 6 agree exactly with the *stepper*,
     /// which classifies the same bits independently (`docs/armies.md` §2.2),
     /// and the field's 6 is assembled there from two separate `+3`s. `[D]` on
-    /// the four 100s and the two 0s, which the stepper never has an opinion
+    /// the four 100s and the two 0s
 /// about because those tiles are never entered.
     ///
     /// **Nothing about units or ownership enters this.** Byte `+5` of the tile

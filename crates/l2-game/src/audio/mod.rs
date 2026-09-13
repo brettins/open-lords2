@@ -11,7 +11,7 @@
 //! **A sound must never be able to affect the simulation**, in timing or in
 //! ordering, because the lockstep argument depends on it. That is enforced by
 //! shape: [`Audio`] is owned by the event loop in
-//! `main.rs` and is *not* in [`crate::screen::Ctx`], so a screen cannot reach
+//! `main.rs` and is *not* in [`crate::screen::Ctx`].
 //! it, cannot ask whether a sound finished, and cannot branch on one. The
 //! information flows one way — the event loop looks at the world and decides
 //! what should be audible. Nothing looks back.
@@ -19,7 +19,7 @@
 //! That constraint is also what fixes the design. Music is not pushed by
 //! events; it is **derived**, once a tick, from what is on screen and how the
 //! player's realm is doing, by [`Audio::follow`]. Asking for a track that is
-//! already playing does nothing, so the derivation can run every frame and the
+//! already playing does nothing.
 //! music never restarts.
 //!
 //! # It is optional, and it is optional at run time
@@ -32,7 +32,7 @@
 //! device left out. `--no-sound` selects it explicitly.
 //!
 //! Degradation happens at runtime.
-//! is not the code that ships, and the interesting failures here are all at
+//! is not the code that ships.
 //! run time anyway.
 //!
 //! # Files are resolved, never named by path
@@ -68,7 +68,7 @@
 //! files are somebody speaking — a player calls the voice acting
 //! *"half the personality of the game"*. It went from 0 to 543 in one change,
 //! and it is because the whole class
-//! hangs off one trigger, and the trigger is a countdown.
+//! hangs off one trigger.
 //!
 //! **A previous count here said 12 and was wrong at 11**, by reading the battle
 //! table instead of driving it — `battle5.wav` ships, decodes, and cannot be
@@ -90,7 +90,7 @@
 //!
 //! | class | the original's call site | sites | ours |
 //! |---|---|---:|---:|
-//! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **15** — [`voice_tick`], and the ending film's voice in [`Director::listen`]; the capture film's needs a capture letter |
+//! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **15** — [`voice_tick`].
 //! | **Music** | `Music_StartCampaign`, `Music_StartBattle`, `Music_Play` | 23 | **15** — [`scene`], four of them the bed restarting after a film ([`Scene::Film`]) |
 //! | **By name** | `Sound_PlayFile` | 49 | **17** — [`names::speech`], the fanfares, the forge, the tips' chain and `Wall_Smash`; every one through [`Audio::play_file`] or, where the original stops the buffer first, [`Audio::stop_and_play_file`] |
 //! | **The two sample banks** | `Sound_PlaySlot`, `Sound_RestartSlot`, `FUN_004262CF` | 49 | **27** — the march, the sites, the village's work, the click, and fifteen on the battlefield |
@@ -102,13 +102,13 @@
 //!   bullet used to say the whole battlefield — 25 sites — was *"a limit of the
 //!   design, because a sword swing is an event inside a
 //!   tick and [`Director`] derives sound from the world after it. The premise
-//!   was right and the conclusion was not: the world did not *record*
+//! was right: the world did not *record*
 //!   the event. `l2_sim::cue` is that record — monotone counts the battle writes
 //!   and never reads — and because every battlefield call is drop-if-busy, a
 //!   count that moved since the last tick is exactly what the original's calls
 //!   could make audible. Twenty-two of the 25 sound now: sixteen from the
 //!   record as it was written, and six more once fire, boiling oil, a tower
-//!   docking and the rampart too high to shoot down were built in
+//! docking and the rampart too high to shoot down were built in
 //!   `l2_sim::fire` and `l2_sim::siege`. The three that do not are state 17's
 //!   own loose and a realm eliminated mid-battle — each named in
 //!   `docs/audio.json`, and each a mechanic `l2-sim` does not have.
@@ -116,7 +116,7 @@
 //!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
 //!   their 29 slots ship. The campaign half of the kingdom bank now sounds —
 //!   the march, the resource sites, the village's work — and `dest_ind.wav`'s
-//!   six campaign sites, the field brush and the peasant mob's other arms do
+//! six campaign sites.
 //!   not. (The battlefield's bridge fire plays the same `dest_ind.wav` by name,
 //!   so the file is reachable; those six sites are not.)
 //!
@@ -138,7 +138,7 @@
 //!   the original that posts those categories. **This bullet used to say the
 //!   blocker was a per-message cursor and that the chain was *"why
 //!   `S010_13.wav` exists"*.** The cursor is two globals and a table, and
-//!   [`Audio::is_playing`] now answers the gate; what is missing is a screen —
+//! [`Audio::is_playing`] now answers the gate.
 //!   `Tip_Update`, `Tip_Show`, the paragraph window and its computed OK corner.
 //!   `S010_13.wav` is `g_msgVoiceS010`'s, which `FUN_004B36C0` reads. The
 //!   letter's sting, `FUN_004B3B92(lord - 1)`, is `S246_02.wav + lord * 0x10`
@@ -199,7 +199,7 @@ pub enum Scene {
     /// This arm used to answer `None`, on the reasoning that
     /// `Music_StartCampaign` is only reached once the campaign comes up and
     /// *"the title screen's only sound is `setup.wav`"*. Both halves are true
-    /// and the conclusion does not follow: `setup.wav` **is** the music, played
+    ///: `setup.wav` **is** the music, played
     /// by `Music_Play(name, 0, 1)` — the same looping call the campaign picker
     /// ends in, reached from a function the eight-primitive audit did not
     /// enumerate. See [`track::Music::Setup`].
@@ -217,7 +217,7 @@ pub enum Scene {
     Conquest { ended: bool },
     /// A battle, of a kind that picks the pair.
     Battle(BattleKind),
-    /// **A film is up, and the bed is silent.** Every one of `Smk_Play`'s
+    /// **A film is up.** Every one of `Smk_Play`'s
     /// callers stops the music first — `Music_Stop(0)` in `CastleBuild_Confirm`,
     /// in both animated `Msg_DrawWindow` branches, in `Battle_CheckOutcome`, in
     /// `FUN_00432B05`; and `App_WinMain` stops the `setup.wav` it has just
@@ -247,7 +247,7 @@ pub struct Audio {
     /// only while it plays.
     cache: BTreeMap<String, Option<Arc<Sound>>>,
     battle: BattleCycle,
-    /// The last [`Scene`] [`Audio::follow`] acted on, so a battle's track is
+    /// The last [`Scene`] [`Audio::follow`] acted on.
     /// stepped when the battle *starts*, not once a frame for as long
     /// as it lasts.
     scene: Option<Scene>,
@@ -266,7 +266,7 @@ pub struct Audio {
     /// policy — a record of what travelled the road, which is the only
     /// trustworthy answer to *"how much of the game's audio can we play?"*.
     ///
-    /// The alternative is to type the number into a document, and the first
+    /// The alternative is to type the number into a document.
     /// time it was typed it was wrong: `battle5.wav` is in the table, ships,
     /// and is **unreachable**, because the counter that selects it is
     /// `DAT_0057A0F0` — the third battle mode [`BattleKind`] deliberately does
@@ -323,7 +323,7 @@ impl Audio {
     }
 
     /// **Everything but the sound card**: the install's files are indexed and
-    /// decoded and the mixer runs, but no device is opened and nothing is
+    /// decoded and the mixer runs.
     /// audible. [`Audio::mix`] is where the result comes out.
     ///
     /// This exists so that a test can assert on *what a player would hear* —
@@ -469,7 +469,7 @@ impl Audio {
                     }
                     // `Battle_CheckOutcome` stopped the bed for its film and
                     // `Smk_OnFinished` restarts nothing while `g_battlePhase`
-                    // is 2: the field stays silent until it is left, and the
+                    // is 2: the field stays silent until it is left.
                     // counter is not stepped, because no battle started.
                     Some(Scene::Film { over_battle: true }) => return,
                     _ => Some(self.battle.next(kind)),
@@ -558,7 +558,7 @@ impl Audio {
     }
 
     /// Fire a one-shot **unless it is already playing** — `Sound_PlaySlot`
-    /// (`0x00426120`), and the verb almost everything in the original uses.
+    /// (`0x00426120`).
     ///
     /// This is the one to reach for from anything that fires per frame or per
     /// step: a marching army, a cart, a mob, a fire. See
@@ -586,7 +586,7 @@ impl Audio {
     /// track 0 enabled starts, replacing any film already sounding.
     ///
     /// Decoded whole when the film opens: the longest track in the install is
-    /// `LOM.SMK`'s 2.66 MB of 8-bit PCM, and the intro's is 1.45 MB. Gated by
+    /// `LOM.SMK`'s 2.66 MB of 8-bit PCM.
     /// none of the three switches, for the reason [`mixer::Mixer`]'s `film`
     /// field gives. A film with no file, or one that will not parse, is silent,
     /// which is also what its picture is.
@@ -654,7 +654,7 @@ impl Audio {
     /// /* load the file into the one buffer and Play it */
     /// ```
     ///
-    /// `[V]`. There is **one** one-shot buffer, so a file asked for while any
+    /// `[V]`. There is **one** one-shot buffer.
     /// other is still sounding is not played at all, **and does not take the
     /// buffer**: the clip that was there stays the one `Sound_OneShotBusy`
     /// asks about. A cry over a cry, a cry over the narrator, a fanfare over a
@@ -770,7 +770,7 @@ impl Audio {
 /// The original divides the same way and by the same quantity: `g_battlePhase`
 /// 0 is *the whole management surface* — map, counties, village, save, the
 /// popups over them — and it all runs `FUN_00499ACA`. County track is not separate.
-/// county track. `[V]`, and the player confirmed it by ear: *"the scroll wavs
+/// county track. `[V]`.
 /// are the bg music for the map/county management screen"*.
 ///
 /// # The question is *"has `Game_NewGame` run"*, and it is asked of the whole stack
@@ -784,7 +784,7 @@ impl Audio {
 /// *"was the front end ever up?"*, and those agree only in a machine built by
 /// hand — which is exactly what the test that covered it built. `C116`.
 ///
-/// So the stack is asked as a whole, and the arms are the original's three
+/// So the stack is asked as a whole.
 /// music phases:
 ///
 /// | our stack | `g_battlePhase` | what the original calls |
@@ -809,15 +809,15 @@ impl Audio {
 ///
 /// The original reads `Realm +0x60`, a byte `FUN_0049D1E0` rebuilds once a
 /// season. We compute `PctOf(county_count, kingdom.county_count)` — the same
-/// arithmetic, from the same two numbers — for two reasons, and the second is
+/// arithmetic, from the same two numbers — for two reasons.
 /// the one that matters:
 ///
 /// * `Realm::share_of_map_pct` is **0 on a freshly imported save** and stays 0
 ///   until a turn has been ended, because `l2-scenario` reads what the `.sav`
-///   holds and the field is derived. A player who loads a
+/// holds and the field is derived. A player who loads a
 ///   game at forty per cent of the map would get `Scroll1`.
 /// * and a music bed that depends on *whether some other subsystem has run
-///   yet* is a bug waiting for the order to change. This function should be a
+/// is a bug waiting for the order to change. This function should be a
 ///   function of the world, not of the schedule.
 ///
 /// The divergence is that the original's music can be up to a season stale
@@ -833,7 +833,7 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
         return Scene::Film { over_battle };
     }
     // `g_battlePhase == 2`. The battlefield is three screen ids in the original
-    // (`0x29` field, `0x2A` drag, `0x2B` outcome) and one of ours, and the
+    // (`0x29` field, `0x2A` drag, `0x2B` outcome) and one of ours.
     // phase outlives all of them: panels open over the field while the battle
     // music keeps playing, so this asks the stack, not its top.
     if ids.iter().any(|id| matches!(id, ScreenId::Battlefield)) {
@@ -868,7 +868,7 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
 }
 
 /// **When the narrator speaks, by message category** — `Msg_DrawWindow`'s
-/// (`0x0047309E`) voice schedule, and the answer is a *tick of the message
+/// (`0x0047309E`) voice schedule.
 /// timer.
 ///
 /// # The draw is the behaviour, so the trigger is a countdown
@@ -894,7 +894,7 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
 /// ticks after the window opened, which the tip needs a constant for.
 /// its own. The three larger delays are the
 /// categories that play a **fanfare** on the opening frame — the voice waits
-/// for the trumpet instead of talking over it, and the longest wait, 200 ticks,
+/// for the trumpet instead of talking over it.
 /// is the one that also plays a lord's sting at 90.
 ///
 /// `docs/audio-triggers.md` has the enumeration this came out of. The five
@@ -926,7 +926,7 @@ pub fn voice_tick(category: u8) -> Option<i32> {
         | c::GARRISON_PROMPT
         | c::CASTLE => 0x7C6,
         n if (c::PARAGRAPHS_FIRST..=c::PARAGRAPHS_LAST).contains(&n) => 0x7C6,
-        // `HELP`, and the two that delegate to a painter of their own.
+        // `HELP`.
         _ => return None,
     })
 }
@@ -935,7 +935,7 @@ pub fn voice_tick(category: u8) -> Option<i32> {
 /// [`crate::message::TIMER_START`] — `Msg_DrawWindow`'s five `Sound_PlayFile`
 /// calls, which is all of them. `[V]`.
 ///
-/// `ff_capt.wav` is the conquest band and the guard is on the *group*, not the
+/// `ff_capt.wav` is the conquest band and the guard is on the *group*.
 /// category: `0x71 < group && group < 0x7F`, which is `L2.eng` 114…126. That is
 /// the one place in the audio layer where a group decides a sound, and it is
 /// why [`names::fanfare::CAPTURED`] had no caller until now.
@@ -961,7 +961,7 @@ fn open_fanfare(category: u8, group: u16) -> Option<&'static str> {
 ///
 /// # Why this is a type in the library and not six lines in `main.rs`
 ///
-/// It *was* six lines in `main.rs`, and the consequence is the reason this file
+/// It *was* six lines in `main.rs`.
 /// exists in the shape it does: **a binary's code cannot be called by a test**,
 /// so the only test available was one that re-typed the same six lines beside
 /// its assertions and then checked them. That test passes with `main.rs`
@@ -978,7 +978,7 @@ pub struct Director {
     /// is an edge this can see.
     ///
     /// This is the single mechanism behind most of what the original plays
-    /// outside a battle, and the reason is structural:
+    /// outside a battle.
     /// **the original's sounds are in the function that sets `g_screenId`**.
     /// `Panel_OpenRation` is four statements and two of them are sounds;
     /// `Sidebar_Button`'s supplies arm, `Panel_SplitButton`, `Map_ZoomOut` and
@@ -996,7 +996,7 @@ pub struct Director {
     /// until the first tick, so starting zoomed out is not an event.
     zoom_far: Option<bool>,
     /// [`crate::game::Game::nobles_spoken`] at the previous tick —
-    /// `FUN_004B3994`'s edge. `None` until the first tick, so a loaded game
+    /// `FUN_004B3994`'s edge. `None` until the first tick.
     /// does not announce a category nobody asked for.
     nobles_spoken: Option<u32>,
     /// [`crate::game::Game::spoken`]'s count at the previous tick — the edge
@@ -1009,6 +1009,11 @@ pub struct Director {
     /// Empty until the first tick, which is what makes the first tick silent:
     /// there is nothing to have moved from.
     tiles: Vec<Option<(l2_kingdom::UnitKind, (u8, u8))>>,
+    /// **The map's content plane at the last tick**, so that a tile *being
+    /// wrecked* can be noticed without the simulation reporting it. See
+    /// [`Director::hear_the_wreck`]. Empty until the first tick, which is what
+    /// makes the first tick silent — the same reason [`Director::tiles`] is.
+    terrain: Vec<u8>,
     /// [`crate::screen::Machine::clicks`] at the previous tick — the widget
     /// click's edge. See [`Director::hear_the_click`].
     clicks: u32,
@@ -1079,7 +1084,7 @@ impl Director {
         // `g_optSpeech` (`0x0053F20C`), flipped by `Opt_ToggleMusic`
         // (`0x004349A4`) and its two neighbours — while [`Audio`] kept a second
         // copy of the same three flags that nothing ever wrote. Two
-        // representations of one setting, and the one the player could reach
+        // representations of one setting.
         // was the one nobody read.
         //
         // Pushed in this direction only: the audio
@@ -1133,7 +1138,7 @@ impl Director {
         // The edge is the open record *changing*, because `Msg_Dismiss` is a
         // call and a director can only see state. Every route into it is
         // covered — the OK button, `Msg_DismissUnlessQuestion`'s click on the
-        // map, `Msg_Pump`'s two timeouts, and the capture and ending branches
+        // map, `Msg_Pump`'s two timeouts.
         // that dismiss themselves before starting a film. `[D]` on one case it
         // cannot see: two **identical** records back to back, where the window
         // is replaced by its own twin and this stays quiet. That is one voice
@@ -1178,7 +1183,7 @@ impl Director {
         // sfx: Battle_ChooseSettlement#1
         if opened(&|id| matches!(id, ScreenId::BattlePrompt)) {
             audio.play_file(names::fanfare::BATTLE, false);
-            // **And the spoken question on top of it**, which is the *caller's*
+            // **And the spoken question on top of it**.
             // statement: all three
             // functions that raise screen `0x12` follow the return with the
             // same three-way ladder on `g_battleChoiceOwner` —
@@ -1188,7 +1193,7 @@ impl Director {
             //
             // `docs/audio.json` filed all nine as *"which of the three a given
             // call plays is unread"*. It is `g_battleChoiceOwner`, which is
-            // [`crate::turn::Question::choice_owner`], and the mapping is not
+            // [`crate::turn::Question::choice_owner`].
             // the group-80 one: see [`names::speech::BATTLE_PROMPT`].
             //
             // **The fanfare above will usually swallow this**, in the original
@@ -1210,7 +1215,7 @@ impl Director {
         //
         // **Which of them wait and which cut in is the binary's, site by site.**
         // `Panel_OpenRation`, `Sidebar_Button` and `Panel_SplitButton` call
-        // `Sound_PlayFile` bare, so a line asked for while the buffer sounds is
+        // `Sound_PlayFile` bare.
         // dropped: [`Audio::play_file`]. Setup page 4's handlers put
         // `Sound_StopOneShot()` in front of it and interrupt:
         // [`Audio::stop_and_play_file`]. `[V]`, the statement before each call.
@@ -1243,7 +1248,7 @@ impl Director {
         }
         // **Setup page 4, *"Choose your title and your shield."*** Four
         // handlers reach it and every one of them plays `S011_02.wav` as it
-        // sets `g_setupPage = 4`, so the page arriving is the trigger and the
+        // sets `g_setupPage = 4`.
         // four are one sound. `FUN_00432B05`'s is the fourth and is **not**
         // claimed: it is the arm that runs after `Net_JoinGame` succeeds, and
         // we have no network join to arrive by.
@@ -1264,7 +1269,7 @@ impl Director {
             audio.play_file(names::speech::SUPPLIES, true);
         }
         // **The mercenary offer** — `Sidebar_Button`'s *other* voice, on
-        // hotspot 1, and the one a player reported missing: *"No VO for 'A band
+        // hotspot 1.
         // of Scottish pikemen are available for hire, my lord'."*
         //
         // ```c
@@ -1273,7 +1278,7 @@ impl Director {
         // ```
         //
         // `[V]`. Same shape as the supplies arm above — the ownership gate is
-        // the screen's, and the offer is a byte we already keep — with one
+        // the screen's.
         // difference that had to be looked for: **`g_screenId = 0x17` has two
         // writers and only this one speaks.** `Armoury_Button` (`0x00435AE8`)
         // id 2, *Change*, sets the same screen id with no sound at all, and
@@ -1307,7 +1312,7 @@ impl Director {
         // **The population panel's health line** — `Panel_OpenPopulation`
         // (`0x0043A8F2`), whose middle statement is
         // `FUN_004B3768(county.healthBand)`. The exact twin of
-        // `Panel_OpenRation`'s two arms above, on the panel next door, and the
+        // `Panel_OpenRation`'s two arms above, on the panel next door.
         // table is indexed straight: see
         // [`names::speech::POPULATION_HEALTH`], entries 3 and 4.
         // sfx: FUN_004b3768#1
@@ -1449,7 +1454,7 @@ impl Director {
                 }
             }
         }
-        // **A film's own track, and the narrator over it.**
+        // **A film's own track.**
         //
         // `Smk_Open` starts the film's sound with its first frame and
         // `SmackClose` ends it — at the last frame, on a skip, or when
@@ -1510,7 +1515,7 @@ impl Director {
         //
         // This is the sibling of the castle chooser's five, still `blocked`
         // for the reason this one no longer is: `docs/audio.json` says a
-        // selection a screen keeps to itself is invisible here, and the
+        // selection a screen keeps to itself is invisible here.
         // original keeps this one in the data segment.
         // sfx: FUN_004b3994#1
         if self.nobles_spoken != Some(game.nobles_spoken) {
@@ -1533,7 +1538,7 @@ impl Director {
         // the line instead. See [`crate::game::Game::spoken`] for why the
         // count is the edge.
         //
-        // Both groups are bare `Sound_PlayFile(name, 1, 0)`, so a line asked
+        // Both groups are bare `Sound_PlayFile(name, 1, 0)`.
         // for while the buffer sounds is dropped: [`Audio::play_file`].
         if self.spoken != Some(game.spoken.0) {
             if self.spoken.is_some() && !game.spoken.1.is_empty() {
@@ -1543,6 +1548,8 @@ impl Director {
         }
 
         self.hear_the_march(audio, game);
+
+        self.hear_the_wreck(audio, game);
 
         self.hear_the_smithy(audio, game);
 
@@ -1555,7 +1562,7 @@ impl Director {
         // every one of them is played from `Msg_DrawWindow` (`0x0047309E`) or a
         // sibling it delegates to.
         //
-        // **The original has no end-of-turn sound**, and the chime a
+        //.
         // player hears at the end of a turn is a message window opening.
         // Nothing on the `Turn_End` / `Season_Advance` / phase-7 path plays
         // anything, the End Turn button is silent, and both call sites of the
@@ -1564,7 +1571,7 @@ impl Director {
         // Until the message window existed this fired once per *turn that
         // produced any message*, from `game.turns_played`, and said in a
         // comment that it was an approximation. It is gone: the window is real
-        // and the trigger is the original's own, which is the message timer
+        // and the trigger is the original's own.
         // reaching a value.
         //
         // **Equality, not a threshold, and that is deliberate.** The timer
@@ -1577,7 +1584,7 @@ impl Director {
         if let Some(record) = game.messages.open() {
             let timer = game.messages.timer();
             // **All five of `Msg_DrawWindow`'s `Sound_PlayFile` calls** — the
-            // one `ff_capt.wav` and the four `ff_msg.wav`, which are four
+            // one `ff_capt.wav` and the four `ff_msg.wav`.
             // categories of one fanfare.
             // sfx: Msg_DrawWindow#1,Msg_DrawWindow#6,Msg_DrawWindow#11,Msg_DrawWindow#13,Msg_DrawWindow#17
             //
@@ -1674,7 +1681,7 @@ impl Director {
     ///
     /// The trigger is not here: it is in [`crate::press::Press::press`] and
     /// [`crate::press::Press::press_delayed`], which are `Widget_Test`'s kind-4
-    /// and kind-5 arms, and the `// sfx:` markers are on those lines. This is
+    /// and kind-5 arms.
     /// only the far end of the wire — [`crate::screen::Machine::clicks`] is
     /// monotone, so *"it moved since the last tick"* is *"a widget was pressed"*
     /// and nothing a screen does can read it back (`docs/netcode.md` D-3).
@@ -1710,7 +1717,7 @@ impl Director {
     /// save and in the lockstep digest, for a sound. `[D]` that the diff is the
     /// same occasion — the *only* writer of `weapon_type` outside this setter is
     /// `AI_ChooseIndustry`'s rota, which never runs on a county the local player
-    /// owns, so the guard below is the original's owner test and the diff is its
+    /// owns.
     /// call.
     // sfx: FUN_0043a997#1
     fn hear_the_smithy(&mut self, audio: &mut Audio, game: &crate::Game) {
@@ -1811,7 +1818,7 @@ impl Director {
     ///
     /// Nothing in the simulation hands the audio layer an event, and that is
     /// the property the whole module rests on: [`Director::listen`] takes
-    /// `&Game`, so a sound cannot change what the simulation does in either
+    /// `&Game`.
     /// value or timing (`docs/netcode.md` D-3). Threading a "who stepped"
     /// report out of `l2_kingdom::units_tick` and along to here would have put
     /// it on the [`crate::Game`], which is to say in the save and in the
@@ -1821,7 +1828,7 @@ impl Director {
     /// **The one thing it cannot tell apart** is a step from a teleport: an
     /// army garrisoning a castle is put on the keep's tile by
     /// `Army_GarrisonApply` and sounds here as though it walked there. `[D]` —
-    /// one extra hoofbeat, dropped if the sound is already playing, and the
+    /// one extra hoofbeat, dropped if the sound is already playing.
     /// alternative was the report above.
     fn hear_the_march(&mut self, audio: &mut Audio, game: &crate::Game) {
         use l2_kingdom::UnitKind;
@@ -1852,7 +1859,77 @@ impl Director {
         self.tiles = now;
     }
 
-    /// **The battlefield: the men's cries, and the fighting.**
+    /// **Something an army marched over was wrecked** — `dest_ind.wav`, bank
+    /// slot 3, from all six of the original's `Sound_RestartSlot(3)` calls:
+    ///
+    /// | site | what it wrecked | our tile write |
+    /// |---|---|---|
+    /// | `Unit_BurnDwelling#1` (`0x00468AE2`) | a dwelling | content `0x10` → `0x13` on a plot |
+    /// | `Unit_TrampleTile#1…4` (`0x0046873F`) | one of the four industry sites | content → 3, 6, 9, 12 on a settlement |
+    /// | `Unit_CrossField#1` (`0x0046673C`) | a standing field | content → 0 on farmland |
+    ///
+    /// Every one of the six is the statement *after* the tile write, so the
+    /// wrecked tile **is** the trigger and there is nothing to approximate.
+    ///
+    /// # Why it diffs the plane
+    ///
+    /// Same reason as [`Director::hear_the_march`], and the same shape:
+    /// [`Director::listen`] holds `&Game`, so threading a report out of
+    /// `l2_kingdom::movement::Step` and along to here would put it on the
+    /// [`crate::Game`] — in the save and in the lockstep digest — for a sound
+    /// (`docs/netcode.md` D-3). One pass over the 4,096-byte content plane is
+    /// cheaper than that in every sense.
+    ///
+    /// **The classification is by the value written, and it is exact because
+    /// `l2_kingdom` has exactly three writers of the plane** — `destroy_field`,
+    /// `trample` and the [`l2_kingdom::movement::Entry::Plot`] arm, which are
+    /// these three rows. A fourth writer (a season that re-sows a field, say)
+    /// would have to be excluded here, and the field row is the one it would
+    /// reach: `0` is also a bare field.
+    ///
+    /// `Sound_RestartSlot` is the **rewind-and-play** verb, so a second wreck
+    /// in the same tick restarts the clip —
+    /// [`Audio::play_effect`], not `play_effect_if_idle`. Six tiles wrecked by
+    /// one march is still one sound, because one buffer is one voice.
+    fn hear_the_wreck(&mut self, audio: &mut Audio, game: &crate::Game) {
+        use l2_kingdom::map::{flags, terrain};
+
+        let now = &game.kingdom.campaign.map.terrain;
+        if self.terrain.len() == now.len() {
+            let map = &game.kingdom.campaign.map;
+            let wrecked = now.iter().zip(&self.terrain).enumerate().any(|(i, (&to, &from))| {
+                if to == from {
+                    return false;
+                }
+                let f = map.flags[i];
+                // sfx: Unit_BurnDwelling#1
+                if f & flags::PLOT != 0 {
+                    return from == terrain::DWELLING && to == terrain::DWELLING_BURNT;
+                }
+                // sfx: Unit_TrampleTile#1,Unit_TrampleTile#2,Unit_TrampleTile#3,Unit_TrampleTile#4
+                if f & flags::SETTLEMENT != 0 {
+                    return l2_kingdom::movement::RUIN_LADDER.iter().any(|&(_, r, _)| to == r);
+                }
+                // sfx: Unit_CrossField#1
+                if f & flags::FARMLAND != 0 {
+                    return to == 0
+                        && (terrain::FIELD_STANDING_FROM..terrain::FIELD_STANDING_TO)
+                            .contains(&from);
+                }
+                false
+            });
+            if wrecked {
+                if let Some(name) = names::slot(names::Bank::Kingdom, 3) {
+                    audio.play_effect(name);
+                }
+            }
+        }
+        if self.terrain.len() != now.len() || self.terrain != *now {
+            self.terrain = now.clone();
+        }
+    }
+
+    /// **The battlefield: the men's cries.**
     ///
     /// Two sources, one per kind of occasion, and neither is a report the
     /// simulation hands over:
@@ -1933,7 +2010,7 @@ pub enum Request {
 /// `was` and `now` are one battle's [`l2_sim::Cues`] at two ticks; the answer
 /// is every call the original would have made in between, **once per kind**.
 /// Every call below is drop-if-busy.
-/// its own buffer, so a second request for the same slot inside one tick is
+/// its own buffer.
 /// dropped by the original too. `l2-sim`'s `crate::cue` has the argument.
 ///
 /// Each arm is the original's branch, beside the id of the site it reproduces.
@@ -2058,7 +2135,7 @@ pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
 ///
 /// `[V]`, and **no random number anywhere in it**: the take is a round robin
 /// per (troop, class), stepped *before* it is read, so the first cry of each
-/// pair is take **1**, not take 0, and the cycle is 1, 2, 3, 0. The counter is
+/// pair is take **1**, not take 0.
 /// in `.bss` and this function is its only writer — an exhaustive reference
 /// search — so it starts at zero with the process and is never reset between
 /// battles. Ours lives on the [`Director`], which lives as long as the process.
@@ -2139,7 +2216,7 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         | S::BattleResult
         // The message scroll. It is an overlay the game paints over whatever is
         // underneath -- Msg_DrawWindow is called from the screen ladder, not
-        // from a screen of its own -- so a message is never the reason music
+        // from a screen of its own -- so a message is
         // starts or stops, and it can only be up once a game is running. This
         // arm exists because the exhaustive match made somebody answer the
         // question, which is the whole point of it having no wildcard.
@@ -2239,7 +2316,7 @@ fn start_device(mixer: Arc<Mutex<Mixer>>) -> Result<cpal::Stream, String> {
 mod tests {
     use super::*;
 
-    /// Everything below runs on the silent layer, which is the state a machine
+    /// Everything below runs on the silent layer.
     /// with no sound card is in. If any of it panics or blocks there, that
     /// machine cannot run the game.
     #[test]
@@ -2305,7 +2382,7 @@ mod tests {
     /// The nine `S080` sites are three call sites carrying one ladder on
     /// `g_battleChoiceOwner`, and all three run on the return from
     /// `Battle_ChooseSettlement` that raises screen `0x12`. So the take is the
-    /// same field the prompt already draws its sentence from, and the mapping
+    /// same field the prompt already draws its sentence from.
     /// is *not* the group-80 one: 1 -> `_03`, 2 -> `_01`, 0 -> `_02`.
     ///
     /// **The effects switch is off**, and that is a necessity:
@@ -2329,7 +2406,7 @@ mod tests {
             (0, "s080_02.wav", ["s080_01.wav", "s080_03.wav"]),
         ] {
             let mut audio = Audio::headless(&platform.vfs);
-            // The trumpet is an effect and the line is speech, so this leaves
+            // The trumpet is an effect and the line is speech.
             // the buffer empty for the line the ladder picks.
             let mut game = prompt_world(owner);
             game.prefs.effects = false;
