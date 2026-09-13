@@ -1024,6 +1024,7 @@ docs/modding.md	C11	8097d9e237c2	07dfad15821c
 docs/modding.md	C12	39f1298e9b9a	bb0dd488f9d2
 docs/modding.md	C36	8b047a707272	4367c93c1b02
 docs/modding.md	C36	a32887af7e67	4367c93c1b02
+docs/name-leads.json	C3	68e063e42e2c	35bf3a86555f
 docs/netcode.md	C30	49a92704058e	50fdf5e17ba0
 docs/netcode.md	C30	7f2ab5869b39	50fdf5e17ba0
 docs/netcode.md	C39	ebf3b4632de2	9a04e88ad74b
@@ -1224,6 +1225,7 @@ docs/symbols.md	C25	617ba352f7e3	5d466f0cb89c
 docs/symbols.md	C25	7d1520cc18d4	5d466f0cb89c
 docs/symbols.md	C25	9ecb948c728e	5d466f0cb89c
 docs/symbols.md	C29	167d43993680	405b63debb8e
+docs/symbols.md	C3	29fa0e053ef3	35bf3a86555f
 docs/symbols.md	C3	5ea09ce2b14d	35bf3a86555f
 docs/symbols.md	C3	d1cc366232e8	35bf3a86555f
 docs/symbols.md	C30	045b912580de	50fdf5e17ba0
@@ -1304,6 +1306,8 @@ tools/oracle/fields.js	C142	0407f14148e8	d13324698105
 tools/oracle/fields.js	C153	27f40fc34821	c724d7afe0dd
 tools/oracle/fields.js	C161	08405401bc13	8b6af36909ef
 tools/oracle/kingdom.ps1	C16	179704412b64	2e6270fa32a9
+tools/oracle/leads.js	C3	0c6dbb6d19df	35bf3a86555f
+tools/oracle/leads.js	C3	7ef2b5fbc242	35bf3a86555f
 tools/oracle/logstrings.js	C72	eddd2090b75a	e2bb936cf01c
 tools/oracle/reaches.js	C94	8cd21268ccc0	fc733548baf2
 tools/oracle/runtime.ps1	C10	c77e1ac33816	68e4eb2d2a1f
