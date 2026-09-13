@@ -214,7 +214,7 @@ Related: reading bytes 0x00–0x01 as one `u16` is wrong, since byte 1 varies
 independently of byte 0.
 
 **C7 — Treating the storage family byte as the encoding.** It is not. The per-frame
-`shape` byte at record offset 0x0C decides, which is why no single "mode 2 codec"
+`shape` byte at record offset 0x0C decides, a text record is 183
 ever fit: one isometric file holds raw rectangles and diamonds side by side.
 
 **C8 — "Search for prior art first" needs a second half: verify it.**
@@ -254,7 +254,7 @@ economic constant — tax, happiness, rations, births, deaths, yields, wages —
 non-obvious data file, `castles.dat`, is working state created zeroed at new-game, not
 rules.
 
-Two consequences. Modding the *original* means patching the binary, which is why an open
+Two consequences. Modding the *original* means patching the binary.
 engine is worth building at all. And our own engine has to carry these constants as its
 own ruleset data — which is exactly what `crates/l2-mods` is for, so they become editable
 for the first time.
@@ -1341,7 +1341,7 @@ then two at 8, then this branch's entry had to move 8 → 9 → 10. Nothing chec
 changelog above the constant was the only guard, and only if somebody read it. This work and
 C36's were both written to fix that, arrived at the same rule and even the same test name —
 `the_version_is_ahead_of_its_own_changelog`, requiring the `* N —` entries to be `1..=VERSION`
-with no gap and no repeat, exactly as `tools/decisions/corrections.js` does for these
+with no gap and no repeat, for these
 correction numbers.
 
 **Only one survived, deliberately.** C36's landed first and reads the changelog through
@@ -12044,6 +12044,16 @@ Seed invariance when outnumbered is the threshold, not a dead RNG:
 every unit takes the same arm of `unit_order_advance` (ai.rs:1273). Test
 `a_lopsided_fight_draws_its_jitter_and_the_threshold_swallows_it`, ablation gives
 both seeds 100 at 40 v 20.
+
+---
+
+**C221 — Save mid-battle is refused by decision; animations option answers five reads in four functions; a new game runs no phase-7 pass.**
+
+Mid-battle save is refused: `Menu_SaveGame` (`0x00433F49`) does not test `g_battlePhase`, so the original saves the fight. Encoding `LiveBattle` requires `BattleRunner`, `Battle`, `Battlefield`, `Vec<Fighter>`, `Units`, `Ai`, `AiField`, `Missiles`, `SiegeState` — 196 fields over 16 structs, 21 private to l2-sim, against 242 stored fields for kingdom and 1975 lines of kingdom encoder, far past the ~150 lines allowed. The refusal stands by decision. Player message: `saveload::BATTLE_REFUSAL` under group 40 index 4, "THE BATTLE IS NOT SAVED. FINISH IT, THEN SAVE." Assertion `saving_is_refused_while_a_battle_is_live` ablates the old wording red (crates/l2-game/tests/battle_picture.rs).
+
+Animations option: five reads in four functions, each now tested. `Screen_BattleOutcome` (`0x00423241`) chooses the tall box with film recess (ablation `the_outcome_box_is_the_tall_one_only_when_animations_are_on` red, y band 48-144). `CastleBuild_Confirm` (`0x00436B59`) plays Castle1..5.smk over chooser. `Msg_DrawWindow` (`0x0047309E`) twice: capture films and ending films, each dismissing its letter (ablation `a_capture_letter_would_play_the_capture_films_in_rotation` off half red). `Battle_CheckOutcome` (`0x00477DFC`) plays outcome film. `Map_ClampScroll` (`0x00429B1D`) does not read the flag; doc now names the four. `docs/arms.json` 0x00434AD5/opt-animations note corrected.
+
+New game runs no phase-7 pass: `Game_NewGame` (`0x00497CED`) calls `Season_Advance` (`0x00448440`) and `Score_RankRealms`, not `Mercenary_AdvanceAll`, `Units_ResetMoves` (`0x004651B9`), or `Diplo_ReconcileAlliances` (`0x004A1847`). Those three are `Turn_Tick`'s phase-7 arm. Skipped in `start_new_game`, not removed from `SEASON_PIPELINE`, so no pass index or save version moves. End Turn still runs all three. Tests `a_new_game_runs_no_phase_seven_pass_and_a_season_end_runs_all_three` (ablation either name red) and `the_pipeline_reaches_the_files_clock` lands on england-turn1.sav's clock and stored fields with the two passes gone (crates/l2-kingdom/tests/reproduction.rs).
 
 ---
 
