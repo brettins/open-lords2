@@ -181,7 +181,7 @@
 //! * **`Ui_DrawNumberRight` centres.** Its whole body after building the string
 //!   is `FUN_004025D7`, the same helper `Ui_DrawCentred` calls, and that is
 //!   `x + max(0, (width - textWidth) / 2)`. The ration panel's five calls pass
-//!   width `0x40`, and the proof is in the artwork rather than in the C: the
+//!   width `0x40`, and the proof is in the artwork: the
 //!   three "Fed" columns start at x 208, 266 and 324, so their centres are 240,
 //!   298 and 356 — and the three icons above them are drawn at 224 (36 wide),
 //!   284 (37 wide) and 344 (23 wide), whose centres are 242, 302 and 355. The
@@ -226,7 +226,7 @@
 //!   layout: 400 turns × 16 counties × 8 bytes at `0x0056D8C0`), and
 //!   `Graphs.pl8` is not one of the sheets `l2-view` loads, so the rectangle is
 //!   an empty recess that says so. It is a stub and it is meant to look like
-//!   one, and what is missing is now written down rather than merely absent.
+//!   one, and what is missing is now written down.
 //! * **The two years under the graph.** `Ui_DrawYear(DAT_00553228, …)` prints
 //!   the year at the head of the history window; with no history there is no
 //!   such year, and drawing only the right-hand one would be worse than
@@ -427,7 +427,7 @@ impl Panel {
     /// and the box `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests on a left
     /// release.
     ///
-    /// **It is not a tick.** `System.pl8` frame `0x33` decodes to a cursor
+/// `System.pl8` frame `0x33` decodes to a cursor
     /// arrow pointing into a small black hole: a close button whose artwork is
     /// the instruction. It is a real target *and* the right button closes the
     /// panel from anywhere (`docs/screens-county.md` §2.6), so the game offers
@@ -575,7 +575,7 @@ pub fn industry_pitch(rows: usize) -> i32 {
 /// The caller supplies the ownership gate, which is the function's own first
 /// line: `if (g_counties[g_selectedCounty].owner == g_localPlayer)`. Everything
 /// else is here, including the two ways it refuses — a row index past the end of
-/// its list returns 0 rather than falling through to the other column.
+/// its list returns 0.
 pub fn job_row_at(c: &l2_kingdom::county::County, x: i32, y: i32) -> Option<usize> {
     if !(478..640).contains(&x) || !(JOBS_Y0..JOBS_Y1).contains(&y) {
         return None;
@@ -597,7 +597,7 @@ pub fn job_row_at(c: &l2_kingdom::county::County, x: i32, y: i32) -> Option<usiz
 /// `None` for the outer guard and for the thermometer's dead band.
 ///
 /// **This is the whole navigation into the four panels** — §2.3 — so it lives
-/// here as one function rather than as four rectangles the caller loops over,
+/// here as one function,
 /// and the campaign map and the county screen both call it.
 pub fn panel_at(x: i32, y: i32) -> Option<Panel> {
     PANELS.into_iter().find(|p| p.strip_hotspot().contains(x, y))
@@ -654,7 +654,7 @@ pub fn split_track() -> Rect {
 /// transcription of it.
 ///
 /// **State the limit where the constant lives**, because a check on existence
-/// is not a check on meaning. A coordinator check that every `(group, index)`
+/// A coordinator check that every `(group, index)`
 /// below resolves in the player's own `L2.eng` proves that the file has *a*
 /// string there — it would have passed on the armoury's group 16. What makes
 /// these right is the second half, done here: every index below was read out of
@@ -971,7 +971,7 @@ impl Screen for CountyScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         // **The whole right-hand column is live under an open panel**, and the
-        // arm says so rather than leaving it to be inferred. `0x14`'s, verbatim:
+// arm says so. `0x14`'s, verbatim:
         //
         // ```c
         // if (FUN_0043292D() == 0 && FUN_00432967() == 0 &&      /* modes, sidebar  */
@@ -985,10 +985,10 @@ impl Screen for CountyScreen {
         // Six guards, every one of them hit-testing `x >= 0x1DE`, and every one
         // of them ahead of the panel's own two ways out. `0x15` and `0x16` are
         // the same six; `0x19` inserts `Ration_SliderClick` after the second,
-        // which is why the split *below* is tested here and the column is not.
+// so the split *below* is tested here and the column is not.
         //
         // Two things follow. Clicking the strip while a panel is open
-        // **switches** panel rather than closing it — which is how a player goes
+// **switches** panel — which is how a player goes
         // from population to tax without a trip via the map — and the five
         // sidebar buttons, the minimap, its four mode icons, the farm/industry
         // slider and the produce rows all keep working with a panel up. None of
@@ -1012,7 +1012,7 @@ impl Screen for CountyScreen {
         // **The arrows' bookkeeping, for the events that only end the hold.**
         // The table holds nothing of [`crate::press::Kind::Release`], so this can never fire a
         // handler; it is the release that stops the repeat, and the pointer
-        // walking off the button, which in the original is simply the hit test
+// walking off the button, which in the original is the hit test
         // failing to match on the next frame. The press itself is answered in
         // the `Event::Click` arm below, where the ladder's order matters.
         if matches!(event, Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft) {
@@ -1025,7 +1025,7 @@ impl Screen for CountyScreen {
             // held and moved — so the thumb follows the cursor for as long as
             // the button is down. Ours was reachable only from a press, which
             // is the fourth place our input model differs from the original's
-            // by *category* rather than by coordinate.
+// by *category*.
             //
             // The release ends the drag and does nothing else, exactly as the
             // first line of the original's ladder says.
@@ -1133,7 +1133,7 @@ impl Screen for CountyScreen {
             // one and one.
             //
             // Found by `tests/click.rs`, which asserted the click's own guard
-            // through the machine rather than through [`crate::press::Press`]
+// through the machine
             // alone — `tests/gestures.rs` covers the double click at the `Press`
             // level, which is exactly the layer that could not see a screen
             // declining to ask.
@@ -1206,7 +1206,7 @@ impl Screen for CountyScreen {
         // The original does not repaint it either: `Screen_Draw`'s `0x14`,
         // `0x15`, `0x16` and `0x19` arms are `Panel_Population` and its three
         // siblings, and not one of them calls `CountyStrip_Draw` or
-        // `Minimap_Draw`. The column is simply still there from the last frame —
+// `Minimap_Draw`. The column is still there from the last frame —
         // §3.1's *"there is no screen clear anywhere in this engine"*.
         //
         // The **strip** is still drawn, and only because it is the one part of
@@ -1239,7 +1239,7 @@ impl Screen for CountyScreen {
 /// *layout* is the original's on every machine and the *letters* are only ours
 /// on a machine with no game.
 ///
-/// `colour` is a resolved palette index rather than one of `shell::font`'s
+/// `colour` is a resolved palette index
 /// constants, because one of the rules here is a colour: the achieved ration is
 /// **red when it differs from the wanted one**. That rule is the original's; the
 /// index we spell red with is ours, out of [`Ink`].
@@ -1259,7 +1259,7 @@ fn strip_text(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u
 }
 
 /// The same, centred in `width` from `x` — `Ui_DrawCentred`, which clamps the
-/// offset at zero rather than letting a long string start left of its box.
+/// offset at zero.
 ///
 /// Public under a longer name because the End Turn caption is drawn in this
 /// font too (`Screen_DrawEndTurn`), and it is the map screen that draws it.
@@ -1453,7 +1453,7 @@ fn body_number_centred(
 ///   player which way a forecast runs; the row has no other cue.
 /// * **`mode == 0` and a value of zero draw nothing whatever.** All seven
 ///   produce-row calls pass mode 0. That is why an absent delta has read as a
-///   quiet row rather than as an obvious hole — a county with nothing happening
+///   quiet row — a county with nothing happening
 ///   looks the same either way.
 /// * **The colour is the sign too**: `0xFA` positive, `0xF9` negative, at every
 ///   one of the seven call sites.
@@ -1507,14 +1507,14 @@ const DELTA_POS: u8 = 0xFA;
 const DELTA_NEG: u8 = 0xF9;
 
 /// **`Ui_DrawNumberRight` (`0x004030C6`) centres.** It is not right-aligned and
-/// it never was: its tail is `FUN_004025D7(buf, x, y, width, font, colour)`,
+/// its tail is `FUN_004025D7(buf, x, y, width, font, colour)`,
 /// whose whole body is
 ///
 /// ```c
 /// Ui_DrawText(str, x + max(0, (width - Ui_TextWidth(str, font)) / 2), y, font, colour);
 /// ```
 ///
-/// The name is the original's shape rather than ours — `docs/symbols.json`'s
+/// The name is the original's shape — `docs/symbols.json`'s
 /// comment said *"Ui_DrawNumber, right-aligned inside width"* and that comment
 /// is corrected on this branch. Two draw audits found it independently in the
 /// same week, which is the usual sign that a name has been believed instead of
@@ -1618,7 +1618,7 @@ fn ration_label(ctx: &Ctx, level: i32) -> String {
 ///
 /// `focus` outlines one quadrant. That outline is ours — the original's
 /// quadrants are invisible because it is a mouse game — and it is drawn only
-/// when a panel is actually open, so the map's sidebar carries none.
+/// when a panel is open, so the map's sidebar carries none.
 pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Panel>) {
     let ink = &ctx.assets.ink;
     let Some(c) = ctx.game.kingdom.counties.get(county as usize) else { return };
@@ -1650,7 +1650,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // font"; the name is the exception, and `DAT_005AEA40` is set to 1 only
     // *after* it, so the name is embossed and the numbers below it are not.
     //
-    // The unowned plate is 162 × 274 rather than 162 × 94 and puts the name
+// The unowned plate is 162 × 274 and puts the name
     // fifteen pixels lower, at `0xB4`; that is the original's own difference,
     // not a rounding of ours.
     //
@@ -1736,7 +1736,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // **The fallback is not decoration.** A world that did not come through
         // the front end — a `.sav` imported by `l2-scenario`, a kingdom a test
         // built — has no names in it, and an empty third line under two full
-        // ones looks like a drawing fault rather than like missing data. It is
+// ones looks like a drawing fault. It is
         // [`super::message::lord_name`]'s, shared with the court, the battle
         // prompt and the three diplomacy screens: `g_playerNames` and then
         // `L2.eng` group 7 by the realm's **lord**, which is the pair
@@ -1779,7 +1779,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     //
     // **Both are left origins.** `Ui_DrawNumber` takes no anchoring argument —
     // the two calls differ only in their value and their x — so the happiness
-    // figure starts at 602 rather than ending there. We right-anchored it,
+// figure starts at 602. We right-anchored it,
     // which put a two-digit number on top of the plate's heart and would have
     // put a three-digit one further left still. See `docs/decisions.md` C42.
     strip_number(ctx, canvas, c.population, ' ', " ", 508, 189, strip_ink);
@@ -1792,7 +1792,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // (0x1FA, 0xE2), and the ration level centred in 76 at (0x234, 0xE2).
     strip_number(ctx, canvas, c.tax_rate as i32, ' ', "%", 506, 226, strip_ink);
     // "Red when it differs from rationWanted" is the original's own rule, and
-    // the colour it picks is `0xF9` rather than `0x3F`.
+// the colour it picks is `0xF9`.
     let colour = if c.ration_achieved == c.ration_wanted { strip_ink } else { strip_bad };
     strip_centred(ctx, canvas, 564, 226, 76, &ration_label(ctx, c.ration_achieved), colour);
 
@@ -1836,7 +1836,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // were idle peasants as well."* This module used to guess the castle job;
     // it is the idle pool.
     //
-    // And the outline is measurable rather than described. Frame `0x3D` is
+// And the outline is measurable. Frame `0x3D` is
     // 9 × 33 and frame `0x55` is 13 × 37 — four wider and four taller — drawn
     // two pixels left and two pixels up, so it is *the same thumb inside a
     // two-pixel ring*. Every one of the ring's 124 pixels is one of three
@@ -1914,7 +1914,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 ///   settled, so neither is drawn.
 /// * **Four of the eight seasonal deltas** — the industry rows'. The three farm
 ///   rows' are drawn; this list is what is *not* here, and the paragraphs below
-///   are kept because they are the reading, not because the work is outstanding.
+///   are kept because they are the reading.
 ///
 /// # The seasonal deltas, and the report that found them missing
 ///
@@ -2455,7 +2455,7 @@ impl CountyScreen {
                 // `herdEaten * foodPerHead` and `herd * dairyPerHead` — products
                 // of three fields that were always there. The absence was
                 // recorded honestly, in a comment, beside the words on the
-                // screen, and read as a conclusion rather than as a question.
+// screen, and read as a conclusion.
                 //
                 // **Three numbers, not two, and the third explains the panel**:
                 // the standing herd feeds five people a head without being
@@ -2471,7 +2471,7 @@ impl CountyScreen {
                 // population **is** the game saying it, and it is why the two
                 // reports have one fix. `docs/rules.md` §4.
                 //
-                // Drawn through [`Pen`] rather than the 5 x 7 font, and centred
+// Drawn through [`Pen`], and centred
                 // rather than right-aligned: `Ui_DrawNumberRight` **centres**
                 // (C110's neighbour, and the symbol's name is a false claim).
                 //
@@ -2519,7 +2519,7 @@ impl CountyScreen {
                     // label four pixels right of where `Eng_DrawString` lands
                     // it. Same mistake as the five centred columns above, on a
                     // routine with no width argument, where it displaces the
-                    // *next* string rather than this one.
+// *next* string.
                     // `docs/decisions.md` C140. **[V]**
                     let men = c.friendly_troops + c.enemy_troops;
                     let s = format!("{RATION_LEAD}{men}{RATION_SUFFIX}");
@@ -2559,7 +2559,7 @@ impl CountyScreen {
     }
 
     /// `Panel_RationSlider` (`0x00411FDE`), which is drawn from
-    /// `Screen_DrawWidgets`'s `0x19` arm rather than from `Panel_Ration`:
+/// `Screen_DrawWidgets`'s `0x19` arm:
     ///
     /// ```text
     ///   Ui_DrawBoxInterior(0xDC, 0xD8, 8, 2)         (220, 216) 128 x 32
@@ -2830,7 +2830,7 @@ mod tests {
 
     /// `CountyStrip_Click`'s four quadrants do not overlap, all four sit inside
     /// the 162 x 94 plate, and the gap between the two columns is exactly where
-    /// the health thermometer is drawn — which is why the gap exists.
+/// the health thermometer is drawn — so the gap exists.
     #[test]
     fn the_strip_quadrants_fit_the_plate_and_leave_the_thermometer_unclickable() {
         let rects: Vec<Rect> = PANELS.iter().map(|p| p.strip_hotspot()).collect();

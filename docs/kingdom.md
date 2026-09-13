@@ -74,7 +74,7 @@ parallel pointer table at **`0x004D5B70`**:
 
 **[V]** Rows 4, 5 and 6 are exactly the counts and strides `battle.md` derived from loop
 bounds — an independent confirmation of that work from a completely different part of the
-binary. Rows 1 and 2 are this document's headline, stated by the binary rather than
+binary. Rows 1 and 2 are this document's headline, stated by the binary.
 inferred.
 
 ### The invariant that closes it
@@ -204,7 +204,7 @@ say it did not know. Two causes, and the common one is not the interesting one:
   every tax control and at the end of every season; `Tax_Collect` ran once, at collection, on
   the population the county had *then*. `safeturn.sav` county 2 stores **283** shown against
   **249** collected, and 283 is this season's 738 people while 249 is last season's. The
-  preview is the fresher number, which is why it is the one the panel draws. `[V]`
+preview is the fresher number, so it is the one the panel draws. `[V]`
 * **The preview has no suppression test.** `Tax_Collect` opens `if (taxSuppressed) base = 0`
   and `Tax_RecomputePreview` does not, so a suppressed county goes on telling the player what
   his people *would* pay while the treasury banks nothing. `[D]` — read off the two functions;
@@ -330,7 +330,7 @@ that realm's `+0x00`. All fourteen handlers have now been decompiled:
 | 7 | `0x0049F93D` | three army-management sub-passes: pick the muster county (`FUN_004A0AAA`), top up the castle garrisons (`FUN_0049F12F`), and hold or write off each threatened frontier county (`FUN_0049F431`). [`armies.md`](armies.md) §10 |
 | 8 | `0x0049F96C` | **nothing — the function is empty** |
 | 9 | `0x0049F977` | raise the main army in the muster county and aim it, or divert an existing one of 200+ men when the county is too small. [`armies.md`](armies.md) §10 |
-| 10 | `0x004A0015` | send a **raiding party** — about fifty unarmed men — at the standing crops of a rival county. **Not a "type-7 unit": there is no unit kind 7.** The 7 is unit `+0x1A`, the mission byte; the unit `Army_Create` spawns is a type-1 army. [`armies.md`](armies.md) §10 |
+| 10 | `0x004A0015` | send a **raiding party** — about fifty unarmed men — at the standing crops of a rival county. The 7 is unit `+0x1A`, the mission byte; the unit `Army_Create` spawns is a type-1 army. [`armies.md`](armies.md) §10 |
 | 11 | `0x004A5667` | `Ai_AdvanceArmies` — run each army's mission handler (unit `+0x1A`, six of them) and re-path it. [`armies.md`](armies.md) §10 |
 | 12 | `0x0049E77D` | set every county's weapon type from a ten-step per-lord rota, switch the four industries on or off, reallocate labour |
 | 13 | `AI_Taunt` `0x004A13A6` | **not alliances** — a taunt timer. A realm ranked better than 2nd sends *"How are you doing?"* above 39 % of the map and *"Helpful advice."* to the last-placed human above 27 %. [`diplomacy.md`](diplomacy.md) §6 |
@@ -435,7 +435,7 @@ Season_Advance                                                     0x00448440
 ├── Weather_UpdateAll         dryness -> weather band               §7.3
 ├── Tax_CollectAll            gold, and the tax happiness term      §4.1
 ├── Wages_PayAll              army wages, bankruptcy                §7.4
-├── Ration_ApplyAll           the food is actually spent here       §4.3
+├── Ration_ApplyAll           the food is spent here       §4.3
 ├── Health_UpdateAll          health meter and band                 §4.2
 ├── Happiness_UpdateAll       sum the terms                         §4.4
 ├── Unrest_UpdateAll          revolt counter                          §6
@@ -522,11 +522,11 @@ county.dHapTax = (5 - taxRate) + realm.taxHapEmpire;   /* +0x0E; +0x16 is a tabl
 gate. `L2.eng` group 315 is *"Highwaymen waylay your tax collectors. Lose all tax revenues
 this season."*, its handler (`FUN_0044975D`, event id `0x13B`) sets `+0x1A8 = 100` and
 does nothing else, and `Event_RollAll` clears the byte at the start of every season. The
-handler is guarded on the county's shown tax being at least 10 — there is no point robbing
+handler is guarded on the county's shown tax being at least 10
 a collector who is carrying nothing. §8.1.
 
 **[V] An unowned county banks its own tax** into `+0x1F4`, not into any treasury,
-which is why the neutral tax ladder in §8.2 exists at all.
+so the neutral tax ladder in §8.2 exists at all.
 
 > **And that sentence was here, correct, for months while `Kingdom::tax_collect` dropped
 > the take on the floor.** So did `l2_kingdom::ai`'s own comment on the neutral ladder
@@ -1114,7 +1114,7 @@ structure. **[V]**
 * **Losing a grain field mid-year costs a share of the crop.** `Grain_FieldShare`
   (`0x0044D281`) scales the standing crop by `fieldsGrain / fieldsGrainSown` whenever the
   county now has fewer grain fields than it sowed — county `+0x202`, written at sowing
-  (and to **1**, not the real count when the shortfall flag `+0x1A7` is set).
+(and to **1** when the shortfall flag `+0x1A7` is set).
   Painting *more* grain in July buys nothing until the next sowing.
 
 **And one thing that is a bug in the original and is reproduced because it is what the game
@@ -1218,7 +1218,7 @@ if (!g_optAdvancedFarming) county.fertility = 0;
 
 **[V] One fallow field per two grain fields is exactly break-even**, and **cattle fields do
 not enter the formula at all**. That contradicts the manual's *"try to keep at least a
-third of your fields fallow"* and matches, precisely, a player's claim that the real rule
+third of your fields fallow"* and matches a player's claim that the real rule
 is one fallow per two wheat fields with cattle fields excluded. `L2.eng` group 22 names
 seven fertility levels from *"Infertile — almost no production"* to *"Excellent fertility —
 bumper crop!"*; the mapping from the −100 … 100 scalar to those seven was not traced. **[I]**
@@ -1284,13 +1284,13 @@ What the function does besides paint:
 
 ```c
 Field_PaintTile(tile, brush, 0);            /* FUN_0046D7F4 — the terrain byte + graphics */
-County_RecountFieldsAll();                  /* FUN_00469B51 — every county, not just this one */
+County_RecountFieldsAll();                  /* FUN_00469B51 — every county */
 Labour_ToggleShare(county, 2, county.fieldsReclaiming != 0, 3);
 twice: { Labour_Allocate(county); Herd_UpdateCrowding(county);
          County_RefreshEstimates(county, g_seasonNext); }
 ```
 
-**The doubled round is not a fixpoint.** No ceiling depends on the current assignment —
+No ceiling depends on the current assignment —
 every one comes from a search over `0 … population` or from a stock figure. What the second
 round is for is the `Herd_UpdateCrowding` between them, which does move an estimate's input,
 and the panel forecasts, which the estimates fill from whatever the allocator last decided.
@@ -1392,7 +1392,7 @@ transcription slip:
   never run. `docs/bugs.md` B92. Winter's ladder is complete; band 0's zero
   is the fall-through.
 
-Spring and Autumn get nothing at all, which is why the two mild seasons are identical across
+Spring and Autumn get nothing at all, so the two mild seasons are identical across
 the map and the two extreme ones are not.
 
 **`dryness` is a signed byte and the accumulation wraps.** Nothing clamps it before the
@@ -1626,7 +1626,7 @@ under that reading and were odd under the other — `Tax_CollectAll` (§4.1) cha
 exactly *building the first castle on a bare plot — there is nothing there to besiege*; and
 `Castle_BuildTick` hands out free archers on `castleBuilding < castleType`, an upgrade.
 
-**There is no affordability guard, and the materials are drawn down over seasons.** The OK
+**The materials are drawn down over seasons.** The OK
 button's only two refusals are *the castle you already have* (message `0x93`, `L2.eng` 147)
 and *anything smaller* (`0x122`, `L2.eng` 290). You may order a royal castle with an empty
 store; the bill stays owing in `+0x1D0` / `+0x1D4` and
@@ -1647,7 +1647,7 @@ deliver the materials, then, only if `Castle_MaterialsPercent` is above 99, spen
 Above 99 it hands out `Castle_RaiseFreeGarrison`'s archers through `Army_GarrisonApply`,
 sends message `0xA3` (variant 1 for a post-siege repair, `L2.eng` 163/7 *"This bastion has
 been repaired"*), clears `castleDegraded` and switches the castle job off. It does **not**
-promote `castleType`. It ends with `Castle_StampTile`, which is why a castle changes picture
+promote `castleType`. It ends with `Castle_StampTile`, so a castle changes picture
 on the map as it goes up.
 
 **The free garrison is a difference too.** `g_castleFreeArchers[castleType-1]` minus
@@ -1676,7 +1676,7 @@ One function moves every good: `Merchant_Trade` (`0x004284CE`), taking a quantit
 id, a buying price, a selling price, a realm and a county. Positive quantity buys and pays
 `buyPrice × qty` out of the realm's treasury; negative sells and banks `sellPrice × |qty|`.
 Either way the trade is refused outright if the stock or the treasury will not cover it —
-there is no partial fill. A realm argument of **0** — an unowned county trading on its own
+A realm argument of **0** — an unowned county trading on its own
 account — pays out of county `+0x1F4` instead of any realm's gold.
 
 The good ids are `L2.eng` group 6, and where each one lands is the interesting part:
@@ -1685,9 +1685,9 @@ The good ids are `L2.eng` group 6, and where each one lands is the interesting p
 |---:|---|---|
 | 1 | Grain | `county.grain` |
 | 2 | Cattle | `county.herd` |
-| **3** | **Sheep** | **nowhere — there is no branch** |
+| **3** | **Sheep** | **nowhere** |
 | 4 | Ale | straight into `Ale_Apply`; never stored |
-| **5** | **Wool** | **nowhere — there is no branch** |
+| **5** | **Wool** | **nowhere** |
 | 6, 7, 8 | Iron, Stone, Timber | `realm.iron` / `.stone` / `.wood` |
 | 9 … 14 | Pikes, Bows, Maces, Crossbows, Swords, Mail | `realm.weapons[3]`, `[4]`, `[1]`, `[0]`, `[2]`, `[5]` |
 
@@ -1709,7 +1709,7 @@ grain, weapons, ale, wood, iron, or stone"* — lists seven goods and neither of
 The decision recorded in `mechanics.md` stands: **reproduce them anyway**, price and all,
 and let the game demonstrate its own dead end.
 
-**Ale is bought and drunk in the same instruction.** There is no ale field on the county
+**Ale is bought and drunk in the same instruction.**
 because ale is never stored: `Merchant_Trade` hands `Ale_Apply` (`0x00428C42`) the **crowns
 spent**, not the barrels, and the happiness ladder is on money against `population / 10` —
 one point per tenth of the population's worth of crowns, five at most. Then it is clamped
@@ -1804,7 +1804,7 @@ four seasons.
 **human-owned** county once the year passes 1268, and dispatches one of 24 handlers
 (ids `0x87` … `0x8E` and `0x12E` … `0x13D`).
 
-**`g_eventTable` is not a 24-entry table.** It is a **256-slot deck of `i16` ids, 230 of
+It is a **256-slot deck of `i16` ids, 230 of
 them zero**, and a zero slot means "no event this season". The 26 non-zero slots hold the
 24 distinct ids, two of them twice — **`0x8A` and `0x8B`, which are therefore twice as
 likely to fire as any other event.** The deck is weighted, not uniform, which is precisely
@@ -1885,9 +1885,9 @@ births to zero — which is exactly group 314's *"Cattle will not reproduce this
 to the death of your prize bull. Deaths, however, occur normally."*
 
 > **A second bug: the weapon a county finds is chosen by its id.** `FUN_0044938C` indexes
-> the realm's weapon array with `(countyId & 3) + 1` rather than with the county's own
+> the realm's weapon array with `(countyId & 3) + 1`
 > weapon type at `+0x290`, and `FUN_00449688` computes the same index the same way — so it
-> is a shared idiom rather than a slip in one place. A county therefore finds, and has
+> is a shared idiom. A county therefore finds, and has
 > embezzled, a weapon that has nothing to do with what its blacksmith makes, and the
 > crossbow (type 0) can never be found or stolen at all. **[D]**
 
@@ -1923,7 +1923,7 @@ Four things follow, and none of them is visible in `Event_RollAll`:
   a season, a dozen seasons, or the whole game — and arrives the frame that county is
   picked. Four of the siege fixtures hold such a letter, unread.
 * **`eventId` is cleared by nothing at all.** It is overwritten by the county's next event
-  and otherwise stands for ever, which is why a county panel keeps showing an old event's
+and otherwise stands for ever, so a county panel keeps showing an old event's
   line long after the event.
 * **the figure can go stale underneath the letter.** `Population_UpdateAll` zeroes `+0x2F8`
   every season and rewrites it only when `+0x1FB` is non-zero, and `Event_RollAll` clears
@@ -1952,11 +1952,11 @@ on one of four ladders, and, for AI realms only, it hands out free resources.
 | **ladder 2** | | | | | 0 | | 1 | 2 | 3 | 8 | 10 |
 
 **[V]**. Ladder 0 is the greediest and ladder 2 the gentlest — nothing at all below 60
-happiness. Note that a *neutral* county is taxed harder at low happiness than any AI taxes
+happiness. A *neutral* county is taxed harder at low happiness than any AI taxes
 its own, though nobody collects it: an unowned county banks its take into itself (§4.1).
 
 All four ladders are now checked against the executable by `tools/oracle/kingdom.ps1` —
-not by reading a table, because there is no table. The chains compile to 20 `CMP EAX,
+not by reading a table. The chains compile to 20 `CMP EAX,
 imm8` thresholds interleaved with 24 `MOV byte ptr [county+0xB9], imm8` rate stores, and
 the oracle reads that ordered sequence out of the instruction stream. See §13.
 
@@ -2102,12 +2102,12 @@ and every division is guarded on the county count being non-zero.
 
 **`+0x04` is not `inPlay`.** §2 calls it that and marks it **[V]**; `Realm_RecountStrength` —
 AI step 0 — rebuilds it as **`3 × ownedCounties + 1 × armies`**, and the realm is eliminated
-when that comes out zero. Every other site only tests it against zero, which is why
+when that comes out zero. Every other site only tests it against zero, so
 "inPlay" fits everything except the write. **[V]**
 
 ### 8.4 The end of a game
 
-**There is no turn limit, no score target and no date.** A game ends when somebody runs out
+A game ends when somebody runs out
 of everything, and the chain is four functions:
 
 | step | what |
@@ -2437,7 +2437,7 @@ Each of those is now written out in the section it belongs to.
 * **`localModifier`** (`FUN_00449D6E`, §7.3), the per-county weather swing.
 * ~~**Trade.**~~ **Closed.** §7.6 now carries `Trade_BeginGood`'s pricing — the sell price is
   the base table, the buy price is the base plus the *clicked merchant's morale* as a
-  percentage of it, and every merchant in the shipped game has morale 100, which is why the
+percentage of it, and every merchant in the shipped game has morale 100, so the
   guides' prices are double the table's. The second 15-entry table at `0x004D8950` is
   **read by nothing**: a merchant's stock is infinite. `crates/l2-kingdom/src/trade.rs` and
   `crates/l2-game/src/screens/merchant.rs`.
@@ -2462,7 +2462,7 @@ reproduced, for the reason each line gives.
 
 * **Only odd-numbered counties can draw a random event** (§8.1) — the deck's seed is always
   even and every dealt slot is odd. *Reproduced.*
-* **A found or embezzled weapon is chosen by `(countyId & 3) + 1`** (§8.1) rather than by
+* **A found or embezzled weapon is chosen by `(countyId & 3) + 1`** (§8.1)
   the county's weapon type, so the crossbow is unreachable. *Reproduced.*
 * **The empire tax term is summed into a signed byte** with nothing clamping it (§4.1).
   *Reproduced.*
@@ -2542,7 +2542,7 @@ they check is not a table at all:
 | `ale ladder` | `MOV EAX, 5` (the cap), `MOV ECX, 10` (the step divisor), and the `MOV dword ptr [ebp-8], imm32` rungs | §12's ale term is arithmetic |
 | `efficiency ramp` | `MOV EAX, 0x50` and the `CMP`/`MOV` pair holding 100 | §7.4's ramp bounds are immediates |
 | `herd crowding bands` | the `MOV dword ptr [county+0x25C], imm32` stores and the `CMP [ebp-8], imm8` densities they hang off | §13.1's four bands are an `if`/`else if` chain, twice over — once for the level and once for the map graphic |
-| `herd births and deaths` | 31 tagged immediates: the staffing cap, the `/ 3` shortfall divisor, the four death rates, the four birth rates, the three small-herd bonuses and the two season codes | §13's whole rule is `FUN_0044DA99`'s instruction stream and there is no table anywhere in it |
+| `herd births and deaths` | 31 tagged immediates: the staffing cap, the `/ 3` shortfall divisor, the four death rates, the four birth rates, the three small-herd bonuses and the two season codes | §13's whole rule is `FUN_0044DA99`'s instruction stream |
 
 This is `decisions.md` **C16** applied to rules, not to `Rules_InitConstants`'
 globals: *when a value is absent from the data, read the code that produces it.* These
@@ -2622,7 +2622,7 @@ independently from play and from the instruction stream.
 
 > An earlier revision of this section annotated `-((staffing - 100) / 3)` as
 > *"understaffed: negative"*. It is **positive**: the operand is negated after a truncating
-> division, and the result is added to the deaths rather than to the growth.
+> division, and the result is added to the deaths.
 
 **A county with no pasture is not lightly penalised.** The `fieldsCattle == 0` branch above
 everything else halves the herd — or kills all of it below six head — and no other term
@@ -2702,7 +2702,7 @@ else                   crowding = 40;
 if (fieldsCattle == 0) crowding = 40;      /* no pasture is maximum crowding */
 ```
 
-> An earlier revision of this listing put the `herd < 1` test on the *bands* rather than on
+> An earlier revision of this listing put the `herd < 1` test on the *bands*
 > the density. It is on the density (and on the map graphic); the level is written
 > unconditionally, so an empty herd on real pasture sits at density 0 and therefore in the
 > **lowest** band, not in none of them.
@@ -2746,11 +2746,11 @@ worth its own heading because of what it settles. `FUN_0049BD99` sets a new game
 | **1** | **0** | **95** | **417** | **65** | **65** |
 | 2 | 500 | 330 | 1181 | 85 | 85 |
 
-Both the live field and its `…Last` twin are written from the same column, which is why the
+Both the live field and its `…Last` twin are written from the same column, so the
 England turn-one save still carries row 1 in three places: `popLast` is 417 in all fourteen counties,
 `+0x254` is 95 in all fourteen, and **65 is the health meter** `crates/l2-scenario` carried
 as `STARTING_HEALTH_METER` with an `[I]` saying it was *the one number in the whole
-reproduction that comes from prior art rather than from the binary.* It is in the binary,
+reproduction that comes from prior art.* It is in the binary,
 and this is where. The same function then hands an unowned county +100 grain, which is the
 100 sacks the nine unowned counties still hold.
 

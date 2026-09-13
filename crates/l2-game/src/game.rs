@@ -48,7 +48,7 @@ pub use l2_kingdom::tables::MAX_TAX_RATE;
 ///
 /// **Re-exported**: the rule moved to `l2-kingdom` with
 /// [`l2_kingdom::Kingdom::set_ration_split`], and a bound the rule clamps to a
-/// hundred times per drag belongs beside the rule rather than beside the
+/// hundred times per drag belongs beside the rule
 /// widget.
 pub use l2_kingdom::county::MAX_RATION_SPLIT;
 
@@ -58,7 +58,7 @@ pub use l2_kingdom::county::MAX_RATION_SPLIT;
 /// # The third category, and it is a category
 ///
 /// There are three kinds of switch in this engine and conflating any two of
-/// them is a real fault rather than an untidiness:
+/// them is a real fault:
 ///
 /// | | where | reaches the simulation? | in the save? |
 /// |---|---|---|---|
@@ -83,9 +83,9 @@ pub use l2_kingdom::county::MAX_RATION_SPLIT;
 /// (`0x0053F204`) against **0x7EC** *after* the read, defaulting the whole block
 /// when it does not match. `[V]` on all of it.
 ///
-/// **We do not write a preferences file yet, and that is a gap rather than a
+/// **We do not write a preferences file yet, and that is a gap
 /// decision.** Saying so here is the point: a reader who finds no persistence
-/// should meet the fact rather than assume it was considered. What a file would
+/// should meet the fact. What a file would
 /// need is settled — `docs/environment.md` already says where our own files go —
 /// and it is not this branch's job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -174,7 +174,7 @@ impl Prefs {
     ///
     /// **The early return is the whole reason this returns an `Option`.** The
     /// original tests `q >= 10` and returns 0 — *"do not scroll this frame"* —
-    /// rather than computing a very long delay, so speed 0 is not "very slow",
+/// so speed 0 is not "very slow",
     /// it is "never". A reimplementation that only computed the delay would
     /// creep instead of stopping.
     pub fn scroll_delay_ms(&self) -> Option<i32> {
@@ -189,7 +189,7 @@ impl Prefs {
     ///
     /// **Not a clamp, a gate**: the original's arrows are
     /// `if (*v < max) *v += step` and `if (min < *v) *v -= step`, so a value
-    /// already at the end simply does not move. That is the same shape as
+/// already at the end does not move. That is the same shape as
     /// `l2_kingdom::mercenary::bands_in_play`'s "clamped" that turned out not to
     /// be a clamp, and it is written the original's way for the same reason.
     pub fn step_speed(value: i32, up: bool) -> i32 {
@@ -225,7 +225,7 @@ impl Prefs {
 /// lockstep state, and two players running with different values here compute
 /// identical turns — `docs/netcode.md` D-12 says display state must *not* reach
 /// the simulation, so putting a shadow colour in the hashed options would be
-/// the wrong answer rather than the expensive one. It lives on [`Assets`],
+/// the wrong answer. It lives on [`Assets`],
 /// whose whole definition is *"everything the screens draw with, not part of
 /// the world."*
 ///
@@ -255,7 +255,7 @@ pub struct Quirks {
     /// [`crate::shell::font::SHADOW_GREY`] the two palette indices.
     ///
     /// This field and the table around it were built on two branches that never
-    /// met, which is why the comment standing in this space said *"no
+/// met, so the comment standing in this space said *"no
     /// presentation quirk has landed yet"* and named this one as the first.
     pub grey_county_name: bool,
 }
@@ -281,7 +281,7 @@ impl Quirks {
         // One arm per field, and then the fall-through. A field that reached
         // [`PRESENTATION`] without an arm here would read as *"the original's
         // behaviour"* for ever, silently, which is the one failure this method
-        // can have — so it is asserted rather than left to be noticed.
+// can have — so it is asserted.
         match field {
             "grey_county_name" => self.grey_county_name,
             other => {
@@ -294,7 +294,7 @@ impl Quirks {
         }
     }
 
-    /// Set one field. Unknown names are ignored rather than panicking: the
+/// Set one field. Unknown names are ignored: the
     /// caller is a click on a checkbox, and a page that could crash the game by
     /// naming a field that has been renamed is worse than one that does
     /// nothing.
@@ -332,7 +332,7 @@ pub struct Assets {
     /// running — every test, and every headless driver — so a screen that wants
     /// a clock has to be handed one and can never reach for it.
     ///
-    /// It is on [`Assets`] rather than on [`Game`] deliberately: `docs/netcode.md`
+/// It is on [`Assets`] deliberately: `docs/netcode.md`
     /// D-5 forbids a wall clock in the simulation, and `Assets` is in no save,
     /// no digest and no `Kingdom`. `crate::wallclock` states the whole argument.
     pub wall_clock: Option<i64>,
@@ -522,7 +522,7 @@ pub struct Game {
     ///   Bishop* — indexed by the **lord**, which is not the realm and not the
     ///   colour (`docs/diplomacy.md` §0.1).
     ///
-    /// **Here rather than on `Realm`, and it changes what it is covered by.**
+/// **Here, and it changes what it is covered by.**
     /// The original keeps names outside `g_realms` too — they are a save block
     /// of their own — and the reason holds for us: the lockstep digest is
     /// `Canonical::hash_of(kingdom)` and a name cannot change a number. Putting
@@ -563,7 +563,7 @@ pub struct Game {
     /// has no answer here to copy.
     pub event_posted: [bool; MAX_COUNTIES],
     /// County `+0x6C`, `+0x6D` — each county's anchor tile, which is where its
-    /// marker is drawn. Two arrays rather than an array of pairs: index order
+/// marker is drawn. Two arrays: index order
     /// is the only order anything here is ever walked in.
     pub anchor_x: [u8; MAX_COUNTIES],
     pub anchor_y: [u8; MAX_COUNTIES],
@@ -580,7 +580,7 @@ pub struct Game {
     ///
     /// The three globals a campaign is made of — `DAT_0053F258`, `DAT_0053F640`
     /// and `DAT_0053F0C4` — plus the ending messages the current map has raised.
-    /// It is here rather than in [`Kingdom`] because the original keeps it here
+/// It is here because the original keeps it here
     /// too: `Game_NewGame` *clears* the outcome and *does not touch* the campaign
     /// counter, which is exactly the line between "the world" and "the session
     /// playing through it". See [`crate::victory`].
@@ -601,7 +601,7 @@ pub struct Game {
     /// **A turn that stopped to ask.** `None` between turns, which is almost
     /// always.
     ///
-    /// It is here rather than in the caller's hands because a half-run turn is
+/// It is here because a half-run turn is
     /// not something a caller may drop: the kingdom is in a state no rule
     /// describes — two armies on one tile with the battle unresolved — and the
     /// only safe thing to do with it is finish it. See [`crate::turn`].
@@ -653,9 +653,9 @@ pub struct Game {
     /// always.
     ///
     /// `docs/plan.md`: *"A `Game` holds the kingdom, the active battle if any,
-    /// and the screen stack."* This is that. It is here rather than inside
+/// and the screen stack."* This is that. It is here
     /// [`crate::screens::battlefield::BattlefieldScreen`] for the same reason
-    /// [`Game::turn`] is here rather than in the caller's hands: a screen is
+/// [`Game::turn`] is here: a screen is
     /// built from a bare [`crate::screen::ScreenId`] with no access to the
     /// world, and a half-fought battle is not something anyone may drop — the
     /// campaign is in a state no rule describes until it is settled.
@@ -707,7 +707,7 @@ pub struct Game {
     /// **The message ring and the window over it.** `g_messageQueue`,
     /// `g_messageGroup`, `g_messageTimer` and their cursors.
     ///
-    /// Here rather than in [`Kingdom`] and **out of the digest on purpose**:
+/// Here and **out of the digest on purpose**:
     /// `Msg_Enqueue` keeps a record only when `to == 0 || to == g_localPlayer`,
     /// so two peers of one game hold different rings by construction. See
     /// [`crate::message`], which has the whole argument.
@@ -720,7 +720,7 @@ pub struct Game {
     /// `g_screenId` is the tip's `0x27`, and the invasion flag. See
     /// [`crate::tip`].
     ///
-    /// not-encoded: per-peer display state, and per *run* rather than per game.
+/// not-encoded: per-peer display state, and per *run*.
     /// The original clears it at start-up and on the toggle and never on a new
     /// game or a load, so `screens::setup` and `screens::saveload` carry it
     /// across the two places a whole `Game` is replaced.
@@ -736,7 +736,7 @@ pub struct Game {
     /// **The turn timer** — `DAT_005440C8` and the three globals beside it. See
     /// [`crate::turn_clock`].
     ///
-    /// Here rather than on the map screen because the original counts it in
+/// Here because the original counts it in
     /// `Turn_Tick`, which runs whatever screen is up, and because a screen
     /// cannot outlive being replaced.
     ///
@@ -763,7 +763,7 @@ pub struct Game {
     /// **`DAT_0055CE7C`** — which of the standings page's seven categories is
     /// being looked at, 0…6. See [`crate::screens::nobles`].
     ///
-    /// Here rather than on the screen because **the original's is a global**:
+/// Here because **the original's is a global**:
     /// `Game_NewGame` (`0x00497CED`) zeroes it, `FUN_0043524E` writes it from
     /// the tab that was clicked, and `FUN_004351C4` — the court's button —
     /// *reads* it on the way in, to speak the category's name before the page
@@ -778,7 +778,7 @@ pub struct Game {
     /// **How many times the standings page has been asked to say its category
     /// out loud**, monotone.
     ///
-    /// Ours, and it is a mechanism rather than state: `FUN_004B3994(category)`
+/// Ours, and it is a mechanism: `FUN_004B3994(category)`
     /// has exactly two callers — `FUN_004351C4`, the court's button, and
     /// `FUN_0043524E`, a tab — and *both* speak unconditionally, including
     /// when the tab pressed is the one already showing. A diff on
@@ -1214,7 +1214,7 @@ impl Game {
     /// way anything on the campaign map is set walking from outside the turn
     /// machine.
     ///
-    /// Three things it is, each of which is a rule rather than a convenience:
+/// Three things it is, each of which is a rule:
     ///
     /// * **[`Routing::Direct`]**, because a human order uses the cost map as it
     ///   stands. Road-hugging is what the game does for its own units — the AI's
@@ -1282,7 +1282,7 @@ impl Game {
     /// `hire` is the county's standing offer, `county +0x1AD`, or `None` for a
     /// pure levy. The price is **not** checked inside
     /// [`l2_kingdom::MercenaryBands::hire`] — the screen refuses first, with
-    /// `L2.eng` 69/3 — so this checks it here rather than taking the treasury
+/// `L2.eng` 69/3 — so this checks it here
     /// negative.
     ///
     /// Returns the new army's slot.
@@ -1372,7 +1372,7 @@ impl Game {
     }
 
     /// Select a county, or clear the selection with 0. An id that is not a
-    /// county on this map is refused rather than stored.
+/// county on this map is refused.
     pub fn select(&mut self, id: u8) -> bool {
         if id == 0 {
             self.selected = 0;
@@ -1406,7 +1406,7 @@ impl Game {
     /// Set a county's wanted ration level, clamped to the six the table holds.
     ///
     /// It writes `rationWanted` (`+0x15E`), never `rationAchieved` (`+0x15D`):
-    /// what the player asks for and what the county's stores could actually
+/// what the player asks for and what the county's stores could
     /// feed are different fields, and only the **food pass** decides the second
     /// one. That pass is not the season's alone — this control runs it too, and
     /// the sentence used to say *"only the season pipeline"*, which is what made
@@ -1420,7 +1420,7 @@ impl Game {
     /// field and returning, and the only one of the three **not** reported by a
     /// player: it was found by enumerating the class the other two belong to.
     /// An unread member of an enumerated class is a known unknown, and this one
-    /// was filed `open` for a day rather than assumed fine.
+/// was filed `open` for a day.
     pub fn set_ration(&mut self, id: u8, level: i32) -> bool {
         if !self.is_players(id) {
             return false;
@@ -1431,7 +1431,7 @@ impl Game {
     /// Set a county's grain-to-livestock split (`+0x15F`), clamped 0 … 100.
     ///
     /// The third order the original's ration panel gives, and the only one of
-    /// the three that is a slider rather than a pair of arrows.
+/// the three that is a slider.
     ///
     /// **`sweep` is 1 for a jump on the track and 0 for an arrow**, and it is
     /// `Ration_SliderClick`'s `g_uiHotspotArg`. The two gestures end
@@ -1444,7 +1444,7 @@ impl Game {
     /// turn."* A player reported the result as **"rations slider moves but is
     /// inoperable"**, which it was — the thumb travelled and every number on
     /// the panel stayed where it was. The original re-runs the food pass on the
-    /// spot, searches for a split that actually changes something, reallocates
+/// spot, searches for a split that changes something, reallocates
     /// the county twice and repaints the panel.
     ///
     /// Returns whether the split ended anywhere other than where it started.
@@ -1458,7 +1458,7 @@ impl Game {
     /// Move peasants from one job to another — the village screen's only order.
     ///
     /// `Labour_Move` (`0x00439B52`), and its caller `FUN_004399B0` which is
-    /// where the arithmetic actually is:
+/// where the arithmetic is:
     ///
     /// ```c
     /// workers = selectedIcons * county[+0xB8];
@@ -1468,7 +1468,7 @@ impl Game {
     ///
     /// So **an icon is `popBand` people**, and dragging every icon out of a job
     /// takes every worker out of it even when `icons * popBand` overshoots.
-    /// Returns how many people actually moved.
+/// Returns how many people moved.
     ///
     /// Everything after the arithmetic is `Labour_Move`'s and lives in
     /// [`l2_kingdom::Kingdom::move_labour`]: the drop switches the destination
@@ -1482,7 +1482,7 @@ impl Game {
         self.move_workers(id, from, to, icons.saturating_mul(band))
     }
 
-    /// The same move counted in **people** rather than icons.
+/// The same move counted in **people**.
     ///
     /// `Labour_Move` itself takes a worker count; it is `Village_Drop` that
     /// multiplies by `popBand` and clamps. The double click

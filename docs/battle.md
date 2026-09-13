@@ -33,7 +33,7 @@ Ghidra database.
 | **units** | `0x00566520` | `0x34` | 1 … 80 | what the player selects, orders and sees a banner for |
 | **figures** | `0x00554480` | `0x1B0` | 1 … 80 | the drawn men; each stands for `g_menPerFigure` real soldiers |
 | battlefield | `0x005440E0` | `8` | 80 × 80 | one cell |
-| missiles | `0x0057A100` | `0x4C` | 1 … 100 | arrows, bolts, catapult shot and its debris, burning cells, boiling oil — classes 1, 2, 3, 4, 5 and 7, and **there is no class 6**. This row said *"falling men"* and was wrong; §14.7 corrects it |
+| missiles | `0x0057A100` | `0x4C` | 1 … 100 | arrows, bolts, catapult shot and its debris, burning cells, boiling oil — classes 1, 2, 3, 4, 5 and 7 |
 
 **[V]** All four counts are loop bounds in the binary: `BattleMen_ClearAll` and
 `BattleUnits_ClearAll` both run `for (i = 1; i < 0x51; i++)`, `Missile_UpdateAll` runs
@@ -943,7 +943,7 @@ four times (`barred`) and its `hold it` timer has expired.
   on the first half. Both mechanisms are present in the same loop:
 
   ```c
-  /* deferral: an expensive cell is re-queued rather than expanded */
+/* deferral: an expensive cell is re-queued */
   if (g_pathStepCost[cur] == 0 || g_pathVisitCount[cur]++ >= g_pathStepCost[cur]) {
       sVar3 = g_pathCost[cur] + 1;
       ...
@@ -1090,7 +1090,7 @@ Which side is the *attacker* remains open. §4.3.
 * **`ownerIsHuman`.** §6.2. The asymmetry is in the code; its intent is not established.
 * **The "Morale" display.** `L2.eng` group 47 index 9. No caller found; no backing field
   found.
-* **`+0x18C`** — whether the melee heavy blow is really once per battle rather than once
+* **`+0x18C`** — whether the melee heavy blow is once per battle
   per exchange.
 * **Ticks.** Everything above is in frames. The battle frame rate, and whether it is fixed
   or wall-clock, was not established, so no timing here can be converted to seconds.
@@ -1506,7 +1506,7 @@ offset is *positive* y: a figure walking north is drawn trailing to the south of
 the cell it is entering. All eight signs are the negation of the facing's own
 delta. That is a second source for section 2.1's `dirc` table.
 
-Note the height term uses the sprite **width** for both axes, which is why a
+The height term uses the sprite **width** for both axes, so a
 48-pixel man sits 8 pixels left of and 16 above his cell's corner. Reproduced
 rather than corrected.
 
@@ -1916,7 +1916,7 @@ one-shot latch that *"scans for any cell carrying flag `0x40`, and if one exists
 lays down a patch of passable ground — and calls the drawbridge reading `[I]`,
 because nothing outside the code said so.
 
-The shipped `Readme.txt` says so. *Drawbridge (pg95)*: **"Note that only the
+The shipped `Readme.txt` says so. *Drawbridge (pg95)*: **"Only the
 Stone and Royal castles have drawbridges. Within a siege, drawbridges can not be
 closed once they have been opened."** Both halves land: a routine written as a
 search that can *fail* is exactly what a feature only two of five castle types
@@ -2158,7 +2158,7 @@ node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9140 
 node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9170 18
 node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9a00 50
 
-# the a2/a3 frame identity, from the shipped art rather than the binary
+# the a2/a3 frame identity, from the shipped art
 node tools/battle/sheetframes.js "F:/games/Lords of the Realm II"
 ```
 
@@ -2304,7 +2304,7 @@ than a quarter in (`FUN_004BC346`/`FUN_004BC40D`). And it reads the **occupant
 of each cell**, not the sprites the box overlaps, so a man drawn half inside it
 and standing outside is not picked. **[V]**
 
-**The commit rearranges the unit array, which is why selection is simulation
+**The commit rearranges the unit array, so selection is simulation
 state.** `FUN_00478987` (`0x00478987`) asks whether the selection is exactly one
 whole unit; if it is not — the player boxed half a unit, or figures from two —
 it calls `BattleUnit_Alloc` and moves every selected figure into a **new unit**.
@@ -2405,7 +2405,7 @@ and they are dispatched from `WndProc`, not from `Screen_FrameInput`.
 
 `VK_CONTROL` is latched into `DAT_004DF3A8` on key-down and cleared on key-up,
 and the digit arm is `if (DAT_004DF3A8 == 0) FUN_0043C910(key); else
-FUN_0043C885(key);` — two different functions rather than one with a flag. Nine
+FUN_0043C885(key);` — two different functions. Nine
 groups are reachable (`0x30 < key && key < 0x3A`) and `Battle_Start` clears ten
 slots of `DAT_00553400`, stride `0x18`.
 
@@ -2552,7 +2552,7 @@ its own progress. It restores the *numbers* and not the field.
 > `Battlefield_PlaceMoatCell`, whose first statement is `g_siegeApproachScore = 0`, so one ditch cell anywhere
 > on the field puts it back to zero.
 >
-> The pair is a design rather than an accident, and reads straight against
+> The pair is a design, and reads straight against
 > `Order_ToBreachOrStaging`'s three arms — under 16 hunt the ditch, 16 to 400 fall back on staging,
 > over 400 do nothing at all. **A moated castle opens at 0**, so the besieger's whole approach
 > ladder is spent shovelling and `Moat_Fill`'s one-to-four points a cell is what eventually carries

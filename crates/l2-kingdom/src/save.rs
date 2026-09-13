@@ -25,10 +25,10 @@
 //!   32-bit player and eight on a 64-bit one. Every count here goes out as
 //!   `u32`.
 //! * **No iteration in hash order.** Counties and realms are fixed arrays
-//!   walked by ascending index; there is no `HashMap` in this crate to iterate.
+//!   walked by ascending index.
 //! * **Determinism is a property of the encoder**, not of a promise made here.
 //!
-//! # Versioned, and it refuses rather than guesses
+//! # Versioned, and it refuses
 //!
 //! The header is a magic, a format version and a **ruleset fingerprint**.
 //!
@@ -65,7 +65,7 @@ use crate::tables::{
 use l2_net::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 
 /// Eight bytes, so a file command can name the format and a truncated file
-/// fails on the magic rather than three fields later.
+/// fails on the magic.
 pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 
 /// The format version. **Bump it whenever the byte layout below changes**, and
@@ -75,7 +75,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// * 2 — the county grew four herd fields (`docs/kingdom.md` §13), and the
 ///   ruleset fingerprint grew the tax-happiness table, the herd table and the
 ///   cattle-farming job slot. Both halves of the file moved, so a version 1
-///   save is refused rather than misread.
+///   save is refused.
 /// * 3 — the **campaign layer** (`docs/armies.md`): the 151-slot unit array,
 ///   the map's three tile planes, the twelve mercenary bands and the realms'
 ///   army-name counters, plus three new county fields. A version 2 save has no
@@ -102,20 +102,20 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   it belongs, in the kingdom's own options, and therefore in the save and in
 ///   the lockstep checksum. A version 5 save does not carry it, and the option
 ///   changes whether a battle is fought or auto-resolved — so this is a refusal
-///   rather than a default, on the same grounds as version 5.
+///   on the same grounds as version 5.
 /// * 7 — **the grain year got a memory**: `fields_grain_sown` (county `+0x202`)
 ///   and `sow_shortfall` (`+0x1A7`). `Grain_Grow` and `Grain_Harvest` scale the
 ///   standing crop by the grain fields still standing *against the fields that
 ///   were sown*, so a save that dropped the second number would resume a
 ///   half-grown crop with no basis to measure it against. A version 5 save has
 ///   both missing, and defaulting `fields_grain_sown` to 0 would silently mean
-///   "no fields were sown" — which is not a default, it is a different game.
+///   "no fields were sown" — it is a different game.
 ///
 ///   **This arrived as its own version 6.** Two branches bumped 5 → 6 in
 ///   parallel, each adding different fields, and the merged encoding is neither
 ///   of their version 6s — so it is 7. A version 6 save is a real thing that
 ///   exists (it carries `fight_humans_only_byte` and *not* these two), which is
-///   why the number had to move rather than the two entries being folded
+///   so the number had to move
 ///   together.
 /// * 8 — **the things that move now move** (`crate::units_tick`): the six
 ///   merchant trade routes `g_merchantRoutes`, the peasant mobs' shared
@@ -127,7 +127,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   **And it happened again, exactly as the entry above predicted.** This
 ///   arrived as its own version 7 from a third parallel branch, was read off
 ///   the changelog on merge, and moved to 8. That is now twice in one day, so
-///   the note above should be taken as a standing hazard rather than an
+///   the note above should be taken as a standing hazard
 ///   anecdote: **the version number is the one field in this file that two
 ///   branches will always collide on**, because every branch that changes the
 ///   layout has to touch it and none of them can see the others. A check like
@@ -154,7 +154,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   see the other. What it *can* do is fail the instant they are merged —
 ///   which is where all three of these were caught by hand, twice by an
 ///   integrator reading a doc comment. A merge that takes one branch's `VERSION`
-///   and both branches' changelog entries now goes red rather than shipping a
+///   and both branches' changelog entries now goes red
 ///   number that means two different layouts.
 /// * 10 — **sieges** (`crate::siege`). The unit grew the three siege-engine
 ///   build records and the seasons countdown; `County::castle_degraded` grew
@@ -165,7 +165,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   whether winning a battle also wins the county. An older save has no siege
 ///   in it, but it also cannot say what its `castle_degraded` bytes meant — a
 ///   `true` could be either 1 or 2 and the two fight different castles — so
-///   this is a refusal rather than a widening.
+///   this is a refusal.
 ///
 ///   **Three branches found `defence_mark` missing, independently, within a
 ///   day.** The sharpest statement of it is the unit-import branch's: entry 8
@@ -205,16 +205,16 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   first run's output. `tests/save_gap.rs`, which pinned eleven of them, is
 ///   deleted with them — the gap it described is closed.
 ///
-///   A version 10 save has all eleven missing. **Refusal rather than default**,
+///   A version 10 save has all eleven missing. **Refusal**,
 ///   and `pairs` is why: a defaulted pair block is not "no diplomacy", it is
 ///   every alliance broken, every grudge forgotten and every standing reset to
 ///   the same number, which is a different game silently resumed.
 ///
-///   **And this one is the fourth collision, caught by the check rather than by
+///   **And this one is the fourth collision, caught by the check
 ///   an integrator.** It was written as version 8, then 9, and
 ///   `the_version_is_ahead_of_its_own_changelog` — added by the branch above,
 ///   independently and for the same reason — failed the merge both times and
-///   named the duplicate. That is the entry above working exactly as it says.
+///   named the duplicate.
 /// * 12 — **`Options::exploration` and `Options::time_limit`**, the last two of
 ///   the six *rule* options the setup screen sets. Both are globals the
 ///   original's own `Save_Write` stores (`g_optExploration` `0x0053F264`,
@@ -226,7 +226,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   minute turn limit and no fog is a different game from one that was not,
 ///   and a save that cannot say which is a save that guesses.
 ///
-///   **Refusal rather than default.** A version 11 save carries neither, and
+///   **Refusal.** A version 11 save carries neither, and
 ///   defaulting both to off would silently claim a setting the file never made.
 /// * 13 — **the merchant's books**: `County::purse` and the four `Realm` trade
 ///   accumulators (`trade_spent_a`/`_b`, `trade_received_a`/`_b`). All five are
@@ -239,7 +239,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   purse would deal different goods and every checksum they exchanged would
 ///   still agree.
 ///
-///   **Refusal rather than default**, on the same reasoning as entry 12: a
+///   **Refusal**, on the same reasoning as entry 12: a
 ///   version 12 save was written by a build that could not trade, so all five
 ///   really are zero in it — but a save is not the place to be right by
 ///   accident, and the next version that widens this file would inherit a
@@ -253,22 +253,22 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   `castle_stone_total`, `castle_wood_owed` and `castle_wood_total`, in place
 ///   of the single `castle_progress` counter this crate invented. County
 ///   `+0x1C4` and `+0x1CC … +0x1E0` in the original, and the reason the swap is
-///   a version rather than a rename is that **the model changed with them**:
-///   the materials are drawn down season by season rather than paid up front,
-///   the work counts down rather than up, and `castle_building` holds the
-///   castle you *had* rather than the one you are getting
+///   a version is that **the model changed with them**:
+///   the materials are drawn down season by season,
+///   the work counts down, and `castle_building` holds the
+///   castle you *had*
 ///   (`County::castle_building`). A version 13 save's `castle_progress` cannot
 ///   be translated into any of them — the same number means "work done" there
 ///   and nothing here — and its `castle_building` byte means the opposite of
 ///   what this build would read.
 ///
-///   **Refusal rather than a translation**, and this one is not conservatism:
+///   **Refusal**, and this one is not conservatism:
 ///   `castle_degraded` had **no reachable writer** before this version, so
 ///   every version 13 save in existence has it zero in every county and a
 ///   castle nobody could have started. There is nothing to preserve.
 ///
 ///   **Two branches bumped to 14 on the same day with different contents, and
-///   they are one version rather than 14 and 15.** Neither had shipped, so no
+///   they are one version.** Neither had shipped, so no
 ///   save exists that has one set of fields and not the other; numbering them
 ///   separately would invent a save nobody can hold and a translation nobody
 ///   can test. Both are refusals in any case.
@@ -289,7 +289,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   and raid counters at zero, forget which county each realm musters from,
 ///   and forget the county its main army is currently marching on.
 ///
-///   **Refusal rather than default**, on the same reasoning as entries 12 and
+///   **Refusal**, on the same reasoning as entries 12 and
 ///   13: a version 13 save was written by a build whose AI raised no armies at
 ///   all, so the fields really are zero in it — but zero is a *meaningful*
 ///   value for `mission` (it is the one the dispatcher normalises), and a save
@@ -305,13 +305,13 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   peer that never exchanged it would desync.
 ///
 ///   **This is the only version bump the quirk set will ever cost**, which is
-///   why the field is a `u64` bitfield rather than a run of `bool`s, and why a
-///   set bit means *fixed* rather than *reproduced*: adding a quirk next month
+///   why the field is a `u64` bitfield, and why a
+///   set bit means *fixed*: adding a quirk next month
 ///   sets a bit that is already being written as zero, and zero already means
 ///   the original's behaviour. `docs/bugs.md` §6.3 asked that the bump be paid
-///   once rather than once per bug; this is how it is paid once.
+///   once; this is how it is paid once.
 ///
-///   **Refusal rather than default**, as for 12 and 13 — and here the default
+///   **Refusal**, as for 12 and 13 — and here the default
 ///   would even have been right, since a version 13 save was written by a build
 ///   that had no quirks and so was faithful. It is refused anyway, because *"the
 ///   default happens to be correct this time"* is the reasoning that makes the
@@ -330,7 +330,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   repair the county is *already* paying for, so a version 14 save reloaded
 ///   with them defaulted would show a castle mid-repair with no reason for it.
 ///
-///   **Refusal rather than default**, on the standing reasoning — and here the
+///   **Refusal**, on the standing reasoning — and here the
 ///   default would have been right for a different reason worth writing down:
 ///   a version 14 save was written by a build in which the accumulators had no
 ///   writer at all, so the scars really were zero. It is refused anyway,
@@ -350,7 +350,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   that dropped the slot would take the money and never answer — and a
 ///   pay-for-help prompt reloaded without its price would ask for nothing.
 ///
-///   **Refusal rather than default**, and here for a reason none of the earlier
+///   **Refusal**, and here for a reason none of the earlier
 ///   entries had: the pair block *is* carried by a version 14 save, so a
 ///   defaulted inbox would produce a kingdom that looks entirely coherent — the
 ///   standings, alliances and grudges all present and correct — with the mail
@@ -370,7 +370,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   **This entry is the first one where the default would have been harmless,
 ///   and it is refused anyway — but for a weaker reason than the others, and
-///   the difference is worth stating rather than hiding.** Entries 12 … 15
+///   the difference is worth stating.** Entries 12 … 15
 ///   refuse because a defaulted load produces *a state this version cannot
 ///   otherwise produce*, or one that changes what the simulation computes. These
 ///   three do neither: they are **derived**, recomputed from scratch by every
@@ -385,7 +385,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   { Err }` and always has been — so carrying them *is* a bump, and there was
 ///   never a third option to weigh.
 ///
-///   The rule this sharpens rather than erodes: **refuse when a default is a
+///   The rule this sharpens: **refuse when a default is a
 ///   state the writer could not have produced, or when it feeds the
 ///   simulation.** A derived display field is neither, and if the format ever
 ///   grows widening, this is the entry that should take it.
@@ -399,7 +399,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   ground). A player: *"the merchants don't move right when you click End
 ///   Turn, and then… move insanely fast."* `docs/decisions.md` **C134**.
 ///
-///   **Refusal rather than default, and this one is squarely inside the rule
+///   **Refusal, and this one is squarely inside the rule
 ///   entry 16 sharpened**: a defaulted load feeds the simulation directly. A
 ///   version 16 save taken mid-turn has units part-way across tiles; zeroing
 ///   the counter hands each of them up to thirty-one ticks of free progress or
@@ -421,9 +421,9 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   `Ui_DrawDelta` of this number, which `L2.eng` group 220 calls *"Wood
 ///   produced next season"*.
 ///
-///   Carried rather than defaulted for entry 16's own reason and no stronger
+///   Carried for entry 16's own reason and no stronger
 ///   one: nothing re-runs the estimate round on load, so a zeroed forecast is a
-///   blank row a player would actually see. `docs/decisions.md`
+///   blank row a player would see. `docs/decisions.md`
 ///   C136.
 ///
 ///   **The fifth collision, and caught by a reader again — git put the two
@@ -441,7 +441,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   `County_RecountMerchants` (`0x00451061`) writes all three once a season
 ///   and [`crate::phase::Pass::CountyRecountMerchants`] is the pass. Carried
-///   rather than derived on load for the reason that made this whole change
+///   for the reason that made this whole change
 ///   necessary: **the first thing a loaded game does is turn phase 1**, which
 ///   runs the neutral counties' farming pass, which asks `merchant_count`
 ///   whether the county may buy food — and the recount does not run again
@@ -460,7 +460,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   in the workspace had them: `docs/stored-fields.json` carried them as
 ///   excluded, *"not a field of County"*, which was true and was the gap.
 ///
-///   Refused rather than defaulted on entry 16's weaker ground: they are display
+///   Refused on entry 16's weaker ground: they are display
 ///   figures nothing reads back, but nothing recomputes them on load either, so
 ///   a defaulted load prints *"no effect"* for a whole season in which the
 ///   original prints a number.
@@ -483,7 +483,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   decodes this body **before** its own prefix, so a version 19 game file is
 ///   refused by this check before a shifted index is ever read.
 ///
-///   **Refusal rather than default**: a version 19 save was written by a build
+///   **Refusal**: a version 19 save was written by a build
 ///   that never credited the pair, so its zeros are a state that build produced
 ///   and this one cannot — any realm that has collected a season's tax holds a
 ///   non-zero ledger here.
@@ -502,7 +502,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   letters before *"extra deaths."* / *"extra births."* It is the one output
 ///   of that pass nothing else re-derives: the percentage it came from is
 ///   cleared inside the same season, so a defaulted load cannot reconstruct it.
-///   Carried rather than refused-on-absence for entry 16's reason — it feeds no
+///   Carried for entry 16's reason — it feeds no
 ///   rule. `docs/decisions.md` C169.
 ///
 ///   *Written as 20 with `VERSION` at 19 on `main`, while another queued branch
@@ -521,8 +521,8 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   every county it has held and the one it started in. `docs/decisions.md`
 ///   C172.
 ///
-///   **Refusal rather than default**, and the default here would be visibly
-///   wrong rather than subtly: a version 19 save loaded with no tile seen and
+///   **Refusal**, and the default here would be visibly
+///   wrong: a version 19 save loaded with no tile seen and
 ///   the option on is a player's own county blacked out. A default of *every*
 ///   tile seen is the other wrong answer — a fog that lifted over a load.
 ///
@@ -535,7 +535,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   counties a realm has ever held. One byte a realm over six slots: **+6**.
 ///   `County_ChangeOwner` (`0x004A72FE`) reads it to choose which of its capture
 ///   letters the local player is sent and then raises it; nothing else reads
-///   it. Refused rather than defaulted: a defaulted peak of 0 sends *"Bravo!!
+///   it. Refused: a defaulted peak of 0 sends *"Bravo!!
 ///   … an excellent start"* for a county won back in the fortieth season.
 ///
 ///   *Written as 22 with `VERSION` at 21 on `main`. Per the standing hazard
@@ -550,7 +550,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   `County_DestroyField` steps it down; it is not `+0x202` and is not
 ///   derivable from it. `docs/decisions.md` C195.
 ///
-///   **Refusal rather than default**, under entry 16's rule: a defaulted load
+///   **Refusal**, under entry 16's rule: a defaulted load
 ///   feeds the simulation. A zero here makes the next trampled grain field
 ///   take no crop and repaint nothing different, and makes every grain tile of
 ///   the county draw the bare-crop picture until the next sowing.
@@ -757,7 +757,7 @@ impl Encode for Kingdom {
         out.encode(&self.rng);
 
         // Fixed arrays, walked by ascending index. The lengths are part of the
-        // schema, so they are written once rather than per record.
+// schema, so they are written once.
         out.section("counties");
         out.u32(MAX_COUNTIES as u32);
         for county in &self.counties {
@@ -843,7 +843,7 @@ fn decode_diplomacy(input: &mut Reader<'_>) -> Result<crate::diplomacy::Diplomac
 /// Written last so that a reader of a hex dump meets the economy in the order
 /// `docs/kingdom.md` describes it and the war after. Everything is
 /// fixed-width and index-ordered like the rest of the file: the unit array is
-/// 151 slots with a presence byte apiece rather than a count and a list,
+/// 151 slots with a presence byte apiece,
 /// because "slot 7 is empty" is state a lockstep peer has to agree about and a
 /// compacted list would renumber every unit above a casualty.
 fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {

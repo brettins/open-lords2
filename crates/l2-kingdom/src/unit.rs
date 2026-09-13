@@ -148,7 +148,7 @@ impl UnitKind {
 /// the unequipped levy left over as type 0. A knight is a man in mail.
 ///
 /// The same seven are the first seven of `l2_sim::Troop`'s eleven; this crate
-/// may not depend on `l2-sim`, so the correspondence is stated rather than
+/// may not depend on `l2-sim`, so the correspondence is stated
 /// shared. Types 7…10 (catapult, siege tower, ram, oil) exist only inside a
 /// battle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -218,7 +218,7 @@ pub const TROOP_STRENGTH_WEIGHT: [i32; TROOP_TYPES] = [2, 16, 8, 13, 9, 13, 22];
 /// The mercenary band riding with an army — record fields `+0x195`, `+0x196`
 /// and `+0x197`.
 ///
-/// **A band is atomic**, which is why it is one field rather than seven added
+/// **A band is atomic**, so it is one field
 /// into `troops`: it is raised as a single extra battle unit, it blocks a merge
 /// with another army that also carries one, and bankruptcy walks it off in one
 /// piece. `docs/armies.md` §5.3.
@@ -294,7 +294,7 @@ pub struct Unit {
     ///
     /// `Unit_StepOnce` (`0x0046634D`) adds [`SUBTILE_STEP_SOLO`] to this on
     /// every tick it is admitted by [`Unit::sub_frame`], and only when it
-    /// reaches [`SUBTILE_SPAN`] is the next tile actually entered. It is
+/// reaches [`SUBTILE_SPAN`] is the next tile entered. It is
     /// **not** a display value: it is the whole of a unit's speed, and without
     /// it a unit crosses one tile per tick. See [`crate::units_tick`].
     pub sub_tile: u8,
@@ -310,10 +310,10 @@ pub struct Unit {
     /// and the coming tick commits it.
     ///
     /// `Unit_Step`'s loop tests this before the budget check and the waypoint
-    /// advance, which is why a unit only notices it has run out of moves at a
-    /// tile boundary rather than part-way across one.
+/// advance, so a unit only notices it has run out of moves at a
+/// tile boundary.
     ///
-    /// **It starts set, and that is not a detail.** `Unit_Spawn`
+/// **It starts set.** `Unit_Spawn`
     /// (`0x0046E1B0`) ends with `field_0x14b |= 1` on every unit it creates,
     /// and `Army_Split` (`0x00437FD7`) sets it again on the half it makes — so
     /// the *first* admitted tick of a unit's life commits a tile immediately
@@ -328,13 +328,13 @@ pub struct Unit {
     /// `+0x150` *sh* — idle, no orders.
     pub needs_destination: bool,
     /// `+0x151` *sh* — the county the current order leads to. It is what makes
-    /// *"Invasion of"* fire on arrival rather than on passing through.
+/// *"Invasion of"* fire on arrival.
     pub dest_county: u8,
     /// `+0x153` — moves spent this season. The panel prints
     /// `move_allowance - moves_used` as `L2.eng` 31/22 *"moves left."*
     pub moves_used: i32,
     /// `+0x154` — 15 for an army, 10 for the other three. Rewritten every tick
-    /// by the type's handler, so it is derived rather than stored; it is here
+/// by the type's handler, so it is derived; it is here
     /// because the panel subtracts from it.
     pub move_allowance: i32,
     /// `+0x155` — 0…5, drawn as `L2.eng` 31/(27 + value): *healthy*, *ill,
@@ -350,7 +350,7 @@ pub struct Unit {
     /// afterwards** (`docs/armies.md` §1.2).
     pub morale: i32,
     /// `+0x168` — the total. Wages, the sprite class, starvation and the 1500
-    /// cap all read this rather than summing [`Unit::troops`].
+/// cap all read this.
     pub men: i32,
     /// `+0x16C + t*2` — the seven counts, indexed by [`TroopType`].
     pub troops: [i32; TROOP_TYPES],
@@ -394,7 +394,7 @@ pub struct Unit {
     /// the county changes hands, and
     /// [`crate::battle::disband_defence`] (`Defence_Disband`, `0x004ABA5A`)
     /// reads it afterwards: a **1** goes back into the county's people and the
-    /// unit is destroyed; a **2** simply has the mark cleared and the army
+/// unit is destroyed; a **2** has the mark cleared and the army
     /// stays.
     ///
     /// **The 2 is written on the AI branch and not on the human one.** An
@@ -427,7 +427,7 @@ pub struct Unit {
     /// > already lists, and §1.5 has `+0x167` among the offsets *"not
     /// > traced"*. It is traced twice over now, once per type.
     /// >
-    /// > **Two fields rather than one**, because we are not byte-compatible
+/// > **Two fields**, because we are not byte-compatible
     /// > with the original's record and nothing is gained by aliasing them: an
     /// > army has no cargo and a transport is never a county's defence, so
     /// > keeping them apart means no code can read the wrong one. The cost is
@@ -442,7 +442,7 @@ pub struct Unit {
     /// [`crate::ai_army::Mission::SEEK_ENEMY`], and a Rust enum would have
     /// nowhere to put the value that provoked it.
     ///
-    /// **It is not a player's order.** A human's army is steered by
+/// A human's army is steered by
     /// [`Unit::dest`] and [`Unit::path`]; this byte is only ever read for a
     /// unit whose realm the AI is driving. It is written by five sites in the
     /// original, all of them AI, and by one that is not — joining a castle
@@ -672,7 +672,7 @@ impl Unit {
     /// The floor is what stops a starving army from vanishing: ten men of a
     /// type never desert, so an army of seven tens shrinks to nothing slowly
     /// and then stops. The same function is `docs/kingdom.md` §7.4's
-    /// bankruptcy penalty, which is why it lives on the record rather than in
+/// bankruptcy penalty, so it lives on the record
     /// [`starve`].
     ///
     /// Returns the men lost.
@@ -700,7 +700,7 @@ pub const STRENGTH_SCORE_BONUS: i32 = 20;
 /// The 151-slot array, and the operations that walk it.
 ///
 /// Slot 0 is never a unit, exactly as in the original. A free slot is `None`
-/// rather than an owner byte of 0, so "is this slot in use" cannot be asked two
+/// so "is this slot in use" cannot be asked two
 /// different ways.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Units {
@@ -728,7 +728,7 @@ impl Units {
 
     /// `(slot, unit)` for every occupied slot, in ascending slot order —
     /// which is the order every loop in the original walks, and therefore part
-    /// of the specification rather than a convenience.
+/// of the specification.
     pub fn iter(&self) -> impl Iterator<Item = (usize, &Unit)> {
         self.slots.iter().enumerate().filter_map(|(i, u)| u.as_ref().map(|u| (i, u)))
     }
@@ -772,7 +772,7 @@ impl Units {
     ///
     /// Everything else uses [`Units::spawn`], which takes the lowest free slot
     /// the way `Unit_Spawn` does. A save has to restore the slot a unit was
-    /// actually in, because slot numbers are referenced by county
+/// in, because slot numbers are referenced by county
     /// `garrison_unit`, by `besieged_by`, and by a band's `hired_by` — renumber
     /// them on load and the links point at the wrong armies.
     pub fn put(&mut self, id: usize, unit: Unit) {
@@ -835,7 +835,7 @@ impl Units {
     ///
     /// Three things worth stating because they are easy to get wrong:
     ///
-    /// * **revolting peasants are counted**, not just armies — the loop tests
+/// * **revolting peasants are counted** — the loop tests
     ///   type 1 *or* 2;
     /// * **a garrison is excluded**, so walking your army into your own castle
     ///   takes it off the county's food bill entirely;
@@ -890,7 +890,7 @@ impl Units {
 ///
 /// `docs/armies.md` §5.1: `g_mercWage` is `price / 10`, is copied onto the
 /// band record, and is **never read anywhere**; the raise-army screen prints
-/// `men / 2`; and this is what is actually charged. Three numbers for the same
+/// `men / 2`; and this is what is charged. Three numbers for the same
 /// thing, of which only this one is spent.
 pub fn wages_for_realm(t: &Tables, units: &Units, realms: &[Realm; MAX_REALMS], realm: u8, difficulty: u8) -> i32 {
     let Some(r) = realms.get(realm as usize) else { return 0 };
@@ -1152,7 +1152,7 @@ pub fn destroy(t: &Tables, units: &mut Units, realms: &mut [Realm; MAX_REALMS], 
 /// `Army_PickName` (`0x004A9F72`) picks the **first** slot holding the lowest
 /// count and adds 2 to it, so a name repeats only after every other has been
 /// used — and, because [`destroy`] gives back only 1, the counters drift
-/// upwards over a long game rather than returning to zero.
+/// upwards over a long game.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArmyNames {
     counters: [[u8; ARMY_NAME_SLOTS]; MAX_REALMS],

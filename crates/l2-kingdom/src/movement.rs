@@ -18,7 +18,7 @@
 //! | diagonals | always | **forbidden out of a road tile** |
 //!
 //! Two of those differences change where an army walks, so a shared
-//! implementation would be a silent divergence rather than a saving. There is
+//! implementation would be a silent divergence.
 //! also a hard structural reason: `l2-kingdom` may not depend on `l2-sim`
 //! (`docs/netcode.md` D-3 and both crates' manifests), and moving the search
 //! into a shared crate would put the battle's 80 × 80 sentinels into the
@@ -44,8 +44,8 @@ use crate::unit::{UnitKind, Units, MAX_PATH};
 /// The eight neighbours **the fill** expands, in the order it expands them:
 /// N, E, S, W, then NE, SE, SW, NW.
 ///
-/// The order is part of the specification rather than an implementation
-/// detail — but note that it is *not* the order [`extract_path`] scans, which
+/// The order is part of the specification
+/// detail — but it is *not* the order [`extract_path`] scans, which
 /// is clockwise from north. Two adjacent functions in the original, two
 /// different orderings, and only the extractor's decides a tie.
 pub const FILL_NEIGHBOURS: [(i32, i32); 8] =
@@ -73,7 +73,7 @@ pub const STEP_DIRECTIONS: [(i32, i32); 8] = [
 /// **wraps**, so a fill that outgrows it silently overwrites its own queue and
 /// stops early with a half-filled field.
 ///
-/// Reproduced rather than fixed, for the same reason
+/// Reproduced, for the same reason
 /// `l2_sim::pathfind::QUEUE_CAP` is: a search that would have overrun must
 /// produce the original's result, not a better one. On a 64 × 64 map with a
 /// diamond frontier it takes pathological re-relaxation to reach, and probably
@@ -85,7 +85,7 @@ pub const QUEUE_CAP: usize = 1024;
 ///
 /// Not 0: 0 is the unvisited sentinel, so the start needs a value of its own
 /// and the original uses 1. Every distance in the field is therefore
-/// `true cost + 1`, which is why `Map_DrawPathMarker` computes `distance - 1`
+/// `true cost + 1`, so `Map_DrawPathMarker` computes `distance - 1`
 /// before choosing a sprite — that subtraction is undoing this seed, not
 /// correcting an off-by-one.
 pub const START_DISTANCE: i16 = 1;
@@ -192,8 +192,8 @@ impl DistanceField {
 /// * **A cell is re-relaxed and re-queued when a cheaper route arrives.** This
 ///   is not an optimisation — a FIFO queue over weights of 1, 3, 6 and 100 does
 ///   not produce distances in sorted order, and without relaxation the field
-///   would simply be wrong.
-/// * **Cost 0 is impassable and there is no separate blocked mask.** An
+///   would be wrong.
+/// * **Cost 0 is impassable.** An
 ///   impassable cell keeps `dist == 0` forever, which is indistinguishable
 ///   from unreached — deliberately, since neither can be walked to.
 /// * **A road tile expands orthogonally only.** `if (cost[cur] != 1)` gates the
@@ -287,7 +287,7 @@ pub fn flood_fill(cost: &CostMap, start: (u8, u8), routing: Routing) -> Distance
 /// The result is capped at [`MAX_PATH`]. The original does *not* cap it — the
 /// AI checks the length before copying and `Unit_OrderMove` does not, so a path
 /// over 150 steps writes past `g_pathBuf`'s 300-byte slot and stores a length
-/// the unit's array cannot hold. That one is a buffer overrun rather than a
+/// the unit's array cannot hold. That one is a buffer overrun
 /// rule, and it is clamped here.
 ///
 /// **`None` and `Some(vec![])` are different answers**, and [`order_move`] acts
@@ -359,11 +359,11 @@ pub fn extract_path(cost: &CostMap, field: &DistanceField, dest: (u8, u8)) -> Op
 ///
 /// > **Every write is inside the `if`.** `docs/armies.md` §2.3 renders the
 /// > destination and `moveState = 2` as unconditional statements after it; they
-/// > are not. A failed extraction leaves the unit exactly as it was — no
+/// > are not. A failed extraction leaves the unit exactly as it was
 /// > destination, not moving, its previous path intact. Corrected in the
 /// > document. `[D]`
 /// >
-/// > Note that this is *not* the same as "an unreachable destination does
+/// > This is *not* the same as "an unreachable destination does
 /// > nothing": `Move_ExtractPath` returns success with a zero-length path when
 /// > the destination was never reached, so that order **is** accepted and the
 /// > army stands still with `moveState = 2`. Only a dead end in the descent —
@@ -413,7 +413,7 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
 /// roads.**
 ///
 /// The 150 is [`crate::unit::MAX_PATH`], the capacity of the unit's stored
-/// path. [`extract_path`] already clamps there rather than overrunning the way
+/// path. [`extract_path`] already clamps there
 /// the original's `Unit_OrderMove` does, so the retry is triggered by the
 /// clamp being *reached* — a road route that comes back at exactly the cap is
 /// the one that could not be represented.
@@ -556,7 +556,7 @@ fn pass_through(
 /// apply it to.
 ///
 /// This crate has no diplomacy module yet — `docs/diplomacy.md` is traced and
-/// unimplemented — so `Diplo_Offend` is *reported* rather than invented. The
+/// unimplemented — so `Diplo_Offend` is *reported*. The
 /// numbers are the original's: **−10 for trampling a field**, and it fires
 /// **only when the trampling realm is human**. An AI army wrecks fields for
 /// free, which is a fourth `ownerIsHuman` branch to add to the three
@@ -578,14 +578,14 @@ pub struct Step {
     pub entry: Entry,
     /// Moves charged to the unit by this step.
     pub charged: i32,
-    /// True when the unit actually changed tile.
+/// True when the unit changed tile.
     pub moved: bool,
     /// Set when the unit crossed into a different county — the caller's cue to
     /// run the border-crossing rules and recount the county's troops.
     pub entered_county: Option<u8>,
     /// The army reached a county's castle tile. **This is a capture attempt**,
     /// and the caller resolves it with [`crate::conquest::attack_county`] —
-    /// which is what [`march_and_fight`] does. Reported rather than resolved
+/// which is what [`march_and_fight`] does. Reported
     /// inside [`step`] because taking a county needs the realm array, the
     /// ruleset and the name counters, and a stepper that took all of those
     /// would be a stepper nothing could test in isolation.
@@ -604,7 +604,7 @@ pub struct Step {
     /// `Unit_ReachCastleBuilding` (`0x004686A0`) splits on ownership:
     /// **`Army_Garrison` when the county is the mover's own, `Army_BeginSiege`
     /// when it is not.** `docs/armies.md` §9's target table. Both need the realm
-    /// array and one of them opens a screen, so this is reported rather than
+/// array and one of them opens a screen, so this is reported
     /// resolved — the same division [`Step::reached_castle`] already makes. See
     /// [`crate::conquest::reach_castle_building`], and
     /// [`crate::Kingdom::tick_units`] for the garrison half.
@@ -671,7 +671,7 @@ pub fn step(
     // `Unit_StepOnce`'s commit arm opens by clearing both halves of the
     // sub-tile counter, **after** `Unit_Step` has already made the budget test
     // above. A unit that has run out of moves therefore keeps whatever it had
-    // crossed, which is why the reset is here and not at the top.
+// crossed, so the reset is here.
     if let Some(u) = units.get_mut(id) {
         u.sub_tile = 0;
         u.sub_frame = 0;
@@ -901,7 +901,7 @@ pub const FIELD_TRAMPLE_OFFENCE: i32 = 10;
 /// `'\x14'` = 20, and unlike the trample it does so whoever the burner is.
 ///
 /// **The other half of `Unit_BurnDwelling` is not reproduced**, and it is worth
-/// saying at the constant rather than only in a document: the original also
+/// saying at the constant: the original also
 /// rewrites the tile (content `0x10` → `0x13`, frame `0x3C`) and takes **a
 /// quarter of the county's population** with it. This crate charges the seven
 /// moves and now the twenty standing; the burnt plot and the dead are a gap.
@@ -1161,7 +1161,7 @@ mod tests {
         assert_eq!(plain.cost_to(11, 11), Some(3));
     }
 
-    /// Relaxation, which is what makes this SPFA rather than a breadth-first
+/// Relaxation, which is what makes this SPFA
     /// search: an expensive first arrival is corrected by a cheaper later one.
     #[test]
     fn a_cheaper_route_arriving_later_rewrites_the_cost() {
@@ -1179,7 +1179,7 @@ mod tests {
         assert_eq!(f.cost_to(11, 10), Some(6));
 
         // Now make the direct crossing ruinous and the detour cheap, and check
-        // the field takes the detour's number rather than the first arrival's.
+// the field takes the detour's number.
         let mut m = open_map();
         for y in 0..MAP_DIM as u8 {
             if y != 0 {
@@ -1208,7 +1208,7 @@ mod tests {
         // **13, not 11** — and the 2 is the road's diagonal rule, not a
         // rounding. A road tile expands orthogonally only, so the cheapest way
         // onto (10, 11) is to walk the road to (10, 10) at 10 and step south
-        // for 3, rather than cutting the corner diagonally from (9, 10) at 9.
+// for 3.
         assert_eq!(direct.cost_to(10, 11), Some(13), "one step off the road");
         assert_eq!(hugging.cost_to(10, 11), Some(110), "…and a hundred to the road-hugger");
     }
@@ -1217,7 +1217,7 @@ mod tests {
     fn the_fill_never_walks_off_the_edge_of_the_map() {
         let f = flood_fill(&open_map().cost_map(), (0, 0), Routing::Direct);
         // If the original's row wrap were reproduced, (63, 0) would be one
-        // step west of (0, 0) rather than sixty-three steps east.
+// step west of (0, 0).
         assert_eq!(f.cost_to(63, 0), Some(3 * 63));
         assert_eq!(f.cost_to(1, 0), Some(3));
     }
@@ -1651,7 +1651,7 @@ mod tests {
         }
     }
 
-    /// Code **3** rather than 1 when the shared tile is a road, which is the
+/// Code **3** when the shared tile is a road, which is the
     /// one bit `Unit_EnterOccupiedTile` looks at before it decides.
     #[test]
     fn passing_through_on_a_road_costs_a_road_step() {
@@ -1670,7 +1670,7 @@ mod tests {
 
     /// **Occupancy is tested first**, so a merchant standing on a castle tile
     /// hides it: the mover walks on at open-ground cost and no capture is
-    /// reported. A consequence of the order in `Unit_TryEnterTile` rather than
+/// reported. A consequence of the order in `Unit_TryEnterTile`
     /// a rule anybody wrote, and the kind of thing that only shows up once
     /// units exist.
     #[test]

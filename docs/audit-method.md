@@ -26,7 +26,7 @@ New scripts written for this audit, all static and all fast:
 
 > Whether `Path_Search`'s visit counters are fully cleared between searches. The clear is
 > `FUN_004b3e51(&g_pathVisitCount, 0x1000)` against a 6,400-cell grid; if that count is
-> bytes rather than dwords, the last 2,304 cells keep stale counts from the previous search
+> bytes, the last 2,304 cells keep stale counts from the previous search
 > and deferral behaves differently on the bottom third of the map. **Not resolvable from the
 > decompilation alone — it needs the callee's signature.**
 
@@ -81,7 +81,7 @@ zero, so on skirmish maps the stale counters are inert. They are live on the ran
 castle battlefields built by `Battlefield_BuildRandom` / `Battlefield_BuildCastle`.
 
 **What should change.** Decide explicitly whether to reproduce the original's partial clear
-(bug-for-bug) or to diverge on purpose, and say which in the module doc — this is precisely
+ (bug-for-bug) or to diverge on purpose, and say which in the module doc — this is
 the class of thing C12 was about. And retire the habit the claim exemplifies: *"not
 resolvable — it needs X"* where X is an artefact already sitting in the repo.
 
@@ -134,7 +134,7 @@ siege claim in §6* is disclaimed against a file anyone can open.
 **What should change.** A sweep of the three "What is still unknown" sections
 (`battle.md` §11/§13.9, `battle-ai.md` §9, `kingdom.md` §12, `audit.md` §8), replacing every
 *"not decompiled"* / *"not traced"* / *"needs a Ghidra task"* with either the finding or
-**"not read"** — which is an honest backlog item rather than a false blocker. And a standing
+**"not read"** — which is an honest backlog item. And a standing
 rule: *a claim that something is expensive gets a timestamp, because tooling changes and the
 claim does not expire on its own.*
 
@@ -142,7 +142,7 @@ claim does not expire on its own.*
 
 ### F3 — 651 inferred names read as fact inside the decompilation, because `ApplySymbols` does not carry the confidence label that the docs are so careful about.
 
-The project's discipline about `[V]` versus `[D]`/`[I]` is genuinely good in the documents —
+The project's discipline about `[V]` versus `[D]`/`[I]` is good in the documents —
 `docs/battle.md` carries 111 `[V]` against 47 `[D]`/`[I]`, `docs/kingdom.md` 101 against 31,
 and `docs/battle-ai.md` opens by declaring itself mostly `[D]`. `docs/symbols.json` tags
 every entry: **352 verified, 42 inferred.**
@@ -183,7 +183,7 @@ Decompiled *functions* do carry their confidence — `Weather_UpdateAll`'s body 
 
 `battle-ai.md` §9 is right to keep flagging `g_siegeApproachScore` and `g_siegeBreachScore`
 as `[I]`. But the flag lives in a document, and the name lives in 91 places in the artefact
-people actually read. This is the structural version of C13 — *the artefact an agent leaves
+people read. This is the structural version of C13 — *the artefact an agent leaves
 behind is evidence; its prose is a claim* — with the roles reversed: here the artefact
 carries the claim and the prose carries the caveat.
 
@@ -219,7 +219,7 @@ from the 42.
 | *"NAT — Not tested, and not testable on one machine."* | `netcode.md:42` | **Correctly scoped and correctly labelled.** This is the discipline working: the mechanism is named (loopback traverses nothing), the honest status is recorded as "unknown", and the doc explicitly warns that `tests/resilience.rs` must not be read as covering it. Two machines on different networks. Nothing cheaper exists. |
 | *"`blowUsed` may never be cleared outside `Melee_Tick`"*, writers *"were not traced"* | `battle.md:472` | Now a grep: `rg "0x18C\|blowUsed" tools/oracle/decomp/`. Whole-binary write-site enumeration for a struct offset is text search over `+ 0x18c`, which the tree supports. |
 | *"the per-battlefield engagement budget at `0x00553080` … was not traced to where it is filled"* | `battle-ai.md:774` | `rg "553080" tools/oracle/decomp/`. Same shape as F6, which took one command. |
-| *"Frame rate … cannot be converted to seconds"* | `battle.md`, `battle-ai.md` §9 | The only genuinely runtime-shaped item in the battle backlog, and the honest one. The static half — where the frame counter is incremented and what gates it — is readable; the wall-clock half is not. Worth splitting into two claims, because half of it is free. |
+| *"Frame rate … cannot be converted to seconds"* | `battle.md`, `battle-ai.md` §9 | The only runtime-shaped item in the battle backlog, and the honest one. The static half — where the frame counter is incremented and what gates it — is readable; the wall-clock half is not. Worth splitting into two claims, because half of it is free. |
 | The `.skr` terrain byte → name mapping *"needs `mapl2.exe`'s palette-button order, which is a Ghidra task"* | `audit.md:88` | Fair, but note `mapl2.exe` is a *different binary* and `docs/agents.md` already documents the separate-project workflow for it. It is a task, not a blocker. |
 
 ---
@@ -271,7 +271,7 @@ contradict three documents, with no provenance recorded anywhere.**
 
 **What should change, in order.** (a) Extend the ddraw proxy to capture the primary surface —
 this is the technique D8 itself argued for, it needs no focus, and it makes the black-screen
-question moot rather than answered. (b) Record `start.png`'s provenance or delete it. (c)
+question moot. (b) Record `start.png`'s provenance or delete it. (c)
 Stop citing D8 as a blanket blocker: **two of its three legs are gone and the third was never
 weighed.** The honest summary of D8 today is *"driving the UI is difficult and unnecessary,
 because injection reaches further"* — which is a much narrower claim than the one three
@@ -391,12 +391,12 @@ skips are skipped for a reason worth knowing: `CASTLE_COST`, `CASTLE_WORKFORCE`,
 `CASTLE_GARRISON_CAP`, `CASTLE_FREE_ARCHERS` and `GOOD_SELL_PRICE` *are* checked by
 `kingdom.ps1`, so their addresses exist and just aren't in the doc comment; while
 `DEATH_RATE_BY_SEASON`, `DRYNESS_BY_SEASON`, `DRYNESS_LADDER`, `SCORE_INPUT_OFFSETS`,
-`AI_FIELD_LADDER` and `FACING_DELTA` are code immediates or genuinely unlocated. **The gap
+`AI_FIELD_LADDER` and `FACING_DELTA` are code immediates or unlocated. **The gap
 between those two groups is exactly the list of tables nobody can currently check.**
 
 ---
 
-## 4. What is genuinely unverified, ranked by risk
+## 4. What is unverified, ranked by risk
 
 The `[V]`/`[D]`/`[I]` discipline holds well in the documents. `docs/audit.md` is a real
 adversarial re-derivation and found 23 genuine problems in other docs. The failures below are
@@ -477,7 +477,7 @@ everywhere, and date every cost claim so it expires visibly.
 
 **2. Teach `ApplySymbols` about confidence.** 352 verified and 42 inferred symbols go into
 the database indistinguishably; 651 occurrences of inferred global names now read as fact in
-the artefact agents actually grep. Functions already get a `/* [verified] … */` plate; globals
+the artefact agents grep. Functions already get a `/* [verified] … */` plate; globals
 get nothing. A few lines in one Java file plus one re-run.
 
 **3. Make `tables.ps1` assert, and replace hand-typed expectations with `tablediff.js`.**
@@ -490,7 +490,7 @@ maintenance at all.
 **4. Adopt `rva.js` as the default for byte-level questions.** 44 ms, no Ghidra, no project
 lock. It settled a decompiler ambiguity in F5 that `decomp/` alone could not, and it prints
 the stored/not-stored boundary that C14 and C16 are both about. Reserve Ghidra for what it
-uniquely has: disassembly, xrefs to unnamed addresses, scalar/operand search. Note that xrefs
+uniquely has: disassembly, xrefs to unnamed addresses, scalar/operand search. xrefs
 to *named* globals are not in that set — 162 of 164 are reachable by `rg`.
 
 **5. Extend the ddraw proxy to capture the primary surface, and stop citing D8's third leg.**
@@ -507,7 +507,7 @@ second, and only then a new investigation** — the middle step is new and it is
 
 **7. Delete or archive the seven superseded `out/` directories** (6.5 MB, 247 files). They are
 the fragments `decompile-all.ps1` was written to replace and they still answer `rg` queries
-over `tools/`. `tools/battleai/out/path.c` is cited by C13 as evidence, so archive rather than
+over `tools/`. `tools/battleai/out/path.c` is cited by C13 as evidence, so archive
 delete, or move the citation to the tree.
 
 ---
@@ -516,7 +516,7 @@ delete, or move the citation to the tree.
 
 * **I did not launch the game.** The brief allows it with a measured reason. I found one
   candidate question — whether the original's framebuffer captures — and then found that the
-  right technique for it is the ddraw proxy rather than a screen grab, so a launch would have
+right technique for it is the ddraw proxy, so a launch would have
   measured the wrong thing. DxWnd, under which the existing screenshots were taken, is not on
   this machine (`E:\dev\tools` holds only Ghidra), so a launch would also have been fullscreen
   and would have taken over the user's display. Nothing was started; nothing is running.
@@ -524,7 +524,7 @@ delete, or move the citation to the tree.
   figure is quoted from the project. I verified the *output*: 13 files, 2,452 index entries,
   3.3 MB, stamped 21:14 today, with all 230 function symbols from `symbols.json` correctly
   applied. I did not re-run it, so the 22 s is the project's number, not mine.
-* **I did not verify `Imptitle.smk` actually colours `Title.pl8`.** F7 shows the executable
+* **I did not verify `Imptitle.smk` colours `Title.pl8`.** F7 shows the executable
   never names `Title.pl8`; testing whether the Smacker video's own palette matches it is the
   obvious next step and `tools/media/smkinfo.js` already exists, but that is a format
   question, not a method one.

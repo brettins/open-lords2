@@ -10,7 +10,7 @@
 //!   be pointed at a byte. Where the numbers are the England turn-one position's
 //!   own, the test is gated on that named fixture (`l2_testkit::england_turn1`)
 //!   and fails loudly if handed a different game.
-//! * **A save this code has misread is refused** rather than half-loaded. Each
+//! * **A save this code has misread is refused.** Each
 //!   refusal below corrupts one byte of a real save and checks which error comes
 //!   back, which is the only way to know the guards are reachable at all — and
 //!   that is a property of the importer, not of any scenario, so it runs over
@@ -157,7 +157,7 @@ fn a_mod_reaches_an_imported_scenario() {
 // --- refusals --------------------------------------------------------------
 //
 // These are invariants of the importer, so each runs over **every** save the
-// machine offers rather than over the one file somebody happened to have. The
+// machine offers. The
 // old versions poked counties 2, 3 and 5 of `lastturn.sav`; county 5 does not
 // exist on every map, which is the same mistake in miniature.
 
@@ -173,7 +173,7 @@ fn an_owner_byte_naming_no_realm_is_refused() {
     );
 }
 
-/// A weather byte outside 0..=5 is refused rather than defaulted to Cloudy.
+/// A weather byte outside 0..=5 is refused.
 #[test]
 fn a_weather_byte_naming_nothing_is_refused() {
     refusal_over_every_save(
@@ -209,7 +209,7 @@ fn a_neighbour_off_the_end_of_the_map_is_refused() {
     }
 }
 
-/// More counties than `g_counties` can hold is refused rather than truncated.
+/// More counties than `g_counties` can hold is refused.
 #[test]
 fn a_county_count_the_array_cannot_hold_is_refused() {
     refusal_over_every_save(|_| 0x0056_D5DC, 99, |_| ImportError::CountyCount(99));
@@ -270,7 +270,7 @@ fn the_labour_records_other_two_words_are_a_wanted_floor_and_a_useful_ceiling() 
         assert_eq!(c.labour_useful[JOB_IDLE_TOWNSFOLK], 0, "county {id}");
 
         // Break-even staffing is never above growth-maximising staffing, and
-        // both are real counts a county could actually field.
+// both are real counts a county could field.
         let (want, useful) = (c.labour_wanted[JOB_CATTLE_FARMING], c.labour_useful[1]);
         assert!(want > 0 && want <= useful, "county {id}: cattle {want} .. {useful}");
         assert!(useful <= c.population, "county {id}: {useful} tenders of {} people", c.population);
@@ -305,7 +305,7 @@ fn the_labour_records_other_two_words_are_a_wanted_floor_and_a_useful_ceiling() 
 /// said, so the two are independent readings of the same thing and this diffs
 /// them.
 ///
-/// It runs over **every** save the machine can offer rather than over the one
+/// It runs over **every** save the machine can offer
 /// named fixture, because `docs/decisions.md` C26 is what happens when a rule
 /// is checked against one value of its input — and the battle saves are a
 /// different map with four counties, which is exactly the second value.
@@ -425,7 +425,7 @@ fn the_merchant_routes_reach_the_kingdom() {
             "{name}: start counties"
         );
         // One merchant per start county **before the first zero** —
-        // `Merchant_SpawnAll` breaks rather than skipping, so a later non-zero
+// `Merchant_SpawnAll` breaks, so a later non-zero
         // entry never spawns anything.
         let spawned = scenario.merchant_start.iter().take_while(|&&c| c != 0).count();
         assert_eq!(
@@ -494,7 +494,7 @@ fn a_unit_whose_tile_offset_disagrees_with_its_tile_is_refused() {
     }
 }
 
-/// A type byte naming no handler is refused rather than imported as something.
+/// A type byte naming no handler is refused.
 #[test]
 fn a_unit_type_that_names_no_handler_is_refused() {
     let exe = l2_testkit::executable!();
@@ -523,7 +523,7 @@ fn a_unit_type_that_names_no_handler_is_refused() {
 /// and the campaign map's castle flag are all downstream of that field, and the
 /// flag is what exposed it. C59.
 ///
-/// Run over **every** save the machine can offer rather than one fixture,
+/// Run over **every** save the machine can offer,
 /// because the failure was silent on all of them: ten of the eleven in the tree
 /// carry a garrison and the eleventh is England turn one, which has none because
 /// it is turn one. Asserting "both halves agree" on each is what makes this a
@@ -562,11 +562,11 @@ fn a_castle_garrison_reaches_the_county_it_is_standing_in() {
 }
 
 /// **Realm `+0x0A` is the shield index, and a default game sets it to the realm
-/// id.** Read rather than assumed: the importer used to fill this field with the
+/// id.** Read: the importer used to fill this field with the
 /// realm id on the strength of `Game_SetupRealmsAndCounties` doing so, which is
 /// true of a *default* game and not of one whose colour picker has run. Now
 /// that `l2-formats` reads the byte, this asserts the assumption it replaced —
-/// so if a fixture ever carries a permuted set, it says so here rather than
+/// so if a fixture ever carries a permuted set, it says so here
 /// silently changing every flag.
 ///
 /// **The free-slot pool this used to cite as `0x0049CE1F` is inside
@@ -574,7 +574,7 @@ fn a_castle_garrison_reaches_the_county_it_is_standing_in() {
 /// and not a function).** It is now written out in
 /// `l2_scenario::newgame::assign_lords`, and `docs/rules.md` §7a is what it
 /// produces for each of the five colours a person can take. An interior address
-/// with no name beside it is a citation nobody can follow, which is why this one
+/// with no name beside it is a citation nobody can follow, so this one
 /// went five months without anybody noticing the walk it named was unwritten.
 #[test]
 fn the_shield_index_of_a_default_game_is_the_realm_id() {
@@ -609,9 +609,9 @@ fn the_shield_index_of_a_default_game_is_the_realm_id() {
 /// whose realm imports with an empty armoury is a levy that can only ever be
 /// peasants, and the picture would say so — the six weapons hang on the wall
 /// only when the realm owns one — so the failure would have been visible and
-/// unexplained rather than invisible.
+/// unexplained.
 ///
-/// Asserted against the file rather than against a literal, for the reason the
+/// Asserted against the file, for the reason the
 /// weather-county correction above records: a regenerated fixture is a
 /// different game, and `docs/kingdom.md`'s *"50 swords, 50 pikes and 50 bows in
 /// all five realms"* is one roll of `g_startArmoury`, not a law.
@@ -656,7 +656,7 @@ fn every_imported_realm_holds_the_stocks_the_file_holds() {
 /// settlement tile (plane-0 bit `0x80`) whose terrain falls in that industry's
 /// rung of `Map_Click`'s ladder — 0…3 iron, 4…6 stone, 7…9 weapons, 10…12 wood.
 ///
-/// It is not a vacuous agreement. On the England fixture the answer is *false*
+/// On the England fixture the answer is *false*
 /// for 15 of the 56, iron and stone are complementary in thirteen of the
 /// fourteen counties, and county 5 has neither — so a defaulted `true`, which
 /// is what the importer used to supply, fails this fifteen times.
@@ -737,7 +737,7 @@ fn pct(v: i32, p: i32) -> i32 {
     v * p / 100
 }
 
-/// **`g_castleTaxBase`, written out rather than imported.** The multiplier for
+/// **`g_castleTaxBase`, written out.** The multiplier for
 /// castle types 0 … 5, immediates in `Tax_CollectAll`'s instruction stream
 /// (`docs/kingdom.md` §10). Spelled here so that the assertion below does not
 /// compute its expected value from the table it is checking — the trap
@@ -746,7 +746,7 @@ fn pct(v: i32, p: i32) -> i32 {
 const CASTLE_TAX_BASE: [i32; 6] = [320, 480, 560, 640, 720, 800];
 
 /// The one moment on this machine where `+0xC0` is **not** the current
-/// population's answer, named with its reason rather than filtered out.
+/// population's answer, named with its reason.
 ///
 /// It is the middle save of the battle triple, and the fixture's own name is
 /// the explanation: `battle-during.sav` (the install calls the same game
@@ -891,7 +891,7 @@ fn every_saved_industry_forecast_is_what_its_own_records_workers_make() {
                     }
                 }
                 // The importer carries it, and the kingdom a loaded game runs on
-                // receives it — rather than `Industry::new()`'s zero.
+// receives it.
                 if let Some(state) = &scenario.counties[id] {
                     assert_eq!(state.industry[c as usize].next_season, stored, "{}", f.label());
                     assert_eq!(
@@ -920,7 +920,7 @@ fn every_saved_industry_forecast_is_what_its_own_records_workers_make() {
 /// `+0xC0` is `Pct(Pct(population, castleBase), taxRate)` — the third statement
 /// of `Tax_RecomputePreview` — and the saves on this machine carry rates 2, 3,
 /// 6 and 8, so the arithmetic can be checked against a number the original
-/// wrote rather than against ourselves. `docs/plan.md` §2.5 says every county in
+/// wrote. `docs/plan.md` §2.5 says every county in
 /// every fixture sits at rate 0; that is true of the England fixture and false
 /// of the turn pair and the six siege saves.
 ///
@@ -1136,10 +1136,10 @@ fn the_happiness_average_is_the_running_sum_over_the_turn_count_in_every_save() 
 /// **`+0x5B` is set exactly where `+0x2C` reaches 6** — `Population_UpdateAll`
 /// writes the change percentage and then attributes it only when it is at least
 /// six (`docs/kingdom.md` §1.2). Both bytes are written in the same pass, so the
-/// relation holds whatever happened to the population afterwards, which is why
+/// relation holds whatever happened to the population afterwards, so
 /// this does not also check the percentage against the population.
 ///
-/// The six is written as a literal rather than read from
+/// The six is written as a literal
 /// `l2_kingdom::county::CHANGE_REASON_MIN_PCT`: a probe computed from the constant
 /// under test is `docs/agents.md`'s first way to ablate wrongly.
 #[test]
@@ -1231,7 +1231,7 @@ const MERC_IN_PLAY: u32 = 0x0055_4030;
 /// A loaded game used to have no bands in play at all, so the raise-army screen
 /// never offered one and the town square never showed one. The comparison is
 /// the kingdom against the **bytes**, band by band, and two of the assertions
-/// are the table checking itself rather than the importer:
+/// are the table checking itself:
 ///
 /// * a band that offered itself this season has **just reloaded its countdown
 ///   and stepped one past the county it stands in**, with no wrap — the tail of

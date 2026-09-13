@@ -11,9 +11,9 @@
 //! > moving, and units are not that crate's state"*. Both halves have since
 //! > stopped being true. Units **are** `l2-kingdom`'s state — `Campaign` lives
 //! > inside `Kingdom` because two lockstep peers have to agree about where an
-//! > army stands — and phase 2 waits on sieges rather than armies
+//! > army stands — and phase 2 waits on sieges
 //! > (`docs/decisions.md` C35). What is left on this side of the seam is not
-//! > ownership of the units; it is the two things below that genuinely are not
+//! > ownership of the units; it is the two things below that are not
 //! > rules: what a phase's wait *means* to an application, and who fights a
 //! > battle.
 //!
@@ -100,7 +100,7 @@ use crate::game::Game;
 /// `4 × 160 + the fixed phases ≈ 680`. 2048 is threefold headroom on that.
 ///
 /// **The cost of raising it is real and is the reason for the arithmetic**: a
-/// genuinely wedged turn now takes 33 seconds of wall clock to report itself
+/// wedged turn now takes 33 seconds of wall clock to report itself
 /// instead of 8. That is the trade — a bound that a legitimate turn can cross
 /// is worse than a slow diagnosis, because it stops the turn *and* looks like
 /// the bug it is not.
@@ -126,7 +126,7 @@ pub struct TurnOutcome {
     /// Battles that were raised and **not fought** — normally empty, because
     /// [`resolve_battle`] fights them. An entry here means
     /// [`crate::engagement::resolve`] declined the pair, which it does when
-    /// either slot is no longer a unit. Reported rather than swallowed.
+/// either slot is no longer a unit. Reported.
     pub pending_battles: Vec<Encounter>,
     /// **Every battle this turn settled, oldest first** — one per army that
     /// walked into an enemy, plus one per siege assault phase 2 launched.
@@ -152,7 +152,7 @@ impl TurnOutcome {
 /// Run the phase machine until the end-of-season pipeline has run once.
 ///
 /// Returns `None` only if [`MAX_TICKS`] is reached, which would be a bug in a
-/// wait condition rather than something a player can cause.
+/// wait condition.
 ///
 /// # The shape of one tick
 ///
@@ -224,7 +224,7 @@ pub enum TurnStep {
     /// frames to spread a turn over has nothing to do with it.
     Running,
     /// The phase machine did not come round inside [`MAX_TICKS`]. A bug in a
-    /// wait condition rather than anything a player can cause.
+/// wait condition.
     Stuck,
 }
 
@@ -236,7 +236,7 @@ pub struct Question {
     pub defender: usize,
     /// The county fought over — the besieged one for an assault.
     pub county: u8,
-    /// A siege assault rather than a field battle. `L2.eng` group 80 index 7 is
+/// A siege assault. `L2.eng` group 80 index 7 is
     /// *"The Siege commences."* where a field battle draws index 0.
     pub is_siege: bool,
     /// Which realm each side belongs to, read while both records still exist.
@@ -359,7 +359,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
 ///
 /// # The discard is deliberate, it is single-player-only, and it is not a hole
 ///
-/// Re-read at the instruction level rather than assumed, because this is the
+/// Re-read at the instruction level, because this is the
 /// line that reads like the seam being broken. `Battle_WriteBackCasualties`
 /// (`0x0047F474`) has **five call sites in the whole binary**: two in
 /// `Battle_CheckOutcome`'s post-banner arm, two in `FUN_004782C5`'s, and one in
@@ -402,7 +402,7 @@ pub fn finish_battle(game: &mut Game) -> TurnStep {
     let staged = p.pending_assault.take();
     if staged.is_some() {
         // The siege pump parked its assault on the question; the battle has now
-        // been fought, so the pump must be let go of it rather than settling it
+// been fought, so the pump must be let go of it
         // a second time.
         p.pending_assault = None;
     }
@@ -505,7 +505,7 @@ fn raise_idle_battle(game: &mut Game, e: Encounter) {
         // itself has nowhere to go and `record` drops it, and the recount is
         // the half that must not be dropped with it.
         //
-        // The `game.turn.is_some()` half is a guard rather than a rule: the map
+// The `game.turn.is_some()` half is a guard: the map
         // screen does not run this sweep while a turn is in flight, and
         // clobbering a suspended turn with an idle one would lose a season.
         let attack = Attack::Battle { attacker: e.mover, defender: e.occupant };
@@ -654,7 +654,7 @@ enum Resume {
 /// the top of a tick, part-way through phase 2's assaults, and after the unit
 /// sweep has raised a battle but before the tick's bookkeeping has run. A turn
 /// resumed at the wrong one would run `begin_phase` twice or lose a season
-/// report, so the stage is stored rather than guessed from the other fields.
+/// report, so the stage is stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum Stage {
     /// Start a tick: count it, and run the phase's first-call work.
@@ -679,7 +679,7 @@ struct Tail {
 /// **A turn, mid-flight.** Everything [`end_turn`]'s loop used to hold in
 /// locals, hoisted so the loop can be left and re-entered.
 ///
-/// It lives on the [`Game`] rather than being handed back to the caller because
+/// It lives on the [`Game`] because
 /// a half-run turn is not something a caller may drop: the kingdom is in a state
 /// no rule describes — two armies on one tile, a season report computed and not
 /// yet delivered — and the only safe thing to do with it is finish it.
@@ -782,7 +782,7 @@ fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
             Stage::Begin => {
                 let p = game.turn.as_mut().expect("checked above");
                 if p.ticks >= MAX_TICKS {
-                    // Give the half-turn back rather than leaving it parked:
+// Give the half-turn back:
                     // a stuck turn that could not be re-entered would wedge the
                     // campaign for the rest of the session.
                     game.turn = None;
@@ -800,7 +800,7 @@ fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
             }
             Stage::Phase => {
                 // Phase 2's pump, one assault at a time. `begin_phase` loaded
-                // it and left it here rather than running it, which is what
+// it and left it here, which is what
                 // makes an assault askable.
                 if game.turn.as_ref().is_some_and(|p| p.siege.is_some()) {
                     pump_siege(game);
@@ -864,7 +864,7 @@ fn run_phase_tick(game: &mut Game) {
 /// The order is the original's and is not cosmetic: the battle is fought before
 /// the contacts are recorded and before the report is delivered, so a realm
 /// whose last army dies this tick is eliminated by [`Game::rank_realms`] on the
-/// same turn rather than the next one.
+/// same turn.
 fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
     let Some(mut tail) = game.turn.as_mut().and_then(|p| p.tail.take()) else {
         if let Some(p) = game.turn.as_mut() {
@@ -971,7 +971,7 @@ fn pump_siege(game: &mut Game) {
 /// **The recount is `Realm_RecountStrength` (`0x0049B42B`), the last statement
 /// of both of `Battle_ReturnToCampaign`'s branches**, and it is one of only
 /// four places in the original where a realm can be eliminated — the only one
-/// that fires the instant a realm's last army dies rather than waiting for its
+/// that fires the instant a realm's last army dies
 /// own turn to come round. [`crate::engagement`] cannot make the call, because
 /// it needs the county count and the local player and neither is a battle rule;
 /// [`l2_kingdom::battle::Aftermath::loser_owner`] carries the argument here,
@@ -1040,7 +1040,7 @@ fn question_for(
     let (defender_owner, defender_men, _, _, defender_roster) = read(defender);
     let county = if is_siege { besieged } else { units.get(defender).map_or(0, |u| u.county) };
     // **`g_battleChoiceOwner`**, and this is `Battle_ChooseSettlement`
-    // (`0x004A6A30`) rather than a paraphrase of it, because the paraphrase was
+// (`0x004A6A30`), because the paraphrase was
     // wrong in the one case that mattered:
     //
     // ```c
@@ -1116,7 +1116,7 @@ fn settle_question(game: &mut Game, q: Question, answer: Answer) {
     match engagement::resolve(&mut game.kingdom, attack, q.county, answer, seed) {
         Some(report) => record(game, Some(report)),
         None => {
-            // Not resolvable — a slot is no longer a unit. Reported rather than
+// Not resolvable — a slot is no longer a unit. Reported.
             // swallowed, exactly as it always was.
             if let Some(p) = game.turn.as_mut() {
                 p.pending_battles.push(Encounter {
@@ -1138,7 +1138,7 @@ fn settle_question(game: &mut Game, q: Question, answer: Answer) {
 /// the whole of it.** `Turn_Tick`'s phase-2 arm is a pump — validate, build,
 /// assault, repeat until the cursor comes up empty — and
 /// [`crate::engagement::run_siege_phase`] runs that pump to exhaustion in one
-/// call rather than one assault a tick. The two agree on every number because
+/// call. The two agree on every number because
 /// the cursor only ever advances and no other phase runs between its steps; the
 /// difference is that ours does not spread the sieges over as many `Turn_Tick`
 /// calls, which nothing outside the phase can observe. See the comment on
@@ -1177,7 +1177,7 @@ fn siege_seed(kingdom: &Kingdom) -> u64 {
 /// > This was written as a marked stub — the mover landed while battle
 /// > resolution was being built on another branch, and an unfought pair went
 /// > into [`TurnOutcome::pending_battles`] so that filling the seam in would
-/// > change a test rather than pass either way. Both have landed, and the
+/// > change a test. Both have landed, and the
 /// > handoff is a real call now. `pending_battles` stays, because there is
 /// > still one case that does not resolve: see below.
 ///
@@ -1198,13 +1198,13 @@ fn siege_seed(kingdom: &Kingdom) -> u64 {
 ///
 /// `docs/netcode.md`: two peers fight the same battle or they are not playing
 /// the same game. The seed is mixed from the turn counter, the two unit slots
-/// and the county — all of which both peers agree on — rather than drawn from
+/// and the county — all of which both peers agree on —
 /// [`l2_kingdom::Kingdom::rng`], because drawing would advance the generator
 /// the weather and the event deck share and make a turn with a battle in it
 /// roll different weather from the same turn without one.
 ///
 /// Returns the encounter **unfought** if it could not be resolved, which is
-/// then reported rather than swallowed.
+/// then reported.
 pub fn resolve_battle(game: &mut Game, encounter: Encounter) -> Option<Encounter> {
     let attack = Attack::Battle { attacker: encounter.mover, defender: encounter.occupant };
     let seed = battle_seed(&game.kingdom, encounter);
@@ -1369,7 +1369,7 @@ fn begin_phase(game: &mut Game, phase: Phase) {
 /// has never had a production caller; it is left as the crate's own statement of
 /// the rule, and this is the call site.
 fn step_zero(game: &mut Game, realm: u8) {
-    // The original reads the guard before the recount, which is why a realm the
+// The original reads the guard before the recount, so a realm the
     // recount *eliminates* still gets its totals rebuilt and its offer cleared.
     if game.kingdom.realms[realm as usize].strength == 0 {
         return;
@@ -1491,7 +1491,7 @@ fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut boo
             kingdom.run_ai_move_armies(realm);
         }
         AiStep::ChooseIndustry => kingdom.run_ai_industry(realm),
-        // The letters are dropped rather than shown: a realm-to-realm taunt is
+// The letters are dropped: a realm-to-realm taunt is
         // not a season message and `l2-game` has no letter screen yet. The
         // realm's timer, stage and voice rotation still advance, which is the
         // whole of the step's effect on the simulation.
@@ -1505,7 +1505,7 @@ fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut boo
         // **There is no `_ =>` arm below this**, and that is deliberate: the
         // wildcard was what let the two diplomacy steps sit undispatched
         // without the compiler having anything to say. A fifteenth handler
-        // would now be a compile error rather than silence.
+// would now be a compile error.
         AiStep::Nothing => {}
     }
 }

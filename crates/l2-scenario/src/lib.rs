@@ -34,7 +34,7 @@
 //!
 //! # What the save does not record
 //!
-//! One thing, and it is worth stating where a reader will find it rather than
+//! One thing, and it is worth stating where a reader will find it
 //! burying it in a test. The file stores `popLast` and `happinessLast`, so the
 //! previous season's population and happiness are recoverable exactly. It
 //! stores **no previous herd and no previous grain** — the ration pass spent
@@ -70,7 +70,7 @@ use l2_kingdom::{field, land, CampaignMap, Kingdom, Options};
 /// Where the nine labour records begin inside a county record, and how far
 /// apart they are — `+0xC4`, stride `0x0C`, worker count at word 0.
 ///
-/// **Read here rather than through [`l2_formats::save::County`]** because that
+/// **Read here** because that
 /// struct belongs to `l2-formats`, which is not this crate's to change; `Save`
 /// exposes the addressed reads it is itself built from, so the seam can take
 /// the word it needs without either crate learning about the other.
@@ -122,7 +122,7 @@ const CASTLE_SWITCH: u32 = 0x1B0;
 /// stores **283** for 738 at rate 8 behind a wooden castle. The ninth is
 /// `incombat.sav`, whose population fell while the battle was open and whose
 /// stored 245 is the *pre-battle* population's answer — which is the point of
-/// reading the byte rather than recomputing it on load.
+/// reading the byte.
 ///
 /// **These are also the project's first oracle for a non-zero tax rate.**
 /// `docs/plan.md` §2.5 says every county in every fixture sits at rate 0; that
@@ -166,7 +166,7 @@ const FARM_STYLE: u32 = 0x1FE;
 /// asserted *"it is 0 in every fixture"*, which was true of `england-turn1.sav`
 /// and of nothing else. `docs/decisions.md` C149.
 ///
-/// **The stall is imported rather than recomputed from the units**, even though
+/// **The stall is imported**, even though
 /// `l2_kingdom::merchant::recount_all` could derive it, because the first thing
 /// a loaded game runs is turn phase 1 — the neutral farming pass — and the
 /// recount is season pass 22, at the *end* of that same turn. The original
@@ -197,7 +197,7 @@ const MERCHANT_UNIT: u32 = 0x1A5;
 ///   of six static arrays; all eighteen saves on this machine hold exactly
 ///   [`l2_kingdom::mercenary::ROSTER`] there, and every slot past the in-play
 ///   count is zero. [`read_mercenaries`] refuses a save where they disagree,
-///   because the kingdom keeps those six in the roster rather than per band and
+///   because the kingdom keeps those six in the roster and
 ///   would otherwise replace the file's values in silence.
 /// * **County `+0x1AD` is `Mercenary_OfferInCounty` over this table**, in every
 ///   county of every save — including `siege-old_turn.sav`, where bands 2 and 3
@@ -237,7 +237,7 @@ const MERCENARY_BANDS_IN_PLAY: u32 = 0x0055_4030;
 /// asserts it.
 ///
 /// Until this was read, every county arrived with [`Industry::has_resource`] and
-/// [`Industry::enabled`] defaulted to `true`, which is why **no county ever
+/// [`Industry::enabled`] defaulted to `true`, so **no county ever
 /// showed a mine**: the village picks the mine for cluster 0 only when the
 /// county has a mine *and no quarry*, and a county that claims both is a county
 /// with a quarry. `docs/decisions.md` C57.
@@ -271,7 +271,7 @@ const TILE_STRIDE: u32 = 8;
 ///
 /// An offset that is not a multiple of eight, or that lands outside the
 /// 64 × 64 plane, is a misread and not a field: it becomes an **empty slot**
-/// rather than an out-of-bounds index. Nothing in the fixture takes that path
+/// Nothing in the fixture takes that path
 /// — `crates/l2-scenario/tests/import.rs` asserts every populated slot is a
 /// real tile — and it is here so that a corrupt save loses a field instead of
 /// panicking somewhere else later.
@@ -467,7 +467,7 @@ mod stored {
 /// One word out of each of a county's nine labour records.
 ///
 /// `word` is the byte offset inside the twelve-byte record: 0 is the workers
-/// actually assigned, 4 the wanted floor, 8 the useful ceiling. All three are
+/// assigned, 4 the wanted floor, 8 the useful ceiling. All three are
 /// read the same way because the record really is three plain `i32`s — which
 /// is the whole reason the stride is twelve and not four.
 fn read_labour(save: &Save, county: usize, word: u32) -> Result<[i32; JOB_COUNT], SaveError> {
@@ -482,7 +482,7 @@ fn read_labour(save: &Save, county: usize, word: u32) -> Result<[i32; JOB_COUNT]
 /// The health meter every county starts a new game on.
 ///
 /// **`[V]`, and it used to be `[I]`.** It was the one number in the whole
-/// reproduction that came from prior art rather than from the binary or the
+/// reproduction that came from prior art
 /// file, held in place only by the chain around it: 65 bands as 2, the Normal
 /// ration delta for band 2 is +2, and the save stores a meter of 67 in band 3.
 ///
@@ -503,7 +503,7 @@ pub enum ImportError {
     CountyCount(i32),
     /// An owner byte naming a realm that does not exist.
     Owner { county: usize, owner: u8 },
-    /// A weather byte outside 0..=5. Refused rather than defaulted to Cloudy:
+/// A weather byte outside 0..=5. Refused:
     /// a scenario we cannot read is not a scenario we should half-load.
     Weather { county: usize, byte: u8 },
     /// `g_localPlayer` outside 1..=5.
@@ -514,7 +514,7 @@ pub enum ImportError {
     Neighbour { county: usize, id: u8 },
     /// A unit whose type byte names none of the four handlers in
     /// `g_unitTickTable`. Slot 5 of that table is NULL and nothing spawns a
-    /// type-5 unit, so a fifth value is a misread rather than a unit this code
+/// type-5 unit, so a fifth value is a misread
     /// does not model yet.
     UnitKind { unit: usize, byte: u8 },
     /// A unit standing on no tile, or whose `+0x0C` tile offset disagrees with
@@ -680,7 +680,7 @@ pub struct CountyState {
     /// needs them badly: `l2_kingdom::land::herd_growth` staffs a herd at three
     /// labourers a head and kills the shortfall, so a county imported with a
     /// labour of zero would lose cattle every season for want of a field this
-    /// crate had simply not read. `docs/kingdom.md` §13.
+/// crate had not read. `docs/kingdom.md` §13.
     pub labour: [i32; JOB_COUNT],
     /// `+0xC4 + job * 0x0C + 0x04` and `+ 0x08` — the wanted floor and the
     /// useful ceiling of each record.
@@ -694,7 +694,7 @@ pub struct CountyState {
     pub labour_useful: [i32; JOB_COUNT],
     /// `+0x130 + job*4` — the eight percentages the allocator splits each half
     /// of the county by, and `+0x08`, the percentage of the county that is
-    /// industry rather than farm.
+/// industry.
     ///
     /// Read here for the same reason the labour records are: they are the
     /// allocator's only inputs besides the ceilings, and with them the shipped
@@ -750,7 +750,7 @@ pub struct CountyState {
     pub reclaim_fields_finishing: i32,
     pub reclaim_seasons_to_next: i32,
     /// `+0x18`, `+0x1C` — *"Average happiness"* and the running sum it is
-    /// taken from. **These were not merely dropped, they were invented:** the
+/// taken from. **These were not dropped, they were invented:** the
     /// importer set both to this season's happiness, which is wrong in every
     /// save past turn one — `siege-aftersie.sav` county 2 draws 95 where the
     /// original draws 54.
@@ -905,7 +905,7 @@ pub struct RealmState {
 /// A whole starting position, as plain data.
 ///
 /// Nothing here is a `Save` and nothing here is a `Kingdom`. That is what makes
-/// this the seam rather than a shortcut through it: a hand-written scenario, a
+/// this the seam: a hand-written scenario, a
 /// scenario editor or a future `.toml` can produce one of these without a game
 /// install, and [`Scenario::kingdom`] is the only code that has to change if the
 /// simulation's own shape does.
@@ -952,13 +952,13 @@ pub struct Scenario {
     /// were the ones tests built by hand. So a loaded England position had a
     /// working economy and an empty map.
     ///
-    /// Slots are carried rather than compacted because they are *referenced*:
+/// Slots are carried because they are *referenced*:
     /// county `garrison_unit`, a garrison's `besieged_by` and a mercenary band's
     /// `hired_by` all name a slot, and `Merchant_AdvanceAll` indexes the route
     /// table by slot. Renumber on import and the six merchants walk each other's
     /// routes.
     ///
-    /// Stored as [`l2_kingdom::unit::Unit`] rather than as a plain mirror of it,
+/// Stored as [`l2_kingdom::unit::Unit`],
     /// on the same grounds as [`Scenario::map`]: the record has forty fields and
     /// a second copy of it here would be forty more places to drop one.
     pub units: Vec<(usize, Unit)>,
@@ -974,7 +974,7 @@ pub struct Scenario {
     /// `g_merchantStartCounty` (`0x00569518`) — the county each route's merchant
     /// was **spawned** in, which is not where it is now.
     ///
-    /// Carried on the scenario rather than in [`MerchantRoutes`] because nothing
+/// Carried on the scenario because nothing
     /// in the simulation reads it: `Merchant_PickStartCounties` and
     /// `Merchant_SpawnAll` both ran before the save was written, and their
     /// output is already in the unit array. What it is good for is *checking*
@@ -1001,7 +1001,7 @@ pub struct Scenario {
 /// Only the four walk fields and the hirer are carried per band, because that
 /// is all [`MercenaryBands`] holds: the other six are `Mercenary_Init`'s copy of
 /// the static roster, and the kingdom reads them from
-/// [`l2_kingdom::mercenary::ROSTER`]. So the six are **compared** rather than
+/// [`l2_kingdom::mercenary::ROSTER`]. So the six are **compared**
 /// imported, and a disagreement is a refusal — carrying the file's bands with
 /// the roster's prices would be a different game that looked like this one.
 ///
@@ -1105,12 +1105,12 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         path: u.path(),
         moving: u.move_state != 0,
         on_road: u.on_road,
-        // **`+0x149 … +0x14B` are not read**, and this is a default rather than
+// **`+0x149 … +0x14B` are not read**, and this is a default
         // an import. `l2_formats::save::Unit` stops at `+0x14C`; adding the
         // three bytes is `l2-formats`' business and `docs/agents.md` reserves
         // that crate for the lead session.
         //
-        // What it costs is bounded and is stated rather than assumed: the
+// What it costs is bounded and is stated: the
         // original writes its save from phase 7, **after** `Units_ResetMoves`,
         // so nothing in a legitimately saved position is walking and the
         // counter is not being consulted. A unit whose last march ended
@@ -1174,7 +1174,7 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         // yet - the unit block holds them and `l2-formats` does not surface them -
         // so an imported army starts with no engines ordered. A besieging army
         // imported mid-build therefore resumes at zero work, which is wrong and
-        // is recorded here rather than hidden: it needs the three `+0x16C` words
+// is recorded here: it needs the three `+0x16C` words
         // and the countdown adding to `l2_formats::save`.
         engines: Default::default(),
         siege_seasons_left: 0,
@@ -1183,7 +1183,7 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         // `l2_formats::save`'s unit block yet**, so an imported army starts
         // with mission 0, which the AI's own dispatcher normalises to
         // `Mission::SEEK_ENEMY` on its first turn. That is one lost turn per
-        // imported army and it is stated rather than hidden: reading them is
+// imported army and it is stated: reading them is
         // two more bytes off the same record, in the same place the siege
         // records above are still missing from.
         //
@@ -1199,10 +1199,10 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
 impl Scenario {
     /// Read a England turn-one save into plain data.
     ///
-    /// Every refusal here is a refusal rather than a default. A save whose owner
+/// Every refusal here is a refusal. A save whose owner
     /// byte names realm 9 is not a save with a small problem; it is a save this
     /// code has misread, and the arithmetic in [`Save::open`] having closed is
-    /// exactly why a surprise at this level should stop rather than be papered
+/// exactly why a surprise at this level should stop
     /// over.
     pub fn from_save(save: &Save) -> Result<Scenario, ImportError> {
         let g = save.globals()?;
@@ -1249,7 +1249,7 @@ impl Scenario {
                 shown_health: c.shown_health as i32,
                 shown_events: c.shown_events as i32,
                 d_hap_ration: c.d_hap_ration as i32,
-                // Read off the record here rather than through
+// Read off the record here
                 // `l2_formats::save::County`, which does not carry them.
                 d_hap_health: county_i8(save, c.index, D_HAP_HEALTH)?,
                 d_hap_tax_local: county_i8(save, c.index, D_HAP_TAX_LOCAL)?,
@@ -1396,7 +1396,7 @@ impl Scenario {
         let mut realms = Vec::with_capacity(MAX_REALMS);
         for r in save.realms()?.iter() {
             // Realm `+offset`, for the fields `l2_formats::save::Realm` does not
-            // carry. Read here rather than added there, because the check that
+// carry. Read here, because the check that
             // found them (`tests/stored_fields.rs`) decodes raw offsets itself and
             // does not need them in `l2-formats`, which is the lead's.
             let at = |offset: u32| REALM_BASE + (r.index * REALM_STRIDE) as u32 + offset;
@@ -1511,7 +1511,7 @@ impl Scenario {
                 advanced_farming: g.opt_advanced_farming != 0,
                 armies_eat: g.opt_armies_eat != 0,
                 // **NOT read from the save, and now we know why.** This used to
-                // say `l2-formats` merely did not expose `g_optFightHumansOnly`
+// say `l2-formats` did not expose `g_optFightHumansOnly`
                 // (0x0053F284). Adding it to that list turned the battle
                 // fixtures red with `NotSaved`, and the block table says the
                 // reason: **the original does not save this option.** Seven
@@ -1590,7 +1590,7 @@ impl Scenario {
             // shape.** `County::farm_style` was read by the rules and written by
             // nothing on this path for months (`docs/decisions.md` C62): the
             // importer assigned field by field onto a default, so a field nobody
-            // remembered simply stayed at zero, and *no test anywhere could see
+// remembered stayed at zero, and *no test anywhere could see
             // it* — a diff of two `CountyState`s cannot notice a step after
             // `CountyState`, and a round trip compares one fixture.
             //
@@ -1602,12 +1602,12 @@ impl Scenario {
             // `crates/l2-testkit/tests/encoding.rs`, and the reason that check's
             // own doc says it cannot reach this path.
             //
-            // The *source* rather than the destination, deliberately. `County`
+// The *source*, deliberately. `County`
             // has 101 fields and some seventy of them are derived or computed
             // later; an exhaustive literal there would be seventy lines of
             // `x: 0` and the next omission would hide in the middle of it.
             // `CountyState` has 46 and every one of them is something the save
-            // actually stored, so the question *"is this carried?"* is
+// stored, so the question *"is this carried?"* is
             // meaningful for every line.
             let CountyState {
                 // --- carried here, the per-turn state ----------------------
@@ -1638,7 +1638,7 @@ impl Scenario {
                 grain,
                 herd,
                 // --- carried by `skeleton`, which ran before this loop -----
-                // Structural rather than per-turn: who owns the county, where
+// Structural: who owns the county, where
                 // it is, what it is made of. Bound and ignored here so that
                 // this list stays the whole of `CountyState` and a new field
                 // cannot be added without a decision.
@@ -1749,7 +1749,7 @@ impl Scenario {
             // panels draw.** Each was `County::new()`'s zero on a loaded game,
             // which `Ui_DrawDelta` draws as nothing — C142's defect, a fourth
             // and fifth time, found this time by `docs/stored-fields.json`
-            // rather than by a player. Not recomputed on load, for C142's reason:
+// Not recomputed on load, for C142's reason:
             // the original restores a memory image.
             c.herd_change_expected = *herd_change_expected;
             c.herd_births_expected = *herd_births_expected;
@@ -1800,7 +1800,7 @@ impl Scenario {
             // **The castle's build record and what the last siege left.** Every
             // save on this machine stores zero here, so these are read on the
             // offsets `Castle_Order`, `Castle_BuildTick` and
-            // `Siege_RecordCastleDamage` write rather than confirmed against a
+// `Siege_RecordCastleDamage` write
             // non-zero value; a save taken mid-build is the oracle that settles it.
             c.castle_degraded = *castle_degraded;
             c.castle_ruined = *castle_ruined;
@@ -2086,12 +2086,12 @@ impl Scenario {
             realm.strength = *strength;
             realm.is_human = *is_human || id == self.local_player as usize;
             realm.lord = *lord;
-            // **The banner colour, and it is a default rather than a read.**
+// **The banner colour, and it is a default.**
             // `Game_SetupRealms` (`0x0049C5xx`) initialises every realm with
             // `g_realms[i].shieldIndex = i`, and only a custom game's colour
             // picker permutes it (`0x0049CE1F` walks a free-slot pool), which is
             // why a default game read either way comes out the same. Taken from
-            // the save's own byte at realm `+0x0A` rather than assumed, so a
+// the save's own byte at realm `+0x0A`, so a
             // custom game's flags are its own colours and not the realm order.
             realm.shield_index = *shield_index;
             realm.county_count = *county_count;
@@ -2133,7 +2133,7 @@ impl Scenario {
             c.castle_switch = s.castle_switch;
             // **The three bytes that say whether an industry runs.** They were
             // not imported at all until C57, so every county arrived claiming
-            // all four resources and all four switches on — which is why no
+// all four resources and all four switches on — so no
             // county ever showed a mine in its village and why the map's
             // industry toggles all started in the wrong position. Everything
             // else in the record (`output`, `efficiency`, `capacity`,
@@ -2173,7 +2173,7 @@ impl Scenario {
             // `crates/l2-kingdom/tests/fields.rs` diffs against each other on
             // all fourteen counties. Doing it the other way round would leave
             // the counts and the tiles free to disagree the first time a field
-            // was repainted. Recounted here rather than after the loop because
+// was repainted. Recounted here because
             // the herd's crowding on the next line reads `fields_cattle`.
             field::recount(c, &self.map);
             c.herd_crowding = land::herd_crowding(&tables, c.herd, c.fields_cattle);
@@ -2196,7 +2196,7 @@ impl Scenario {
         // consequences in `conquest` and `siege` were the same bug and had not
         // been noticed. C59.
         //
-        // **Derived from the unit rather than read from `+0x1BC`**, because the
+// **Derived from the unit**, because the
         // unit's half is already imported and the two agree in all eleven saves
         // in the tree — ten with a garrison and England turn one with none.
         // Adding the county field to `l2-formats` would be a second reading of

@@ -3,9 +3,9 @@
 //!
 //! `Season_Advance` (`0x00448440`) calls 29 functions in a fixed order, and
 //! `docs/kingdom.md` §3.4 is explicit that **the order is the rule**. So the
-//! driver here is a loop over an array rather than a sequence of statements:
+//! driver here is a loop over an array:
 //! [`Kingdom::advance_season`] walks [`SEASON_PIPELINE`] and records what it
-//! ran, and the ordering assertions live in tests rather than in the reader's
+//! ran, and the ordering assertions live in tests
 //! head.
 //!
 //! # The clock
@@ -55,14 +55,14 @@ pub struct Options {
     /// `g_optDifficulty`, 0..=2 in the England turn-one fixture (0), and 0..=3 in the
     /// AI grant tables. Only the AI's wages and grants read it.
     pub difficulty: u8,
-    /// `g_optAdvancedFarming`. Off in the England turn-one fixture, which is why every
+/// `g_optAdvancedFarming`. Off in the England turn-one fixture, so every
     /// county there is Cloudy with zero fertility.
     pub advanced_farming: bool,
     /// `g_optArmiesEat`. Off in the England turn-one fixture.
     pub armies_eat: bool,
     /// `g_optFightHumansOnly` (`0x0053F284`) **as the option byte**, which the
     /// original stores *inverted*: it is 0 when the option displays *Yes*. Kept
-    /// as the byte rather than as a `bool` so that the sense cannot drift from
+/// as the byte so that the sense cannot drift from
     /// the binary's — [`crate::battle::settlement`] tests it against 0 exactly
     /// as `FUN_004A6A30` does. [`crate::battle::FIGHT_HUMANS_ONLY_DEFAULT`] is
     /// the game's default.
@@ -95,7 +95,7 @@ pub struct Options {
     ///
     /// There is **no `g_optQuirks`**; the original has no such setting and
     /// could not, because to it these are not settings at all. This field is a
-    /// declared divergence, and it is here on [`Options`] rather than on
+/// declared divergence, and it is here on [`Options`]
     /// [`Tables`] for the reason `docs/bugs.md` §6.3 works out and
     /// `docs/decisions.md` C62 records:
     ///
@@ -178,7 +178,7 @@ pub struct Kingdom {
     /// **Everything that moves on the map** — the units, the ground they stand
     /// on, the mercenary bands and the realms' army-name counters.
     ///
-    /// It is *inside* the kingdom rather than beside it because it is
+/// It is *inside* the kingdom because it is
     /// simulation state in exactly the sense `docs/netcode.md` §5 means: two
     /// lockstep peers have to agree about where an army stands and which tiles
     /// it has ruined, the tick checksum has to cover it, and a save that
@@ -197,7 +197,7 @@ pub struct Kingdom {
     ///
     /// Fixed for the life of the kingdom, like `l2_sim::Battle`'s troop
     /// table: every rule function in this crate takes `&Tables` and reads it
-    /// rather than a module constant, so whatever table built this kingdom is
+/// so whatever table built this kingdom is
     /// the table its whole economy runs on.
     ///
     /// [`Tables::DEFAULT`] is what the original ships with. Anything else
@@ -214,7 +214,7 @@ pub struct Kingdom {
 /// `400 * 16 * 8` is exactly 51,200. Three globals go with it — the write head
 /// (`0x0055300C`), the oldest entry (`0x00568DA8`) and the number of entries
 /// held (`0x00553F30`, saturating at 400) — and each is its own four-byte save
-/// block, so the whole structure is confirmed by the save layout rather than
+/// block, so the whole structure is confirmed by the save layout
 /// only by the code.
 ///
 /// Once the ring is full the head keeps advancing and the tail follows it, so a
@@ -224,7 +224,7 @@ pub struct Kingdom {
 pub struct History {
     /// `[season][county - 1]`, oldest at the tail.
     ///
-    /// Crate-visible rather than private so [`crate::save`] can write the ring
+/// Crate-visible so [`crate::save`] can write the ring
     /// out and read it back. Still not `pub`: the invariant tying `head`,
     /// `tail` and `len` together belongs to this module, and
     /// `save::LoadError::CorruptHistory` is what enforces it on the way in.
@@ -284,7 +284,7 @@ impl History {
                 population: county.population,
                 // The original stores a signed byte. Happiness is clamped
                 // 0..=100 by `Happiness_UpdateAll`, so the narrowing is safe
-                // here, but it is done rather than widened so a caller cannot
+// here, but it is done so a caller cannot
                 // come to depend on a range the original does not have.
                 happiness: county.happiness as i8,
             };
@@ -742,7 +742,7 @@ impl Kingdom {
     }
 
     /// The half of `docs/kingdom.md` §7.4's bankruptcy ladder that acts on
-    /// armies rather than on the counter.
+/// armies.
     ///
     /// [`industry::pay`] advances the stage and reports it; what the stage
     /// *does* needs the unit array, so it happens here. The mapping is the one
@@ -817,7 +817,7 @@ impl Kingdom {
     /// `Unrest_UpdateAll` (`0x0044AA41`), including the call it makes at the
     /// bottom that this pass used to skip.
     ///
-    /// The counter is reset **only when a mob was actually placed** —
+/// The counter is reset **only when a mob was placed** —
     /// `if (3 < unrest && County_RaiseRevolt(c)) unrest = 0;`. A county with no
     /// free tile within three of its anchor therefore sits at 4 for ever, and
     /// that is the original's behaviour, not a shortcut. `crate::unrest`'s
@@ -1192,7 +1192,7 @@ impl Kingdom {
     ///
     /// The original tops the realm's **bow** stock up by exactly the number it
     /// is about to hand out, so `Levy_ConsumeWeapons` takes them back and the
-    /// men cost nothing. Reproduced rather than short-circuited, because the
+/// men cost nothing. Reproduced, because the
     /// order matters if the realm is short of bows: the top-up happens first,
     /// so it never is.
     fn raise_free_garrison(&mut self, county: u8, archers: i32) {
@@ -1257,11 +1257,11 @@ impl Kingdom {
     /// `AI_SetTaxRates`' first half — set every county `realm` owns to the
     /// rate its happiness earns on that realm's ladder.
     ///
-    /// Like [`Kingdom::run_ai_grants`] this runs in the AI's turn rather than
+/// Like [`Kingdom::run_ai_grants`] this runs in the AI's turn
     /// in `Season_Advance`, so it is exposed rather than being a `Pass`.
     /// **Realm 0 is the unowned counties**, which the original taxes once a
     /// turn in phase 1 on the neutral ladder. An out-of-range realm index does
-    /// nothing rather than panicking, because the caller is a turn machine and
+/// nothing, because the caller is a turn machine and
     /// not a rule.
     /// **Paint one field.** `Field_SetType` (`0x00438BEC`) with this kingdom's
     /// own map, ruleset and clock supplied — the whole of what a click on the
@@ -1299,7 +1299,7 @@ impl Kingdom {
     /// `County_RefreshEstimates` (`0x004485A5`) for one county, with the owning
     /// realm and its blacksmiths' share of the stockpile looked up.
     ///
-    /// Every caller in this crate goes through here rather than assembling the
+/// Every caller in this crate goes through here
     /// arguments itself, because getting the *owner* wrong is the failure that
     /// leaves a county full of idle townsfolk.
     pub fn refresh_estimates(&mut self, county: usize) {
@@ -1473,7 +1473,7 @@ impl Kingdom {
     /// ```
     ///
     /// **Five statements and four of them are the recompute**, which is the
-    /// whole reason this is a method here rather than a field write in the
+/// whole reason this is a method here
     /// screen. The type is a divisor in three places at once:
     /// [`industry::weapon_shares`] sums `g_weaponCost[type]` over the realm's
     /// staffed smithies, so **changing one county's weapon moves every other
@@ -1646,7 +1646,7 @@ impl Kingdom {
     /// ```
     ///
     /// **The `content` write is the on/off appearance**, and it is a whole
-    /// terrain value rather than a flag: an enabled site is `base + 1` and
+/// terrain value: an enabled site is `base + 1` and
     /// `Sprite_TopIt` animates exactly that value. So *"on"* is **motion**, not
     /// a different picture — see
     /// [`l2_view::campaign::industry_frames`](../../l2_view/campaign/fn.industry_frames.html).
@@ -1749,19 +1749,19 @@ impl Kingdom {
     /// walked away from, so that control re-runs the pair to settle it. A level
     /// change moves once and has nothing to settle.
     ///
-    /// Written here rather than only in the correction because the next reader
+/// Written here because the next reader
     /// of these two functions will see `for _ in 0..2` beside a bare call and
     /// reach for the loop.
     ///
     /// The recompute is unconditional — the guard is only on the increment — so
     /// a click at the cap still re-applies and repaints. Ours wrote
     /// `ration_wanted` and returned, exactly like the other two, and this one
-    /// was found by *enumerating the class* rather than by a player reporting
+/// was found by *enumerating the class*
     /// it: `docs/agents.md`, **the correction that identifies a class must
     /// enumerate the class**.
     ///
     /// It writes `rationWanted` (`+0x15E`) and never `rationAchieved`
-    /// (`+0x15D`): what the player asks for and what the stores could actually
+/// (`+0x15D`): what the player asks for and what the stores could
     /// feed are different fields, and only the pass decides the second.
     ///
     /// Returns whether the level moved.
@@ -1781,7 +1781,7 @@ impl Kingdom {
         moved
     }
 
-    /// **`Opt_ToggleArmyForaging` (`0x004345D0`), and it is not a setter.**
+/// **`Opt_ToggleArmyForaging` (`0x004345D0`).**
     ///
     /// ```c
     /// g_optArmiesEat = (g_optArmiesEat != 1);
@@ -1811,7 +1811,7 @@ impl Kingdom {
         }
     }
 
-    /// **The tax rate, and it is not a setter either.**
+/// **The tax rate.**
     /// `Tax_IncreaseCounty` (`0x0043AA83`) and its twin, whole:
     ///
     /// ```c
@@ -1824,7 +1824,7 @@ impl Kingdom {
     /// and `FUN_0044BA35`, the empire-wide sum of `taxShown` that the court
     /// prints. **Every tax control in the original recomputes and repaints**,
     /// exactly like the ration slider — and this is the second panel found with
-    /// the same omission, which is the finding rather than the fix.
+/// the same omission, which is the finding.
     ///
     /// Ours wrote `taxRate` and stopped, so `tax_shown` kept whatever the last
     /// season's [`crate::tax::collect`] left in it (zero, before the first
@@ -1834,7 +1834,7 @@ impl Kingdom {
     /// **Watch which term is expected to move.** `d_hap_tax_local` is `5 - rate`
     /// and moves on every click; `tax_hap_other` is `g_taxHappinessOther[rate]`,
     /// which is **flat zero from rate 0 to 19**, so the *Other counties* line
-    /// genuinely does not budge over most of the range a player uses. That is
+/// does not budge over most of the range a player uses. That is
     /// the panel being right, and `docs/rules.md` says so.
     ///
     /// Returns whether the rate moved.
@@ -1848,7 +1848,7 @@ impl Kingdom {
         crate::tax::recompute_preview(&self.tables, &mut self.counties[county]);
         // `Tax_SumEmpireHappiness(owner)` — the realm's own term is a sum over
         // its counties, so one county's rate moves every county's *This county*
-        // line. Recomputed here rather than left to the season for the same
+// line. Recomputed here for the same
         // reason the rest of this function exists.
         let quirks = self.options.quirks;
         crate::tax::sum_empire_happiness(
@@ -1861,7 +1861,7 @@ impl Kingdom {
         moved
     }
 
-    /// **The grain-to-livestock split, and it is not a setter.**
+/// **The grain-to-livestock split.**
     /// `Ration_SetSplit` (`0x0043A5A9`), whole.
     ///
     /// A player reported the ration panel's slider as *"moves but is
@@ -1896,7 +1896,7 @@ impl Kingdom {
     /// *requested* split is strictly inside 0…100, and `herdEaten` came out
     /// unchanged, it puts the old value back and walks one point at a time
     /// towards the request, re-running the food pass at every step, and stops at
-    /// the first split that actually moves `herdEaten`.
+/// the first split that moves `herdEaten`.
     ///
     /// **`sweep` is what tells a track jump from an arrow**, and it changes the
     /// ending. `Ration_SliderClick` passes 1 for a click on the track and 0 for
@@ -2111,14 +2111,14 @@ impl Kingdom {
     /// and book the spend; the pass needs it immutably, because
     /// `County_RefreshEstimates` reads the owner's record for the blacksmith's
     /// ceiling. The pass is handed a copy taken before it starts, and the copy
-    /// is **exact** rather than approximately right: a grain or cattle purchase
+/// is **exact**: a grain or cattle purchase
     /// writes `gold`, `trade_spent_a` and `trade_spent_b` and nothing else on
     /// the realm, and no estimate reads any of the three (`crate::field` and
     /// `crate::industry`'s estimates read no treasury — the one `gold` in
     /// `crate::industry` is `Wages_PayAll`'s, which is a season pass).
     /// `Ai_TradeForCounty`, which *would* move wood and iron under the
     /// estimates, is not implemented; if it arrives, this reasoning has to be
-    /// redone rather than reused.
+/// redone.
     pub fn run_ai_farms_at_the_stall(&mut self, realm: u8) -> i32 {
         let Some(r) = self.realms.get(realm as usize) else { return 0 };
         let lord = r.lord;
@@ -2805,7 +2805,7 @@ mod tests {
             c.ration_wanted = 5;
         }
         // A sentinel no pass would ever leave, so the assertion is about the
-        // pass having run rather than about the field defaulting to anything.
+// pass having run.
         k.counties[1].ration_achieved = -7;
         assert!(!k.set_ration_wanted(1, 9), "the level did not move");
         assert_eq!(k.counties[1].ration_wanted, 5, "and is clamped to the table");

@@ -21,7 +21,7 @@
 //! battle::disband_defence      l2-kingdom  the levy walks home
 //! ```
 //!
-//! **Only one of those seven steps needs `l2-sim` at all**, which is why the
+//! **Only one of those seven steps needs `l2-sim`**, so the
 //! other six are in `l2-kingdom` where the campaign can reach them without a
 //! battle simulation present. An AI-versus-AI war runs entirely without this
 //! module.
@@ -59,7 +59,7 @@
 //! > not agree."* It was, and it is closed. `l2-sim` flies them, and the
 //! > measurement that said so was the fixture: the same position that was won
 //! > by the player with 56 men of 178 is now lost by him, which is what the
-//! > saved game records. `tests/seam.rs` asserts the verdict rather than
+//! > saved game records. `tests/seam.rs` asserts the verdict
 //! > excusing it.
 //! * **Mercenaries lose their band.** `FUN_0047F474` tells a mercenary figure
 //!   from a levied one by a flag on the figure record; `l2_sim::Figure` has no
@@ -73,7 +73,7 @@ use l2_kingdom::unit::TROOP_TYPES;
 use l2_sim::runner::{blank_field, BattleRunner, Muster};
 use l2_sim::{End, Troop, SIDE_A, SIDE_B};
 
-/// How the battle was actually settled.
+/// How the battle was settled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Resolution {
     /// `FUN_004AAD07`: strength scores, a ratio and a survival percentage.
@@ -87,8 +87,8 @@ pub enum Resolution {
     /// This is not an outcome the original has. A field battle there ends only
     /// by annihilation or withdrawal and has no clock at all, so reaching this
     /// means our simulation stalled — two sides that cannot find each other, or
-    /// a melee that cannot resolve. It is a distinct variant rather than a flag
-    /// precisely so that a caller cannot mistake it for a real result, and so a
+/// a melee that cannot resolve. It is a distinct variant
+/// so that a caller cannot mistake it for a real result, and so a
     /// test can assert it never happens.
     Stalled { ticks: u32 },
 }
@@ -99,7 +99,7 @@ pub enum Resolution {
 /// one condition — a side's men reaching zero — or on a withdrawal, and it
 /// waits as long as that takes. This exists because our simulation can stall
 /// where the original would not, and [`Resolution::Stalled`] is how it says so
-/// rather than quietly inventing a winner. Twelve thousand ticks is several
+/// Twelve thousand ticks is several
 /// times the longest battle `l2-sim`'s own tests produce.
 pub const MAX_TICKS: u32 = 12_000;
 
@@ -112,7 +112,7 @@ const CHECK_EVERY: u32 = 100;
 pub struct BattleReport {
     /// Which of the original's three settlements this battle qualified for.
     pub settlement: Settlement,
-    /// How it was in fact settled — a [`Settlement::Prompt`] the player
+/// How it was settled — a [`Settlement::Prompt`] the player
     /// declined is [`Resolution::Autocalc`].
     pub resolution: Resolution,
     pub verdict: Verdict,
@@ -146,7 +146,7 @@ pub struct BattleReport {
     /// beside the *after* count on every one of its seven rows. It reads the
     /// before counts out of `DAT_00568420` / `DAT_0056843C`, two arrays screen
     /// `0x12` filled on its way past. This is those two arrays, kept on the
-    /// report rather than in a global, because the losing record is gone by the
+/// report, because the losing record is gone by the
     /// time anybody draws them.
     pub attacker_roster: (Roster, Roster),
     pub defender_roster: (Roster, Roster),
@@ -156,7 +156,7 @@ pub struct BattleReport {
     /// re-reading a county that may since have changed hands.
     ///
     /// All zeroes for a field battle, and all zeroes for a siege that was
-    /// **calculated** rather than fought: the accumulators only move while men
+/// **calculated**: the accumulators only move while men
     /// are shovelling and shot is landing.
     pub castle_damage: l2_sim::CastleDamage,
 }
@@ -207,7 +207,7 @@ impl BattleReport {
     /// draws** for `local_player` — [`l2_kingdom::battle::outcome`], which is
     /// `FUN_00478419`.
     ///
-    /// It is a method rather than a field because the answer depends on who is
+/// It is a method because the answer depends on who is
     /// looking: the same battle is *won* to one peer, *lost* to the other and
     /// [`Outcome::Bystander`](l2_kingdom::battle::Outcome::Bystander) to a
     /// third. A field on the report would have to pick one of them, and in a
@@ -229,7 +229,7 @@ pub enum Answer {
     /// *"Will you take the field?"* — yes. `Battle_Start`.
     TakeTheField,
     /// No. `FUN_0043B622` runs the autocalc and shows the report, so declining
-    /// is not a way out of the battle: it is a way out of *watching* it.
+/// is a way out of *watching* it.
     Decline,
 }
 
@@ -302,7 +302,7 @@ pub fn resolve_fought(
 ///   pass it; this is what passes it.
 /// * `Army_PrepareForBattle` fills the four battle-only troop slots — the
 ///   besieger's engines and the garrison's oil — and they go into the muster
-///   rather than into the campaign record, because the original zeroes them
+///   because the original zeroes them
 ///   again the instant the battle ends.
 /// * `g_battleIsSiege` reaches [`battle::return_to_campaign`], where it decides
 ///   which half of the siege link is cleared, and reaches
@@ -410,7 +410,7 @@ impl SiegePhase {
     /// Settle what [`SiegePhase::next`] handed back, and advance the cursor
     /// past it.
     ///
-    /// A refusal is not a battle: message `0x119`, the siege is lifted, and
+/// message `0x119`, the siege is lifted, and
     /// `siege::assault` has already done it — so this answers `None`.
     ///
     /// Whatever happened, the slot must not be looked at again with the same
@@ -432,7 +432,7 @@ impl SiegePhase {
 
     /// Whether the assault `next` handed back is one a human is in — the
     /// question [`l2_kingdom::battle::settlement`] answers, asked before the
-    /// battle rather than inside it.
+/// battle.
     pub fn settlement(
         kingdom: &Kingdom,
         assault: l2_kingdom::siege::Assault,
@@ -537,7 +537,7 @@ fn resolve_battle(
     // * **It runs before the write-back and before the return**, so the county
     //   is billed while it still belongs to the defender and the *conqueror*
     //   inherits both the wreck and the bill. That ordering is why this block
-    //   sits above `return_to_campaign` rather than below it.
+//   sits above `return_to_campaign`.
     // * **`g_multiplayer` skips it entirely**, which cannot be right and is not
     //   reproduced: a peer that billed and a peer that did not would hold
     //   different counties. `docs/netcode.md` — the original's sync is the
@@ -731,7 +731,7 @@ pub fn begin_fight(
     seed: u64,
 ) -> Option<BattleRunner> {
     // `Army_PrepareForBattle` — the four battle-only troop slots, produced here
-    // rather than stored, because the original zeroes them again the moment the
+// because the original zeroes them again the moment the
     // battle is over (`Army_ClearBattleSlots`).
     let (a_extra, d_extra) = match castle_level {
         Some(level) => (
@@ -757,7 +757,7 @@ pub fn begin_fight(
         // **`Battlefield_BuildCastle` (`0x0047C4BA`), from the layout file the
         // player's own install ships.** `crate::castle` holds the two 6,400-byte
         // layers of each castle, because the original's builder reaches for
-        // them through a global rather than through its caller.
+// them through a global.
         //
         // Without the install there is no raster, and the stand-in ring
         // `l2_sim::siege::our_castle` takes over — a castle whose wall stands
@@ -782,8 +782,8 @@ pub fn begin_fight(
 
     // **What the last siege on this castle left.** `FUN_004787A4` is the last
     // statement but one of `Battlefield_BuildCastle`, so it runs *after* the
-    // fresh scores and overwrites them — which is why this sits below
-    // `deploy_siege` rather than being an argument to it.
+// fresh scores and overwrites them — so this sits below
+// `deploy_siege`.
     if castle_level.is_some() {
         let besieged = kingdom.campaign.units.get(attacker)?.besieging_county;
         if let Some(c) = kingdom.counties.get_mut(besieged as usize) {
@@ -849,7 +849,7 @@ pub fn conclude_fight(
     let (winner_side, resolution) = match conclusion {
         Some(c) => (c.winner, Resolution::Fought { ticks: runner.tick, cause: c.cause }),
         // Our stall, not the original's. The larger force holds the field; the
-        // variant says the number was invented rather than won.
+// variant says the number was invented.
         None => {
             let side = if runner.men_of_side(SIDE_B) > runner.men_of_side(SIDE_A) {
                 SIDE_B
@@ -921,13 +921,13 @@ fn write_back(kingdom: &mut Kingdom, id: usize, survivors: [u32; 11]) {
         *slot = *left as i32;
     }
     // The band cannot be told from the line it was folded into, so it is
-    // released rather than guessed at. See this module's header.
+// released. See this module's header.
     u.mercenaries = None;
     u.men = u.troops.iter().sum();
 }
 
 /// **The two crates index the same column the same way**, kept honest at
-/// compile time rather than by a comment.
+/// compile time.
 ///
 /// `l2_kingdom::TroopType` and `l2_sim::Troop` are separate enums in separate
 /// crates that never see each other, and [`muster_of`] and [`write_back`] cross
@@ -935,12 +935,12 @@ fn write_back(kingdom: &mut Kingdom, id: usize, survivors: [u32; 11]) {
 /// building, which is the only way that mistake gets caught: a swapped pair
 /// would compile, run, and quietly turn every archer into a swordsman.
 /// The column order both crates index by, written out once so that a
-/// reordering of either enum fails here and names the column, rather than
+/// reordering of either enum fails here and names the column,
 /// quietly turning every archer into a swordsman.
 ///
 /// `docs/battle.md` §4.1: the campaign record's `+0x16C`, `TROOPS*.ENG`'s
 /// columns and the `.skr` army record all agree on it — three independent
-/// sources, which is why it is safe to cross between the crates by index at
+/// sources, so it is safe to cross between the crates by index at
 /// all.
 #[cfg(test)]
 const COLUMN_ORDER: [(&str, &str); TROOP_TYPES] = [
@@ -1050,7 +1050,7 @@ mod tests {
         assert_eq!(k.counties[3].population, 582);
     }
 
-    /// The same battle **fought** rather than calculated: `l2-sim` really does
+/// The same battle **fought**: `l2-sim` really does
     /// run from campaign records, and the result really does come back.
     ///
     /// The *winner* is deliberately not asserted. `l2-sim` does not fly
@@ -1286,7 +1286,7 @@ mod tests {
         assert_eq!(k.campaign.units.get(a).unwrap().troops.len(), TROOP_TYPES);
     }
 
-    /// A siege **fought** rather than calculated: the castle is on the field,
+/// A siege **fought**: the castle is on the field,
     /// the siege order tables are the ones being dispatched, and the result
     /// comes back onto the campaign map.
     ///
@@ -1315,14 +1315,14 @@ mod tests {
     }
 
     /// **A besieger that gives up — the whole withdrawal path, on the road a
-    /// player can actually reach.**
+/// player can reach.**
     ///
     /// `UnitOrder_SiegeAttKnight` (`0x0048D9CE`) is the only writer of
     /// `g_battleWithdrawal` in the binary: an AI besieger whose whole force is
     /// knights, in front of a wall nothing has breached, stops trying. It is
     /// the only lever in the game that reaches
     /// [`l2_kingdom::battle::withdraw_casualties`], and until the clause was
-    /// added to `l2-sim` neither existed — which is why the campaign had never
+/// added to `l2-sim` neither existed — so the campaign had never
     /// implemented the half of `Battle_ReturnToCampaign` behind it.
     ///
     /// The catapult is not decoration: with no siege engine at all

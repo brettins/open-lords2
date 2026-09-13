@@ -80,7 +80,7 @@ g_aiPersonality + (realm[+0x07] * 3 - 3) * 0x50                  /* everywhere e
 
 `realm[+0x07]` runs 0 (the human), 1…4 (the lords), 6 (eliminated). So **row 0 of both gold
 tables is lord 0 — the human — and it is all zeros**, and row 4 is the Bishop. Five rows and
-five realms is precisely the coincidence `decisions.md` C3 warns about; the tables have five
+five realms is the coincidence `decisions.md` C3 warns about; the tables have five
 rows because the *lord byte* has five values, and the fifth AI row people keep looking for does
 not exist because the lord byte does not have a fifth AI value.
 
@@ -117,7 +117,7 @@ each record are **six 16-byte sub-records, one per other realm**, addressed as
 AI's chosen muster county — so **the block closes exactly**. **[V]**
 
 `Diplo_Init` (`0x004A1C53`) writes every field of it once, which is what makes the map below
-a reading rather than a guess.
+a reading.
 
 | off (from `+0x84`) | type | name | Ev | meaning |
 |---|---|---|---|---|
@@ -208,7 +208,7 @@ stride 8 are literal in all three functions that touch it, and all three walk `0
 `Diplo_Post` (`0x004A2621`) is the only writer. It finds the first free slot, stores the four
 fields, bumps `pair[to][from].complimentsFrom` when the kind is 1, sets
 `pair[to][from].hasMail`, and — if the gold field is non-zero — **moves the gold immediately**,
-clamped to what the sender actually holds. **A gift is spent when it is posted, not when it is
+clamped to what the sender holds. **A gift is spent when it is posted, not when it is
 answered.** **[V]**
 
 `Diplo_AnswerInbox` (`0x004A277D`) is **AI turn step 1** (`docs/kingdom.md` §3.2). It walks the
@@ -246,7 +246,7 @@ tests inside it are vestigial. **[V]**
 `0x29`, and `0x0F` when the job panel is on job 8. **[D]**
 
 The window draws the heading with `Eng_DrawString(group, 0, …)` and the body with
-`Eng_DrawString(group, variant + 1, …)` — **which is why the Bishop's variants 12…15 are
+`Eng_DrawString(group, variant + 1, …)` — **so the Bishop's variants 12…15 are
 strings 13…16, and why the Church histogram in §0 lands where it does.** **[V]**
 
 ### 2.3 The voices — `Msg_PlayVoice`, `0x004B35C1`
@@ -310,7 +310,7 @@ alliance offer."*, *"Help in"*, *"Pay -"*, *"Attack of"*. Each handler's *arithm
 > and it is the reason a netcode seam would have relied on.
 
 One fact shared by all of them: every reply advances the sender's `voiceRotation`, so the
-four recorded takes cycle rather than repeat. **[V]**
+four recorded takes cycle. **[V]**
 
 ### 3.1 Gold — and the ratchet nobody would guess
 
@@ -419,7 +419,7 @@ trebles, quadruples** with each purchase, because the multiple starts at 1 and n
 
 ---
 
-## 4. What an alliance actually is
+## 4. What an alliance is
 
 `Diplo_FormAlliance` (`0x004A1774`) writes six bytes and nothing else: `pair.allied = 1` and
 `pair.grudge = 0` in **both** directions, and `realm.ally` on both sides.
@@ -483,14 +483,14 @@ Bishop **20** — the alliance breaks, `Diplo_Offend(me, ally, 5)` fires, and gr
 `Diplo_PickAllyCandidate` (`0x004A1241`) picks the **best-ranked** realm that is in play, not
 ranked 1st, unallied, not already being courted, not at war with it, and whose standing is
 above −10. A counter must then reach `personality[+0x14]` — Knight **12**, Baron **10**,
-Countess **8**, Bishop **4** turns — before it acts. Against another AI it simply forms the
+Countess **8**, Bishop **4** turns — before it acts. Against another AI it forms the
 alliance with no message; against a human it sets `offerPending` and sends group **180**,
 *"Accept alliance ?"*, with category `0x0B`, the prompt layout. **[D]**
 
 `Diplo_ReconcileAlliances` (`0x004A1847`), called from `Turn_Tick`, rebuilds the `allied`
 matrix from the `ally` bytes. **[D]**
 
-> **Correction (§10.3): it *repairs* a one-sided pairing rather than dropping it.** This
+> **Correction (§10.3): it *repairs* a one-sided pairing.** This
 > paragraph used to say it *"drops any pairing that is one-sided or whose partner has been
 > eliminated"*. The test is
 > `if (handled[partner] || (ally[partner] != 0 && ally[partner] != me))` — so a partner that
@@ -531,7 +531,7 @@ if not already at war, standing has bottomed out at -30, and the offender is HUM
 > **Correction (§10.4): the whole function is a no-op when the offended realm is human.** The
 > entry guard is `0 < offended < 6 && 0 < offender < 6 && offender != offended &&
 > realms[offended].strength != 0 && **realms[offended].isHuman == 0**`. A person's realm
-> therefore keeps **no standing towards anybody**, which is why `Diplo_Init` opens a human's
+> therefore keeps **no standing towards anybody**, so `Diplo_Init` opens a human's
 > row at 0 and why nothing ever moves it. Everything in this document that reads a standing
 > is reading an AI's. The one exception is `Diplo_OffendAll`, which walks 1..5 with no
 > `isHuman` test at all — so a person's row *can* move, downward only, by 15 a betrayal, and
@@ -810,7 +810,7 @@ runs the **opposite** way to the castle-building floor at `+0xC8` — the Bishop
 largest county before he will *build* a castle (600) and the smallest before he will
 *garrison* one (150). And every value of `+0x9C` is far above anything a lord's own tax ladder
 would charge a county he meant to keep (§8.2's ladders top out at 15), so it is a lord
-stripping a county on the way out rather than a tax policy.
+stripping a county on the way out.
 
 Fields at `+0x2C` (a flat 100 in all four records) and `+0x6C` (2, 3, 4, 5) hold plausible
 per-lord values and **are still not traced**. Five more are traced by `Ai_TradeForCounty`
@@ -868,12 +868,12 @@ our own engine's output and says nothing about the original's.
 |---|---|---|
 | 10.1 | only **three** of the seven replies have the `isHuman` guard, not all seven | §3 |
 | 10.2 | `personality[+0x30]` is a **population** floor, not a treasury one | §3.5 |
-| 10.3 | `Diplo_ReconcileAlliances` **repairs** a one-sided alliance rather than dropping it | §4.1 |
+| 10.3 | `Diplo_ReconcileAlliances` **repairs** a one-sided alliance | §4.1 |
 | 10.4 | `Diplo_Offend` is a **no-op when the offended realm is human** | §5 |
 | 10.5 | the Bishop's guard covers **`warTarget` as well as `atWar`** | §5 |
 | 10.6 | the field trample fires when the **trampler** is human, not the victim | §5 |
 | 10.7 | menu state 3 and the mail icon mean *"I have written to them"* | §7 |
-| 10.8 | what forty turns of it actually produces | new |
+| 10.8 | what forty turns of it produces | new |
 | 10.9 | the last two personality fields are **dead**, not untraced | §8.4, §9 |
 
 ### 10.8 Forty turns of England, with diplomacy running
@@ -931,7 +931,7 @@ one `isHuman` in a loop guard.
 §8.4 left `+0x2C` (a flat 100 in all four records) and `+0x6C` (2, 3, 4, 5) as *"plausible
 per-lord values and still not traced"*. They are **dead**.
 
-The method is an exhaustive scan rather than a failure to find, which is the standard
+The method is an exhaustive scan, which is the standard
 `docs/arms.json` sets for a `dead` verdict: `tools/oracle/decomp` holds every one of the
 2,452 functions in `Lords2.exe`'s text section, decompiled with the `AiPersonality` struct
 from `docs/records.json` applied, so every access to an offset the struct does not name
@@ -943,7 +943,7 @@ renders as `field_0xNN`. Across the whole corpus the personality struct is touch
 times and every one is a different struct.
 
 So the 240-byte record has two four-byte slots the shipped game never reads. Nothing may be
-built on them, and — the reason this is worth a paragraph rather than a line — nothing should
+built on them, and — the reason this is worth a paragraph — nothing should
 be *inferred* from them either: a per-lord value with no reader is exactly the shape of a
 finding that is not one.
 
@@ -958,9 +958,9 @@ not exist here.
 * **`FUN_00436872`** — the *"Accept alliance ?"* prompt's two buttons, category `0x0B`.
   Its guard is `(realms[offerer].isHuman != 0) || (hotspot != 0)`, so in single player
   **declining an AI's offer runs nothing at all** — not even a refusal message. The offer
-  simply lapses when the offering realm clears `offerPending`.
+lapses when the offering realm clears `offerPending`.
 
-Those two are **the only places a person answers a lord rather than writing to one**, and
+Those two are **the only places a person answers a lord**, and
 both are unreachable. Everything a person can *initiate* is built: `docs/arms.json`'s
 `diplomacy` group is nine reproduced arms and three missing ones, the third being the
 199-character free-text letter, which is another branch's.
@@ -1023,7 +1023,7 @@ if ((g_realms[DAT_0057C8B8].isHuman != 0) || (g_uiHotspotId != 0)) {
 ```
 
 An **AI** offer **declined** fails both halves of the outer test, so nothing runs: no refusal
-letter, no grudge, no standing change, no `offer_pending` clear. The offer simply lapses when
+letter, no grudge, no standing change, no `offer_pending` clear. The offer lapses when
 the offering realm reaches §4's courtship step on its next turn. §5's grudge table is not
 involved, and a player who says no pays nothing for it.
 
@@ -1042,7 +1042,7 @@ if (g_realms[g_localPlayer].ally != 0) { Msg_Dismiss(); return; }
 and `Msg_DrawDiplomacy` carries the same guard for group `0xF8`. So a second lord's offer,
 queued behind the first, **closes itself the frame it would have been drawn** — the player
 never sees it and never declines it. Two AI realms courting in the same season is not rare
-(§4 has no exclusion between them), so this is the ordinary case rather than a corner.
+(§4 has no exclusion between them), so this is the ordinary case.
 
 It is also the clearest instance of a thing worth knowing about this function generally:
 **three of its arms are not drawing at all**, and none of them is visible from the category

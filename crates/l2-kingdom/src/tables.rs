@@ -1,7 +1,7 @@
 //! Every constant the kingdom layer turns on, with the address it was read
 //! from in `docs/kingdom.md`.
 //!
-//! `docs/decisions.md` C11 is the reason this file exists as data rather than
+//! `docs/decisions.md` C11 is the reason this file exists as data.
 //! as literals scattered through the rules: **no kingdom-layer rule is loaded
 //! from a game data file**, so our engine has to carry the whole ruleset
 //! itself. Keeping it in one module is what will eventually let `l2-mods`
@@ -205,7 +205,7 @@ pub const HEALTH_DELTA: [[i32; HEALTH_BAND_COUNT]; RATION_LEVEL_COUNT] = [
 /// `g_healthHappiness` begins; and the interleaved 0,1,2,3,4 cannot be a
 /// threshold array, because thresholds do not decrease.
 ///
-/// The comparison sense is *inclusive*, and that is not a guess:
+/// The comparison sense is *inclusive*:
 /// `docs/kingdom.md` §9 needs a starting meter of 65 to band as **2**, which
 /// only happens if 65 is `<= 65`.
 ///
@@ -374,7 +374,7 @@ pub const HERD_WEATHER_PCT: [i32; 6] = [-2, -10, 5, 0, -5, -10];
 pub const HERD_LABOUR_PER_HEAD: i32 = 3;
 
 /// Staffing above this buys nothing. `if (199 < staffing) staffing = 200;` -
-/// twice-staffed is the ceiling, and the comparison is against 199 rather than
+/// twice-staffed is the ceiling, and the comparison is against 199.
 /// 200, so a staffing of exactly 199 is *not* rounded up.
 pub const HERD_STAFFING_MAX: i32 = 200;
 
@@ -428,7 +428,7 @@ pub const HERD_SMALL_BONUS: [(i32, i32); 3] = [(5, 10_000), (10, 5_000), (25, 2_
 pub const HERD_CALVING_SEASON: u8 = Season::Spring as u8;
 /// And the season that kills: `if (season == 4) deaths = deaths * 3 / 2;`
 pub const HERD_CULLING_SEASON: u8 = Season::Winter as u8;
-/// Both are exactly `* 3 / 2`, kept as a ratio rather than as 150%.
+/// Both are exactly `* 3 / 2`, kept as a ratio.
 pub const HERD_SEASON_BONUS: (i32, i32) = (3, 2);
 
 // ---------------------------------------------------------------------------
@@ -589,7 +589,7 @@ impl Commodity {
     /// (`FUN_0044E852`) passes to each pass. The 15% also appears verbatim in a
     /// published FAQ (*"30 serfs working at 15% efficiency"*).
     ///
-    /// It is the **increment** rather than the efficiency: see
+/// It is the **increment**: see
     /// [`crate::industry::efficiency_ramp`]. With *Advanced Farming* off it is
     /// not used at all - the efficiency is a flat
     /// [`EFFICIENCY_WITHOUT_ADVANCED_FARMING`].
@@ -601,7 +601,7 @@ impl Commodity {
     }
 }
 
-/// The order `Industry_Produce` is actually called in, from the driver
+/// The order `Industry_Produce` is called in, from the driver
 /// `FUN_0044E852` at the `Season_Advance` slot `docs/kingdom.md` §3.4 lists.
 ///
 /// **`[V]` and it is neither order the document gives.** §3.4's call list says
@@ -633,7 +633,7 @@ pub const INDUSTRY_ESTIMATE_ORDER: [Commodity; 4] =
 /// document reads the numbers straight off `L2.eng` group 74, which has *ten*
 /// strings starting with *"Idle people"*; the record array has **nine** entries
 /// and record `r` is group-74 string `r + 1`, because "idle people" is the
-/// remainder rather than a job you can assign anyone to.
+/// remainder.
 ///
 /// Three independent facts fix the offset, and they agree:
 ///
@@ -686,7 +686,7 @@ pub const EFFICIENCY_WITHOUT_ADVANCED_FARMING: i32 = 80;
 
 /// The efficiency ceiling in `FUN_0044F248`.
 ///
-/// **`[V]`, and in the instruction stream rather than in `.data`**: the ramp
+/// **`[V]`, and in the instruction stream**: the ramp
 /// ends `CMP dword ptr [ebp-0x0C], 0x64` / `MOV dword ptr [ebp-0x0C], 0x64` at
 /// `0x0044F2E8`, and the flat 80 above is the `MOV EAX, 0x50` at `0x0044F278`.
 /// `tools/oracle/kingdom.ps1` recovers both immediates out of `.text` — the
@@ -695,7 +695,7 @@ pub const EFFICIENCY_WITHOUT_ADVANCED_FARMING: i32 = 80;
 pub const EFFICIENCY_MAX: i32 = 100;
 
 /// What `FUN_0044EF4E` returns as "no limit" for an enabled non-weapon
-/// industry. It is a literal 999 rather than a saturating value, so a county
+/// industry. It is a literal 999, so a county
 /// with enough workers really is capped at 999 units a season.
 pub const RESOURCE_LIMIT_UNLIMITED: i32 = 999;
 
@@ -758,8 +758,8 @@ pub const GOOD_NAMES: [&str; 15] = [
 /// than invent them. They are no longer invented; `docs/symbols.md` carries the
 /// same five rows, derived independently.
 ///
-/// Note that rows 1 and 3 are **identical**, and that row 2 is the only row
-/// that pays anything at difficulty 0. Lord number is not a difficulty ladder.
+/// Rows 1 and 3 are **identical**, and that row 2 is the only row
+/// that pays anything at difficulty 0.
 ///
 /// Row 0 being all zeros is the load-bearing part: **the human's `lord` byte is
 /// 0, so the human gets nothing.**
@@ -909,7 +909,7 @@ pub const AI_PERSONALITY_STRIDE: usize = 0xF0;
 /// where every real record reads a farm style of 0, 1 or 9, and the field after
 /// them reads 5000 where the four records read 100, 100, 200 and 50. So
 /// `0x004D8E18` is taken to be **past the end of the table**, and this crate
-/// refuses to answer for lord 5 rather than reproduce an out-of-bounds read of
+/// refuses to answer for lord 5
 /// bytes whose meaning is unknown. `[I]`, and it is the one thing about
 /// `AI_SetTaxRates` still not settled.
 pub const AI_PERSONALITY_COUNT: usize = 4;
@@ -980,7 +980,7 @@ pub const AI_PERSONALITY_MUSTER_PCT: [i32; AI_PERSONALITY_COUNT] = [30, 30, 40, 
 /// Record `+0x28` — **how many turns a lord waits between musters** when he
 /// has neither a war target nor an ally's request. `docs/diplomacy.md` §8.4
 /// already carried the values and called them *"turns between musters"*; this
-/// is the reader that makes the name a claim rather than a guess.
+/// is the reader that makes the name a claim.
 ///
 /// `FUN_0049F977` (AI step 9) counts realm `+0x45` up and returns early while
 /// it is **below** the lord's figure, then resets it to 0 — so the muster
@@ -1000,7 +1000,7 @@ pub const AI_PERSONALITY_MUSTER_PATIENCE: [i32; AI_PERSONALITY_COUNT] = [3, 4, 4
 ///
 /// > **`docs/diplomacy.md` §8.4 says this is "a threshold on realm `+0x38`".
 /// > It is `+0x138`.** `+0x38` is inside the twenty-four army-name counters at
-/// > `+0x2D`, which is not a number anything would threshold. A missing digit,
+/// > `+0x2D`. A missing digit,
 /// > and the kind that is only found by trying to use the field.
 ///
 /// `[V]` on the values; `[D]` on the meaning.
@@ -1038,7 +1038,7 @@ pub const AI_PERSONALITY_RAID_INTERVAL: [i32; AI_PERSONALITY_COUNT] = [6, 10, 5,
 /// share to 100 and ships or sells everything in the larder. Every one of the
 /// four is **far above** anything the lord's own tax ladder would ever charge
 /// a county he meant to keep — [`AI_TAX_LADDERS`] tops out at 15 — so this is
-/// a lord stripping a county on the way out rather than a tax policy.
+/// a lord stripping a county on the way out.
 ///
 /// `[V]` on the values; `[D]` on the meaning.
 pub const AI_PERSONALITY_ABANDON_TAX_RATE: [i32; AI_PERSONALITY_COUNT] = [32, 28, 23, 35];
@@ -1072,7 +1072,7 @@ pub const AI_PERSONALITY_CASTLE_CONCURRENT: [i32; AI_PERSONALITY_COUNT] = [4, 3,
 /// The cursor at [`crate::realm::Realm::weapon_rota`] runs 0..=9 and the ten
 /// steps index these six as [`AI_WEAPON_ROTA_ORDER`] — `0,1,2,3` twice, then
 /// `4,5`. So the first four entries are visited **twice as often** as the last
-/// two, and a lord's programme is a ten-county cycle rather than a six-county
+/// two, and a lord's programme is a ten-county cycle
 /// one.
 ///
 /// The values index [`WEAPON_NAMES`]: 0 crossbow, 1 mace, 2 sword, 3 pike,
@@ -1103,7 +1103,7 @@ pub const AI_PERSONALITY_CASTLE_MIN_POPULATION: [i32; AI_PERSONALITY_COUNT] =
 /// castle, **royal castle**. `AI_BuildCastles` tests them from the top down and
 /// takes the first the treasury clears.
 ///
-/// **A zero is not a threshold of zero; it means the type is not offered to
+/// **A zero means the type is not offered to
 /// that lord.** The original guards every rung with `threshold != 0 &&` before
 /// the comparison, which is the only reason a zero row does not make every
 /// lord build a palisade for nothing. See
@@ -1211,7 +1211,7 @@ pub const ALE_HAPPINESS_STEP_PCT: i32 = 10;
 pub const ALE_HAPPINESS_MAX: i32 = 5;
 
 /// The number of rows `g_armyHappinessCost` has, which is the percentage
-/// domain 0..=101 rather than a balance figure: index 101 is the last slot
+/// domain 0..=101: index 101 is the last slot
 /// before the merchant price table at `0x004D8910` begins. A ruleset may
 /// change every cost in the table and may not change how many there are — the
 /// same line [`JOB_COUNT`] and [`WEAPON_TYPE_COUNT`] are on.
@@ -1237,7 +1237,7 @@ pub const ARMY_HAPPINESS_COST_LEN: usize = 102;
 ///
 /// All 102 are checked against the executable by `tools/oracle/kingdom.ps1`,
 /// together with the merchant table that bounds them — so the length is held
-/// by address arithmetic rather than by this comment.
+/// by address arithmetic.
 pub const ARMY_HAPPINESS_COST: [i32; ARMY_HAPPINESS_COST_LEN] = [
     0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 11, 13, 15, 17, 19, 21, 23, 25,
     27, 29, 31, 34, 37, 40, 44, 48, 52, 56, 60, 64, 68, 72, 75, 78, 80, 82, 84, 86, 88, 90, 91, 92,
@@ -1253,7 +1253,7 @@ pub const ARMY_HAPPINESS_COST: [i32; ARMY_HAPPINESS_COST_LEN] = [
 /// entry of the merchant price table, which is 0 — a free army. This clamps
 /// instead, because reproducing a read of a *different table* would mean
 /// hard-coding that the two happen to be adjacent, and a mod that resizes
-/// either would make the reproduction meaningless. Flagged rather than
+/// either would make the reproduction meaningless. Flagged
 /// silently smoothed: see [`ARMY_HAPPINESS_COST`].
 #[inline]
 pub fn army_happiness_cost(pct: i32) -> i32 {
@@ -1267,7 +1267,7 @@ pub fn army_happiness_cost(pct: i32) -> i32 {
 // Units on the campaign map - docs/armies.md
 // ---------------------------------------------------------------------------
 //
-// Every number below was read out of the instruction stream rather than out of
+// Every number below was read out of the instruction stream
 // `.data`: an army's movement budget, its step costs and its desertion rate are
 // `MOV`/`ADD`/`CMP` immediates, exactly the case `docs/decisions.md` C16
 // describes. `tools/oracle/kingdom.ps1`'s second tier checks each of them
@@ -1285,7 +1285,7 @@ pub const MOVE_ALLOWANCE_ARMY: i32 = 15;
 pub const MOVE_ALLOWANCE_OTHER: i32 = 10;
 
 /// A step onto a road tile. `Unit_StepOnce` (`0x0046634D`) reaches it as an
-/// `INC` of `+0x153` rather than an `ADD`, which is why there is no immediate
+/// `INC` of `+0x153`, so there is no immediate
 /// to read and the oracle check tags the opcode instead of a value.
 pub const STEP_COST_ROAD: i32 = 1;
 
@@ -1295,7 +1295,7 @@ pub const STEP_COST_OPEN: i32 = 3;
 /// **How far a unit has to get across a tile before it enters the next one.**
 ///
 /// `Unit_StepOnce` (`0x0046634D`) keeps a sub-tile accumulator in `+0x149` and
-/// only calls `Unit_NeighbourTile` — the thing that actually moves the unit —
+/// only calls `Unit_NeighbourTile` — the thing that moves the unit —
 /// on the tick the accumulator reaches this. `[V]`:
 ///
 /// ```c
@@ -1319,7 +1319,7 @@ pub const SUBTILE_STEP_SOLO: u8 = 2;
 /// is networked, and threading `g_multiplayer` into `Kingdom` would put a
 /// session property into the lockstep digest. Both peers of a network game
 /// take the same arm, so the value agrees where it matters; what does not yet
-/// exist is a way to *select* it. **Named rather than dropped** — a unit that
+/// exist is a way to *select* it. **Named** — a unit that
 /// walked at half speed the day multiplayer landed would be a defect nobody
 /// would think to look for here.
 pub const SUBTILE_STEP_NET: u8 = 4;
@@ -1345,7 +1345,7 @@ pub const STEP_COST_FIELD_EXTRA: i32 = 3;
 pub const STEP_COST_TRAMPLE: i32 = 7;
 
 /// What `Unit_TrampleTile` writes into the industry record's
-/// `disabledSeasons`. **It always writes 3** — there is no ladder, and no
+/// `disabledSeasons`. **It always writes 3**
 /// dependence on the army's size.
 pub const TRAMPLE_DISABLED_SEASONS: i32 = 3;
 
@@ -1381,7 +1381,7 @@ pub const MOB_DESTROYED_BELOW_MEN: i32 = 30;
 pub const DESERTION_PCT: i32 = 10;
 
 /// …but only from a troop count that **exceeds** this. A type with ten men or
-/// fewer loses none, so a small army stops shrinking rather than dying out.
+/// fewer loses none, so a small army stops shrinking.
 pub const DESERTION_MIN_TROOPS: i32 = 10;
 
 /// `Army_Starve` (`0x004ACE5E`) destroys the army once its starvation counter
@@ -1542,13 +1542,13 @@ pub const SCORE_INPUT_OFFSETS: [u16; 6] = [0x60, 0x10, 0x0C, 0x58, 0x54, 0x4C];
 /// **It is the one slot [`crate::realm::Realm::sync_score_inputs`] must not
 /// touch**, because in the original it is not one of `Realm_UpdateTotals`'
 /// writes: `Castle_BuildTick` (`0x004508DE`) owns it, alone. Verified
-/// exhaustively rather than by reading — every instruction in `Lords2.exe` whose
+/// exhaustively — every instruction in `Lords2.exe` whose
 /// operand mentions `g_realms + 0x4C` is one of seven, and they are
 /// `Castle_BuildTick` twice (`0x0045090E` clears, `0x00450CB1` increments),
 /// `Game_SetupRealmsAndCounties` once (`0x0049C14C`, the initial clear),
 /// `Score_RankRealms` three times and one painter.
 ///
-/// The timing that difference buys is real and is why this is stored rather than
+/// The timing that difference buys is real and is why this is stored
 /// derived at scoring time. `Castle_BuildTick` is a *season* pass; nothing
 /// between one season and the next rewrites the count, so a castle knocked down
 /// by a siege in phase 2, or a county that changes hands, still scores its 50
@@ -1615,7 +1615,7 @@ mod tests {
 
     /// The manual: *"A ration of Normal or above will improve happiness while
     /// half or quarter rations will decrease happiness"*. Normal is the first
-    /// positive row and there is no zero row.
+/// positive row.
     #[test]
     fn normal_is_the_first_ration_level_worth_happiness() {
         for l in 0..3 {
@@ -1766,7 +1766,7 @@ mod tests {
 /// # Why this type exists
 ///
 /// `docs/decisions.md` C11: **no kingdom rule is loaded from a game data
-/// file.** Every economic constant lives in `Lords2.exe`, which is why modding
+/// file.** Every economic constant lives in `Lords2.exe`, so modding
 /// the original means patching a binary, and why an open engine is worth
 /// building at all. Our engine therefore has to carry the whole ruleset
 /// itself - and carrying it as `const` items makes it exactly as unreachable
@@ -1791,7 +1791,7 @@ mod tests {
 /// doc comments. What changed is that the simulation now reads the **table**:
 /// [`crate::Kingdom`] carries one, [`crate::Kingdom::with_tables`] is how a
 /// ruleset reaches it, and around thirty rule functions in this crate take
-/// `&Tables` rather than a constant. `gathered_tests` holds the two readings
+/// `&Tables`. `gathered_tests` holds the two readings
 /// equal over their whole domain, so they cannot drift apart.
 ///
 /// The ale ladder, the army-raising cost table, the efficiency ramp's bounds,
@@ -1810,7 +1810,7 @@ mod tests {
 /// Array *sizes* — [`JOB_COUNT`], [`RATION_LEVEL_COUNT`],
 /// [`WEAPON_TYPE_COUNT`], [`ARMY_HAPPINESS_COST_LEN`], [`TAX_LADDER_RUNGS`],
 /// [`AI_PERSONALITY_COUNT`] — are deliberately not fields: a ruleset that
-/// changed one would be describing a different simulation rather than a
+/// changed one would be describing a different simulation
 /// different balance, which is the same line `l2_sim::Troop::is_siege` draws on
 /// the battle side. `docs/modding.md` §11 has the full division.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1824,7 +1824,7 @@ pub struct Tables {
     /// Indexed by ration level 0..=5.
     pub ration: [RationRow; RATION_LEVEL_COUNT],
     /// `ration_happiness(level) = slope * level + offset`. In the original this
-    /// is not a table at all but the expression `3L - 8` at the end of
+/// is the expression `3L - 8` at the end of
     /// `Ration_Apply` - an instruction, not data, which is the whole of C11 in
     /// one line.
     pub ration_happiness_slope: i32,
@@ -1833,7 +1833,7 @@ pub struct Tables {
     pub health: [HealthBandRow; HEALTH_BAND_COUNT],
     /// `{inclusive upper bound, band}` pairs, in the binary's own layout at
     /// `0x004D6520`. Five of them, not four: the top band is an explicit
-    /// `(100, 4)` entry rather than an `else`. Verified against the executable
+/// `(100, 4)` entry. Verified against the executable
     /// by `tools/oracle/kingdom.ps1`.
     pub health_band_ladder: [(i32, i32); HEALTH_BAND_COUNT],
     /// [`TAX_HAPPINESS_OTHER`], indexed by tax rate `0 ..= `[`MAX_TAX_RATE`].
@@ -1959,7 +1959,7 @@ pub struct HerdCrowdingRow {
 pub struct HerdTable {
     /// [`HERD_LABOUR_PER_HEAD`]. Zero would divide by zero in `PctOf`'s
     /// caller's arithmetic sense — `PctOf` itself returns 0 — so it is treated
-    /// as "no staffing requirement" rather than refused.
+/// as "no staffing requirement".
     pub labour_per_head: i32,
     pub staffing_max: i32,
     /// [`HERD_UNDERSTAFFING_DIVISOR`].
@@ -1985,7 +1985,7 @@ pub struct CastleTable {
     pub tax_base: [i32; CASTLE_TYPE_COUNT],
     /// By castle type 1..=5, plus the trailing zero the binary stores.
     ///
-    /// Six slots rather than five, throughout. `tools/oracle/kingdom.ps1`
+/// Six slots, throughout. `tools/oracle/kingdom.ps1`
     /// confirmed the layout: `g_castleGarrisonCap` at `0x004D8A10` holds
     /// `150, 200, 200, 400, 600, 0`, and it is that 24-byte stride that puts
     /// the tax bonuses at `0x004D8A28` and the free archers at `0x004D8A40`.
@@ -2155,7 +2155,7 @@ impl AiPersonalityRow {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AiTable {
-    /// `[lord][difficulty]`. Rows 1..=3 are zeroed rather than invented.
+/// `[lord][difficulty]`. Rows 1..=3 are zeroed.
     pub gold_grant: [[i32; 4]; 5],
     pub grant_population_per_difficulty: i32,
     pub grant_herd_per_difficulty: i32,
@@ -2181,7 +2181,7 @@ pub struct AiTable {
 /// The **array sizes** here are not fields, on the same line
 /// [`ARMY_HAPPINESS_COST_LEN`] and [`WEAPON_TYPE_COUNT`] draw: a ruleset that
 /// gave an army four size classes or eight troop types would be describing a
-/// different simulation rather than a different balance.
+/// different simulation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UnitTable {
     /// [`MOVE_ALLOWANCE_ARMY`] — a season's movement points for a type-1 unit.
@@ -2193,7 +2193,7 @@ pub struct UnitTable {
     /// [`STEP_COST_OPEN`].
     pub step_cost_open: i32,
     /// [`STEP_COST_FIELD_EXTRA`] — charged *in addition to*
-    /// [`UnitTable::step_cost_open`], which is why a field costs six.
+/// [`UnitTable::step_cost_open`], so a field costs six.
     pub step_cost_field_extra: i32,
     /// [`STEP_COST_TRAMPLE`].
     pub step_cost_trample: i32,
@@ -2237,7 +2237,7 @@ pub struct ScoreTable {
 }
 
 impl Tables {
-    /// The numbers above, gathered. Assembled *from* the constants rather than
+/// The numbers above, gathered. Assembled *from* the constants
     /// retyped, so there is no second transcription to drift.
     pub const DEFAULT: Tables = Tables {
         food: FoodTable {
@@ -2553,7 +2553,7 @@ impl Tables {
         },
     };
 
-    /// [`ration_happiness`], from this table rather than from the constant.
+/// [`ration_happiness`], from this table.
     pub const fn ration_happiness(&self, level: i32) -> i32 {
         self.ration_happiness_slope * level + self.ration_happiness_offset
     }
@@ -2562,7 +2562,7 @@ impl Tables {
     ///
     /// Walks the `{bound, band}` pairs and returns the band of the first bound
     /// the meter falls within — the binary's own shape, so the band is read out
-    /// of the table rather than inferred from the loop counter. The last pair
+/// of the table. The last pair
     /// is the catch-all.
     pub fn health_band(&self, meter: i32) -> u8 {
         for &(up_to, band) in &self.health_band_ladder {
@@ -2596,7 +2596,7 @@ impl Tables {
 
     /// [`army_happiness_cost`], from this table.
     ///
-    /// Clamps rather than reading past the end, for the reason the free
+/// Clamps, for the reason the free
     /// function gives: the original walks off into the merchant price table,
     /// and reproducing that would hard-code that the two are adjacent — which
     /// a ruleset that rebalances either has already made untrue.
@@ -2618,7 +2618,7 @@ impl Tables {
     /// The personality record a `lord` byte names, or `None`.
     ///
     /// `None` for **0 (the human), 5, and 6 (eliminated)** — see
-    /// [`AI_PERSONALITY_COUNT`] for why there is no fifth record. Every
+/// [`AI_PERSONALITY_COUNT`]. Every
     /// diplomacy rule that needs a number out of the record refuses to act
     /// rather than substituting one, which is the same choice
     /// [`crate::ai::set_tax_rates`] already makes.

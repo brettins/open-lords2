@@ -4,18 +4,18 @@
 //!
 //! `docs/plan.md`: *"A screen is a trait, and screens do not know about each
 //! other. Each screen handles input, updates, and draws into the canvas;
-//! transitions are returned as values to the state machine rather than
+//! transitions are returned as values to the state machine
 //! performed by the screen. A screen that can push another screen is a screen
 //! that will eventually own the whole game."*
 //!
 //! So a screen returns a [`Transition`], and it names its destination with a
 //! [`ScreenId`] — a plain value. It cannot construct another screen, cannot
 //! hold one, and cannot reach the stack: the only type that can is [`Machine`],
-//! which is why [`ScreenId::build`] is the single place any screen is made.
+//! so [`ScreenId::build`] is the single place any screen is made.
 //!
 //! # Draw cannot mutate
 //!
-//! [`Ctx`] carries `&mut Game`, and `draw` is handed `&Ctx` rather than
+//! [`Ctx`] carries `&mut Game`, and `draw` is handed `&Ctx`
 //! `&mut Ctx`. That is not a stylistic preference: it is the compiler enforcing
 //! that drawing a frame cannot change the world. A renderer that can nudge the
 //! simulation is a renderer that makes the simulation depend on how often it
@@ -88,7 +88,7 @@ pub enum ScreenId {
     ///
     /// It is not reached *from* the raise-army screen so much as it is the
     /// other half of it: `Screen_Draw` paints both with `Screen_Armoury`, the
-    /// two share the one `g_levyBasket`, and the button that actually raises
+/// two share the one `g_levyBasket`, and the button that raises
     /// the army is on this one. See [`crate::screens::armoury`].
     Armoury(u8),
     /// `g_screenId` `0x0D` — one weapon's rack, opened by clicking that weapon
@@ -236,7 +236,7 @@ pub enum Transition {
     /// this variant existed: [`Machine::handle`] offered the event to the top
     /// screen and stopped.
     ///
-    /// **A pass is not a peek.** The lower screen acts for real, and what it
+/// The lower screen acts for real, and what it
     /// asks for lands *at its own depth* — see [`Machine::handle`], where a
     /// `Push` from underneath truncates everything above it first. That is the
     /// original's single-byte `g_screenId` reproduced, not a convenience.
@@ -305,7 +305,7 @@ pub trait Screen {
     fn title(&self, ctx: &Ctx) -> String;
 
     /// One input event. The default ignores everything, so a screen only writes
-    /// down what it actually responds to.
+/// down what it responds to.
     fn handle(&mut self, _event: Event, _ctx: &mut Ctx) -> Transition {
         Transition::Stay
     }
@@ -320,7 +320,7 @@ pub trait Screen {
         Transition::Stay
     }
 
-    /// **`Turn_Tick(); Units_Tick();` — the half of a frame that is not a
+/// **`Turn_Tick(); Units_Tick();` — the half of a frame
     /// screen's.**
     ///
     /// `Battle_Frame` (`0x004B99C0`) ends its inner loop with
@@ -336,7 +336,7 @@ pub trait Screen {
     /// is a battle.
     ///
     /// [`Screen::update`] is `Screen_FrameInput`'s half and this is the loop's,
-    /// which is why the campaign map has both: [`Machine::wind_turn`] calls this
+/// so the campaign map has both: [`Machine::wind_turn`] calls this
     /// one every frame whatever is on top.
     fn wind_turn(&mut self, _ctx: &mut Ctx) -> Transition {
         Transition::Stay
@@ -348,7 +348,7 @@ pub trait Screen {
     /// dirty for every event — so this exists for the one thing that changes
     /// without an event arriving: **edge scrolling**, where the pointer is held
     /// still against the edge of the window and the map moves under it. Taking
-    /// the flag rather than reading it keeps a still screen costing nothing,
+/// the flag keeps a still screen costing nothing,
     /// which is the property [`Machine::update`] was written to preserve.
     fn take_redraw(&mut self) -> bool {
         false
@@ -387,9 +387,9 @@ pub trait Screen {
     ///   autosave. [`crate::screens::map::MapScreen`] raises it there.
     /// * `Game_NewGame` (`0x00497CED`), after `Season_Advance` and
     ///   `Move_BuildCostMap`. [`crate::screens::setup::SetupScreen`] raises it
-    ///   there, which is why a fresh install's `lastturn.sav` reads Winter 1268.
+///   there, so a fresh install's `lastturn.sav` reads Winter 1268.
     ///
-    /// **It goes up, never down**, exactly as [`Screen::take_clicks`] does and
+/// **It goes up**, exactly as [`Screen::take_clicks`] does and
     /// for the same reason: a screen may report that a turn came round, and may
     /// not learn whether a file was written or where it went. Nothing here is on
     /// [`Game`], so it is not in the save and not in the lockstep digest.
@@ -426,13 +426,13 @@ pub trait Screen {
     /// one. Most screens use the campaign palette and answer `None`; the front
     /// end, the merchant, the armoury, castle building and the ratings each
     /// read a palette of their own (`File_ReadChunk("gateway.256", …)` then
-    /// `Palette_Set`), and the presenter asks the top screen rather than
+/// `Palette_Set`), and the presenter asks the top screen
     /// assuming there is only one.
     fn palette(&self) -> Option<&'static str> {
         None
     }
 
-    /// **A palette that is not a file** — a film's, which changes as it plays.
+/// **A palette** — a film's, which changes as it plays.
     ///
     /// `Smk_PlayLoop` copies the film's 768 bytes into `g_paletteRgb` and
     /// uploads them whenever a frame carries a palette, so while a film is up
@@ -459,7 +459,7 @@ pub trait Screen {
         None
     }
 
-    /// Whether this screen is an **inset over what was underneath** rather than
+/// Whether this screen is an **inset over what was underneath**
     /// a page of its own.
     ///
     /// `docs/screens-county.md` §1: *"The game's management surface is a
@@ -589,7 +589,7 @@ pub struct Machine {
     /// counted by the screen that is then popped.** A sum over the live stack
     /// would lose exactly the presses a player notices most.
     ///
-    /// Drained out of the screens by [`Machine::handle`] rather than read from
+/// Drained out of the screens by [`Machine::handle`]
     /// them, so a screen cannot see the total and cannot be told what was done
     /// with it. See [`Screen::take_clicks`].
     clicks: u32,
@@ -610,7 +610,7 @@ pub struct Machine {
     /// `g_optToolTips` as the last tick saw it, to see `Opt_ToggleToolTips`.
     tool_tips_seen: Option<bool>,
     /// **A `Save_RotateAndWrite` (`0x0049A453`) is owed**, drained out of the
-    /// screens rather than read from them. See [`Screen::take_autosave`] and
+/// screens. See [`Screen::take_autosave`] and
     /// [`crate::saves::run_pending`].
     ///
     /// A latch and not a counter, because two turns cannot come round between
@@ -794,7 +794,7 @@ impl Machine {
     /// `Msg_Pump` (`0x00472E46`) is not called by any screen: `Battle_Frame`
     /// (`0x004B99C0`) calls it once a frame, which makes this — our frame
     /// driver's per-tick step — the place it belongs. It is also why the screen
-    /// test inside it is a test of `g_screenId` rather than of anything the
+/// test inside it is a test of `g_screenId`
     /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
         self.run_tips(ctx);
@@ -861,7 +861,7 @@ impl Machine {
     /// [`crate::screens::message`] — stopped the turn while it was open. So did
     /// walking into a county panel. `docs/decisions.md` C197.
     ///
-    /// **And the `else if` is the battle's**, which is why this is one function.
+/// **And the `else if` is the battle's**, so this is one function.
     /// The second arm has no `g_screenId` test either, so a battle runs under
     /// whatever is on top of *it* exactly as a turn runs under whatever is on
     /// top of the map. That mattered the moment the battlefield got a menu bar:
@@ -927,7 +927,7 @@ impl Machine {
     ///
     /// A transition from down here is applied at `depth`, which is what
     /// [`Machine::apply_at`] is for: a battle that *ends* while a menu is open
-    /// settles underneath the menu rather than closing it.
+/// settles underneath the menu.
     fn wind_battle(&mut self, ctx: &mut Ctx, depth: usize) {
         let t = self.stack[depth].update(ctx);
         if self.stack[depth].take_redraw() {
@@ -1119,7 +1119,7 @@ impl Machine {
             self.dirty = true;
         }
         // **`Screen_FrameInput`'s force-close guard**, and it is the standing
-        // latch rather than the clock's own request:
+// latch:
         //
         //   if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))
         //
@@ -1201,7 +1201,7 @@ impl Machine {
     /// up, after it.
     ///
     /// Not a painter's draw: `Battle_Frame` calls it once a frame near the end of
-    /// its tail, after the widgets and the message window, which is why it is
+/// its tail, after the widgets and the message window, so it is
     /// drawn here after the stack and not by the campaign map. Whether it is
     /// drawn at all is `DAT_004D2E80[g_screenId]`, the table in
     /// [`crate::turn_clock::SCREENS`].
@@ -1220,11 +1220,11 @@ impl Machine {
     /// Paint the stack from the last screen that is not an overlay upwards.
     ///
     /// An overlay is drawn over what was underneath, which is what the
-    /// original's management surface actually is; a page clears and replaces.
+/// original's management surface is; a page clears and replaces.
     /// The common case — a stack whose top is a page — draws exactly one
     /// screen, as it always did.
     ///
-    /// This is not a convenience. **The original has no screen clear anywhere**:
+/// **The original has no screen clear anywhere**:
     /// `Screen_Draw` picks a painter and the painter fills a rectangle, so
     /// whatever is outside it is still there from the last frame.
     /// `Village_Draw` repaints the campaign map itself and blits its picture on
@@ -1292,7 +1292,7 @@ impl Machine {
     /// plane of indices, and every defect of the *"right picture, wrong
     /// colours"* kind is invisible to a test that stops at the canvas.
     pub fn present(&self, assets: &crate::game::Assets, canvas: &Canvas, rgba: &mut [u8]) {
-        // A film's palette is not a file and changes as it plays; while one is
+// A film's palette changes as it plays; while one is
         // up it is the whole screen's (`Smk_ApplyPalette`), so it outranks
         // every `.256` on the stack. See [`Machine::live_palette`].
         let live = self.live_palette();
@@ -1333,9 +1333,9 @@ impl Machine {
     /// Apply a transition **asked for by the screen at `depth`**.
     ///
     /// Everything above `depth` is discarded first. For the top screen that is
-    /// nothing, which is why every existing caller is unaffected; for a screen
+/// nothing, so every existing caller is unaffected; for a screen
     /// that was reached by a [`Transition::Pass`] it is the whole point, and it
-    /// is the original's behaviour rather than a simplification of it — see
+/// is the original's behaviour — see
     /// [`Machine::handle`].
     fn apply_at(&mut self, depth: usize, t: Transition) {
         match t {

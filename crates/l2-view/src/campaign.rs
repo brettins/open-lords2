@@ -105,7 +105,7 @@ pub const SEASON_SUFFIX: [char; SEASONS] = ['a', 'b', 'c', 'd'];
 ///
 /// `Gfx_LoadCountyMode` guards with `if (0 < g_season && g_season < 5)` and
 /// otherwise leaves the base at zero, so an out-of-range season draws the
-/// **spring** set. This clamps rather than wrapping for the same reason.
+/// **spring** set. This clamps for the same reason.
 pub fn season_slot(season: u8) -> usize {
     if (1..=SEASONS as u8).contains(&season) {
         season as usize - 1
@@ -146,7 +146,7 @@ pub struct Zoom {
     /// `Gfx_LoadCountyMode` loads exactly these five, in this order, from
     /// consecutive `g_resourceTable` entries starting at
     /// `(zoom == 2 ? 0x20 : 0) + (season - 1) * 8`. This array **is** those
-    /// entries, read out of the table at `0x004DA050` rather than guessed from
+/// entries, read out of the table at `0x004DA050`
     /// the filenames on disk — which matters, because the far zoom's four rows
     /// are not four files. See [`SEASON_SUFFIX`].
     pub banks: [[&'static str; 5]; SEASONS],
@@ -278,7 +278,7 @@ pub const FAR: Zoom = Zoom {
     besieger_at: (2, -0x28),
 };
 
-/// The two zooms the campaign screen actually has, near first.
+/// The two zooms the campaign screen has, near first.
 pub const ZOOMS: [Zoom; 2] = [NEAR, FAR];
 
 impl Zoom {
@@ -370,7 +370,7 @@ impl Viewport {
     }
 
     /// `Map_ClampScroll`, plus the parity the original maintains by
-    /// construction rather than by clamping.
+/// construction.
     pub fn clamped(self, zoom: &Zoom) -> Viewport {
         Viewport {
             row: (self.row.clamp(0, zoom.max_row())) & !1,
@@ -405,7 +405,7 @@ impl Viewport {
         Viewport { row: (row & !1) - 12, col: col - 4 }.clamped(zoom)
     }
 
-    /// The same, for a map tile rather than a lattice cell.
+/// The same, for a map tile.
     pub fn centred_on_tile(x: usize, y: usize, zoom: &Zoom) -> Viewport {
         let (row, col) = tile_to_cell(x, y);
         Viewport::centred_on_cell(row, col, zoom)
@@ -474,7 +474,7 @@ impl Lattice {
 /// The five tile banks **in every season**, the two sprite sheets and the flag
 /// sheet at both zooms, decoded on demand.
 ///
-/// # Why the banks are a pool and an index table rather than a nested array
+/// # Why the banks are a pool and an index table
 ///
 /// `Gfx_LoadCountyMode` does not hold four seasons at once: it frees the eight
 /// buffers and reloads them from a different eight resource-table entries every
@@ -565,7 +565,7 @@ impl MapAssets {
         self.banks.get(at)
     }
 
-    /// How many distinct bank files were actually loaded. Twenty on a complete
+/// How many distinct bank files were loaded. Twenty on a complete
     /// install: fifteen for the near zoom's four seasons and five for the far
     /// zoom's one.
     pub fn bank_files(&self) -> usize {
@@ -646,7 +646,7 @@ pub fn draw_unit(
 /// Where [`draw_unit`] would put a unit's figure, and the frame it would use.
 ///
 /// The same arithmetic, factored out so that a **hit test** can ask where the
-/// figure actually is rather than guessing at a box around the tile centre. A
+/// figure is. A
 /// sprite is anchored on the tile's bottom vertex and is taller than the tile,
 /// so most of it stands over the tiles behind — see `docs/decisions.md` C57 and C58.
 /// `None` when the sheet or the frame is missing, which is a caller's cue to
@@ -699,7 +699,7 @@ pub fn unit_sprite_rect(
 /// so that one figure lands on `g_mapViewX - 2` where the row's own spacing
 /// puts it on `g_mapViewX`. **`mode == 2` has no caller in the corpus** — the
 /// only literals reaching `Map_DrawArmies` anywhere are 0 and that single 1 —
-/// so the middle branch is written down here rather than built.
+/// so the middle branch is written down here.
 ///
 /// It is a *viewport*-relative quirk, not a property of the tile: scroll one
 /// column and a different army is the one that shifts. `docs/bugs.md` has no
@@ -744,7 +744,7 @@ pub struct UnitSprite {
 /// ```
 ///
 /// Six 8 × 16 `i8` tables, carried byte for byte out of `Lords2.exe` — the four
-/// below, generated from the file rather than typed, and asserted against the
+/// below, generated from the file, and asserted against the
 /// user's own copy in `tests/install.rs`. The middle pair belongs to the zoom
 /// `Map_SetZoom` can never reach (`docs/screens.md` §2.2) and is not carried.
 ///
@@ -769,7 +769,7 @@ pub struct UnitSprite {
 ///   numbering, 0 north clockwise to 7 north-west.
 ///
 /// An index above 15 is not a state `Unit_StepOnce` can leave, and is drawn at
-/// rest rather than read off the end of the table. **[V]** on the values — two
+/// rest. **[V]** on the values — two
 /// sources, the bytes and the projection, in `walk_tests` below; **[D]** on
 /// which indices are drawn.
 pub fn walk_offset(zoom: &Zoom, facing: u8, sub_tile: u8) -> (i32, i32) {
@@ -832,7 +832,7 @@ mod walk_tests {
     use super::*;
 
     /// **The bytes and the projection agree about every step**, which is what
-    /// makes the tables `[V]` rather than a transcription.
+/// makes the tables `[V]`.
     ///
     /// Two sources that share nothing: the tables out of `Map_DrawArmies`, and
     /// our own isometric projection ([`tile_to_cell`], [`cell_to_screen`], which
@@ -903,7 +903,7 @@ pub fn draw_flag(
 /// ```
 ///
 /// It is [`draw_flag`] with a different offset and a constant frame, and it is a
-/// separate function rather than a `frame` argument because sharing the entry
+/// separate function because sharing the entry
 /// point is exactly how it came to be drawn at the banner's
 /// [`Zoom::flag_at`] — ten pixels out, in a screen full of ten-pixel things.
 /// See [`MERCENARY_MARKER_FRAME`] for the second, independent source of the
@@ -1199,17 +1199,17 @@ pub const MERCENARY_MARKER_FRAME: usize = 0x81;
 /// `phase` is `_DAT_0057D38C`, and the `* 6` is the whole shape of the sheet:
 /// **three herds of six frames each**, one herd per crowding band.
 ///
-/// # Two states in that ladder draw nothing, and it is not a mistake
+/// # Two states in that ladder draw nothing
 ///
 /// `content == 0x0F` and `content == 0x13` both fall through the unsigned
 /// `2 < (content - base)` guard and return — `0x13 - 0x14` is `0xFF` as a byte.
 /// `0x13` is the value `l2_kingdom::land::herd_graphic` writes for **an empty
 /// herd**, so a county that has lost every animal keeps its pasture and shows
 /// bare grass. That is the original saying *"no cattle"* by drawing no cattle,
-/// and it is the reason the guard is written as an unsigned compare rather than
+/// and it is the reason the guard is written as an unsigned compare
 /// a range. **[V]**
 ///
-/// # The `0x67` half is vestigial, and it is not a second herd
+/// # The `0x67` half is vestigial
 ///
 /// The obvious reading of a second three-group block is *sheep*. It is not, and
 /// two independent things say so.
@@ -1237,9 +1237,9 @@ pub const MERCENARY_MARKER_FRAME: usize = 0x81;
 /// does write those four values, but onto a tile carrying plane-0 bit `0x10`,
 /// which `FUN_004071A0` tests **before** `0x20` and sends down the dwelling arm.
 ///
-/// The arm is reproduced rather than dropped because the ladder is what the
+/// The arm is reproduced because the ladder is what the
 /// function does, and a renderer that silently narrowed it would be asserting
-/// the absence rather than recording it. **[V]** — an exhaustive scan of every
+/// the absence. **[V]** — an exhaustive scan of every
 /// `Terrain_Set` call site and every direct `content` write in the corpus, plus
 /// the two readings above, which were arrived at separately and agree.
 ///
@@ -1292,7 +1292,7 @@ pub fn herd_sprite(terrain: u8, phase: u8) -> Option<(usize, (i32, i32))> {
 ///
 /// **`Zoom::id == 2` draws nothing**, which is the arm's own first line rather
 /// than a simplification: the far zoom's tiles are 10 × 6 and the animals are
-/// simply not drawn there.
+/// not drawn there.
 ///
 /// The original's `param_1` — `if (param_1 == 1) dx -= g_mapTileHalfStep` — is
 /// **not** reproduced, and its absence is the point. `FUN_00405FAC` walks an
@@ -1365,7 +1365,7 @@ pub fn tile_centre(view: Viewport, zoom: &Zoom, x: usize, y: usize) -> Option<(i
 /// re-stamped to frames 47 … 50, 51 … 54 or 55 … 58 by the county's population,
 /// and until it is, a town renders as four quarries.
 ///
-/// A sparse plane rather than a rewritten `MapSlot`, because the map file is
+/// A sparse plane, because the map file is
 /// the user's own and this crate has no business holding a mutated copy of it:
 /// `None` everywhere means "draw the file", and the caller fills in only the
 /// tiles it can account for.
@@ -1386,7 +1386,7 @@ impl Overrides {
     }
 
     /// Override one tile. `bank` is the **plane-1 byte**, not the bank index —
-    /// the same value the file stores, so a caller copies rather than converts.
+/// the same value the file stores, so a caller copies.
     pub fn set(&mut self, x: usize, y: usize, bank: u8, frame: u8) {
         if x >= PLANE_DIM || y >= PLANE_DIM {
             return;
@@ -1435,8 +1435,8 @@ impl Overrides {
 ///
 /// The consequence is the one this function relies on: **the low two bits of a
 /// farm tile's frame never change.** Whatever `L2_maps.dat` stored is the
-/// variant for the life of the game, which is why [`field_frame`] can be a
-/// pure function of the terrain and the stored frame rather than needing the
+/// variant for the life of the game, so [`field_frame`] can be a
+/// pure function of the terrain and the stored frame
 /// tile's history.
 ///
 /// The claim self-checks against the map file: farm tiles on disk are bank
@@ -1474,7 +1474,7 @@ pub const BANK_ROADS: u8 = 0x08;
 /// The first frame of a terrain's four, and the bank layer it draws from.
 ///
 /// The ladder is `Terrain_Set`'s, in its own order — the specific values are
-/// tested before the two ranges, which is why `0x17` and `0x18` do not fall
+/// tested before the two ranges, so `0x17` and `0x18` do not fall
 /// into the `0x13 …` arm and `0x19 … 0x1C` do not fall into the tail.
 ///
 /// **The tail catches more than `maps-layers.md` §5.5's table says.** The
@@ -1518,7 +1518,7 @@ pub fn field_base(terrain: u8) -> (u8, u8) {
 /// **Bit `0x80` is set for terrain `0x0F … 0x16` and changes no pixel here.**
 /// It is a run-time *draw* bit asking for the building-overlay blitter
 /// (`maps-layers.md` §5.3) — on a pasture, presumably the animals — and this
-/// crate has no such blitter, so it is carried rather than acted on:
+/// crate has no such blitter, so it is carried:
 /// [`Overrides`] stores the plane-1 byte and a caller reading it back should
 /// see what the game's own tile record would hold.
 pub fn field_graphic(terrain: u8, stored_frame: u8) -> (u8, u8) {
@@ -1636,7 +1636,7 @@ pub const INDUSTRY_FRAMES: [(u8, u8, u8, u8); 4] =
 /// ```
 ///
 /// It is a **rewrite of the tile's own terrain frame** and draws no overlay at
-/// all, which is why a working mine and an idle one are the same sprite sheet,
+/// all, so a working mine and an idle one are the same sprite sheet,
 /// the same bank and the same position: the only difference on screen is that
 /// one of them is moving. A reader looking for the "on" picture will not find
 /// one.
@@ -1693,7 +1693,7 @@ pub fn industry_period_ms(output: i32) -> u32 {
 /// `g_optExploration` is on, holding the viewer's test *"is tile `(x, y)`
 /// unseen?"*, and `None` when the option is off.
 ///
-/// A closure rather than a plane because this crate does not know where the
+/// A closure because this crate does not know where the
 /// seen bits live, and should not: `l2_kingdom::explore::hides` is the test and
 /// the campaign screen hands it in.
 pub type Fog<'a> = Option<&'a dyn Fn(usize, usize) -> bool>;
@@ -1841,7 +1841,7 @@ mod tests {
     /// `Map_SetZoom` derives `g_mapViewRight = pitch*cols + viewX` and it comes
     /// out **480 at every zoom**, which is what leaves 160 pixels for the right
     /// column. This is the single arithmetic fact the whole layout rests on, so
-    /// it is asserted from the constants rather than written down as 480.
+/// it is asserted from the constants.
     #[test]
     fn every_zoom_gives_the_map_the_same_480_pixels_and_the_panel_the_rest() {
         for z in ZOOMS {
@@ -1849,7 +1849,7 @@ mod tests {
         }
         assert_eq!(PANEL_X + PANEL_W, 640, "the panel's own frames reach the screen edge");
         // The dead middle zoom, included because it is the third data point
-        // that makes 480 an intention rather than a coincidence: 28*17 + 4.
+// that makes 480 an intention: 28*17 + 4.
         assert_eq!(28 * 17 + 4, 480);
     }
 
@@ -1880,7 +1880,7 @@ mod tests {
     /// side of the vertical seam; for the clip rectangle to be equivalent,
     /// those columns must land outside it at both ends and at both zooms.
     ///
-    /// If the clip were 480 rather than 478 the right-hand half of this fails,
+/// If the clip were 480 the right-hand half of this fails,
     /// which is the point: the two dropped columns of the rightmost offset-row
     /// tile land on 478 and 479 exactly.
     #[test]

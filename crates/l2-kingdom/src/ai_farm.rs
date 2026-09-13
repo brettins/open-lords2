@@ -22,7 +22,7 @@
 //! and `FUN_004A4782` (the AI's ration setter), and [`manage_county_farms`] and
 //! [`manage_neutral_fields`] are the two outer passes.
 //!
-//! # What the five actually do differently
+//! # What the five do differently
 //!
 //! Every style runs the same skeleton — *top up the larder, set the industry
 //! share, take the default labour shares, set rations, re-lay the fields,
@@ -50,8 +50,8 @@
 //!    the Winter grain quota with
 //!    `if (fertility < -20) n/2 - 1; else if (fertility < -50) n/2 - 2; else n/2`.
 //!    Anything below −50 is already below −20, so the `-2` branch **never
-//!    runs**: a ruined county gets the same one-field discount as a merely tired
-//!    one. Reproduced rather than tidied — see [`winter_grain_quota`]. `[V]`,
+//!    runs**: a ruined county gets the same one-field discount as a tired
+//!    one. Reproduced — see [`winter_grain_quota`]. `[V]`,
 //!    from the branch order in the decompilation of all three functions that
 //!    carry it.
 //! 2. **Turning *Advanced Farming* off makes the AI plant far more grain, not
@@ -76,13 +76,13 @@
 //!    happening — so a county told to add one while one is already under way
 //!    adds nothing. This crate used to add one to `County::fields_fallow`
 //!    instead, which `crate::field::recount` overwrites from the map on the very
-//!    next pass: **the AI's field expansion has never actually happened.** See
+//!    next pass: **the AI's field expansion has never happened.** See
 //!    [`crate::field::order_reclamation`]. `[V]`.
 //!
 //! # The seams
 //!
 //! Two things these functions do are not this crate's state, and both are
-//! **named seams rather than silent omissions**:
+//! **named seams**:
 //!
 //! * **The merchant.** Every style opens by buying food (`FUN_004A4B12` →
 //!   `Merchant_Trade`), and the buys are *interleaved* with the tests that
@@ -166,7 +166,7 @@ pub trait Market {
 /// A market that refuses every trade.
 ///
 /// **This is no longer what the neutral pass is given**, and the reason is worth
-/// keeping at the type rather than in a log. Its comment used to read *"there is
+/// keeping at the type. Its comment used to read *"there is
 /// no stall yet, so every style's opening shopping cascade is refused and the
 /// county farms what it already has"*, and that stated reason was checked and
 /// was **false**: `Ai_BuyGood`'s stall gate is county `+0x1A4`, which the six
@@ -196,7 +196,7 @@ impl Market for NoMarket {
 }
 
 /// **`Ai_BuyGood` (`0x004A4B12`)** — the county's own merchant stall, which is
-/// what an AI lord and an unowned county actually buy through.
+/// what an AI lord and an unowned county buy through.
 ///
 /// ```c
 /// void Ai_BuyGood(county, qty, good) {
@@ -235,7 +235,7 @@ impl Market for NoMarket {
 /// and the identical arithmetic buys **nothing** one turn earlier at purses of
 /// 186 and 195. `docs/decisions.md` C149.
 ///
-/// `morale` is looked up per county rather than passed as one number because
+/// `morale` is looked up per county because
 /// the price is the *county's* merchant's morale: two counties in the same
 /// season can quote different prices, and nothing about the shipped game's
 /// uniform morale of 100 is a rule this should bake in.
@@ -243,7 +243,7 @@ pub struct CountyStall<'a> {
     /// The tables the stall's base prices come from.
     t: &'a Tables,
     /// Whether each county has a stall, and at what morale — indexed by county
-    /// id. A fixed-size array rather than a map, because the lookup happens
+/// id. A fixed-size array, because the lookup happens
     /// inside the simulation (`docs/netcode.md` D-4).
     stall: [Option<i32>; crate::county::MAX_COUNTIES],
     /// **The realms, mutably** — the treasury an owned county's bill is tested
@@ -256,7 +256,7 @@ pub struct CountyStall<'a> {
     season_next: Season,
     /// `g_optArmiesEat`, for the `Ration_Apply` in the same tail.
     armies_eat: bool,
-    /// How many lots actually moved, for the caller's report.
+/// How many lots moved, for the caller's report.
     pub bought: i32,
 }
 
@@ -265,7 +265,7 @@ impl<'a> CountyStall<'a> {
     /// array — exactly the two reads `Ai_BuyGood` makes.
     ///
     /// A county whose `merchant_unit` names a slot that is empty gets **no
-    /// stall at all** rather than a morale of zero. That is a deliberate
+/// stall at all**. That is a deliberate
     /// departure and it is the safe direction: the original would index
     /// `g_units` unchecked and mark up by whatever it found, and a morale of
     /// zero would still leave the one-crown floor and let the trade happen at
@@ -296,7 +296,7 @@ impl<'a> CountyStall<'a> {
     /// because the function has it, even though no farming style buys ale.
     ///
     /// This is [`crate::trade::quote`] with the merchant read off the county's
-    /// stall rather than off a click, which is the sentence `docs/symbols.md`
+/// stall, which is the sentence `docs/symbols.md` 
     /// uses for it: *"Ai_BuyGood and Ai_SellGood apply the identical markup off
     /// the county's own stall slot, so this is the price for everybody."*
     pub fn price(&self, good: Good, morale: i32) -> i32 {
@@ -332,7 +332,7 @@ impl Market for CountyStall<'_> {
         //
         // For an unowned county `Merchant_Trade`'s own gold guard is inside
         // `if (realm != 0)` and so never runs; this test in `Ai_BuyGood` is the
-        // only thing in front of it, which is why `crate::trade`'s
+// only thing in front of it, so `crate::trade`'s
         // `UnownedCountyTradesUnchecked` quirk is about a *reachable* path
         // rather than a theoretical one.
         //
@@ -406,7 +406,7 @@ impl FarmEnv {
     }
 }
 
-/// The five allocators, named for what they are rather than for their number.
+/// The five allocators, named for what they are.
 ///
 /// The stored style byte is county `+0x1FE`; [`FarmStyle::from_county_byte`]
 /// resolves it the way each of the two outer passes does, which is **not the
@@ -558,7 +558,7 @@ const BUYS_REALM_ARABLE: [BuyLine; 5] =
     [grain(600, 400), grain(600, 200), grain(600, 100), grain(100, 50), grain(100, 25)];
 
 /// `0x004A42E3`'s cascade — the shortest of the five, and the only one that
-/// tops its herd up to **41** rather than 11.
+/// tops its herd up to **41**.
 const BUYS_REALM_GRAZING: [BuyLine; 2] = [cattle(41, 10), grain(100, 400)];
 
 /// `0x004A440F`'s cascade — the longest, and the only one that offers a lot of
@@ -600,7 +600,7 @@ impl FarmStyle {
 /// them in the same pass.
 ///
 /// > This used to end *"this crate has no field for that purse — it is
-/// > `Market`'s business — so this reports the top-up rather than applying it"*.
+/// > `Market`'s business — so this reports the top-up"*.
 /// > [`County::purse`] has existed the whole time; the function reported and
 /// > **[`lay_out`] did not apply it**, which is the shape `docs/agents.md` calls
 /// > *a comment that defers work to a caller must name the caller*. `lay_out`
@@ -768,10 +768,10 @@ pub fn ration_wanted(t: &Tables, county: &County, armies_eat: bool) -> i32 {
 /// do" and "the most".
 ///
 /// **A transcription note.** In the downward limb the original writes the
-/// running best back into `rationSplit` *inside* the loop rather than after it.
+/// running best back into `rationSplit` *inside* the loop.
 /// It makes no difference — the next iteration overwrites it, and the last
 /// iteration's write is the one that survives — so this is written the
-/// straightforward way rather than reproducing a redundant store. `[D]`, and
+/// straightforward way. `[D]`, and
 /// the reason it is safe to tidy is that `Ration_Apply` reads `rationSplit`
 /// only at the top of each iteration, after it has already been set to the
 /// candidate.
@@ -848,7 +848,7 @@ pub fn winter_grain_quota(fertility: i32, base: i32) -> i32 {
 /// `Labour_DefaultSharesBuilt` (`0x0045158B`) — the setter every farming style
 /// uses. Farm 33/50/17, industry 40/15/15/15/15.
 ///
-/// Written here rather than in [`crate::labour`] because it is the AI's choice
+/// Written here because it is the AI's choice
 /// of the two, and because the shares are two independent groups each summing
 /// to 100 — an invariant [`crate::county::County::labour_share`] documents and
 /// this upholds.
@@ -1022,7 +1022,7 @@ pub fn lay_out(
 /// One `County_RefreshEstimates` call, with the two things it reads that are
 /// not the county: the **owning realm** and the realm's **weapon share**.
 ///
-/// Both are recomputed at every call site rather than hoisted, because the
+/// Both are recomputed at every call site, because the
 /// share depends on which smiths are staffed and [`lay_out`] re-allocates
 /// between its two passes. `crate::field::set_type` recomputes it inside its
 /// loop for the same reason.
@@ -1030,7 +1030,7 @@ pub fn lay_out(
 /// An unowned county falls back to a default [`Realm`], which is correct
 /// *only* for realm 0: `Industry_LabourEstimate` tests the owner first and
 /// gives a county nobody owns a ceiling of 0 on all four industries, whatever
-/// the record holds. That is why this looks the realm up rather than being
+/// the record holds. That is why this looks the realm up
 /// handed one.
 fn refresh(
     t: &Tables,
@@ -1064,10 +1064,10 @@ fn refresh(
 /// `crate::tables::AI_FIELD_LADDER`, then [`field::order_reclamation`].
 ///
 /// The ladder is an `if`/`else if` chain, so the **first** row whose *both*
-/// conditions hold wins and the rest are skipped — which is why a two-field
+/// conditions hold wins and the rest are skipped — so a two-field
 /// county of 150 people falls through every row and gains nothing.
 ///
-/// Returns how many wasteland tiles were actually started, which is **not** the
+/// Returns how many wasteland tiles were started, which is **not** the
 /// number the ladder asked for: the county may have no wasteland left, and a
 /// field already under reclamation eats a place in the quota. See
 /// [`field::order_reclamation`].
@@ -1193,7 +1193,7 @@ mod tests {
     /// weapon share has a realm to sum over, and is copied back out.
     ///
     /// Passing the county alone is exactly what the signature no longer allows,
-    /// and for a reason worth restating here rather than only at [`lay_out`]:
+/// and for a reason worth restating here:
     /// the blacksmith's ceiling is a share of the realm's stockpile divided
     /// across its staffed smithies, so it is not a one-county quantity.
     fn lay(style: FarmStyle, c: &mut County, map: &mut CampaignMap, e: &FarmEnv) {
@@ -1363,7 +1363,7 @@ mod tests {
     }
 
     /// A stall over a throwaway realm array, for the unowned-county tests that
-    /// never read a realm back. Leaked rather than threaded through every
+/// never read a realm back. Leaked
     /// call, because a test process ends and a borrow checker does not care.
     fn stall<'a>(t: &'a Tables, c: &County, units: &crate::unit::Units) -> CountyStall<'a> {
         stall_with(t, c, units, Box::leak(realms().into_boxed_slice()))
@@ -1423,7 +1423,7 @@ mod tests {
     ///
     /// `g_goodsPrice[1]` is 2 and `Merchant_SpawnAll` gives every merchant a
     /// morale of 100, so `Ai_BuyGood` quotes `2 + max(1, Pct(2, 100))`. The
-    /// number is pinned from the table rather than computed from the same
+/// number is pinned from the table
     /// expression the code under test uses — `docs/agents.md`, *compute the
     /// probe from the constant you are ablating*.
     #[test]
@@ -1431,7 +1431,7 @@ mod tests {
         let (c, _, units) = neutral_with_purse(0);
         let s = stall(T, &c, &units);
         assert_eq!(s.price(Good::Grain, 100), 4, "base 2 doubled by a morale of 100");
-        // And the price really does follow the merchant rather than a constant.
+// And the price really does follow the merchant.
         assert_eq!(s.price(Good::Grain, 0), 3, "the one-crown markup floor");
         assert_eq!(s.price(Good::Grain, 200), 6);
     }
@@ -1443,7 +1443,7 @@ mod tests {
     /// same county of `safeturn.sav` one turn earlier holds 195 and buys
     /// **nothing**, because 200 is more than 195 and there is no smaller lot.
     /// A purse of 400 reaches the 100-sack lot instead, which is what says the
-    /// rule is a threshold rather than a number.
+/// rule is a threshold.
     #[test]
     fn the_lot_an_unowned_county_takes_is_the_largest_its_purse_covers() {
         for (purse, expect_lot, why) in [
@@ -1600,7 +1600,7 @@ mod tests {
     fn an_arable_lord_gives_a_small_herd_no_pasture_whatever() {
         let (mut c, mut map) = county_with(8);
         c.herd = 10;
-        // Start it with a pasture, so the test shows the clear rather than an
+// Start it with a pasture, so the test shows the clear
         // absence.
         map.terrain[c.field_tile(0).unwrap()] = terrain::PASTURE;
         crate::field::recount(&mut c, &map);
@@ -2027,7 +2027,7 @@ mod tests {
         assert_eq!(crate::field::order_reclamation(&c, &mut map, 1), 1);
     }
 
-    /// A realm whose lord has no personality record farms nothing rather than
+/// A realm whose lord has no personality record farms nothing
     /// falling through to style 0 — the same refusal `ai::set_tax_rates` makes.
     #[test]
     fn a_lord_with_no_personality_record_farms_nothing() {

@@ -67,7 +67,7 @@ the backlog and the numbers folded away — one line per item, a ledger row's ti
 nothing else. `--html-detail <path>` writes the full page for agents. Both are generated,
 **never committed**, with the time and the `main` SHA on them so their own staleness is
 visible. The player's first page printed every row's prose and had no feature list; he
-called it *"blabby rather than like a clear feature or project task list"*.
+called it *"blabby"*.
 
 **`docs/features.json` is a claim, so `--check` holds it to evidence.** A `done` feature must
 cite a correction, a path, or an `arms:`/`audio:` inventory entry, and the full check proves
@@ -105,7 +105,7 @@ separate project directories under `E:\dev\ghidra-projects` — e.g. `lords2` fo
 binary and `mapl2` for the shipped map editor. Say so explicitly in the agent's brief;
 this is not obvious and the failure mode is a lock error mid-run.
 
-Copy `ghidra_scripts/DecompileFunc.java` into a per-agent script directory rather than
+Copy `ghidra_scripts/DecompileFunc.java` into a per-agent script directory
 having several agents edit the shared one.
 
 ## Briefing an agent
@@ -150,7 +150,7 @@ to add. If another agent has already staged something — a file rename, say —
 takes it too, however careful your `git add` was. One agent swept another's staged renames
 this way while following the explicit-path rule to the letter.
 
-The form that actually holds names the paths on the **commit**:
+The form that holds names the paths on the **commit**:
 
 ```bash
 git commit -F msg.txt -- crates/l2-mods docs/modding.md   # yes: only these, whatever the index holds
@@ -331,7 +331,7 @@ rather than reasoning about which is more elegant.
 
 **An honest note about the paragraph above, because the record is worth more than the rule
 looking effective.** The protocol in this section was written after four collisions and then
-did not prevent the fifth — but it was never actually tested: the branch that collided had
+did not prevent the fifth — but it was never tested: the branch that collided had
 been cut *before* the protocol landed, so the agent never read it. So there is no evidence
 either way about whether writing it down works, and there is now no need to find out.
 Documented process depends on an agent having read the document, which a long-running branch
@@ -537,7 +537,7 @@ said *"the wheat fields don't show the wheat growing."*
 That one is already covered by *name the branch* — a true statement about one of two callers,
 promoted to a statement about both — but it is worth reading beside the first, because the two
 together make the sharper point: **a document is an input to the code, not only a record of
-it.** A wrong `[V]` does not merely fail to help; it actively produces the defect, and it does
+it.** A wrong `[V]` does not fail to help; it actively produces the defect, and it does
 so through a careful person who checked the reference. The correction log knows this about
 itself (*"the correction log can be wrong, and it is believed harder than anything else"*);
 the format documents are believed exactly as hard and have no such warning on them.
@@ -844,7 +844,7 @@ Had the two orderings happened to produce valid JSON — one entry moved, not se
 conflict that closed its braces evenly — the file would have been committed, `symbols_md.js` would
 have regenerated `symbols.md` from it without complaint, both would have been green, and the
 project would have carried a wrong comment on a right address until somebody read that function
-again. **It is not a defence to rely on again**, which is why `symbols.json` and
+again, so `symbols.json` and
 `hypotheses.json` now merge by key through a driver, not by anyone remembering to.
 
 ### The nine, and what caught each
@@ -863,7 +863,7 @@ again. **It is not a defence to rely on again**, which is why `symbols.json` and
 
 Three of the nine had **no defence at all** and were found by a person looking. Two were caught
 by the compiler, which is the cheap case and the argument for making mistakes unrepresentable
-rather than checkable. The rest were caught by checks built for other purposes.
+The rest were caught by checks built for other purposes.
 
 ### The B-numbers, and an instruction that read as complete
 
@@ -881,7 +881,7 @@ instructions, and only one of them can be followed wrongly.
 
 Quote this beside `C61`'s **six** claimants when arguing for assigning numbers at merge. The
 C-space collided six times in one day and was noticed every time; the B-space had been quietly
-wrong for weeks and was noticed only when a check finally read the file **as data** rather than
+wrong for weeks and was noticed only when a check finally read the file **as data**
 as prose.
 
 ### What to do instead
@@ -943,7 +943,7 @@ Both copies get updated together, by someone holding one intention, and they agr
 were written to agree, not because the thing they describe is true. The check passes
 firmly and means nothing.
 
-So the test for the uniqueness rule **shells out to `merge-json.js --check`** rather than
+So the test for the uniqueness rule **shells out to `merge-json.js --check`**
 reimplementing `KEY_FIELDS` in Rust. A Rust copy of the key rule would be a second list, edited
 by whoever edits the first, in the same session, for the same reason — which is the
 failure this whole area is about, reproduced inside its own remedy. The driver's logic is what a
@@ -959,7 +959,7 @@ Almost everything in this file is the same remedy: **two artefacts, maintained b
 work, that must agree.** `symbols_md.js`, `figures.js`, the citation lockfile, the test census,
 the encode/decode scanner. It is a good pattern and it has caught real things.
 
-It is the second-best pattern, and it is worth saying so at the top of the list rather than
+It is the second-best pattern, and it is worth saying so at the top of the list
 leaving it implied.
 
 The best one is a **construction in which the failure cannot be expressed**. The case that
@@ -1017,7 +1017,7 @@ The same fix had a second decision in it, and it is the one that generalises fur
 
 `County` has **101** fields; `CountyState` has **46**. Destructuring the destination would have
 been an exhaustive literal over 101 names, of which some seventy are derived, computed later, or
-genuinely absent from the save — seventy lines of `x: 0` for a reader to scan past. Destructuring
+absent from the save — seventy lines of `x: 0` for a reader to scan past. Destructuring
 the source is 46 names, **every one of which is something the file stored**, so the
 question *"is this carried?"* is meaningful on every line.
 
@@ -1045,7 +1045,7 @@ have helped either time.
 **The first was the county-selection arm.** `Map_Click` was read, an arm was found, and the
 conclusion drawn was that C58 had been wrong to deny it. Every step of the reading was accurate
 except the one that mattered: what was found was the *prologue of the industry branch*, and the
-question being answered — *"is there a free-standing selection arm?"* — was never actually put to
+question being answered — *"is there a free-standing selection arm?"* — was never put to
 the text. `docs/decisions.md` C61.
 
 **The second was worse, because it was an experiment designed on purpose.** The question was
@@ -1064,7 +1064,7 @@ played game, reloads it, and compares the digest after each of ten further seaso
 kingdom *is* a different world — a mine with no ore behaves differently from one with
 ore — and ten seasons of that divergence never moved the number.
 
-**And a third instance, from the same hour and the same person, which is why this is a pattern
+**And a third instance, from the same hour and the same person, so this is a pattern
 and not two accidents.** The instruction that followed was to prove the new encode/decode check
 by making it fail on `Unit::mission`. It was wrong twice over: that field does not exist on
 `main` at all — it arrives with an unmerged branch — and *neither* `mission` nor `farm_style` is
@@ -1409,7 +1409,7 @@ What surfaced it was `symbols_md.js` refusing a promotion — *promotion is a mo
 rule written for bookkeeping reasons that had nothing to do with this. That is the generalisable
 part:
 
-> **Two artefacts that must agree is the pattern that catches things. Two artefacts that merely
+> **Two artefacts that must agree is the pattern that catches things. Two artefacts that
 > overlap catch nothing, and will disagree indefinitely.**
 
 If two files can describe the same object, make one of them derive from the other, or make a
@@ -1460,7 +1460,7 @@ there is nothing in a string literal that can be wrong in a way a compiler or a 
 
 Where the subject can be derived — from the widget table, from the file, from the enumeration —
 derive it, and let the check quantify over everything instead of naming one thing. Where it
-genuinely must be named, the name deserves the same scepticism as a number: ask what would be
+must be named, the name deserves the same scepticism as a number: ask what would be
 different if it were wrong, and if the answer is *"nothing visible"*, that is the finding.
 
 ## A hand-staged fixture can manufacture a finding, and it will be believed
@@ -1483,7 +1483,7 @@ Two things to take from it.
 **A fixture that constructs the state a feature is supposed to produce cannot tell you whether
 the feature produces it.** The fix is a test that walks the road: an army moved onto a castle
 tile, and the order read out of what came back. That test did not exist for any siege in the
-workspace, which is why the hole was subsystem-wide, not one test's oversight.
+workspace, so the hole was subsystem-wide, not one test's oversight.
 
 **And name the function.** This is the same shape as C71 — a true statement about one branch,
 promoted to a statement about a subsystem, in prose, between agents, where no check in the tree

@@ -55,7 +55,7 @@
 //! field is `+0x138`, the realm's **total weapon stock**, and `+0x38` is
 //! inside the army-name counters.
 //!
-//! # Two seams, named rather than silently skipped
+//! # Two seams, named
 //!
 //! * **The evacuation.** Step 7's third pass ships a written-off county's
 //!   grain and herd to the muster county with `Transport_Spawn`, or sells them
@@ -192,7 +192,7 @@ pub const FRONTIER_LEVY_PCT: i32 = 50;
 /// The population floor `FUN_0049F431` passes `FUN_004A50AE`. **Not
 /// [`crate::levy::DEFENCE_MIN_POPULATION`]**, which is the 40 the *invasion*
 /// path passes: the same function, a different argument, and hardcoding it was
-/// this crate's simplification rather than the original's rule.
+/// this crate's simplification.
 pub const FRONTIER_LEVY_MIN_POPULATION: i32 = 100;
 
 /// The order `FUN_004A5389` hands weapons out in: bows, crossbows, swords,
@@ -203,7 +203,7 @@ pub const FRONTIER_LEVY_MIN_POPULATION: i32 = 100;
 /// a realm with a thousand bows sends a garrison of pure archers. Pikemen are
 /// the one equipped type the pass skips, which reads as doctrine — a garrison
 /// wants missiles and a pike is a field weapon against cavalry — and is stated
-/// as an observation rather than an explanation. `[D]`
+/// as an observation. `[D]`
 pub const GARRISON_EQUIP_ORDER: [TroopType; 5] = [
     TroopType::Archer,
     TroopType::Crossbowman,
@@ -237,7 +237,7 @@ pub fn first_owned_county(counties: &[County; MAX_COUNTIES], county_count: usize
 /// }
 /// ```
 ///
-/// Two things worth having in the model rather than the head:
+/// Two things worth having in the model:
 ///
 /// * **The gate is the whole point.** A realm with **one** county buys nothing
 ///   at all unless that county is above 14 happiness *and* above 19 on the
@@ -252,13 +252,13 @@ pub fn first_owned_county(counties: &[County; MAX_COUNTIES], county_count: usize
 /// [`crate::industry::order_castle`] debits the whole cost up front, exactly
 /// as [`crate::ai::choose_industry`] records for the same pair of fields. So
 /// the term evaluates to zero here and the wants are the two floors. `[I]`, and
-/// it is the up-front debit that makes it so rather than anything read out of
+/// it is the up-front debit that makes it so
 /// the binary.
 ///
 /// The consumer is `Ai_TradeForCounty` (`0x0049E39B`), which
 /// [`crate::ai_farm`] records as unimplemented — so this step changes no
 /// behaviour today. It is here because it is one of the fourteen and because
-/// the *gate* is a rule, not because anything reads the answer yet.
+/// the *gate* is a rule.
 pub fn resource_wants(
     t: &Tables,
     counties: &[County; MAX_COUNTIES],
@@ -407,10 +407,10 @@ pub fn choose_muster_counties(
 /// | 15 … 29 | a half |
 /// | 14 or less | all of it |
 ///
-/// The ladder is not a taper — it is a **cap**. Feed it any shortfall and the
+/// The ladder is a **cap**. Feed it any shortfall and the
 /// number that comes out is between 13 % and 15 % of the county's population,
 /// so a castle whose garrison is nearly empty is filled a slice at a time over
-/// several turns rather than by conscripting the whole county at once.
+/// several turns.
 pub fn garrison_levy_share(gap: i32, population: i32) -> Option<i32> {
     let share = crate::industry::pct_of(gap, population);
     if share >= GARRISON_GAP_ABANDON_PCT {
@@ -503,7 +503,7 @@ pub fn worth_evacuating(county: &County) -> bool {
 /// stated here because it looks like a transcription slip and is not: the
 /// early `return`s are in the disassembly.
 ///
-/// Note also that the threat is only ever the realm ranked **first**, and only
+/// The threat is only ever the realm ranked **first**, and only
 /// while it holds at least [`THREAT_SHARE_PCT`] of the map. Below that the AI
 /// has no preferred enemy and takes whatever is nearest.
 pub fn pick_threat(realms: &[Realm; MAX_REALMS], realm_id: u8) -> u8 {
@@ -600,7 +600,7 @@ pub fn manhattan((ax, ay): (u8, u8), (bx, by): (u8, u8)) -> i32 {
 /// return 1;
 /// ```
 ///
-/// **It is not a predicate, it mutates**, and that is the interesting part:
+/// **It mutates**, and that is the interesting part:
 /// every time the AI's target search so much as *considers* a county its ally
 /// owns, the actor's own grudge against that ally goes up by one. The search
 /// runs once per county per army per turn, so an AI hemmed in by its ally
@@ -627,7 +627,7 @@ pub fn action_allowed(realms: &mut [Realm; MAX_REALMS], actor: u8, target: u8) -
 ///
 /// This is the adjacency gate on every target the AI picks for its **main**
 /// army: it will only march on a county that touches its own territory. A
-/// raid ([`Kingdom::run_ai_raid`]) skips this gate entirely, which is why a
+/// raid ([`Kingdom::run_ai_raid`]) skips this gate entirely, so a
 /// raiding party can appear a long way from the raider's border.
 pub fn county_borders_realm(counties: &[County; MAX_COUNTIES], county: u8, realm: u8) -> bool {
     let Some(c) = counties.get(county as usize) else { return false };
@@ -647,7 +647,7 @@ pub fn county_borders_realm(counties: &[County; MAX_COUNTIES], county: u8, realm
 /// value is what bypasses
 /// [`crate::tables::AI_PERSONALITY_MUSTER_ARMS`] — two of the four also cannot
 /// muster below their weapon threshold. `[D]`, and `symbols.json` marks it
-/// `[inferred]`; this is a second reader agreeing rather than new evidence.
+/// `[inferred]`; this is a second reader agreeing.
 ///
 /// Returns whether anything was granted.
 pub fn emergency_weapons(realm: &mut Realm, year: i32) -> bool {
@@ -884,7 +884,7 @@ impl Kingdom {
     ///
     /// The missile-stock test is the interesting gate: it is
     /// `weapons[4] + weapons[0]`, **bows and crossbows only**, and it is read
-    /// once per county rather than once per pass — so a realm that spends its
+/// once per county — so a realm that spends its
     /// last bows on the first castle stops garrisoning at the second.
     pub fn run_ai_garrisons(&mut self, realm_id: u8) -> Vec<usize> {
         let mut raised = Vec::new();
@@ -978,7 +978,7 @@ impl Kingdom {
     ///   from the realm's stores, on [`Mission::HOLD_HOME`].
     /// * **write it off** — the same levy goes up **carrying nothing at all**,
     ///   with its [`crate::unit::Unit::home_county`] set to the *muster* county so it walks
-    ///   away rather than standing and dying; the county is taxed at the
+///   away; the county is taxed at the
     ///   lord's [`crate::tables::AI_PERSONALITY_ABANDON_TAX_RATE`], its whole
     ///   workforce is thrown at industry, and its larder is shipped out.
     ///
@@ -1184,7 +1184,7 @@ impl Kingdom {
     /// `prefer_threat` restricts the search to [`crate::realm::Realm::threat_realm`]'s
     /// counties; `owner_filter` restricts it to one realm's and — the part
     /// that matters — **skips the diplomacy and adjacency gates entirely**.
-    /// Step 10 uses the filter, which is why a raid can be sent at a county
+/// Step 10 uses the filter, so a raid can be sent at a county
     /// nowhere near the raider's border, and at an ally's.
     ///
     /// Returns whether anything was found.
@@ -1268,7 +1268,7 @@ impl Kingdom {
     ///
     /// A plain campaign is [`Mission::SEEK_ENEMY`]. An **ally's request**
     /// against a county the ally itself holds is [`Mission::ASSIST_ALLY`] —
-    /// relief rather than conquest — and against anybody else's it is an
+/// relief — and against anybody else's it is an
     /// ordinary attack. The tile is [`aim_for_county`]'s choice, so a
     /// garrisoned castle is approached at the castle and a siege begins.
     pub fn aim_army(&mut self, realm_id: u8, unit: usize) {
@@ -1384,7 +1384,7 @@ impl Kingdom {
 /// it.
 ///
 /// `FUN_00437535` starts the battle itself. This crate reports it, for the
-/// same reason [`crate::ai::taunt`] returns its letters rather than showing
+/// same reason [`crate::ai::taunt`] returns its letters
 /// them: a battle is not this crate's to start.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Eviction {
@@ -1417,7 +1417,7 @@ pub struct MoveReport {
 /// and it makes **no diplomacy check at all** — so an *allied* army is a
 /// candidate here and is thrown out afterwards by
 /// [`Mission::SEEK_ENEMY`]'s own test. The consequence is not cosmetic: a
-/// nearer ally **masks** a slightly farther enemy, and the intercept is simply
+/// nearer ally **masks** a slightly farther enemy, and the intercept is
 /// skipped that turn. `[D]`
 pub fn nearest_enemy_army(units: &Units, unit: usize) -> (i32, Option<usize>) {
     let Some(me) = units.get(unit) else { return (1000, None) };
@@ -1443,7 +1443,7 @@ pub fn nearest_enemy_army(units: &Units, unit: usize) -> (i32, Option<usize>) {
 /// It takes `&mut` realms because `Diplo_ActionAllowed` is not a predicate:
 /// every allied unit it steps over bumps the searcher's own grudge. This
 /// function is called once per turn per army on missions 3 and 6, over every
-/// unit slot, so **an AI hemmed in by its ally corrodes the alliance simply by
+/// unit slot, so **an AI hemmed in by its ally corrodes the alliance by
 /// looking around**. Whether that is intended is not established;
 /// [`action_allowed`] carries the note.
 pub fn nearest_attackable_army_in_county(
@@ -1562,7 +1562,7 @@ impl Kingdom {
     /// mode 0 outright. So the claim in [`crate::movement::Routing`] that *"AI
     /// armies prefer roads and the player's do not"* is true of the
     /// *order-move* entry point and **false of the AI's own driver**, which is
-    /// the one that actually moves AI armies every turn. Both readings are of
+/// the one that moves AI armies every turn. Both readings are of
     /// the binary; they are about two different functions.
     ///
     /// Unit `+0x14E`, cleared before each re-path, is a *pass through the
@@ -1652,7 +1652,7 @@ impl Kingdom {
     /// the unit to [`Mission::SEEK_ENEMY`] and **runs that handler in the same
     /// tick**, so no turn is lost. Otherwise close on the nearest enemy in the
     /// ally's county, but only within [`ASSIST_ALLY_RADIUS`] — an army too far
-    /// away does nothing at all this turn rather than starting the walk, which
+/// away does nothing at all this turn, which
     /// is a real difference from [`Mission::HOLD_HOME`].
     fn mission_assist_ally(&mut self, unit: usize) -> bool {
         let Some(u) = self.campaign.units.get(unit) else { return false };
@@ -1836,7 +1836,7 @@ impl Kingdom {
     ///
     /// **The original returns 1 even after disbanding**, so its caller then
     /// flood-fills from a record `Army_Destroy` has already cleared. Here the
-    /// slot is simply empty and the re-path finds nothing to do, which is the
+/// slot is empty and the re-path finds nothing to do, which is the
     /// same observable outcome by a route that cannot read freed memory.
     fn mission_join_garrison(&mut self, unit: usize, report: &mut MoveReport) -> bool {
         let Some(u) = self.campaign.units.get(unit) else { return false };

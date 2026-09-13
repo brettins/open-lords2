@@ -3,7 +3,7 @@
 //! (`0x0041635F`), `g_screenId` `0x0C`, both on `L2.eng` group 68.
 //!
 //! Two screens, because the original has two screen ids and the panel goes back
-//! to the stall rather than replacing it. [`MerchantScreen`] is the stall you
+//! to the stall. [`MerchantScreen`] is the stall you
 //! pick a good on; [`TradeScreen`] is the one you agree a quantity on. The
 //! rules behind both are [`l2_kingdom::trade`], which knows nothing about
 //! either.
@@ -31,12 +31,12 @@
 //!   Widget_Draw(0, 0, &DAT_004DD808, DAT_00569500)   <- count is always 0
 //! ```
 //!
-//! **The stall is a picture and nothing else.** `merchant.pl8` is not a sprite
+//! **The stall is a picture.**
 //! sheet: the shipped file is 307,224 bytes, which is `640 * 480 + 24`, and
 //! `FUN_00408FCB` reads it from offset `0x18` straight into the display buffer.
 //! Every ware, every price plaque frame, every shelf is in that one raster. So
 //! `Screen_Merchant`'s single `Ui_OkButton` really is the whole of its drawing,
-//! the grid is nowhere on screen, and there is no missing painter to find.
+//! the grid is nowhere on screen.
 //! `docs/draws.md` §3's *"an audit that walks painters reports a comfortable
 //! number"* has an opposite here: an audit that walks painters reports **one**,
 //! and one is the truth.
@@ -83,14 +83,14 @@
 //! the pointer it draws a 128 x 64 box at that good's own position out of a
 //! fourteen-row table at `0x004D2B70`, the good's name centred in it, and
 //! **both prices side by side** — the manual's *"30/60"*. [`STALL`] is that
-//! table, read out of the executable rather than measured.
+//! table, read out of the executable.
 //!
 //! This is the *"mouseover tooltip the original showed"* a player reported
 //! missing, and it is **not** generic hover chrome: it is one function, on one
 //! screen, with a throttle of its own. The shell that stood here drew `L2.eng`
 //! 68 index 0 as a standing caption at (0x88, 0x68) and that was invented
 //! twice over — `Screen_Merchant` calls `Eng_DrawString` **not once**, and
-//! index 0 of a group is the *group's own label* rather than a drawn string
+//! index 0 of a group is the *group's own label*
 //! (`docs/formats/eng.md` §5). The position was the trade panel's heading
 //! borrowed. Both are gone: the stall is the picture and the plaque.
 //!
@@ -98,14 +98,14 @@
 //! after every swap, decremented once per widget pass, and the swap only
 //! happens at zero. Ours updates on the pointer event instead, because our
 //! widget pass is not the original's frame and a count of ours would mean a
-//! different length of time; the throttle is recorded rather than reproduced.
+//! different length of time; the throttle is recorded.
 //!
 //! **This screen's artwork says sheep and wool are not in the game, twice.**
 //! [`STALL`] puts both at **(0, 0)** — no place for a plaque — and the shipped
 //! `mercgrid.pl8` holds exactly twelve ids, with **neither 3 nor 5 in any of
 //! its 4,800 cells**: there is nowhere on the stall to click for either. With
 //! the missing `Merchant_Trade` branch and the price of zero that is four
-//! independent sources, and these are the two made by the pictures rather than
+//! independent sources, and these are the two made by the pictures
 //! by the code or the strings. Both goods are carried anyway, for the reason
 //! `l2_kingdom::trade` carries them: the game demonstrating its own dead end
 //! beats us deciding in advance that it does not exist.
@@ -166,7 +166,7 @@
 //! **The two colours on one line are the original's.** *"Purchase?"* is drawn
 //! in `0xF9` and *"Sale?"* in `0xFC` — the only place in this module where the
 //! colour carries meaning, and the reason [`ASK_BUY_COLOUR`] and
-//! [`ASK_SELL_COLOUR`] are named rather than folded into `font::TEXT`.
+//! [`ASK_SELL_COLOUR`] are named.
 //!
 //! **`DAT_0058FE2C` is on for the middle third of the panel** and off for the
 //! rest: the heading, the price line and the *"You have"* line are drawn with
@@ -290,7 +290,7 @@ pub const WIDGET_FRAMES: [usize; 6] = [21, 23, 72, 70, 29, 31];
 
 /// One row of the fourteen-row table at `0x004D2B70`, five ints apiece.
 ///
-/// Read out of `Lords2.exe` rather than measured off a screenshot. The third
+/// Read out of `Lords2.exe`. The third
 /// column is the good's own id, which is what makes the reading self-checking:
 /// row `i` holds `i + 1` in it, fourteen for fourteen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -304,7 +304,7 @@ pub struct StallRow {
     /// `+0x0C` — 0, 1 or 2. **Nothing in the binary reads it.** It is 0 for
     /// exactly sheep, ale and wool — the three goods with no `You have` line —
     /// and 1 or 2 for the rest with no pattern this project has explained.
-    /// Carried rather than dropped, and marked `[I]` for whoever finds the
+/// Carried, and marked `[I]` for whoever finds the
     /// reader.
     pub unread: i32,
     /// `+0x10` — the icon frame for the *"and N …"* clause on the trade panel,
@@ -394,7 +394,7 @@ pub const HAVE_AT: (i32, i32) = (0x58, 0xB0);
 /// `Sprite_WGenSprite(icon, …, 0xAA)` — six pixels above [`HAVE_AT`]'s y.
 pub const HAVE_ICON_Y: i32 = 0xAA;
 /// `g_penAdvance = g_penAdvance + 0x24` after the icon — a **fixed** step that
-/// ignores how wide the sprite actually was.
+/// ignores how wide the sprite was.
 pub const HAVE_ICON_ADVANCE: i32 = 0x24;
 
 /// `Ui_DrawInsetRect(0x50, 0xD0, 0x1D0, 0x4C)` — the advice well.
@@ -488,7 +488,7 @@ pub const TRADE_FAST_STEP: u8 = 0x2C;
 /// inset reads as recessed and this reads as raised, under any palette that
 /// puts a light and a dark at those two indices.
 ///
-/// It lives here rather than in `shell` because this is the only screen in the
+/// It lives here because this is the only screen in the
 /// crate that draws one.
 pub fn bevel_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
     const TOP_RIGHT: u8 = 0x1F;
@@ -507,7 +507,7 @@ pub fn bevel_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
 ///
 /// `Ui_DrawDelta(v, 1, "", "", …, 0x3F, 0xF9)` prints `+N` in the caller's
 /// positive colour and `-N` in its negative one — and mode 1 means **a zero is
-/// printed** rather than skipped, which is why the caller guards on
+/// printed**, so the caller guards on
 /// `g_alePreviewHappiness != 0` itself.
 ///
 /// **On the trade screen it is the ale preview**, and only there: the whole
@@ -588,7 +588,7 @@ impl MerchantScreen {
     /// The merchant's morale, which is the only input to the markup.
     /// **100 for every merchant the shipped game creates**, and 0 for a unit
     /// that has gone — a merchant that walked away between the click and the
-    /// draw prices everything at its floor of one crown rather than panicking.
+/// draw prices everything at its floor of one crown.
     fn morale(&self, ctx: &Ctx) -> i32 {
         ctx.game.kingdom.campaign.units.get(self.unit).map_or(0, |u| u.morale)
     }
@@ -621,7 +621,7 @@ impl Screen for MerchantScreen {
     /// at the corner on a *left release*, and `Screen_FrameInput` takes a right
     /// release as a dismissal. A player reported that our shell closed on any
     /// click anywhere, which is what a shell does and is why this is written
-    /// down rather than left to the reader of the match arms.
+/// down.
     ///
     /// Escape is **ours**, and the screen says so in its own font.
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -841,7 +841,7 @@ impl TradeScreen {
     /// **The down arrow's copy is very nearly dead and is not quite.** A step
     /// down cannot raise the quantity, so the guard can only be met when the
     /// clamp does it — the floor is above zero and the quantity was at or
-    /// below it. Written as the original writes it rather than pruned.
+/// below it. Written as the original writes it.
     ///
     /// A screen cannot reach the audio layer (`docs/netcode.md` D-3), so the
     /// line is reported on [`crate::game::Game::spoken`].
@@ -962,7 +962,7 @@ impl Screen for TradeScreen {
     }
 
     /// `Screen_TradeGoods` re-loads `merchant.pl8` as its own backdrop, so it is
-    /// a page rather than an inset — and it runs under the merchant's palette.
+/// a page — and it runs under the merchant's palette.
     fn palette(&self) -> Option<&'static str> {
         Some("Merchant.256")
     }
@@ -1018,7 +1018,7 @@ impl Screen for TradeScreen {
                 Transition::Stay
             }
             // The six widgets through the hit test, each on its own kind — a
-            // double click is a press to kind 4. The corner picture is not a
+// double click is a press to kind 4.
             // widget and reads only the press here.
             Event::Click { .. } | Event::DoubleClick { .. } => {
                 let table = trade_widgets(self.qty != 0);
@@ -1060,7 +1060,7 @@ impl Screen for TradeScreen {
             caps: None,
         };
         // `FUN_00408FCB("merchant.pl8", 0x1E0)` — the stall again, as a
-        // backdrop, which is why the panel needs no clear.
+// backdrop, so the panel needs no clear.
         if !shell::background(canvas, a, BACKDROP) {
             canvas.clear(ink.background);
         }
@@ -1234,7 +1234,7 @@ mod tests {
 
     /// The `You have … and N …` clause is drawn only for a good you can hold,
     /// and that is exactly the goods with a non-zero icon: not sheep, not wool,
-    /// and **not ale**, which is drunk rather than held.
+/// and **not ale**, which is drunk.
     #[test]
     fn only_a_good_you_can_hold_gets_an_icon() {
         for good in trade::ALL_GOODS {
@@ -1246,7 +1246,7 @@ mod tests {
     }
 
     /// Every plaque is on the screen, and **they overlap** — which is a fact
-    /// about the original rather than a defect in the table.
+/// about the original.
     ///
     /// `FUN_0041608B` draws exactly one plaque at a time and erases the last
     /// one before drawing the next, so two goods may claim the same 128 x 64

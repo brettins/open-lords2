@@ -1,5 +1,5 @@
 //! **`Map_InitScenario` (`0x004676E0`)** — a world built out of an
-//! `L2_maps.dat` slot rather than out of a save.
+//! `L2_maps.dat` slot.
 //!
 //! # The second constructor
 //!
@@ -82,7 +82,7 @@ mod bit {
     /// Farmland.
     pub const FARM: u8 = 0x20;
     /// The county boundary. `FUN_0046C147` masks it off before classifying a
-    /// neighbour, which is why it can never make a tile stop being farmland.
+/// neighbour, so it can never make a tile stop being farmland.
     pub const BOUNDARY: u8 = 0x02;
 }
 
@@ -146,7 +146,7 @@ const ISO_2X2: [u8; 4] = [0, 2, 1, 3];
 /// takes the first candidate no other realm has taken. Held flat because the
 /// index arithmetic runs off the end of its own group: `shieldIndex` is 1…5, so
 /// slot 5 of group *g* is slot 0 of group *g+1*, and reproducing that needs one
-/// array rather than four.
+/// array.
 ///
 /// **Eighty-four bytes, not eighty, and the four extra are the overrun's own.**
 /// Group 3's colour slot 5 lands at offset 80, one row past a 4 × 5 × 4 table,
@@ -186,7 +186,7 @@ mod reset {
 
 /// A map slot that cannot be made into a world.
 ///
-/// Each of these is a refusal rather than a default, for the reason
+/// Each of these is a refusal, for the reason
 /// [`crate::Scenario::from_save`]'s are: a map we have misread is not a map to
 /// half-load.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -209,7 +209,7 @@ pub enum MapError {
     LocalPlayer(u8),
     /// A chosen shield outside `1..=5`.
     ///
-    /// **A refusal rather than `FUN_004171EE`'s clamp**, and deliberately the
+/// **A refusal**, and deliberately the
     /// opposite of what [`crate::Scenario::from_save`] does with the realm
     /// colour byte it reads out of a file. That byte is somebody else's and a
     /// clamp there would hide a misread offset; this one is *ours*, chosen on a
@@ -246,7 +246,7 @@ impl std::error::Error for MapError {}
 /// The choices a map slot cannot answer for itself.
 ///
 /// Everything here is a *setting*, and every one of them is read by
-/// `Map_InitScenario` or by the seating pass — which is why the world builder
+/// `Map_InitScenario` or by the seating pass — so the world builder
 /// needs them and why none of them is a map fact.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NewGame {
@@ -271,7 +271,7 @@ pub struct NewGame {
     /// which is what `Realms_AssignLords` reads, and `g_realms[p].shieldIndex`,
     /// which is what everything that *draws* reads. `FUN_00432FAB`
     /// (`0x00432FAB`) writes both from the clicked shield and `FUN_004978AD`
-    /// seeds both at 1, which is why a game nobody touches the page of is red.
+/// seeds both at 1, so a game nobody touches the page of is red.
     ///
     /// **It is the human's choice and it moves every AI**, because
     /// [`assign_lords`] hands the AIs the shields the humans left and then
@@ -283,7 +283,7 @@ pub struct NewGame {
     /// roll. `docs/environment.md` records it as an observed fact — two
     /// independently created England turn-one saves disagree about it, so the
     /// fixture's fingerprint deliberately excludes it — and `FUN_00497E65` is
-    /// the code. Passing the seed in rather than drawing from the kingdom's
+/// the code. Passing the seed in
     /// generator keeps [`Scenario::from_map`] a pure function of its inputs,
     /// which is what lets two lockstep peers build the same world from the same
     /// lobby settings.
@@ -380,7 +380,7 @@ impl Tiles {
     }
 
     /// `FUN_0046AC22(frameBase, 2, tile, layerBit, content)` — stamp a 2×2
-    /// object. The bank is rebuilt rather than or-ed: `(bank | 1) & 0xE3 | bit`.
+/// object. The bank is rebuilt: `(bank | 1) & 0xE3 | bit`.
     fn stamp_2x2(&mut self, tile: usize, frame_base: u8, bank_bits: u8, content: u8) {
         for (n, offset) in [0usize, 1, PLANE_DIM, PLANE_DIM + 1].into_iter().enumerate() {
             let Some(t) = tile.checked_add(offset).filter(|t| *t < MAP_TILES) else { continue };
@@ -478,7 +478,7 @@ fn load_planes(slot: &MapSlot<'_>) -> Result<MapWorld, MapError> {
             let i = y * PLANE_DIM + x;
             let county = tiles.county[i];
             // `if ((county < 0x11) && (g_countyCount < county))` — 32 is in the
-            // plane and is not a county, and this is the clamp that says so.
+// plane and is not a county, and this is the clamp that says so.
             if county < 0x11 && county_count < county as usize {
                 county_count = county as usize;
             }
@@ -522,7 +522,7 @@ fn load_planes(slot: &MapSlot<'_>) -> Result<MapWorld, MapError> {
     // `l2_formats::maps::MapSlot::player_start_count` counts distinct markers,
     // which is what the table can hold; the seat count the *screen* shows comes
     // from there. This one reproduces the original's own arithmetic so that a
-    // map where they differ is visible rather than smoothed over — no shipped
+// map where they differ is visible — no shipped
     // map does, which `tests/newgame.rs` asserts over all 44.
     Ok(MapWorld {
         tiles,
@@ -660,7 +660,7 @@ fn find_town_tile(w: &mut MapWorld, county: usize) -> Option<(usize, (u8, u8))> 
 /// the four `i32` slots at county `+0x80` end exactly on `fieldProgress`, so a
 /// fifth plot in one county would corrupt a field's reclamation. All 434
 /// counties of the 44 shipped maps have exactly four
-/// (`docs/formats/maps-layers.md` §2.3); this one drops the fifth rather than
+/// (`docs/formats/maps-layers.md` §2.3); this one drops the fifth
 /// reproducing the overrun, because the overrun is a memory bug and not a rule.
 fn find_dwelling_plots(w: &mut MapWorld, county: usize) -> [usize; 4] {
     let mut plots = [0usize; 4];
@@ -719,7 +719,7 @@ fn set_site(w: &mut MapWorld, county: usize, tile: usize, record: usize, terrain
 
 /// `FUN_0046C147` — the flag byte of one 4-neighbour, classified.
 ///
-/// The boundary bit is masked off first, which is why a field on a county
+/// The boundary bit is masked off first, so a field on a county
 /// border is still a field; then two corrections fold the mountain and the
 /// woodland into one bit and the reserved plot into nothing when the bank
 /// disagrees. Only bit `0x20` is read by the one caller here, and the mask is
@@ -749,7 +749,7 @@ fn chebyshev(a: (u8, u8), b: (u8, u8)) -> i32 {
 }
 
 /// `County_PlaceBlacksmith` (`0x0046902A`) — **the weapons site is derived, not
-/// authored, which is why every county has one.**
+/// authored, so every county has one.**
 ///
 /// The pick is the county's *plain* tile — flags exactly zero, so not a road,
 /// not a field, not a boundary — that is 4-adjacent to one of the county's own
@@ -806,7 +806,7 @@ fn place_blacksmith(w: &mut MapWorld, county: usize) {
 /// Finds the county's 2×2 of `0x80` tiles that no resource site took, stamps
 /// terrain `0x14` on all four and saves their terrain frames. Raising a castle
 /// on the plot is `FUN_0046826C`, which is keyed on the castle's level and its
-/// build percentage rather than on the map, and is not done here.
+/// build percentage, and is not done here.
 ///
 /// Returns the block's **north-west** tile, which is both the returned offset
 /// and the stored `x`/`y` — the opposite of [`find_town_tile`], where they are
@@ -907,7 +907,7 @@ fn place_starting_fields(w: &mut MapWorld, difficulty: u8) {
 /// twenty-slot table is a hard limit that razes what will not fit.**
 ///
 /// This is the function that makes twenty fields per county a *fact about the
-/// map* rather than a cap on a counter. A county with twenty-one farm tiles
+/// map*. A county with twenty-one farm tiles
 /// loses the twenty-first outright: terrain 0, frame 6, **flags zeroed** and
 /// the bank put back to base — it stops being farmland at all and becomes
 /// plain grass, before the first season runs.
@@ -1031,7 +1031,7 @@ fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
         }
     }
     // The probe can leave an entry unplaced only if every slot was full, which
-    // needs more sources than slots; there are exactly as many of each.
+// needs more sources than slots; there are exactly as many of each.
     debug_assert!(table[1..].iter().all(|&c| c != 0), "the deal placed every start");
     table[1..].to_vec()
 }
@@ -1043,8 +1043,8 @@ fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
 /// count out of a six-entry table, repeatedly, until none is left. Every
 /// populated entry's slot number is its own index (`PlayerStart_Record` writes
 /// both), and the markers on every shipped map are contiguous from 1, so the
-/// result is simply the first `lords` entries of the table as
-/// [`shuffle_starts`] left it. Written that way rather than as the bubble, with
+/// result is the first `lords` entries of the table as
+/// [`shuffle_starts`] left it. Written that way, with
 /// the equivalence stated here and checked over all 44 shipped maps in
 /// `tests/newgame.rs`.
 fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapError> {
@@ -1065,7 +1065,7 @@ fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapE
 
 /// What [`assign_lords`] decides for each realm: its shield, then its lord.
 ///
-/// One struct rather than two arrays because **the second is a function of the
+/// One struct because **the second is a function of the
 /// first** and a caller that could take one without the other would be able to
 /// build a realm whose colour and lord disagree — which is exactly the state
 /// `shield = realm` used to produce.
@@ -1073,7 +1073,7 @@ fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapE
 struct Assignment {
     /// Realm `+0x0A`, `shieldIndex`, 1 … 5. **Zero means the walk gave this
     /// realm nothing** — it is above the lord count — and the caller falls back
-    /// to `FUN_0049C995`'s seed rather than inventing a colour.
+/// to `FUN_0049C995`'s seed.
     shield: [u8; MAX_REALMS],
     /// Realm `+0x28`, the lord id. Zero for a human and for a realm out of
     /// play, which is what the original writes at the top of every iteration.
@@ -1088,7 +1088,7 @@ struct Assignment {
 /// 1. Mark every **human's** chosen shield taken. The original reads
 ///    `g_playerSlots + realm * 0x2C + 0x25` — the six-slot record
 ///    `g_playerNames` is the `+0x04` of, so four bytes lower than the name —
-///    guarded by `+0x26 == 0` (a person rather than a slot the AI fills), and
+///    guarded by `+0x26 == 0` (a person), and
 ///    page 4's `FUN_00432FAB` is what wrote it.
 /// 2. Walk realms **1 … 5 in realm order**, skipping humans and stopping when
 ///    `g_aiLordCount` lords have been handed out. Each AI takes **the lowest
@@ -1104,7 +1104,7 @@ struct Assignment {
 /// conclusion drawn from it was not: the seed is what an *untouched* page 4
 /// leaves, and `Realms_AssignLords` overwrites it for every AI on every run.
 /// A sentence that explains a default as a rule is a sentence nobody re-reads,
-/// which is why the line outlived four documents describing the real walk.
+/// so the line outlived four documents describing the real walk.
 /// `docs/decisions.md` C130.
 ///
 /// # The consequence a player will check
@@ -1210,7 +1210,7 @@ fn county_reset(id: usize) -> CountyState {
         emigrants: 0,
         immigrants: 0,
         // `popBand = (population - 1) / 25 + 1`, which the original computes
-        // here rather than leaving to the population pass.
+// here.
         pop_band: (reset::POPULATION - 1) / 25 + 1,
         anchor: (0, 0),
         neighbours: Vec::new(),
@@ -1393,7 +1393,7 @@ impl Scenario {
     /// The clock is `Game_NewGame`'s: **Autumn 1267, with Winter next.**
     /// `Kingdom::start_new_game` then runs the one immediate `Season_Advance`
     /// that puts a new game in Winter 1268, so this is deliberately the
-    /// position *before* it, exactly as [`Scenario::starting_kingdom`] is for a
+/// position *before* it, exactly as [`Scenario::starting_kingdom`] is for a
     /// save.
     pub fn from_map(slot: &MapSlot<'_>, setup: &NewGame) -> Result<Scenario, MapError> {
         let world = build(slot, setup)?;
@@ -1531,7 +1531,7 @@ impl Default for RealmState {
     fn default() -> RealmState {
         RealmState {
             // A NEW game: `Game_NewGame` runs `Diplo_Init` after the realms
-            // are set up, so the opening matrix is written there rather than
+// are set up, so the opening matrix is written there
             // here. Default is the right thing to carry -- the values depend on
             // which realms are in play and which are people, and this
             // constructor knows neither yet.
@@ -1858,7 +1858,7 @@ mod tests {
         assert_eq!(a.lord[4], 0);
     }
 
-    /// **A colour outside the five is refused rather than clamped**, for the
+/// **A colour outside the five is refused**, for the
     /// reason [`MapError::Shield`] gives: it can only get here by our own carry
     /// being wrong, and a clamp would turn that into a plausible blue.
     #[test]

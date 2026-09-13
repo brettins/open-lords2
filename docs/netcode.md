@@ -11,7 +11,7 @@ state on every tick.
 start. The host is authoritative — clients never invent a slot, choose the seed, or decide
 who else is present.
 
-**The roster is sorted by slot, always, and that is a correctness requirement rather than
+**The roster is sorted by slot, always, and that is a correctness requirement
 tidiness.** `Session::new` takes the slot list, and `order_commands` breaks ties by slot, so
 the list's order reaches the simulation. A lobby that returned players in arrival order would
 look perfectly correct on screen and desync on the first tick where two players acted at
@@ -29,16 +29,16 @@ could play — while two clients colliding on any other slot were reseated silen
 situation, opposite answer, decided by who happened to open the game. The lobby now filters
 `SameSlot` and reseats.
 
-### What "real loss, NAT, MTU, head-of-line blocking" actually amounts to
+### What "real loss, NAT, MTU, head-of-line blocking" amounts to
 
 That list sat on the status page as untested. Taken one at a time, it deserves a reckoning
 rather than four tests named after it:
 
 | claim | status |
 |---|---|
-| **Head-of-line blocking** | **Tested.** One peer stalls for hundreds of iterations while its packets are held; the other reports `Waiting` naming the absent slot, does not advance a single tick, and both reach identical checksums once it resumes. This is the one that could actually corrupt a game. |
+| **Head-of-line blocking** | **Tested.** One peer stalls for hundreds of iterations while its packets are held; the other reports `Waiting` naming the absent slot, does not advance a single tick, and both reach identical checksums once it resumes. This is the one that could corrupt a game. |
 | **MTU / fragmentation** | **Tested**, in the only form this layer can see: framing must not care where the stream was cut. A frame is delivered **one byte at a time**, 64 frames arrive glued into a single read, and a message at `MAX_FRAME` crosses a real socket intact. |
-| **Loss and reordering** | **Not testable here, because TCP has already handled them.** A byte stream does not lose or reorder; it delivers in order or it fails. A test that "drops packets" through `TcpTransport` would be theatre — the code under test never sees it. The failure that replaces them, the connection breaking, is covered in `tests/tcp.rs`; reordering at the *session* layer, where packets from different peers genuinely arrive in any order, is covered in `tests/lockstep.rs`. |
+| **Loss and reordering** | **Not testable here, because TCP has already handled them.** A byte stream does not lose or reorder; it delivers in order or it fails. A test that "drops packets" through `TcpTransport` would be theatre — the code under test never sees it. The failure that replaces them, the connection breaking, is covered in `tests/tcp.rs`; reordering at the *session* layer, where packets from different peers arrive in any order, is covered in `tests/lockstep.rs`. |
 | **NAT** | **Not tested, and not testable on one machine.** Two peers on loopback traverse nothing. This is a real gap and nothing in `tests/resilience.rs` should be read as covering it. It needs two machines on different networks, and until that happens the honest status is "unknown". |
 
 > **Fidelity is this project's method everywhere except here.** Everywhere else, where our
@@ -46,10 +46,10 @@ rather than four tests named after it:
 > authority at all, because the original's multiplayer sync is the defect being replaced.
 > Every argument below has to stand on its own reasoning. The full statement, with the
 > reading of the original's sync that it governs, is
-> [*What the original actually did — and where we deliberately differ*](#what-the-original-actually-did--and-where-we-deliberately-differ),
+> [*What the original did — and where we deliberately differ*](#what-the-original-actually-did--and-where-we-deliberately-differ),
 > and `CLAUDE.md` points at it too. Read it before citing `Lords2.exe` anywhere here.
 
-## The original's multiplayer is not merely bad, it is absent
+## The original's multiplayer is absent
 
 Worth stating plainly, because it settles how much of the original's networking is worth
 studying: **none of it, and not as a matter of taste.**
@@ -91,7 +91,7 @@ this section.
 * **`Sigs_LoadDlls` (`0x004B64D8`) is the dialog.** It loads `SNWValid.dll` first, calls its
   single export `SNWValidate`, and frees it again *before* it will even try `SierraNW.dll`.
   So the licence check is what the GOG build fails, and it fails ahead of any networking at
-  all — which is why nothing about the protocol can be observed on this build.
+all — so nothing about the protocol can be observed on this build.
 * **`Sigs_BindExports` (`0x004B6754`) is the entire transport surface**, nineteen
   `GetProcAddress` calls with literal names: `SendTCPMessage`, `SendTCPPointMessage`,
   `RecvTCPMessage`, `PeekForTCPMessage`, `CheckForAnyTCPMessage`, `GetNumberOfPlayers`,
@@ -130,7 +130,7 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >    full-state snapshot is the per-tick whole-world cost §2 chose lockstep to avoid, and
 >    it is unnecessary — the dump carries seed, initial state and commands, so the agreed
 >    state is a replay away. Only the diverged state is unrecoverable.
-> 6. **§5 is not a second protocol.** It is the same session with `input_delay = 0`; the
+> 6. **§5 is the same session with `input_delay = 0`; the
 >    end-turn button *is* `next_packet()`. Host relaying is transport topology, invisible
 >    above the trait. Verified with five players through the identical code path.
 > 7. **§7's `Transport` trait needs `peers()`.** Otherwise the caller keeps its own
@@ -212,7 +212,7 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >     **last statement before computing the total**, overwrites byte 7 — the battle-unit
 >     block — with the constant 1, so that block's divergences are silenced in the shipped
 >     build. `[V]`, and recorded on that function in `docs/symbols.json`. **This class of
->     defect is not a mark of our carelessness; it is what happens whenever a completeness
+>     defect is what happens whenever a completeness
 >     check is written by hand.** The lesson to carry is structural: *completeness must be
 >     derived, not remembered.*
 >
@@ -223,7 +223,7 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >
 > **Still unverified:** anything past loopback — real loss, NAT, MTU, cross-machine. TCP's
 > head-of-line blocking under genuine packet loss is §7's central argument for TCP and
-> remains reasoned rather than measured. Hashing cost at 10 Hz is still unmeasured.
+> remains reasoned. Hashing cost at 10 Hz is still unmeasured.
 
 This document is written *before* the network layer exists, and deliberately so.
 Almost everything in it is a constraint on the **simulation**, not on the network
@@ -241,7 +241,7 @@ The original game's networking was investigated first and is **not** the basis
 for any of this. We will never play against the 1996 binary, so its wire format
 is something we would learn and then discard. What was found is kept as
 [Appendix A](#appendix-a--what-the-original-did) because it explains why we are
-replacing the transport rather than wrapping it.
+replacing the transport.
 
 ---
 
@@ -294,12 +294,12 @@ ordered unit 7 to move to (34, 12)" is a handful of bytes regardless of how many
 soldiers are on the field. The kingdom layer is even more lopsided: an entire
 turn is a few dozen commands against a world state of hundreds of kilobytes.
 
-**We control the simulation, so determinism is actually available to us.**
+**We control the simulation, so determinism is available to us.**
 This is the reason lockstep is usually rejected and the reason it is right here.
 A team wrapping someone else's physics engine cannot guarantee bit-identical
 results; we are writing every line of the simulation, in Rust, against a design
 (`docs/decisions.md` D4) that already insists on owning a plain `Vec<u8>`
-framebuffer rather than hiding behind an engine. The same instinct applies to
+framebuffer. The same instinct applies to
 the simulation.
 
 **Replays come free, and this project needs replays more than most.** A lockstep
@@ -353,12 +353,12 @@ compiler reassociation under optimisation, and library functions (`sin`, `sqrt`,
 divergence — and they do it silently, on one player's machine, an hour into a
 game.
 
-Note this is not a sacrifice. The original is a 1996 32-bit integer game; its
+The original is a 1996 32-bit integer game; its
 map is a 64×64 byte grid, its units are 150 fixed records, its blitters copy
 bytes. There is no floating-point requirement anywhere in the design we are
 reimplementing.
 
-### D-2 — Fixed-point where fractions are genuinely needed
+### D-2 — Fixed-point where fractions are needed
 
 Provide a single `Fixed` type — Q16.16 in an `i32` is the obvious default, with
 `i64` intermediates for multiply and divide — in a leaf crate, and use it for
@@ -418,7 +418,7 @@ reproduces the *algorithm* on our own `Pcg32`: the same `(rand & 3) + 1 + i`, th
 same forward probe, the same order of entries. Identical structure, a different stream.
 
 **And therefore the seed is a parameter, not ambient.** This is the whole determinism content
-of the decision, and it is why the entry exists rather than living only in a commit message:
+of the decision, and it is why the entry exists:
 
 - A new game is **state that every peer must agree on**, exactly like a tick. If one peer
   shuffled from `thread_rng` and another from its own clock, the two would be playing different
@@ -435,7 +435,7 @@ of the decision, and it is why the entry exists rather than living only in a com
 unrecoverable — and it will be, everywhere the LFSR's history matters — the reproduction is
 *structural*: the same draws in the same order, consuming the same number of values, so that the
 shape of the outcome distribution and the number of PRNG advances both match. Say so at the call
-site, label the claim `inferred` rather than `verified`, and never let the impossibility of
+site, label the claim `inferred`, and never let the impossibility of
 matching the stream become an excuse for a different *algorithm*. A different algorithm is a
 different game; a different stream is a different roll of the same dice.
 
@@ -463,7 +463,7 @@ protocol, engine build, ruleset hash, quirk set — and refuses the session when
 A shield is the opposite shape: it is *per player* and every player's is deliberately
 different, so there is nothing to compare and refusing on a difference would refuse every
 game. What it needs instead is **arbitration**, which the original already does: `FUN_00432FAB`
-keeps a claim table (`DAT_0057CB40`) and simply ignores a click on a colour somebody else
+keeps a claim table (`DAT_0057CB40`) and ignores a click on a colour somebody else
 holds. The host owns that table for the same reason it owns the roster and the seed.
 
 The general form, since the two keep being confused: **agreement is not the same as
@@ -501,7 +501,7 @@ This is not hypothetical. The original game demonstrates the bug: the
 on every run** (observed: `{A09FFA29-DF90-71AC-…}`, `{7192BCDB-DF90-71AC-…}`,
 `{2BC84424-DF90-70C8-…}`), with a byte pattern that looks like a module address
 repeated into the field. Whatever the exact cause, a value that is supposed to
-identify "this game" and instead identifies "this process" is precisely the
+identify "this game" and instead identifies "this process" is the
 class of defect this rule forbids. *(The observation is verified; the
 address-derivation explanation is inferred.)*
 
@@ -523,7 +523,7 @@ it is total, it is reproducible, and it survives serialisation.
 No `rayon`, no work-stealing, no "spawn a thread per county". If a tick ever
 becomes slow enough to need parallelism, the parallel section must have an
 order-independent reduction and must be justified in `docs/decisions.md`. Until
-then the rule is simply: don't.
+then the rule is: don't.
 
 ### D-10 — Canonical command encoding
 
@@ -565,10 +565,10 @@ somebody could reasonably make the other way:
   a player chose on a settings page and can change in one click; a ruleset is a
   mod list. Hashing them together would tell somebody whose mods match perfectly
   that his *rules* differ, and send him looking in the wrong place.
-* **The per-tick digest is not a substitute for it**, though it does cover the
+* **The per-tick digest covers the**
   same value: `Options` is in the save body and the save body is what
   `Canonical::hash_of(kingdom)` hashes, so a mismatch does eventually halt the
-  session. But only at the first tick a quirk actually *touches* — for the
+session. But only at the first tick a quirk *touches* — for the
   harvest rule, the end of the first Winter. The handshake refuses before a seed
   is chosen. **Both, and neither alone.**
 * **A *presentation* quirk is not here and must not be** (`docs/bugs.md` §6.3a).
@@ -621,7 +621,7 @@ The cost is a fixed ~200 ms between click and response. The alternative —
 rollback with speculative execution and re-simulation — buys responsiveness at
 the price of making every piece of simulation state rewindable, which is a large
 tax on every future feature. For a game whose battle units are formations of
-soldiers rather than fighting-game frames, input delay is the right trade. **We
+soldiers, input delay is the right trade. **We
 do not build rollback.**
 
 ### The tick packet
@@ -748,7 +748,7 @@ lines.
   API, and never let the `Hash` trait near a checksum.
 
 None of this is a defect in those tools. They are built for hash tables, where
-instability is a feature; for state checksums it is precisely inverted.
+instability is a feature; for state checksums it is inverted.
 
 ### Cadence
 
@@ -783,14 +783,14 @@ on one machine, with no network.
 ### Localising it
 
 In debug builds, hash subsystems separately — units, terrain, counties, PRNG
-state, command queue — and include the vector rather than one number. The first
+state, command queue — and include the vector. The first
 tick where exactly one subsystem hash differs names the subsystem, which converts
 "the game desynced" into "the unit array diverged at tick 4,112" before anyone
 opens a debugger. The PRNG state deserves its own slot: if it is the *only* thing
 that differs, someone drew a random number outside the simulation, and if it
-differs *along with* everything else, it is a consequence rather than the cause.
+differs *along with* everything else, it is a consequence.
 
-### What the original actually did — and where we deliberately differ
+### What the original did — and where we deliberately differ
 
 > **Read this section differently from the rest of `docs/`.** Everywhere else in this
 > project the original is the authority: where our engine and `Lords2.exe` disagree, the
@@ -821,8 +821,8 @@ skipping 0), and stores one byte per block plus a total in a 10-byte record per 
 **That is the direct answer to correction C30.** Our `Canonical` digest is a hand-written
 field list, four `County` fields fell out of it, and the digest still reported agreement.
 The original cannot lose a field, because it never enumerates them — it hashes the record
-and skips a documented head. C30's own conclusion was *"what would actually close it is
-deriving the field list from the struct rather than retyping it"*; the original is the
+and skips a documented head. C30's own conclusion was *"what would close it is
+deriving the field list from the struct"*; the original is the
 existence proof that the derived form is what a shipping build used. Note the constraint
 that buys: it works only because a record is a flat POD block with the non-deterministic
 parts pushed into a prefix. That is a design property, not an implementation trick, and
@@ -837,7 +837,7 @@ release too.
 
 **Its frame tag is worth stealing.** Byte 9 of the record is `(tick & 0x7F) + 1`, and
 `Sync_BlockAgrees` refuses to compare at all until every live peer carries the same
-non-zero tag — returning "not everybody is here yet" rather than "divergence". Without
+non-zero tag — returning "not everybody is here yet". Without
 that, the first slow peer looks exactly like a desync. Ours needs the same guard.
 
 **Where we differ, on purpose.** The original **rolls back and retries**: on a mismatch
@@ -848,19 +848,19 @@ and only on the fourth does it reload the turn autosave and post *"Com-link erro
 snapshot to do it, which is what group 14's *"The master machine will resync the game."*
 describes.
 
-**We halt, and finding out that the original did otherwise is not a reason to reconsider.**
+**We halt.**
 A resynchronised session hides the bug that caused the divergence; the original's own
 shipped `status.txt` counts `Net play divergance count` and `Net play wipe outs` as
 routine telemetry, which is evidence that it diverged **often enough to need a policy** —
 and that is the symptom being designed out, not a feature to reproduce. Rollback, retry,
 state resend and turn reload are explicitly **not** on this project's roadmap. What changes
 with this reading is only that our halt is now a considered disagreement with a known
-design rather than an assumption; the position itself is unchanged and does not depend on
+design; the position itself is unchanged and does not depend on
 what the original did.
 
 The two things above that *are* worth taking — a digest whose completeness is structural,
 and a frame tag that distinguishes "not everybody is here yet" from "divergence" — are
-worth taking because the reasoning holds, not because 1996 did them. The first is C30's
+worth taking because the reasoning holds. The first is C30's
 own conclusion arrived at independently; the second removes a false positive that would
 otherwise make every slow peer look like a desync.
 
@@ -914,14 +914,14 @@ Two details worth carrying:
   local player's within one tick. It is a deterministic tiebreak of exactly the kind D-7
   asks for, arrived at for a different reason.
 
-**And the part that is a warning rather than a model.** Of the 50 deferred actions, only
+**And the part that is a warning.** Of the 50 deferred actions, only
 **30 are ever scheduled**. All 62 call sites pass a literal id, so this is a count and not
 an estimate. The twenty that are never reached are the *economy* verbs —
 `Ration_IncreaseCounty`, `Tax_IncreaseCounty`, `Labour_Move`, `Merchant_Trade`,
 `Village_BalanceAll`, `Ration_SetSplit`, `Labour_SetIndustryShare`,
 `SiegePrep_AdjustOrder`, `Industry_ToggleFromMap` — and each of them **also** has an
 immediate path: opcode `0x23`'s read half writes `g_counties[i].taxRate` and calls
-`Tax_RecomputePreview` on the spot rather than journalling it. So the shipped build applies
+`Tax_RecomputePreview` on the spot. So the shipped build applies
 economy commands the instant the packet lands and campaign and battle commands on a shared
 future tick. **Two arrival disciplines in one command set is a desync generator**, because
 only one of them is ordered, and it is the more plausible explanation of the original's
@@ -941,11 +941,11 @@ Because `step()` is pure (D-11), a session is fully described by
 - A CI test replays a corpus of recorded sessions and asserts the final state
   hash matches the recorded one.
 - Any refactor that introduces nondeterminism fails that test **on a single
-  machine, with no second player**, which is the only reason it will actually be
+machine, with no second player**, which is the only reason it will be
   run often enough to help.
 
 This is the same argument `docs/decisions.md` D7 makes about the retired
-differential harness: the check that is a property of the data, rather than of
+differential harness: the check that is a property of the data,
 two implementations by the same author, is the one worth keeping. A replay is
 that kind of check.
 
@@ -984,13 +984,13 @@ to put back in order and wait on.
 Any transport built in the last thirty years handles this.
 
 **Zero dependencies, zero build friction**, which is requirement 2 satisfied by
-construction rather than by audit, and consistent with how the rest of this
+construction, and consistent with how the rest of this
 project is built.
 
 **What it costs, honestly:**
 
 - **No NAT traversal.** The host must be reachable — port forwarding, or a LAN,
-  or a VPN overlay. This is precisely what the original required too, and it is
+or a VPN overlay. This is what the original required too, and it is
   the single biggest usability gap in the design. No transport crate makes this
   problem disappear; UDP-based libraries make hole punching *possible*, but hole
   punching still needs a rendezvous server that somebody has to run and pay for.
@@ -1017,7 +1017,7 @@ in §4–§6 may know which one it is talking to.
 Two implementation details that are easy to get wrong and expensive to diagnose:
 
 - **`set_nodelay(true)` on every socket.** Nagle's algorithm buffers small writes
-  waiting for an ACK, which is precisely the wrong behaviour for one small
+waiting for an ACK, which is the wrong behaviour for one small
   packet every 100 ms — it can add most of a round trip to every tick and
   present as "the network is slow" when it is the local stack holding the data.
 - **Sockets are read on their own thread**, handing complete messages to the
@@ -1028,13 +1028,13 @@ Two implementation details that are easy to get wrong and expensive to diagnose:
 
 ### The alternatives, and why none of them wins today
 
-The obvious crates were checked against requirements 1 and 2 rather than waved
+The obvious crates were checked against requirements 1 and 2
 at. Findings as of this writing — re-check before adopting anything, because
-`docs/decisions.md` C8 is exactly about prior art being a lead rather than an
+`docs/decisions.md` C8 is exactly about prior art being a lead
 authority.
 
 **`renet` — clean on the constraint, wrong on the topology.** MIT OR Apache-2.0,
-actively maintained, and genuinely free of native build steps: no build script,
+actively maintained, and free of native build steps: no build script,
 and its resolved dependency closure (26 crates) contains no `cc`, `cmake`,
 `bindgen` or `nasm-rs` — its crypto is RustCrypto's pure-Rust
 `chacha20poly1305`. Its channels (`Unreliable`, `ReliableOrdered`,
@@ -1044,7 +1044,7 @@ The problem is its security model, not its code: `renet` inherits netcode 1.02's
 assumptions, so a server declares `public_addresses` and clients present a
 `ConnectToken` minted by **a separate trusted backend sharing a private key with
 the game server**. That is a design for a publicly routable dedicated server plus
-a token service — precisely the two things §8 says we are not running. Adopting
+a token service — the two things §8 says we are not running. Adopting
 it would mean either standing up that infrastructure or bypassing the part that
 justifies the dependency. It remains the best candidate *if* the project ever
 grows hosting, and it is worth revisiting then. (Minor: it pulls `octets`, which
@@ -1053,7 +1053,7 @@ is BSD-2-Clause — permissive, but a third licence to attribute. And avoid
 
 **`laminar` — dead.** Last release May 2021, last commit 2023, built for the
 now-archived Amethyst engine. Its published licence field is also the legacy
-`MIT/Apache-2.0` slash form rather than a valid SPDX expression, which trips
+`MIT/Apache-2.0` slash form, which trips
 licence tooling. Closed off.
 
 **`message-io` — Apache-2.0 only**, with no MIT option, and semi-dormant. Not
@@ -1079,9 +1079,9 @@ The QUIC crates themselves are clean — their build scripts do nothing but
 So choosing QUIC means accepting a C compiler on every build machine — a direct
 collision with requirement 2 — and the alternative is implementing
 `quinn_proto::crypto::Session` against a pure-Rust stack ourselves, which is a
-security-sensitive project rather than a feature flag. `rustls-graviola` is the
-one to watch: it is genuinely native-build-free, using Rust inline assembly
-rather than C, so if it ever grows QUIC support this paragraph should be
+security-sensitive project. `rustls-graviola` is the
+one to watch: it is native-build-free, using Rust inline assembly
+, so if it ever grows QUIC support this paragraph should be
 rewritten.
 
 **Evidence basis for the above:** published `Cargo.toml`s, `build.rs` sources,
@@ -1130,7 +1130,7 @@ have enabled.
 
 ## Appendix A — what the original did
 
-Kept because it explains the decision to replace rather than wrap, and so nobody
+Kept because it explains the decision to replace, and so nobody
 re-investigates it. Everything here was measured on the GOG Windows build
 (1,031,680 bytes, `ImageBase = 0x400000`, no ASLR) using the proxy in
 `native/dplay-proxy/` and the scripts in `tools/net/`.
@@ -1212,8 +1212,8 @@ Joining peer: `GetCaps`, then `EnumSessions(DPENUMSESSIONS_AVAILABLE)`, then
 Three things in that are worth carrying forward:
 
 - **`CreatePlayer` passes a NULL event handle**, so the original *polls*
-  `Receive` rather than being woken. Our design polls too, but on a tick clock
-  we chose rather than on whatever the render loop happened to do.
+`Receive`. Our design polls too, but on a tick clock
+we chose.
 - **It asks for guaranteed-delivery caps**, which is consistent with a turn-based
   game that cannot tolerate a lost move — the same conclusion §7 reaches from
   first principles.
@@ -1250,7 +1250,7 @@ Two consequences:
 
 - For anyone trying to play the GOG release today: pick a connection method
   explicitly. The default is broken and always will be.
-- For us: the original's DirectPlay path is not dead, merely deprecated,
+- For us: the original's DirectPlay path is deprecated,
   fragile, and dependent on an optional Windows component. That is still an
   ample reason to replace it — but the reason is obsolescence, not breakage.
 
@@ -1269,7 +1269,7 @@ None of it is needed for the design above. It is kept because it builds cleanly
 and because re-deriving it would cost a day.
 
 > One caveat on the whole appendix: the captures were obtained by calling
-> `Net_MultiplayerSetup` directly from an injected thread rather than by walking
+> `Net_MultiplayerSetup` directly from an injected thread
 > the game's menus. Anything the menu path would have initialised first was not
 > initialised. The call sequence and the arguments are what the function does;
 > whether a menu-driven run would differ is **not established**.

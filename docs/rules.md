@@ -42,7 +42,7 @@ sequence — and one of them, between the merchants and the muster, is an empty 
 | 3 | Weather | roll each county's weather for the season |
 | 4 | **Tax** | collect; write the tax happiness terms |
 | 5 | Wages | pay the army |
-| 6 | **Rations** | feed everyone; this is where food is actually spent |
+| 6 | **Rations** | feed everyone; this is where food is spent |
 | 7 | Health | move each county's health meter by how well it ate |
 | 8 | **Happiness** | sum the terms into one number |
 | 9 | Unrest | move each county towards or away from revolt |
@@ -95,14 +95,14 @@ The terms:
 | **Army** | raising men costs happiness, scaled by what fraction of the county you took |
 | **Events** | whatever the random event did |
 
-An **unowned** county gets a flat bonus that an owned one does not, which is why the shipped
+An **unowned** county gets a flat bonus that an owned one does not, so the shipped
 save has owned counties at 72 and unowned at 77.
 
 **The tax panel's two happiness lines behave differently on purpose, and one of them looks
 broken.** *This county* is `5 − rate` plus your realm's empire term, and it moves on every
 click of the arrow. *Other counties* is the table above — **flat zero from rate 0 to 19** — so
 over the whole range most players use, it sits at nothing and does not budge. That is the
-panel being right rather than stuck. The line only starts moving once you are taxing above a
+panel being right. The line only starts moving once you are taxing above a
 fifth, which is also the point at which your *other* counties begin to resent it.
 
 It is worth knowing that this half of the mechanic is effectively **human-only**: the highest
@@ -114,16 +114,16 @@ county's population at that rate and that castle **would** hand over. It is **no
 reaches your treasury, and the two come apart when a county's tax is *suppressed* — the
 collection zeroes the take, and the panel goes on showing the same number as before. So a
 county in that state reads as a healthy earner on its own panel while contributing nothing,
-and the place to catch it is the treasury rather than the panel.
+and the place to catch it is the treasury.
 
-That is the game's own arrangement rather than a defect: the figure is computed by the panel's
+That is the game's own arrangement: the figure is computed by the panel's
 refresh, which has no suppression test in it, and the take is computed by the collection,
 which does.
 
 Two things worth knowing because they surprise people:
 
 - **Taxing at 19% costs your other counties nothing at all.** The empire-wide penalty is
-  genuinely zero until rate 20, and only reaches −15 at rate 50.
+zero until rate 20, and only reaches −15 at rate 50.
 - **The tax ceiling is 50**, not 100.
 - **The ale cap is for the entire game, not per season.** The county remembers the total
   happiness ale has ever given it and the bonus is clamped to `5 − that`. Nothing anywhere
@@ -139,11 +139,11 @@ Feeding a county happens in one pass:
 1. Work out what the county needs: `population ÷ divisor × multiplier`, where the divisor and
    multiplier come from the ration level. Normal rations need one sack per ten people.
 2. **Dairy first, and free.** Every head of cattle feeds **5 people** without being killed.
-   This is not a priority you can change; it is subtracted before anything else happens.
+It is subtracted before anything else happens.
 3. **The rest is split, not ordered.** A single percentage — the county's own setting — says
    how much of the remaining requirement comes from slaughtered cattle; the balance comes
    from grain. One head feeds 10 people, one sack feeds 6.
-4. Each side is capped at what is actually in store, and if the total still will not fit the
+4. Each side is capped at what is in store, and if the total still will not fit the
    ration level drops and everyone is unhappier.
 
 So it is a dial, not a queue, and it really is per county: in the shipped England save four
@@ -161,7 +161,7 @@ England, turn one, county 8 is that county: 435 people and 101 head, so 505 mout
 dairy against 435 mouths. A player moved the slider there, saw nothing change, and reported it
 as broken. It is not.
 
-**The panel does tell you, and it tells you with a number rather than a sentence.** The
+**The panel tells you with a number.** The
 **Fed** row's third figure is *people fed by the standing herd*; when it is at or above the
 county's population, the herd is feeding everybody, nothing is being eaten, and the dial has
 nothing to divide. There is no line of text that says so — the game has no such string, and
@@ -172,7 +172,7 @@ it is the first thing to look at when the slider seems dead.
 The slider also **refuses to sit on a value that changes nothing**, which is the other half of
 why it feels odd. If the county *is* eating its herd, moving the dial re-runs the food pass on
 the spot; if the new setting kills the same number of beasts as the old one, the game walks the
-value one point at a time looking for a setting that actually differs:
+value one point at a time looking for a setting that differs:
 
 * dragging **the track** and finding nothing puts the dial **back where it was** — it springs
   back under the cursor;
@@ -192,11 +192,11 @@ feed"*, *"Cows feed"*, *"Barrels swilled."*
 panel is `Panel_Ration`, it reads group **87**, and it shows three foods. The code agrees:
 the food pass has no priority list in it and the county record has no field for a food order,
 for sheep, or for ale in store. Group 62 looks like a ration screen that was cut — though
-that is an inference rather than a finding, and `docs/mechanics.md` says why it is weaker
+that is an inference, and `docs/mechanics.md` says why it is weaker
 evidence than it appears.
 
 Armies standing in a county are **extra mouths at the county's ration level** — so they make
-the bill bigger rather than eating a fixed amount, and an unpayable bill drops *everyone's*
+the bill bigger, and an unpayable bill drops *everyone's*
 rations, soldiers and peasants alike.
 
 Separately, an army whose men outnumber the county's entire larder starts starving: a
@@ -251,7 +251,7 @@ the shortage band. A herd that is quietly dying is never drawn in black.
 
 Two things about that number are worth knowing. It is capped by the population, so a county
 of 150 people with 80 head asks for all 149 the search may name and is short whatever you do
-— **the herd will shrink until the county can tend it**, and that is the design rather than a
+— **the herd will shrink until the county can tend it**, and that is the design
 fault. And it is *not* the same as the ceiling: between break-even and the ceiling the herd is
 stable and growing, so a county sitting in that band is fine even with the slot not full. The
 two coincide only for a herd that cannot break even at all. `docs/decisions.md`
@@ -295,7 +295,7 @@ your cattle are dying.
 
 **It is a forecast of the farm, not of the year.** `Herd_LabourEstimate`'s tail is births,
 deaths and the slaughter and nothing else — the weather's percentage swing and any random
-cattle event are applied by `Herd_SeasonTick` when the season actually runs, and the forecast
+cattle event are applied by `Herd_SeasonTick` when the season runs, and the forecast
 does not see either. So the number the sidebar showed and the number the herd moved by will
 differ whenever the weather was anything but fair, and that is the original's own behaviour
 rather than a rounding error.
@@ -332,9 +332,9 @@ Three consequences worth knowing:
 200 people is a quarter of a field and 800 is a whole one — and **a county with nobody on
 reclamation reclaims nothing at all**, however many fields it has started. The gang works
 the nearest-to-finished field first and moves on to the next when it is done, so putting a
-handful of people on it finishes one field slowly rather than four fields never.
+handful of people on it finishes one field slowly.
 
-### The crop has to be tended all year, not just sown
+### The crop has to be tended all year
 
 Sowing is only the first of three demands the year makes on your grain farmers, and the
 other two are just as capable of losing you the harvest:
@@ -358,7 +358,7 @@ many farmers the fields can use and reassigns people to them every single season
 up the moment you move people off the land by hand.
 
 The same click switches **industries** on and off: clicking a mine, quarry, forest or smithy
-on the map toggles it, and there is no other way to do it either. **[V]**, and confirmed by a
+on the map toggles it. **[V]**, and confirmed by a
 player from play before we had asked him: *"you can click on the forest or mine on the main
 map to turn them off for that county. 'Forestry off'. 'Forestry On'."* Those are the game's
 own words — `L2.eng` groups 228–237, ten one-string groups the toggle picks by arithmetic:
@@ -403,7 +403,7 @@ events move people.
 
 **Migration** moves people between neighbouring counties, driven by the happiness gap. The
 formula makes small gaps produce *nothing*: a county at 72 next to one at 77 moves nobody at
-all, which is why the England turn-one fixture's numbers work out with no migration in them.
+all, so the England turn-one fixture's numbers work out with no migration in them.
 
 Peasants are assigned to **nine jobs**: grain farming, cattle farming, field reclamation,
 castle building, iron mining, stone quarrying, wood cutting, blacksmith, and **Idle
@@ -414,7 +414,7 @@ nine, because **iron and stone share one** — a county's mine and its quarry ar
 the same spot, and which one you see is which one the county has. Idle Townsfolk is the
 cluster in the middle.
 
-One icon on screen stands for `ceil(population ÷ 25)` people, which is why a cluster has
+One icon on screen stands for `ceil(population ÷ 25)` people, so a cluster has
 twenty-five slots.
 
 ### Nobody chooses their own job
@@ -426,7 +426,7 @@ lasts as long as the numbers it was based on:
 1. Each county keeps a percentage split — three numbers across the farm jobs and five across
    the industry jobs, each set summing to 100 — and a single percentage saying how much of
    the county is industry at all. Dragging peasants rewrites all of them from where people
-   actually ended up.
+ended up.
 2. Each job also carries **two thresholds** the game works out for itself: how many workers
    it *wants* before it stops going backwards, and how many it can *usefully* take. Grain
    and cattle get real numbers by trying every possible staffing and seeing which pays;
@@ -457,17 +457,17 @@ which is not a mistake — it is the interface saying they amount to the same th
 
 Each of a county's four industry sites — wood, iron, stone, the smithy — has an **on/off
 switch of its own**, thrown by clicking the site on the map. Off is a real state and not
-merely "nobody is working here": the production pass reads the switch, and a site that is off
+"nobody is working here": the production pass reads the switch, and a site that is off
 is told its useful ceiling is **nought**, so the seasonal reallocation will not staff it and
 anybody you put there is surplus.
 
 **Dragging peasants onto the site turns it back on.** That is the part nobody guesses. The
 drop is accepted — the men land in the job — and the same call sets the switch, provided the
-county actually has that resource. So in practice you cannot hold a site switched off *with
+county has that resource. So in practice you cannot hold a site switched off *with
 men on it*: putting men on it is how you switch it on. A player described the off state as
 *"basically the same as not having anyone on the mining area"*, which is the right description
 of what you can observe and the wrong description of the mechanism — the switch is real, it
-gates production, and it is simply impossible to see it clear and staffed at the same time.
+gates production, and it is impossible to see it clear and staffed at the same time.
 
 Two corollaries worth knowing:
 
@@ -493,7 +493,7 @@ population**. Anything cut off from it declares independence that same season:
 > independence and thrown out your officials."*
 
 Two counties count as joined if they are on each other's **neighbour list** — the adjacency
-the map was authored with — not merely because their tiles touch. If two blocks are equally
+the map was authored with — not because their tiles touch. If two blocks are equally
 populous the game keeps the later one it found, which in practice means you cannot rely on
 keeping the half you expect.
 
@@ -521,7 +521,7 @@ unrest counter one step a season, with a warning at each step — *"Murmurs of u
 fourth step **30% of the population walks out** and the county goes neutral. The mob is
 unarmed peasants and it wanders the map like any other army.
 
-Four details that decide whether you ever actually see one:
+Four details that decide whether you ever see one:
 
 - **The clock starts on the second bad season, not the first.** The season a county first
   drops below **30** it gets a warning and nothing else — the warning and the counter are
@@ -532,7 +532,7 @@ Four details that decide whether you ever actually see one:
   from scratch.
 - **A revolt needs somewhere to stand.** The mob is placed on a free road tile, or failing
   that a free patch of open ground, within three tiles of the county's centre. If every
-  such tile is occupied the county simply stays at maximum unrest and never rises.
+such tile is occupied the county stays at maximum unrest and never rises.
 - **AI-owned counties revolt too**, and their lord is not told — the four warning messages
   are the human's only. What differs is the ladder, not the outcome: an AI county climbs
   only below happiness 1 and recovers between 11 and 40, so the peasants rise against you
@@ -541,7 +541,7 @@ Four details that decide whether you ever actually see one:
 > **How well is this known?** The mechanism is read out of the binary and the *"more than
 > four seasons"* half is the manual's own words. What nobody has ever watched is a real one:
 > `docs/oracle-requests.md` §2 asks for four saves around a revolt, and it is the most
-> discriminating request on that list precisely because all four bullets above were changed
+> discriminating request on that list because all four bullets above were changed
 > in one sitting on the strength of a decompilation.
 
 **And your army can leave you.** Miss the wages and your mercenaries go at once; miss them
@@ -617,8 +617,8 @@ There are five realms and **four AI personalities**, because one realm is you. T
 | Countess | stone, 2,000 — never royal | 2 | 40% | 8 turns |
 | **Bishop** | **royal, 2,000** | **1** | **50%** | **4 turns** |
 
-Each lord is offered only *some* castle types, and a type he is not offered is simply absent
-from his ladder rather than priced at zero. The Knight builds palisades (200), Norman keeps
+Each lord is offered only *some* castle types, and a type he is not offered is absent
+from his ladder. The Knight builds palisades (200), Norman keeps
 (1,000) and royal castles (10,000) and never a motte or a stone castle; the Bishop builds
 Norman keeps at **100** and royal castles at 2,000 and nothing else.
 
@@ -689,7 +689,7 @@ Start England, take red, and you get exactly what he describes:
 Confirmed against `england-turn1.sav`: realms 2 … 5 hold shields 2 … 5 and lords 1, 2, 4, 3
 — Knight, Baron, Bishop, Countess — which is this table exactly.
 
-### What the game actually does  **[V]**
+### What the game does  **[V]**
 
 `Realms_AssignLords` (`0x0049CAAA`), in order:
 
@@ -725,7 +725,7 @@ black lord, and the Baron becomes the red one:**
 | 5 blue | Baron red | Knight yellow | Countess black | Bishop magenta |
 
 Read down the Knight's column and *"the game always tries to give the Knight yellow"* holds
-in four rows out of five — which is why it is a good description. Read row 2 and it fails,
+in four rows out of five — so it is a good description. Read row 2 and it fails,
 and it fails in a way no preference rule would produce: the Knight ends up on the colour that
 was left when the walk reached him, and it is the **Baron** who takes red because red's own
 candidate list names him first.
@@ -764,12 +764,12 @@ belongs to a different screen from the one he was describing.
 taken, realms 1 … 5 in order each taking the lowest free shield, then the lord out of
 `LORD_CHOICE` keyed by that shield. `NewGame::shield` carries the choice, setup page 4's
 click writes it (`FUN_00432EE6` → `FUN_00432FAB`, `docs/arms.json`
-`0x00432EE6/pick-shield`), and it travels beside the seed rather than on
+`0x00432EE6/pick-shield`), and it travels beside the seed
 `l2_game::setup::Settings` — because a campaign row rewrites all twelve options and must
 not rewrite the colour.
 
 **This section used to say the opposite, and the sentence that mattered was the excuse.**
-It read *"hard-codes the shield half as `shield = realm` … the gap is latent rather than
+It read *"hard-codes the shield half as `shield = realm` … the gap is latent
 live: `NewGame` has no shield field at all, so nothing can yet pick a colour to break it."*
 The picker had been on the screen the whole time; what it lacked was a reader. A player:
 *"I picked a colour and it didn't get honoured once the game opened."*
@@ -793,8 +793,8 @@ program wrote.
 Battles are real-time. Your men are drawn as **figures**, each standing for several real
 soldiers, grouped into **units**.
 
-- **Recovery is the only melee defence.** There is no defence stat: a figure can only be hit
-  once its recovery counter runs down, so slow-recovering troops are simply hit less often.
+- **Recovery is the only melee defence.** A figure can only be hit
+once its recovery counter runs down, so slow-recovering troops are hit less often.
   Pikemen recover slowest and are the hardest to kill.
 - **The heavy blow lands once per figure, for the whole battle** — 300 for macemen, 200 for
   knights, 100 for swordsmen, nothing for anyone else. At 100 hits per casualty, a maceman's
@@ -812,7 +812,7 @@ castle garrisons sortie only above 260, which is close to never.
 
 ## 8a. How a game ends, and what a campaign is
 
-**A game ends one way: somebody runs out of everything.** There is no turn limit, no score
+**A game ends one way: somebody runs out of everything.**
 target and no date. A realm's *strength* is
 
 > **strength = 3 × counties held + 1 × armies**
@@ -821,7 +821,7 @@ recounted at the top of **every** realm's turn — the human's included — and 
 strength comes out zero is out of the game. Armies only: merchants, transports and peasant
 mobs are in the same array and do not count.
 
-The messages are asymmetric, and the split is on **"is this me"** rather than on "is this a
+The messages are asymmetric, and the split is on **"is this me"**
 human":
 
 | who died | what is raised |
@@ -852,7 +852,7 @@ The first campaign is **Quaintville, Rose, Ireland, Italy, England, France, Crus
 Germany**; the second is **Australia, Central Am., S. America, U.S.A., Imperium, The World**
 and is six maps because its counter starts at 2 and the same "counter < 8" test ends it. The
 difficulty climbs 0, 0, 1, 1, 2, 2, 2, 2 and the starting purse is 5,000, 2,500 or 1,000 —
-resetting to 5,000 at the top of each difficulty tier rather than falling all the way. A loss
+resetting to 5,000 at the top of each difficulty tier. A loss
 does not advance the counter, so you fight the same country again.
 
 ---
@@ -887,7 +887,7 @@ engines against a stone or royal castle and your captains refuse outright — *"
 build some siege engines to besiege this castle"* — and the siege is lifted, not stalled.
 
 **The castle is worth 160 %, 200 %, 250 %, 320 % or 400 %** of the garrison's strength, by
-castle size, when a siege is settled by arithmetic rather than fought. That multiplier is
+castle size, when a siege is settled by arithmetic. That multiplier is
 the whole of what a castle is worth on the strategic layer, and it is steep: 43 men against
 a 149-man garrison in the *smallest* castle in the game lose without killing 20 of them.
 
@@ -899,14 +899,14 @@ and no longer; nothing survives it.
 one-shot — a battering ram is worth 20 men a frame at it, so one ram opens a gate in a
 thousand frames where a lone swordsman needs twenty thousand); chew through the rampart
 (5,000 hits a patch, and the counter resets, so a wall can be breached repeatedly); or
-simply **get one man to the keep's door**, which ends the siege with the garrison
+**get one man to the keep's door**, which ends the siege with the garrison
 untouched. And if the attacker runs out of engines with no breach, a small castle sends him
 back to try again and a large one has beaten him.
 
 **Losing an assault does not destroy the besieging army.** It loses its siege and keeps its
-men — which is why sieges are attritional rather than all-or-nothing.
+men — so sieges are attritional.
 
-**The AI lords each besiege differently**, and it is fixed per lord rather than judged:
+**The AI lords each besiege differently**, and it is fixed per lord:
 
 | | orders | man-seasons |
 |---|---|---:|
@@ -922,11 +922,11 @@ taking them to 1,400. **The Knight is the only lord who brings no artillery.**
 
 ## 9. Where this is *not* the whole story
 
-Things the engine does not yet do, so this document describes the original rather than us:
+Things the engine does not yet do, so this document describes the original:
 the castle designer, the castle's own layout on the battlefield (ours is a plain concentric
 keep and is marked as ours wherever it is drawn), most of the interface, and merchants and
 transports as things that move. `docs/mechanics.md` tracks what is implemented against what
-is merely known.
+is known.
 
 And a standing caution, learned twice the hard way: **the England turn-one fixture exercises one narrow
 slice of these rules.** Every county in it sits at tax rate 0 with a well-staffed herd, which

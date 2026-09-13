@@ -46,7 +46,7 @@ use l2_net::{Quirk, Quirks};
 
 /// `PctOf(a, b) = a * 100 / b` — `FUN_00404DC1`, the companion to
 /// [`crate::math::pct`]. Zero denominator gives zero, exactly as the original
-/// does rather than dividing.
+/// does.
 #[inline]
 pub fn pct_of(a: i32, b: i32) -> i32 {
     if b == 0 {
@@ -121,7 +121,7 @@ pub fn efficiency_ramp(
 ///
 /// For **weapons** it is a real quantity: the realm's wood and iron each
 /// divided by a denominator the driver computes across the whole realm, so
-/// every county's blacksmith gets a share of one stockpile rather than the
+/// every county's blacksmith gets a share of one stockpile.
 /// first county emptying it. Those two denominators are [`WeaponShare`], and
 /// they are no longer `[D]`.
 pub fn resource_limit(
@@ -141,7 +141,7 @@ pub fn resource_limit(
         // Written the way the original writes it — `(stock * cost / share) /
         // cost`, multiplying by the cost and dividing by it again. That is not
         // a no-op once `share` exceeds 1: it rounds the share down to a whole
-        // weapon's worth of stock. Kept rather than cancelled.
+// weapon's worth of stock. Kept.
         let quota = |stock: i32, cost: i32, share: i32| {
             ((stock as i64 * cost as i64 / share.max(1) as i64) / cost as i64) as i32
         };
@@ -175,11 +175,11 @@ pub fn resource_limit(
 /// if (ironShare < 1) ironShare = 1;
 /// ```
 ///
-/// **They are summed *costs*, not a county count** — which is why
+/// **They are summed *costs*** — so
 /// [`WeaponShare::SINGLE_SMITH`] is not the right default and this crate's old
 /// `weapon_share: 1` was not either. A lone smithy forging crossbows at 6 wood
 /// and 10 iron divides by 6 and by 10, so its limit is `realm.wood / 6` and
-/// `realm.iron / 10` — the number of crossbows the stockpile can actually pay
+/// `realm.iron / 10` — the number of crossbows the stockpile can pay
 /// for. The old default gave it the whole stockpile and relied on
 /// [`produce_with_share`]'s affordability clamp to bring it back down to the
 /// same number.
@@ -278,7 +278,7 @@ pub fn output(
 /// person — so the blacksmith's ceiling is always a multiple of the icon size.
 /// And the blacksmith is the only industry with a real ceiling at all: wood,
 /// iron and stone are bounded by [`RESOURCE_LIMIT_UNLIMITED`]'s 999 units of
-/// output rather than by any worker count.
+/// output.
 ///
 /// `weapon_share` is [`weapon_shares`] for the owning realm; the original calls
 /// `FUN_0044F15B` afresh inside every `resourceLimit`, so it is the *current*
@@ -379,7 +379,7 @@ pub fn labour_estimate(
 ///   inside `Industry_ToggleFromMap` alone, on top of the ramp
 ///   [`produce`] already applies each season. Porting it changes production
 ///   numbers on every path in the game, which is a simulation change needing
-///   its own validation and not the sidebar's business. Named here rather than
+///   its own validation. Named here
 ///   left silent: `docs/decisions.md` C136.
 /// * **County `+0x280` … `+0x28C`.** This said *"nothing reads them and no draw
 ///   call does either"*, and the second half was false: `Panel_JobIndustry`
@@ -398,7 +398,7 @@ pub fn preview(
     let index = c.index();
     // `*(undefined4 *)(county * 0x300 + 0x53fc58 + industry * 0x18) = 0;` is
     // the function's **first** statement, outside every guard — so a county
-    // that fails one of the three tests below forecasts nothing rather than
+// that fails one of the three tests below forecasts nothing.
     // keeping last season's number.
     county.industry[index].next_season = 0;
     if county.owner == 0 || county.pop_band == 0 {
@@ -434,7 +434,7 @@ pub fn preview(
 /// have more than one caller in the original — `County_RefreshEstimates`
 /// (`0x004485A5`) four times, `Industry_ProduceAll` (`0x0044E852`) after every
 /// production pass, and `FUN_00448648` (the realm's blacksmiths, after a drop
-/// or a switch) — so the pair is named once here rather than re-assembled at
+/// or a switch) — so the pair is named once here
 /// each of them. The efficiency write-back is still not here; see [`preview`].
 pub fn refresh(
     t: &Tables,
@@ -634,7 +634,7 @@ impl BankruptcyAction {
 ///    treasury; the original takes the whole bill or none of it.
 /// 2. **The counter is not clamped at 5, it wraps to 0.** Stage 5 is the
 ///    mutiny, and after it the escalation starts again from the top — so a
-///    realm that never pays loses its armies every six seasons rather than
+///    realm that never pays loses its armies every six seasons
 ///    settling at a permanent stage 5.
 ///
 /// `had_mercenaries` is `FUN_004AD230`'s return: it dismisses the realm's
@@ -718,7 +718,7 @@ pub fn castle_cost(t: &Tables, castle_type: u8) -> (i32, i32) {
 ///
 /// The table holds two ints per level and both carry the same number. What the
 /// second column is for is not established, so this reads the first and the
-/// table keeps the pair rather than pretending it is a flat array.
+/// table keeps the pair.
 pub fn castle_workforce(t: &Tables, castle_type: u8) -> i32 {
     t.castle.workforce[(castle_type.max(1) as usize - 1).min(t.castle.workforce.len() - 1)].0
 }
@@ -781,10 +781,10 @@ pub fn castle_refusal(t: &Tables, county: &County, castle_type: u8) -> Option<Ca
 /// ```
 ///
 /// Three things here contradict what this module used to say, and all three are
-/// read from the function rather than chosen:
+/// read from the function:
 ///
-/// * **There is no affordability test.** You may order a royal castle with an
-///   empty treasury; it simply takes forever, because
+/// * You may order a royal castle with an
+///   empty treasury; it takes forever, because
 ///   [`castle_labour_estimate`]'s ceiling is zero until the materials are all
 ///   delivered. The old *"returns `false` if the realm cannot pay"* was ours.
 /// * **The cost is a difference, and a *lower* castle refunds.** Upgrading a
@@ -827,7 +827,7 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
     // it, [`castle_labour_estimate`] computes nothing without it,
     // `Industry_LabourEstimate` shows the outstanding wood and stone only with
     // it, `Tax_CollectAll` charges the *standing* castle while it is set, and
-    // [`crate::map::castle_tile_stamp`] draws scaffolding rather than a castle.
+// [`crate::map::castle_tile_stamp`] draws scaffolding.
     // **Nothing a player could reach used to write it**, so the castle-building
     // job had a ceiling of zero for ever and no county could build anything.
     county.castle_degraded = crate::siege::CASTLE_DEGRADED_BUILDING;
@@ -863,7 +863,7 @@ fn take_from(store: &mut i32, want: i32) -> i32 {
 ///
 /// Runs before the labour is spent, and takes whatever is there: a realm with
 /// 10 stone in the store delivers 10. This is why a castle ordered on an empty
-/// treasury is not refused but simply crawls.
+/// treasury crawls.
 pub fn deliver_castle_materials(county: &mut County, realm: &mut Realm) {
     if county.castle_degraded == 0 {
         return;
@@ -872,7 +872,7 @@ pub fn deliver_castle_materials(county: &mut County, realm: &mut Realm) {
     county.castle_stone_owed = take_from(&mut realm.stone, county.castle_stone_owed);
 }
 
-/// `FUN_00450FB4` — **how much of the materials bill has actually arrived**, as
+/// `FUN_00450FB4` — **how much of the materials bill has arrived**, as
 /// a percentage, and the gate on every hand that could work on the castle.
 ///
 /// ```c
@@ -899,8 +899,8 @@ pub struct CastleComplete {
     /// replaced and already refused if the county is too small to spare them.
     /// Zero for a repair and for an upgrade that gains nothing.
     pub free_archers: i32,
-    /// True when this was a **repair** after a siege rather than new work —
-    /// message `0xA3` variant 1 rather than variant 0.
+/// True when this was a **repair** after a siege —
+/// message `0xA3` variant 1.
     pub repaired: bool,
 }
 
@@ -1034,7 +1034,7 @@ pub fn castle_labour_estimate(_t: &Tables, county: &County) -> (i32, i32) {
 /// build is in progress, and zero otherwise. Since the weapons forecast is zero
 /// whenever that guard fails, the four are a **pure function** of
 /// [`Industry::next_season`], [`County::weapon_type`] and the castle record —
-/// which is why this is a function and not four more fields.
+/// so this is a function.
 ///
 /// **`[V]` for the first two**: `weaponCost[type] × made` is the stored value in
 /// every county of every save, sixteen of them non-zero for the wood and seven
@@ -1042,7 +1042,7 @@ pub fn castle_labour_estimate(_t: &Tables, county: &County) -> (i32, i32) {
 /// machine was taken mid-build.
 ///
 /// **Nothing draws them yet.** The job popup's body is a stub in `l2-game`, so
-/// this is what that painter will call rather than what one calls today.
+/// this is what that painter will call.
 pub fn panel_figures(t: &Tables, county: &County) -> [i32; 4] {
     let weapon = county.weapon_type.min(WEAPON_TYPE_COUNT - 1);
     let made = county.industry[Commodity::Weapons.index()].next_season;
@@ -1196,7 +1196,7 @@ pub fn toggle_from_map(county: &mut County, what: MapToggle, quirks: Quirks) -> 
 /// 0x5A`.
 ///
 /// The category is **`0x04`, the floating tip** — placed at the cursor, with no
-/// OK button, dismissed only by its own hundred-tick timer. So this is not a
+/// OK button, dismissed only by its own hundred-tick timer.
 /// scroll the player has to close; it is a label that appears by the mouse and
 /// goes away.
 pub fn toggle_message_group(what: MapToggle, on: bool) -> u16 {
@@ -1409,7 +1409,7 @@ mod tests {
         assert_eq!(resource_limit(T, &c, Commodity::Weapons, &realm, unshared), 600);
     }
 
-    /// **The real denominator is a sum of costs, not a count of counties.**
+/// **The real denominator is a sum of costs.**
     /// `FUN_0044F15B`, and the answer to the `[D]` this module carried.
     #[test]
     fn the_weapon_share_sums_the_costs_of_every_staffed_smithy() {
@@ -1870,7 +1870,7 @@ mod tests {
     }
 
     /// The default starting castle is the Norman keep, and it is the cheapest
-    /// castle in wood — which is why it is the one every player-owned county in
+/// castle in wood — so it is the one every player-owned county in
     /// the England turn-one fixture has.
     #[test]
     fn the_norman_keep_is_the_cheapest_castle_in_wood() {

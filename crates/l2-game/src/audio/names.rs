@@ -27,7 +27,7 @@
 //! is what made the two-bank arrangement visible: it is not one table with a
 //! gap.
 //!
-//! `null.wav` is not in either install and never was. Entry 1 of both banks is
+//! `null.wav` is not in either install. Entry 1 of both banks is
 //! a deliberate hole.
 //!
 //! # **Slot numbers are 1-based, and the arrays here are not**
@@ -107,7 +107,7 @@ pub const MUSIC_SCROLL: [&str; 5] = [
 ///
 /// Slots 3…11 are the village's work: cattle, unrest, fallow land, wheat, the
 /// quarry, the wood, the iron, the merchant, the army. That is the shape of
-/// the village's nine job slots, which is why this table is worth writing down
+/// the village's nine job slots, so this table is worth writing down
 /// even before anything plays it.
 pub const KINGDOM_BANK: [&str; 12] = [
     "click3.wav",   // 0
@@ -231,7 +231,7 @@ pub fn troop_cry(troop: usize, class: usize, take: usize) -> Option<&'static str
     }
 }
 
-/// Files the battlefield plays **by name** rather than out of the bank.
+/// Files the battlefield plays **by name**.
 pub mod battle {
     /// `FUN_0049694F` — `Wall_Smash` — opens with
     /// `Sound_PlayFile("bathit2.wav", 0, 0)`: the effects flag, the one-shot
@@ -256,7 +256,7 @@ pub enum Bank {
 /// **The file a 1-based slot number names**, which is the form every call site
 /// in the original uses. See the module note: `slot n` is `BANK[n - 1]`.
 ///
-/// `None` for slot 0 (there is no slot 0), for a slot past the bank, and for
+/// `None` for slot 0, for a slot past the bank, and for
 /// the `null.wav` hole — all three of which mean "no sound" and none of which
 /// is an error.
 pub fn slot(bank: Bank, slot: usize) -> Option<&'static str> {
@@ -275,7 +275,7 @@ pub fn slot(bank: Bank, slot: usize) -> Option<&'static str> {
 ///
 /// `Panel_JobDetail` (`0x00412B33`) is
 /// `if (g_jobSound[job] != 0) Sound_RestartSlot(g_jobSound[job])`, so a zero is
-/// a job with no sound rather than slot 0 — jobs **4** (building) and **9**
+/// a job with no sound — jobs **4** (building) and **9**
 /// (idle) are silent, and job **8** never reaches the lookup at all because the
 /// blacksmith takes a branch of its own above it.
 ///
@@ -309,7 +309,7 @@ pub mod blacksmith {
 /// The ladder is on `g_pickedTileGraphic` behind `flags & 0x80`, and it is the
 /// *same* four ranges [`l2_kingdom::industry::map_toggle_for_graphic`] uses to
 /// decide which industry a click on that tile switches — so the two agree by
-/// construction rather than by two transcriptions of one table. `[V]`
+/// construction. `[V]`
 ///
 /// | graphic | site | slot | file |
 /// |---|---|---:|---|
@@ -347,7 +347,7 @@ pub fn resource_site_slot(graphic: u8) -> Option<usize> {
 /// else if (id == 0x19) Sound_RestartSlot(6);   /* …start reclaiming    */
 /// ```
 ///
-/// Taken here over the *ranges* `County_RecountFields` counts rather than the
+/// Taken here over the *ranges* `County_RecountFields` counts.
 /// five brush values, because the brush value is not what is on the ground a
 /// statement later: `Field_SetType` runs `Herd_UpdateCrowding`, which repaints
 /// a fresh pasture `0x13` to its grazing grade `0x14 … 0x16`
@@ -448,9 +448,9 @@ pub mod speech {
     /// ```
     ///
     /// `0x36` is the save box and `0x35` the load box, so the save speaks
-    /// `_02` and the load `_01`. Two `if`s rather than an `if`/`else`, and
+/// `_02` and the load `_01`. Two `if`s, and
     /// the second's body also arms the failure latch when the file cannot be
-    /// opened — which is why it is written that way, and not why the sound is.
+/// opened — so it is written that way.
     pub const SAVE_GAME: &str = "S040_02.wav";
     /// `SaveLoad_Tick`'s other arm — every screen that is not `0x36`.
     pub const LOAD_GAME: &str = "S040_01.wav";
@@ -586,7 +586,7 @@ pub mod speech {
     /// ```
     ///
     /// **Kind 3, the merchant, is not in the ladder and is silent** — and it is
-    /// silent for a reason rather than by omission: `Map_Click` sends a click on
+/// silent for a reason: `Map_Click` sends a click on
     /// a merchant to screen `0x08`, the stall, so the information panel never
     /// opens on one from the left button. `[V]`
     ///
@@ -601,7 +601,7 @@ pub mod speech {
     ///    functions that open screen `0x04` (`FUN_0043893C` and `Map_Click`'s
     ///    `flags & 0x20` arm). It tests kinds 1, 4 and 2 and the castle branch
     ///    and `return`s for everything else; kind 3 falls out of the bottom.
-    /// 2. **The files.** Four `S031_*.wav` ship and there is no fifth.
+/// 2. **The files.** Four `S031_*.wav` ship.
     /// 3. **The group, which is the reading that settles it.** `L2.eng` group
     ///    31 holds five unit descriptions and four of them are these four, in
     ///    this order: 13 *"These starving revolutionaries…"*, 14 *"This
@@ -638,7 +638,7 @@ pub mod speech {
     ];
 }
 
-/// The fanfares, which are played by name rather than out of a bank —
+/// The fanfares, which are played by name —
 /// `FUN_00427990(name, 0 or 1, 0)` at a handful of sites.
 pub mod fanfare {
     /// A message window opening, category 1 — a letter from another lord.
@@ -685,7 +685,7 @@ pub mod fanfare {
 /// The lord voices: `<kt|bn|ct|bp><group>_<1..=4>.wav`, `0x004E0258`.
 ///
 /// A table in the binary — 28 groups × 16 × 16 bytes — but a pure naming
-/// convention on disk, so it is generated rather than transcribed.
+/// convention on disk, so it is generated.
 ///
 /// **`variant` runs 0…15, not 0…3.** `Msg_PlayVoice(group, variant)` indexes
 /// the table as `(group - 170) * 0x100 + variant * 0x10`, and `0x100` is
@@ -713,7 +713,7 @@ pub fn lord_voice(group: u16, variant: u8) -> Option<String> {
 ///
 /// `Msg_PlayVoice` has two more tables for these: groups `100 ..= 169` at
 /// `g_msgVoice100` and `200 ..= 284` at `g_msgVoice200`, one file each. Both
-/// are `S<group padded to 3>_01.wav`, so again a convention rather than a
+/// are `S<group padded to 3>_01.wav`, so again a convention
 /// transcription.
 ///
 /// **The upper bound is 284 and it used to be 299 here.** `g_msgVoice200` is
@@ -735,12 +735,12 @@ pub fn system_voice(group: u16) -> Option<String> {
 /// Three of its four tables, in the order the function tests them: the
 /// diplomatic band has a lord and a take, everything in the two system bands
 /// has one clip, and everything else is silent. (The fourth, `g_msgVoiceS010`,
-/// is reached by `FUN_004B36C0` rather than by this function — see the module
+/// is reached by `FUN_004B36C0` — see the module
 /// note.)
 ///
-/// **Silence is the common case and is not a failure.** 109 groups of the
+/// **Silence is the common case.** 109 groups of the
 /// hundreds `L2.eng` holds have a system clip; a group outside all three bands
-/// is a message the narrator simply does not read, and `None` is that.
+/// is a message the narrator does not read, and `None` is that.
 pub fn message_voice(group: u16, variant: u8) -> Option<String> {
     lord_voice(group, variant).or_else(|| system_voice(group))
 }

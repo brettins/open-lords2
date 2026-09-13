@@ -70,7 +70,7 @@ pub fn update_fertility(county: &mut County, advanced_farming: bool) {
 /// among the county's fields whose *terrain* says reclamation, with the
 /// **highest progress**, ties going to the lowest slot. So the gang finishes
 /// the nearly-done field before it starts the next one, and a county with two
-/// hundred workers completes one field a season rather than inching four along
+/// hundred workers completes one field a season
 /// together.
 ///
 /// The two differ only in what they leave behind when nothing is being
@@ -134,7 +134,7 @@ pub fn reclaim_terrain(t: &Tables, progress: i32) -> u8 {
 /// manual's *"never more than a quarter of a field in a single season"*, and
 /// eight hundred workers is a whole field. And a field finished with labour to
 /// spare hands the **overshoot back to the budget**, so the gang moves straight
-/// on to the next field in the rota rather than wasting the season.
+/// on to the next field in the rota
 ///
 /// The stored progress is deliberately **not** clamped to `progress_max`: the
 /// original writes the overshooting value back even as it refunds the excess.
@@ -173,7 +173,7 @@ pub fn reclaim_fields(t: &Tables, county: &mut County, map: &mut crate::map::Cam
 // ---------------------------------------------------------------------------
 
 /// A weather multiplier, as an exact `(numerator, denominator)` pair. Kept as a
-/// ratio rather than a percentage so `3/2` is `3/2` and not `150%` rounded
+/// ratio so `3/2` is `3/2`
 /// twice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Factor(pub i32, pub i32);
@@ -283,7 +283,7 @@ fn harvest_per_worker(t: &Tables, advanced_farming: bool) -> i32 {
     }
 }
 
-/// `Grain_Sow` in full (`0x0044CFE1`) — **the sacks that actually go into the
+/// `Grain_Sow` in full (`0x0044CFE1`) — **the sacks that go into the
 /// ground**, and the fallback that keeps a poor county from sowing nothing.
 ///
 /// The normal answer is `fieldsGrain * sacksPerField`. If even one sack a field
@@ -351,7 +351,7 @@ pub fn sow_seed(
         return (sown, Some(false));
     }
 
-    // The fallback: a token handful, measured in sacks rather than in fields.
+// The fallback: a token handful, measured in sacks.
     sacks = max;
     for _ in 0..max {
         sown = sacks;
@@ -393,8 +393,8 @@ pub fn field_share(county: &County, crop: i32) -> i32 {
 /// artefact of a signed divide, not a rule.
 ///
 /// This is the whole of fertility's effect on the crop. It is applied **after**
-/// the labour cap, so fertility multiplies what the farmhands could actually
-/// tend rather than what the field could have grown.
+/// the labour cap, so fertility multiplies what the farmhands could
+/// tend.
 pub fn fertility_bonus(county: &County, crop: i32) -> i32 {
     crop + pct(crop, county.fertility / 2)
 }
@@ -491,7 +491,7 @@ pub fn grow(t: &Tables, county: &mut County, advanced_farming: bool) {
 /// Harvest: what the reapers bring in lands in the store.
 ///
 /// **The weather does not scale the harvest; it replaces it.** Four of the six
-/// bands assign `crop[2]` from `crop[1]` — the *standing* crop — rather than
+/// bands assign `crop[2]` from `crop[1]` — the *standing* crop —
 /// from what `Grain_Harvest` just returned, so under *Sunny* a county reaps
 /// three halves of everything it grew however few reapers it sent, and under
 /// *Frost*, *Storms* or *Flooding* it reaps a fixed fraction of the same. Only
@@ -511,7 +511,7 @@ pub fn harvest(t: &Tables, county: &mut County, advanced_farming: bool, quirks: 
     let reaped = harvest_step(t, county, labour, county.crop[1], advanced_farming);
     let factor = harvest_factor(county.weather);
     // The base the band multiplies: the *standing* crop as the original reads
-    // it, or what the reapers could actually carry.
+// it, or what the reapers could carry.
     let base = if quirks.reproduces(Quirk::HarvestIgnoresLabourCap) {
         county.crop[1]
     } else {
@@ -625,7 +625,7 @@ pub fn herd_crowding(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
 ///
 /// `Herd_UpdateCrowding` computes one density and uses it twice, with **two
 /// different ladders**, and the difference is the reason this is its own
-/// function rather than a lookup on [`herd_crowding`]:
+/// function:
 ///
 /// ```c
 /// if      (herd < 1)      graphic = 0x13;      /* and the level is still written */
@@ -668,7 +668,7 @@ pub fn herd_graphic(t: &Tables, herd: i32, fields_cattle: i32) -> u8 {
 ///
 /// The original matches the level **exactly** — `if (crowding == 10) … else if
 /// (crowding == 20) … else if (crowding == 30) … else 7` — so anything that is
-/// not one of the three named values falls into the harshest band rather than
+/// not one of the three named values falls into the harshest band
 /// being interpolated. A save or a mod holding 15 gets the *"Massive
 /// overcrowding!!"* rates, and that is the original's own behaviour rather
 /// than a defensive choice of ours.
@@ -714,7 +714,7 @@ impl HerdGrowth {
 ///
 /// **A county with no pasture at all loses half its herd, or all of it below
 /// six head**, and nothing else in the function runs. That is the branch that
-/// makes `fieldsCattle` load-bearing rather than decorative.
+/// makes `fieldsCattle` load-bearing.
 ///
 /// The two small rounding tells at the end are the original's and are kept:
 /// a herd whose *rate* is non-zero but whose *count* rounds to zero is given
@@ -798,7 +798,7 @@ pub fn herd_growth(
 /// The herd it forecasts from is `herd - herdEaten`: the ration pass has
 /// already taken this season's animals, and the panel assumes next season will
 /// take as many again. That double subtraction is the original's, and it is
-/// what makes `change` the number a player sees rather than `births - deaths`.
+/// what makes `change` the number a player sees.
 ///
 /// Guarded on `popBand`, which is the original's guard — an empty county
 /// forecasts nothing. The labour search the same function performs, which
@@ -866,14 +866,14 @@ pub fn herd_preview(t: &Tables, county: &mut County, season_next: u8) {
 /// differ and none of them is arbitrary:
 ///
 /// * **The gang works the nearest-to-finished field first** and wraps around the
-///   twenty slots from there, so the labour is spent finishing rather than
+///   twenty slots from there, so the labour is spent finishing
 ///   spread. `Field_ReclaimLeadSlot` (`0x0044C53B`) picks the highest progress,
 ///   ties to the lowest slot.
 /// * **A field that finishes hands its surplus back** — `left += p - 800` — so
 ///   one season's gang can complete two fields, which is how the figure ever
 ///   reads more than 1.
 /// * **The per-field cap is 200**, a quarter of the 800 a field needs, and it
-///   applies per field per season rather than to the county's total.
+///   applies per field per season.
 ///
 /// `[D]`, read out of `0x0044C278`. **C129.**
 pub fn reclaim_preview(t: &Tables, county: &mut County, map: &crate::map::CampaignMap) {
@@ -914,7 +914,7 @@ pub fn reclaim_preview(t: &Tables, county: &mut County, map: &crate::map::Campai
         slot = (slot + 1) % MAX_FIELDS;
     }
 
-    // **The workers are re-read rather than carried on from the loop**, so this
+// **The workers are re-read**, so this
     // is *"at this staffing, how many seasons until the lead field is done"* and
     // not *"after the work above"*. The original's own second `local_18 =
     // labour[2].workers`.
@@ -929,7 +929,7 @@ pub fn reclaim_preview(t: &Tables, county: &mut County, map: &crate::map::Campai
 /// `Field_ReclaimLeadSlot` (`0x0044C53B`) — county `+0x210`, the field slot with
 /// the **highest** progress among those under reclamation, ties to the lowest
 /// slot. `None` when nothing is being reclaimed, which is the original's `99`
-/// sentinel from `FUN_0044C5FC` rather than its `0` default.
+/// sentinel from `FUN_0044C5FC`.
 fn reclaim_lead_slot(county: &County, map: &crate::map::CampaignMap) -> Option<usize> {
     let mut best: Option<(usize, i32)> = None;
     for slot in 0..MAX_FIELDS {
@@ -1008,7 +1008,7 @@ pub fn grain_stage_band(county: &County, season: Season) -> u8 {
 ///
 /// A player: *"The wheat fields don't show the wheat growing."* This is half the
 /// answer — the other half is [`l2_view::campaign::field_variant`], and
-/// **neither half alone changes a pixel**, which is why the bug survived a
+/// **neither half alone changes a pixel**, so the bug survived a
 /// season pass this project believes it has read.
 ///
 /// ```c
@@ -1024,7 +1024,7 @@ pub fn grain_stage_band(county: &County, season: Season) -> u8 {
 /// of that county carrying plane-0 bit `0x20` whose current `content` is in
 /// `lo ..= hi`. So the repaint is bounded to tiles that are *already* growing
 /// grain — a fallow or a pasture tile in the same county is untouched — and the
-/// crop's stage is written onto the map rather than kept only in `crop[]`.
+/// crop's stage is written onto the map.
 ///
 /// **The one wrinkle, reproduced:** its shortfall arm.
 ///
@@ -1107,7 +1107,7 @@ pub fn grain_repaint_fields(
 ///   their previous value otherwise, so this is not a "recompute everything"
 ///   pass. Winter's arm then reads the `crop[2]` it has just written.
 /// * **`+0x22C` is zeroed before the `popBand` guard**, so an empty county
-///   forecasts nothing rather than keeping last season's number. The same shape
+///   forecasts nothing. The same shape
 ///   as [`herd_preview`], and the same reason.
 /// * **This is why the estimate round runs twice.** `crate::field`'s module docs
 ///   worked that out — *"the panel forecasts, which the estimates fill from
@@ -1341,7 +1341,7 @@ pub struct GrainEstimate {
 /// **`[D]`.** Three things about the ceiling are worth keeping.
 ///
 /// The herd is the post-ration one (`herd − herdEaten`) and the crowding is the
-/// **stored** band, not a freshly derived one — which is why `Field_SetType`
+/// **stored** band — so `Field_SetType`
 /// calls `Herd_UpdateCrowding` before every refresh.
 ///
 /// The answer is *not* `herd * 3`, and it is not reliably `herd * 6` either.
@@ -1351,7 +1351,7 @@ pub struct GrainEstimate {
 /// That much is a `[V]` bound, asserted over every herd size 1 … 400 in all
 /// four seasons by `the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd`.
 ///
-/// **Where it actually lands is lower, and for small herds it is three a head.**
+/// **Where it lands is lower, and for small herds it is three a head.**
 /// `births = herd * birthRate / 10000` truncates, so once the small-herd bonus
 /// has pushed `birthRate` up the integer stops moving long before staffing
 /// reaches 200 %, and the strict `<` takes the *first* argmax. A herd of five
@@ -1429,7 +1429,7 @@ pub struct HerdEstimate {
 /// reclamation labour is; the original spends `labour[2]` as a *budget*,
 /// starting at the most advanced field and carrying the remainder on. Until
 /// that is fixed, putting people on reclamation changes nothing — a silent
-/// no-op rather than a wrong number, but a gap all the same.
+/// no-op, but a gap all the same.
 pub fn reclaim_labour_estimate(
     t: &Tables,
     county: &County,
@@ -1944,7 +1944,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     /// A county whose herd is pastured and staffed, so a rule can be measured
-    /// on its own. `labour` is stated rather than derived — three a head is
+/// on its own. `labour` is stated — three a head is
     /// full staffing, and a test that wants "well staffed" should have to write
     /// the number down.
     fn grazing(herd: i32, fields_cattle: i32, labour: i32) -> County {
@@ -1963,7 +1963,7 @@ mod tests {
     const WINTER: u8 = Season::Winter as u8;
 
     /// Only *Sunny* grows the herd and only *Cloudy* leaves it alone — and the
-    /// weather is now a term **on top of** the births and deaths rather than
+/// weather is now a term **on top of** the births and deaths
     /// the only thing that happens.
     #[test]
     fn the_herd_follows_the_weather_table_exactly() {
@@ -2023,7 +2023,7 @@ mod tests {
 
     /// **The rule the crate did not have.** `docs/kingdom.md` §13.
     ///
-    /// Walks the whole labour domain rather than one comfortable value,
+/// Walks the whole labour domain,
     /// because the rule that was here before — none — passed every test at
     /// every one of them.
     #[test]
@@ -2064,7 +2064,7 @@ mod tests {
     }
 
     /// The cap: staffing stops paying at 200%, and the comparison really is
-    /// against 199 rather than 200.
+/// against 199.
     #[test]
     fn the_staffing_benefit_stops_at_twice_the_workers() {
         let (herd, fields) = (10_000, 1_000);
@@ -2155,7 +2155,7 @@ mod tests {
     }
 
     /// A county with no pasture is at maximum crowding whatever its herd —
-    /// which the binary says twice, and which is why the last band's rates are
+/// which the binary says twice, and so the last band's rates are
     /// what an unpastured county would be judged by if the harsher branch above
     /// it ever stopped firing.
     #[test]

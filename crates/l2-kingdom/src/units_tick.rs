@@ -1,4 +1,4 @@
-//! `Units_Tick` (`0x004650B0`) and the four phase kick-offs — **what actually
+//! `Units_Tick` (`0x004650B0`) and the four phase kick-offs — **what
 //! moves on the campaign map, and when**.
 //!
 //! `crate::movement` can take a unit one step and `crate::conquest` can resolve
@@ -28,7 +28,7 @@
 //!
 //! | phase | what its first step really does | what it waits for |
 //! |---:|---|---|
-//! | 2 | `Siege_StartPhase` — validate garrison/besieger links. **Nothing to do with ordinary movement.** | the siege cursor sweep, `Siege_TickPhase() == 0` — **not** a unit predicate |
+//! | 2 | `Siege_StartPhase` — validate garrison/besieger links. | the siege cursor sweep, `Siege_TickPhase() == 0` — **not** a unit predicate |
 //! | 3 | re-target every transport at its cargo county's anchor and re-path it | no type-4 unit is moving |
 //! | 5 | give every peasant mob a destination off a shared county cursor | no type-2 unit is moving |
 //! | 6 | `Merchant_AdvanceAll` — the next leg of each merchant's route | no type-3 unit is moving |
@@ -67,7 +67,7 @@
 //! is how a phase both starts and waits for its units with one call.
 //!
 //! [`crate::unit::Unit::moving`] is a `bool`, and that is adequate here rather
-//! than merely convenient. The 1 → 2 promotion always happens on the same tick
+//! than convenient. The 1 → 2 promotion always happens on the same tick
 //! the order was given, in the same phase, before `Units_Tick` runs; nothing
 //! observes a unit sitting at 1. The one place the distinction has teeth is a
 //! *different* phase's units, and this driver steps every kind on every tick
@@ -98,7 +98,7 @@ pub struct Encounter {
 
 /// Something that happened during a tick that the caller has to act on.
 ///
-/// The variants are deliberately *reports* rather than resolutions: a battle
+/// The variants are deliberately *reports*: a battle
 /// needs `l2-sim`, which this crate must never depend on, and a county changing
 /// hands needs to reach the interface. See [`Contact::Battle`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -134,11 +134,11 @@ pub enum Contact {
     CastleBuilding { unit: usize, county: u8, arrival: conquest::CastleArrival },
     /// **Two of an AI realm's armies met and merged into one**, with no order
     /// and no prompt. The mover's slot is gone. See
-    /// [`Kingdom::merge_on_contact`], and note that a *person's* two armies do
+/// [`Kingdom::merge_on_contact`], and a *person's* two armies do
     /// not do this.
     Merged { mover: usize, into: usize },
     /// A unit's next tile is held by somebody it will not fight — its own side,
-    /// an ally, or a merchant. The move simply ends.
+/// an ally, or a merchant. The move ends.
     ///
     /// **A divergence, and a known one.** The original lets these through: the
     /// tile record carries a linked list of stacked units and
@@ -214,7 +214,7 @@ pub enum Posted {
 /// What one call to [`Kingdom::tick_units`] did.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct UnitsTick {
-    /// How many units actually entered a tile.
+/// How many units entered a tile.
     pub stepped: usize,
     /// In the order they happened, which is ascending slot order.
     pub contacts: Vec<Contact>,
@@ -279,8 +279,8 @@ impl Kingdom {
     ///   on the substitution and `[V]` on there being one tile to find:
     ///   `battle-before.sav`'s garrison stands on county 2's stored pair and
     ///   that tile carries plane-0 `0x80` with terrain `0x15`.
-    /// * **A second army merges rather than stacking.** Two garrisons in one
-    ///   castle is not a state the record can hold: `garrisonUnit` is one slot.
+/// * **A second army merges.** Two garrisons in one
+///   castle: `garrisonUnit` is one slot.
     pub fn garrison_army(&mut self, unit: usize, county: u8) -> Garrison {
         if let Some(u) = self.campaign.units.get_mut(unit) {
             u.needs_destination = true;
@@ -343,12 +343,12 @@ impl Kingdom {
     /// `Unit_EnterOccupiedTile` has opened a battle, leaving the higher slots
     /// unmoved until the battle is over. That is observable — an army in slot 9
     /// does not move on the tick an army in slot 4 picks a fight — so it is
-    /// reproduced rather than tidied away.
+/// reproduced.
     pub fn tick_units(&mut self) -> UnitsTick {
         let mut out = UnitsTick::default();
         // Every handler's *first* statement is its allowance, written whether
         // or not the unit is going anywhere. See [`refresh_allowances`] for why
-        // that is load-bearing rather than tidy.
+// that is load-bearing.
         refresh_allowances(&mut self.campaign.units);
         for id in 1..crate::unit::MAX_UNITS {
             if !self.campaign.units.get(id).is_some_and(|u| u.moving) {
@@ -528,8 +528,8 @@ impl Kingdom {
     /// ```
     ///
     /// **An AI's two armies merge the moment they touch**, with no order and no
-    /// prompt — which is why an AI realm ends a long game with a few large
-    /// armies rather than a crowd of small ones. A **person's** two armies
+/// prompt — so an AI realm ends a long game with a few large
+/// armies. A **person's** two armies
     /// merge only on an explicit order, and that asymmetry is the original's:
     /// the test is on the *occupant's* `ownerIsHuman`, not on the mover's.
     ///
@@ -659,7 +659,7 @@ impl Kingdom {
     /// The AI's turn reads this and not [`Kingdom::units_moving`]: **the
     /// finish test for a realm is `15 + 2 × realmIndex <= aiStep` *and* this
     /// returning false** (`docs/armies.md` §3.2). A realm with armies still on
-    /// the road keeps stepping past its threshold, which is why an AI turn is
+/// the road keeps stepping past its threshold, so an AI turn is
     /// not a fixed number of steps.
     ///
     /// The `ownerIsHuman` clause is the original's and is kept: the predicate
@@ -797,7 +797,7 @@ impl Kingdom {
 }
 
 /// Realm 6 — the owner byte merchants and peasant mobs carry. Not a realm: it
-/// is one past the five, which is why `Units::realm_totals` and the wage bill
+/// is one past the five, so `Units::realm_totals` and the wage bill
 /// never see them.
 /// What `Army_GarrisonApply` charges an army for walking into a castle.
 pub const GARRISON_MOVE_COST: i32 = 5;
@@ -809,7 +809,7 @@ pub const OWNERLESS: u8 = 6;
 pub const MOB_RETARGET_SEASON: u8 = 2;
 
 /// Whether a unit of this kind holds its phase open. A convenience for a
-/// caller that has a [`Phase`] rather than a [`UnitKind`].
+/// caller that has a [`Phase`].
 pub fn kind_for_phase(phase: Phase) -> Option<UnitKind> {
     match phase.wait() {
         crate::phase::PhaseWait::Units(kind) => Some(kind),
@@ -873,12 +873,12 @@ pub fn refresh_allowances(units: &mut Units) {
 /// | anything else | 8 | **32** |
 ///
 /// A merchant on the England position walks a ten-tile road route, so its leg
-/// takes eighty ticks rather than ten. Without this function it took ten — one
+/// takes eighty ticks.
 /// tile every tick, which at our 16 ms tick is sixty-two tiles a second, and
 /// what a player described as *"they move insanely fast"*. `docs/decisions.md`
 /// **C134**.
 ///
-/// **It is not a display value and it must not be moved above this crate.**
+/// **It must not be moved above this crate.**
 /// The tick a unit arrives on decides which tick a battle starts on, which
 /// county changes hands first, and when a phase's wait comes true; two peers
 /// that disagreed about it would be playing different games
@@ -983,7 +983,7 @@ mod tests {
     /// `docs/decisions.md` **C134** — the missing half of
     /// `Unit_StepOnce` (`0x0046634D`), which admits every tick on a road and
     /// needs **eight** admissions to cross a sixteen-wide tile. It is left
-    /// here rather than deleted because a test that has to be rewritten to
+/// here because a test that has to be rewritten to
     /// make a fix pass is the strongest evidence that the fix is a change in
     /// behaviour and not a tidy-up.
     ///
@@ -1005,7 +1005,7 @@ mod tests {
 
         let mut ticks = 0usize;
         // (the tick it happened on, the tile it arrived at) — one entry per
-        // tile actually entered, so a stall then a sprint cannot satisfy it.
+// tile entered, so a stall then a sprint cannot satisfy it.
         let mut arrivals: Vec<(usize, u8)> = Vec::new();
         while k.units_moving(UnitKind::Army) && ticks < 1000 {
             let t = k.tick_units();
@@ -1113,7 +1113,7 @@ mod tests {
             .unwrap();
         assert!(k.units_moving(UnitKind::Army));
         // **This used to be `for _ in 0..10`**, which was long enough when a
-        // tile cost one tick and is not now. It is a `while` rather than a
+// It is a `while`
         // bigger number on purpose: a fixed count that happens to be large
         // enough asserts nothing about *when* the wait drops, and the count is
         // what rots the next time the pacing moves. 5 → 8 is three road tiles
@@ -1140,7 +1140,7 @@ mod tests {
         assert_eq!(k.campaign.units.get(id).unwrap().tile(), (8, 10));
     }
 
-    /// Two enemy armies meet and the driver reports a battle rather than
+/// Two enemy armies meet and the driver reports a battle
     /// resolving one — and the sweep stops there.
     #[test]
     fn two_enemy_armies_meeting_raise_a_battle_and_stop_the_sweep() {
@@ -1200,12 +1200,12 @@ mod tests {
     /// `Unit_EnterOccupiedTile`'s ladder.
     ///
     /// **Corrected, and the assertion reversed.** This used to expect
-    /// `Contact::Blocked`, on the reading that a merchant merely cannot be
+/// `Contact::Blocked`, on the reading that a merchant cannot be
     /// *fought*. The rung says `return local_8`, and `local_8` is the ordinary
     /// Road or Open code — so the army walks *through* the merchant and no
     /// contact is reported at all. [`crate::movement::pass_through`] is where
     /// that now happens, which makes rungs 1 and 2 of
-    /// [`UnitsTick::classify_occupied`] unreachable by construction rather than
+/// [`UnitsTick::classify_occupied`] unreachable by construction
     /// by comment. `docs/decisions.md` C40.
     #[test]
     fn a_merchant_is_walked_through_rather_than_attacked() {

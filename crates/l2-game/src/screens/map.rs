@@ -95,7 +95,7 @@
 //! was the multiplier under three separate defects that reached a player in one
 //! evening**: a hit test smaller than the thing drawn (C58, a 9 × 9 box under a
 //! 40 × 32 figure); one that stopped at the diamond while the sprite stood over
-//! the tiles behind it (C57, the mine); and one whose arithmetic was simply
+//! the tiles behind it (C57, the mine); and one whose arithmetic was
 //! wrong (C60, `pick_tile` dividing by `tile_w / 2` where `Map_PickTile` divides
 //! by the half pitch — 56 dead pixels around every tile centre). Three different
 //! mistakes. **All three became *the wrong screen opening*
@@ -225,7 +225,7 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
     // mercenaries" — the smaller half naming the larger — and this button and
     // that name were corrected in the same afternoon by two agents who had not
     // spoken. `docs/decisions.md` C45; the screen is `crate::screens::army` and
-// is not a shell; this goes through
+// this goes through
     // [`sidebar_destination`].
     SidebarButton { x: 0, w: 33, action: SidebarAction::Screen(0x17), name: "ARMY" },
     SidebarButton { x: 34, w: 31, action: SidebarAction::Screen(0x09), name: "COURT" },
@@ -375,7 +375,7 @@ pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
 /// one control on the campaign screen that moves peasants in bulk: it sets
 /// [`County::industry_share`](l2_kingdom::county::County::industry_share), the
 /// percentage of the county's people that goes to the mines and the smithy
-/// rather than to the fields. A player reported that he
+/// A player reported that he
 /// could not assign peasants.
 ///
 /// # It is a **drag**, and the flags say which kind
@@ -548,7 +548,7 @@ pub struct MapScreen {
     scrolled: bool,
     /// Whether the opening centre-on-the-player's-county has been done.
     ///
-/// for why the map does not simply
+/// for why the map does not
     /// stay where `Map_InitMode` put it.
     opened: bool,
     /// `DAT_0057D378`, the map's animation tick, and `DAT_0057D390`, the flag's
@@ -659,7 +659,7 @@ struct Fading {
 /// One fixed simulation tick in milliseconds — `main::TICK`.
 ///
 /// **This is a constant, not a clock.** Nothing here asks how long a frame
-/// actually took; the number exists so an interval the original states in
+/// took; the number exists so an interval the original states in
 /// milliseconds can be converted to the whole ticks this crate is allowed to
 /// count. `VillageScreen::CLICK_SETTLE_TICKS` makes the same conversion by
 /// hand and for the same reason (`docs/netcode.md`).
@@ -752,7 +752,7 @@ impl MapScreen {
     /// * in any other mode, **button 4 turns the overlay off** and buttons 1…3
     ///   do nothing at all.
     ///
-/// There is no switching straight from food to happiness: the overlay
+/// the overlay
     /// has to be turned off first. The artwork agrees — `Misc_cty` frame `0x5B`,
     /// the strip drawn while a mode is up, has one button on it where frame
     /// `0x5C` has four.
@@ -1331,7 +1331,7 @@ impl MapScreen {
     /// c*0x18`) and every reader indexes it. We derive it from the settlement
     /// bit and the terrain ladder instead —
     /// [`l2_kingdom::map::industry_site`] carries the argument for deriving
-/// rather than storing — and cache the answer here:
+/// and cache the answer here:
     /// what never changes while the terrain on it does.
     fn rebuild_industry_sites(&mut self, ctx: &Ctx) {
         if self.industry_slot == Some(ctx.game.map_slot) {
@@ -1467,7 +1467,7 @@ impl MapScreen {
     ///
     /// A county's castle is **not in `L2_maps.dat`**. Unlike the mine, the
     /// quarry and the forest — which the file stores as real pictures and
-/// `County_PlaceResourceSites` merely flags — the castle plot is plain
+/// `County_PlaceResourceSites` flags — the castle plot is plain
     /// ground in the base bank, and every castle you have ever seen on the
     /// original's campaign map was stamped in at run time. Ours drew the plain
     /// ground, so **no county's castle was on the map**.
@@ -1771,7 +1771,7 @@ impl MapScreen {
         // rewrites it, and all six of the England fixture's merchants have it.
         // So a guard on the *merchant's* owner could never fire, and "your
         // merchant" — which `docs/screens.md` §6 and `docs/symbols.md` both said
-// — is not a thing that exists. A merchant belongs to nobody and is
+// A merchant belongs to nobody and is
         // clickable while it stands in a county you own. C50.
         if ctx.game.kingdom.campaign.units.get(unit).map(|u| u.kind)
             == Some(l2_kingdom::UnitKind::Merchant)
@@ -2788,7 +2788,7 @@ impl Screen for MapScreen {
                     // `Map_ConfirmMoveOrder`, and a right release that leaves.
                     //
                     // We had this as a flag consulted *after* the unit hit test,
-// which is why clicking a second army re-selected it. In the
+// so clicking a second army re-selected it. In the
                     // original that click is a destination: the second army is
                     // `g_hoverMergeUnit` and the order asks *"Combine armies?"*.
                     if let Some(unit) = self.selected_unit {
@@ -3228,7 +3228,7 @@ impl Screen for MapScreen {
 // that correction filed. Group 101 is the sixty map
         // names and group 34 is *"Year"* and *"Click on the county you wish to
         // view."* — the game saying in its own words what the far zoom is for,
-// which is why `Map_Click` does nothing at zoom 2. `docs/draws-map.md`
+// so `Map_Click` does nothing at zoom 2. `docs/draws-map.md`
         // §5.4, C89, C189.
         //
 // **There is no season in this box.**
@@ -4066,7 +4066,7 @@ pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
     // which is where the original draws *File*, *Options* and *Help* — so two
     // lines of ours were sitting on the three words that are the way into every
 // menu in the game. Neither was visible with the real fonts loaded.
-// There is no room for them: the bar holds three measured titles, up to five
+// the bar holds three measured titles, up to five
     // 13 × 16 realm banners from x = 270, the clock at 360 and the treasury at
     // 500, and every one of those is `Screen_DrawMenuBar`'s.
     //
@@ -4158,7 +4158,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     //
     // This plate used to be left empty while a box of ours went over the jobs
     // plate below it. The player was looking at our text where the game's own
-// numbers belong, and at four blank quadrants that are in fact the menu.
+// numbers belong, and at four blank quadrants that are the menu.
     if game.selected != 0 {
         // The strip, and the split slider's thumb on the plate below it — both
         // `CountyStrip_Draw`'s, both shared with the county screen.
@@ -4226,7 +4226,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // ```
     //
     // The strip is opaque artwork and is blitted unconditionally, so drawing it
-// *is* the erase; the label is simply not put back.
+// *is* the erase; the label is not put back.
     // move, is not redrawn pressed, and is not removed by the sidebar's own
     // gate** — the other three explanations that fitted the report.
     //
@@ -4239,7 +4239,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // the click and the next turn beginning — the player's sentence, verbatim.
     //
     // `turn::turn_in_flight` is that interval here, and the mapping is exact
-// rather than approximate: `game.turn` is `Some` from the click until the
+// `game.turn` is `Some` from the click until the
     // turn completes, which is when `Turn_BeginPlayersTurn` would clear the
     // counter. **This is a draw that only became possible to reproduce when the
     // turn started being paced over frames** — before that there was no
@@ -4337,7 +4337,7 @@ mod tests {
                 assert!(ra.x + ra.w <= rb.x || rb.x + rb.w <= ra.x, "{a:?} overlaps {b:?}");
             }
         }
-// And every destination is a screen we can actually draw.
+// And every destination is a screen we can draw.
         //
         // **This check used to be *"either a shell or a graduated screen, and
         // not both"*, and the shell table is empty now**, so the first half is

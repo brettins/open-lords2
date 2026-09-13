@@ -5,7 +5,7 @@ we were wrong; this records *how to decide*, so the same class of mistake stops 
 
 It exists because of a pattern in the correction log: the expensive failures were not bad
 execution, they were **good execution of the wrong technique**, and in both recent cases the
-error was caught by the user rather than by whoever was doing the work.
+error was caught by the user.
 
 ---
 
@@ -41,13 +41,13 @@ Work down this list. Stop at the first step that answers the question.
 4. **Write a self-verifying test** — a property of the *data*, not of our code. The PL8
    end-offset invariant found 153 broken files with no oracle involved; it remains the
    single highest-yield check in the project's history.
-5. **Targeted Ghidra script**, for what the corpus genuinely cannot express.
+5. **Targeted Ghidra script**, for what the corpus cannot express.
 6. **A subagent**, for a whole subsystem with a clear boundary.
 7. **Run the original.** Last. See below.
 
 ---
 
-## 3. What running the game is actually for
+## 3. What running the game is for
 
 Almost nothing, and this took far too long to establish.
 
@@ -90,7 +90,7 @@ Each of these has cost real time here.
 
 **Asserting a cost or an impossibility without measuring it.** C16 (a live process is
 "required"), and the per-question Ghidra habit (analysis is "the expensive part"). Both
-false, both settled in under a minute once anyone actually checked. **If you write "this
+false, both settled in under a minute once anyone checked. **If you write "this
 needs X" or "this is blocked", record the measurement in the same sentence.**
 
 **Generalising a true observation one step too far.** D8 observed correctly that
@@ -133,15 +133,15 @@ inherits it and their agreement then looks like corroboration. `anchor.js`'s `li
 joined across three dispatchers. It was caught by an existing document, not by the work
 using it. Two consequences worth keeping: **re-derive anything load-bearing that came out of
 a tool, by a route that does not use the tool**; and when you write a parser for the
-decompiler's output, make the unhandled case *report itself* rather than silently returning
-nothing — the re-derivation above prints its count of unparsed literals precisely so that a
-missed escape form shows up as a loud zero-or-not rather than as a quiet absence.
+decompiler's output, make the unhandled case *report itself*
+nothing — the re-derivation above prints its count of unparsed literals so that a
+missed escape form shows up as a loud zero-or-not.
 
 **A calculation that closes confirms the formula, not the labels on its inputs.** A player
 recalled that a siege tower took 10 seasons for his 43-man army and a catapult 5. Checked
 against `g_siegeEngineWork`, `200 / 43` ceils to 5 and `400 / 43` ceils to 10 — two exact
 hits — and that was read as confirming the recollection. It confirmed the *man-seasons
-model*, which is genuinely established and was never in doubt; it said nothing whatever
+model*, which is established; it said nothing whatever
 about **which slot of the table is the tower**, because both the recollection and the
 table's actual order produce that same pair of ceilings. Arithmetic that closes under either
 hypothesis distinguishes neither. Settling it took four independent statements of the
@@ -149,7 +149,7 @@ slot→engine mapping (`docs/armies.md` §4). **Before treating a closed calcula
 evidence for a labelling, ask what the other labelling would have produced.**
 
 **Reading one branch and reporting the function.** C38, and it is C31's own lesson applied
-to control flow rather than to a global. C31 corrected a rule by grepping every site that
+to control flow. C31 corrected a rule by grepping every site that
 touched a flag — the right move — and then stopped at the `if` that flag guarded, missing
 the `else` around it, which held a second rule with no flag at all. **Counting the sites
 that touch a global is not the same as reading the function to its closing brace.**
@@ -198,7 +198,7 @@ Not on a schedule. On these triggers:
 
 ## 6a. Before building anything, ask whether the original already answers it
 
-The rule that would have prevented C21, stated as a check rather than a virtue:
+The rule that would have prevented C21, stated as a check:
 
 > **Is there code in `Lords2.exe` that does the thing I am about to write? Have I read it?**
 
@@ -253,7 +253,7 @@ that now says what it does:
 The residue — 38 functions still doing county arithmetic by hand — is not a failure of the
 struct. Those are the places the decompiler cannot fold: whole-record copies, pointer walks
 that step by the stride, and code that takes the address of a record and passes it on. They
-are a short, concrete list rather than a third of the binary.
+are a short, concrete list.
 
 ### 7.2 The `L2.eng` string ids are a confession
 
@@ -270,14 +270,14 @@ Two multipliers on top:
 
 **Sound files are named after the group.** 197 `sNNN_MM.wav` files ship, and `NNN` is the
 `L2.eng` group — `s080_01.wav` plays under the screen that draws group 80. Only 15 distinct
-references survive in the corpus, so this corroborates rather than finds.
+references survive in the corpus, so this corroborates.
 
 **The screen-id dispatch is a third table for free.** `Screen_Draw`, `Screen_DrawWidgets` and
 `Screen_HandleInput` each switch on `g_screenId`; `anchor.js screens` joins them, so a painter
 can be corroborated by appearing in two or three of the three. That is what placed nine of
 this batch's candidates without reading a line of their bodies.
 
-### 7.3 The measured error rate — the number to actually use
+### 7.3 The measured error rate — the number to use
 
 A batch of 19 unnamed functions was selected by filter 2 and each one checked against
 something that could have failed (callers, the strides it indexes, the constants it reads,
@@ -291,7 +291,7 @@ out, and conflating them is the trap:
 
 **The filter is reliable about subject and unreliable about role.** Seven of the nineteen were
 about the right thing and doing something else with it: three group-71 functions were castle
-*status blocks* in other panels rather than the castle-building screen; the group-77 candidate
+*status blocks* in other panels; the group-77 candidate
 was the herd panel, not the sowing forecast; two group-11 candidates were skirmish setup, not
 siege messages.
 
@@ -317,7 +317,7 @@ The figure has been repeated as though that many functions were unanalysable. Ru
 
 | | count | median size | |
 |---|---:|---:|---|
-| touch **no global at all** | **291** | **22 b** | the only genuinely dark ones — and 175 are ≤ 40 b, so accessors and thunks |
+| touch **no global at all** | **291** | **22 b** | the only dark ones — and 175 are ≤ 40 b, so accessors and thunks |
 | touch only *unnamed* globals | 478 | 97 b | anchored the moment one global is named |
 | touch a *named* global | 968 | 238 b | already in a cluster |
 
@@ -353,7 +353,7 @@ Measured on the same 2,452 functions, before and after:
 
 The last column is a **later measurement**, not only a later typing: `symbols.json` grew
 between the two, so re-measuring the third column's tree today gives 16,209 / 2,388 / 2,780
-rather than 17,192 / 2,461 / 2,782. The two grids' own contribution, measured against that
+The two grids' own contribution, measured against that
 same-day baseline, is **−901 `DAT_` occurrences and −79 `DAT_` names, of which 79 were the
 grids' synthetic field labels and 7 were a folded base that resolved elsewhere once the
 range was typed**. The last two rows count only *unnamed* functions, so naming two of them
@@ -405,11 +405,11 @@ fixed itself — `Minimap_Click` read `(&DAT_0052ae10)[x + (y-0x19)*0x80]`, a ba
 instruction, folds each address that lands in a record array to an offset within the record,
 and reports the p-code `LOAD`/`STORE` width used there. `docs/records.json` carries a field
 only where the documented meaning and the observed width agree; everything else stays
-undefined padding, which is why the six stride-indexed structs are 23–92% named rather than
+undefined padding, so the six stride-indexed structs are 23–92% named
 100%. On the two grids the probe is unanimous: **441 references to `g_tiles` and 566 to
 `g_battlefield`, spread over all sixteen planes, and every one of them one byte wide but
 two** — and those two are `PUSH 0x5440e0`, the array's own address handed to the renderer,
-not a read of a cell. That is what makes an all-`u8` layout a measurement rather than a
+not a read of a cell. That is what makes an all-`u8` layout a measurement
 reading of the documents. The check the
 retyping then passes is that **no widening cast straddles a named field anywhere in the
 corpus** — if a field were typed one byte too narrow, some function would be reading across
@@ -431,7 +431,7 @@ its boundary, and none is.
 * `crates/l2-kingdom`'s `Industry` carries `capacity`, `efficiency` and `disabled_seasons` as
   `i32`. In the original `capacity` is **two** bytes at industry `+0x0E` — `+0x10` is the
   running total and there is no room — and the other two are single bytes at `+0x04` and
-  `+0x06`. Nothing overflows, so this is a widening rather than a bug, but the record is not
+`+0x06`. Nothing overflows, so this is a widening, but the record is not
   four `i32`s and reading it as one would misplace every field after the first.
 
 **The two grids produced three more, and one of them is the biggest.**
@@ -525,10 +525,10 @@ name a reader should distrust*, in §7.3's vocabulary:
 
 Nothing else is a legal value. The point of the enum is that it is *countable*: it can be
 totted up against the two measured rates, so the file can say which two entries in five to
-check first rather than merely that it is unsure.
+check first.
 
 **`caveat` holds the prose.** What is anchored, what is not, and what would refute it. A
-caveat that names no way of being wrong is not a hypothesis, it is a wish.
+caveat that names no way of being wrong is a wish.
 
 Three agents created the file independently on the same day, and for a while `confidence`
 held either form — 36 entries an enum, 29 a paragraph — which makes it unreadable by anything
@@ -542,13 +542,13 @@ to express no doubt about the *name* at all: `County.purse`, `County.fieldsRecla
 what is missing is a **save that exercises them** — every one is zero in every fixture, so no
 reproduction can confirm or refute it. That is a promotion note, not a confidence value, and
 it already lives in `basis` and `promotion`. Hence three words and not four: an entry waiting
-for a witness is not a fourth kind of uncertain name, it is a certain-enough name with no
+for a witness is a certain-enough name with no
 data behind it.
 
 `hypotheses.json` also carries a **`corrections`** array: claims elsewhere that a pass
 believes are wrong but did not rewrite, because the entry belongs to another subsystem or
 another agent is appending to the same file mid-flight. Each carries its evidence and a
-`notDoneBecause`. That is not a to-do list; it is the alternative to silently leaving a known
+`notDoneBecause`. That is the alternative to silently leaving a known
 error in place or reaching into somebody else's file while they are working in it.
 
 #### 7.6.1 What "a check that could have failed" means in practice
@@ -589,7 +589,7 @@ new member is consistent with all the others. Two rules:
 * **Say where the network stayed coherent and unanchored.** The battle pass ended with
   exactly one: the bow-draw animation reads the *campaign* map's rotation and nothing else in
   the battle does. Two stories fit and no evidence separates them, so it is written down as
-  unresolved rather than narrated into place. That paragraph is worth more than the fifty
+unresolved. That paragraph is worth more than the fifty
   names around it, because it is the one place the next person should look first.
 
 #### 7.6.3 The tools are grep with structure, not an authority
@@ -627,7 +627,7 @@ concurrently.
 Naming functions one at a time and checking each independently is the safe technique and the
 slow one. The alternative is to treat a guess as **a set of predictions about its
 neighbours** — if X steps a unit, its caller is the mover and its callees are the cost map
-and the path array — and to test the predictions rather than the guess. Survivors anchor
+and the path array — and to test the predictions. Survivors anchor
 their neighbours, and the cost per function falls as the picture tightens.
 
 It works, and it has a specific failure mode: **coherence is not correctness.** C3 is a
@@ -658,7 +658,7 @@ that still needs its own check.
 
 ## 8. What "done" means
 
-The roadmap has eight phases and they have been advanced roughly in parallel, which is why
+The roadmap has eight phases and they have been advanced roughly in parallel, so
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
 always more of the binary to name — <!--fig:functions-->1,332<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->54<!--/fig-->%.
 
@@ -667,7 +667,7 @@ allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*
 honest measure of progress is a vertical slice that runs end to end, not a percentage of
 functions understood.
 
-The current gap is integration rather than knowledge. The battle simulation runs and now
+The current gap is integration. The battle simulation runs and now
 draws itself; the kingdom economy computes; the netcode syncs; mods load. **None of them are
 joined up into a game you can sit down and play.** That is the work that matters next, and
 it is also the only thing that will reveal which of the remaining unknowns are load-bearing

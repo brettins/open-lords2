@@ -4,7 +4,7 @@
 //! # This is the front end
 //!
 //! `docs/screens-county.md` §1 called `0x1C` *"the front end"*. It is not, and
-//! [`super::conquest`] says what it actually is. The screen a player of the
+//! [`super::conquest`] says what it is. The screen a player of the
 //! original meets first is **this one, page 1**: `Ui_DrawCentred(11, 0, …)` is
 //! *"Lords of the Realm 2"* over `gateway.pl8`, with *"The siege is on"* under
 //! it and four items in `panels2.pl8` recesses.
@@ -35,7 +35,7 @@
 //! **[V]** for every row that names an `L2.eng` group; the string reads as what
 //! the page is.
 //!
-//! # Which pages a single player can actually reach
+//! # Which pages a single player can reach
 //!
 //! **[V]**, from every write of `g_setupPage` in the corpus, and it changes how
 //! two rows above should be read:
@@ -51,7 +51,7 @@
 //!   writes it. Nothing in single player ever does.
 //! * **Page 8 is multiplayer-only** for the same reason, and pages 11 and 13
 //!   are only reached with `DAT_0055302C == 3` (the skirmish choice).
-//! * **Page 0 is not a page.** `FUN_0041E7E1`'s ladder has thirteen arms and
+//! * `FUN_0041E7E1`'s ladder has thirteen arms and
 //!   none of them is 0, and so does `Screen_DrawWidgets`'s. `g_setupPage` 0 is
 //!   the `.bss` initial value and every writer sets 1..=13.
 //! * **Pages 9 and 10 have a `Screen_Draw` arm and no `Screen_DrawWidgets`
@@ -216,7 +216,7 @@
 //! directly, so rows 24 and up name the wrong map on a real install.** The fix
 //! needs the packed table, which [`Ctx`]'s assets already have the evidence for
 //! (`Assets::minimap` returns `None` for a slot with no file), and it moves the
-//! meaning of every row — so it is recorded here rather than guessed at.
+//! meaning of every row — so it is recorded here.
 //!
 //! With **no** `MAPnn.PL8` at all the table is sixty zeroes and the count is 0.
 //! The painter still draws its five rows: five bars, and `Eng_DrawString(101,
@@ -244,7 +244,7 @@
 //!
 //! **The twelve options reach the game now.** This section used to say the
 //! opposite. [`crate::setup`] is what each of them means — and the reason it is
-//! a module rather than twelve assignments is that the drop-downs do **not**
+//! a module is that the drop-downs do **not**
 //! write `g_optDifficulty` and its neighbours: they write a separate block at
 //! `0x0053F288`, and `Setup_CommitOptions` (`0x00499DC3`) turns those twelve
 //! selections into the eleven values a game runs on, five of them through a
@@ -278,7 +278,7 @@
 //! with `DAT_0055302C` at 2 or 3 — so in the original every route to a game
 //! passes through the shield page and *Continue* is what leaves it. Ours sends
 //! them straight to pages 7 and 12. That is **[not reproduced]** and recorded
-//! rather than quietly correct: it is the same reading of page 4 that hid the
+//! it is the same reading of page 4 that hid the
 //! campaign start, and closing it is the rest of `front-end-pages` in
 //! `docs/arms.json`.
 
@@ -502,7 +502,7 @@ pub const TITLE_ITEMS: [usize; 4] = [2, 3, 47, 4];
 
 /// **`FUN_0041EA14`: `Ui_DrawCentred(11, 0, 0x80, 0x1E, 0x180, &g_fontHeading,
 /// 0x3F)`** — the game's own name, *"Lords of the Realm 2"*, on the page a
-/// player actually reaches.
+/// player reaches.
 ///
 /// This was `0x20`, two pixels low, while the subtitle beside it at `0x3A` was
 /// right — which is the shape a transcription takes when one argument is read
@@ -544,9 +544,9 @@ pub const SHIELD_H: i32 = 65;
 /// own executable and **the identity map**: `[_, 1, 2, 3, 4, 5]`, so hotspot
 /// `i` is shield `i`.
 ///
-/// It is written down rather than folded away because it is the only thing that
+/// It is written down because it is the only thing that
 /// says the picker's left-to-right order *is* the shield numbering, and
-/// `FUN_00432FAB` indexes it rather than using the hotspot id directly — which
+/// `FUN_00432FAB` indexes it — which
 /// is the shape of a table that could have been a permutation and is not.
 /// `[V]`, `tools/maps/pe.js` at `0x004D5548`.
 pub const SHIELD_OF_HOTSPOT: [u8; 6] = [1, 1, 2, 3, 4, 5];
@@ -635,7 +635,7 @@ pub const MAP_COUNT: usize = 60;
 /// The heights are `Pct(0x2C, PctOf(part, total))` for the three parts — above
 /// the window, the window itself, below it — and the *thumb* is given whatever
 /// the three roundings lost: `hb += 0x2C - ha - hb - hc`. A zero-height segment
-/// is skipped rather than drawn one pixel tall.
+/// is skipped.
 pub const SCROLLBAR_X: i32 = 0x25C;
 pub const SCROLLBAR_Y: i32 = 0xA3;
 pub const SCROLLBAR_W: i32 = 0x14;
@@ -680,14 +680,14 @@ pub struct SetupScreen {
     /// **Zero is a real value here and it is where the list sits untouched**,
     /// which is England. A campaign does not read this: `Campaign_LoadEntry`
     /// *writes* it, from the campaign row, the same way it writes the global —
-    /// so [`SetupScreen::start_campaign`] sets it rather than leaving a stale
+/// so [`SetupScreen::start_campaign`] sets it
     /// slot beside the world it just built.
     map_top: usize,
     map: usize,
     /// `g_playerStartCount` for [`SetupScreen::map`] — how many lords that map
     /// seats. `Map_LoadPlanes` recomputes it every time the scenario changes
     /// and three call sites then push it into the *Nobles* drop-down, so it is
-    /// cached beside the map rather than asked for at every hit test.
+/// cached beside the map.
     ///
     /// **Five until a map has been read**, which is what an install without
     /// `L2_maps.dat` leaves it at: the full drop-down, and no seat count
@@ -717,7 +717,7 @@ pub struct SetupScreen {
     /// hundred and ninety-two pixels, free text. [`crate::text`] is the engine
     /// and `docs/arms.json`'s `text` group is the inventory.
     ///
-    /// It lives here rather than being made on entry because our page 4 is
+/// It lives here because our page 4 is
     /// reachable from three places and a field rebuilt on each of them would
     /// lose what was typed; [`SetupScreen::go`] does the `Edit_Begin` at
     /// exactly the moments the original does.
@@ -755,7 +755,7 @@ pub struct SetupScreen {
     ///
     /// A still screen costs nothing here: [`Machine::update`] only repaints
     /// when [`Screen::take_redraw`] says so, and this is what makes it say so
-    /// **once a minute** rather than sixty times a second. It is a cached
+/// **once a minute**. It is a cached
     /// *picture* fact, not a clock — the reading itself is handed in through
     /// `Assets` and is never read from the system by anything in this crate.
     clock_minute: Option<i64>,
@@ -832,7 +832,7 @@ impl SetupScreen {
     /// off the chosen map and set *Nobles* from it.
     ///
     /// **Both halves, or neither.** A map whose planes cannot be read leaves
-    /// the seat count alone rather than reporting zero seats, because zero
+/// the seat count alone, because zero
     /// would silently drive the lord count to two.
     fn read_map(&mut self, ctx: &Ctx) {
         self.map_read = true;
@@ -1071,7 +1071,7 @@ impl SetupScreen {
             // `FUN_00432FAB(g_uiHotspotId)` claims the colour and then
             // `Realms_AssignLords()` runs **immediately**, on every click —
             // the original re-deals the AI colours and lords while the page is
-            // still up, rather than at *Start*.
+// still up.
             //
             // ```c
             // if ((&DAT_0057cb40)[hotspot] == '\0') {          /* free? */
@@ -1090,7 +1090,7 @@ impl SetupScreen {
             // hold does nothing, and an assignment to the value it already has
             // is that, exactly.
             //
-            // The re-deal is not run here either, and that is not a divergence
+// The re-deal is not run here either.
             // but a shape: `assign_lords` is a pure function of the slot, the
             // lord count and this choice, so running it per click and running
             // it once at world construction give the same world. Nothing on
@@ -1192,7 +1192,7 @@ impl SetupScreen {
     ///
     /// — and the guard is real: **pressing *Start* on a map that seats fewer
     /// lords than there are people does nothing at all.** No message, no
-    /// refusal; the button is simply inert. Reproduced, because a person who
+/// refusal; the button is inert. Reproduced, because a person who
     /// meets it in the original meets a button that does not work and a
     /// reimplementation that helpfully explained itself would be a different
     /// program. In a single-player game there is one person and every shipped
@@ -1218,7 +1218,7 @@ impl SetupScreen {
     /// **A world that cannot be built is not half-started.** An install with no
     /// `L2_maps.dat`, or a slot that is an empty template, leaves the game
     /// exactly as it was and says so under the grid in our own font
-    /// (`docs/decisions.md` C21) rather than dropping the player onto a
+/// (`docs/decisions.md` C21)
     /// different map than the one they chose.
     fn start(&mut self, ctx: &mut Ctx) -> Transition {
         // One person, in this build. `DAT_00553F98` is the lobby's count and
@@ -1231,7 +1231,7 @@ impl SetupScreen {
         }
         // **The quirk set is already on the game**, because the quirks page
         // writes it there whether or not a campaign is running - one home for
-        // the value rather than a pending copy that could disagree with it.
+// the value.
         // See [`crate::screens::options`].
         let settings = self.options.commit(HUMAN_PLAYERS, ctx.game.kingdom.options.quirks);
         self.unhonoured = settings.unhonoured();
@@ -1261,7 +1261,7 @@ impl SetupScreen {
     /// which is the campaign's **fifth** map — and the other limb started a
     /// game at all, where the original walks on to the page that chooses one.
     ///
-    /// **There is no seat-count guard here.** `FUN_004335F0`'s
+/// `FUN_004335F0`'s
     /// `humanPlayers <= g_playerStartCount` test guards the *custom* Start and
     /// this arm has none, which is right: a campaign row's map and lord count
     /// come from the same table and cannot disagree.
@@ -1306,7 +1306,7 @@ impl SetupScreen {
         let settings = row.settings(ctx.game.kingdom.options.quirks);
         self.unhonoured = settings.unhonoured();
         // `g_scenarioIndex` is one global, so the list follows the campaign's
-        // choice rather than keeping a stale one beside it.
+// choice.
         self.map = row.scenario;
         self.map_read = false;
         self.new_game(ctx, row.scenario, settings, Some(campaign))
@@ -1431,7 +1431,7 @@ impl Screen for SetupScreen {
     }
 
     /// `Game_NewGame`'s `Save_RotateAndWrite()`. Raised by
-    /// [`SetupScreen::new_game`] once a world has actually been built.
+/// [`SetupScreen::new_game`] once a world has been built.
     fn take_autosave(&mut self) -> bool {
         core::mem::take(&mut self.autosave)
     }
@@ -1484,7 +1484,7 @@ impl Screen for SetupScreen {
         // do not: `Space` is a space in a name, and `I` is the letter I.
         //
         // The commit is `Edit_Commit(&g_options, 0x1F)`, which the original
-        // runs **every frame** while the page is up rather than on a button.
+// runs **every frame** while the page is up.
         // Doing it per keystroke is the same thing at the only moments the
         // buffer can have changed.
         if self.page == SetupPage::Shield {
@@ -1499,7 +1499,7 @@ impl Screen for SetupScreen {
         // at all in the original: not one of `Screen_HandleInput`'s thirteen
         // `g_setupPage` arms tests a key, and the window procedure has no
         // `g_screenId == 0x1F` case. Its whole interface is `Hotspot_Test` and
-        // `Widget_Test`. That is recorded rather than removed — a menu a person
+// `Widget_Test`. That is recorded — a menu a person
         // cannot drive from the keyboard is worse, not more faithful — and the
         // records are `ours/setup-*` in `docs/arms.json`.
         match event {
@@ -1665,7 +1665,7 @@ impl SetupScreen {
                 // The time itself is `ctx.assets.wall_clock`, which only the
                 // shell ever fills: no clock is read here or anywhere below it
                 // (`docs/netcode.md` D-5), and with no shell there is no clock
-                // on the page rather than a wrong one.
+// on the page.
                 if let Some(now) = ctx.assets.wall_clock {
                     crate::wallclock::draw(canvas, pen, now);
                 }
@@ -1697,7 +1697,7 @@ impl SetupScreen {
                 // original draws on **page 13** and never here.
                 // `SaveLoad_DrawStatus` puts 40/2 *"Loading game. Please
                 // wait."* at (128, 292) and only while `DAT_0057D3C4` — a
-                // frame countdown set to 150 or 400 when a load actually
+// frame countdown set to 150 or 400 when a load
                 // starts, and zeroed when the box opens — is running. An idle
                 // load box has an empty status line, so ours has one too.
                 //
@@ -1795,15 +1795,15 @@ impl SetupScreen {
         // ```
         //
         // The plate is drawn **before** the text and the caret **after** it,
-        // which is why the caret is a solid bar rather than a shape the plate
+// so the caret is a solid bar
         // eats. `g_caretPlaced` is set by `Ui_DrawText` itself when the drawing
         // index reaches `g_editCaret`, so the caret x is the pen after that
         // many characters and needs nothing from the caller;
         // `TextField::caret_x` computes the same number the same way.
         //
         // **The plate is the same frame whether or not the field is being
-        // typed into.** There is no focus ring and no second frame: the caret
-        // is the whole of the affordance, which is why it had to be built
+// typed into.** the caret
+// is the whole of the affordance, so it had to be built
         // rather than skipped.
         let sheet = pen.assets.sheet(BOX_SHEET);
         match sheet.and_then(|s| s.frame(0xCC)) {
