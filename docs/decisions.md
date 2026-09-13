@@ -11944,3 +11944,44 @@ express the second, because `Mixer::set_music` always loops, and the
 `audio_wiring` assertion
 `every_in_game_screen_over_the_front_end_is_campaign_music` would fail on the
 screen besides. Two blockers, one site, recorded rather than forced.
+
+---
+
+**C215 — the conquest interstitial picks its own bed and its own loop flag, so
+the mixer learned to play a track once.**
+
+`Screen_DrawConquest` (`0x0041E1DD`) opens with
+`Music_Play(g_campaignMap < 8 ? "setup.wav" : "setup2.wav", 0, g_campaignMap < 8)`
+— **`[V]`**: the screen chooses the file and the loop flag from one comparison.
+So `setup.wav` loops under the interstitial for the first eight maps, and past
+them `setup2.wav` plays **once** and stops. Ours answered campaign music and
+could only loop, which is two defects in one site — C214 recorded exactly that
+pair as a blocker; this is that blocker cleared.
+
+`Mixer::set_music_once` is split from `set_music` over a private `start_music`,
+so the loop flag is a parameter in exactly the one place the game passes 0 and
+`set_music`'s callers are untouched. `Music::Setup2` and `Music::loops` carry
+the track and its flag; `Audio::play_music` picks the arm; `Scene::Conquest {
+ended }` takes `ended` from `Campaign::is_complete`, the state the original
+reads as `g_campaignMap < 8`. Marked `// sfx: Screen_DrawConquest#1,#2` at the
+call. Both `docs/audio.json` sites go from unreproduced to reproduced and
+`node tools/oracle/sounds.js --check` agrees with the corpus on all 143.
+
+Checked: `the_conquest_interstitial_plays_its_own_bed` (`audio_wiring`) and
+`a_one_shot_track_stops_at_its_end_instead_of_starting_again` (`mixer`).
+`every_in_game_screen_over_the_front_end_is_campaign_music` now expects
+`Scene::Conquest` for that one screen — it is still over a running game, which
+was the half that test was ever about. Ablations: `loops()` always true fails
+the first; `set_music_once` forwarding to `set_music` fails the second.
+
+**Credits and ending music stay unwritten, and that is the answer.** The films
+carry their own track and **none of the 22 `Music_Play` sites is a credits
+bed** (C214). Nothing is left in the ledger row behind them.
+
+**The second half: the merchant's walk is locked.**
+`a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tiles`
+in `crates/l2-game/tests/pacing.rs` builds its own map and **measures** 8 ticks
+for a road tile and 32 for an open one, with a non-zero `campaign::walk_offset`
+mid-crossing. Ablated by gating `cross_sub_tile` on `UnitKind::Army`, the road
+gap is 1 against 8. `Unit_StepOnce` (`0x0046634D`) has no kind test (C213); the
+behaviour was already right and nothing held it.
