@@ -20,115 +20,1441 @@
     "game": "Starting, saving & winning"
   },
   "features": [
-    {"id": "taxes", "area": "kingdom", "name": "Taxes", "status": "done", "evidence": ["C26", "C125", "C142"], "gap": "", "rows": ["oracle-tax-rate-20"]},
-    {"id": "rations", "area": "kingdom", "name": "Rations", "status": "done", "evidence": ["C118", "C120", "C133"], "gap": "", "rows": []},
-    {"id": "grain", "area": "kingdom", "name": "Growing grain", "status": "done", "evidence": ["C27", "C63", "C124", "crates/l2-kingdom/tests/fields.rs"], "gap": "", "rows": []},
-    {"id": "field-painting", "area": "kingdom", "name": "Painting fields on the map", "status": "done", "evidence": ["C27", "crates/l2-kingdom/tests/fields.rs"], "gap": "", "rows": []},
-    {"id": "reclamation", "area": "kingdom", "name": "Reclaiming wasteland", "status": "done", "evidence": ["crates/l2-kingdom/tests/fields.rs", "crates/l2-kingdom/tests/labour_gap.rs"], "gap": "", "rows": []},
-    {"id": "cattle", "area": "kingdom", "name": "Cattle, dairy and herd crowding", "status": "partial", "evidence": ["C77", "C187"], "gap": "bought cattle get no pasture", "rows": ["lost-rule-inputs"]},
-    {"id": "weather", "area": "kingdom", "name": "Weather", "status": "done", "evidence": ["C91", "crates/l2-kingdom/tests/reproduction.rs"], "gap": "", "rows": []},
-    {"id": "advanced-farming", "area": "kingdom", "name": "Fertility and Advanced Farming", "status": "done", "evidence": ["C63"], "gap": "", "rows": []},
-    {"id": "industry", "area": "kingdom", "name": "Wood, iron, stone and weapons", "status": "partial", "evidence": ["C57", "C136", "C153", "C180", "crates/l2-game/tests/industry.rs"], "gap": "efficiency ramp with Advanced Farming", "rows": ["industry-efficiency-ramp"]},
-    {"id": "weapon-choice", "area": "kingdom", "name": "Choosing what your blacksmiths make", "status": "done", "evidence": ["crates/l2-kingdom/tests/weapon_choice.rs", "arms:0x004BA9C8/blacksmith-weapon-choice"], "gap": "", "rows": []},
-    {"id": "industry-toggle", "area": "kingdom", "name": "Switching industries on and off", "status": "done", "evidence": ["C121", "crates/l2-game/tests/industry.rs"], "gap": "", "rows": []},
-    {"id": "court", "area": "kingdom", "name": "The court: treasury and stores", "status": "done", "evidence": ["crates/l2-game/tests/shell.rs", "crates/l2-game/tests/text.rs"], "gap": "", "rows": []},
-    {"id": "wages", "area": "kingdom", "name": "Paying the army", "status": "done", "evidence": ["crates/l2-game/tests/long_game.rs", "crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
-    {"id": "bankruptcy", "area": "kingdom", "name": "Bankruptcy and desertion", "status": "not-assessed", "evidence": [], "gap": "", "rows": []},
-    {"id": "supplies", "area": "kingdom", "name": "Sending supplies to a county", "status": "not-assessed", "evidence": [], "gap": "", "rows": []},
-    {"id": "births-deaths", "area": "people", "name": "Births and deaths", "status": "done", "evidence": ["crates/l2-kingdom/tests/reproduction.rs", "crates/l2-kingdom/tests/oracle.rs"], "gap": "", "rows": []},
-    {"id": "happiness", "area": "people", "name": "Happiness", "status": "done", "evidence": ["C26", "C53"], "gap": "", "rows": []},
-    {"id": "health", "area": "people", "name": "Health", "status": "done", "evidence": ["crates/l2-game/tests/differential.rs"], "gap": "", "rows": []},
-    {"id": "migration", "area": "people", "name": "Migration", "status": "done", "evidence": ["crates/l2-kingdom/tests/reproduction.rs", "crates/l2-kingdom/tests/quirks.rs"], "gap": "", "rows": []},
-    {"id": "jobs", "area": "people", "name": "Peasant jobs", "status": "done", "evidence": ["C180", "crates/l2-kingdom/tests/labour_gap.rs"], "gap": "", "rows": []},
-    {"id": "village-drag", "area": "people", "name": "Moving peasants between jobs", "status": "done", "evidence": ["C22", "C121"], "gap": "", "rows": []},
-    {"id": "events", "area": "people", "name": "Random events", "status": "done", "evidence": ["C169", "C170", "C210", "docs/bugs.md", "crates/l2-kingdom/src/event.rs", "crates/l2-game/tests/messages.rs", "crates/l2-game/tests/job_bodies.rs"], "gap": "", "rows": ["event-flags-not-cleared", "event-letter-trigger", "message-event-numbers"]},
-    {"id": "revolts", "area": "people", "name": "Unrest and peasant revolts", "status": "done", "evidence": ["C90", "crates/l2-game/tests/long_game.rs"], "gap": "", "rows": []},
-    {"id": "secession", "area": "people", "name": "Cut-off counties break away", "status": "done", "evidence": ["C34", "crates/l2-kingdom/tests/secession.rs"], "gap": "", "rows": []},
-    {"id": "raise-army", "area": "armies", "name": "Raising an army", "status": "done", "evidence": ["C45", "C66", "C179", "crates/l2-game/tests/military.rs"], "gap": "", "rows": []},
-    {"id": "armoury", "area": "armies", "name": "Arming men at the armoury", "status": "done", "evidence": ["C61", "C66", "C179", "crates/l2-game/tests/armoury.rs"], "gap": "", "rows": []},
-    {"id": "mercenaries", "area": "armies", "name": "Hiring mercenaries", "status": "done", "evidence": ["C150", "C164"], "gap": "", "rows": []},
-    {"id": "marching", "area": "armies", "name": "Marching armies", "status": "partial", "evidence": ["C35", "C60", "C134", "C184", "crates/l2-game/tests/military.rs", "crates/l2-game/tests/arrival.rs", "crates/l2-game/tests/screens.rs"], "gap": "long march finds no path", "rows": ["order-move-long-march-none"]},
-    {"id": "taking-counties", "area": "armies", "name": "Taking a county", "status": "done", "evidence": ["crates/l2-game/tests/military.rs"], "gap": "", "rows": []},
-    {"id": "splitting", "area": "armies", "name": "Splitting and merging armies", "status": "partial", "evidence": ["C93", "arms:army-division"], "gap": "splitting into a castle", "rows": ["split-into-castle"]},
-    {"id": "garrisons", "area": "armies", "name": "Garrisons in castles", "status": "partial", "evidence": ["crates/l2-game/tests/castles.rs"], "gap": "marching a garrison out", "rows": ["garrison-march-out"]},
-    {"id": "foraging", "area": "armies", "name": "Armies eating (Foraging option)", "status": "done", "evidence": ["crates/l2-game/tests/options.rs", "crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
-    {"id": "trampling", "area": "armies", "name": "Armies trampling fields", "status": "partial", "evidence": ["C134"], "gap": "industry ramp not reset", "rows": ["lost-rule-inputs"]},
-    {"id": "fog", "area": "armies", "name": "Fog of war (Exploration option)", "status": "done", "evidence": ["C21", "C172", "C184", "crates/l2-game/tests/screens.rs"], "gap": "", "rows": []},
-    {"id": "take-field", "area": "battles", "name": "Choosing to take the field", "status": "done", "evidence": ["C115", "crates/l2-game/tests/seam.rs", "crates/l2-game/tests/military.rs"], "gap": "", "rows": []},
-    {"id": "autocalc", "area": "battles", "name": "Auto-resolved battles", "status": "done", "evidence": ["C31", "crates/l2-game/tests/seam.rs"], "gap": "", "rows": []},
-    {"id": "melee-missiles", "area": "battles", "name": "Melee, arrows and bolts", "status": "done", "evidence": ["C55", "C71", "crates/l2-sim/tests/oracle.rs"], "gap": "", "rows": []},
-    {"id": "battle-orders", "area": "battles", "name": "Giving orders in battle", "status": "done", "evidence": ["C70", "arms:battlefield", "C176"], "gap": "", "rows": []},
-    {"id": "battlefield-picture", "area": "battles", "name": "The battlefield's picture", "status": "partial", "evidence": ["C70", "C183", "C192", "C200", "C201", "C202", "crates/l2-view/src/scene.rs", "crates/l2-game/tests/battle_picture.rs", "crates/l2-game/tests/siege_picture.rs"], "gap": "the battle banner; Misc_bat.pl8", "rows": ["battle-banner-not-drawn"]},
-    {"id": "battle-ai", "area": "battles", "name": "The enemy's battle tactics", "status": "done", "evidence": ["C106", "crates/l2-sim/tests/siege.rs"], "gap": "", "rows": []},
-    {"id": "casualties", "area": "battles", "name": "Losses carried back to the map", "status": "done", "evidence": ["C71"], "gap": "", "rows": []},
-    {"id": "battle-menu", "area": "battles", "name": "Save, load and options mid-battle", "status": "partial", "evidence": ["C205", "arms:0x0040DECA/battle-menu-bar", "arms:battlefield", "crates/l2-game/tests/battle_picture.rs"], "gap": "save: LiveBattle is not encoded", "rows": ["save-refuses-mid-battle"]},
-    {"id": "result-banner", "area": "battles", "name": "Battle result banner", "status": "partial", "evidence": ["crates/l2-game/src/screens/battlefield.rs"], "gap": "the animated version", "rows": ["animations-option-readers"]},
-    {"id": "burning", "area": "battles", "name": "Soldiers catching fire", "status": "partial", "evidence": ["C181", "audio:BattleMan_BurnTick#1"], "gap": "the player's fire arrow", "rows": ["siege-leftovers"]},
-    {"id": "closing-archers", "area": "battles", "name": "Archers loosing as they close", "status": "missing", "evidence": ["audio:BattleMan_StateCloseToAttack#1"], "gap": "", "rows": ["battle-close-attack-and-elimination"]},
-    {"id": "third-mode", "area": "battles", "name": "A third battle mode", "status": "not-assessed", "evidence": [], "gap": "", "rows": ["third-battle-mode"]},
-    {"id": "prisoners", "area": "battles", "name": "Prisoners and ransom", "status": "not-assessed", "evidence": [], "gap": "", "rows": []},
-    {"id": "skirmish", "area": "battles", "name": "Skirmish battles and ratings", "status": "missing", "evidence": ["crates/l2-game/src/screens/ratings.rs"], "gap": "", "rows": ["skirmish-battles"]},
-    {"id": "castle-building", "area": "sieges", "name": "Building castles", "status": "done", "evidence": ["C64", "crates/l2-game/tests/castles.rs"], "gap": "", "rows": []},
-    {"id": "laying-siege", "area": "sieges", "name": "Laying siege and building engines", "status": "done", "evidence": ["C79", "C106", "crates/l2-kingdom/tests/siege.rs"], "gap": "", "rows": []},
-    {"id": "storming", "area": "sieges", "name": "Storming the gate, walls and keep", "status": "done", "evidence": ["C99", "C100", "C101", "crates/l2-game/tests/siege_battle.rs"], "gap": "", "rows": []},
-    {"id": "moat", "area": "sieges", "name": "Filling the moat", "status": "done", "evidence": ["C81", "C101"], "gap": "", "rows": []},
-    {"id": "oil-towers", "area": "sieges", "name": "Boiling oil and siege towers", "status": "partial", "evidence": ["C181", "C203", "crates/l2-sim/tests/siege.rs", "crates/l2-sim/tests/castle_layout.rs"], "gap": "castle level 3 pours none and docks none", "rows": ["siege-leftovers"]},
-    {"id": "castle-layout", "area": "sieges", "name": "The castle's shape in battle", "status": "done", "evidence": ["C203", "crates/l2-sim/tests/castle_layout.rs", "crates/l2-game/tests/siege_picture.rs"], "gap": "", "rows": []},
-    {"id": "castle-designer", "area": "sieges", "name": "Castle designer", "status": "not-assessed", "evidence": ["docs/plan.md"], "gap": "", "rows": ["castle-designer"]},
-    {"id": "ai-farming", "area": "ai", "name": "AI lords farming their land", "status": "partial", "evidence": ["C36", "C149", "C168"], "gap": "replanting after a battle", "rows": ["battle-return-farm-tail", "ai-realm3-never-plants"]},
-    {"id": "ai-war", "area": "ai", "name": "AI lords raising armies and attacking", "status": "partial", "evidence": ["C67", "C68", "crates/l2-game/tests/ai_war.rs"], "gap": "one attack differs from the original", "rows": ["siege-army-divergence"]},
-    {"id": "ai-sieges", "area": "ai", "name": "AI lords besieging castles", "status": "done", "evidence": ["C106", "crates/l2-kingdom/tests/ai_siege.rs"], "gap": "", "rows": []},
-    {"id": "diplomacy", "area": "ai", "name": "Gifts, insults and alliance offers", "status": "done", "evidence": ["C84", "crates/l2-game/tests/diplomacy.rs", "crates/l2-game/tests/screens.rs"], "gap": "", "rows": []},
-    {"id": "alliances", "area": "ai", "name": "Standing and alliances", "status": "done", "evidence": ["C83", "C85"], "gap": "", "rows": []},
-    {"id": "answering", "area": "ai", "name": "Answering a lord's letter", "status": "done", "evidence": ["crates/l2-game/tests/messages.rs"], "gap": "", "rows": []},
-    {"id": "letter-text", "area": "ai", "name": "Writing a letter in your own words", "status": "missing", "evidence": ["arms:0x004BA9C8/diplo-letter"], "gap": "", "rows": ["letter-own-words"]},
-    {"id": "merchant-routes", "area": "trade", "name": "Merchants walking their routes", "status": "done", "evidence": ["C40", "C50"], "gap": "", "rows": []},
-    {"id": "trading", "area": "trade", "name": "Buying and selling goods", "status": "done", "evidence": ["C54", "crates/l2-game/tests/merchant.rs"], "gap": "", "rows": []},
-    {"id": "ale", "area": "trade", "name": "Ale", "status": "done", "evidence": ["C53"], "gap": "", "rows": []},
-    {"id": "neutral-trade", "area": "trade", "name": "Trading in a neutral county", "status": "done", "evidence": ["C149"], "gap": "", "rows": []},
-    {"id": "ai-trade", "area": "trade", "name": "AI lords trading at market", "status": "missing", "evidence": [], "gap": "", "rows": ["ai-trade-for-county"]},
-    {"id": "setup", "area": "screens", "name": "Title screen and game setup", "status": "done", "evidence": ["C44", "crates/l2-game/tests/setup.rs"], "gap": "", "rows": []},
-    {"id": "campaign-map", "area": "screens", "name": "Campaign map, zoom and scrolling", "status": "done", "evidence": ["C48", "C60", "C139", "C173", "crates/l2-view/tests/install.rs", "crates/l2-game/tests/chrome_text.rs", "crates/l2-game/tests/screens.rs"], "gap": "", "rows": []},
-    {"id": "minimap", "area": "screens", "name": "Minimap and its overlays", "status": "done", "evidence": ["crates/l2-game/tests/minimap.rs"], "gap": "", "rows": []},
-    {"id": "rotation", "area": "screens", "name": "Rotating the map", "status": "not-assessed", "evidence": ["docs/screens.md"], "gap": "", "rows": []},
-    {"id": "sidebar", "area": "screens", "name": "County sidebar and forecasts", "status": "partial", "evidence": ["C123", "C151", "C180", "crates/l2-game/tests/right_column.rs"], "gap": "efficiency ramp with Advanced Farming", "rows": ["industry-efficiency-ramp"]},
-    {"id": "county-panels", "area": "screens", "name": "Population, tax, happiness, ration panels", "status": "done", "evidence": ["C133", "C142"], "gap": "", "rows": []},
-    {"id": "village", "area": "screens", "name": "The village", "status": "done", "evidence": ["C22", "C63"], "gap": "", "rows": []},
-    {"id": "crop-pictures", "area": "screens", "name": "Crops growing on the map", "status": "done", "evidence": ["C77", "C124", "C180", "C195", "crates/l2-game/tests/wheat.rs"], "gap": "", "rows": []},
-    {"id": "job-popups", "area": "screens", "name": "Job popups", "status": "done", "evidence": ["C177", "C191", "crates/l2-game/tests/job_bodies.rs", "arms:0x004BA9C8/blacksmith-weapon-choice"], "gap": "", "rows": []},
-    {"id": "field-info", "area": "screens", "name": "Clicking a field for its details", "status": "partial", "evidence": ["C173", "C174", "C199", "C204", "crates/l2-game/tests/job_bodies.rs", "crates/l2-game/tests/screens.rs", "crates/l2-game/src/screens/info.rs"], "gap": "road, sea, mountain, wood, village arms", "rows": ["tile-panel-rest-of-the-ladder"]},
-    {"id": "messages", "area": "screens", "name": "Letters and announcements", "status": "partial", "evidence": ["C126", "C197", "C210", "crates/l2-game/tests/messages.rs", "crates/l2-game/tests/arrival.rs", "crates/l2-game/tests/pacing.rs"], "gap": "a battle eats a letter", "rows": ["message-event-numbers", "battle-phase-swallows-messages"]},
-    {"id": "menus-options", "area": "screens", "name": "Menu bar and options", "status": "done", "evidence": ["C152", "C165", "arms:options-panels"], "gap": "", "rows": []},
-    {"id": "click-feel", "area": "screens", "name": "Clicks and double-clicks", "status": "partial", "evidence": ["C131", "C148", "C182", "C207", "crates/l2-game/tests/gestures.rs", "crates/l2-game/src/input.rs"], "gap": "the save and trade spoken lines", "rows": ["save-trade-speech"]},
-    {"id": "text-entry", "area": "screens", "name": "Typing save names", "status": "done", "evidence": ["C74", "crates/l2-game/tests/text.rs"], "gap": "", "rows": []},
-    {"id": "fonts", "area": "screens", "name": "The original's lettering", "status": "done", "evidence": ["C157", "C163", "C174", "C175"], "gap": "", "rows": []},
-    {"id": "tooltips", "area": "screens", "name": "Tool tips", "status": "done", "evidence": ["C167", "crates/l2-game/tests/tooltips.rs"], "gap": "", "rows": ["tooltip-names-and-quirk"]},
-    {"id": "tips", "area": "screens", "name": "Advisor tips", "status": "partial", "evidence": ["C160", "C178", "C207", "crates/l2-game/tests/tips.rs"], "gap": "a right press under a tip", "rows": []},
-    {"id": "pointer", "area": "screens", "name": "Mouse pointer changing shape", "status": "missing", "evidence": ["docs/screens.md"], "gap": "", "rows": ["town-square-cursor"]},
-    {"id": "standings", "area": "screens", "name": "Standings: the greatest nobles", "status": "done", "evidence": ["arms:standings", "audio:FUN_004b3994#1", "crates/l2-game/tests/standings.rs"], "gap": "", "rows": []},
-    {"id": "help-file", "area": "screens", "name": "Game help", "status": "missing", "evidence": ["arms:0x00434942/opt-game-help-contents"], "gap": "", "rows": ["game-help"]},
-    {"id": "music", "area": "sound", "name": "Music", "status": "partial", "evidence": ["C116", "crates/l2-game/tests/audio_wiring.rs"], "gap": "credits, ending and conquest music", "rows": ["music-credits-ending-conquest"]},
-    {"id": "narrator", "area": "sound", "name": "Narrator and lords' voices", "status": "partial", "evidence": ["C126", "audio:FUN_004b3714#1", "audio:FUN_004b3994#1", "crates/l2-game/src/audio/names.rs"], "gap": "confirm box, castle chooser", "rows": ["sibling-voice-tables"]},
-    {"id": "battle-speech", "area": "sound", "name": "Speech before a battle", "status": "missing", "evidence": ["audio:Siege_LaunchAssault#1"], "gap": "", "rows": ["battle-speech"]},
-    {"id": "battle-sounds", "area": "sound", "name": "Battle sounds", "status": "partial", "evidence": ["C166", "C181", "crates/l2-game/tests/audio_battle.rs"], "gap": "closing archers; mid-battle wipe-out", "rows": ["battle-close-attack-and-elimination"]},
-    {"id": "clicks", "area": "sound", "name": "Button clicks", "status": "done", "evidence": ["C156", "crates/l2-game/tests/click.rs"], "gap": "", "rows": []},
-    {"id": "field-sounds", "area": "sound", "name": "Field-painting sounds", "status": "missing", "evidence": ["audio:FUN_00438b02#1"], "gap": "", "rows": ["field-brush-sounds"]},
-    {"id": "wreck-sounds", "area": "sound", "name": "Armies wrecking fields and homes", "status": "missing", "evidence": ["audio:Unit_TrampleTile#1"], "gap": "", "rows": ["wreck-sounds"]},
-    {"id": "mixing", "area": "sound", "name": "Speech and fanfares not overlapping", "status": "done", "evidence": ["C176", "crates/l2-game/tests/audio_wiring.rs"], "gap": "", "rows": []},
-    {"id": "films", "area": "sound", "name": "Films: intro, castles, battles, ending", "status": "partial", "evidence": ["C171", "C190", "crates/l2-game/tests/arrival.rs", "crates/l2-game/tests/movies.rs"], "gap": "skips; row doubling", "rows": ["oracle-smk-row-doubling", "film-skip-gaps"]},
-    {"id": "season-fade", "area": "sound", "name": "Fade between seasons", "status": "done", "evidence": ["C59"], "gap": "", "rows": []},
-    {"id": "village-animation", "area": "sound", "name": "Village animations", "status": "done", "evidence": ["C63"], "gap": "", "rows": []},
-    {"id": "unit-walk", "area": "sound", "name": "Armies walking smoothly on the map", "status": "partial", "evidence": ["docs/screens.md", "C184", "crates/l2-game/tests/screens.rs"], "gap": "row offset; draw order", "rows": ["map-row-column-offset", "map-unit-draw-order"]},
-    {"id": "animations-option", "area": "sound", "name": "Animations option", "status": "missing", "evidence": [], "gap": "", "rows": ["animations-option-readers"]},
-    {"id": "new-game", "area": "game", "name": "New game on any of the 44 maps", "status": "partial", "evidence": ["C62", "crates/l2-game/tests/newgame.rs"], "gap": "two extra setup steps run", "rows": ["newgame-extra-turn-steps"]},
-    {"id": "shield", "area": "game", "name": "Choosing your shield", "status": "done", "evidence": ["C130", "crates/l2-game/tests/newgame.rs"], "gap": "", "rows": []},
-    {"id": "start-options", "area": "game", "name": "Starting gold, castle and army", "status": "not-assessed", "evidence": ["C44"], "gap": "", "rows": []},
-    {"id": "turn-timer", "area": "game", "name": "Turn time limit", "status": "done", "evidence": ["C158"], "gap": "", "rows": ["oracle-turn-timer-skip"]},
-    {"id": "save-load", "area": "game", "name": "Saving and loading", "status": "partial", "evidence": ["C30", "C161", "C162", "crates/l2-game/tests/save.rs"], "gap": "five farming details lost", "rows": ["lost-rule-inputs"]},
-    {"id": "autosave", "area": "game", "name": "Autosave every turn", "status": "done", "evidence": ["C190", "crates/l2-game/tests/save.rs", "crates/l2-game/tests/newgame.rs"], "gap": "", "rows": []},
-    {"id": "victory", "area": "game", "name": "Winning and losing", "status": "done", "evidence": ["C32", "crates/l2-game/tests/ending.rs"], "gap": "", "rows": []},
-    {"id": "scoring", "area": "game", "name": "Scoring", "status": "done", "evidence": ["C33"], "gap": "", "rows": []},
-    {"id": "campaign", "area": "game", "name": "The eight-map campaign", "status": "done", "evidence": ["crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
-    {"id": "multiplayer", "area": "game", "name": "Multiplayer", "status": "out-of-scope", "evidence": ["docs/plan.md"], "gap": "", "rows": ["lobby-player-shield"]}
+    {
+      "id": "taxes",
+      "area": "kingdom",
+      "name": "Taxes",
+      "status": "done",
+      "evidence": [
+        "C26",
+        "C125",
+        "C142"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "rations",
+      "area": "kingdom",
+      "name": "Rations",
+      "status": "done",
+      "evidence": [
+        "C118",
+        "C120",
+        "C133"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "grain",
+      "area": "kingdom",
+      "name": "Growing grain",
+      "status": "done",
+      "evidence": [
+        "C27",
+        "C63",
+        "C124",
+        "crates/l2-kingdom/tests/fields.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "field-painting",
+      "area": "kingdom",
+      "name": "Painting fields on the map",
+      "status": "done",
+      "evidence": [
+        "C27",
+        "crates/l2-kingdom/tests/fields.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "reclamation",
+      "area": "kingdom",
+      "name": "Reclaiming wasteland",
+      "status": "done",
+      "evidence": [
+        "crates/l2-kingdom/tests/fields.rs",
+        "crates/l2-kingdom/tests/labour_gap.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "cattle",
+      "area": "kingdom",
+      "name": "Cattle, dairy and herd crowding",
+      "status": "partial",
+      "evidence": [
+        "C77",
+        "C187"
+      ],
+      "gap": "bought cattle get no pasture",
+      "rows": [
+        "lost-rule-inputs"
+      ]
+    },
+    {
+      "id": "weather",
+      "area": "kingdom",
+      "name": "Weather",
+      "status": "done",
+      "evidence": [
+        "C91",
+        "crates/l2-kingdom/tests/reproduction.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "advanced-farming",
+      "area": "kingdom",
+      "name": "Fertility and Advanced Farming",
+      "status": "done",
+      "evidence": [
+        "C63"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "industry",
+      "area": "kingdom",
+      "name": "Wood, iron, stone and weapons",
+      "status": "partial",
+      "evidence": [
+        "C57",
+        "C136",
+        "C153",
+        "C180",
+        "crates/l2-game/tests/industry.rs"
+      ],
+      "gap": "efficiency ramp with Advanced Farming",
+      "rows": [
+        "industry-efficiency-ramp"
+      ]
+    },
+    {
+      "id": "weapon-choice",
+      "area": "kingdom",
+      "name": "Choosing what your blacksmiths make",
+      "status": "done",
+      "evidence": [
+        "crates/l2-kingdom/tests/weapon_choice.rs",
+        "arms:0x004BA9C8/blacksmith-weapon-choice"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "industry-toggle",
+      "area": "kingdom",
+      "name": "Switching industries on and off",
+      "status": "done",
+      "evidence": [
+        "C121",
+        "crates/l2-game/tests/industry.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "court",
+      "area": "kingdom",
+      "name": "The court: treasury and stores",
+      "status": "done",
+      "evidence": [
+        "crates/l2-game/tests/shell.rs",
+        "crates/l2-game/tests/text.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "wages",
+      "area": "kingdom",
+      "name": "Paying the army",
+      "status": "done",
+      "evidence": [
+        "crates/l2-game/tests/long_game.rs",
+        "crates/l2-kingdom/tests/campaign.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "bankruptcy",
+      "area": "kingdom",
+      "name": "Bankruptcy and desertion",
+      "status": "not-assessed",
+      "evidence": [],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "supplies",
+      "area": "kingdom",
+      "name": "Sending supplies to a county",
+      "status": "not-assessed",
+      "evidence": [],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "births-deaths",
+      "area": "people",
+      "name": "Births and deaths",
+      "status": "done",
+      "evidence": [
+        "crates/l2-kingdom/tests/reproduction.rs",
+        "crates/l2-kingdom/tests/oracle.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "happiness",
+      "area": "people",
+      "name": "Happiness",
+      "status": "done",
+      "evidence": [
+        "C26",
+        "C53"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "health",
+      "area": "people",
+      "name": "Health",
+      "status": "done",
+      "evidence": [
+        "crates/l2-game/tests/differential.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "migration",
+      "area": "people",
+      "name": "Migration",
+      "status": "done",
+      "evidence": [
+        "crates/l2-kingdom/tests/reproduction.rs",
+        "crates/l2-kingdom/tests/quirks.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "jobs",
+      "area": "people",
+      "name": "Peasant jobs",
+      "status": "done",
+      "evidence": [
+        "C180",
+        "crates/l2-kingdom/tests/labour_gap.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "village-drag",
+      "area": "people",
+      "name": "Moving peasants between jobs",
+      "status": "done",
+      "evidence": [
+        "C22",
+        "C121"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "events",
+      "area": "people",
+      "name": "Random events",
+      "status": "done",
+      "evidence": [
+        "C169",
+        "C170",
+        "C210",
+        "docs/bugs.md",
+        "crates/l2-kingdom/src/event.rs",
+        "crates/l2-game/tests/messages.rs",
+        "crates/l2-game/tests/job_bodies.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "revolts",
+      "area": "people",
+      "name": "Unrest and peasant revolts",
+      "status": "done",
+      "evidence": [
+        "C90",
+        "crates/l2-game/tests/long_game.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "secession",
+      "area": "people",
+      "name": "Cut-off counties break away",
+      "status": "done",
+      "evidence": [
+        "C34",
+        "crates/l2-kingdom/tests/secession.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "raise-army",
+      "area": "armies",
+      "name": "Raising an army",
+      "status": "done",
+      "evidence": [
+        "C45",
+        "C66",
+        "C179",
+        "crates/l2-game/tests/military.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "armoury",
+      "area": "armies",
+      "name": "Arming men at the armoury",
+      "status": "done",
+      "evidence": [
+        "C61",
+        "C66",
+        "C179",
+        "crates/l2-game/tests/armoury.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "mercenaries",
+      "area": "armies",
+      "name": "Hiring mercenaries",
+      "status": "done",
+      "evidence": [
+        "C150",
+        "C164"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "marching",
+      "area": "armies",
+      "name": "Marching armies",
+      "status": "partial",
+      "evidence": [
+        "C35",
+        "C60",
+        "C134",
+        "C184",
+        "crates/l2-game/tests/military.rs",
+        "crates/l2-game/tests/arrival.rs",
+        "crates/l2-game/tests/screens.rs"
+      ],
+      "gap": "long march finds no path",
+      "rows": [
+        "order-move-long-march-none"
+      ]
+    },
+    {
+      "id": "taking-counties",
+      "area": "armies",
+      "name": "Taking a county",
+      "status": "done",
+      "evidence": [
+        "crates/l2-game/tests/military.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "splitting",
+      "area": "armies",
+      "name": "Splitting and merging armies",
+      "status": "partial",
+      "evidence": [
+        "C93",
+        "arms:army-division"
+      ],
+      "gap": "splitting into a castle",
+      "rows": [
+        "split-into-castle"
+      ]
+    },
+    {
+      "id": "garrisons",
+      "area": "armies",
+      "name": "Garrisons in castles",
+      "status": "partial",
+      "evidence": [
+        "crates/l2-game/tests/castles.rs"
+      ],
+      "gap": "marching a garrison out",
+      "rows": [
+        "garrison-march-out"
+      ]
+    },
+    {
+      "id": "foraging",
+      "area": "armies",
+      "name": "Armies eating (Foraging option)",
+      "status": "done",
+      "evidence": [
+        "crates/l2-game/tests/options.rs",
+        "crates/l2-kingdom/tests/campaign.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "trampling",
+      "area": "armies",
+      "name": "Armies trampling fields",
+      "status": "partial",
+      "evidence": [
+        "C134"
+      ],
+      "gap": "industry ramp not reset",
+      "rows": [
+        "lost-rule-inputs"
+      ]
+    },
+    {
+      "id": "fog",
+      "area": "armies",
+      "name": "Fog of war (Exploration option)",
+      "status": "done",
+      "evidence": [
+        "C21",
+        "C172",
+        "C184",
+        "crates/l2-game/tests/screens.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "take-field",
+      "area": "battles",
+      "name": "Choosing to take the field",
+      "status": "done",
+      "evidence": [
+        "C115",
+        "crates/l2-game/tests/seam.rs",
+        "crates/l2-game/tests/military.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "autocalc",
+      "area": "battles",
+      "name": "Auto-resolved battles",
+      "status": "done",
+      "evidence": [
+        "C31",
+        "crates/l2-game/tests/seam.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "melee-missiles",
+      "area": "battles",
+      "name": "Melee, arrows and bolts",
+      "status": "done",
+      "evidence": [
+        "C55",
+        "C71",
+        "crates/l2-sim/tests/oracle.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "battle-orders",
+      "area": "battles",
+      "name": "Giving orders in battle",
+      "status": "done",
+      "evidence": [
+        "C70",
+        "arms:battlefield",
+        "C176"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "battlefield-picture",
+      "area": "battles",
+      "name": "The battlefield's picture",
+      "status": "partial",
+      "evidence": [
+        "C70",
+        "C183",
+        "C192",
+        "C200",
+        "C201",
+        "C202",
+        "crates/l2-view/src/scene.rs",
+        "crates/l2-game/tests/battle_picture.rs",
+        "crates/l2-game/tests/siege_picture.rs",
+        "C209"
+      ],
+      "gap": "Misc_bat.pl8",
+      "rows": []
+    },
+    {
+      "id": "battle-ai",
+      "area": "battles",
+      "name": "The enemy's battle tactics",
+      "status": "done",
+      "evidence": [
+        "C106",
+        "crates/l2-sim/tests/siege.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "casualties",
+      "area": "battles",
+      "name": "Losses carried back to the map",
+      "status": "done",
+      "evidence": [
+        "C71"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "battle-menu",
+      "area": "battles",
+      "name": "Save, load and options mid-battle",
+      "status": "partial",
+      "evidence": [
+        "C205",
+        "arms:0x0040DECA/battle-menu-bar",
+        "arms:battlefield",
+        "crates/l2-game/tests/battle_picture.rs"
+      ],
+      "gap": "save: LiveBattle is not encoded",
+      "rows": [
+        "save-refuses-mid-battle"
+      ]
+    },
+    {
+      "id": "result-banner",
+      "area": "battles",
+      "name": "Battle result banner",
+      "status": "partial",
+      "evidence": [
+        "crates/l2-game/src/screens/battlefield.rs"
+      ],
+      "gap": "the animated version",
+      "rows": [
+        "animations-option-readers"
+      ]
+    },
+    {
+      "id": "burning",
+      "area": "battles",
+      "name": "Soldiers catching fire",
+      "status": "partial",
+      "evidence": [
+        "C181",
+        "audio:BattleMan_BurnTick#1"
+      ],
+      "gap": "the player's fire arrow",
+      "rows": [
+        "siege-leftovers"
+      ]
+    },
+    {
+      "id": "closing-archers",
+      "area": "battles",
+      "name": "Archers loosing as they close",
+      "status": "missing",
+      "evidence": [
+        "audio:BattleMan_StateCloseToAttack#1"
+      ],
+      "gap": "",
+      "rows": [
+        "battle-close-attack-and-elimination"
+      ]
+    },
+    {
+      "id": "third-mode",
+      "area": "battles",
+      "name": "A third battle mode",
+      "status": "not-assessed",
+      "evidence": [],
+      "gap": "",
+      "rows": [
+        "third-battle-mode"
+      ]
+    },
+    {
+      "id": "prisoners",
+      "area": "battles",
+      "name": "Prisoners and ransom",
+      "status": "not-assessed",
+      "evidence": [],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "skirmish",
+      "area": "battles",
+      "name": "Skirmish battles and ratings",
+      "status": "missing",
+      "evidence": [
+        "crates/l2-game/src/screens/ratings.rs"
+      ],
+      "gap": "",
+      "rows": [
+        "skirmish-battles"
+      ]
+    },
+    {
+      "id": "castle-building",
+      "area": "sieges",
+      "name": "Building castles",
+      "status": "done",
+      "evidence": [
+        "C64",
+        "crates/l2-game/tests/castles.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "laying-siege",
+      "area": "sieges",
+      "name": "Laying siege and building engines",
+      "status": "done",
+      "evidence": [
+        "C79",
+        "C106",
+        "crates/l2-kingdom/tests/siege.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "storming",
+      "area": "sieges",
+      "name": "Storming the gate, walls and keep",
+      "status": "done",
+      "evidence": [
+        "C99",
+        "C100",
+        "C101",
+        "crates/l2-game/tests/siege_battle.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "moat",
+      "area": "sieges",
+      "name": "Filling the moat",
+      "status": "done",
+      "evidence": [
+        "C81",
+        "C101"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "oil-towers",
+      "area": "sieges",
+      "name": "Boiling oil and siege towers",
+      "status": "partial",
+      "evidence": [
+        "C181",
+        "C203",
+        "crates/l2-sim/tests/siege.rs",
+        "crates/l2-sim/tests/castle_layout.rs"
+      ],
+      "gap": "castle level 3 pours none and docks none",
+      "rows": [
+        "siege-leftovers"
+      ]
+    },
+    {
+      "id": "castle-layout",
+      "area": "sieges",
+      "name": "The castle's shape in battle",
+      "status": "done",
+      "evidence": [
+        "C203",
+        "crates/l2-sim/tests/castle_layout.rs",
+        "crates/l2-game/tests/siege_picture.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "castle-designer",
+      "area": "sieges",
+      "name": "Castle designer",
+      "status": "not-assessed",
+      "evidence": [
+        "docs/plan.md"
+      ],
+      "gap": "",
+      "rows": [
+        "castle-designer"
+      ]
+    },
+    {
+      "id": "ai-farming",
+      "area": "ai",
+      "name": "AI lords farming their land",
+      "status": "partial",
+      "evidence": [
+        "C36",
+        "C149",
+        "C168"
+      ],
+      "gap": "replanting after a battle",
+      "rows": [
+        "battle-return-farm-tail",
+        "ai-realm3-never-plants"
+      ]
+    },
+    {
+      "id": "ai-war",
+      "area": "ai",
+      "name": "AI lords raising armies and attacking",
+      "status": "partial",
+      "evidence": [
+        "C67",
+        "C68",
+        "crates/l2-game/tests/ai_war.rs"
+      ],
+      "gap": "one attack differs from the original",
+      "rows": [
+        "siege-army-divergence"
+      ]
+    },
+    {
+      "id": "ai-sieges",
+      "area": "ai",
+      "name": "AI lords besieging castles",
+      "status": "done",
+      "evidence": [
+        "C106",
+        "crates/l2-kingdom/tests/ai_siege.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "diplomacy",
+      "area": "ai",
+      "name": "Gifts, insults and alliance offers",
+      "status": "done",
+      "evidence": [
+        "C84",
+        "crates/l2-game/tests/diplomacy.rs",
+        "crates/l2-game/tests/screens.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "alliances",
+      "area": "ai",
+      "name": "Standing and alliances",
+      "status": "done",
+      "evidence": [
+        "C83",
+        "C85"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "answering",
+      "area": "ai",
+      "name": "Answering a lord's letter",
+      "status": "done",
+      "evidence": [
+        "crates/l2-game/tests/messages.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "letter-text",
+      "area": "ai",
+      "name": "Writing a letter in your own words",
+      "status": "missing",
+      "evidence": [
+        "arms:0x004BA9C8/diplo-letter"
+      ],
+      "gap": "",
+      "rows": [
+        "letter-own-words"
+      ]
+    },
+    {
+      "id": "merchant-routes",
+      "area": "trade",
+      "name": "Merchants walking their routes",
+      "status": "done",
+      "evidence": [
+        "C40",
+        "C50"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "trading",
+      "area": "trade",
+      "name": "Buying and selling goods",
+      "status": "done",
+      "evidence": [
+        "C54",
+        "crates/l2-game/tests/merchant.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "ale",
+      "area": "trade",
+      "name": "Ale",
+      "status": "done",
+      "evidence": [
+        "C53"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "neutral-trade",
+      "area": "trade",
+      "name": "Trading in a neutral county",
+      "status": "done",
+      "evidence": [
+        "C149"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "ai-trade",
+      "area": "trade",
+      "name": "AI lords trading at market",
+      "status": "missing",
+      "evidence": [],
+      "gap": "",
+      "rows": [
+        "ai-trade-for-county"
+      ]
+    },
+    {
+      "id": "setup",
+      "area": "screens",
+      "name": "Title screen and game setup",
+      "status": "done",
+      "evidence": [
+        "C44",
+        "crates/l2-game/tests/setup.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "campaign-map",
+      "area": "screens",
+      "name": "Campaign map, zoom and scrolling",
+      "status": "done",
+      "evidence": [
+        "C48",
+        "C60",
+        "C139",
+        "C173",
+        "crates/l2-view/tests/install.rs",
+        "crates/l2-game/tests/chrome_text.rs",
+        "crates/l2-game/tests/screens.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "minimap",
+      "area": "screens",
+      "name": "Minimap and its overlays",
+      "status": "done",
+      "evidence": [
+        "crates/l2-game/tests/minimap.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "rotation",
+      "area": "screens",
+      "name": "Rotating the map",
+      "status": "not-assessed",
+      "evidence": [
+        "docs/screens.md"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "sidebar",
+      "area": "screens",
+      "name": "County sidebar and forecasts",
+      "status": "partial",
+      "evidence": [
+        "C123",
+        "C151",
+        "C180",
+        "crates/l2-game/tests/right_column.rs"
+      ],
+      "gap": "efficiency ramp with Advanced Farming",
+      "rows": [
+        "industry-efficiency-ramp"
+      ]
+    },
+    {
+      "id": "county-panels",
+      "area": "screens",
+      "name": "Population, tax, happiness, ration panels",
+      "status": "done",
+      "evidence": [
+        "C133",
+        "C142"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "village",
+      "area": "screens",
+      "name": "The village",
+      "status": "done",
+      "evidence": [
+        "C22",
+        "C63"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "crop-pictures",
+      "area": "screens",
+      "name": "Crops growing on the map",
+      "status": "done",
+      "evidence": [
+        "C77",
+        "C124",
+        "C180",
+        "C195",
+        "crates/l2-game/tests/wheat.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "job-popups",
+      "area": "screens",
+      "name": "Job popups",
+      "status": "done",
+      "evidence": [
+        "C177",
+        "C191",
+        "crates/l2-game/tests/job_bodies.rs",
+        "arms:0x004BA9C8/blacksmith-weapon-choice"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "field-info",
+      "area": "screens",
+      "name": "Clicking a field for its details",
+      "status": "partial",
+      "evidence": [
+        "C173",
+        "C174",
+        "C199",
+        "C204",
+        "crates/l2-game/tests/job_bodies.rs",
+        "crates/l2-game/tests/screens.rs",
+        "crates/l2-game/src/screens/info.rs"
+      ],
+      "gap": "road, sea, mountain, wood, village arms",
+      "rows": [
+        "tile-panel-rest-of-the-ladder"
+      ]
+    },
+    {
+      "id": "messages",
+      "area": "screens",
+      "name": "Letters and announcements",
+      "status": "partial",
+      "evidence": [
+        "C126",
+        "C197",
+        "C210",
+        "crates/l2-game/tests/messages.rs",
+        "crates/l2-game/tests/arrival.rs",
+        "crates/l2-game/tests/pacing.rs"
+      ],
+      "gap": "a battle eats a letter",
+      "rows": [
+        "battle-phase-swallows-messages"
+      ]
+    },
+    {
+      "id": "menus-options",
+      "area": "screens",
+      "name": "Menu bar and options",
+      "status": "done",
+      "evidence": [
+        "C152",
+        "C165",
+        "arms:options-panels"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "click-feel",
+      "area": "screens",
+      "name": "Clicks and double-clicks",
+      "status": "partial",
+      "evidence": [
+        "C131",
+        "C148",
+        "C182",
+        "C207",
+        "crates/l2-game/tests/gestures.rs",
+        "crates/l2-game/src/input.rs"
+      ],
+      "gap": "the save and trade spoken lines",
+      "rows": [
+        "save-trade-speech"
+      ]
+    },
+    {
+      "id": "text-entry",
+      "area": "screens",
+      "name": "Typing save names",
+      "status": "done",
+      "evidence": [
+        "C74",
+        "crates/l2-game/tests/text.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "fonts",
+      "area": "screens",
+      "name": "The original's lettering",
+      "status": "done",
+      "evidence": [
+        "C157",
+        "C163",
+        "C174",
+        "C175"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "tooltips",
+      "area": "screens",
+      "name": "Tool tips",
+      "status": "done",
+      "evidence": [
+        "C167",
+        "crates/l2-game/tests/tooltips.rs"
+      ],
+      "gap": "",
+      "rows": [
+        "tooltip-names-and-quirk"
+      ]
+    },
+    {
+      "id": "tips",
+      "area": "screens",
+      "name": "Advisor tips",
+      "status": "partial",
+      "evidence": [
+        "C160",
+        "C178",
+        "C207",
+        "crates/l2-game/tests/tips.rs"
+      ],
+      "gap": "a right press under a tip",
+      "rows": []
+    },
+    {
+      "id": "pointer",
+      "area": "screens",
+      "name": "Mouse pointer changing shape",
+      "status": "missing",
+      "evidence": [
+        "docs/screens.md"
+      ],
+      "gap": "",
+      "rows": [
+        "town-square-cursor"
+      ]
+    },
+    {
+      "id": "standings",
+      "area": "screens",
+      "name": "Standings: the greatest nobles",
+      "status": "done",
+      "evidence": [
+        "arms:standings",
+        "audio:FUN_004b3994#1",
+        "crates/l2-game/tests/standings.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "help-file",
+      "area": "screens",
+      "name": "Game help",
+      "status": "missing",
+      "evidence": [
+        "arms:0x00434942/opt-game-help-contents"
+      ],
+      "gap": "",
+      "rows": [
+        "game-help"
+      ]
+    },
+    {
+      "id": "music",
+      "area": "sound",
+      "name": "Music",
+      "status": "partial",
+      "evidence": [
+        "C116",
+        "crates/l2-game/tests/audio_wiring.rs"
+      ],
+      "gap": "credits, ending and conquest music",
+      "rows": [
+        "music-credits-ending-conquest"
+      ]
+    },
+    {
+      "id": "narrator",
+      "area": "sound",
+      "name": "Narrator and lords' voices",
+      "status": "partial",
+      "evidence": [
+        "C126",
+        "audio:FUN_004b3714#1",
+        "audio:FUN_004b3994#1",
+        "crates/l2-game/src/audio/names.rs"
+      ],
+      "gap": "confirm box, castle chooser",
+      "rows": [
+        "sibling-voice-tables"
+      ]
+    },
+    {
+      "id": "battle-speech",
+      "area": "sound",
+      "name": "Speech before a battle",
+      "status": "missing",
+      "evidence": [
+        "audio:Siege_LaunchAssault#1"
+      ],
+      "gap": "",
+      "rows": [
+        "battle-speech"
+      ]
+    },
+    {
+      "id": "battle-sounds",
+      "area": "sound",
+      "name": "Battle sounds",
+      "status": "partial",
+      "evidence": [
+        "C166",
+        "C181",
+        "crates/l2-game/tests/audio_battle.rs"
+      ],
+      "gap": "closing archers; mid-battle wipe-out",
+      "rows": [
+        "battle-close-attack-and-elimination"
+      ]
+    },
+    {
+      "id": "clicks",
+      "area": "sound",
+      "name": "Button clicks",
+      "status": "done",
+      "evidence": [
+        "C156",
+        "crates/l2-game/tests/click.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "field-sounds",
+      "area": "sound",
+      "name": "Field-painting sounds",
+      "status": "missing",
+      "evidence": [
+        "audio:FUN_00438b02#1"
+      ],
+      "gap": "",
+      "rows": [
+        "field-brush-sounds"
+      ]
+    },
+    {
+      "id": "wreck-sounds",
+      "area": "sound",
+      "name": "Armies wrecking fields and homes",
+      "status": "missing",
+      "evidence": [
+        "audio:Unit_TrampleTile#1"
+      ],
+      "gap": "",
+      "rows": [
+        "wreck-sounds"
+      ]
+    },
+    {
+      "id": "mixing",
+      "area": "sound",
+      "name": "Speech and fanfares not overlapping",
+      "status": "done",
+      "evidence": [
+        "C176",
+        "crates/l2-game/tests/audio_wiring.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "films",
+      "area": "sound",
+      "name": "Films: intro, castles, battles, ending",
+      "status": "partial",
+      "evidence": [
+        "C171",
+        "C190",
+        "crates/l2-game/tests/arrival.rs",
+        "crates/l2-game/tests/movies.rs",
+        "C208"
+      ],
+      "gap": "skips",
+      "rows": [
+        "film-skip-gaps"
+      ]
+    },
+    {
+      "id": "season-fade",
+      "area": "sound",
+      "name": "Fade between seasons",
+      "status": "done",
+      "evidence": [
+        "C59"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "village-animation",
+      "area": "sound",
+      "name": "Village animations",
+      "status": "done",
+      "evidence": [
+        "C63"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "unit-walk",
+      "area": "sound",
+      "name": "Armies walking smoothly on the map",
+      "status": "partial",
+      "evidence": [
+        "docs/screens.md",
+        "C184",
+        "crates/l2-game/tests/screens.rs"
+      ],
+      "gap": "row offset; draw order",
+      "rows": [
+        "map-row-column-offset",
+        "map-unit-draw-order"
+      ]
+    },
+    {
+      "id": "animations-option",
+      "area": "sound",
+      "name": "Animations option",
+      "status": "missing",
+      "evidence": [],
+      "gap": "",
+      "rows": [
+        "animations-option-readers"
+      ]
+    },
+    {
+      "id": "new-game",
+      "area": "game",
+      "name": "New game on any of the 44 maps",
+      "status": "partial",
+      "evidence": [
+        "C62",
+        "crates/l2-game/tests/newgame.rs"
+      ],
+      "gap": "two extra setup steps run",
+      "rows": [
+        "newgame-extra-turn-steps"
+      ]
+    },
+    {
+      "id": "shield",
+      "area": "game",
+      "name": "Choosing your shield",
+      "status": "done",
+      "evidence": [
+        "C130",
+        "crates/l2-game/tests/newgame.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "start-options",
+      "area": "game",
+      "name": "Starting gold, castle and army",
+      "status": "not-assessed",
+      "evidence": [
+        "C44"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "turn-timer",
+      "area": "game",
+      "name": "Turn time limit",
+      "status": "done",
+      "evidence": [
+        "C158"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "save-load",
+      "area": "game",
+      "name": "Saving and loading",
+      "status": "partial",
+      "evidence": [
+        "C30",
+        "C161",
+        "C162",
+        "crates/l2-game/tests/save.rs"
+      ],
+      "gap": "five farming details lost",
+      "rows": [
+        "lost-rule-inputs"
+      ]
+    },
+    {
+      "id": "autosave",
+      "area": "game",
+      "name": "Autosave every turn",
+      "status": "done",
+      "evidence": [
+        "C190",
+        "crates/l2-game/tests/save.rs",
+        "crates/l2-game/tests/newgame.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "victory",
+      "area": "game",
+      "name": "Winning and losing",
+      "status": "done",
+      "evidence": [
+        "C32",
+        "crates/l2-game/tests/ending.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "scoring",
+      "area": "game",
+      "name": "Scoring",
+      "status": "done",
+      "evidence": [
+        "C33"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "campaign",
+      "area": "game",
+      "name": "The eight-map campaign",
+      "status": "done",
+      "evidence": [
+        "crates/l2-kingdom/tests/campaign.rs"
+      ],
+      "gap": "",
+      "rows": []
+    },
+    {
+      "id": "multiplayer",
+      "area": "game",
+      "name": "Multiplayer",
+      "status": "out-of-scope",
+      "evidence": [
+        "docs/plan.md"
+      ],
+      "gap": "",
+      "rows": [
+        "lobby-player-shield"
+      ]
+    }
   ]
 }
