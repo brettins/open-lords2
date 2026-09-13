@@ -11766,3 +11766,50 @@ change, with the two digests differing after a single frame — and
 `the_poster_touches_nothing_in_the_kingdom` hashes the kingdom either side of a
 post. The branch's earlier test restored the latch in a test-local clone, which
 proved the byte was the only one written and nothing about two peers.
+
+---
+
+**CNEW-mapdraw — three of the campaign map's four reported draw defects were
+one sentence each in the painter, and the fourth was already built.**
+
+Four ledger rows, started from `Map_DrawArmies` (`0x00408438`) and the army pass
+`FUN_00405487` (`0x00405487`) rather than from the screenshots.
+
+**1. The two pixels.** `Map_DrawArmies` takes a `mode` and adds a different
+constant to the figure's x for each: `mode == 1` adds `-2` where `mode == 0`
+adds `g_mapTileHalfStep`. The only call site that passes 1 is the first
+statement of `FUN_004059AF` (`0x004059AF`), the **offset** row walker, before it
+advances `g_drawX` by the half-step — so the leftmost column of every other
+lattice row puts its figure on `g_mapViewX - 2` where the row's own spacing puts
+it on `g_mapViewX`. It is viewport-relative, not a property of the tile: scroll
+one column and a different army is the one that shifts. `l2_view::campaign::unit_anchor`.
+**`mode == 2` (`halfStep - 2`) is dead** — 0 and that single 1 are the only
+literals reaching the function in the corpus — so it is recorded here and not built.
+
+**2. The order.** The army pass does not walk `g_units` at all. It walks the
+lattice, cell by cell, and `Map_DrawArmies`' whole body is a walk of *one tile's*
+list (`g_tiles[cursor].unit`, then `+0x04`). So the painter is ordered by
+lattice row, then column, then the tile's list, and ours was ordered by array
+slot: which of two overlapping armies was on top was decided by which had the
+lower id, and the answer flipped when a slot was reused. `map::units_in_paint_order`.
+The within-tile tie-break is `[D]` — the original's is insertion order in a list
+this crate does not keep, and ascending id stands in for it.
+
+**3. The figures.** *Already built, and the ledger row was reading a stale
+comment.* `Army_Tick` (`0x0046521F`) picks sprite bank `0x48`, `0x60` or `0x78`
+on `CMP …, 300` / `CMP …, 600`; `l2_kingdom::unit::SPRITE_BANKS` and
+`ARMY_SIZE_CLASS_MAX` are those, `Unit::sprite_frame` uses them, and
+`draw_units` draws that frame. The square marker the comment describes is the
+no-sheet fallback. Nothing was changed. **`[I]` remains on the banks being
+literally one, two and three figures** — nobody has looked at `Sprite1a.pl8`.
+
+**4. The seceded mine.** `Industry_ProduceAll` (`0x0044E852`) calls
+`Industry_UpdateSiteTile` (`0x0044EDC2`) for `c = 1 … g_countyCount` with **no
+owner test**; the owner test is one level down, inside `Industry_Produce`
+(`0x0044EA92`), where `if (realm != 0)` guards production alone. Ours had put it
+on the repaint. `County_MakeIndependent` (`0x004AC3C6`) clears the four `enabled`
+flags and touches no tile, and those two functions hold every call site of
+`Industry_UpdateSiteTile` there is — so a seceded county's terrain byte stayed on
+`base + 1`, the *working* value `Sprite_TopIt` (`0x004071A0`) animates, and its
+wheel turned for the rest of the game. Deleting the gate is the whole fix.
+**Not a `docs/bugs.md` entry**: the original repaints it the next season.

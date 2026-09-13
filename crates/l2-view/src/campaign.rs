@@ -659,17 +659,62 @@ pub fn unit_sprite_rect(
     sprite: UnitSprite,
 ) -> Option<(i32, i32, l2_formats::pl8::DecodedFrame)> {
     let decoded = assets.sprite_sheet(zoom, sprite.sheet)?.frame(sprite.frame)?;
-    let (row, col) = tile_to_cell(tile.0, tile.1);
-    let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    let (ax, ay) = unit_anchor(view, zoom, tile);
     let (nx, ny) = sprite.nudge;
     let (wx, wy) = sprite.walk;
-    // `local_1c = walkX + g_mapTileHalfStep; local_20 = walkY + g_mapHalfPitch;`
-    // then the kind's nudge, then `x -= w/2; y -= h`.
+    // Then the kind's nudge, then `x -= w/2; y -= h`.
     Some((
-        sx + zoom.half_pitch + wx + nx - decoded.width as i32 / 2,
-        sy + zoom.half_pitch + wy + ny - decoded.height as i32,
+        ax + wx + nx - decoded.width as i32 / 2,
+        ay + wy + ny - decoded.height as i32,
         decoded,
     ))
+}
+
+/// **`Map_DrawArmies`' `mode` parameter (`0x00408438`)** — and the two pixels
+/// the leftmost column of every offset row is drawn to the left of its tile.
+///
+/// The painter adds a constant to the figure's x before centring, and which
+/// constant is the argument its caller passed:
+///
+/// ```c
+/// if      (mode == 1) local_1c = local_1c + -2;
+/// else if (mode == 2) local_1c = local_1c + g_mapTileHalfStep + -2;   /* dead */
+/// else                local_1c = local_1c + g_mapTileHalfStep;
+/// local_20 = local_20 + g_mapHalfPitch;
+/// ```
+///
+/// **`-2` is read out of that branch, not chosen**, and so is which cell gets
+/// it. The army pass is `FUN_00405487` (`0x00405487`), which walks the lattice
+/// through two row functions: `FUN_00405862` (`0x00405862`), the aligned row,
+/// passes **mode 0** for every column, while `FUN_004059AF` (`0x004059AF`),
+/// the offset row, opens with
+///
+/// ```c
+/// g_drawX = g_mapViewX;
+/// g_tileCursor = lattice[g_mapStartCol][g_latticeRow];
+/// if (...) Map_DrawArmies(1);             /* the leftmost column, and only it */
+/// g_drawX = g_drawX + g_mapTileHalfStep;  /* …every other column is mode 0 */
+/// ```
+///
+/// so that one figure lands on `g_mapViewX - 2` where the row's own spacing
+/// puts it on `g_mapViewX`. **`mode == 2` has no caller in the corpus** — the
+/// only literals reaching `Map_DrawArmies` anywhere are 0 and that single 1 —
+/// so the middle branch is written down here rather than built.
+///
+/// It is a *viewport*-relative quirk, not a property of the tile: scroll one
+/// column and a different army is the one that shifts. `docs/bugs.md` has no
+/// entry against it, and reproducing the painter is reproducing this.
+///
+/// Returns the anchor the sprite is centred on; the walk offset, the kind's
+/// nudge and the `w/2` / `h` subtraction are [`unit_sprite_rect`]'s.
+pub fn unit_anchor(view: Viewport, zoom: &Zoom, tile: (usize, usize)) -> (i32, i32) {
+    let (row, col) = tile_to_cell(tile.0, tile.1);
+    let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    // `Map_RenderIso` starts on an even lattice row and `Viewport::clamped`
+    // keeps `view.row` even, so an odd row is an offset row.
+    let head_of_offset_row = row & 1 == 1 && col == view.col;
+    let x = if head_of_offset_row { sx + zoom.half_pitch - 2 } else { sx + zoom.half_pitch };
+    (x, sy + zoom.half_pitch)
 }
 
 /// Which sheet, which frame and which per-kind nudge one unit draws with.
@@ -1886,6 +1931,33 @@ mod tests {
         // scroll at all: 0x80 - 128 = 0.
         assert_eq!(FAR.max_row(), 0);
         assert_eq!(Viewport::new(50, 50).clamped(&FAR), Viewport::new(0, 24));
+    }
+
+    /// **`Map_DrawArmies(1)`, and nothing else in the walk gets it.**
+    /// `FUN_004059AF` passes mode 1 for the leftmost column of an offset row
+    /// only, and mode 1 adds `-2` where mode 0 adds `g_mapTileHalfStep`. See
+    /// [`unit_anchor`].
+    #[test]
+    fn the_first_figure_of_an_offset_row_stands_two_pixels_left_of_its_tile() {
+        // `tile_to_cell(x, y) = (x + y + 1, (x - y + 64) >> 1)`.
+        let view = Viewport::new(20, 32);
+        assert_eq!(view.row & 1, 0, "the walk starts on an aligned row");
+        assert_eq!(tile_to_cell(10, 10), (21, 32), "the offset row's leftmost cell");
+        assert_eq!(tile_to_cell(11, 9), (21, 33), "the next column of the same row");
+        assert_eq!(tile_to_cell(10, 9), (20, 32), "the aligned row's leftmost cell");
+
+        for z in ZOOMS {
+            // mode 1: `g_drawX = g_mapViewX; local_1c += -2`.
+            assert_eq!(unit_anchor(view, &z, (10, 10)).0, z.view_x - 2, "zoom {} mode 1", z.id);
+            // mode 0, one column along: `g_drawX = viewX + halfStep`, `+ halfStep`.
+            assert_eq!(unit_anchor(view, &z, (11, 9)).0, z.view_x + z.pitch, "zoom {} col 1", z.id);
+            // mode 0 on the aligned row above it, which keeps its half-step.
+            let aligned = unit_anchor(view, &z, (10, 9)).0;
+            assert_eq!(aligned, z.view_x + z.half_pitch, "zoom {} aligned", z.id);
+            // The two rows are half a pitch apart, and the quirk is 2 px on top
+            // of that — stated as a difference so it cannot be read as spacing.
+            assert_eq!(aligned - unit_anchor(view, &z, (10, 10)).0, z.half_pitch + 2, "zoom {}", z.id);
+        }
     }
 
     /// The eight directions move by one map tile each, and the far zoom refuses

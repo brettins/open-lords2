@@ -3403,9 +3403,54 @@ fn unit_sprite(zoom: &Zoom, game: &crate::game::Game, id: usize, unit: &l2_kingd
 /// The square marker is the fallback for an install with no `Sprite?a.pl8`, and
 /// for the placeholder assets the tests use. It says *there is something here*
 /// without claiming to be the game's art. `docs/decisions.md` C21.
+/// **The order `Map_DrawArmies` (`0x00408438`) is called in** — which is not
+/// the order the unit array is in, and that was the defect.
+///
+/// The army pass is `FUN_00405487` (`0x00405487`) and it does not walk
+/// `g_units` at all. It walks the **lattice**: the top aligned row's `cols`
+/// cells, then `FUN_004059AF` / `FUN_00405862` alternating down the viewport,
+/// each cell setting `g_tileCursor` and calling `Map_DrawArmies`, whose body is
+/// a list walk over that one tile —
+///
+/// ```c
+/// local_28 = g_tiles[g_tileCursor].unit;
+/// for (; local_28 != 0; local_28 = g_units[local_28].field_0x4) { …draw… }
+/// ```
+///
+/// So the painter's order is **lattice row, then column, then the tile's own
+/// list**, and a figure standing on a lower row is painted over one standing
+/// behind it whatever their array slots are. Ours drew in array order, so which
+/// of two overlapping armies was on top was decided by which had the lower id —
+/// a unit that marched *behind* another could be drawn in front of it, and the
+/// answer flipped when a slot was reused.
+///
+/// `l2_view::campaign::tile_to_cell` is the lattice address, so sorting by it
+/// **is** the walk: the walk visits every cell of a row left to right and every
+/// row top to bottom, and skips nothing a unit could be standing on.
+///
+/// **`[D]` on the within-tile tie-break.** The original's is the tile's linked
+/// list, which is insertion order and which this crate does not keep; ascending
+/// id is what stands in for it. It decides only which of two units *on the same
+/// tile* is on top.
+pub fn units_in_paint_order(game: &crate::game::Game) -> Vec<usize> {
+    let mut order: Vec<(i32, i32, usize)> = game
+        .kingdom
+        .campaign
+        .units
+        .iter()
+        .map(|(id, u)| {
+            let (row, col) = campaign::tile_to_cell(u.x as usize, u.y as usize);
+            (row, col, id)
+        })
+        .collect();
+    order.sort_unstable();
+    order.into_iter().map(|(.., id)| id).collect()
+}
+
 fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
-    for (id, unit) in ctx.game.kingdom.campaign.units.iter() {
+    for id in units_in_paint_order(ctx.game) {
+        let Some(unit) = ctx.game.kingdom.campaign.units.get(id) else { continue };
         // **`Map_DrawArmies`' whole body is inside the fog test**:
         // `if (g_optExploration != 1 || (tile.bank & 0x20) != 0) { ...every unit
         // on the tile... }`. A unit in the dark is not drawn — not its figure,
