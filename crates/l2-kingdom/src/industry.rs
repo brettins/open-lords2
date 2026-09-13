@@ -859,6 +859,11 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
     county.castle_stone_total = stone;
     county.castle_wood_total = wood;
     county.castle_percent = 0;
+    // `Labour_ToggleIndustryShare(county, 3, 1)` — `Castle_Order`
+    // (`0x00436D02`) calls it between `Castle_EvictTile` and the take, so the
+    // order itself puts builders on the castle. Without it the job's share
+    // stayed 0 at any industry split. `[V]`
+    crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, true);
     county.castle_stone_owed = take_from(&mut realm.stone, stone);
     county.castle_wood_owed = take_from(&mut realm.wood, wood);
     true
@@ -977,8 +982,12 @@ pub fn build_tick(
     let repaired = county.castle_degraded == crate::siege::CASTLE_DEGRADED_DAMAGED;
     let free_archers = if repaired { 0 } else { free_garrison_archers(t, county) };
     county.castle_degraded = 0;
-    // `Labour_ToggleIndustryShare(county, 3, 0)` — the builders go back to the
-    // fields the moment the castle tops out.
+    // `Castle_BuildTick` (`0x004508DE`) ends the degraded branch with
+    // `castleDegraded = 0; Labour_ToggleIndustryShare(county, 3, 0)` — the
+    // builders go back to the fields the moment the castle tops out. `[V]`
+    // It does not write `+0x1B0`; we clear the switch with it so the flag and
+    // the share agree, which `Industry_ToggleFromMap` assumes. `[I]`
+    crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, false);
     county.castle_switch = false;
     out.push(Message::CastleBuilt { county: id, castle_type: county.castle_type });
     Some(CastleComplete { free_archers, repaired })
@@ -1743,6 +1752,34 @@ mod tests {
         c.owner = 1;
         c.population = pop;
         c
+    }
+
+    /// **Ordering a castle staffs it** — `Castle_Order` (`0x00436D02`) calls
+    /// `Labour_ToggleIndustryShare(county, 3, 1)`, so the job leaves the order
+    /// with a share and the five-member group still sums to 100. It had a
+    /// share of 0 at any industry split before.
+    #[test]
+    fn ordering_a_castle_puts_builders_on_it() {
+        use crate::tables::JOB_CASTLE_BUILDING;
+        let industry = |c: &County| c.labour_share[JOB_CASTLE_BUILDING..].iter().sum::<i32>();
+
+        let mut c = owned(2_000);
+        c.industry_share = 100;
+        let mut r = Realm::new();
+        r.wood = 10_000;
+        r.stone = 10_000;
+        assert_eq!(c.labour_share[JOB_CASTLE_BUILDING], 0, "nobody builds before the order");
+
+        assert!(order_castle(T, &mut c, &mut r, 3));
+        assert!(c.labour_share[JOB_CASTLE_BUILDING] > 0, "the order staffs the castle job");
+        assert_eq!(industry(&c), 100, "and the industry group still sums to 100");
+
+        // `Castle_BuildTick`'s completion branch takes them off again.
+        let mut out = Vec::new();
+        c.castle_work_left = 0;
+        assert!(build_tick(T, &mut c, &mut r, 0, &mut out).is_some());
+        assert_eq!(c.labour_share[JOB_CASTLE_BUILDING], 0, "and the topped-out castle frees them");
+        assert_eq!(industry(&c), 100);
     }
 
     /// **A castle you cannot afford is ordered anyway** — `Castle_Order` has no
