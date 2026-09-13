@@ -300,8 +300,30 @@ pub struct Ratings {
     pub mine: (Snapshot, Snapshot),
     pub theirs: (Snapshot, Snapshot),
     pub ending: Ending,
-    /// Shield indices for the two blocks.
-    pub shields: (u8, u8),
+    /// **The two blocks' realm ids**, `(g_localPlayer, DAT_0056D5CC)` — not
+    /// shield indices, which is what this used to hold. Both globals index
+    /// `g_playerNames` and `g_realms` the same way, so the shield is
+    /// `g_realms[realm].shieldIndex` and the name `g_playerNames[realm]`.
+    pub realms: (u8, u8),
+}
+
+/// **`DAT_0056D5CC`, the skirmish opponent's realm**, written only by
+/// `Skirmish_Setup` (`0x0042B7F7`): `g_localPlayer == 1 ? 2 : 1`. **[V]**, the
+/// one write in the binary.
+pub fn skirmish_opponent(local: u8) -> u8 {
+    if local == 1 {
+        2
+    } else {
+        1
+    }
+}
+
+impl Ratings {
+    /// An empty result between `local` and the realm `Skirmish_Setup` pairs
+    /// him against.
+    pub fn for_local(local: u8) -> Ratings {
+        Ratings { realms: (local, skirmish_opponent(local)), ..Ratings::default() }
+    }
 }
 
 impl Default for Ratings {
@@ -310,9 +332,28 @@ impl Default for Ratings {
             mine: (Snapshot::default(), Snapshot::default()),
             theirs: (Snapshot::default(), Snapshot::default()),
             ending: Ending::Fought,
-            shields: (1, 2),
+            realms: (1, skirmish_opponent(1)),
         }
     }
+}
+
+/// **What the block writes over a shield** — `Ui_DrawText(&g_playerNames +
+/// realm * 0x2C, …)`. Group 37 has no word for a player, so the fallback when
+/// nothing filled the names is ours and is the one `screens/county.rs` uses:
+/// a world that never came through the front end has no lords in it, and an
+/// empty line beside a shield reads as a drawing fault rather than as missing
+/// data.
+fn lord_name(ctx: &Ctx, realm: u8) -> String {
+    match ctx.game.player_names.get(realm as usize).map(|n| n.as_str()) {
+        Some(n) if !n.is_empty() => n.to_string(),
+        _ => format!("REALM {realm}"),
+    }
+}
+
+/// `Pl8_DrawFrame(g_miscCtySheet, g_realms[realm].shieldIndex + 8, 0x70, y)`.
+fn shield_frame(ctx: &Ctx, realm: u8) -> usize {
+    let index = ctx.game.kingdom.realms.get(realm as usize).map_or(0, |r| r.shield_index);
+    SHIELD_FRAME0 + index as usize
 }
 
 /// `PctOf(a, b) = a * 100 / b`, **zero when `b` is zero** — the original's own
@@ -463,17 +504,18 @@ impl Screen for RatingsScreen {
 
         let (mine, theirs) = score(&self.ratings);
         let blocks = [
-            (self.ratings.mine, self.ratings.theirs, self.ratings.shields.0, mine),
-            (self.ratings.theirs, self.ratings.mine, self.ratings.shields.1, theirs),
+            (self.ratings.mine, self.ratings.theirs, self.ratings.realms.0, mine),
+            (self.ratings.theirs, self.ratings.mine, self.ratings.realms.1, theirs),
         ];
-        for (b, &((before, after), (their_before, their_after), shield, points)) in
+        for (b, &((before, after), (their_before, their_after), realm, points)) in
             blocks.iter().enumerate()
         {
             let top = BLOCK_Y[b];
-            pen.misc_frame(canvas, SHIELD_FRAME0 + shield as usize, SHIELD_X, top);
-            // The lord names are not in this tree; `screens/battle.rs` has the
-            // same hole and this is its stand-in rather than a second one.
-            let name = format!("PLAYER {}", b + 1);
+            pen.misc_frame(canvas, shield_frame(ctx, realm), SHIELD_X, top);
+            // `Ui_DrawText(&g_playerNames + realm * 0x2C, 0xD8, …)` — the lord's
+            // own name. This read `PLAYER 1` / `PLAYER 2` because the struct
+            // carried shield indices and no realm id.
+            let name = lord_name(ctx, realm);
             // **[`Pen::body`] returns an absolute x, not a width** — see its
             // own doc comment and `docs/decisions.md` C61. These three lines
             // added it to `NAME_AT.0` a second time, which with the real fonts

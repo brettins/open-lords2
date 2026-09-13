@@ -1101,8 +1101,8 @@ fn the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction() {
 /// Ui_DrawNumber(score, ' ', &DAT_004D43B4, g_penAdvance + 0xEC, 0x69, &g_fontHeading, 0x3F);
 /// ```
 ///
-/// The name is ours (`"PLAYER 1"` — the lord names are not in this tree), and it
-/// is measured, not assumed.
+/// The name is `g_playerNames[realm]`, which this test writes so the pen
+/// advance in front of the score is a known width; it is measured, not assumed.
 ///
 /// Ablated: `Face::Heading` → `Face::Body` at the call site — the score is not
 /// found on row `0x69` in the heading face (`None` where `Some(422)` is expected).
@@ -1112,6 +1112,10 @@ fn the_battle_master_score_is_in_the_heading_face() {
     let (mut game, assets) = world!();
     let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
     let heading = assets.shell.heading.as_ref().expect("Fntl2_22.pl8");
+    // The block is keyed by `g_localPlayer`'s realm and draws his name, so the
+    // advance in front of the score is that name's width.
+    game.player_names[Ratings::default().realms.0 as usize] =
+        l2_game::text::PlayerName::new("PLAYER 1");
     let mut screen = ratings::RatingsScreen::new();
     let canvas = draw(&mut screen, &mut game, &assets);
 
