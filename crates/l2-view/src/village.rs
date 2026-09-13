@@ -58,14 +58,14 @@
 //!
 //! # The icons
 //!
-//! One icon is `ceil(population / 25)` people, which is why a cluster has
+//! One icon is `ceil(population / 25)` people.
 //! twenty-five slots. `Misc_cty.pl8` frames 0 … 0x16 are the icons — twenty-
 //! three 16 x 32 frames that `docs/screens-county.md` §9 guessed were "almost
 //! certainly the top menu bar", marked `[I]` and never checked. They are not.
 //! **`[V]`**: [`ICON_VALUE`] is the shipped table at `0x004D6808`, its nine
 //! entries are nine (normal, highlighted) pairs, and the four frames it never
 //! names — 5, 6, 11 and 12 — are exactly the four frames in that range of the
-//! shipped file that are **2 x 2 stubs** rather than 16 x 32 icons. Nineteen
+//! shipped file that are **2 x 2 stubs**.
 //! icons, nineteen 16 x 32 frames, nothing left over.
 
 use crate::sheet::Sheet;
@@ -135,15 +135,15 @@ pub const IDLE_CLUSTER: usize = 6;
 /// It is an over-read and it is reproduced on purpose — `docs/bugs.md`. The two
 /// words past `g_jobClusterToSlot` are the head of `DAT_004D67A0`, and they are
 /// **4** and **6**, read out of the shipped `Lords2.exe` at `0x004D67A0` by
-/// `crates/l2-view/tests/install.rs`. So a double click on the idle cluster
+/// `crates/l2-view/tests/install.rs`.
 /// also balances slot 4, *Iron mining* — which no cluster 0 … 7 reaches unless
 /// the county's cluster 0 has been overridden to it — and balances slot 6,
 /// *Wood cutting*, a second time. Whether the original meant to reach iron or
 /// merely ran off the end of its table, the effect is that the gesture covers
 /// **all nine slots**, and a faithful reimplementation has to loop the same ten.
 pub const CLUSTER_TO_SLOT_BALANCE: [usize; 10] = [5, 0, 1, 3, 6, 7, 8, 2, 4, 6];
-/// Where the ten words above start, so a test can read them back out of the
-/// user's own executable rather than trusting this table.
+/// Where the ten words above start,
+/// user's own executable.
 pub const CLUSTER_TO_SLOT_VA: u32 = 0x004D_6780;
 
 /// `Village_Draw`: `FUN_0040A682(0, 0x40, g_villageTopY)`.
@@ -177,7 +177,7 @@ pub const SCENE_H: i32 = 320;
 /// `g_villageTopY + 320`. The menu bar (y 0 … 23) and all but the first two
 /// columns of the county sidebar (x 478 … 639) are outside it — 480 is a dword
 /// boundary and 478 is not, which is the whole of why it overshoots by two.
-/// The picture itself is narrower still — 363 wide from x = 64 — so a strip of
+/// The picture itself is narrower still — 363 wide from x = 64 —
 /// campaign map shows on both sides of it even inside the band.
 pub const BAND_X: i32 = 0;
 pub const BAND_W: i32 = 480;
@@ -221,8 +221,8 @@ pub const BAND_H: i32 = 0x178;
 /// surplus icons use.
 pub const ICON_VALUE: [u8; 9] = [4, 8, 10, 14, 16, 18, 20, 22, 2];
 
-/// Where the nine dwords above start, so a test can read them back out of the
-/// user's own executable rather than trusting the transcription.
+/// Where the nine dwords above start,
+/// user's own executable.
 ///
 /// It is nine **dwords**, not nine bytes: 4 8 10 14 16 18 20 22 2.
 pub const ICON_VALUE_VA: u32 = 0x004D_6808;
@@ -237,7 +237,7 @@ pub const ICON_SURPLUS: u8 = 2;
 
 /// `DAT_004D6830` — the order the twenty-five slots of a single-state cluster
 /// fill in. A permutation of 1 ..= 25, so the icons appear scattered over the
-/// grid rather than in reading order.
+/// grid.
 pub const FILL_ORDER: [u8; ICONS_PER_CLUSTER] = [
     10, 22, 6, 19, 11, 25, 5, 15, 2, 23, 9, 14, 1, 16, 7, 18, 4, 17, 3, 20, 13, 21, 8, 24, 12,
 ];
@@ -275,7 +275,7 @@ pub fn slot_for_cluster(cluster: usize, has_quarry: bool, has_mine: bool) -> usi
 ///
 /// Only cluster 0 can refuse, and only for a county with neither a quarry nor a
 /// mine. **The cluster is still drawn** — `Village_DrawPeasants` loops 0 … 7
-/// with no test at all — which is the binary agreeing that a county without a
+/// with no test at all —.
 /// mine still shows the slot; it simply has nobody in it.
 pub fn cluster_is_clickable(cluster: usize, has_quarry: bool, has_mine: bool) -> bool {
     cluster != 0 || has_quarry || has_mine
@@ -426,7 +426,7 @@ fn fill_two(
 /// if (county.industry[1].hasResource) Pl8_DrawFrame(villani2, 0x2b, 0x4c, top + 0x0c);
 /// ```
 ///
-/// Three things it settles, all of which had been guessed at:
+/// Three things it settles,
 ///
 /// * **The sheet is `villani2.pl8`, not `Misc_cty.pl8`.** This module's own
 ///   doc comment on [`CLUSTER_COUNT`] named `Misc_cty` frames `0x2B` and `0x28`
@@ -476,7 +476,7 @@ pub struct Overlay {
 /// if (industry[1].hasResource) Pl8_DrawFrame(villani1, c2938,     0xa4, top + 0xc);
 /// ```
 ///
-/// Three things this settles that were not known before:
+/// Three things this settles:
 ///
 /// * **Three of the six are unconditional.** Every village animates, whatever
 ///   the county holds. The three that were written down here previously were
@@ -534,6 +534,34 @@ pub const PULSE_FAST_MS: u32 = 80;
 /// The 160 ms pulse — `DAT_0057D3AC`, two of the fast one.
 pub const PULSE_SLOW_MS: u32 = 160;
 
+/// **The gate at the head of `Tick_Pulses` (`0x004BBC80`), and it throws its
+/// remainder away.**
+///
+/// ```c
+/// now = timeGetTime();
+/// if (0x13 < (int)(now - stamp) || (int)(now - stamp) < 0) {
+///     DAT_005AEB2C++;  DAT_0058FCB0 = 1;  stamp = now;     /* now, not +20 */
+/// }
+/// ```
+///
+/// So a rung fires on the **first tick at least 20 ms after the last gate**,
+/// and on a 16 ms tick that is every second tick — 32 ms, not 20. Every rung
+/// above it is that much slower: 80 ms is eight of our ticks, not five.
+/// `docs/decisions.md` C179, which found it in the armoury walker.
+pub const GATE_MS: u32 = 20;
+
+/// How many gates make one 80 ms pulse — the first divider of the chain.
+pub const PULSE80_GATES: u32 = PULSE_FAST_MS / GATE_MS;
+
+/// How many gates make one rung of the chain: 4 at 80 ms, 32 at 640 ms.
+///
+/// `Tick_Pulses` (`0x004BBC80`) counts *gates*, so this is the only honest
+/// conversion from a rung's millisecond name to a period. Dividing the rung by
+/// the tick length instead is the C179 error, and runs it 1.6 times fast.
+pub fn gates_per_rung(period_ms: u32) -> u32 {
+    (period_ms / GATE_MS).max(1)
+}
+
 /// **The two counters `Village_Animate` steps and nothing reads.**
 ///
 /// Their periods, for anyone who goes looking: `DAT_004D2934` wraps at `0x14`
@@ -555,8 +583,11 @@ pub const DEAD_COUNTER_PERIODS: [(u32, usize); 2] = [(PULSE_SLOW_MS, 21), (PULSE
 /// that gets stepped twice. `docs/decisions.md` C63.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AnimationClock {
-    /// Milliseconds accumulated, modulo the slow pulse, so this never grows.
+    /// Milliseconds since the last gate. Zeroed, never decremented: the
+    /// original sets `stamp = now`. See [`GATE_MS`].
     elapsed_ms: u32,
+    /// Gates since the last 80 ms pulse, 0 … [`PULSE80_GATES`].
+    gates: u32,
     /// The two pulse counters, `[fast, slow]`, each counting pulses rather
     /// than frames — an overlay takes its own frame as `counter % frames`.
     pulses: [u32; 2],
@@ -570,19 +601,27 @@ impl AnimationClock {
     /// Advance by one fixed tick of `tick_ms`, and say whether anything moved.
     ///
     /// A `false` is a screen that need not repaint — the same economy
-    /// `MapScreen`'s flag phase makes, and the reason the village does not cost
+    /// `MapScreen`'s flag phase makes.
     /// sixty repaints a second while a player thinks about it.
     pub fn tick(&mut self, tick_ms: u32) -> bool {
         let before = self.pulses;
         self.elapsed_ms += tick_ms;
-        // The original's own arithmetic: the fast pulse is the primary and the
-        // slow one is every second fast one, so they cannot drift apart.
-        while self.elapsed_ms >= PULSE_FAST_MS {
-            self.elapsed_ms -= PULSE_FAST_MS;
-            self.pulses[0] += 1;
-            if self.pulses[0].is_multiple_of(2) {
-                self.pulses[1] += 1;
-            }
+        // `Tick_Pulses` (`0x004BBC80`): at most one gate a tick, and the
+        // remainder is thrown away — `stamp = now`, not `stamp += 20`. C179.
+        if self.elapsed_ms < GATE_MS {
+            return false;
+        }
+        self.elapsed_ms = 0;
+        self.gates += 1;
+        if self.gates < PULSE80_GATES {
+            return false;
+        }
+        // The fast pulse is the primary and the slow one is every second fast
+        // one, so they cannot drift apart.
+        self.gates = 0;
+        self.pulses[0] += 1;
+        if self.pulses[0].is_multiple_of(2) {
+            self.pulses[1] += 1;
         }
         self.pulses != before
     }
@@ -630,7 +669,7 @@ impl VillageArt {
     }
 
     /// Whether the drop grid was found. Without it nothing can be dropped, and
-    /// the screen says so rather than guessing at rectangles.
+    /// the screen says so.
     pub fn has_grid(&self) -> bool {
         self.grid.len() == GRID_LEN
     }
@@ -645,7 +684,7 @@ impl VillageArt {
         }
         let col = ((x - SCENE_X) / GRID_CELL) as usize;
         let row = ((y - top) / GRID_CELL) as usize;
-        // The original clamps to 8 rather than rejecting, so a stray byte reads
+        // The original clamps to 8,
         // as the last cluster.
         (self.grid[row * GRID_COLS + col] as usize).min(CLUSTER_COUNT)
     }
@@ -681,13 +720,13 @@ impl VillageArt {
     /// **The quarry, the mine and the lumber camp**, drawn over the scene in
     /// `Village_Draw`'s own order and gated on `has_resource[industry]`.
     ///
-    /// Returns how many were painted, so a caller can tell "this county has
-    /// none" from "the artwork is missing" — and so a test can assert the
+    /// Returns how many were painted,
+    /// none" from "the artwork is missing" —
     /// county with a mine draws one and the county with a quarry does not.
     ///
     /// This is the missing half of a defect a player reported as *"a county
     /// that clearly has iron has no iron mine in the town centre"*: the other
-    /// half was that `has_resource` was never imported and every county claimed
+    /// half was that `has_resource`.
     /// every resource. `docs/decisions.md` C57.
     pub fn draw_resources(&self, canvas: &mut Canvas, has_resource: [bool; 4], top: i32) -> usize {
         let Some(sheet) = self.animation_b.as_ref() else { return 0 };
@@ -708,12 +747,12 @@ impl VillageArt {
     /// `clock` is currently showing.
     ///
     /// The three unconditional ones are drawn whatever the county holds; the
-    /// other three are gated on `has_resource` exactly as
+    /// other three are gated on `has_resource`.
     /// [`VillageArt::draw_resources`]'s are, and go **on top of** the buildings
     /// that function paints — the original calls `Village_Draw` once and
     /// `Village_Animate` every frame after it.
     ///
-    /// Returns how many were painted, so a caller can tell a still village from
+    /// Returns how many were painted,
     /// a missing sheet.
     pub fn draw_animations(
         &self,
@@ -775,6 +814,55 @@ mod tests {
         assert_eq!(b, (1..=12).collect::<Vec<u8>>());
     }
 
+    /// **`Tick_Pulses` (`0x004BBC80`) throws its remainder away**: it fires on
+    /// the first tick 20 ms after the last and then sets `stamp = now`. At the
+    /// 16 ms tick a gate is two ticks, so the 80 ms pulse is eight ticks and
+    /// the 160 ms one sixteen — not five and ten. C179.
+    ///
+    /// **Ablation.** Carry the remainder (`elapsed_ms -= GATE_MS`, or the
+    /// `while self.elapsed_ms >= PULSE_FAST_MS` loop this replaced) and 240
+    /// ticks give 48 fast pulses instead of 30, the same 1.6 the armoury
+    /// walker ran at.
+    #[test]
+    fn the_pulse_chain_drops_its_remainder_at_every_rung() {
+        const TICK_MS: u32 = 16;
+        let mut clock = AnimationClock::new();
+        let mut first = [0u32; 2];
+        for n in 1..=240u32 {
+            clock.tick(TICK_MS);
+            for k in 0..2 {
+                if first[k] == 0 && clock.pulses[k] == 1 {
+                    first[k] = n;
+                }
+            }
+        }
+        assert_eq!(first, [8, 16], "80 ms is eight ticks at a 16 ms tick, 160 ms is sixteen");
+        assert_eq!(clock.pulses, [30, 15], "240 ticks, against the 48 and 24 a carry gives");
+
+        // One long tick is one gate, not the four its milliseconds would buy.
+        let mut slow = AnimationClock::new();
+        assert!(!slow.tick(1000), "a 1000 ms tick is one gate and no pulse");
+        assert_eq!(slow.pulses, [0, 0]);
+
+        // And on the original's own 20 ms frame the rungs are their names.
+        let mut exact = AnimationClock::new();
+        for _ in 0..PULSE80_GATES {
+            exact.tick(GATE_MS);
+        }
+        assert_eq!(exact.pulses, [1, 0], "four 20 ms gates are one 80 ms pulse");
+    }
+
+    /// The rungs the campaign map's wheels ride, in gates. Four rungs, the same
+    /// chain: `g_pulse80`, `g_pulse160`, `DAT_0057D3C8`, `DAT_0058FD08`.
+    #[test]
+    fn every_rung_is_its_milliseconds_in_twenty_millisecond_gates() {
+        assert_eq!(
+            [80, 160, 320, 640].map(gates_per_rung),
+            [4, 8, 16, 32],
+            "a rung counts gates; dividing it by the tick length is the C179 error"
+        );
+    }
+
     /// The single-state order is a permutation of 1 ..= 25, which is what makes
     /// "n workers" and "n icons" the same statement.
     #[test]
@@ -804,7 +892,7 @@ mod tests {
         // Past the ceiling: the surplus is split off the normal count rather
         // than added to it, so the cluster still shows five icons in total.
         assert_eq!(icon_counts(18, 0, 10, 4), (3, 2));
-        // A job the county cannot do at all rounds the surplus up, so a part
+        // A job the county cannot do at all rounds the surplus up,
         // icon is still drawn.
         assert_eq!(icon_counts(18, 0, 0, 4), (0, 5));
         assert_eq!(icon_counts(0, 0, 0, 4), (0, 0));
