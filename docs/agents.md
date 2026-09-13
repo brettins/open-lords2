@@ -23,7 +23,7 @@ other, and neither will notice.
 cause" verdicts were wrong by the time anybody acted on them, and a machine restart needed an
 emergency dump of state that existed only in the lead's session. The player put the fix in
 one sentence: *"your context window is not a good project management understanding — you
-should be an interface for whatever project management setup you're running."*
+should be an interface for whatever project management setup you're running."
 
 That setup is **`docs/work.json`**: one row per piece of live work. **The failure it exists
 to prevent is the one `plan.md` suffered — a status that looks current and is not.**
@@ -58,7 +58,7 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
   `main`; no unmerged `worktree-agent-*` or `wip/*` branch with commits ahead of `main` goes
 no `queued-merge` branch carries `HANDOFF.md`. A fresh clone or a CI runner
   has no agent branches, so this half **prints `SKIP` with the reason and the number of rows
-  it did not compare** instead of reporting every branch missing.
+  it did not compare**
 
 `--status` is the derived view as text. `--html <path>` writes **the player's page**: the
 original game's features graded done / partial / missing / not assessed from
@@ -128,6 +128,19 @@ which diffs against `main`, maps the touched files to crates and runs `cargo tes
 each. The **integrator** runs the full workspace suite, once, per merge — not every agent
 on every edit.
 
+## The prose pass
+
+The player's rule, 2026-09-13: the plainest listing of facts, and losing a clause is the
+accepted price. `tools/review/prose.js` holds the phrase list (`--phrases`) and lists the
+lines that carry one, per file. `tools/review/prose-llm.js <file>` sends that listing to
+Gemini Flash (`GEMINI_API_KEY`, no thinking) with a delete-only prompt and applies the
+reply through `prose.js --apply`; `--top N` takes the N worst files. `.claude/hooks/
+trim-prose.js` runs it on every doc or Rust file an agent edits, so an agent never needs to
+think about it. Cost measured: about 2 s and 700 tokens per file by API, against 55-80k
+tokens per file when an agent did the same job; never give this to an agent. After a pass
+the lead runs `corrections.js --relock`, `cargo check --workspace --tests`, counts the
+`fig:` markers per doc, and commits.
+
 ## What agents are good and bad at here
 
 **Good:** bounded investigations with a clear validation test (crack a format, find a
@@ -174,7 +187,7 @@ git commit -F msg.txt -- tools/oracle/xref.js    # add makes it known, -- keeps 
 ```
 
 The `git add` is safe here because it names one path; it is the bare `git commit` afterwards
-that would sweep the index, and the `--` prevents exactly that.
+that would sweep the index, and the `--` prevents
 
 **And a second catch, sharper than the first: `--` is wrong for removals.**
 `git commit -- <paths>` commits the **working tree** at those paths and ignores the index.
@@ -236,7 +249,7 @@ agent's mouse from a fault.
 that needs nothing of the world.** An in-process event cannot be disturbed by focus, a
 screen lock, a resolution change or a person moving the mouse. It is also faster,
 deterministic, and runnable in CI — which the OS route can never be. That is the same
-reasoning behind reading a struct definition instead of enumerating fields by hand, and
+reasoning behind reading a struct definition
 behind a check that runs on every push, not a rule an agent is asked to remember:
 **the mechanism with fewer dependencies on the world is usually also the more accurate
 one**, and where the two pull apart it is worth noticing why.
@@ -279,7 +292,7 @@ makes that cheap, not archaeological, is one line:
 > cross-references to it before you finish — `symbols.json` comments, Rust doc comments and
 > other documents all cite corrections by number.
 
-The integrator then renumbers the later arrival deterministically instead of discovering the
+The integrator then renumbers the later arrival deterministically
 collision by reading two entries with the same heading. Renumbering is a rewrite of the
 heading **plus every citation**; a correction whose number moved and whose citations did not
 is worse than the collision, because the reference now silently points at somebody else's
@@ -434,7 +447,7 @@ scanner's, attaches that comment to the new field. The probe silently inherited 
 the check went on reporting the *old* field. Ablation by insertion moves whatever the insertion
 point owned; ablate by deletion where you can.
 
-**Four: read the count instead of the names.** `cargo test --workspace` stops at the first
+**Four: read the count
 failing crate, so an ablation that should turn three tests red reports **one**. Use
 `--no-fail-fast`, and read *which* tests went red, not how many. The identity of the
 failing test is the finding; the count is not.
@@ -513,7 +526,7 @@ cross-reference it — is the thing that already happened.
   is invisible because `grain_labour_estimate` is a *complete-looking* function: it takes the
   right arguments, returns a sensible type, and reads as finished. A one-line
   `// NOT PORTED: the tail's four writes` at the return would have made the next reader's
-  question *"why not?"* instead of no question at all.
+  question *"why not?"*
 * **Ask what *reads* the thing the comment says a pass is for.** The paragraph names the panel
   forecasts as the reason for the second round. Nothing in the workspace read a panel forecast,
   and nothing anywhere said so. That is `docs/decisions.md` C30 and the `farm_style` case from
@@ -769,7 +782,7 @@ tested anything*.
 
 ### The defence
 
-**State the predicate the check *means*, then implement that** — instead of implementing
+**State the predicate the check *means*, then implement that** —
 something that happens to agree with it on the data in front of you.
 
 * The marker rule now reads `Record::in_the_tree()`, and that method is the sentence *"is
@@ -1308,7 +1321,7 @@ Two other things fell out of the enumeration and belong here, not in a correctio
   early and generalised. The original uses that button for four different verbs — exit, cancel a
   drag, clear a selection, re-centre a panel — and 11 of the 22 right-button arms found are either
   missing or wrong. One is *wrong*, not absent: a right-click while carrying peasants leaves
-  the village instead of cancelling the carry.
+  the village
 - **Two documented claims were falsified by the enumeration**, both of the "verified" tier:
   `Village_DoubleClick` is *not* the only reader of `g_mouseLeftDoubleClick` (`FUN_0043BF07` and
   `Hotspot_Test` read it too, and `crates/l2-game/src/input.rs` repeats the claim), and screen
@@ -1352,7 +1365,6 @@ inside this boundary is wrong"* — and it is read, always, as *"nothing is wron
 , because an instrument that could see
 its own boundary would need a larger boundary. What there can be is a **habit of naming the
 boundary in the same sentence as the number**, so that the overreach has to be written down
-deliberately instead of happening by omission. `docs/plan.md` §0's third row does this, and it
 is the reason that row is worth more than the figures above it: it says which instrument covers
 it *and what that instrument still cannot see*.
 
@@ -1458,7 +1470,7 @@ there is nothing in a string literal that can be wrong in a way a compiler or a 
 > name.**
 
 Where the subject can be derived — from the widget table, from the file, from the enumeration —
-derive it, and let the check quantify over everything instead of naming one thing. Where it
+derive it, and let the check quantify over everything
 must be named, the name deserves the same scepticism as a number: ask what would be
 different if it were wrong, and if the answer is *"nothing visible"*, that is the finding.
 
@@ -1577,7 +1589,6 @@ So, when a fix turns an old test red:
    built on it was not — a correct premise carried into a wrong requirement, which is the
    shape that survives review.
 2. **If the old assertion was a description, replace it with the claim it was reaching for**
-   instead of deleting it. The distinction it named is real, so the new test asserts it a way
    that does not depend on the bug: ask for triple rations with an empty larder and require
    `wanted == 5, achieved == 0`.
 

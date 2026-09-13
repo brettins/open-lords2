@@ -28,7 +28,9 @@ agent, so it stays short. Read the linked document before working in that area.
    the fallback. C133.
 7. **Write short.** A comment carries the function, the address and the fact. A report
    carries findings, numbers and what you left alone. Density, never omission: keep every
-   piece of evidence, drop the prose around it.
+   piece of evidence, drop the prose around it. `node tools/review/prose.js` lists the
+   filler phrases; a post-edit hook cuts them from whatever you write, and losing a
+   clause is the accepted price. `docs/agents.md` *The prose pass*.
 
 ## Where to look
 
