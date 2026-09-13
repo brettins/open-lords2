@@ -17,7 +17,7 @@
 //!
 //! | # | arm | the original |
 //! |---|---|---|
-//! | 1 | the menu bar's three titles | `Menu_OpenDropdown` `0x0040DECA` — **not reproduced** |
+//! | 1 | the menu bar's three titles | `Menu_OpenDropdown` `0x0040DECA` — [`crate::screens::menubar`] |
 //! | 2 | the pointer at the edge of the screen scrolls one cell | `Map_EdgeScroll` `0x00432221` |
 //! | 3 | five buttons at (480, 448) | `FUN_004329A4` `0x004329A4`, table `0x004DC710` |
 //! | 4 | left press on the field starts a box | `FUN_0043BF07` `0x0043BF07` |
@@ -59,6 +59,49 @@
 //! release that would take it to `0x29` — are dead code and are deliberately not
 //! built.
 //!
+//! # The menu bar in a battle: **nothing is greyed, because nothing can be**
+//!
+//! A player reported *"the menu buttons are deactivated in battle mode now."*
+//! Measured, and the answer is in two halves.
+//!
+//! **The bar was not drawn here at all.** `Screen_DrawMenuBar` (`0x00419C78`)
+//! guards itself on a list of screen ids it *refuses* — `0x08 … 0x0D`, `0x17`,
+//! `0x1B … 0x20`, `0x22`, `0x2C … 0x2F` — and `0x29`, `0x2A` and `0x2B` are in
+//! none of them, so the original paints the bar through the whole of a battle.
+//! Ours painted the field from `y = 24` down and left the 640 × 24 band above it
+//! empty. An empty bar and a dead bar look the same.
+//!
+//! **And there is no disabled state in the original's menu bar to copy.** The
+//! drop-down painter, `FUN_0040C725`, is a two-way branch per row — `0x18` on a
+//! plate for the row under the pointer, `0x3F` for every other — with no third
+//! colour, no skip and no flag; `FUN_0040E099` hit-tests every row and
+//! `FUN_0040DD92` dispatches whatever it returns. Not one of the sixteen
+//! handlers reads `g_battlePhase`, and neither does `Menu_OpenDropdown`. So
+//! **File > Save, File > Load, File > New Game and File > Quit are live in a
+//! battle**, as are all five Options rows and all seven Help rows.
+//!
+//! The game *does* ship a greyed-item widget — `FUN_0040CB7C` paints a third
+//! colour, `1`, when `FUN_0040CB4E(DAT_0058FCC0[id])` is set, over 20-byte
+//! records with a visibility short at `+0x0E` — and it is **dead code**:
+//! `FUN_0040E12E`, its only entry point, has no callers anywhere in the binary,
+//! and `DAT_0058FCC0` is written by nothing outside that cluster. **[V]**
+//!
+//! What a battle *does* take off the bar is two things, both inside
+//! `Screen_DrawMenuBar` itself and both on `g_battlePhase == 0`: the per-realm
+//! shield banners, and the year with its season. Four more painters check the
+//! same flag and none of them is a menu: `Screen_DrawEndTurn` (`0x0041A734`),
+//! the turn timer (`FUN_0041A639`), the minimap (`FUN_00410F4B`) and
+//! `CountyStrip_Draw` (`0x0040F7D3`), which returns at once when
+//! `g_battlePhase != 0`. The last two are why the campaign sidebar is not on
+//! this screen: the frame loop paints both every frame whatever the screen id
+//! is, and a battle is the one thing that stops them.
+//!
+//! **`Menu_SaveGame` mid-battle is the one thing we refuse**, and the refusal is
+//! [`crate::screens::saveload`]'s rather than the bar's, because the original
+//! has no way to say no here. `crate::save` cannot encode a live
+//! [`crate::battlefield::LiveBattle`], and a save that silently dropped the
+//! battle a player was fighting is worse than one that says it cannot.
+//!
 //! # The yes/no box: everything but the screen it lives on
 //!
 //! Two of the five buttons open `Ui_OpenConfirm` (`0x0040E6F2`), which is screen
@@ -96,6 +139,7 @@ use crate::battlefield::{
 use crate::input::{Event, Key, Rect};
 use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screens::menubar;
 use crate::shell::{font, Pen};
 use crate::turn::{self, TurnStep};
 
@@ -465,6 +509,24 @@ impl Screen for BattlefieldScreen {
             // epilogue. Each `return` is one of its `goto LAB_00431F25`s.
             Event::Click { x, y } => {
                 if mode == Mode::Field {
+                    // **Guard 1 of the `0x29` ladder, and it is the menu bar.**
+                    // `Screen_FrameInput`'s arm opens
+                    // `Menu_OpenDropdown(&g_menuBarItems, 3)` *before*
+                    // `Map_EdgeScroll`, `Battle_ButtonClicked`,
+                    // `Battle_DragSelect`, `Battle_OrderClicked` and
+                    // `Battle_UnitPanelClicked`, and **nothing gates it** — not
+                    // `g_battlePhase`, not the pause word, not
+                    // `g_battleChoiceOwner`. So File, Options and Help are live
+                    // through a battle and all sixteen rows dispatch: a player
+                    // can save, load, start a new game, quit, or open any
+                    // options page from the battlefield. **[V]**
+                    //
+                    // `0x2A` and `0x2B` do **not** have this arm — only `0x29`
+                    // — which is what `mode == Mode::Field` is.
+                    // arm: 0x0040DECA/battle-menu-bar left-press
+                    if let Some(title) = menubar::title_at(&*ctx, x, y) {
+                        return Transition::Push(ScreenId::MenuBar(title));
+                    }
                     if let Some(b) = Button::at(x, y) {
                         return self.press_button(ctx, b);
                     }
@@ -811,6 +873,23 @@ impl Screen for BattlefieldScreen {
                 }
             }
         }
+
+        // --- the menu bar ----------------------------------------------------
+        //
+        // **`Screen_DrawMenuBar` (`0x00419C78`), and it is the last thing
+        // painted.** `Battle_Frame` (`0x004B99C0`) runs it *after* `Screen_Draw`
+        // and `Screen_DrawWidgets`, so the bar sits over everything this
+        // function has just drawn — which is why it is here and not at the top,
+        // and why the outcome banner's `canvas.remap` above does **not** dim it.
+        //
+        // The 640 × 24 band at y 0 was blank on this screen: the field starts at
+        // `VIEW.y == 24` and nothing filled the strip above it. A player read
+        // that as *"the menu buttons are deactivated in battle mode"*, and he
+        // was looking at an empty bar rather than a greyed one — the original
+        // has **no disabled state anywhere in the menu bar**, on this screen or
+        // any other. `true` is `g_battlePhase != 0`: the shields and the
+        // year-and-season go, the three titles and the treasury stay.
+        crate::screens::map::draw_menu_bar(canvas, ctx, true);
 
         // The cursor kind, printed rather than drawn: the pointer itself is the
         // host's and we have no cursor sheet. It is here because the ladder that

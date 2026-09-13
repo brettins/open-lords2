@@ -3344,7 +3344,8 @@ impl Screen for MapScreen {
         draw_path_preview(self, canvas, ctx, clip);
         draw_units(self, canvas, ctx, clip);
 
-        draw_menu_bar(canvas, ctx);
+        // `g_battlePhase == 0` — the campaign map is never up during a battle.
+        draw_menu_bar(canvas, ctx, false);
         draw_right_panel(self, canvas, ctx);
         draw_unit_banner(self, canvas, ctx);
     }
@@ -3910,7 +3911,28 @@ const GOLD_NOUN: usize = 0;
 ///   `docs/symbols.md` `0x005AF8F0`, and the preload table at `0x004D9FC0`
 ///   gives `fntl2_14.pl8` a buffer of `0x36B0` bytes, which is exactly
 ///   `g_fontHeading - g_fontBody`.
-fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
+///
+/// # `battle` — the one branch inside this function, and it is not the map's
+///
+/// `Screen_DrawMenuBar` is **not the campaign map's painter**. Its guard is a
+/// list of screen ids it *refuses* — `0x08 … 0x0D`, `0x17`, `0x1B … 0x20`,
+/// `0x22`, `0x2C … 0x2F` — and `0x29`, `0x2A` and `0x2B`, the three battle
+/// screens, are in none of them. **[V]** So the bar is up through a battle, and
+/// the function carries the difference itself:
+///
+/// ```c
+/// Ui_DrawTileStrip(0, 0, 0x19, 1);  Ui_DrawTileStrip(0x250, 0, 2, 1);
+/// Ui_DrawBevelRect(0, 0, 0x280, 0x18);
+/// if (g_battlePhase == 0) { ...the realm banners... }
+/// Ui_DrawMenuTitles(&g_menuBarItems, 3);
+/// if (g_battlePhase == 0) { Ui_DrawYear(...); Eng_DrawString(0x1D, g_season, ...); }
+/// Ui_DrawCount(g_realms[g_localPlayer].gold, 0, 500, 6, &g_fontBody, 0x3F);
+/// ```
+///
+/// **Two guards, and neither is on a title.** What a battle takes off the bar
+/// is the realm shields and the year-and-season; the three menus and the
+/// treasury stay. `battle` is `g_battlePhase != 0`.
+pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
     let ink = &ctx.assets.ink;
     let game = &ctx.game;
     let k = &game.kingdom;
@@ -3932,8 +3954,14 @@ fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
             // `Pl8_DrawFrame` it calls — so the row closes up leftwards over a
             // realm that is out, and a frame that fails to load still holds
             // its place rather than shifting its neighbours onto it.
+            //
+            // `if (g_battlePhase == 0)` wraps the whole loop, so a battle
+            // takes every shield off the bar at once.
             let mut slot = 0;
             for id in 1..k.realms.len() {
+                if battle {
+                    break;
+                }
                 if !k.realms[id].in_play || turn::realm_turn_ended(game, id) {
                     continue;
                 }
@@ -3957,19 +3985,25 @@ fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
         caps: None,
     };
 
-    // `Ui_DrawYear(g_year, 0x168, 6, 3)` — style 3 is
-    // `Ui_DrawNumber(year, ' ', &DAT_004D41F0, x, y, &g_fontBody, 0x3F)`, the
-    // bare number with a leading and a trailing space and no BC/AD.
-    let after_year = pen.year(canvas, CLOCK_X, CLOCK_Y, k.year, 3, font::TEXT);
-    // `Eng_DrawString(0x1D, g_season, g_penAdvance + 0x16C, 6, &g_fontBody, 0x3F)`.
-    //
-    // **`g_penAdvance` is a width and `Pen::year` returns an absolute x** —
-    // the confusion `docs/decisions.md` C61 records four agents making seven
-    // times. The subtraction is written out rather than folded away so the line
-    // reads the way the decompilation does.
-    let advance = after_year - CLOCK_X;
-    let season = season_text(ctx.assets, k.season);
-    pen.body(canvas, SEASON_X + advance, CLOCK_Y, &season, font::TEXT);
+    // `if (g_battlePhase == 0) { Ui_DrawYear(...); Eng_DrawString(0x1D, ...) }`
+    // — the second of the function's two battle guards, and it takes the clock
+    // and the season together. A battle is one moment of one season, so the
+    // original stops printing the date while one is being fought.
+    if !battle {
+        // `Ui_DrawYear(g_year, 0x168, 6, 3)` — style 3 is
+        // `Ui_DrawNumber(year, ' ', &DAT_004D41F0, x, y, &g_fontBody, 0x3F)`,
+        // the bare number with a leading and a trailing space and no BC/AD.
+        let after_year = pen.year(canvas, CLOCK_X, CLOCK_Y, k.year, 3, font::TEXT);
+        // `Eng_DrawString(0x1D, g_season, g_penAdvance + 0x16C, 6, &g_fontBody, 0x3F)`.
+        //
+        // **`g_penAdvance` is a width and `Pen::year` returns an absolute x** —
+        // the confusion `docs/decisions.md` C61 records four agents making seven
+        // times. The subtraction is written out rather than folded away so the
+        // line reads the way the decompilation does.
+        let advance = after_year - CLOCK_X;
+        let season = season_text(ctx.assets, k.season);
+        pen.body(canvas, SEASON_X + advance, CLOCK_Y, &season, font::TEXT);
+    }
     // `Ui_DrawCount(g_realms[g_localPlayer].gold, 0, 500, 6, &g_fontBody, 0x3F)`
     // — the number, then group 8 index 0 or 1, *"Crown."* or *"Crowns."*.
     // `Ui_DrawCount` opens the number with `'@'`, so the digits start at 504,

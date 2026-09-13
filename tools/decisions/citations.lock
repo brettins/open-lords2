@@ -53,7 +53,8 @@ crates/l2-game/src/scenario.rs	C161	a38cec235b04	8b6af36909ef
 crates/l2-game/src/scenario.rs	C198	0c9e0893ac19	c8727929c911
 crates/l2-game/src/scenario.rs	C83	d0e421a3fd81	88ac11ea6de0
 crates/l2-game/src/screen.rs	C178	b485ba068a37	b903c3f9550e
-crates/l2-game/src/screen.rs	C197	0d70f43caf01	e7abe71da733
+crates/l2-game/src/screen.rs	C197	01ab503f448a	e7abe71da733
+crates/l2-game/src/screen.rs	C197	116dc77ed392	e7abe71da733
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7	0364b53a921d
 crates/l2-game/src/screens/armoury.rs	C179	f34f1e767f87	852ec3e69f4e
 crates/l2-game/src/screens/army.rs	C45	056ecffec256	4d770bef92bd
@@ -105,7 +106,7 @@ crates/l2-game/src/screens/map.rs	C61	389149e668fc	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	4ec0e911ae60	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	56e0155cb915	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	8273bcd877f2	60611046b40d
-crates/l2-game/src/screens/map.rs	C61	e23b83e06409	60611046b40d
+crates/l2-game/src/screens/map.rs	C61	8ead942b261e	60611046b40d
 crates/l2-game/src/screens/message.rs	C126	15170181ab5e	1b2c97c7731a
 crates/l2-game/src/screens/message.rs	C164	a4ab5ea66a65	68f38e5b4b46
 crates/l2-game/src/screens/message.rs	C189	83743da87d1f	a640e552a733
@@ -526,6 +527,7 @@ docs/arms.json	C148	0bc555f0651e	d3efa7d90685
 docs/arms.json	C148	af54a2d65605	d3efa7d90685
 docs/arms.json	C148	f74fa2b28467	d3efa7d90685
 docs/arms.json	C190	772bd119bdcc	036491ce2ede
+docs/arms.json	C197	dcef1b3c401c	e7abe71da733
 docs/arms.json	C61	39d63dd72f38	60611046b40d
 docs/arms.json	C61	470ac14e79ae	60611046b40d
 docs/arms.json	C61	f3b7014eab2f	60611046b40d
@@ -756,6 +758,7 @@ docs/decisions.md	C189	e6efefd0abf5	a640e552a733
 docs/decisions.md	C190	68f8ca643e9f	036491ce2ede
 docs/decisions.md	C192	de1973c3ff09	b39ebc129fac
 docs/decisions.md	C195	168811bca0a3	f0bf50bfaad1
+docs/decisions.md	C197	0e9ff5152cc2	e7abe71da733
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
 docs/decisions.md	C21	7e1ce2bf6129	f7bf296341ff

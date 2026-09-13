@@ -414,13 +414,14 @@
     },
     {
       "id": "0x0040DECA/battle-menu-bar",
-      "status": "missing",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
       "gesture": "left-press",
       "addr": "0x0040DECA",
-      "what": "Menu_OpenDropdown(&g_menuBarItems, 3) -- File, Options and Help are live during a battle, so a player can save, load, quit or open the options from the battlefield.",
-      "note": "The same arm is missing on the campaign map (crates/l2-game/src/screens/map.rs's table). Saving mid-battle is a question nobody has answered: Screen_HandleInput has no 0x29 arm and Menu_SaveGame does not test g_battlePhase.",
+      "what": "Menu_OpenDropdown(&g_menuBarItems, 3) -- GUARD 1 of the 0x29 ladder, ahead of Map_EdgeScroll, Battle_ButtonClicked, Battle_DragSelect, Battle_OrderClicked and Battle_UnitPanelClicked, and nothing gates it: not g_battlePhase, not the pause word, not g_battleChoiceOwner. File, Options and Help are live through a battle and all sixteen rows dispatch, so a player can save, load, start a new game, quit or open any options page from the battlefield. 0x2A and 0x2B do NOT have this arm.",
+      "note": "NOTHING IS GREYED, because there is nothing to grey with. FUN_0040C725 paints each row 0x18 under the pointer and 0x3F otherwise -- no third colour, no skip -- and not one of the sixteen handlers reads g_battlePhase. The game does ship a greyed-item widget (FUN_0040CB7C's colour 1 on FUN_0040CB4E(DAT_0058FCC0[id]), over 20-byte records with a visible short at +0x0E) and it is DEAD CODE: FUN_0040E12E, its only entry point, has no callers anywhere in the binary. What the player saw was the bar not being DRAWN: Screen_DrawMenuBar (0x00419C78) refuses 0x08..0x0D, 0x17, 0x1B..0x20, 0x22 and 0x2C..0x2F, and 0x29, 0x2A and 0x2B are in none of them, so the original paints it through a battle while ours left the 640x24 band above VIEW.y == 24 empty. An empty bar and a dead bar look the same.",
+      "ours": "crates/l2-game/src/screens/battlefield.rs",
       "evidence": "V"
     },
     {
@@ -3044,6 +3045,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x004B99C0/frame-winds-the-battle",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "every",
+      "gesture": "frame",
+      "addr": "0x004B99C0",
+      "what": "The SAME if/else on g_battlePhase, other side: `else if ((g_battlePhase == 2) && (ticksDue != 0)) { ...the battle's passes... }`, and it has no g_screenId test either. A battle steps under whatever is on top of it exactly as a turn steps under whatever is on top of the map.",
+      "note": "Invisible until 0x0040DECA/battle-menu-bar was built: the drop-down is screen 0x32, a push here, and Screen::update is the top screen's alone, so opening File over a battle froze the fight until the menu closed. Machine::wind_battle runs the battlefield's tick at whatever depth it sits, and only when something is over it -- on top it is Machine::update's job and running both would step the simulation twice a frame. The turn's half of the same absence is docs/decisions.md C197.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screen.rs"
+    },
+    {
       "id": "0x004B99C0/frame-winds-the-turn",
       "status": "reproduced",
       "group": "campaign-map",
@@ -3447,6 +3460,17 @@
       "gesture": "key",
       "what": "Escape and Enter dismissed the battle report.",
       "why": "0x13's arm is a right-button test and Ui_OkButtonClicked. No key."
+    },
+    {
+      "id": "ours/save-refuses-mid-battle",
+      "status": "invention",
+      "removed": false,
+      "group": "battlefield",
+      "screen": "0x36",
+      "gesture": "left-press",
+      "what": "File > Save from the battlefield opens the save box, and the box then refuses, through Status::Failed -- whose first line is the game's own sentence, Eng_DrawString(40, ERROR_INDEX).",
+      "why": "The original does NOT refuse. Menu_SaveGame (0x00433F49) is reachable from 0x29 and does not test g_battlePhase, and its .sav is a memory dump, so the battle goes into it; Screen_FrameInput even exempts 0x35 and 0x36 from the multiplayer force-close while g_battlePhase != 0, which is the save box being deliberately kept alive in a battle. Ours is a versioned format that does not encode LiveBattle and crate::save::decode puts battle: None back, so the file would quietly lose the fight a player was in the middle of. A refusal he can read beats a save that is wrong, and it is counted here rather than left as a comment admitting a choice.",
+      "ours": "crates/l2-game/src/screens/saveload.rs"
     },
     {
       "id": "ours/saveload-key-escape",

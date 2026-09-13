@@ -11278,3 +11278,108 @@ disagrees, but asserts the total in a separate statement, so a total that is wro
 by a constant survives every run that does not change the list. It is measured at
 merge now — 541 — against the census's own count rather than against the last
 number anybody typed.
+
+---
+
+**CNEW-battle-menu — the menu bar was never *drawn* on the battlefield, and the
+thing it was reported as — greyed-out entries — does not exist anywhere in the
+game. The only disabled-item widget `Lords2.exe` ships has no callers.**
+
+Two reports from one player on build `52AD38A32`, and both turned into
+measurements that went against the report.
+
+**1. *"The menu buttons are deactivated in battle mode now."*** They were not
+deactivated. They were **absent**, and an absent bar and a dead bar look the
+same on a screen.
+
+`Screen_DrawMenuBar` (`0x00419C78`) does not guard on "is this the campaign map".
+It guards on a list of screen ids it **refuses** — `0x08 … 0x0D`, `0x17`,
+`0x1B … 0x20`, `0x22`, `0x2C … 0x2F` — and `0x29`, `0x2A` and `0x2B`, the three
+battle screens, are in **none of them**. So the original paints the bar through
+the whole of a battle. Ours painted the field from `VIEW.y == 24` down and left
+the 640 × 24 band above it empty.
+
+And `Screen_FrameInput`'s `0x29` arm **opens** with
+`Menu_OpenDropdown(&g_menuBarItems, 3)` — ahead of `Map_EdgeScroll`,
+`Battle_ButtonClicked`, `Battle_DragSelect`, `Battle_OrderClicked` and
+`Battle_UnitPanelClicked` — with nothing gating it: not `g_battlePhase`, not the
+pause word, not `g_battleChoiceOwner`. `0x2A` and `0x2B` do not have the arm;
+`0x29` alone does.
+
+**There is no greyed state to copy.** The drop-down's painter, `FUN_0040C725`,
+is a two-way branch per row — `0x18` on a plate for the row under the pointer,
+`0x3F` for every other — with no third colour, no skip and no flag.
+`FUN_0040E099` hit-tests every row and `FUN_0040DD92` dispatches whatever it
+returns. Not one of the sixteen handlers reads `g_battlePhase`, and neither does
+`Menu_OpenDropdown`. **So File > New Game, Load, Save and Quit are all live
+mid-battle, as are all five Options rows and all seven Help rows.** [V]
+
+The game *does* ship a greyed-item widget, which is why the instinct to look for
+one is a reasonable instinct: `FUN_0040CB7C` paints a third colour, `1`, when
+`FUN_0040CB4E(DAT_0058FCC0[id])` is set, over **20-byte** records with a
+visibility short at `+0x0E` that lets a row be skipped entirely. It is **dead
+code**. `FUN_0040E12E`, its only entry point, appears in the whole decompiled
+corpus exactly twice, both times in its own definition; `DAT_0058FCC0`,
+`DAT_005CD500` and `DAT_0059152C` appear only inside that six-function cluster.
+The menu bar's records are **12** bytes and its painter is a different function.
+An agent who found `FUN_0040CB7C` first would have built a disabled state the
+game has never shown anybody.
+
+**What a battle actually suppresses**, all of it chrome and none of it a menu:
+`Screen_DrawMenuBar`'s own two `g_battlePhase == 0` guards take off the per-realm
+shield banners and the year-with-season, leaving the three titles and the
+treasury; `Screen_DrawEndTurn` (`0x0041A734`) takes off the End Turn button;
+`FUN_0041A639` the turn timer; `FUN_00410F4B` the minimap; and
+`CountyStrip_Draw` (`0x0040F7D3`) returns at once, which is why the county strip
+is not on the battle screen. The last two matter because the frame loop paints
+both every frame whatever the screen id is — a battle is the one thing that stops
+them.
+
+Three of `Screen_FrameInput`'s `g_battlePhase` tests go the **other** way and
+*relax* during a battle: screens `0x35`/`0x36` are exempted from the multiplayer
+force-close, `0x39` is not force-closed, and a stray click does not drop to the
+campaign map. The save box is deliberately kept alive in a battle.
+
+**2. *"The sidebar iirc was much smaller in combat? or something? I might be
+misremembering."*** He was, by 158 of 160 pixels — and there is something real
+underneath the memory.
+
+Measured, from hit tests and blits rather than from any constant of ours:
+
+| | battle (`0x29`) | campaign (`0x00`) |
+|---|---|---|
+| right column | x **480 … 640**, 160 wide | x **478 … 640**, 162 wide |
+| the hit test it comes from | `Hotspot_Test(0x1E0, 0x1C0, &DAT_004DC710, 5)` | `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)` |
+| the view beside it | (0, 24) 480 × 448, `FUN_004BC020(…, 0, 0x18, 0xF, 0xE, 0x20)` | (0, 24) 478 × 456, `Gfx_MarkDirty(0, 0x18, 0x1DE, 0x1DF)` |
+
+**Two pixels.** Ours already had every one of those numbers right and nothing was
+changed; `the_battle_column_is_two_pixels_narrower_than_the_campaign_one` pins
+them so the next person does not have to re-derive them.
+
+What *is* much smaller is the column's **contents**, and that is the memory worth
+keeping: the campaign column holds a minimap, four mode buttons, the county
+strip, the labour slider, the produce rows, five sidebar buttons and End Turn;
+the battle column holds an 80 × 80 overview at two pixels a cell, a banner grid
+and five buttons. Nothing was smaller — nearly everything was gone.
+
+**A third thing, which the menu bar created.** The drop-down is screen `0x32`, a
+push, and `Screen::update` is the top screen's alone — so opening *File* over a
+battle froze the fight until the menu closed. `Battle_Frame` (`0x004B99C0`) is
+one `if / else if` on `g_battlePhase` with **no `g_screenId` test on either
+side**: `Machine::wind_turn` already built the first arm (C197, the turn winding
+under an open letter) and left the second unbuilt because nothing had ever put a
+screen over a battle. `Machine::wind_battle` is that `else if`, run at whatever
+depth the battlefield sits and only while something is over it.
+
+**And one refusal that is ours.** `Menu_SaveGame` (`0x00433F49`) does not test
+`g_battlePhase` and the original's `.sav` is a memory dump, so the original saves
+mid-battle and gets the battle back. `crate::save` does not encode a
+`LiveBattle`, and `decode` writes `battle: None`, so ours would have written a
+file that quietly lost the fight a player was in the middle of.
+`crates/l2-game/src/save.rs` carried the sentence *"The original saves from the
+campaign map and nowhere else"*, which is false and is now corrected in place.
+The save box refuses while a battle is live, through the `Status::Failed` path
+whose first line is the game's own — `Eng_DrawString(40, ERROR_INDEX)` — so a
+player is told rather than silently robbed. `docs/arms.json`
+`ours/save-refuses-mid-battle`; the feature is `partial`, not `done`, and the gap
+names the reason.
