@@ -874,6 +874,9 @@ fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
 
     let report = tail.report?;
     game.turns_played += 1;
+    // `Event_RollAll` raised latches this season; this peer's posting marks
+    // come down for them. See [`crate::message::rearm_events`].
+    crate::message::rearm_events(game, &report);
     game.last_report = Some(report.clone());
     // `Turn_Tick`'s phase 7 calls `Score_RankRealms` after `Season_Advance` —
     // one of its five callers, and the one that can crown a survivor at the end

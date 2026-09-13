@@ -82,7 +82,10 @@ pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 ///   with every other message and are settled by being displayed and dismissed,
 ///   so what has to survive a save is the whole ring and the record on screen.
 ///   See [`crate::message`].
-pub const VERSION: u32 = 4;
+/// * 5 — **`Game::event_posted`**, the half of `Event_Post`'s latch that moved
+///   out of the kingdom so the lockstep digest would stop covering one peer's
+///   cursor. The original keeps it in the county record; we cannot.
+pub const VERSION: u32 = 5;
 
 /// Magic, version, the prefix's length and the kingdom blob's length.
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
@@ -295,6 +298,13 @@ fn encode_prefix(game: &Game, out: &mut Canonical) {
     out.u32(MAX_COUNTIES as u32);
     out.raw(&game.anchor_x);
     out.raw(&game.anchor_y);
+    // `Event_Post`'s `eventFired = 0` lives on the `Game` now and not in the
+    // kingdom (`Game::event_posted`), so it has to be saved here or a reload
+    // would re-post a letter the player has already read — the original's own
+    // save keeps that clearing, in the county record it is allowed to write to.
+    for posted in &game.event_posted {
+        out.bool(*posted);
+    }
 
     out.section("report");
     out.option(game.last_report.as_ref(), encode_report);
@@ -458,6 +468,10 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
     anchor_x.copy_from_slice(input.raw(MAX_COUNTIES)?);
     let mut anchor_y = [0u8; MAX_COUNTIES];
     anchor_y.copy_from_slice(input.raw(MAX_COUNTIES)?);
+    let mut event_posted = [false; MAX_COUNTIES];
+    for slot in event_posted.iter_mut() {
+        *slot = input.bool()?;
+    }
 
     let last_report = match input.option(decode_report)? {
         None => None,
@@ -522,6 +536,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         realm_colour,
         player_names,
         selected,
+        event_posted,
         anchor_x,
         anchor_y,
         gold_last,

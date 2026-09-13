@@ -495,14 +495,35 @@ pub fn frame_of(record: &Record) -> Option<Frame> {
         category::PAY_PROMPT | category::ALLIANCE_PROMPT => Frame::new(0x10, 0x80, 0x1C0, 0xF0),
         category::CAPTURE => Frame::new(0x20, 0xA0, 0x1A0, 0xC0),
         category::ENDING => Frame::new(0x10, 0x80, 0x1C0, 0xE0),
-        // **The one arm whose height is a rule rather than a constant.** The
-        // event window is 0xC0 tall for an event id below 0x12E and 0xE0 for one
-        // at or above it, so the taller box is exactly the events with a number
-        // line under the body.
-        category::EVENT => Frame::new(0x20, 0xA0, 0x1A0, 0xC0),
+        // **The one arm whose height is a rule rather than a constant**, and it
+        // was written down here and then not applied — every event drew in the
+        // short box, so the sixteen high-numbered events lost 0x20 of window and
+        // had their corner button, and its 48 × 48 hit box, 0x20 too high.
+        //
+        // `[V]`, the arm's own first statement:
+        // `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0 : 0xE0;` — and the
+        // *taller* box is the sixteen with **no** number line, which is the
+        // opposite of what the note here claimed. The eight short ones
+        // (`0x87`…`0x8E`) draw a count at `y + 0x90`, 0x30 clear of the bottom;
+        // the tall ones spend the extra on body text.
+        //
+        // The id is the group, so the record carries it.
+        category::EVENT => Frame::new(0x20, 0xA0, 0x1A0, event_height(record.group)),
         _ => return None,
     };
     Some(f)
+}
+
+/// `Msg_DrawWindow`'s category-`0x0F` height: `(short)eventId < 0x12E ? 0xC0 :
+/// 0xE0`. The comparison is **signed 16-bit** on the county's stored id, so an
+/// id that is not an event's at all — 0, the id a county that never drew one
+/// carries — takes the short box.
+pub fn event_height(group: u16) -> i32 {
+    if (group as i16) < 0x12E {
+        0xC0
+    } else {
+        0xE0
+    }
 }
 
 /// The wrap width of a tip paragraph: `DAT_00553024 - 0x20`, with the window
@@ -979,6 +1000,130 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
     Dismissal::Closed
 }
 
+/// **`Event_Post` (`FUN_00448D7E`, `0x00448D7E`) — the only thing in the binary
+/// that posts a county's random-event letter.** `[V]`, whole body:
+///
+/// ```c
+/// void FUN_00448d7e(int county) {
+///     if ((g_counties[county].eventFired != 0) && (g_mouseRightDown == '\0') &&
+///        (g_counties[county].eventFired = 0, g_counties[county].owner == g_localPlayer)) {
+///         Msg_Enqueue(0, g_localPlayer, (short)g_counties[county].eventId, 0, '\x0f',
+///                     (uchar)county, '\0', 0);
+///     }
+/// }
+/// ```
+///
+/// **`Battle_Frame` is its only caller**, once a frame, as
+/// `FUN_00448d7e(g_selectedCounty)` at `0x004BA187` — between `Msg_Pump` and
+/// `Turn_Tick`, which is where [`crate::screen::Machine::update`] calls this.
+/// There is no screen test on it: the letter for the selected county pops over
+/// the castle screen, the market or the map alike.
+///
+/// # Three consequences, and none of them is guessable from `Event_RollAll`
+///
+/// * **Only the selected county's letter is ever posted.** An event in a county
+///   the player is not looking at *waits*, because `Event_RollAll` clears the
+///   three modifiers and not this latch (`l2_kingdom::event::roll_all`). It
+///   arrives the instant that county is picked, which may be seasons later and
+///   may be the same frame the player clicks it.
+/// * **The clear is outside the owner test.** A county that changed hands
+///   between the roll and the click has its flag thrown away without a letter.
+/// * **`eventId` is never cleared by anything.** It is overwritten by the next
+///   event the county draws and otherwise stands for the rest of the game, which
+///   is why four siege fixtures still read `0x8E` on a county whose Wedding
+///   fever is long over. The county panels read it too, so a county keeps
+///   showing its last event's line.
+///
+/// # What is not reproduced, and why
+///
+/// **`g_mouseRightDown`.** Our [`crate::input::Event`] has no right *press* —
+/// `RightClick` is the release, deliberately, because the original's fifty-odd
+/// right-button arms all read the released-this-frame flag (`DAT_004E6900`) and
+/// never the held one. So there is no frame in this engine during which the
+/// right button is down, the guard would be false on every one of them, and a
+/// flag invented to satisfy it would be a flag nothing could ever set. The
+/// original's effect is to hold a letter back while the button is held; ours
+/// posts on the next frame either way.
+///
+/// # It moves no byte of the lockstep digest
+///
+/// `Event_Post` writes `g_counties[county].eventFired = 0`, and it may, because
+/// the original is one machine with one `g_selectedCounty`. We may not:
+/// `County::event_fired` is `County+0x000` and is in `Encode for County`, so it
+/// is inside `l2_kingdom::save::checksum` — `Canonical::hash_of(kingdom)`, the
+/// per-tick lockstep digest — and [`Game::selected`] is a per-peer cursor. Two
+/// peers looking at different counties would hash differently on the next tick
+/// over a byte **nothing in the simulation reads**: `event_fired` is written by
+/// `Event_RollAll` and the 24 handlers and read here alone, in the original and
+/// here.
+///
+/// So the clearing lives on [`Game::event_posted`], which is presentation state
+/// and never reaches the kingdom — the same split as [`Game::player_names`],
+/// and the alternative (a field in the save but out of the digest) would need a
+/// second encoder that `l2_net::Canonical` does not have. The latch itself
+/// stays exactly as `Event_RollAll` wrote it, identical on every peer.
+/// `docs/netcode.md` §6, `docs/decisions.md` C210.
+///
+/// Returns whether a letter was enqueued.
+// arm: 0x00448D7E/event-letter-post frame
+pub fn post_event(game: &mut Game) -> bool {
+    let county = game.selected as usize;
+    let player = game.player;
+    let Some(&posted) = game.event_posted.get(county) else { return false };
+    let Some(c) = game.kingdom.counties.get_mut(county) else { return false };
+    if !c.event_fired || posted {
+        return false;
+    }
+    // `g_counties[county].eventFired = 0` — inside the condition, *before* the
+    // owner test, so it happens whoever holds the county. Ours marks instead of
+    // clearing, in the same place, so the swallowing below is unchanged.
+    game.event_posted[county] = true;
+    let c = &game.kingdom.counties[county];
+    if c.owner != player {
+        return false;
+    }
+    // `Msg_Enqueue(0, g_localPlayer, eventId, 0, 0x0F, county, 0, 0)` —
+    // `Msg_Enqueue(from, to, …)`, so **from nobody, to this player**. The group
+    // is the county's stored id and the painter re-reads the county's id for the
+    // number line, which is why the two are the same number.
+    let group = c.event_id;
+    let record = Record {
+        to: player,
+        from: 0,
+        group,
+        variant: 0,
+        category: category::EVENT,
+        county: county as u8,
+        spare: 0,
+        payload: 0,
+    };
+    game.messages.enqueue(record, player)
+}
+
+/// **The other half of [`post_event`]'s latch: `Event_RollAll` raising it.**
+///
+/// `Event_RollAll` (`0x00448819`) does `eventFired = 1; eventId = <slot>;` on
+/// every county it deals to, and the original needs nothing further, because
+/// `Event_Post` had cleared that same byte. Ours clears
+/// [`Game::event_posted`] instead — the kingdom's latch is never lowered — so
+/// the raising has to be mirrored here, once per season, from the report
+/// `l2_kingdom::event::roll_all` already writes.
+///
+/// **The report is exactly the right set.** `roll_all` pushes
+/// `Message::Event` only where `fire` returned true; a handler whose guard
+/// fails clears `eventFired` itself and pushes nothing, which is the original's
+/// "a new event destroys an unread letter" (`l2_kingdom::event::fire`) and
+/// wants no mark cleared.
+pub fn rearm_events(game: &mut Game, report: &l2_kingdom::report::SeasonReport) {
+    for message in &report.messages {
+        if let l2_kingdom::report::Message::Event { county, .. } = message {
+            if let Some(slot) = game.event_posted.get_mut(*county as usize) {
+                *slot = false;
+            }
+        }
+    }
+}
+
 /// **`Msg_DrawWindow`'s side effects on the frame the window opens** — the arms
 /// that are not drawing at all, and that a reading for text and voice lookups
 /// walks straight past.
@@ -1370,6 +1515,30 @@ mod tests {
 
     /// A category nobody enqueues draws nothing **and cannot be left with the
     /// left button**, because every `Ui_OkButton` call is inside an arm.
+    #[test]
+    /// **The event window's height is a rule, and the corner button rides on
+    /// it.** `Msg_DrawWindow`'s category-`0x0F` arm opens
+    /// `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0 : 0xE0;` and the group *is*
+    /// the event id. The constant was documented here and not applied, so the
+    /// sixteen ids from `0x12E` up drew in a box `0x20` short with their
+    /// `Ui_OkButton`, and its 48 × 48 hit box, `0x20` too high.
+    ///
+    /// Ablation, run: `event_height(record.group)` back to a literal `0xC0` →
+    /// this alone goes red.
+    #[test]
+    fn a_high_numbered_event_gets_the_taller_window_and_its_button_moves_with_it() {
+        let at = |group: u16| {
+            frame_of(&Record { group, category: category::EVENT, ..Record::default() })
+                .expect("the event category has a frame")
+        };
+        assert_eq!(at(0x87).h, 0xC0, "Rats: the eight with a number line");
+        assert_eq!(at(0x8E).h, 0xC0, "Wedding fever, the last of them");
+        assert_eq!(at(0x12E).h, 0xE0, "Healthy eating: the first without one");
+        assert_eq!(at(0x13D).h, 0xE0, "No songs, the last id in the deck");
+        assert_eq!(at(0).h, 0xC0, "a county that never drew: the test is signed");
+        assert_eq!(at(0x12E).ok_button().1 - at(0x87).ok_button().1, 0x20);
+    }
+
     #[test]
     fn an_unhandled_category_has_no_button() {
         assert_eq!(Shape::of(0x15), Shape::Unhandled);

@@ -47,6 +47,7 @@ crates/l2-game/src/input.rs	C61	39c868ef7985	60611046b40d
 crates/l2-game/src/main.rs	C117	5d9721284057	b20f3a227f0f
 crates/l2-game/src/main.rs	C193	eff18505112b	ded1409ebea0
 crates/l2-game/src/main.rs	C193	fa55c65b9590	ded1409ebea0
+crates/l2-game/src/message.rs	C210	21e55ec13e48	38024f0b559c
 crates/l2-game/src/movie.rs	C193	921629355a9c	ded1409ebea0
 crates/l2-game/src/save.rs	C113	292ef2506465	6fbe8ffeb1fb
 crates/l2-game/src/scenario.rs	C130	82b7defc561c	055c6c022450
@@ -111,7 +112,6 @@ crates/l2-game/src/screens/map.rs	C61	56e0155cb915	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	8273bcd877f2	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	8ead942b261e	60611046b40d
 crates/l2-game/src/screens/message.rs	C126	15170181ab5e	1b2c97c7731a
-crates/l2-game/src/screens/message.rs	C164	a4ab5ea66a65	68f38e5b4b46
 crates/l2-game/src/screens/message.rs	C189	83743da87d1f	a640e552a733
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
@@ -188,6 +188,7 @@ crates/l2-game/tests/long_game.rs	C27	b651893267c8	1db64332cb22
 crates/l2-game/tests/long_game.rs	C27	c0900980b820	1db64332cb22
 crates/l2-game/tests/merchant.rs	C50	444a9e4940bc	85416be0b69b
 crates/l2-game/tests/merchant.rs	C53	7cd616c516aa	cad36ab11dbf
+crates/l2-game/tests/messages.rs	C210	0a9c731f6422	38024f0b559c
 crates/l2-game/tests/military.rs	C35	0578d12796f0	193a1920e229
 crates/l2-game/tests/military.rs	C35	ded7fe0edd82	193a1920e229
 crates/l2-game/tests/military.rs	C58	4d35f48f598a	2a1ff4d5966d
@@ -247,6 +248,7 @@ crates/l2-kingdom/src/county.rs	C195	8a4b9d5cf04f	f0bf50bfaad1
 crates/l2-kingdom/src/county.rs	C53	e8fb6191353a	cad36ab11dbf
 crates/l2-kingdom/src/diplomacy.rs	C62	8f8a093f4110	ebb6a7ec3711
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2	006e7d0b71a7
+crates/l2-kingdom/src/event.rs	C210	d9591e0fa28a	38024f0b559c
 crates/l2-kingdom/src/field.rs	C123	9757bf8fd453	3a5cc2fec37d
 crates/l2-kingdom/src/field.rs	C123	c6fe02d09956	3a5cc2fec37d
 crates/l2-kingdom/src/field.rs	C128	0a9b768f788b	3a8c5dae41c2
@@ -575,6 +577,7 @@ docs/bugs.md	C13	9a58c0fd9984	006e7d0b71a7
 docs/bugs.md	C149	3aa89208c73e	138117948441
 docs/bugs.md	C169	35dbfa50c68c	4f087d2d4d89
 docs/bugs.md	C187	950edb750f96	55fad83033cd
+docs/bugs.md	C210	69ee595f101d	38024f0b559c
 docs/bugs.md	C31	18772c7679b0	1d151b02cb56
 docs/bugs.md	C31	d4548fdca7c1	1d151b02cb56
 docs/bugs.md	C33	970cde363d20	564cc48dd837

@@ -174,6 +174,13 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         ),
     ),
     (
+        "B104",
+        Unswitchable(
+            "the notification model is the rule, not a variation of it: clearing the latch at the \
+             roll destroys the letter and posting for every county is a different game",
+        ),
+    ),
+    (
         "B22",
         Unswitchable("nothing observable turns on it — a county that sowed no seed grows none either way"),
     ),

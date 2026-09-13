@@ -799,6 +799,14 @@ impl Machine {
     pub fn update(&mut self, ctx: &mut Ctx) {
         self.run_tips(ctx);
         self.pump_messages(ctx);
+        // `Battle_Frame`'s `FUN_00448d7e(g_selectedCounty)` at `0x004BA187`, in
+        // its place: `Tip_Update` (106), `Msg_Pump` (107), … this (190), …
+        // `Turn_Tick` (262). **After the pump on purpose** — a letter posted now
+        // is pulled off the ring on the next frame, exactly as in the original,
+        // which is what gives the player one frame of the county they just
+        // clicked before the scroll covers it. See
+        // [`crate::message::post_event`]. No screen test: the original has none.
+        crate::message::post_event(ctx.game);
         self.run_turn_clock(ctx);
         if self.wind_turn(ctx) {
             // The stack moved underneath us, so the screen that was on top no

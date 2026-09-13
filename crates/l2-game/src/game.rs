@@ -533,6 +533,35 @@ pub struct Game {
     /// The county under the cursor's last click, or 0 for none. County ids are
     /// 1-based in the original, so 0 is a usable "nothing".
     pub selected: u8,
+    /// **Which counties' waiting letters this peer has already taken** — the
+    /// half of the original's latch that is not the simulation's.
+    ///
+    /// `Event_Post` (`0x00448D7E`), called by `Battle_Frame` at `0x004BA187`
+    /// for `g_selectedCounty`, does `eventFired = 0` on the county it posts.
+    /// The original can write that into `g_counties` because it is **one
+    /// machine**: there is one selection, so the write is the same write
+    /// everywhere. Here [`Game::selected`] is a per-peer cursor, and
+    /// `County::event_fired` is `County+0x000` inside `Encode for County`,
+    /// which `l2_kingdom::save::checksum` — `Canonical::hash_of(kingdom)` — is
+    /// the per-tick lockstep digest of. Two peers looking at different counties
+    /// would clear different bytes and hash differently on the next tick, for a
+    /// difference the simulation never reads. `docs/netcode.md` §6.
+    ///
+    /// **So the clearing moves here and the latch stays as the simulation wrote
+    /// it.** `event_fired` is now written only by `Event_RollAll`
+    /// (`0x00448819`) and the 24 handlers — the same value on every peer — and
+    /// this mirror carries the posting, which is this peer's alone. It is the
+    /// same split as [`Game::player_names`] and for the same stated reason: the
+    /// digest is over the kingdom, so nothing a single player's interface does
+    /// may live in the kingdom.
+    ///
+    /// Raised by [`crate::message::post_event`], lowered again by
+    /// [`crate::turn`] for every county `Event_RollAll` gave a new event to, so
+    /// a second letter on a county whose first was read still arrives. In
+    /// single player the two together are byte-for-byte the original's latch;
+    /// multiplayer is the one place the original is not the authority, and it
+    /// has no answer here to copy.
+    pub event_posted: [bool; MAX_COUNTIES],
     /// County `+0x6C`, `+0x6D` — each county's anchor tile, which is where its
     /// marker is drawn. Two arrays rather than an array of pairs: index order
     /// is the only order anything here is ever walked in.
@@ -936,6 +965,7 @@ impl Game {
             // no lords in it to be called anything.
             player_names: [crate::text::PlayerName::EMPTY; MAX_REALMS],
             selected: 0,
+            event_posted: [false; MAX_COUNTIES],
             anchor_x: [0; MAX_COUNTIES],
             anchor_y: [0; MAX_COUNTIES],
             gold_last: [0; MAX_REALMS],
