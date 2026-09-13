@@ -377,7 +377,7 @@ pub struct Assets {
     /// every DOS install: `Smk_Open` then fails and each caller's fail arm runs.
     pub films: crate::movie::FilmFiles,
     /// `L2_maps.dat` whole. A `MapSlot` borrows its file, so the bytes are kept
-    /// and the slot is re-parsed on demand — which is bounds arithmetic, not
+    /// and the slot is re-parsed on demand —
     /// decoding, and costs nothing.
     maps: Vec<u8>,
     /// The `MAPnn.PL8` files, by file number 1..=15, unparsed. Four map slots
@@ -1161,7 +1161,7 @@ impl Game {
     }
 
     /// Whether the player may give this county orders. Setting another realm's
-    /// taxes is not a thing the interface refuses for tidiness; it is not the
+    /// taxes is not a thing the interface refuses for tidiness;
     /// player's county.
     pub fn is_players(&self, id: u8) -> bool {
         self.is_county(id) && self.kingdom.counties[id as usize].owner == self.player
@@ -1256,20 +1256,27 @@ impl Game {
     /// The original stashes `g_pickedTileUnit` and `g_pickedTileCounty`, closes
     /// the panel and runs `FUN_00437535`, which is
     /// [`l2_kingdom::conquest::leave_castle`]; under `g_multiplayer` it sends
-    /// command `0x36` instead. **The sortie battle that body starts when the
-    /// castle is besieged is not staged here** — the answer carries the
-    /// besieger's slot and this door drops it.
+    /// command `0x36` instead.
+    ///
+    /// **The sortie is staged here**, which is `FUN_00437535`'s tail:
+    /// `if (unit.besiegedBy && Battle_BeginFromCampaign(unit, unit.besiegedBy))
+    /// g_battleCounty = county;` — [`crate::turn::raise_sortie`], with the
+    /// county the garrison left.
     pub fn leave_castle(&mut self, unit: usize) -> l2_kingdom::conquest::LeftCastle {
         let county = self.kingdom.campaign.units.get(unit).map_or(0, |u| u.garrison_county);
         let l2_kingdom::Kingdom { counties, realms, campaign, .. } = &mut self.kingdom;
-        l2_kingdom::conquest::leave_castle(
+        let out = l2_kingdom::conquest::leave_castle(
             &campaign.map,
             counties,
             realms,
             &mut campaign.units,
             unit,
             county,
-        )
+        );
+        if let l2_kingdom::conquest::LeftCastle::Marched { sortie: Some(besieger), .. } = out {
+            crate::turn::raise_sortie(self, unit, besieger, county);
+        }
+        out
     }
 
     /// The player's units, in ascending slot order — what a map screen would

@@ -61,13 +61,13 @@ const BORDER_2_3: usize = 48;
 ///
 /// * *The opponent needs two counties.* A realm that loses its last one is
 ///   eliminated, which ends the game and replaces the map with the conquest
-///   screen — so a test that takes a county from a one-county opponent cannot
+/// screen — so a test that takes a county from a one-county opponent cannot
 ///   then assert that the map is still what is on screen.
 /// * *The counties need neighbour lists.* `Realm_SecedeIsolatedCounties` walks
 ///   `County::neighbours`, and a realm holding two counties that name no
-///   neighbours is a realm holding two **blocks** — so a captured county with
+/// neighbours is a realm holding two **blocks** — so a captured county with
 ///   no adjacency seceded again at the end of the same turn it was taken. The
-///   rule is right and the fixture was unreal.
+/// rule is right and the fixture was unreal.
 fn world() -> (Game, Assets) {
     let mut g = Game::new(11);
     // **Tip screens: No.** A new game's tips hold the campaign map's input on
@@ -1014,6 +1014,49 @@ fn a_besieger_whose_garrison_has_gone_takes_orders_instead_of_opening_the_siege(
     );
     click(&mut m, &mut g, &a, pixel(there.0, there.1).unwrap());
     assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.moving), "orders taken");
+}
+
+/// **The sortie**: a besieged garrison told to leave fights the besieger.
+///
+/// `Army_LeaveCastle`'s body `FUN_00437535` (`0x004374C4`) ends
+/// `if (unit.besiegedBy && Battle_BeginFromCampaign(unit, unit.besiegedBy))
+/// g_battleCounty = county;` — the marching garrison is `g_battleArmyA`, the
+/// besieger `g_battleArmyB`, and the county is the one left, not the
+/// occupant's. It used to march out onto its besieger and fight nothing.
+#[test]
+fn a_garrison_that_marches_out_onto_its_besieger_raises_the_battle_prompt() {
+    let (mut g, a, mut m) = on_the_map();
+    let (keep, camp) = adjacent_pair(|x| x < 30);
+    g.kingdom.counties[1].castle_type = 2;
+
+    let garrison = army_at(&mut g, 1, 1, 200, keep);
+    g.kingdom.campaign.units.get_mut(garrison).unwrap().garrison_county = 1;
+    g.kingdom.counties[1].garrison_unit = garrison;
+
+    let besieger = army_at(&mut g, 2, 2, 300, camp);
+    g.kingdom.campaign.units.get_mut(besieger).unwrap().besieging_county = 1;
+    g.kingdom.campaign.units.get_mut(garrison).unwrap().besieged_by = besieger as u8;
+
+    let out = g.leave_castle(garrison);
+    assert!(
+        matches!(out, l2_kingdom::conquest::LeftCastle::Marched { sortie: Some(b), .. }
+            if b == besieger),
+        "she marched, carrying the besieger: {out:?}",
+    );
+
+    let q = l2_game::turn::pending_question(&g).expect("the sortie is on the table");
+    assert_eq!((q.attacker, q.defender), (garrison, besieger), "the marcher attacks");
+    assert_eq!(q.county, 1, "g_battleCounty is the county left");
+    assert!(!q.is_siege, "a field battle: Battle_BeginFromCampaign clears g_battleIsSiege");
+
+    run_until(&mut m, &mut g, &a, "the sortie prompt", |m, _| {
+        m.top_id() == Some(ScreenId::BattlePrompt)
+    });
+    assert!(
+        g.kingdom.campaign.units.get(garrison).is_some()
+            && g.kingdom.campaign.units.get(besieger).is_some(),
+        "and nothing is resolved while the question stands",
+    );
 }
 
 /// **The end of the verb: march onto an enemy county's town and take it.**

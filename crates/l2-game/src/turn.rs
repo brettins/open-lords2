@@ -530,6 +530,25 @@ fn raise_idle_battle(game: &mut Game, e: Encounter) {
     settle_question(game, q, answer);
 }
 
+/// **The sortie** — `FUN_00437535`'s tail, the body of `Army_LeaveCastle`
+/// (`0x004374C4`):
+///
+/// ```c
+/// if (unit.besiegedBy && Battle_BeginFromCampaign(unit, unit.besiegedBy))
+///     g_battleCounty = county;
+/// ```
+///
+/// `Battle_BeginFromCampaign` (`0x004A7158`) takes the marching garrison as
+/// `g_battleArmyA` and the besieger as `g_battleArmyB`; the caller then
+/// **overwrites `g_battleCounty`** with the castle's county.
+/// county here is the one left and not the occupant's.
+///
+/// The button is pressed on an ordinary frame, so this is
+/// [`raise_idle_battle`]'s gate — `Battle_ChooseSettlement` either way.
+pub(crate) fn raise_sortie(game: &mut Game, garrison: usize, besieger: usize, county: u8) {
+    raise_idle_battle(game, Encounter { mover: garrison, occupant: besieger, county });
+}
+
 /// **Put a question on the table without playing a turn to get one.**
 ///
 /// [`TurnProgress`]'s fields are private to this module on purpose — a
@@ -1313,7 +1332,7 @@ fn begin_phase(game: &mut Game, phase: Phase) {
             // > season, for ever.** `docs/decisions.md` C149.
             //
             // `Kingdom::run_neutral_farms` builds the stall from the counties'
-            // own merchant fields and the unit array, which is exactly the two
+            // own merchant fields and the unit array.
             // reads `Ai_BuyGood` makes.
             game.kingdom.run_neutral_farms_at_the_stall();
         }
