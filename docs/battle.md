@@ -412,6 +412,24 @@ piece of evidence: in a siege, army B (side 0) is the side raised by
 `g_troopsTable` into each. It does **not** read the `.skr` army table on this path;
 `Skr_ReadMap` reads only the 6,400-byte terrain layer.
 
+### 4.4a The third battle mode is the **custom battle**, and its flag is `DAT_0057A0F0`
+
+**[V]** The six films `smk.md` lists as unreachable — `bat_win5/6`, `bat_los5/6`,
+`cas_win3`, `cas_los3` — hang off one branch. `Battle_CheckOutcome` (`0x00477DFC`) picks
+between **two name tables** of 16-byte slots indexed `(g_battleOutcome * 4 +
+DAT_0053F084) * 0x10`: `s_bat_win1_smk` (`0x004D9278`) when `DAT_0057A0F0` is 0 and
+`s_bat_win5_smk` (`0x004D93F8`) when it is not. `DAT_0057A0F0` is set to 1 by
+`Skirmish_Setup` (`0x0042B7F7`) and `FUN_0042B919` and cleared everywhere a campaign
+starts, so **the mode is the stand-alone custom battle**, not a third kind of fight:
+`NetCmd_Write_56` (`0x004463D9`) calls its 121-byte payload *"the whole custom-battle
+definition"*, and `Skirmish_Setup`'s three front-end callers are `FUN_00433155`,
+`FUN_0043338E` and `FUN_00433551`. The same flag is read in three other places on the way
+in and out: it takes the `.skr` terrain (`Battlefield_BuildFromSkr` when `DAT_0053E91C`
+is 3), it bypasses the `g_siegeCount < 2` gate on the outcome film, and it suppresses the
+campaign-map tip ladder at `g_screenId == 0` with `g_battlePhase == 2`. We do not have the
+mode, so the six films are unreachable in ours for the reason they are reachable in the
+original.
+
 ---
 
 ## 5. Raising an army: size class, units and figures
