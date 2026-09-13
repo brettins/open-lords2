@@ -12146,3 +12146,39 @@ Border violation letter: `L2.eng` 134, message 0x86. `County_GreetArmy` 0x004ABF
 Message ring drain: `Msg_Pump` 0x00472E46 is `if (g_battlePhase==2 && g_messageGroup!=0) Msg_Dismiss(); else pull`. Guard on open window: battle drains ring one letter per two frames, does not hold it. Docs/arms.json corrected from opposite claim. Built in `Machine::pump_messages`; test `a_battle_drains_the_message_ring_one_frame_at_a_time`, arms test 7/7.
 
 Custom battle: `Battle_CheckOutcome` 0x00477DFC picks between two 16-byte name tables indexed `(g_battleOutcome*4 + DAT_0057A0F0)*0x10`. `s_bat_win1_smk` 0x004D9278 when `DAT_0057A0F0 == 0`, `s_bat_win5_smk` 0x004D93F8 otherwise. `Skirmish_Setup` 0x0042B7F7 sets `DAT_0057A0F0`. `NetCmd_Write_56` 0x004463D9 carries definition. Front-end callers 0x00433155/0043338E/00433551. Docs/battle.md §4.4a.
+
+---
+
+**C224 — The long march finds a path; splitting and garrison movement are built.**
+
+`Move_FloodFill` (`0x0046F700`): the frontier queue wraps at `0x3FF`, our `QUEUE_CAP`
+1024, an open fill queues at most 250; step cost 3 open / 1 road (`Unit_StepOnce`
+`0x0046634D`); cap 150 (`Path_CopyToUnit` `0x004707BE`); diagonals gated on the
+current tile not being a road; all match. Measured at main three ways: `order_move`
+for every straight march of 1 to 30 open tiles, `extract_path` over 17,533
+start/dest pairs at distance 10 to 30, the map screen's two clicks over all 15,038
+such pairs among the 225 tiles the campaign view opens on; no failure. Guard test
+`movement::tests::a_march_of_ten_to_thirty_open_tiles_is_ordered_whole`; ablation
+`QUEUE_CAP` 64 red.
+
+Splitting into a castle was already whole: `Army_Split` (`0x00437FD7`) gives the
+daughter the castle tile and a path; `Unit_ReachCastleBuilding` (`0x004686A0`)
+calls `Army_GarrisonApply` (`0x004A79A3`), which writes county `+0x1BC` and unit
+`+0x198`, teleports to `+0x74`/`+0x75`, charges 5; tests
+`a_split_into_a_castle_becomes_the_garrison` (100 of 300 men leave, walk 12,
+garrison at (20,20), moves_used 17) and `a_castle_split_may_be_under_fifty_men`
+(`Army_SplitConfirm` `0x00437AFB`, no minimum); ablation drops the `SplitInto::Castle`
+`order_move`, both red.
+
+Marching a garrison out is built: `Army_LeaveCastle` (`0x004374C4`) and its body
+`FUN_00437535` ported as `l2_kingdom::conquest::leave_castle`, wired to the info
+panel's garrisoned first button via `Game::leave_castle`; free tile from
+`Map_FindFreeTileNear` (`0x0046733C`) else `Army_Destroy`; both links cleared; no
+moves charged; `besiegedBy` kept. Tests `a_garrison_marches_out_onto_a_free_tile_and_pays_nothing`,
+`a_besieged_garrison_leaves_carrying_its_besieger`, `a_garrison_with_nowhere_to_stand_is_destroyed`;
+ablation leaves `garrison_county` set, first red.
+
+Two rows opened from it: the sortie battle is not staged (`LeftCastle::Marched`
+carries the besieger's slot and nothing fights it), and a split daughter crossing
+the parent's tile halts on `try_enter`'s `Occupied` arm where the original asks
+"Combine armies?" (`L2.eng` 10/5).
