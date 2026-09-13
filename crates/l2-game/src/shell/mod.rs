@@ -96,7 +96,7 @@ pub const SHEETS: &[&str] = &[
     // weapon just assigned, at the moment the walk starts — which is a read
     // during a click, and this list is eager because a lazy cache would need
     // interior mutability on a path `draw` may only see through `&`. What that
-    // costs is the read: `Sheet` decodes lazily, so a colour nobody plays is
+    // costs is the read: `Sheet` decodes lazily, so a colour
     // never turned into pixels.
     "Armtorch.pl8",
     "Trp_xb_r.pl8",
@@ -289,7 +289,7 @@ impl ShellAssets {
     /// This is `docs/agents.md`'s *a tool that degrades silently is worse the
 /// more people use it*, in the shipped program. The
     /// degradation is still the right behaviour: the game must run on a bare
-    /// checkout. What was wrong is that it happened without a word.
+    /// checkout.
     fn complain_about_what_is_missing(&self) {
         let mut missing: Vec<&str> = self.missing_fonts();
         if self.eng.is_none() {
@@ -396,7 +396,7 @@ impl ShellAssets {
     /// y 216…223 between x 512 and 599. In the original those are live — the
     /// hit test accepts any non-zero cell and the handler then indexes the
     /// eight-slot levy basket with 60-something. **We answer `None` for them**,
-    /// because there is no faithful reproduction of an out-of-bounds read.
+    /// because
     /// `docs/bugs.md` N13.
     pub fn armoury_grid(&self, x: i32, y: i32) -> Option<u8> {
         match grid_cell(&self.armoury_grid, x, y) {
@@ -687,7 +687,7 @@ impl<'a> Pen<'a> {
     fn style(&self, colour: u8) -> font::Style {
         font::Style { colour, shadow: self.shadow, caps: self.caps }
     }
-    /// What the fallback font uses when there is no `Fntl2_*.pl8` to draw with.
+    /// What the fallback font uses when
     /// The original's colour indices mean nothing under our own palette, so
     /// they are mapped to the three named interface colours instead.
     fn fallback(&self, colour: u8) -> u8 {
@@ -702,7 +702,7 @@ impl<'a> Pen<'a> {
     /// so a caller building a sentence out of pieces can hand the answer
     /// straight back in.
     ///
-    /// **That was not true until it was looked at with the real fonts loaded.**
+    /// **
     /// [`Font::draw`] returns `pen - x`, the *advance* — which is the
     /// original's `g_penAdvance`, and correct there, because every call site in
     /// the binary reads it as `Eng_DrawString(…, g_penAdvance + 0x70, …)`.

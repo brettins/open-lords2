@@ -152,7 +152,7 @@ fn the_missile_stats_are_the_bytes_in_the_executable() {
 /// The oracle can fail. A test that reads a table and compares it to itself
 /// would pass against any bytes at all, so this reads a *neighbouring* address
 /// and requires it to disagree — which is the cheapest possible proof that the
-/// address above is not simply landing in a field of zeros or reading the same
+/// address above is landing in a field of zeros or reading the same
 /// four bytes eleven times.
 #[test]
 fn the_addresses_are_specific_and_not_a_field_of_zeros() {

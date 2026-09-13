@@ -291,7 +291,7 @@ fn marching_on_a_lords_county_writes_to_him_turns_your_rotation_and_shows_you_no
 /// one county at a peak of one, so it is `L2.eng` 117.
 ///
 /// Ablation: delete the `out.posted.push(Posted::Capture(..))` in
-/// `l2_kingdom::units_tick` and the second letter never comes.
+/// `l2_kingdom::units_tick` and the second letter.
 #[test]
 fn taking_a_neutral_town_opens_the_capture_letter_after_the_greeting() {
     let (mut g, a, mut m) = world(0);

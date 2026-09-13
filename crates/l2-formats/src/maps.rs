@@ -154,7 +154,7 @@ impl<'a> MapSlot<'a> {
     ///
     /// Counts distinct ids in `1..=16` only, matching the engine, which clamps
     /// at `< 0x11` when counting. Id **32** also occurs in the county plane but
-    /// is not a county — counting it gives one castle block too few per map,
+    /// is not a county — counting it gives one castle block too few per map
     /// which is how this was caught.
     pub fn county_count(&self) -> usize {
         let mut seen = [false; 256];

@@ -1,4 +1,4 @@
-//! **A drag in the village is `Labour_Move`, and `Labour_Move` is not a
+//! **A drag in the village is `Labour_Move`
 //! subtraction.** Five player reports, one mechanism and two beside it.
 //!
 //! ```text
@@ -195,13 +195,13 @@ fn end_turn(m: &mut Machine, game: &mut Game, assets: &Assets) {
 ///
 /// England turn one's county 8 is the person's, cuts wood with 108 of its 435
 /// and has an iron mine that `Game_SetupRealmsAndCounties` left **off** — the
-/// loop takes the first of wood, iron, stone the county has and stops, and the
+/// loop takes the first of wood, iron, stone the county has and stops
 /// save agrees. One icon of foresters dropped on the mine:
 ///
 /// * **`FUN_00439CC2` switches the mine on**, so its site turns to working
 ///   (`1 + 1`) and its ceiling to 100,000 — *"mining started as off"*, and
 ///   putting men on it is how the original turns it on;
-/// * **the wood row redraws** at `(108 − popBand) × 80%`, and the old `+86` is
+/// * **the wood row redraws** at `(108 − popBand) × 80%`
 ///   gone — *"industry values don't seem to update"*;
 /// * **the iron row appears** under it with `popBand × 80%`.
 ///
@@ -271,7 +271,7 @@ fn a_drop_on_a_switched_off_mine_switches_it_on_and_both_rows_redraw() {
 /// `Village_DrawBand` (`0x00412795`) is the original's and not ours.
 ///
 /// C173 put our outline behind Ctrl+D on the strength of not having found this
-/// function, and the player reported the result: *"the drag selection box has
+/// function
 /// disappeared, it was probably a debug thing that you removed with other debug
 /// boxes."* The assertion is the whole rectangle in the original's own colour —
 /// `Ui_DrawRectOutline`'s literal `0x20` — read off the canvas at the four

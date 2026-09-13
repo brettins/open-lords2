@@ -62,7 +62,7 @@
 //!     Ui_DrawUnitNoun(2, 0x34 + row*2, x+0x7D, y+4)                    x 187
 //!     Pl8_DrawFrame(misc_cty, 0x2F + row, x+0xF5, y)                   x 307
 //!     Ui_DrawNumber(b.troops[row], ' ', " ", x+0x118, y+4)             x 342
-//!     and the row's two counts are STASHED in DAT_00568420/DAT_0056843C
+//! and the row's two counts are STASHED in DAT_00568420/DAT_0056843C
 //!   then Ui_DrawCount(a.menTotal, 0x48, x+0x14,  y + 7*0x18 + 0xC)  (82, 404)
 //!        Ui_DrawCount(b.menTotal, 0x48, x+0xDC, …)                (282, 404)
 //!   mode 1, the same seven rows plus the two stashed figures:
@@ -73,7 +73,7 @@
 //!
 //! **The mercenary band is folded into its troop type before the row is drawn**
 //! — `if (unit.mercTroop == row) count += unit.mercMen` — in both modes, and it
-//! is the stashed value too, so a mercenary company shows up inside the
+//! is the stashed value too,
 //! swordsmen. **This listing described the fold from
 //! the day it was written and neither screen did it**, and neither drew
 //! `menTotal` either — both are [`crate::engagement::roster_of`] and
@@ -127,7 +127,6 @@
 //! Not on `0x13`. `L2.eng` group 82's seven heading/body pairs belong to
 //! `Screen_BattleOutcome`, screen `0x2B`, which is a separate screen this module
 //! does not build. It was read for the draw-call audit and is recorded here
-//! rather than nowhere:
 //!
 //! ```text
 //! Screen_BattleOutcome():                                       0x00423241
@@ -271,7 +270,7 @@ const TOTAL_B_X: i32 = 282;
 ///
 /// Frames 29 and 31 are a mailed hand giving a thumb **up** and a thumb
 /// **down** — not a tick and a cross; `docs/screens-county.md` §4.2 decoded
-/// them. Every yes/no in the game draws this same pair, so
+/// them. Every yes/no in the game draws this same pair,
 /// `screens/saveload.rs` has the identical two constants.
 pub const TAKE_THE_FIELD: (i32, i32, usize, i32) = (BOX_X + 300, BOX_Y + 68, 29, 32);
 pub const DECLINE: (i32, i32, usize, i32) = (BOX_X + 340, BOX_Y + 68, 31, 32);
@@ -476,7 +475,7 @@ pub struct BattlePromptScreen {
 /// **pressed picture**, the press edge, and a double click being a press:
 /// `Widget_Test`'s kind-4 guard is `g_mouseLeftPressed ||
 /// g_mouseLeftDoubleClick`, and [`BattlePromptScreen::handle`] hands every
-/// event to [`Press::event`], so a double click on either thumb answers.
+/// event to [`Press::event`],
 ///
 /// `DAT_004DDBB0[0]`, hotspot id 1, is `FUN_0043B593` → `Battle_Start`
 /// (`0x004778A0`); `DAT_004DDBB0[1]`, hotspot id 0, is `Battle_Decline`
@@ -571,7 +570,7 @@ impl Screen for BattlePromptScreen {
     /// `Screen_HandleInput` (`0x004BA9C8`) hit-tests at offset `(0x20, 0x30)`
     /// with a count of `DAT_00554408`; that count is written by
     /// `Battle_ChooseSettlement` (`0x004A6A30`) and is **2 when
-    /// `g_battleChoiceOwner == 1` and 0 otherwise**, so a bystander's prompt has
+    /// `g_battleChoiceOwner == 1` and 0 otherwise**,
     /// no widgets and no way out but the multiplayer timeout. The table holds
     /// exactly two records — `g_sliderWidgets` begins at `0x004DDBE0`, 48 bytes
     /// on —.
@@ -621,7 +620,7 @@ impl Screen for BattlePromptScreen {
                 }
             }
             // `DAT_004DDBB0[1]`, hotspot id 0 → `Battle_Decline`
-            // (`0x0043B622`), which is `Battle_AutoResolve` and the report.
+            // (`0x0043B622`),
             Some(_) => BattlePromptScreen::answer(ctx, Answer::Decline),
             None => Transition::Stay,
         }

@@ -1,4 +1,4 @@
-//! **Saving a game and loading it back**, and the one test that can fail for a
+//! **Saving a game and loading it back**
 //! real reason.
 //!
 //! ```text
@@ -17,7 +17,7 @@
 //! it takes one game, saves it, loads the save, and then **plays both forward
 //! ten seasons**, requiring the `l2_net::Canonical` digest of the two kingdoms
 //! to match after every single one. That digest is the same number a lockstep
-//! peer exchanges every tick (`docs/netcode.md` §5), so a save that lost the
+//! peer exchanges every tick (`docs/netcode.md` §5)
 //! generator's state, or the history ring's head, or one county's dryness, does
 //! not survive the first season that reads it — the digests part company and
 //! the test names the season they parted on.
@@ -34,7 +34,7 @@
 //! made `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back` fail
 //! about one run in a hundred. See [`Saves`].
 //!
-//! Nothing here writes a `.sav` anywhere near the repository, and the extension
+//! Nothing here writes a `.sav` anywhere near the repository
 //! is `.l2sav` in any case — `l2_game::save::EXTENSION` says why.
 
 use std::path::PathBuf;
@@ -57,7 +57,7 @@ use l2_kingdom::{Kingdom, Options};
 /// format tested only on zeros.
 ///
 /// **Also where the save-directory safety net goes up.** Nothing can be saved
-/// without a `Game`, and every game in this file starts here, so a test that
+/// without a `Game`
 /// forgot its [`Saves`] meets [`an_unscoped_save_is_refused`] before it can
 /// write — whatever order the harness happens to run the tests in.
 fn furnished(seed: u64) -> Game {
@@ -71,7 +71,7 @@ fn furnished(seed: u64) -> Game {
         fight_humans_only_byte: 0,
         exploration: true,
         time_limit: 240,
-        // Not the default, so a round trip that dropped it would come back
+        // Not the default
         // FAITHFUL and the test would pass anyway.
         quirks: l2_kingdom::Quirks::FIXED,
     };
@@ -130,7 +130,7 @@ fn furnished(seed: u64) -> Game {
     game
 }
 
-/// The lockstep digest of a kingdom — the number a peer would exchange, and the
+/// The lockstep digest of a kingdom — the number a peer would exchange
 /// one this file compares two timelines with.
 fn digest(k: &Kingdom) -> u64 {
     l2_kingdom::save::checksum(k)
@@ -265,7 +265,7 @@ fn the_originals_own_save_is_not_mistaken_for_ours() {
 /// These tests used to share one directory, named by `LORDS2_SAVES` for the
 /// whole process, and use distinct file names. Distinct names are enough for
 /// *"is my file there?"* and not for anything that depends on the listing's
-/// **shape**: the listing is sorted, so a file another test writes or deletes
+/// **shape**: the listing is sorted
 /// moves every row after it. The load-screen test opened the screen, then took
 /// a *second* listing to work out which row to click, and when another test
 /// wrote or removed a save between those two statements the click landed on
@@ -325,8 +325,8 @@ fn file(name: &str) -> String {
 
 /// Where `LORDS2_SAVES` points for this whole process: **a path under a regular
 /// file**, so no directory can ever be created there and every write to it
-/// fails, naming the path. A test that touches saves without a [`Saves`] of its
-/// own therefore fails on its first write, every time, instead of sharing a
+/// fails
+/// own therefore fails on its first write
 /// directory with every other forgetful test and failing one run in a hundred.
 ///
 /// Set once and never changed, which is the only safe way to use a
@@ -349,7 +349,7 @@ fn an_unscoped_save_is_refused() -> PathBuf {
 
 /// The safety net above, observed: `LORDS2_SAVES` decides when nothing is
 /// scoped, a write there is refused and says where, a scoped directory outranks
-/// it, and the scope ends with its guard.
+/// it
 #[test]
 fn a_test_without_a_save_directory_of_its_own_cannot_write_a_save() {
     let refused = an_unscoped_save_is_refused();
@@ -437,7 +437,7 @@ fn a_failed_write_cannot_destroy_the_save_it_was_replacing() {
     // The write goes to a `.part` file and is renamed over the target, so the
     // only way the target changes is a rename that succeeded. What is asserted
     // here is the visible consequence: after a successful overwrite
-    // `.part` left behind, and the file is the *new* game.
+    // `.part` left behind
     //
     // **Against the directory, not the listing.** This used to ask `saves::list`
     // whether any name ended in `.part` — and `list` keeps only `.l2sav` files,
@@ -488,13 +488,13 @@ fn settle(m: &mut Machine, game: &mut Game, assets: &Assets) {
     }
 }
 
-/// **The thumb up clicks on the press, writes nothing on it, and the save runs
+/// **The thumb up clicks on the press
 /// 150 frames later.**
 ///
 /// A player, twice: *"no sound on clicking the yes/no on save, and it is still
 /// on mousedown instead of mouseup"*. Both halves are the binary's:
 /// `g_saveLoadWidgets`' records are `Widget_Test` **kind 4**, which plays
-/// `Sound_RestartSlot(1)` and calls the handler on the press, and the handler,
+/// `Sound_RestartSlot(1)` and calls the handler on the press
 /// `FUN_004342F3`, is only `DAT_005CD41C = 100` — `SaveLoad_Tick` sets
 /// `DAT_0057D3C4 = 0x96` and writes when that runs out. Ours answered a raw
 /// click and wrote on the spot.
@@ -538,7 +538,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
 
     let own = Saves::new("screens");
     // Four saves that sort before the one this test makes, all of a different
-    // game, so a click on any row but the right one loads the wrong world and
+    // game
     // the digest says so.
     let decoy = furnished(0xDEC0);
     let decoys = ["a decoy", "b decoy", "c decoy", "d decoy"];
@@ -546,7 +546,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
         saves::write(n, &decoy).expect("write");
     }
 
-    // **What is typed and what is saved are different strings now**, and the
+    // **What is typed and what is saved are different strings now**
     // difference is the point. The save box is `Edit_Begin(&DAT_004EA130, 8,
     // 0xA0, 1)` — **kind 1**, a DOS file name — so `Edit_TypeChar` runs
     // `A`–`Z` through `0x004011B0` and lower-cases them. Typing `SCREENTEST`
@@ -564,8 +564,8 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     // screen's fields; it is clicks and keys.
     //
     // **`Event::Text`, not `Event::KeyDown`.** They are `WM_CHAR` and
-    // `WM_KEYDOWN` and the field reads the first,
-    // does — `Key::Char` is folded to upper case for the hotkey matchers, so a
+    // `WM_KEYDOWN` and the field reads the first
+    // does — `Key::Char` is folded to upper case for the hotkey matchers
     // field fed from it could never produce a lower-case letter at all. This
     // test drove the old hand-rolled field through the hotkey message and is
 // the reason that distinction is now enforced. The
@@ -588,7 +588,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     assert_ne!(digest(&game2.kingdom), before);
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Load));
     // **Row 4, and it is a literal.** The directory holds exactly the five
-    // files asserted above, the list is sorted, and the four decoys sort first,
+    // files asserted above
     // so the list this screen opened on has `screen test` fifth — the middle
     // column of the second line, which exercises both halves of the geometry.
     //
@@ -744,7 +744,7 @@ fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     // The name field cannot hold a separator — `Key::Char` never carries one —
     // so the refusal is reached the way a player would reach it: an empty name.
-    // Enter arms `SaveLoad_Tick`'s latch, and the refusal comes when it runs out.
+    // Enter arms `SaveLoad_Tick`'s latch
     let mut t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
     for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
         t = l2_game::Screen::update(&mut screen, &mut ctx);
@@ -828,7 +828,7 @@ fn the_autosave_keeps_the_last_three_turns_newest_first() {
     assert_eq!(own.files().len(), 3, "no fourth file");
 }
 
-/// **The first autosave of a game has nothing to rotate**, and the original
+/// **The first autosave of a game has nothing to rotate**
 /// does not care: its `remove` and both `rename`s fail and it writes
 /// anyway. Ours must not turn that into a failure a player is told about.
 #[test]
@@ -840,7 +840,7 @@ fn the_first_autosave_of_a_game_writes_one_file_and_reports_no_failure() {
 }
 
 /// **The autosave is our own directory's, never the install's** — `CLAUDE.md`
-/// rule 2, and the one thing about this feature that must never regress. The
+/// rule 2
 /// original keeps its rotation *inside the game directory*, which is exactly
 /// where `docs/environment.md` has already watched a program destroy a
 /// fixture's identity.
@@ -863,7 +863,7 @@ fn the_autosave_lands_where_every_other_save_of_ours_lands() {
 ///
 /// **It must be raised in the dark, not on the button and not on the far side
 /// of the light.** `FUN_0049A3E6` runs on `g_screenId == 0x24`, after the fade
-/// has bottomed out and the seasonal art has been reloaded, so what the file
+/// has bottomed out and the seasonal art has been reloaded
 /// holds is the *opening* of the turn that just began — which is what the last
 /// assertion reads back.
 ///

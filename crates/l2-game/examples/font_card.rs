@@ -114,7 +114,7 @@ fn main() {
         for line in LINES {
             // Flat, in the colour the setup painters pass. `DAT_005AEA40` is
             // set around every menu item and body line, so flat is what those
-            // screens actually show; the heading is the embossed one.
+            // screens
             let flat = Style { colour: font::TEXT, shadow: None, caps: None };
             f.draw(&mut canvas, 24, y, line, &flat);
             if let Some(b) = baseline(f, y) {

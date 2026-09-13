@@ -13,7 +13,7 @@
 //! returned green. Two consequences followed, and both had already bitten:
 //!
 //! * **CI runs no install, so those tests do not exist there.** They pass
-//!   locally, they pass on CI, and the passing means two different things. The
+//! locally, they pass on CI, and the passing means two different things. The
 //!   project's strongest evidence — the reproduction against a real save, the
 //!   renderer against real sprites — was invisible in the place that gates
 //!   merges.
@@ -49,7 +49,7 @@
 //! * **ready** — the file is there and it is the right game;
 //! * **absent** — nothing is configured, and the test skips, visibly;
 //! * **wrong game** — something is there and it is not what the test describes,
-//!   and the test *fails*, with a message saying so.
+//! and the test *fails*, with a message saying so.
 //!
 //! Conflating the last two is how this went unnoticed: nine tests failing with
 //! bare assertion diffs read as "our reader broke", when the truth was "this is

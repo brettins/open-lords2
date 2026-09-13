@@ -7,13 +7,13 @@
 //! that is asymmetric about zero is a directional bias in a
 //! simulation, and a directional bias is invisible until someone
 //! notices that units drift left over a long battle. The property
-//! tests below check symmetry as a property rather than at a handful of
+//! tests below check symmetry as a property
 //! points.
 //!
 //! **Overflow.** `Fixed`'s range is deliberately much wider than the
 //! game needs, so every overflow is a bug — but a bug that must
 //! *behave identically on both peers*, in both debug and release
-//! builds. That last part is why the operators saturate rather than
+//! builds.
 //! using Rust's built-in behaviour, which panics in debug and wraps in
 //! release. Two peers on different profiles would otherwise compute
 //! different numbers, and no test that runs one profile at a time would
@@ -132,7 +132,7 @@ fn floor_plus_frac_reconstructs_the_value() {
 
 #[test]
 fn multiplication_truncates_toward_zero() {
-    // 1/3 * 3 loses the last bit rather than gaining one.
+    // 1/3 * 3 loses the last bit
     let third = Fixed::from_ratio(1, 3);
     assert_eq!(third.raw(), 21_845);
     assert_eq!((third * f(3)).raw(), 65_535);

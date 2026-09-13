@@ -72,7 +72,7 @@
 //! increments the counter to 8 and `FUN_00499E5D` then reads entry **8** — one
 //! past the eight real rows. Entries 8 and 9 of both tracks are all zeros, so
 //! that read yields scenario 0 and a harmless `Map_LoadPlanes(0)` behind the
-//! end-of-campaign screen rather than garbage. Verified by reading the bytes,
+//! end-of-campaign screen. Verified by reading the bytes,
 //! assumed.
 
 use l2_kingdom::victory::{Outcome, Ranking};
@@ -94,7 +94,7 @@ pub struct CampaignMap {
     /// `g_startArmySize`, `g_aiLordCount`, in the order `Campaign_LoadEntry`
     /// assigns them — which is the order of the four accessors below.
     ///
-    /// Kept as one array rather than five fields because they are still read
+    /// Kept as one array because they are still read
     /// verbatim out of the table and written verbatim back; the accessors say
     /// what each slot is.
     pub options: [i32; 5],
@@ -132,7 +132,7 @@ impl CampaignMap {
     /// **`Campaign_LoadEntry` (`0x00499E5D`), as a [`crate::setup::Settings`].**
     ///
     /// This is the half of that function that is not the map load, and the
-    /// reason it returns a `Settings` rather than a `SetupOptions` is the whole
+    /// reason it returns a `Settings` is the whole
     /// point of the function: **a campaign map does not go through
     /// `Setup_CommitOptions`.** The eight columns of the row *are* the committed
     /// globals — `g_scenarioIndex`, `g_optDifficulty`, `g_startingGoldChosen`,
@@ -244,7 +244,7 @@ impl Track {
         }
     }
 
-    /// How many maps this track actually asks for.
+    /// How many maps this track asks for.
     pub fn length(self) -> usize {
         CAMPAIGN_LENGTH - self.first_map()
     }

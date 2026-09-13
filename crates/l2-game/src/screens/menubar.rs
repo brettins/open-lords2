@@ -796,7 +796,7 @@ mod tests {
         }
     }
 
-    /// **The titles are measured in the game's own font**, which is what makes
+    /// **The titles are measured in the game's own font**
     /// the hit boxes right — `Ui_DrawMenuTitles` starts the pen at 10 and adds
     /// the drawn width plus 32 after each. With `Fntl2_14.pl8` loaded the three
     /// boxes must be three different widths, must not overlap, and must leave

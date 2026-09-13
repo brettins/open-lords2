@@ -164,7 +164,7 @@ fn every_one_of_the_nine_ceilings_is_refreshed() {
     assert!(c.labour_useful[JOB_WOOD_CUTTING] > 0, "an owned county can cut wood");
 }
 
-/// And the grain ceiling is a real number in **every** season, where it used to
+/// And the grain ceiling is a real number in **every** season,
 /// be the sowing season's alone.
 #[test]
 fn the_grain_ceiling_is_computed_in_all_four_seasons() {
@@ -228,7 +228,7 @@ fn the_nine_records_sum_to_the_population_every_season() {
 }
 
 /// **This test used to say the castle ceiling rested on an inferred model. It
-/// does not any more, and the model it rested on was the wrong one.**
+/// does not any more,
 ///
 /// `Castle_BuildEstimate` computes `min(100 - Pct(woodOwed, woodTotal),
 /// 100 - Pct(stoneOwed, stoneTotal))` from six words at county
@@ -263,7 +263,7 @@ fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
     assert_eq!(industry::castle_seasons_left(t, &c), 100, "and the panel says: for ever");
 
     // **The gate is a whole percent, and that is the original's arithmetic.**
-    // `PctOf(1, 400)` is 0, so a build one stick of wood short reads as fully
+    // `PctOf(1, 400)` is 0,
     // delivered and the builders start. Reproduced
     // `FUN_00450FB4` is two `PctOf` calls and integer division, and a rule that
     // rounded the other way would idle a county over a rounding error.

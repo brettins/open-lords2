@@ -1124,7 +1124,7 @@ fn the_checks_are_sensitive_to_the_three_mistakes_they_exist_for() {
     assert_ne!(good.castle_tile[1], mine_tile(), "the castle did not eat the mine");
 
     // 3. The twenty-slot table dropping: a twenty-first
-    //    field would stay farmland with no entry, and the corpus test's
+    // field would stay farmland with no entry, and the corpus test's
     //    `fields == surviving farm tiles` is what fails.
     let many = many_fields_slot();
     let set = MapSet::parse(&many).unwrap();

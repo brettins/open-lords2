@@ -52,7 +52,7 @@
 //! minQty    = -(what you already hold);
 //! ```
 //!
-//! So the **sell price is the base table price and never moves**, and the
+//! So the **sell price is the base table price**, and the
 //! **buy price is the base plus the merchant's own morale as a percentage of
 //! it**, with a floor of one crown so that a cheap good is never free. That
 //! floor is what makes ale's exemption necessary: at a base of 1 the markup

@@ -245,7 +245,7 @@ fn order_the_castle(m: &mut Machine, g: &mut Game, a: &Assets) {
 ///
 /// **The order and the film both arrive on the twentieth frame**, not on the
 /// press — see [`order_the_castle`]. Ablations: delete the `Push` in `confirm`
-/// and the film never appears; declare the thumbs `Press` in `castle::widgets`
+/// declare the thumbs `Press` in `castle::widgets`
 /// and the screen's own debug assertion fires on the press; make
 /// [`Film::then`](movie::Film::then)'s castle arm a `Pop` again and the chooser
 /// is still on the stack when the film goes.
@@ -443,7 +443,7 @@ fn a_decided_battle_plays_the_film_for_its_outcome_in_rotation() {
 
 // ================================================================== install
 
-/// **Every film a trigger names ships**, and the ones that ship and are never
+/// **Every film a trigger names ships**
 /// played are named. Ablation: misspell a table entry.
 #[test]
 fn every_trigger_names_a_film_the_install_ships() {
@@ -642,7 +642,7 @@ fn buffer(audio: &mut Audio) -> Vec<f32> {
 /// old shape popped the film and left the chooser to pop itself on its next
 /// `update`; [`Machine::update`] runs `run_tips` and `pump_messages` first, so
 /// the castle advisor tip (`Tip_Update`'s `0x1B` arm) seated itself the moment
-/// the film went and the chooser never got that update. Measured at tick 523.
+/// Measured at tick 523.
 ///
 /// **Tips are deliberately left on**, because that is the whole point: with
 /// `g_smkReturnScreen` built as a transition, the chooser is gone before the
@@ -680,7 +680,7 @@ fn a_real_castle_film_ends_on_the_map_however_long_it_runs() {
 /// **A film stops the bed and the bed starts over after it** — the five
 /// restart sites `docs/audio.json` now calls reproduced, heard
 /// read. The castle film's track plays in between. Ablation: make
-/// `Scene::Film` answer the campaign track, and the music never stops.
+/// `Scene::Film` answer the campaign track
 #[test]
 fn a_film_silences_the_campaign_bed_and_it_starts_again_from_its_first_sample() {
     let (p, a) = install!();

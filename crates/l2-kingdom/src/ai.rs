@@ -397,7 +397,7 @@ pub fn set_tax_rates(
         t.ai_tax_ladder(realm_lord)
     };
 // A lord with no personality record sets no rates at all.
-    // falling back to a ladder that was never established. See
+    // falling back to a ladder that. See
     // `crate::tables::AI_PERSONALITY_COUNT`.
     let Some(ladder) = ladder else { return };
     for id in 1..=county_count {

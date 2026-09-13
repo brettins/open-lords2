@@ -321,7 +321,7 @@ pub struct Realm {
     pub offer_pending: bool,
     /// `+0x80` — who [`crate::diplomacy::ai_diplomacy`] has decided to court.
     pub ally_candidate: u8,
-    /// `+0x81` — **one byte, so one ally.** 0 for none. Exclusivity is not a
+    /// `+0x81` — **one byte, so one ally.** 0 for none.
     /// rule written anywhere; it is the width of this field.
     pub ally: u8,
     /// `+0x84 + other * 0x10` — this realm's view of each other realm.

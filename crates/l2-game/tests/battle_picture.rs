@@ -1266,7 +1266,7 @@ fn a_pot_of_oil_sits_eight_pixels_low_and_bubbles_through_six_frames() {
 //   `Battle_UnitPanelClicked`, and nothing gates it — not `g_battlePhase`, not
 //   the pause word, not `g_battleChoiceOwner`.
 //
-// There is no disabled state in the original's menu bar to copy: `FUN_0040C725`
+// `FUN_0040C725`
 // paints each row in `0x18` under the pointer and `0x3F` otherwise, with no
 // third colour and no skip, and not one of the sixteen handlers reads
 // `g_battlePhase`.

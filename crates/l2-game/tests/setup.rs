@@ -12,7 +12,7 @@
 //! and then clicking *Start* changes the world.
 //!
 //! Everything is driven through [`Screen::handle`] with real pointer
-//! coordinates read out of the geometry tables, so a test cannot pass by
+//! coordinates read out of the geometry tables
 //! calling a method the interface does not reach.
 
 use std::path::PathBuf;
@@ -165,7 +165,7 @@ fn the_county_status_row_still_orders_the_counties_after_the_first_season() {
     let mut totals = Vec::new();
     for row in 0..3usize {
         // **From an empty game, not from the fixture.** *Start* replaces the
-        // whole world now, so a new game needs no save at all — which is the
+        // whole world now
         // property this whole commit is about, asserted in passing.
         let mut game = Game::new(scenario::SEED);
         let mut screen = SetupScreen::new(SetupPage::Custom);
@@ -209,7 +209,7 @@ fn difficulty_reaches_the_ai_armoury_and_not_the_persons() {
         }
     }
     assert!(ai > 0, "somebody has to be the AI or this proves nothing");
-// And the option is "none" — the extra is the difficulty's, not
+// And the option is "none" — the extra is the difficulty's
     // the table's.
     assert_eq!(START_ARMOURY[0][slot], 0);
 }
@@ -269,7 +269,7 @@ fn the_map_list_sets_the_lord_count_from_the_map() {
 }
 
 /// **Every map in `L2_maps.dat` seats 5, 4 or 2**, which is what
-/// `docs/symbols.md` says `g_playerStartCount` comes out as, and the reason the
+/// `docs/symbols.md` says `g_playerStartCount` comes out as
 /// *Nobles* drop-down needs shortening at all.
 #[test]
 fn the_shipped_maps_seat_five_four_or_two() {
@@ -373,7 +373,7 @@ fn the_build_stamp_names_a_commit_rather_than_a_version() {
 /// **The build stamp is painted.**
 ///
 /// The test above asserts the shape of the string. This one asserts a player can
-/// see it, which is a different claim and the one that matters: the whole point
+/// see it: the whole point
 /// is that somebody looking at a screenshot can say which binary it is.
 ///
 /// It is separate because the two fail for unrelated
@@ -430,7 +430,7 @@ fn the_build_stamp_is_painted_on_the_title_page() {
 }
 
 /// **The build stamp is inside the picture — the third test this one small
-/// feature has needed, and the first that asks where the pixels are.**
+/// feature has needed
 ///
 /// The first version counted non-background pixels in the stamp's band and
 /// passed with the draw line deleted, because the page carries full-screen
@@ -549,7 +549,7 @@ fn title_pen(assets: &Assets) -> Pen<'_> {
 /// reason: counting non-background pixels measures `gateway.pl8`, because the
 /// title page carries full-screen artwork and no pixel down there is background.
 /// Draw the page, copy it, draw the clock again onto the copy, and require the
-/// two to be identical. Text is an opaque blit, so a second pass over itself
+/// two to be identical. Text is an opaque blit
 /// changes nothing — but only if it was there the first time.
 ///
 /// **This is the test that fails before the change**: with the
@@ -729,7 +729,7 @@ fn the_clock_asks_for_a_repaint_only_when_the_minute_turns() {
 /// Two copies of one game are stepped through the same ticks under wall-clock
 /// readings six months and eleven hours apart. The worlds must stay equal and
 /// their checksums identical: `Assets` is in no save, no digest and no
-/// `Kingdom`, and the only thing a reading may change is which glyphs are on the
+/// `Kingdom`
 /// front page.
 #[test]
 fn the_clock_cannot_reach_the_simulation() {

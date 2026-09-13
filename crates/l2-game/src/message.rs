@@ -501,7 +501,7 @@ pub fn frame_of(record: &Record) -> Option<Frame> {
         // had their corner button, and its 48 × 48 hit box, 0x20 too high.
         //
         // `[V]`, the arm's own first statement:
-        // `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0 : 0xE0;` — and the
+        // `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0: 0xE0;` — and the
         // *taller* box is the sixteen with **no** number line, which is the
         // opposite of what the note here claimed. The eight short ones
         // (`0x87`…`0x8E`) draw a count at `y + 0x90`, 0x30 clear of the bottom;
@@ -568,7 +568,7 @@ pub struct Paragraphs {
 /// * **the box's height includes its own top.** `height = h + y`, so a window
 ///   moved down by the short-text rule also grows by the same 64 pixels.
 /// * **a short tip is pushed down 64 pixels** when the measured height is below
-///   `0x61`, which is one paragraph of one line — *"Kingdom overview:"* and the
+/// `0x61`, and the
 ///   one-sentence tips.
 pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
     const X: i32 = 0x10;
@@ -597,7 +597,7 @@ pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
 /// Not [`crate::shell::Pen::wrap`], and the difference is the OK button:
 ///
 /// * **a space is four pixels, whatever the font**, and it is measured as part
-///   of the word *after* it — so a word fits only if it fits with its leading
+/// of the word *after* it — so a word fits only if it fits with its leading
 ///   space, even at the start of a line where that space is then not drawn;
 /// * **the test is strict**: a line that would come out exactly `width` wide
 ///   breaks;
@@ -1031,7 +1031,7 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// * **`eventId` is never cleared by anything.** It is overwritten by the next
 ///   event the county draws and otherwise stands for the rest of the game, which
 ///   is why four siege fixtures still read `0x8E` on a county whose Wedding
-///   fever is long over. The county panels read it too, so a county keeps
+/// fever is long over. The county panels read it too, so a county keeps
 ///   showing its last event's line.
 ///
 /// # What is not reproduced, and why
@@ -1518,7 +1518,7 @@ mod tests {
     #[test]
     /// **The event window's height is a rule, and the corner button rides on
     /// it.** `Msg_DrawWindow`'s category-`0x0F` arm opens
-    /// `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0 : 0xE0;` and the group *is*
+    /// `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0: 0xE0;` and the group *is*
     /// the event id. The constant was documented here and not applied, so the
     /// sixteen ids from `0x12E` up drew in a box `0x20` short with their
     /// `Ui_OkButton`, and its 48 × 48 hit box, `0x20` too high.

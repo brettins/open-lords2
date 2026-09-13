@@ -137,7 +137,7 @@ fn a_click_that_lands_on_no_menu_item_does_nothing_at_all() {
     assert!(!m.should_quit());
 }
 
-/// The structural claim `docs/plan.md` makes, tested where it can actually
+/// The structural claim `docs/plan.md` makes, tested where it can
 /// fail: a screen **returns** a transition. The
 /// screen below is driven with no machine in existence, so if it could push
 /// anything there would be nothing to push onto.

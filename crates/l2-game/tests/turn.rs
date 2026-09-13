@@ -400,7 +400,7 @@ fn army(g: &mut Game, owner: u8, x: u8, y: u8) -> usize {
 /// game*, the player ends the turn, and the army is somewhere else afterwards.
 ///
 /// Nothing here reaches into `l2-kingdom`'s mover: the order goes through
-/// [`Game::order_unit_move`], which is what a map screen calls, and the walking
+/// [`Game::order_unit_move`], and the walking
 /// is done by the turn machine. Before this work `end_turn` answered every unit
 /// wait `true`, and the army would have finished the turn exactly where it
 /// started.

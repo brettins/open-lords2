@@ -84,7 +84,7 @@
 //! with *"if `g_battlePhase == 2` and a message is up, dismiss it"*, so a tip
 //! posted during a battle would be closed the frame after it opened. No path
 //! was found on which the guard holds across a frame. `[I]` — the search was
-//! the phase writers and the two outcome functions, not every one of the
+//! the phase writers and the two outcome functions.
 //! hundred `g_screenId = 0` writes. The arms are built as the original writes
 //! them, and in this engine they are equally unreachable.
 //!
@@ -370,12 +370,12 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
 /// The order is the original's and two things about it are load-bearing:
 ///
 /// * the campaign map's four tips are **one per re-arm**, in the order 206
-///   (only when zoomed out), 200, 201, 202 — so a player meets three windows
+/// (only when zoomed out), 200, 201, 202 — so a player meets three windows
 ///   in a row with twenty frames between each;
 /// * the invasion arm is the **last `else if` and has no screen test**, and it
 ///   clears `DAT_00553210` *before* asking whether 211 was shown. So the flag is
 ///   consumed by any frame that reaches that arm — including one on screen
-///   `0x27`, where `Tip_Show` then refuses and the tip is lost until the next
+/// `0x27`, where `Tip_Show` then refuses and the tip is lost until the next
 ///   crossing. Reproduced; `docs/bugs.md` B101.
 pub fn update(tips: &mut Tips, view: &View) -> Option<u16> {
     use group as g;

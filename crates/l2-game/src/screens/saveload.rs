@@ -237,7 +237,7 @@ pub const STATUS: (i32, i32) = (BOX_X + 0x20, BOX_Y + 0x11A);
 
 /// **`FUN_004B414A`'s width unit is sixteen pixels.** It writes
 /// `g_spriteWidth` iterations of four dwords per row, and four dwords is
-/// sixteen bytes, so a `g_spriteWidth` of 6 paints 96 pixels. `[V]` from the
+/// sixteen bytes.
 /// body at `0x004B414A`. Getting this wrong is worth a factor of sixteen and it
 /// was got wrong here once.
 pub const HIGHLIGHT_CELL: i32 = 16;
@@ -290,7 +290,7 @@ fn widgets() -> [Widget; 4] {
 /// game. Please wait."* `[V]`
 ///
 /// **A press during the wait starts it again** — the latch is re-armed and the
-/// tick resets the count to `0x96` — and the cross during it closes the box, so
+/// tick resets the count to `0x96` — and the cross during it closes the box,
 /// the count ends on a screen that is no longer `0x35` or `0x36` and nothing is
 /// written. Both fall out of the same two lines here.
 ///
@@ -302,12 +302,12 @@ pub const WORK_FRAMES: u8 = 0x96;
 /// and that is the original's behaviour.
 /// omission: group 40's status strings are *"Loading game. Please wait."*,
 /// *"Saving game. Please wait."* and *"File error. Operation canceled."* — two
-/// progress messages and a failure. Success is not a message, because on
+/// progress messages and a failure. Success is not a message,
 /// success `SaveLoad_Cancel`'s counterpart restores `g_screenIdSaved` and the
 /// box is gone before anybody could read one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Status {
-    /// Nothing has happened yet, and the line is blank — which is also what the
+    /// Nothing has happened yet, and the line is blank —
     /// original draws while `DAT_0057D3C4` is clear.
     Idle,
     /// The thumb up (or Enter) armed the latch and [`WORK_FRAMES`] are running.
@@ -465,7 +465,7 @@ impl SaveLoadScreen {
     /// the handler's: the tick that takes the latch up plays `S040_02.wav` on
     /// `g_screenId == '6'` — the save box — and `S040_01.wav` on anything else,
     /// which here is the load box. `[V]`, two `if`s and not an `if`/`else`.
-    /// Ours collapses the arm and the take-up into this one call, so the line
+    /// Ours collapses the arm and the take-up into this one call,
     /// is a frame earlier than the original's and on the same occasion.
     ///
     /// A screen cannot reach the audio layer (`docs/netcode.md` D-3), so the
@@ -532,7 +532,7 @@ impl SaveLoadScreen {
                 let tables = ctx.game.kingdom.tables;
                 match saves::read_path(&self.entries[i].path, tables) {
                     // **The whole game is replaced or none of it is.** `decode`
-                    // builds a complete `Game` before this line runs, so a save
+                    // builds a complete `Game` before this line runs,
                     // that turns out to be unreadable halfway through cannot
                     // leave the player holding half of one.
                     Ok(game) => {
@@ -562,7 +562,7 @@ impl SaveLoadScreen {
                 // So a mid-battle save would write a file that quietly lost the
                 // battle the player was fighting. It is refused instead, through
                 // `Status::Failed`, whose first line is the game's **own**
-                // sentence — `Eng_DrawString(40, ERROR_INDEX)` — so a player
+                // sentence — `Eng_DrawString(40, ERROR_INDEX)` —
 // sees a refusal.
                 //
                 // arm: ours/save-refuses-mid-battle left-press
@@ -667,7 +667,7 @@ impl Screen for SaveLoadScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         // **The field first, on both screens.** See [`SaveLoadScreen::edit`].
-        // It takes `WM_CHAR` and the six editing keys and nothing else, so
+        // It takes `WM_CHAR` and the six editing keys and nothing else,
         // Escape, Enter and the four navigation arrows below still arrive —
         // except Left and Right, which the original spends on the caret here
         // and which this screen was spending on the file list. The list keeps
@@ -768,7 +768,7 @@ impl Screen for SaveLoadScreen {
         // The underscore was a stand-in and it was wrong twice over: it was
         // drawn in save mode only, when the original's edit arm covers both
         // screens; and `Ui_DrawText` maps `0x5F` to a space
-        // (`if (ch == 0x5F) ch = 0x20;`), so on an install with the real fonts
+        // (`if (ch == 0x5F) ch = 0x20;`),
         // it drew **nothing at all** — a blank where the caret should be. The
         // caret is `Edit_DrawCaret` (`0x0040ACCE`) now: it blinks, it sits at
 // the caret, and it changes shape with insert
@@ -848,7 +848,7 @@ impl Screen for SaveLoadScreen {
 const DIR_LINE: (i32, i32) = (BOX_X + 4, BOX_Y + BOX_ROWS * 16 - 12);
 
 /// Everything we put on this screen that the original does not say is prefixed,
-/// so a screenshot cannot be mistaken for the game's own wording.
+///
 fn ours(detail: &str) -> String {
     format!("OURS: {detail}")
 }
@@ -876,7 +876,7 @@ fn directory_line(dir: &str) -> String {
 }
 
 /// **`FUN_00403CF4(x, y, w, h, colour)`** — four `FUN_00403A8F` lines, **all in
-/// the caller's one colour**, so a flat outline and not a bevel. `[V]` from the
+/// the caller's one colour**,
 /// body:
 ///
 /// ```c

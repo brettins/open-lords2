@@ -22,7 +22,7 @@
 //! Army_PrepareForBattle 0x004AA6CA prepare_besieger / garrison_oil
 //! ```
 //!
-//! # Engines are built on the spot, and the army is pinned while they are
+//! # Engines are built on the spot
 //!
 //! Nothing is carried to a siege. [`ENGINE_WORK`] is three man-season costs and
 //! [`build_tick`] spends the besieging army's whole strength on them once a
@@ -39,7 +39,7 @@
 //! two of this module's rules in English:
 //!
 //! * **Capturing Counties (pg76)**: *"If a garrisoned castle is present in the
-//!   county, it must be attacked instead of the county town to gain control of
+//! county, it must be attacked instead of the county town to gain control of
 //!   the county."* That is [`crate::conquest::can_be_entered`] verbatim, and it
 //!   promotes the gate from a reading of one `if` to **[V]**.
 //! * **Besieged Castles (p.87)**: *"When one of your castles is under siege,
@@ -125,7 +125,7 @@ pub const ENGINE_WORK: [i32; 3] = [200, 200, 400];
 /// The cap is on the *screen*, not on the record: [`prepare`]'s AI branch
 /// writes 4 towers for the Knight without consulting it, and 3 catapults *plus*
 /// 2 towers for the Countess, which no sequence of clicks could produce at
-/// once. So this is a rule about the player, and the asymmetry is the
+/// once. So this is a rule about the player
 /// original's.
 pub const ENGINE_ORDER_CAP: [i16; 3] = [4, 4, 2];
 
@@ -142,7 +142,7 @@ pub const OIL_BY_CASTLE_LEVEL: [i32; 5] = [1, 2, 3, 4, 6];
 ///
 /// `Siege_LaunchAssault`'s gate is `level < 3 || engines > 0`, and `L2.eng` 281
 /// is the same sentence: *"Your captains advise that you must build some siege
-/// engines to besiege this castle."* Level 3 is a stone castle (type 4), so a
+/// engines to besiege this castle."* Level 3 is a stone castle (type 4)
 /// palisade, a motte and bailey and a Norman keep can be stormed bare-handed
 /// and nothing above them can. `[V]`
 pub const ENGINES_REQUIRED_FROM_LEVEL: u8 = 3;
@@ -175,7 +175,7 @@ impl EngineBuild {
 
 /// Why [`begin_siege`] refused.
 ///
-/// `Army_BeginSiege` is a single four-clause `if` with no else, so a refusal is
+/// `Army_BeginSiege` is a single four-clause `if` with no else
 /// silent in the original — the map click does nothing. Naming the four
 /// clauses is what lets the map layer print `L2.eng` 284 / 285 / 289 / 275,
 /// which `docs/armies.md` §9 pairs with exactly these conditions.
@@ -287,7 +287,7 @@ pub fn link(
 /// function tests and the fourth repeats one of them, which a field that meant
 /// something else would not do. Two consequences fall out and both are worth
 /// stating: the *"default: 2 towers"* arm is **unreachable for every shipped
-/// lord**, and the Knight is the only lord who never brings artillery.
+/// lord**
 ///
 /// # The orders are cumulative, not alternative
 ///
@@ -389,7 +389,7 @@ pub fn recompute_build_time(units: &mut Units, army: usize) -> u8 {
     u.siege_seasons_left
 }
 
-/// `Siege_BuildTick` (`0x004A8507`) — **one season of construction**, and the
+/// `Siege_BuildTick` (`0x004A8507`) — **one season of construction**
 /// only thing turn phase 2 does.
 ///
 /// Three sweeps over the three records:
@@ -463,7 +463,7 @@ pub fn build_tick(units: &mut Units, army: usize) -> bool {
 
 // 3 — the recount. The original repeats the body
     // `Siege_RecomputeBuildTime`, and it differs in one way that matters: the
-    // sweep skips records that were already complete when the tick began, so a
+    // sweep skips records that were already complete when the tick began
     // finished record's percentage is not rewritten. It is already 100.
     let mut remaining = 0i32;
     for (record, cost) in u.engines.iter_mut().zip(ENGINE_WORK) {
@@ -486,7 +486,7 @@ pub fn build_tick(units: &mut Units, army: usize) -> bool {
 /// `Siege_ValidateLink` (`0x004A8426`) — break a besieger's link when the
 /// castle it is sitting outside no longer has the garrison it was pointed at.
 ///
-/// Two clauses, and the second is the one that is easy to miss: the county's
+/// Two clauses
 /// garrison slot must still hold a unit *and* that unit must still name this
 /// county as the castle it is inside. A garrison that marched out leaves the
 /// first test passing and the second failing.
@@ -554,7 +554,7 @@ pub fn start_phase(counties: &[County; MAX_COUNTIES], units: &mut Units) -> Sieg
             // `g_siegeCount` is incremented unconditionally inside
             // `Siege_ValidateLink` — **including for the link it just broke**.
             // Reproduced: the count is "armies that were besieging when the
-            // phase began", and the one consumer only asks whether it is
+            // phase began"
             // above 1.
             count += 1;
         }
@@ -640,7 +640,7 @@ pub const CASTLE_DEGRADED_BUILDING: u8 = 1;
 /// > accumulators `l2-sim` does not have"* — is out of date in the part that
 /// > matters and was right about the rest. `l2-sim` keeps both accumulators;
 /// > the autocalc really does produce nothing, and that is the rule
-/// > a gap: `Battle_AutoResolve` never touches either global, so a siege the
+/// > a gap: `Battle_AutoResolve` leaves the castle unmarked and the three readers
 /// > player declines to watch leaves the castle unmarked and the three readers
 /// > below are reached only by a siege somebody **fought**.
 pub const CASTLE_DEGRADED_DAMAGED: u8 = 2;
@@ -696,7 +696,7 @@ pub const REPAIR_WOOD_PER_WALL: i32 = 10;
 pub const REPAIR_STONE_PER_WALL: i32 = 15;
 /// Man-seasons per point of [`SiegeScars::wall_damage`], either way.
 pub const REPAIR_WORK_PER_WALL: i32 = 15;
-/// Man-seasons per moat cell filled in — the digging, and the only thing the
+/// Man-seasons per moat cell filled in — the digging
 /// moat costs.
 pub const REPAIR_WORK_PER_MOAT: i32 = 5;
 
@@ -715,17 +715,17 @@ pub const REPAIR_WORK_PER_MOAT: i32 = 5;
 /// county.castlePercent   = 0;
 /// ```
 ///
-/// Four things follow, and three of them are visible to a player.
+/// Four things follow
 ///
 /// * **A castle is repaired in the material it is made of.** Wood below level
 ///   2, stone at 2 and above, and never both. `docs/bugs.md` B69.
 /// * **The `+=` is real.** The original writes plain `=` when
 ///   `castleDegraded != 1` and `x = x + y` when it is 1, so besieging a castle
 ///   that is *already being built* makes the job bigger than the castle was —
-///   the scaffolding's bill and the siege's are added together and paid once.
+/// the scaffolding's bill and the siege's are added together and paid once.
 /// * **Filling in the moat costs work and no materials.** `moatFilled` is only
 ///   ever multiplied by 5 into the work total; it never reaches the wood or
-///   stone line. So a besieger who shovels the ditch full and is then thrown
+/// stone line. So a besieger who shovels the ditch full and is then thrown
 ///   off has cost the defender labour and nothing else.
 /// * **`castlePercent` is reset to 0**, which is what puts the scaffolding
 ///   back on the map tile: `Castle_StampTile` reads `< 50` as scaffolding.
@@ -775,7 +775,7 @@ pub fn record_castle_damage(county: &mut County, castle_level: u8, scars: SiegeS
 /// else                            { county[+0x1E4 .. +0x1F1] = 0; }
 /// ```
 ///
-/// So a castle carries its scars into the next assault, and a castle that is
+/// So a castle carries its scars into the next assault
 /// *not* mid-repair has them cleared — which is what stops a rebuilt castle
 /// inheriting the last siege's open gate. Both arms matter and only the first
 /// one is obvious.
@@ -1103,7 +1103,7 @@ mod tests {
     }
 
     /// The spill: a season's men that a finished record cannot absorb go to
-/// the one that is still short, so a mixed order does not idle.
+/// the one that is still short
     #[test]
     fn work_spills_from_a_finished_engine_onto_an_unfinished_one() {
         let (counties, realms, mut units) = besieged_county();
@@ -1183,7 +1183,7 @@ mod tests {
         assert_eq!(assault_castle_level(&c), 1, "what a previous siege left standing");
     }
 
-    /// The four lords' doctrines, and the fact that the default is unreachable.
+    /// The four lords' doctrines
     #[test]
     fn every_shipped_lord_takes_a_named_branch_and_none_takes_the_default() {
         let doctrines: Vec<i32> = (1..=4).filter_map(|l| siege_doctrine(T, l)).collect();

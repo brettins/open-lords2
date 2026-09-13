@@ -45,7 +45,7 @@
 //!   condition as `g_optTimeLimit > 0 && aiStep == 999`, which draws the timer
 //!   only *after* the person has ended his turn — exactly backwards for a
 //!   countdown. `DAT_0055403C` is 0 for the whole of his own turn, so the first
-//!   half holds and the timer is up while he plays.
+//! half holds and the timer is up while he plays.
 //!
 //! `&DAT_004D41D0` is `" "` — read out of `.data` — so the buffer is
 //! `" 30 "`, centred in fifty pixels from x 424: `Ui_DrawNumberRight`
@@ -62,7 +62,7 @@
 //!
 //! * *"the local player's `aiStep == 999`"* is a turn in flight that is not an
 //!   idle battle — [`crate::turn::players_turn_ended`] — or a `Turn_End` the
-//!   clock has asked for and the map has not yet carried out;
+//! clock has asked for and the map has not yet carried out;
 //! * *"`Turn_Tick`'s phase-4 arm"* is every tick on which that is false.
 //!
 //! # What is reproduced and what is not

@@ -207,9 +207,9 @@ impl Screen for MessageScreen {
     /// * the **right** release is tested before the widgets, so it closes an
 ///   unanswered question;
     /// * the corner button's hit box is **48 × 48**, twice the picture, while
-    ///   every other screen in the game uses `Ui_OkButtonClicked`'s 24 × 24;
+    /// every other screen in the game uses `Ui_OkButtonClicked`'s 24 × 24;
     /// * anything else **falls through** to the screen underneath, which is how
-    ///   `Map_Click`'s dismissal and the campaign sidebar both stay live with a
+    /// `Map_Click`'s dismissal and the campaign sidebar both stay live with a
     ///   message up.
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let Some(record) = MessageScreen::record(ctx) else { return Transition::Pop };
@@ -534,7 +534,7 @@ fn draw_county_portrait(
 }
 
 /// **Category `0x0E`, the ending.** The name at the top is the *local player's*
-/// for group 225 and the *sender's* for everything else — which is what makes
+/// for group 225 and the *sender's* for everything else —
 /// one layout serve *"Victory!"*, *"Defeat!"* and an AI's obituary.
 fn draw_ending(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     draw_portrait_well(pen, canvas, f);

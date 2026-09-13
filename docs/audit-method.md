@@ -2,7 +2,7 @@
 
 Audited 2026-09-07 against the working tree at commit `d09de29`. This document asks one
 question: **is this project using the right techniques, and are its stated obstacles
-real?** It is not a roadmap and it proposes no features.
+real?** It is not a roadmap.
 
 Nothing outside this file and `tools/audit/` was touched. Nothing was staged or committed.
 No process was launched.
@@ -127,7 +127,7 @@ a `rg` over a directory. It contends with nothing.
 process can supply this" when the value was in `.text`. Here the same shape is repeated:
 *"we could not read that function"* was true when it was written and is a statement about a
 tooling era that ended at commit `9f97838` ("Decompile the whole binary once, instead of per
-question"). Nothing swept the documents afterwards, so a solved cost is still being paid
+question"). Nothing swept the documents afterwards.
 forward as an unknown — and in `battle-ai.md`'s case it is explicitly load-bearing: *every
 siege claim in §6* is disclaimed against a file anyone can open.
 
@@ -135,7 +135,7 @@ siege claim in §6* is disclaimed against a file anyone can open.
 (`battle.md` §11/§13.9, `battle-ai.md` §9, `kingdom.md` §12, `audit.md` §8), replacing every
 *"not decompiled"* / *"not traced"* / *"needs a Ghidra task"* with either the finding or
 **"not read"** — which is an honest backlog item. And a standing
-rule: *a claim that something is expensive gets a timestamp, because tooling changes and the
+rule: *a claim that something is expensive gets a timestamp.
 claim does not expire on its own.*
 
 ---
@@ -173,16 +173,16 @@ Decompiled *functions* do carry their confidence — `Weather_UpdateAll`'s body 
 `if (g_deterministicBattle != 0)` 155 times and has no signal that
 `docs/symbols.md:465` ends its entry with *"which is a reading, not a proof"*.
 
-> **The example turned out to be the case, and the name it carries here is the old
+> **The example turned out to be the case.
 > one on purpose.** `0x00553030` has since been read to where it is set and renamed
 > **`g_multiplayer`** (`docs/battle.md` §14.9) — it is the DirectPlay session flag, and
 > its determinism-shaped effects are consequences of being on a wire. So an inferred
-> name did reach 155 call sites, did assert something the address does not mean, and
+> name did reach 155 call sites, did assert something the address does not mean.
 > was believed for as long as nobody re-read it. This block is left spelling
 > `g_deterministicBattle` so that the measurement still says what was measured.
 
 `battle-ai.md` §9 is right to keep flagging `g_siegeApproachScore` and `g_siegeBreachScore`
-as `[I]`. But the flag lives in a document, and the name lives in 91 places in the artefact
+as `[I]`. But the flag lives in a document.
 people read. This is the structural version of C13 — *the artefact an agent leaves
 behind is evidence; its prose is a claim* — with the roles reversed: here the artefact
 carries the claim and the prose carries the caveat.
@@ -201,11 +201,11 @@ from the 42.
 
 | Claim | Where | Verdict |
 |---|---|---|
-| `Path_Search` visit counters *"Not resolvable from the decompilation alone — it needs the callee's signature"* | `decisions.md` Open questions | **False, and the answer is the bad one.** F1. |
+| `Path_Search` visit counters *"Not resolvable from the decompilation alone — it needs the callee's signature"* | `decisions.md` Open questions | **False.** F1. |
 | `Battlefield_BuildCastle` / `Battlefield_BuildRandom` / `Path_SearchSiege` *"not decompiled"* / *"not traced"* | `battle-ai.md:756,781`, `battle.md:199` | **False since commit `9f97838`.** All three in `decomp/00470000.c`. F2. |
 | *"Running Ghidra would have contended for the project lock"* | `audit.md` §8 | **Moot.** Re-verification is now `rg`, not a Ghidra run. F2. |
 | *"The fourteen AI turn handlers … none decompiled"* | `kingdom.md:1070` | **Contradicted by `kingdom.md:240` in the same file**, which says all fourteen are decompiled. One of the two is stale. |
-| `WEATHER_JITTER_BOUND` *"is **invented** … It needs tracing before any weather behaviour is trusted"* | `decisions.md` Open questions | **Already resolved and the decision log is stale.** Independently re-derived here: `Rand_Advance` (`0x00404A46`) publishes `DAT_0058fd60 = g_randStateB & 0x7f`, and `Weather_UpdateAll` divides it by 8 via the signed-division idiom `(x + ((x>>31)&7)) >> 3`. Range 0…127, jitter 0…15. `crates/l2-kingdom/src/weather.rs:89` has 128 and is right. |
+| `WEATHER_JITTER_BOUND` *"is **invented** … It needs tracing before any weather behaviour is trusted"* | `decisions.md` Open questions | **Already resolved.** Independently re-derived here: `Rand_Advance` (`0x00404A46`) publishes `DAT_0058fd60 = g_randStateB & 0x7f`, and `Weather_UpdateAll` divides it by 8 via the signed-division idiom `(x + ((x>>31)&7)) >> 3`. Range 0…127, jitter 0…15. `crates/l2-kingdom/src/weather.rs:89` has 128 and is right. |
 | `local_modifier` *"Never traced … Zero until somebody reads it out of the binary"* | `crates/l2-kingdom/src/weather.rs:104` | **False. It took four greps.** See F5 below. |
 | `Title.pl8` *"decodes with provably correct geometry, but no shipped `.256` colours it"* | `formats/pl8.md:192` | **The wrong question.** `Lords2.exe` contains **zero** occurrences of `title.pl8` or `title.256`; the only title string in either shipped executable is `imptitle.smk`, twice. `mapl2.exe` contains no `title` string and no `.256` string at all. No shipped code pairs `Title.pl8` with any palette, because no shipped code loads `Title.pl8`. F7. |
 | `g_goodsStock` *"Reads like the quantity a merchant carries"*, marked inferred | `symbols.md:576` | **Zero references in the entire binary.** F6. |
@@ -215,23 +215,23 @@ from the 42.
 
 | Claim | Where | The test |
 |---|---|---|
-| *"A fullscreen DirectDraw game generally captures as pure black, so the screen cannot be read either."* | `decisions.md` D8 | **Never measured against this game.** I grepped the whole `docs/` tree: no document records a capture attempt on `Lords2.exe`. The word *"generally"* is doing all the work, and the conclusion it supports is quoted in three places as a project blocker. See §2. |
+| *"A fullscreen DirectDraw game generally captures as pure black, so the screen cannot be read either."* | `decisions.md` D8 | **Never measured against this game.** I grepped the whole `docs/` tree: no document records a capture attempt on `Lords2.exe`. The word *"generally"* is doing all the work.
 | *"NAT — Not tested, and not testable on one machine."* | `netcode.md:42` | **Correctly scoped and correctly labelled.** This is the discipline working: the mechanism is named (loopback traverses nothing), the honest status is recorded as "unknown", and the doc explicitly warns that `tests/resilience.rs` must not be read as covering it. Two machines on different networks. Nothing cheaper exists. |
 | *"`blowUsed` may never be cleared outside `Melee_Tick`"*, writers *"were not traced"* | `battle.md:472` | Now a grep: `rg "0x18C\|blowUsed" tools/oracle/decomp/`. Whole-binary write-site enumeration for a struct offset is text search over `+ 0x18c`, which the tree supports. |
 | *"the per-battlefield engagement budget at `0x00553080` … was not traced to where it is filled"* | `battle-ai.md:774` | `rg "553080" tools/oracle/decomp/`. Same shape as F6, which took one command. |
-| *"Frame rate … cannot be converted to seconds"* | `battle.md`, `battle-ai.md` §9 | The only runtime-shaped item in the battle backlog, and the honest one. The static half — where the frame counter is incremented and what gates it — is readable; the wall-clock half is not. Worth splitting into two claims, because half of it is free. |
+| *"Frame rate … cannot be converted to seconds"* | `battle.md`, `battle-ai.md` §9 | The only runtime-shaped item in the battle backlog, and the honest one. The static half — where the frame counter is incremented and what gates it — is readable; the wall-clock half is not. Worth splitting into two claims.
 | The `.skr` terrain byte → name mapping *"needs `mapl2.exe`'s palette-button order, which is a Ghidra task"* | `audit.md:88` | Fair, but note `mapl2.exe` is a *different binary* and `docs/agents.md` already documents the separate-project workflow for it. It is a task, not a blocker. |
 
 ---
 
 ## 2. D8, C14, C15, C16 — the pattern, and what is left of D8
 
-The four of them tell one story and it is worth stating plainly, because the same error is
+The four of them tell one story.
 about to be made a fifth time.
 
 D8 listed three blockers to driving the original. **C15 killed the first** (`AttachThreadInput`
 hands over the foreground; the constants were read from a live process). **C16 killed the
-motivation** (the values were in `.text` all along; the live read was never needed). The
+motivation** (the values were in `.text` all along). The
 third blocker — *"a fullscreen DirectDraw game generally captures as pure black"* — has
 never been tested, and it is the one still quoted:
 
@@ -244,7 +244,7 @@ never been tested, and it is the one still quoted:
 
 Three things make this claim weaker than its use:
 
-1. **The premise is about *fullscreen*, and the game has been run windowed.**
+1. **The premise is about *fullscreen*.**
    `docs/shots/game-live.png` is a screenshot of `Lords2` in a normal Win32 window with a
    title bar, running under DxWnd. That capture succeeded.
 2. **`tools/screen.ps1` already implements the documented workaround** and says so in its own
@@ -256,7 +256,7 @@ Three things make this claim weaker than its use:
    A proxy that also wraps the returned interface sees `Lock` / `Blt` / `Flip` on the primary
    surface — **the framebuffer arrives as a pointer inside the process**, with no focus, no
    screen grab, and nothing a screen lock can spoil. That is D8's own conclusion (*prefer
-   injection*), and the framebuffer half of it was never built. The proxy's header comment
+   injection*). The proxy's header comment
    currently cites the unmeasured black-screen claim as its justification, which is
    backwards: the proxy is what makes the claim irrelevant.
 
@@ -272,7 +272,7 @@ contradict three documents, with no provenance recorded anywhere.**
 **What should change, in order.** (a) Extend the ddraw proxy to capture the primary surface —
 this is the technique D8 itself argued for, it needs no focus, and it makes the black-screen
 question moot. (b) Record `start.png`'s provenance or delete it. (c)
-Stop citing D8 as a blanket blocker: **two of its three legs are gone and the third was never
+Stop citing D8 as a blanket blocker: **two of its three legs are gone.
 weighed.** The honest summary of D8 today is *"driving the UI is difficult and unnecessary,
 because injection reaches further"* — which is a much narrower claim than the one three
 documents are leaning on.
@@ -325,7 +325,7 @@ $ node tools/audit/rva.js sections                                  (44 ms)
 ```
 
 That last line is C14's "tier two" stated as a number. Everything below `0x004E5A00` in
-`.data` is in the file; everything above it is uninitialised and reads as zero. The script
+.data` is in the file; everything above it is uninitialised and reads as zero. The script
 prints which side of that line an address falls on before it reads, so the C14 failure mode —
 a file read confidently returning zero — announces itself.
 
@@ -407,7 +407,7 @@ two things labelled better than they deserve.
 
 1. **The `Path_Search` visit-counter divergence (F1).** Shipped code, deterministic, affects
    36% of every non-skirmish battlefield. Not a constant; a behaviour.
-2. **`local_modifier` is stubbed to zero and the real function is four greps away (F5).**
+2. **`local_modifier` is stubbed to zero.**
    `crates/l2-kingdom/src/weather.rs:104` returns `0`. `FUN_00449D6E`
    (`decomp/00440000.c:5806`) returns, on county field `+0x21E`:
    *Summer* — band 0 → **+4**, 1 → **+2**, 2 → **−8**, 4 → **−12**;
@@ -458,7 +458,7 @@ two things labelled better than they deserve.
    Its neighbour `g_goodsPrice` at `0x004D8910` has exactly one reader (`FUN_0042847C`, which
    copies sixteen dwords into a record array and stops). So `g_goodsStock`'s entire identity
    is that its values look like stock quantities next to a table that looks like prices. That
-   is N things matching N other things. It should be marked *"no reader in the binary"*, which
+   is N things matching N other things. It should be marked *"no reader in the binary"*
    is a stronger and more useful statement than *"inferred"*.
 8. **`Title.pl8`'s palette (F7).** Not a wrong claim, a wrong question — see §1.
 9. **651 inferred-name occurrences in the decompilation (F3).**
@@ -496,7 +496,7 @@ to *named* globals are not in that set — 162 of 164 are reachable by `rg`.
 **5. Extend the ddraw proxy to capture the primary surface, and stop citing D8's third leg.**
 The proxy is built and installed; it is 112 lines. Wrapping the returned interface gives the
 framebuffer as a pointer, inside the process, with no focus and no screen grab. This is what
-D8 concluded and it was never built, while the unmeasured black-screen claim it was meant to
+D8 concluded.
 sidestep is quoted as a blocker in three documents and in the proxy's own header comment.
 
 **6. Trace the remaining "not traced" items by grep before commissioning any agent for them.**
@@ -516,9 +516,9 @@ delete, or move the citation to the tree.
 
 * **I did not launch the game.** The brief allows it with a measured reason. I found one
   candidate question — whether the original's framebuffer captures — and then found that the
-right technique for it is the ddraw proxy, so a launch would have
+right technique for it is the ddraw proxy.
   measured the wrong thing. DxWnd, under which the existing screenshots were taken, is not on
-  this machine (`E:\dev\tools` holds only Ghidra), so a launch would also have been fullscreen
+  this machine (`E:\dev\tools` holds only Ghidra).
   and would have taken over the user's display. Nothing was started; nothing is running.
 * **I did not re-time `decompile-all.ps1`.** The "22 seconds / 2,452 functions / 3.0 MB"
   figure is quoted from the project. I verified the *output*: 13 files, 2,452 index entries,

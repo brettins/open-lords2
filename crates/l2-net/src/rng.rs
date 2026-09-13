@@ -15,11 +15,11 @@
 //! ```
 //!
 //! Two properties matter here and neither is about statistical quality.
-//! The output is a function of the state *before* the advance, so a
+//! The output is a function of the state *before* the advance
 //! generator that has been stepped `n` times is fully described by
 //! `(state, increment)` and nothing else — it serialises into a snapshot
 //! in sixteen bytes. And the increment selects one of 2^63 distinct
-//! streams, so a subsystem that wants its own sequence can have one
+//! streams
 //! without a second seed and without any chance of walking into another
 //! subsystem's numbers.
 //!
@@ -31,7 +31,7 @@
 //! # Why it is written out here
 //!
 //! `docs/netcode.md` D-3 makes the argument and this crate's Cargo.toml
-//! repeats it: the value stream must be frozen *forever*, and the
+//! repeats it: the value stream must be frozen *forever*
 //! rust-random project explicitly permits value-breaking changes in
 //! minor versions. A changed stream is not a bug that shows up as a
 //! failing test. It shows up as one player desyncing from another, an
@@ -54,7 +54,7 @@
 //! [`Pcg32`] is a plain value that lives in the simulation state and is
 //! advanced only by simulation code (D-3). It is `Clone`, which is what
 //! makes a speculative "what would this roll be" query possible without
-//! disturbing the real stream, and `PartialEq`, which is what lets a
+//! disturbing the real stream
 //! desync dump say "the generators differ":
 //! differs".
 
@@ -92,7 +92,7 @@ impl Pcg32 {
     ///
     /// `stream` selects one of 2^63 independent sequences. Different
     /// streams from the same seed never produce the same sequence of
-    /// states, so subsystems can be given their own stream instead of
+    /// states
     /// sharing one generator and depending on the order in which they
     /// happen to draw.
     pub fn new(seed: u64, stream: u64) -> Pcg32 {

@@ -116,7 +116,7 @@ fn every_imported_county_holds_what_the_file_holds() {
     assert_eq!(k.turn_count, 1);
 }
 
-/// The two kingdoms are different games, and the difference is exactly one
+/// The two kingdoms are different games
 /// season: the map, the owners and the food stores are shared; the population,
 /// happiness and health are not.
 #[test]
@@ -184,7 +184,7 @@ fn a_weather_byte_naming_nothing_is_refused() {
 }
 
 /// A neighbour id off the end of the map is refused: adjacency drives migration
-/// and the regional weather swing, and a stale id would quietly point one of
+/// and the regional weather swing
 /// them at a record that is not a county.
 ///
 /// The poked id is one past *that* save's county count, which differs between
@@ -226,11 +226,11 @@ fn a_local_player_that_is_not_a_realm_is_refused() {
 ///
 /// The worker count is word 0 of a twelve-byte record; words 1 and 2 are a
 /// *wanted floor* and a *useful ceiling*. Nothing but the right offsets
-/// produces the pattern below, and the pattern is the whole argument:
+/// produces the pattern below
 ///
 /// * **Seven of the nine floors are −1 in all fourteen counties.** Only the
 /// cattle estimate (`FUN_0044DD4D`) and the grain estimate (`FUN_0044D374`)
-/// ever write a real floor, and the shipped save is a Winter save with no
+/// ever write a real floor
 ///   grain sown, so cattle is the only one with a number in it. A misread
 ///   offset does not produce ninety-eight −1s.
 /// * **Wood's ceiling is exactly 100,000 in every owned county and exactly 0
@@ -337,10 +337,10 @@ fn the_field_counts_are_derived_and_they_match_every_save_that_stores_them() {
 /// field.
 ///
 /// The importer used to read the counties, the realms and the map and stop
-/// there, so a loaded game had an economy and an empty board. This is the
+/// there
 /// assertion that fails if the block goes back on the floor, and it runs over
 /// every save because one file agreeing proves nothing: the England fixture is
-/// six merchants, and the battle and siege saves are armies, a garrison, a
+/// six merchants
 /// besieger and a levied defence.
 #[test]
 fn every_unit_in_every_save_is_imported_slot_for_slot() {
@@ -460,7 +460,7 @@ fn the_england_fixture_imports_six_merchants_and_no_armies() {
         assert_eq!(u.move_allowance, 0, "the file's zero, not the type's ten");
         assert_eq!(u.year_formed, 1, "the route cursor ships at 1, not 0");
         assert!(u.needs_destination);
-        // Each merchant is standing in a county on its own route, and the row
+        // Each merchant is standing in a county on its own route
         // it walks is its **slot** minus one — the coupling `Merchant_AdvanceAll`
         // rests on.
         let route = s.routes.row(slot - 1);
@@ -520,12 +520,12 @@ fn a_unit_type_that_names_no_handler_is_refused() {
 /// then derives the county's. It had not derived it at all: `County::new` seeds
 /// `garrison_unit: 0`, nothing overwrote it, and **every loaded game arrived
 /// with no castle garrisoned**. `conquest`'s ownership test, `divide`, `siege`
-/// and the campaign map's castle flag are all downstream of that field, and the
+/// and the campaign map's castle flag are all downstream of that field
 /// flag is what exposed it. C59.
 ///
 /// Run over **every** save the machine can offer,
 /// because the failure was silent on all of them: ten of the eleven in the tree
-/// carry a garrison and the eleventh is England turn one, which has none because
+/// carry a garrison and the eleventh is England turn one
 /// it is turn one. Asserting "both halves agree" on each is what makes this a
 /// check of the derivation and not of one file.
 #[test]
@@ -607,7 +607,7 @@ fn the_shield_index_of_a_default_game_is_the_realm_id() {
 ///
 /// It matters now because the armoury is the screen that spends them. A levy
 /// whose realm imports with an empty armoury is a levy that can only ever be
-/// peasants, and the picture would say so — the six weapons hang on the wall
+/// peasants
 /// only when the realm owns one — so the failure would have been visible and
 /// unexplained.
 ///
@@ -658,7 +658,7 @@ fn every_imported_realm_holds_the_stocks_the_file_holds() {
 ///
 /// On the England fixture the answer is *false*
 /// for 15 of the 56, iron and stone are complementary in thirteen of the
-/// fourteen counties, and county 5 has neither — so a defaulted `true`, which
+/// fourteen counties
 /// is what the importer used to supply, fails this fifteen times.
 #[test]
 fn every_industrys_resource_byte_agrees_with_the_tiles_the_map_puts_it_on() {
@@ -748,7 +748,7 @@ const CASTLE_TAX_BASE: [i32; 6] = [320, 480, 560, 640, 720, 800];
 /// The one moment on this machine where `+0xC0` is **not** the current
 /// population's answer, named with its reason.
 ///
-/// It is the middle save of the battle triple, and the fixture's own name is
+/// It is the middle save of the battle triple
 /// the explanation: `battle-during.sav` (the install calls the same game
 /// `incombat.sav`) is taken with a battle open. County 2's population has
 /// already fallen to 588 and the stored preview is still **245**
@@ -797,7 +797,7 @@ fn the_local_tax_happiness_byte_is_five_minus_the_rate_in_every_save() {
 /// sidebar draws for commodity `c`, county `+0x2A8 + c*0x18`, is the head of
 /// record `c + 1`, and stone's `+0x2F0` is past the end. Under `+0x294` it is
 /// the last field of record `c` itself. **The two readings predict different
-/// numbers**, and the original's own saves can say which:
+/// numbers**
 ///
 /// `Industry_LabourEstimate` (`0x0044F318`) writes the word as
 /// `min(limit, Pct(workers / divisor, ramp))`, zeroed first, and only when the
@@ -889,7 +889,7 @@ fn every_saved_industry_forecast_is_what_its_own_records_workers_make() {
                         discriminating += 1;
                     }
                 }
-                // The importer carries it, and the kingdom a loaded game runs on
+                // The importer carries it
 // receives it.
                 if let Some(state) = &scenario.counties[id] {
                     assert_eq!(state.industry[c as usize].next_season, stored, "{}", f.label());
@@ -1059,7 +1059,7 @@ fn every_saved_cattle_forecast_is_births_less_deaths_less_what_was_eaten() {
 ///
 /// **What the corpus can and cannot settle, said beside the assertion.** Every
 /// save on this machine stores `+0x230 == 0` and `crop[2] == 0` in every county,
-/// so the sowing and harvest arms are only checked at zero, and the tail's
+/// so the sowing and harvest arms are only checked at zero
 /// `season` argument — `l2_kingdom::land::grain_preview` reads it as next season
 /// — cannot be told from this season here. What *is* settled is that `+0x22C`
 /// is minus the county's grain eaten wherever those arms are empty, in five
@@ -1188,13 +1188,13 @@ fn the_unrest_warning_latch_is_set_only_in_a_county_below_thirty_happiness() {
 ///
 /// `+0x0F` and `+0xC0` are the tax panel's *This county* and *People pay*;
 /// `+0x10` is the health term the ration panel draws beside the band. All three
-/// arrived as `County::new()`'s zero on every loaded game, so a player opening
+/// arrived as `County::new()`'s zero on every loaded game
 /// the tax panel was told *"People pay 0 crowns"* whatever the rate and read
 /// `( 0 ☺ )` where the original shows `( +5 ☺ )` at rate 0.
 ///
 /// **Ablation, run:** delete `c.tax_shown = *tax_shown;` from
 /// `Scenario::apply_counties` and the third clause fails on every save; delete
-/// `c.d_hap_tax_local = *d_hap_tax_local;` and the first fails on England,
+/// `c.d_hap_tax_local = *d_hap_tax_local;` and the first fails on England
 /// where every county stores 5.
 #[test]
 fn the_county_panels_three_numbers_survive_the_import() {

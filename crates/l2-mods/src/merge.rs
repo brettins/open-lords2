@@ -9,7 +9,7 @@
 //!    added. Keys both have are resolved one level deeper.
 //! 2. **Anything else: replace.** Scalars replace scalars. Arrays replace
 //! arrays *whole* —
-//! identity on an element there is no principled way to say which element
+//! identity on an element
 //!    an override refers to. A table keyed by name is the right shape for
 //! anything that wants partial override, and the seeded rulesets use it.
 //! 3. **`"$delete" = ["a", "b"]`** removes those keys from the table it

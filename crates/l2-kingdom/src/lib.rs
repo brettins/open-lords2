@@ -15,7 +15,7 @@
 //!   `docs/kingdom.md` §3.4 is explicit that **the order is the rule**, so it
 //! is an array a test can assert against.
 //! * [`save`] is **our own** save format: a whole campaign as deterministic,
-//!   versioned bytes, so a player can quit and resume. It writes through
+//! versioned bytes.
 //! `l2_net::Canonical`, and it refuses
 //! an unknown version. It takes and
 //!   returns a `Vec<u8>` and never touches a file — reading the *original's*
@@ -38,7 +38,7 @@
 //! * **No dependence on addresses or allocation.** Nothing branches on a
 //!   pointer.
 //! * **One generator, and it is frozen in-tree.** The two rules that draw a
-//!   random number — the weather accumulator and the random-event roll — use
+//! random number — the weather accumulator and the random-event roll — use
 //!   `l2_net::Pcg32`, and both draw the *same number of times* regardless of
 //!   how many counties there are or who owns them, so the stream cannot
 //!   diverge on a difference the two peers already disagree about.
@@ -78,7 +78,7 @@
 //! 4. **§7.3's `random/8` has no stated range** — *resolved, and this crate's
 //!    guess was wrong.* It was the one constant here with no evidence behind
 //!    it. The original's generator (`FUN_00404A46`) steps two 31-bit LFSRs and
-//!    masks their output with `0x7F`, so `random` is 0..=127 and the jitter is
+//! masks their output with `0x7F`.
 //!    **0..=15** — twice this crate's guess, and enough to cancel Spring's `+8`
 //!    and Autumn's `+12` outright, which the guess was chosen to prevent. The
 //!    same call also picks the county that gets the local swing, by a flat
@@ -97,7 +97,7 @@
 //! 4a. **§6 reads as though only a human's counties revolt, and three more
 //!    things about that pass were wrong.** The revolt call is reached from both
 //!    ladders; it fires only on a season the counter rose; a human county's
-//!    warning season and its ladder season are exclusive, so a revolt lands on
+//! warning season and its ladder season are exclusive.
 //!    the *fifth* season below 25; and a human county's counter is cleared
 //! outright at happiness 25. All four are corrected
 //!    in `docs/kingdom.md` §6 and reproduced in [`unrest`], which also now
@@ -128,9 +128,9 @@
 //!    County 1 is what settles it. It stores `dHapRation = -2` and
 //!    `shownRation = +1`, which are the two calls disagreeing: the display copy
 //!    is taken while happiness is computed, so the *first* call fed it at
-//!    Normal, and the *second* — next season's preview — says Half. Feeding it
+//! Normal.
 //!    at Normal on an all-grain split costs `DivCeil(417 - 74*5, 6) = 8` sacks,
-//!    and the county stores none, so **the first call debits the store**. That
+//! and the county stores none.
 //! is [`ration::apply`] spending and [`ration::preview`]
 //!    written here.
 //!
@@ -144,7 +144,7 @@
 //!
 //!    * the fourteen AI turn handlers — all named with their addresses in
 //!      [`ai::AiStep`]. **Twelve of the fourteen are implemented here**: the
-//!      economy in [`ai`], the five farming styles in [`ai_farm`], and the war
+//! economy in [`ai`].
 //!      — steps 4, 7, 9, 10 and 11 — in [`ai_army`]. One of the fourteen
 //!      (step 8) is an *empty function* in the shipped binary; the two that
 //!      remain are the diplomacy pair, which needs the inbox and its seven
@@ -153,9 +153,9 @@
 //!      and [`tables::AiTable::tax_ladders`];
 //!    * the five bankruptcy stages — [`industry::BankruptcyAction`], each
 //!      cross-checked against the `L2.eng` group its handler raises;
-//!    * the efficiency ramp — [`industry::efficiency_ramp`] — and the
+//! * the efficiency ramp — [`industry::efficiency_ramp`] — and the
 //!      `resourceLimit` term — [`industry::resource_limit`];
-//!    * rows 1..3 of `g_aiGoldGrant`, and the second, smaller table
+//! * rows 1..3 of `g_aiGoldGrant`.
 //!      [`tables::AI_GOLD_GRANT_SMALL`];
 //!    * the event table — [`event::EVENT_DECK`], which is a 256-slot deck
 //!, with all 24 handlers in [`event`];
@@ -278,13 +278,13 @@ pub use victory::{Ending, Outcome, OutcomeStep, Ranking};
 pub use tables::{Commodity, Season, Weather};
 pub use unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS};
 
-/// The generator this crate draws from, re-exported so a caller does not have
+/// The generator this crate draws from.
 /// to depend on `l2-net` to seed a kingdom.
 pub use l2_net::Pcg32;
 
 /// **Which of the original's defects a kingdom reproduces**, re-exported for
 /// the same reason [`Pcg32`] is: [`Options::quirks`] is a field of this crate's
-/// public type, so a caller that has to name a value for it should not have to
+/// public type.
 /// take a dependency on the netcode crate to do so.
 ///
 /// They live in `l2-net` because a quirk is part of the *agreed configuration*

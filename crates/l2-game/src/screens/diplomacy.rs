@@ -1,4 +1,4 @@
-//! **The other lords** — `g_screenId` `0x0B`, and the seven dialogs behind it
+//! **The other lords** — `g_screenId` `0x0B`
 //! at `0x1A`.
 //!
 //! `Diplo_DrawScreen` (`0x00416CF3`) and `Screen_DiploDialog` (`0x0041789B`).
@@ -45,7 +45,7 @@
 //! indexed by *me* — and `Diplo_Post` sets `pair[to][from].hasMail`. So the
 //! flag means **I** have a letter sitting unanswered in **their** inbox, which
 //! is exactly what group 72 index 24 says: *"A message has been dispatched, my
-//! Lord."* One letter per rival per turn, and the menu disappears until they
+//! Lord."* One letter per rival per turn
 //! answer it.
 //!
 //! **The mail icon on a card is the same flag**, read the same way round, so it
@@ -67,13 +67,13 @@
 //! (216, 240), handled by `FUN_00436372`, which clamps the amount to
 //! `[0, my gold]` on every click.
 //!
-//! **The free-text letter is not written here, and the four buffers are not
+//! **The free-text letter is not written here
 //! what you type into.** Screen `0x1A`'s arm calls
 //! `FUN_0040210C(g_diploLetterDraft + (kind - 1) * 200, 199)` on every frame
 //! the widget test declines — and `FUN_0040210C` is a bounded copy **out of
 //! `DAT_005CD550`**, the game's one shared text-edit buffer, which
 //! `FUN_00401D26(ch)` inserts typed characters into at cursor `DAT_005BB4A8`.
-//! So there is a single editor, and the four 200-byte buffers at
+//! So there is a single editor
 //! `g_diploLetterDraft` are snapshots harvested from it once a frame;
 //! `Diplo_OpenCompliment` and its three siblings run the copy the other way
 //! (`FUN_00402009`) when the dialog opens.
@@ -83,12 +83,12 @@
 //! another branch's; this screen carries the draft as a `String` and lets that
 //! branch fill it.
 //!
-//! # `Diplo_SendClicked`'s six refusals, and the order they are tested in
+//! # `Diplo_SendClicked`'s six refusals
 //!
 //! `Diplo_SendClicked` (`0x00436408`) is the tick. Two things about it are
 //! worth having in front of you, because both are surprising:
 //!
-//! * **it closes the screen before it validates.** `g_screenId = 0` and the
+//! * **it closes the screen before it validates.** `g_screenId = 0`
 //!   letter is copied into the player's slot at the top of the function; every
 //!   refusal below that point is a message on the *map*, not a red light on the
 //!   dialog. A refused send has still left the diplomacy screen.
@@ -126,7 +126,7 @@ pub const WINDOW_ROWS: i32 = 0x1B;
 pub const OK: Rect = Rect::new(0x1A8, 0x1A6, 32, 32);
 
 /// `Faces.pl8` — the sheet `Diplo_DrawScreen` reads before it stacks the cards,
-/// and the one every `Sprite_WGenSprite` on this screen draws out of. Frames
+///
 /// `lord * 3 − 3` are the portraits (12 for a human rival) and 13, 14, 15 are
 /// the three status icons. **[I]** the icon frames: the *positions* are the
 /// painter's literals, the identification of 13/14/15 as allied, at-war and
@@ -156,7 +156,7 @@ const SEAL_AT: (i32, i32) = (0x140, 0x140);
 pub const MENU_FRAME: usize = 64;
 
 /// `Ui_DrawInsetRect(0xD0, 0x60, 0xE8, h)` — one recess behind the whole menu,
-/// and the only thing that varies is `h`. See [`Menu::inset_height`].
+///
 pub const MENU_INSET_X: i32 = 0xD0;
 pub const MENU_INSET_Y: i32 = 0x60;
 pub const MENU_INSET_W: i32 = 0xE8;
@@ -273,7 +273,7 @@ impl Menu {
 
     /// Whether `Pl8_DrawFrame(g_miscCtySheet, 0x1D, 0x140, 0x140)` runs.
     ///
-    /// **Three of the four, and the allied layout is the exception** — its
+    /// **Three of the four** — its
     /// recess is `0x130` tall and reaches `0x60 + 0x130 = 0x190`, past the
 /// picture's own `0x140`. Read out of the four arms
     /// about; the geometry is offered as the likely *why* and is not evidence.
@@ -302,7 +302,7 @@ impl Menu {
 
 /// `g_diploWidgets` (`0x004DD940`) — six 32-pixel widgets at (400, 102 + 50n).
 /// The menu layout decides how many of them are live (`g_diploWidgetCount`),
-/// and the rows are taken from the top in order.
+///
 pub fn menu_widget(slot: usize) -> Rect {
     Rect::new(400, 102 + slot as i32 * 50, 32, 32)
 }
@@ -316,7 +316,7 @@ const MENU_SLOTS: usize = 6;
 ///
 /// The `arm!` is the six handlers' one marker — `Diplo_OpenGift`,
 /// `…Compliment`, `…Insult`, `…Alliance`, `…AskHelp`, `…AskAttack` differ only
-/// in the `g_diploKind` they set and in which draft buffer they clear — and the
+/// in the `g_diploKind` they set and in which draft buffer they clear —
 /// kind they are answered with.
 fn menu_widgets(menu: Menu) -> Vec<Widget> {
     if menu == Menu::Dispatched {
@@ -456,7 +456,7 @@ impl Screen for DiplomacyScreen {
         // are `Widget_Test` kind 5, whose guard reads `g_mouseLeftPressed ||
         // g_mouseLeftDoubleClick`, so it puts the button down and restarts its
         // twenty frames; the card pick `FUN_004369BD` opens
-        // `if (g_mouseLeftPressed != 0)` and the corner is `Ui_OkButtonClicked`,
+        // `if (g_mouseLeftPressed != 0)`
         // a release. `[V]` This screen dropped it.
         if let Event::DoubleClick { .. } = event {
             self.press_menu(ctx, event);
@@ -468,7 +468,7 @@ impl Screen for DiplomacyScreen {
                 //
                 // `Screen_FrameInput`'s `0x0B` arm: `if (rightReleased) {
                 // g_screenId = 0; }` **before** it even asks about the corner
-                // button, and the same statement again in the else of the two
+                // button
                 // modal guards. Right-click leaves the screen — the gesture
                 // `docs/agents.md` records this project as systematically
                 // missing.
@@ -489,8 +489,8 @@ impl Screen for DiplomacyScreen {
         //
         // `FUN_004369BD` walks the same cards the painter stacked and hit-tests
         // each card rectangle; the first hit becomes `g_diploTarget`. It runs
-        // **after** the widget test, so a click that lands on both belongs to
-        // the menu — which cannot happen, since the menu is at x = 400 and the
+        // **after** the widget test
+        // the menu — which cannot happen
         // cards end at 0x30 + 0x52 = 130.
         //
         // The six widget handlers are one arm, declared on [`menu_widgets`].
@@ -516,10 +516,10 @@ impl Screen for DiplomacyScreen {
     ///
     /// **This painter drew none of the original's ground.** Every rectangle on
     /// it was a `widget::panel` of ours in the interface's own `Ink`: the
-    /// window, each lord card, and one filled box per menu row — and the last
+    /// window, each lord card, and one filled box per menu row —
     /// of those is not a box the original has at all. It draws **one**
     /// `Ui_DrawInsetRect` behind the whole menu, whose height is the layout's,
-    /// and the six pictures over it are `g_diploWidgets` records carrying
+    ///
     /// `System.pl8` frame **64**.
     ///
     /// The card is the sharper case and it is `docs/decisions.md` C61's
@@ -546,7 +546,7 @@ impl Screen for DiplomacyScreen {
         // `Ui_OkButton(0x1A8, 0x1A6, 0)`: `System.pl8` frame `0x33`, an arrow
         // pointing into a hole. **Not the word OK**, which is what this screen
         // drew — the last of the three `Ui_OkButton` inventions the draw audit
-        // found, and the one its own inventory record names.
+        // found
         pen.ok_button(canvas, OK.x, OK.y, 0);
 
         let target = self.target(ctx);
@@ -556,7 +556,7 @@ impl Screen for DiplomacyScreen {
 
         // `Ui_DrawText(&g_playerNames + target * 0x2C, 0xD0, 0x3D,
         // &g_fontHeading, 0x3F)` — **`g_playerNames`, not `L2.eng` group 7**,
-        // and the heading font. This screen drew the lord's *title* here, which
+        // and the heading font. This screen drew the lord's *title* here
         // is only what `Game_NewGame` seeds the field with; a person who typed
         // a name on setup page 4 saw somebody else's. `ComposeScreen` below and
         // `screens/county.rs` had already settled the same question.
@@ -641,7 +641,7 @@ impl DiplomacyScreen {
         }
         // `Pl8_DrawFrame(g_miscCtySheet, shieldIndex + 0x55, 0x20,
         // slot*100 + 0x37)` — the same `Misc_cty` banner run the menu bar draws
-        // its realm flags from, and the painter clamps the index to 1..=5
+        // its realm flags from
         // **in the realm record** before using it.
         let shield = rr.shield_index.clamp(1, 5);
         if !pen.misc_frame(canvas, SHIELD_BASE + shield as usize, 0x20, r.y + 6) {
@@ -701,7 +701,7 @@ impl DiplomacyScreen {
         canvas.fill_rect(bx, by, THERMOMETER_FILL_W, THERMOMETER_FILL_H, THERMOMETER_EMPTY);
         // The fill loop, transcribed: `for (v = 30; v > -31; v--)` filling row
         // `30 - v` when `v <= standing`. So the column fills **downward from
-        // the standing's own row**, and the colour is chosen once from the
+        // the standing's own row**
 // standing.
         let colour = if standing >= i32::from(THERMOMETER_WARM) {
             THERMOMETER_HIGH
@@ -751,7 +751,7 @@ pub const COUNTY_CANCEL: Rect = Rect::new(356, 248, 32, 32);
 /// **[V]** `tools/oracle/widgets.js widgets 4dd9d0 8`.
 pub const WIDGET_TABLE: u32 = 0x004D_D9D0;
 
-/// The button-sheet frames those records name. `System.pl8`, and the pairing
+/// The button-sheet frames those records name. `System.pl8`
 /// is the one `tools/oracle/widgets.js` anchors on this very table:
 /// **frame 68 is plus** — its record carries hotspot id 1, and `FUN_00436372`
 /// reads `if (id == 1) g_diploGold += 10` — and **66 is minus**.
@@ -786,7 +786,7 @@ pub const COUNTY_OK: Rect = Rect::new(0x188, 0x146, 24, 24);
 // `Diplo_DrawGiftGold`, `Diplo_DrawLetter` or `Diplo_DrawCountyRequest`, and
 // the words are checked against `L2.eng` in `crates/l2-game/tests/shell.rs`.
 // **The check is on existence and these indices are verified against the
-// words**, which is the stronger claim and the one group 16 failed.
+// words**
 
 /// 72/10 *"Send gift of gold to"*, with the target's name after it.
 pub const GIFT_TO: usize = 10;
@@ -921,7 +921,7 @@ pub const PICKER: Rect =
 
 /// The county under a pixel of the compose dialog's map, or `None`.
 ///
-/// **`None` covers two different things and the original conflates them too**:
+/// **`None` covers two different things**:
 /// outside the rectangle, and inside it on a pixel whose county is 0. Both
 /// return 0 from `FUN_0043B4CB`, and 0 means *"not consumed"* — so a click on
 /// the sea inside the map falls through to the corner button behind it.
@@ -972,7 +972,7 @@ impl ComposeScreen {
     ///
     /// The send and cancel pair is `Diplo_SendClicked`'s — six records across
     /// three layouts at `0x004DDA00`, all **kind 5**, so the gauntlet goes down
-    /// and the letter goes twenty frames later. The gift dialog's two extra
+    ///
     /// records are `FUN_00436372`'s at `0x004DD9D0`, **kind 4**, so holding
     /// `+` walks the gold up on the ramp.
     ///
@@ -1027,7 +1027,7 @@ impl ComposeScreen {
     ///
     /// **`Widget_Draw` is shared and excluded from the draw-call denominator,
     /// but a record is one thing on the screen**, so the four the gift dialog
-    /// carries and the two the other six carry are counted separately —
+    /// carries
     /// `tools/audit/draws-F.json`. Our own recess stands in when the sheet is
     /// missing, so the button is still a button on a bare install and is
     /// visibly not the original's.
@@ -1051,7 +1051,7 @@ impl ComposeScreen {
     }
 
     /// `FUN_00436372` — step the gift, then clamp to `[0, my gold]`. **The
-    /// clamp is on every click**, so a player who has just spent his treasury
+    /// clamp is on every click**
     /// finds the amount follow it down.
     pub fn step_gift(&mut self, ctx: &Ctx, by: i32) {
         self.gold += by;
@@ -1067,7 +1067,7 @@ impl ComposeScreen {
     /// `Diplo_SendClicked`'s hotspot 1.
     ///
     /// The order is the original's and it matters: **the screen closes first**,
-    /// the draft is copied into the player's per-realm slot second, and the
+    /// the draft is copied into the player's per-realm slot second
     /// validation is third. A refusal is a message on the map.
     fn send(&mut self, ctx: &mut Ctx) -> Transition {
         let refused = refusal(ctx, self.target, self.kind, self.county);
@@ -1076,7 +1076,7 @@ impl ComposeScreen {
             return Transition::Pop;
         }
         // `if (g_diploKind != 0) g_diploGold = 0;` — only a gift carries gold,
-// and the field is cleared.
+//
         let gold = if self.kind == Kind::Gift { self.gold } else { 0 };
         let me = ctx.game.player;
         ctx.game.kingdom.post_letter(me, self.target, self.kind, gold, self.county);
@@ -1119,7 +1119,7 @@ impl Screen for ComposeScreen {
                 // The `0x1A` arm's right-release, and note **where it goes**:
                 // `g_screenId = 0`, the campaign map, not back to `0x0B`. Only
                 // the cross inside the dialog returns to the lord cards. Two
-                // exits from one screen that land in different places, and the
+                // exits from one screen that land in different places
                 // difference is not visible from the dialog.
                 Event::RightClick { .. } => Transition::Replace(ScreenId::Campaign),
                 Event::KeyDown(Key::Escape) => Transition::Pop,
@@ -1132,10 +1132,10 @@ impl Screen for ComposeScreen {
                     Transition::Stay
                 }
                 // **A double click reaches the four widgets and nothing else.**
-                // Send and cancel are kind 5 and the gift stepper kind 4, both
+                // Send and cancel are kind 5 and the gift stepper kind 4
                 // guarded by `g_mouseLeftPressed || g_mouseLeftDoubleClick`; the
                 // county picker `FUN_0043B4CB` opens `else if
-                // (g_mouseLeftPressed == 0) return 0` and the corner is
+                // (g_mouseLeftPressed == 0) return 0`
                 // `Ui_OkButtonClicked`, a release. `[V]` This screen dropped it.
                 Event::DoubleClick { .. } => match self.press.event(&self.widgets(), event) {
                     Some(i) => self.fire(ctx, i),
@@ -1149,7 +1149,7 @@ impl Screen for ComposeScreen {
         // `FUN_0043B4CB(0x60, 0xB0)` — a 128 × 128 county raster drawn at
         // (96, 176), read straight out of `g_minimapCounty`. It is tested
         // **before** the corner button, and a pixel that resolves to county 0
-        // is *not* a hit, so a click on the sea falls through to the OK test
+        // is *not* a hit
         // and can leave the screen. `g_diploKind < 5` short-circuits it: the
         // other five dialogs have no map on them.
         if matches!(self.kind, Kind::AskHelp | Kind::AskAttack) {
@@ -1167,7 +1167,7 @@ impl Screen for ComposeScreen {
         Transition::Stay
     }
 
-    /// `Widget_Test`'s per-frame pass: the gauntlets' countdown and the gift
+    /// `Widget_Test`'s per-frame pass: the gauntlets' countdown
     /// stepper's ramp.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         for i in self.press.tick() {
@@ -1209,7 +1209,7 @@ impl Screen for ComposeScreen {
             Kind::Gift => {
                 pen.window(canvas, GIFT_WINDOW.x, GIFT_WINDOW.y, 0x16, 0x0B, WINDOW_SET);
                 pen.ok_button(canvas, GIFT_OK.x, GIFT_OK.y, 0);
-                // `Eng_DrawString(72, 10, 0x60, 0xB8)` and the name at
+                // `Eng_DrawString(72, 10, 0x60, 0xB8)`
                 // `g_penAdvance + 0x60` — two draws, not one formatted string,
                 // because the pen advance is what puts the four-pixel gap in.
                 let w = pen.eng(canvas, GROUP, GIFT_TO, 0x60, 0xB8, font::TEXT);
@@ -1226,7 +1226,7 @@ impl Screen for ComposeScreen {
                     .get(me as usize)
                     .map_or(0, |r| r.pair(self.target).best_gift);
                 let w = pen.eng(canvas, GROUP, LAST_GIFT, 0x60, 0xD8, font::TEXT);
-                // `Ui_DrawCount` is a number *and* a group 8 noun, and the
+                // `Ui_DrawCount` is a number *and* a group 8 noun
                 // noun was missing: the line read "Last gift was 40" where the
                 // original reads "Last gift was 40 Crowns."
                 pen.count(canvas, w, 0xD8, best, CROWN_NOUN, font::TEXT);
@@ -1293,7 +1293,7 @@ impl Screen for ComposeScreen {
                 // `Diplo_DrawLetter` and again by `Screen_DrawWidgets`'s
                 // `0x1A` arm, so the draft repaints without the dialog being
                 // repainted. Parchment first, then the recess over it, then the
-                // wrapped text — the original's order, and the reason the box
+                // wrapped text — the original's order
                 // is not a hole in the window.
                 pen.box_interior(canvas, LETTER_DRAFT.x, LETTER_DRAFT.y, 0x1A, 6);
                 pen.inset(canvas, LETTER_DRAFT);
@@ -1312,7 +1312,7 @@ impl Screen for ComposeScreen {
 mod tests {
     use super::*;
 
-    /// The four layouts are the painter's four, in its own order, and the
+    /// The four layouts are the painter's four, in its own order
     /// alliance row is **one widget for two rows**.
     #[test]
     fn the_four_menu_layouts_are_the_painters_four() {
@@ -1324,7 +1324,7 @@ mod tests {
         // different kinds.
         assert_eq!(Menu::kind_of_row(5), Some(Kind::OfferAlliance));
         assert_eq!(Menu::kind_of_row(6), Some(Kind::EndAlliance));
-        // And the two request rows only appear on the allied layout, which is
+        // And the two request rows only appear on the allied layout
         // the gate `docs/diplomacy.md` §4 calls "the gate on kinds 5 and 6".
         for row in [7, 8] {
             assert!(Menu::Allied.rows().contains(&row));
@@ -1334,7 +1334,7 @@ mod tests {
     }
 
     /// The six menu widgets are 50 apart and never overlap a lord card. The
-    /// cards run to x = 130 and the widgets start at 400, which is what makes
+    /// cards run to x = 130 and the widgets start at 400
     /// `FUN_004369BD` running after the widget test harmless.
     #[test]
     fn the_menu_and_the_cards_cannot_both_be_hit() {
@@ -1363,7 +1363,7 @@ mod tests {
     }
 
     /// The thermometer's two break points are the AI's two alliance decisions,
-    /// and the fill runs the whole bar from −30 to +30.
+    ///
     #[test]
     fn the_thermometer_bands_are_the_alliance_thresholds() {
         assert_eq!(THERMOMETER_WARM, 11, "Diplo_ReplyAllianceOffer accepts at >= 11");
@@ -1440,7 +1440,7 @@ mod tests {
     /// "only the last one is clickable" quirk cannot bite here.
     ///
     /// `Ui_OkButton` stashes `(x, y)` into `DAT_0055CE78` / `DAT_0057C8A0` and
-    /// keeps only the last call's, so a painter drawing two makes one dead.
+    /// keeps only the last call's
     /// `Screen_DiploDialog` is an `if` / `else if` chain on `g_diploKind` —
     /// one arm per frame — so exactly one is drawn and exactly one is live.
     #[test]
@@ -1451,14 +1451,14 @@ mod tests {
             assert!(ok.x >= w.x && ok.y >= w.y, "{ok:?} starts outside {w:?}");
             assert!(ok.x + ok.w <= w.x + w.w && ok.y + ok.h <= w.y + w.h, "{ok:?} leaves {w:?}");
         }
-        // And the three are distinct, which is what makes them three branches
+        // And the three are distinct
         //
         assert_ne!(GIFT_OK, LETTER_OK);
         assert_ne!(LETTER_OK, COUNTY_OK);
     }
 
     /// Every `L2.eng` index this half of the module draws is inside group 72's
-    /// own run, and the four letter kinds map onto `g_diploKind` 1..=4.
+    /// own run
     #[test]
     fn the_compose_indices_are_the_painters_literal_arguments() {
         assert_eq!(GIFT_TO, 10);

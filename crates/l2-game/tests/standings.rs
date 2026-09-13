@@ -7,11 +7,11 @@
 //! halves and the first one is the smaller:
 //!
 //! * **the button answers** — a kind-5 press, the handler twenty ticks later,
-//!   the recount `FUN_00435211` runs before the page is drawn, and the page on
+//! the recount `FUN_00435211` runs before the page is drawn, and the page on
 //!   the stack;
 //! * **the page is right** — its geometry against the player's own
-//!   `Lords2.exe` and `Flags.pl8`, and the seven scoring rules of
-//!   `FUN_00415E42` and the ranking of `FUN_00415BDC` against values built by
+//! `Lords2.exe` and `Flags.pl8`, and the seven scoring rules of
+//! `FUN_00415E42` and the ranking of `FUN_00415BDC` against values built by
 //!   hand.
 //!
 //! The rules are tested by hand-built realms

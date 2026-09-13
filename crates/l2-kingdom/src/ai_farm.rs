@@ -57,14 +57,14 @@
 //! 2. **Turning *Advanced Farming* off makes the AI plant far more grain, not
 //!    less.** The option's `else` limb overwrites the whole ladder: neutral 0
 //!    plants `total - 3`, realm 0 plants `total - 1` (nearly every field), and
-//!    style 9 plants `total / 2` instead of `total / 3`. `[V]`.
+//! style 9 plants `total / 2` instead of `total / 3`. `[V]`.
 //! 3. **`Labour_DefaultSharesBuilt` (`0x0045158B`) is the AI's setter.**
 //!    `docs/symbols.md` records of the two default-share functions that *"which
 //!    of the two setters a county gets is not traced"*. All five styles call the
 //!    *Built* one — farm 33/50/17, industry 40/15/15/15/15 with castle building
 //!    favoured — and none calls `Labour_DefaultShares`. `[V]`.
 //! 4. **The AI's ration ladder punishes a cattle county.** Of its two dairy
-//!    rungs the Triple one can never change an answer, and the Double one only
+//! rungs the Triple one can never change an answer,
 //!    ever *lowers* the level: a county fed on cattle gets Double where a county
 //!    fed on the same quantity of food as grain gets Triple. The arithmetic is
 //!    in [`ration_wanted`]. `[V]`.
@@ -73,7 +73,7 @@
 //!    another field"*; `FUN_0044C6C4` paints
 //!    [`crate::field::terrain::RECLAIM_FIRST`] onto a **wasteland** tile, and a
 //!    tile already reclaiming spends a place in the quota without anything
-//!    happening — so a county told to add one while one is already under way
+//! happening — so a county told to add one while one is already under way
 //!    adds nothing. This crate used to add one to `County::fields_fallow`
 //!    instead, which `crate::field::recount` overwrites from the map on the very
 //!    next pass: **the AI's field expansion has never happened.** See
@@ -85,7 +85,7 @@
 //! **named seams**:
 //!
 //! * **The merchant.** Every style opens by buying food (`FUN_004A4B12` →
-//!   `Merchant_Trade`), and the buys are *interleaved* with the tests that
+//! `Merchant_Trade`), and the buys are *interleaved* with the tests that
 //!   trigger them — `if (grain < 100) buy 400; if (grain < 100) buy 200;` — so
 //!   whether a lot arrives changes whether the next one is even attempted. That
 //!   cannot be a list of requests returned at the end; it has to be a callback,
@@ -98,8 +98,8 @@
 //!   run first: it sells wood, iron and stone down to the lord's reserves at
 //!   personality `+0x84`/`+0x88`/`+0x8C` and buys weapons of the county's type
 //!   when gold clears `+0x78`. It is not implemented — it needs the goods
-//!   prices, the six-weapon market ids and the realm's resource *wants* — and
-//!   [`FarmStyle::sells_first`] records which styles want it so a caller that
+//! prices, the six-weapon market ids and the realm's resource *wants* — and
+//! [`FarmStyle::sells_first`] records which styles want it so a caller that
 //!   grows a market can hang it on the right three.
 
 use crate::county::County;
@@ -1490,7 +1490,7 @@ mod tests {
     /// `ration::apply` and this goes red, because the store loses two meals it
     /// should not. **The herd is cut to 11 on purpose**: the first draft of
     /// this test left the fixture's 135 head in place, the dairy alone fed the
-    /// county, no grain was ever eaten, and the ablation went green against a
+    /// county, no grain was ever eaten,
     /// test that could not have failed. `docs/agents.md`, *ablate something the
     /// check claims*.
     #[test]

@@ -1,5 +1,5 @@
 //! **Taking a county** — the mechanism the whole campaign layer exists to
-//! produce, and the one `docs/armies.md` never names.
+//! produce
 //!
 //! The document traces the record, the levy, movement, supply, sieges and how a
 //! battle *result* comes back, and there is a hole in the middle of it: what
@@ -327,7 +327,7 @@ pub fn attack_county(
                 d.defence_mark = mark;
                 if mark == RAISED {
                     // `Unit_Spawn` memsets the record and nothing writes the
-                    // allowance until `Army_Tick` runs, so a defence levied
+                    // allowance until `Army_Tick` runs
                     // this instant has **no moves**: it stands where it was
                     // raised and fights. It never sees another tick — the
                     // battle disbands it — so this is the whole of its
@@ -354,7 +354,7 @@ pub const UNMARKED: u8 = 0;
 
 /// Walk a unit for as long as it can walk, and resolve a castle it reaches.
 ///
-/// This is the composition the campaign layer exists to provide, and the one a
+/// This is the composition the campaign layer exists to provide
 /// turn calls: [`crate::movement::march`] takes the army as far as its
 /// moves allow, and if the last step brought it to a county's castle,
 /// [`attack_county`] decides whether that is a capture, a battle or a siege it
@@ -446,7 +446,7 @@ pub fn march_and_fight(
 /// The original reads the occupying unit out of the tile record's `+5`
 /// occupancy plane; [`crate::map::CampaignMap`] deliberately does not carry that
 /// plane, so [`Units::at`] answers the same question from the unit array. The
-/// tiles are visited in the original's row-major order, so a tie between two
+/// tiles are visited in the original's row-major order
 /// equally large armies falls the same way.
 pub fn find_defender(units: &Units, counties: &[County; MAX_COUNTIES], county: u8) -> Option<usize> {
     let c = counties.get(county as usize)?;

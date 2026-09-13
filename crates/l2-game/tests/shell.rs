@@ -4,7 +4,7 @@
 //! Two kinds of test, and the split is the point.
 //!
 //! * **Structure**, which needs no game: every page lays out, every hotspot is
-//!   where the painter puts it, and the navigation graph reaches every screen
+//! where the painter puts it, and the navigation graph reaches every screen
 //!   and comes back. These run on a bare checkout.
 //! * **Fidelity**, which needs the install: `L2.eng` really does say what the
 //!   painters' `(group, index)` pairs claim, the two fonts really do map
@@ -559,7 +559,7 @@ fn the_preload_table_names_every_face_and_record_3_is_g_font8() {
     );
 }
 
-/// **The measure and the draw disagree about `'@'`, as the original's do.**
+/// **The measure and the draw disagree about `'@'`.**
 ///
 /// `FUN_004014F0` (`0x004014F0`) charges 4 for `0x20` and nothing for any other
 /// empty `g_glyphWidths` entry; `Ui_DrawText` (`0x00402637`) advances
@@ -587,14 +587,14 @@ fn the_measure_charges_the_blank_sign_column_nothing_and_the_draw_charges_four()
 ///
 /// This is the test that would have caught the bug a player found by opening
 /// the original next to our demo: `a c e m n o s u x z` sat three pixels below
-/// `b d f h i k l t`, and the split was exactly frame record byte `0x0D`.
+/// `b d f h i k l t`.
 /// `Font::draw` added that byte to `y` while the decoder had already reserved
 /// the same rows at the top of the canvas, so the offset was applied twice —
 /// but only for the frames whose rows were *stored*, so the two
 /// halves of one alphabet disagreed.
 ///
 /// It draws through `Font::draw`, because the
-/// records were never wrong. The whole bug lived between the decoder and the
+/// records. The whole bug lived between the decoder and the
 /// blitter, and only an end-to-end render can see that seam.
 ///
 /// The tolerance is one pixel and it is earned, not slack: `r v w` in
@@ -687,7 +687,7 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
 ///    pixels, where `Fntl2_9.pl8` draws it in dozens. That is the "renders
 ///    nothing" a canvas diff passes over;
 /// 3. **everything the nine call sites build is a glyph or a blank** — `'+'`,
-///    `'-'` and the ten digits have ink, `' '` and `'@'` are table zeros — and
+/// `'-'` and the ten digits have ink, `' '` and `'@'` are table zeros — and
 ///    the digits sit on one baseline.
 ///
 /// Ablated, both run: pointing the test at `font::SMALL` turns claim 2 red on

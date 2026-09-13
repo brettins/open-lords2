@@ -80,7 +80,7 @@ fn the_root_is_the_one_the_application_starts_on() {
 
 /// **And that the application still calls the thing these tests exercise.**
 ///
-/// Everything below runs [`audio::Director::listen`]. That is only evidence
+/// Everything below runs [`audio::Director::listen`].
 /// about the game if the game runs it too, and the game is a binary an
 /// integration test cannot link against — so the two are held together by the
 /// one artefact both sides share, which is the source. Crude, and it is the
@@ -779,7 +779,7 @@ fn the_music_fanfares_screens_and_the_click_are_fifty_five_more() {
     );
     assert_eq!(audio.heard().len(), 55, "55 of 771 outside the voice class");
 
-    // `battle5.wav` ships and decodes; nothing can ask for it. That is not a
+    // `battle5.wav` ships and decodes; nothing can ask for it.
     // gap in the wiring, it is `DAT_0057A0F0` being unidentified, and
     // `BattleKind` refusing to guess at a third mode is why.
     assert!(!audio.heard().contains(&"battle5.wav"));

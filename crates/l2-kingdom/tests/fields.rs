@@ -22,7 +22,7 @@
 //!
 //! # And it is the reason the brush exists
 //!
-//! Every one of the fourteen counties has `fieldsGrain = 0`. That is not a
+//! Every one of the fourteen counties has `fieldsGrain = 0`.
 //! quirk of this position — it is what the start of a game *is*: you paint your
 //! fields. Until [`l2_kingdom::field`] there was no code path in this tree that
 //! could set that number for the human player at all, so the entire grain half
@@ -103,10 +103,10 @@ fn every_field_tile_lies_in_its_own_county_and_belongs_to_nobody_else() {
 }
 
 /// **The end-to-end one.** A human player paints a field to grain, ends four
-/// turns, and the grain pipeline runs: sown, grown, harvested.
+/// turns
 ///
 /// This is the first time this engine has driven its own economy from the
-/// player's side. It is deliberately built on the real position
+/// player's side.
 /// a fabricated county, because `docs/decisions.md` C26 is what happens when
 /// the only fixture exercises one value of a rule's input.
 #[test]
@@ -222,7 +222,7 @@ fn paint_all_fallow_to_grain(k: &mut Kingdom, county: usize) -> i32 {
 
 // ------------------------------------------------------- the cattle on the map
 
-/// **The pasture picture is the herd count, and the save proves it.**
+/// **The pasture picture is the herd count**.
 ///
 /// `Herd_UpdateCrowding` (`0x0044D913`) writes one of `0x13 … 0x16` onto every
 /// pasture tile of a county, chosen by `herd / fieldsCattle` banded at 11 and
@@ -279,7 +279,7 @@ fn every_county_s_pasture_carries_the_picture_its_herd_calls_for() {
     );
 }
 
-/// **The graphic is not the crowding meter, and the position proves the
+/// **The graphic is not the crowding meter**.
 /// difference matters.**
 ///
 /// `herd_crowding` bands at 11, 21 and 31 into 10/20/30/40; `herd_graphic`
@@ -307,12 +307,12 @@ fn the_map_merges_the_top_two_crowding_bands_and_the_meter_does_not() {
     assert_eq!(l2_kingdom::land::herd_graphic(&tables, 250, 1), 0x16);
 }
 
-/// **A county that loses its herd loses its cattle**, and the season pass is
+/// **A county that loses its herd loses its cattle**
 /// what does it.
 ///
 /// `docs/agents.md`: *"a field is only tested if something a test reads was
 /// written by something the game runs."* So this does not set a terrain byte
-/// and read it back — it kills the herd and runs [`Kingdom::advance_season`], and the
+/// and read it back — it kills the herd and runs [`Kingdom::advance_season`]
 /// pasture on the map has to follow. `Herd_UpdateCrowding` is called from
 /// `Herd_SeasonTick`'s last line and that is the road being travelled.
 #[test]
@@ -358,7 +358,7 @@ fn the_map_empties_when_the_herd_does() {
 ///
 /// **The assertion is the player's own diagnostic** — change an input the
 /// figure depends on and require the figure to change — which is the signal
-/// that found this, the tax panel's stuck number and the ration panel's before
+/// that found this
 /// it. It deliberately does not assert a *value*: a test that pinned −11 would
 /// pass just as well with the forecast frozen, which is the whole defect.
 ///
@@ -409,9 +409,9 @@ fn the_cattle_forecast_follows_the_labour_it_depends_on() {
 /// Three claims, and each is a different line of the tail:
 ///
 /// 1. **a field one season's work from done finishes** — one field, one gang;
-/// 2. **the gang starts on the nearest-to-finished field**, so a field at 600
+/// 2. **the gang starts on the nearest-to-finished field**
 ///    completes before a field at 0 gets touched;
-/// 3. **a finished field hands its surplus on**, so a gang with enough labour
+/// 3. **a finished field hands its surplus on**
 ///    finishes two in a season — which is the only way the figure ever reads
 /// more than 1.
 #[test]
@@ -447,7 +447,7 @@ fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
         "and it is one season away",
     );
 
-    // 3 — enough for both, and the near field's surplus carries to the far one.
+    // 3 — enough for both
     // The far field needs a full 800, so this is deliberately generous: what is
     // being asserted is that the count can exceed 1 at all.
     k.counties[county].field_progress[far] = (full - per_season) as u16;
@@ -473,7 +473,7 @@ fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
 ///
 /// A player: *"Sidebar doesn't show grain being planted as a negative
 /// number."* `Grain_LabourEstimate` (`0x0044D374`) is a search loop **plus a
-/// tail**, and the tail is what writes county `+0x22C`; only the loop was
+/// tail**
 /// ported, and `docs/decisions.md` C123 is the repair.
 ///
 /// **The repair landed and had no test.** Its two siblings each got one —
@@ -587,7 +587,7 @@ fn the_grain_forecast_is_the_sowing_loss_the_player_reported() {
 /// [`l2_kingdom::land::herd_growth`], which `docs/kingdom.md` §13 reproduces
 /// instruction for instruction.
 ///
-/// Two ablations, both run, and the first one's *predicted* failure was wrong
+/// Two ablations
 /// in a way worth keeping:
 ///
 /// * Relaxing the search's `best < net` to `best <= net` makes it take the
@@ -642,7 +642,7 @@ fn the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd() {
         "and doubling the dairy buys exactly nothing",
     );
 
-    // 3 — and the season is one of the inputs,
+    // 3 — and the season is one of the inputs
     c.herd = 74;
     c.herd_crowding = herd_crowding(t, 74, fields);
     let hands = herd_labour_estimate(t, &c, 1).useful;
@@ -667,7 +667,7 @@ fn the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd() {
     );
 }
 
-/// **The small-herd bonus steps down harder than the herd steps up**, so a
+/// **The small-herd bonus steps down harder than the herd steps up**
 /// smaller herd outbreeds a larger one at all three of its boundaries.
 /// `docs/bugs.md` B98.
 ///

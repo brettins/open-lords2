@@ -105,7 +105,7 @@ offset anything in the binary references. The 150 is the loop bound in `Path_Cop
 
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
-| `+0x149` | i8 | stepAccum | [D] | 0 … 15 sub-tile accumulator; +2 an admitted tick in single player, **+4 in a network game** (`g_multiplayer`, not "animation off" as this row said — C134). The commit writes 1; at 16 it goes to 0 and the edge latch `+0x14B` bit 0 is set, and the same tick commits the next tile. It indexes `Map_DrawArmies`' walk tables — `docs/screens.md` §5.2. |
+| `+0x149` | i8 | stepAccum | [D] | 0 … 15 sub-tile accumulator; +2 an admitted tick in single player, **+4 in a network game** (`g_multiplayer`). The commit writes 1; at 16 it goes to 0 and the edge latch `+0x14B` bit 0 is set, and the same tick commits the next tile. It indexes `Map_DrawArmies`' walk tables — `docs/screens.md` §5.2. |
 | `+0x14A` | i8 | animTick | [D] | frame delay: 3 off-road, 0 on a road, so units visibly move faster on roads too. |
 | `+0x14B` | u8 | flags | [D] | bit 0 = "on a tile centre, ready for the next step". |
 | `+0x14C` | u8 | **moveState** | [V] | 0 idle, **2 = moving**. |
@@ -334,7 +334,7 @@ independently:
 >    onto a county's **town** is how a county is taken.
 >
 >    *(Renamed after `decisions.md` C25: bit `0x40` is the county town, bit `0x80` is the
->    castle. This row said "castle" throughout and the words have been changed, not the
+> castle. This row said "castle" throughout and the words have been changed,
 >    behaviour. The game says it plainly — `L2.eng` group 30 index `0x1B`, "Your troops may
 >    capture a castleless county by attacking its county town.")*
 > 2. **The dwelling-plot row is not free.** `Unit_BurnDwelling` (`0x00468AE2`) charges
@@ -415,7 +415,7 @@ That is a buffer overrun, not a rule, and `crates/l2-kingdom` clamps it. [D]
 #### `Move_FloodFill` — read
 
 §8 listed this function as *"not read"* and its behaviour as **[I]**. It has been read
-(`00460000.c`, `0x0046F700`), and the inference was wrong in the detail that matters.
+(`00460000.c`, `0x0046F700`).
 
 **It is SPFA — a FIFO-queue Bellman–Ford with full relaxation.**
 
@@ -489,7 +489,7 @@ frame = (tile is castle/settlement/plot) ? 0x4E : 0x38 + n;     /* g_flagsSheet 
 ```
 
 > **Corrected, and a player found the difference.** *"Castle/settlement/plot"* is looser
-> than the function, and ours had not built the arm at all — so a town, which costs 100 to
+> than the function,
 > enter and is therefore always past the budget, drew the grey ball: *"it's just a grey ball
 > like I can't get there when I attack a town."* `Map_DrawPathMarker` (`0x004081A6`),
 > verbatim:
@@ -719,7 +719,7 @@ and the garrison path — whenever the distribution changes. [D]
 Realm `+0x81` as an alliance flag is **[I]**: it is read here as "an ally's troops eat as
 friendlies", and the diplomacy layer was not traced.
 
-### 3.3 Is foraging a straight subtraction? — **No, and the difference matters**
+### 3.3 Is foraging a straight subtraction? — **No**
 
 The player's claim was *"it takes from the county's food budget as a straight minus"*. The
 effect is close and the mechanism is not, and there are **two separate mechanisms**.
@@ -850,7 +850,7 @@ The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could
 
 > ### 4.0.0 How a siege is laid at all, and why it nearly could not be  **[V]**
 >
-> Everything below begins at `Army_BeginSiege`, and this document never said what calls it.
+> Everything below begins at `Army_BeginSiege`.
 > The answer is `Unit_Step`'s **code-6** branch, which is **two handlers on two disjoint
 > terrain ranges**:
 >
@@ -1107,10 +1107,10 @@ macemen ≈ 12.5, knights ≈ 54.
 > macemen are like 150 or 200 or 250"* — Saxon is exactly **150**, and the other maceman band
 > (Burgundian) is **250**. So the shape of the memory is right
 > (knights come in 50 and 100, macemen in 150 and 250), one of the two nationality pairings is
-> exactly right, and the other names the wrong half of a pair.
+> exactly right,
 >
 > **This is a finding, not a fit.** The numbers were read out of the file before they were
-> compared to the recollection, and the table is pinned by the layout invariant above rather
+> compared to the recollection,
 > than by resemblance to it. Had the roster been recovered by looking for 50s and 150s it
 > would be C3 again.
 
@@ -1483,7 +1483,7 @@ appears on the happiness panel's army row. [V]
 >    `Army_Create` returns 0 because the county has no free road tile *and* no free open
 >    tile to stand the army on. Only the first two are bypassed by a mercenary hire.
 > 4. **`Army_Create` sets neither `moveAllowance` nor `movesUsed`.** `Unit_Spawn` memsets
->    the whole `0x1A4`-byte record, so a fresh army carries an allowance of **0** until
+> the whole `0x1A4`-byte record, so a fresh army carries an allowance of **0** until
 >    `Army_Tick` writes 15 on the next frame.
 >
 > Two omissions: the `realm == 0` branch writes `u.owner = 6` and
@@ -1583,7 +1583,7 @@ Defence_Disband          0x004ABA5A   §7.5  the levy walks home
 
 > ### ⚠ `g_battleLoser` (`0x0057C924`) holds the **winner**. The name is inverted.
 >
-> This is the single most dangerous error in this document, because everything below was
+> This is the single most dangerous error in this document,
 > written on the name and the name is wrong. **Four** independent sites agree against it,
 > two of them found since this warning was written:
 >
@@ -1652,7 +1652,7 @@ written back. `[V]`
 > callback, splits on `g_multiplayer`: the single-player arm calls `FUN_0043BE65`, and the
 > multiplayer arm calls **`Battle_WriteBackCasualties()` first** and then goes out over the
 > wire. So the same button means two different things depending on whether anyone else is
-> playing — reproduced as `docs/bugs.md` B76, and the
+> playing — reproduced as `docs/bugs.md` B76,
 > single-player arm is the one `crates/l2-game`'s `finish_battle` takes.
 >
 > This is *not* a hole in the campaign–battle seam, and it reads like one. A battle fought
@@ -1724,7 +1724,7 @@ There is **no morale break, no rout threshold and no clock.** And the two counte
 two numbers `Ui_DrawNumberRight` puts on the battle HUD, so the numbers that decide a
 battle are the numbers the player is looking at. `[V]`
 
-(That primitive **centres** its number in `width` instead of right-aligning it, whatever
+(That primitive **centres** its number in `width` instead of right-aligning it,
 its name says — it and `Ui_DrawCentred` share the same tail, `FUN_004025D7`, which is
 `x + max(0, (width - textWidth) / 2)`. Nothing above depends on the alignment; it is noted
 here because this paragraph is one of the four places the wrong name was quoted.
@@ -1990,7 +1990,7 @@ the role — and read by `Battle_ReturnToCampaign`, whose A-wins branch captures
 `B[+0x167] != 0`, and by `Defence_Disband` (§7.5), which sends a **1** home and clears a
 **2**. `battle-during.sav` slot 6 carries a 1, so this is `[V]` on the data side as well.
 
-**The `if (defender) defender[+0x167] = (raised ? 1 : 2)` above is a simplification, and the
+**The `if (defender) defender[+0x167] = (raised ? 1: 2)` above is a simplification,
 real thing is asymmetric.** The `2` is written on the **AI** branch only. A human's county
 defended by an army that was already standing at its town is **never marked at all**, so
 `Defence_Disband` never touches it — which reaches the same end as the 2 would by writing
@@ -2424,7 +2424,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
 
 * **Whether an army can destroy its own realm's fields.** §2.6 shows one path where it cannot.
   A negative result from a single `if`; battles fought on farmland were not looked at.
-* ~~**`Move_FloodFill` was not read.**~~ **Closed** — it is read, in §2.3, and the guess it
+* ~~**`Move_FloodFill` was not read.**~~ **Closed** — it is read, in §2.3,
   was a cost-weighted breadth-first search was wrong: it is SPFA, with full relaxation.
 * ~~**The "lift siege" handler.**~~ **Closed** — `Siege_Break` (`0x0043B917`), three callers,
   §8.6. It clears `+0x199` and `+0x19A` and leaves the engine records alone.
@@ -2440,7 +2440,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
   (§8b.2), which was the right byte read too narrowly; then properly, as **the AI's mission
   byte** — §10. ~~**`+0x19B`**~~ **Closed** — the ally-help target county, §10. The rest of
   §1.5's untraced offsets stand.
-* ~~**`FUN_0046D42C`**, the existing-defender search §8.1 calls.~~ **Closed, and the guess
+* ~~**`FUN_0046D42C`**, the existing-defender search §8.1 calls.~~ **Closed,
   was wrong in both halves** — it is `County_FindDefendingArmy`, a 4×4 scan around the county
   town returning the *largest* army, not a slot-order scan of the whole county. §8.2a.
 * **`+0x12`/`+0x13` are truncated `u8`, not `i8`** as §1.2 types them —
@@ -2580,7 +2580,7 @@ fitted in the 10 %.
 as *"the move ends; `Unit_TrampleTile` charges 7, conditionally"*, with no mention that the
 tile might be a castle. §9's target table has the rule — *your county → `Army_Garrison`* — and
 nothing joined the two. In our engine that meant **an army ordered onto its own castle stopped
-on the tile and stood there for ever**, which nobody could see because no order in the game
+on the tile and stood there for ever**,
 produced one until the AI's garrison pass did. Recorded because it is the same shape as the
 garrison relation C59 found: a rule written down in one section and absent from the section
 that would have made somebody implement it.

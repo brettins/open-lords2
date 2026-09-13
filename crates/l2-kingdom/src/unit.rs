@@ -4,9 +4,9 @@
 //! unit*. Armies, revolting peasants, merchants and supply transports are one
 //! 151-record array, `g_units` (`0x0052F0B0`, stride `0x1A4`), told apart by a
 //! type byte at `+0x08`. Four separate Rust types would be four separate
-//! answers to "how many units are standing in this county", and the original
+//! answers to "how many units are standing in this county"
 //! only has one — [`Units::recount_county_troops`] walks types **1 and 2**
-//! together, [`wages_for_realm`] walks type 1 alone, and the movement stepper
+//! together, [`wages_for_realm`] walks type 1 alone
 //! walks all four.
 //!
 //! As everywhere else in this crate the *semantics* are reproduced and the byte
@@ -15,12 +15,12 @@
 //!
 //! # What is here and what is next door
 //!
-//! * this module — the record, the array, and the operations that are pure
+//! * this module — the record, the array
 //!   record arithmetic: merging, desertion, destruction, the strength score,
-//!   and the two county/realm rollups.
-//! * [`crate::map`] — the campaign map the units stand on, and the movement
+//! and the two county/realm rollups.
+//! * [`crate::map`] — the campaign map the units stand on
 //!   cost of every tile.
-//! * [`crate::movement`] — the pathfinder and the stepper, including what a
+//! * [`crate::movement`] — the pathfinder and the stepper
 //!   step does to a field or a resource site.
 //! * [`crate::levy`] — raising an army out of a county's people.
 //! * [`crate::mercenary`] — the twelve bands and their walk.
@@ -48,14 +48,14 @@ pub const MAX_UNIT_ID: usize = MAX_UNITS - 1;
 ///
 /// The record's array is eleven wide — `Battle_RaiseSide` walks eleven types
 /// and `Army_PrepareForBattle` fills 7…10 from the siege records immediately
-/// before a battle — but the campaign only ever writes the first seven, and
+/// before a battle — but the campaign only ever writes the first seven
 /// `+0x182`, where the siege records begin, is exactly where the eleven end.
 /// Siege engines are out of this module's scope, so seven is what is stored.
 pub const TROOP_TYPES: usize = 7;
 
 /// The path array on a unit record: 150 `(x, y)` pairs at `+0x1D`.
 ///
-/// `[V]` and the arithmetic closes: `0x1D + 150 * 2 = 0x149`, and `+0x149` is
+/// `[V]` and the arithmetic closes: `0x1D + 150 * 2 = 0x149`
 /// the next offset anything in the binary references. The 150 is the loop bound
 /// in `Path_CopyToUnit` (`0x004707BE`).
 pub const MAX_PATH: usize = 150;
@@ -86,7 +86,7 @@ pub const MERCHANT_WALK_FRAMES: [usize; 6] = [0, 1, 2, 3, 4, 5];
 ///
 /// `[V]` — `L2.eng` group 31 names all four, and `g_unitTickTable`
 /// (`0x004D6A50`) has one handler each. **Slot 5 of that table is NULL** while
-/// the dispatcher accepts types up to 5, so a type-5 unit would call address 0.
+/// the dispatcher accepts types up to 5
 /// Nothing spawns one, and nothing here can: the type is an enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
@@ -207,7 +207,7 @@ impl TroopType {
 }
 
 /// `g_troopStrengthWeight` (`0x004D6A18`) — what one man of each type is worth
-/// to [`Unit::strength_score`], which is what the AI and the autocalc compare.
+/// to [`Unit::strength_score`]
 ///
 /// `docs/armies.md` §5.1 notes that the mercenary prices do *not* track these:
 /// price ÷ weight comes out 2.0, 1.54, 2.1, 1.875, 1.56, 2.5 across the six
@@ -310,7 +310,7 @@ pub struct Unit {
     /// and the coming tick commits it.
     ///
     /// `Unit_Step`'s loop tests this before the budget check and the waypoint
-/// advance, so a unit only notices it has run out of moves at a
+/// advance
 /// tile boundary.
     ///
 /// **It starts set.** `Unit_Spawn`
@@ -367,7 +367,7 @@ pub struct Unit {
     ///
     /// **It is not `garrison_county` and the two are never both set.**
     /// `siege-sieging.sav` is the position: the besieging army carries
-    /// `+0x198 = 0` and `+0x199 = 4`, and the garrison it is besieging carries
+    /// `+0x198 = 0` and `+0x199 = 4`
     /// `+0x198 = 4` and `+0x19A = 5`. `[V]`
     pub besieging_county: u8,
     /// `+0x19A` — on a garrison, the slot of its besieger.
@@ -385,7 +385,7 @@ pub struct Unit {
     /// siege in `E:\dev\lords2-fixtures`: a 43-man army building one catapult
     /// reads 3, 2, 1, 0 as its work record climbs 86, 129, 172, 200. `[V]`
     pub siege_seasons_left: u8,
-    /// `+0x167` — **the county-defence mark**, and the field that decides
+    /// `+0x167` — **the county-defence mark**
     /// whether winning a battle also wins the county.
     ///
     /// `Army_AttackCounty` writes it when it settles who defends: **1** for a
@@ -434,7 +434,7 @@ pub struct Unit {
     /// > one byte per unit in the save.
     pub cargo_county: u8,
     /// `+0x1A` — **the mission byte**: what this unit is currently trying to
-    /// do, and the thing AI turn step 11 dispatches on.
+    /// do
     ///
     /// [`crate::ai_army::Mission`] is the enumeration and carries what each
     /// value means; the field is kept as the raw byte because the original's
@@ -529,8 +529,8 @@ impl Unit {
 
     /// The sprite bank `Army_Tick` picks: 0 under 301 men, 1 under 601, 2 above.
     ///
-    /// `[V]` on the thresholds and the arithmetic — the banks `0x48`, `0x60`
-    /// and `0x78` are 24 apart, which is 8 facings × 3 walk frames, and the
+    /// `[V]` on the thresholds and the arithmetic — the banks `0x48`, `0x60`格
+    /// and `0x78` are 24 apart
     /// instructions are `CMP …, 300` / `CMP …, 600` with `JG`. **`[I]` that the
     /// three banks are literally one, two and three figures**; nobody has
     /// looked at the sheet.
@@ -697,7 +697,7 @@ impl Unit {
 /// score that reached 1.
 pub const STRENGTH_SCORE_BONUS: i32 = 20;
 
-/// The 151-slot array, and the operations that walk it.
+/// The 151-slot array
 ///
 /// Slot 0 is never a unit. A free slot is `None`
 /// so "is this slot in use" cannot be asked two
@@ -791,11 +791,11 @@ impl Units {
     /// == 0)` and does nothing for anything else**, and `Army_GarrisonApply`
     /// calls `Unit_UnlinkFromTile` on its way in. So an army inside a castle is
     /// deliberately kept **out** of the tile's occupancy chain: two functions
-    /// agree, and the same fact is why the original draws a flag over the castle
+    /// agree
     /// instead of the unit.
     ///
     /// It is not cosmetic. `Unit_TryEnterTile` tests occupancy *before* it tests
-    /// any tile flag, so a garrison that occupied its own castle tile would turn
+    /// any tile flag
     /// every siege into a field battle fought on open ground — which is exactly
     /// what happened here until this line existed: the besieger walked up, met
     /// the garrison as an obstacle.
@@ -809,7 +809,7 @@ impl Units {
     /// `Units_ResetMoves` (`0x004651B9`) — turn phase 7, for **all 150 slots
     /// regardless of type or owner**: `moveState = 0` and `movesUsed = 0`.
     ///
-    /// `[D]`, and the loop really is unconditional: it does not skip garrisons,
+    /// `[D]`
     /// besiegers or free slots, and it does not touch the allowance, which each
     /// type's tick handler rewrites anyway.
     pub fn reset_moves(&mut self) {
@@ -883,7 +883,7 @@ impl Units {
 /// `Wages_ForRealm` (`0x004AD495`) — sum `Wages_ForUnit` over every **type-1**
 /// unit this realm owns.
 ///
-/// Garrisoned armies are included, besieging armies are included, and the
+/// Garrisoned armies are included, besieging armies are included
 /// mercenary band is included because it is part of `men`. Revolting peasants
 /// are not, because they are type 2 — a realm does not pay a mob that is
 /// rebelling against it.
@@ -1052,10 +1052,10 @@ pub enum CombineRefusal {
 /// 1500"*. What the merge takes:
 ///
 /// * `men` and the seven troop counts are summed;
-/// * `movesUsed` takes **the higher of the two**, so a fresh army that merges
+/// * `movesUsed` takes **the higher of the two**
 ///   into a spent one is spent;
 /// * the band, if only one side has it, moves across whole;
-/// * the siege links move across, and the garrison's back-pointer is repaired.
+/// * the siege links move across
 ///
 /// Returns the men in the merged army, or why it refused. The caller destroys
 /// `from`: this function only moves what is on the two records, because
@@ -1084,8 +1084,8 @@ pub fn combine(units: &mut Units, into: usize, from: usize) -> Result<i32, Combi
     // ```
     //
     // Both arms select the maximum. Merging a fresh army into a spent one
-    // leaves the result spent, so a reinforcement cannot buy back movement —
-    // which is a real tactical rule, and the inverse of the documented one.
+    // leaves the result spent
+    // which is a real tactical rule
     // Corrected in the document. `[D]`
     into_unit.moves_used = into_unit.moves_used.max(absorbed.moves_used);
     if into_unit.besieging_county == 0 {
@@ -1107,7 +1107,7 @@ pub fn combine(units: &mut Units, into: usize, from: usize) -> Result<i32, Combi
 /// `Army_Destroy` (`0x004AA039`) — free the slot and put the realm back in
 /// order.
 ///
-/// Three things happen besides the slot being cleared, and each is a place a
+/// Three things happen besides the slot being cleared
 /// naive `remove` would leave the kingdom wrong:
 ///
 /// 1. the garrison or siege link is broken, in whichever direction it points;
@@ -1150,7 +1150,7 @@ pub fn destroy(t: &Tables, units: &mut Units, realms: &mut [Realm; MAX_REALMS], 
 /// The twenty-four name counters a realm keeps at `+0x2D`, one per name slot.
 ///
 /// `Army_PickName` (`0x004A9F72`) picks the **first** slot holding the lowest
-/// count and adds 2 to it, so a name repeats only after every other has been
+/// count and adds 2 to it
 /// used — and, because [`destroy`] gives back only 1, the counters drift
 /// upwards over a long game.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1186,7 +1186,7 @@ impl ArmyNames {
         }
         let row = &mut self.counters[realm as usize];
         let mut best = 0usize;
-        // Strictly less than, so the *first* slot at the minimum wins and the
+        // Strictly less than
         // choice is deterministic.
         for slot in 1..ARMY_NAME_SLOTS {
             if row[slot] < row[best] {
@@ -1244,7 +1244,7 @@ mod tests {
         assert!(units.get(b).is_some());
     }
 
-    /// The four types and the two budgets, which is the whole of
+    /// The four types and the two budgets
     /// `docs/armies.md` §0's movement row.
     #[test]
     fn an_army_gets_fifteen_moves_and_everything_else_gets_ten() {
@@ -1283,7 +1283,7 @@ mod tests {
     }
 
     /// The correction this module makes to `docs/armies.md` §7: an empty army
-    /// scores 1, not 0, and the +20 is only on a score that reached 1.
+    /// scores 1, not 0
     #[test]
     fn an_empty_army_scores_one_and_a_single_peasant_scores_twenty_two() {
         let empty = Unit::new(UnitKind::Army, 1, 0, 0);
@@ -1417,7 +1417,7 @@ mod tests {
 
     // --- names -------------------------------------------------------------
 
-    /// Twenty-four names, `+2` a use, so a lord runs through all of them before
+    /// Twenty-four names, `+2` a use
     /// repeating.
     #[test]
     fn a_realm_uses_every_name_before_repeating_one() {
@@ -1520,7 +1520,7 @@ mod tests {
         assert_eq!(counties[1].enemy_troops, 300, "the besieger forages the county");
     }
 
-    /// The loop tests type 1 **or 2**, so a peasant mob is a mouth too.
+    /// The loop tests type 1 **or 2**
     #[test]
     fn revolting_peasants_are_counted_and_merchants_are_not() {
         let (mut counties, realms) = kingdom_bits();

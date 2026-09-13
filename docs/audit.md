@@ -659,7 +659,7 @@ scripts, and matched the documented value to the digit.
   128,000, and every hex literal in the document: `0x6E0`, `0xE4C`, `0x1F548`, `0x20A74`,
   `0x152C`, `0x1674`, `0x1900`, `0xB7`.
 * 328-byte pad at 5,420 is entirely zero.
-* Map 0 armies exactly as quoted; records 2–39 all equal the default template
+* Map 0 armies; records 2–39 all equal the default template
   `{50,0,0,50,0,50,0,0,0,0,0}` (**38/38**); fields 7–10 zero in all 40 records.
 * Text block: 60/60 fields NUL-terminated inside their slot; map 0's stale `st` residue
   after `Sample Map\0` is present.
@@ -678,7 +678,7 @@ scripts, and matched the documented value to the digit.
 **`Lords2.exe`** (`pe.js`)
 
 * 1,031,680 bytes, `ImageBase = 0x400000`, `DllCharacteristics = 0` → **no ASLR**.
-* Sections exactly as `symbols.md`: `.text` `0x401000`–`0x4CFB06` (846,598 B),
+* Sections `.text` `0x401000`–`0x4CFB06` (846,598 B),
   `.rdata` `0x4D0000`, `.data` `0x4D2000` with 1,035,872 virtual against 80,384 raw →
   **955,488 bytes** of zero-initialised globals, `.idata` `0x5CF000`.
 * Imports: **one** function from `DDRAW.dll` (`DirectDrawCreate`), **two** from

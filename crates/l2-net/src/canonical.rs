@@ -1,6 +1,6 @@
 //! Canonical serialisation: the one byte stream everything agrees on.
 //!
-//! Three things need to turn simulation state into bytes, and
+//! Three things need to turn simulation state into bytes,
 //! `docs/netcode.md` requires that they all produce the *same* bytes:
 //!
 //! * the state checksum exchanged every tick (§6),
@@ -10,7 +10,7 @@
 //!
 //! If the checksum hashed one encoding and the snapshot wrote another,
 //! then a desync dump would be a picture of a state that
-//! checksummed, and the first hour of every investigation would go on
+//! checksummed,
 //! establishing that the two encoders agree. So there is one encoder,
 //! [`Canonical`], and hashing is something it does *while* writing
 //! A checksum and a snapshot
@@ -19,7 +19,7 @@
 //!
 //! # What "canonical" rules out
 //!
-//! §6 is emphatic that we never hash the in-memory image, and the
+//! §6 is emphatic that we never hash the in-memory image,
 //! reason is that a memory image is full of things that legitimately
 //! differ between two peers running identical simulations: struct
 //! padding, `Vec` spare capacity, allocator layout, `usize` width. Hash
@@ -35,7 +35,7 @@
 //! which panics.
 //!
 //! Little-endian to match the file formats we already read
-//! (`docs/netcode.md` D-10), not because of the host's byte order —
+//! (`docs/netcode.md` D-10), —
 //! `to_le_bytes` is a byte shuffle on a big-endian machine, not a
 //! no-op, and that is the point.
 //!
@@ -43,7 +43,7 @@
 //!
 //! Every variable-length field is length-prefixed. That is not for the
 //! decoder's benefit — a decoder that knows the schema could get by
-//! without it — but for the *hash*: without a prefix, the two states
+//! without it — but for the *hash*: without a prefix,
 //! `("ab", "c")` and `("a", "bc")` produce identical byte streams and
 //! therefore identical checksums, and a desync detector that cannot
 //! see the difference between them has a blind spot exactly where
@@ -66,7 +66,7 @@
 //! hashed twice — which at 10 Hz over a state of this size is not
 //! measurable. What is *not* done in every build is exchanging the
 //! section hashes over the wire; the tick packet carries one `u64`, as
-//! §4 specifies, and the section vector is local until a divergence
+//! §4 specifies,
 //! makes it worth writing down.
 
 use crate::fixed::Fixed;
@@ -222,7 +222,7 @@ impl Canonical {
 
     /// Raw bytes, with **no** length prefix.
     ///
-    /// The escape hatch, and the only method here that can make an
+    /// The escape hatch,
     /// encoding ambiguous. Use it for fixed-size arrays whose length is
     /// part of the schema (an 80×80 terrain grid); use
     /// [`Canonical::bytes`] for anything whose length can vary.
@@ -283,7 +283,7 @@ impl Canonical {
     /// Panics above `u32::MAX`. Truncating silently would be the
     /// classic serialisation bug — a length that no longer matches its
     /// data — and this game has no collection that can approach 4
-    /// billion entries, so a panic here means memory corruption or a
+    /// billion entries,
     /// wildly wrong call, both of which want to stop immediately.
     pub fn len32(&mut self, n: usize) {
         assert!(n <= u32::MAX as usize, "canonical length {n} exceeds u32");
@@ -362,7 +362,7 @@ impl Canonical {
 /// Something with a canonical byte form.
 ///
 /// Hand-written, per D-10.
-/// be one: a derive is a layout decided by a macro, and the whole point
+/// be one: a derive is a layout decided by a macro,
 /// of this module is that the layout is decided by a person and does
 /// not move when a dependency does.
 pub trait Encode {

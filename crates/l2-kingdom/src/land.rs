@@ -628,7 +628,7 @@ pub fn herd_crowding(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
 /// function:
 ///
 /// ```c
-/// if      (herd < 1)      graphic = 0x13;      /* and the level is still written */
+/// if (herd < 1) graphic = 0x13; /* and the level is still written */
 /// else if (density < 11)  graphic = 0x14;
 /// else if (density < 21)  graphic = 0x15;
 /// else                    graphic = 0x16;
@@ -639,7 +639,7 @@ pub fn herd_crowding(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
 ///   [`l2_view::campaign::herd_sprite`] draws nothing on it.
 /// * The **graphic has three bands and the level has four.** Density 25 and
 ///   density 250 are `herd_crowding` 30 and 40 — *"Herd overcrowded."* and
-///   *"Massive overcrowding!!"* — and the **same** picture, `0x16`. The map
+/// *"Massive overcrowding!!"* — and the **same** picture, `0x16`. The map
 ///   cannot tell the top two bands apart.
 ///
 /// So the map is a lossy view of the meter, deliberately, and a renderer that
@@ -1101,14 +1101,14 @@ pub fn grain_repaint_fields(
 /// * **The tail is not a by-product of the loop.** The loop calls
 ///   `Grain_Sow(county, workers, grain − grainEaten)` over every possible
 ///   staffing; the tail calls `Grain_Sow(county, staff, grain)` — the *actual*
-///   allocation and the *undiminished* store. Two different questions, and
+/// allocation and the *undiminished* store. Two different questions, and
 ///   folding them would produce a plausible wrong number.
 /// * **`crop[2]` and `+0x2FC` are written only in their own seasons** and keep
 /// their previous value otherwise.
 ///   pass. Winter's arm then reads the `crop[2]` it has just written.
 /// * **`+0x22C` is zeroed before the `popBand` guard**, so an empty county
 ///   forecasts nothing. The same shape
-///   as [`herd_preview`], and the same reason.
+/// as [`herd_preview`], and the same reason.
 /// * **This is why the estimate round runs twice.** `crate::field`'s module docs
 ///   worked that out — *"the panel forecasts, which the estimates fill from
 ///   whatever the allocator last decided"* — and then the port carried none of
@@ -1230,7 +1230,7 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
 /// * the search subtracts **`grainEaten`** from the store and the panel
 ///   forecast one line below it does not;
 /// * `wanted` and `useful` are assigned in the same `if`, so for grain alone
-///   the floor and the ceiling agree — **except when the search found
+/// the floor and the ceiling agree — **except when the search found
 ///   nothing**, where they are −1 and 0 because that is what they were
 ///   initialised to. That is the only reason [`GrainEstimate`] has two fields.
 ///   `Labour_Allocate` reads only the ceiling — **verified by exhaustion over
@@ -1975,7 +1975,7 @@ mod tests {
             let weather = pct(1000, T.weather[w.index() as usize].herd_pct);
             assert_eq!(c.herd, 1000 + farming.net() + weather, "{}", w.name());
         }
-        // ... and the ordering the table encodes is still the ordering.
+        //... and the ordering the table encodes is still the ordering.
         let after = |w: Weather| {
             let mut c = grazing(1000, 100, 3000);
             c.weather = w;

@@ -23,7 +23,7 @@
 //!   groups describes, in prose, what the decompiled handler does.
 //!   That last one is the strong evidence: id `0x13B` = group 315 is *"Stop
 //!   thief!.  Highwaymen waylay your tax collectors. Lose all tax revenues this
-//!   season."*, and the handler's whole body sets county `+0x1A8`, which is the
+//! season."*, and the handler's whole body sets county `+0x1A8`, which is the
 //!   *"another untraced gate"* `docs/kingdom.md` §4.1 says zeroes the tax take.
 //!
 //! # The draw is a ring, not a probability
@@ -31,13 +31,13 @@
 //! ```c
 //! index = g_seasonRandom * 2;                 /* 0 .. 254, drawn once a season */
 //! for (county = 1; county <= g_countyCount; county++) {
-//!     clear the three modifiers and the tax gate;
+//! clear the three modifiers and the tax gate;
 //!     index++; if (index > 255) index = 0;
 //!     if (owner is human && g_year > 1268 && g_eventTable[index] != 0) fire it;
 //! }
 //! ```
 //!
-//! So one number is drawn per **season**, not per county, and the counties then
+//! So one number is drawn per **season**, and the counties then
 //! walk consecutive slots of the deck. Three consequences, and the third is a
 //! bug:
 //!
@@ -403,7 +403,7 @@ impl EventKind {
     /// *Plague* alone moves the health meter as well as the population. `[V]` —
     /// `FUN_00448F6F` does `meter -= 20; if (meter > 25) meter = 25;
     /// if (meter < 0) meter = 0;`, so a Perfect county drops to Sick in one
-    /// season and the clamp, not the subtraction, does most of the work.
+    /// season and the clamp, does most of the work.
     pub fn health_side_effect(self) -> Option<Effect> {
         match self {
             EventKind::Plague => Some(Effect::Health { delta: -20, cap: 25 }),
@@ -658,7 +658,7 @@ pub fn roll_all(
     // doubling is what makes the starting slot always even, and every filled
     // slot is odd, so county `k` can only ever land on a slot of parity `k`.
     //
-    // The fix draws the starting slot over the whole deck instead of over half
+    // The fix draws the starting slot over the whole deck
     // of it doubled. **One `next_u32()` either way** — both bounds are powers
     // of two, so `Pcg32::below`'s rejection loop never turns, and the number of
     // values taken from the generator does not depend on the setting. That
@@ -873,7 +873,7 @@ mod tests {
         assert_eq!(crate::tax::collect(T, &mut c, 0), 0, "the collectors were waylaid");
     }
 
-    /// *"No bull"* writes 99, and the herd pass reads 99 as a sentinel rather
+    /// *"No bull"* writes 99, and the herd pass reads 99 as a sentinel
     /// than as +99%.
     ///
     /// **It stops the calves and nothing else.** The branch sets the weather
@@ -1037,7 +1037,7 @@ mod tests {
         assert_eq!(events_b, 0, "and an all-AI kingdom draws nothing");
     }
 
-    /// One draw per season, not one per county — so a kingdom of 4 and a
+    /// One draw per season, — so a kingdom of 4 and a
     /// kingdom of 14 leave the generator in the same place.
     #[test]
     fn the_season_draws_exactly_one_number_however_many_counties_there_are() {

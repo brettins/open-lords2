@@ -459,7 +459,7 @@ fn army_foraging_re_runs_the_ration_pass_in_every_county() {
         game.kingdom.set_ration_wanted(id, 2);
     }
     // What the ration pass records the county eating, meat and grain together:
-    // `ration_split` decides the mix, and the mix is not what is under test.
+    // `ration_split` decides the mix,
     let eaten = |game: &Game, id: usize| {
         let c = &game.kingdom.counties[id];
         (c.herd_eaten, c.grain_eaten)

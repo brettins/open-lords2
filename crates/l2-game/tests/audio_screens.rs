@@ -333,7 +333,7 @@ fn four_screens_speak_as_they_open() {
 ///
 /// `Director::listen` runs sixty times a second. The original's sound is in the
 /// handler that *changes* `g_screenId`, so it happens once; a test that only
-/// checked "did it play" would pass just as well with the guard removed and the
+/// checked "did it play" would pass and the
 /// player would hear the narrator repeat for as long as the panel was open.
 ///
 /// **A repeat can only be heard once the line has ended.** `Sidebar_Button`'s
@@ -476,7 +476,7 @@ fn a_line_or_a_fanfare_over_the_one_shot_buffer_is_dropped_and_after_it_plays() 
 /// the edge: `Game::nobles_spoken` is a counter both bump, so a tab pressed
 /// twice speaks twice.
 ///
-/// **Ablation, run:** make the director diff `game.nobles_category` instead of
+/// **Ablation, run:** make the director diff `game.nobles_category`
 /// the counter and the third assertion goes red — the second press of the same
 /// tab is silent, where the original speaks.
 #[test]

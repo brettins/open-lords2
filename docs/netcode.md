@@ -140,9 +140,9 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >    no single-profile test can see it. Fixed-point arithmetic saturates in both.
 > 9. **§7's "reliable, ordered delivery" is load-bearing, not a preference.** A test that
 >    drops packets shows the session never recovers and waits forever — correct behaviour,
->    and the clearest argument that the transport cannot be a bare UDP socket.
+> and the clearest argument that the transport cannot be a bare UDP socket.
 > 10. **A pacing hazard the design omits.** `advance()` stops when it runs out of
->     *commands*, not time, so a caller looping until `Waiting` runs the battle as fast as
+> *commands*, not time, so a caller looping until `Waiting` runs the battle as fast as
 >     the CPU allows — right for replay and catch-up, wrong for live play.
 >
 > 11. **The crate contradicted itself about where framing lives**, and this document took
@@ -153,11 +153,11 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 > 12. **`Transport::broadcast`'s default silently skipped peers** — errata 7 arriving
 >     through a different door. It used `?`, so the first failing peer aborted the loop and
 >     everyone after it was skipped: a host whose player 2 has just dropped never sends the
->     turn to players 3, 4 and 5, and the game stops with no error near the cause.
+> turn to players 3, 4 and 5, and the game stops with no error near the cause.
 >     `Loopback` cannot produce that failure at all, since a partitioned peer still returns
 >     `Ok`, so **181 tests** passed over it and one real socket plus one ordinary disconnect
 >     found it *(181 is frozen: it is the size of the crate's suite on the day this was
->     found, and the point is that all of them passed — updating it to today's number would
+> found, and the point is that all of them passed — updating it to today's number would
 >     erase the measurement)*. **Now fixed in the core**: every peer is attempted, the first
 >     error reported afterwards.
 > 13. **`peers()` is necessary but not sufficient.** The trait cannot say *why* a peer went,
@@ -167,7 +167,7 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >     alt-F4-mid-tick. Classifying `Ok(0)` as goodbye and everything else as an error
 >     reports the most common way a session ends as an unexplained I/O fault.
 > 15. **The checksum had a hole in it, and it was in the state, not the protocol.**
->     Everything above is about hashing the right ticks. This is about hashing the right
+> Everything above is about hashing the right ticks. This is about hashing the right
 >     *fields*. Four county fields — `labour_wanted`, `labour_useful`, `labour_share` and
 >     `industry_share` — were missing from `l2_kingdom::save`'s `Encode` impl, and because
 >     §6's checksum runs through **that same impl**, they were missing from the per-tick
@@ -179,8 +179,8 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >     It was found by a **save round trip**, not by anything in this layer: a decoded
 >     kingdom compared equal on its checksum and unequal on `PartialEq`, which can only
 >     mean fields outside the encoding. Two consequences worth keeping. **Sharing one
->     encoder between the save and the digest is what made the save able to find it** —
->     that is D10's payoff and the argument for not giving the digest its own serialiser.
+> encoder between the save and the digest is what made the save able to find it** —
+> that is D10's payoff and the argument for not giving the digest its own serialiser.
 >     And **`#[derive(PartialEq)]` is the only exhaustive reader of a struct we have**;
 >     everything else is a hand-written list that stops at what somebody remembered.
 >
@@ -196,14 +196,14 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >     definitions out of `crates/l2-kingdom/src`, walks the types from `Kingdom`, and
 >     requires every field it finds to be furnished. Over a saturated fixture the single
 >     `assert_eq!` *is* the completeness check, because a field the encoder drops comes
->     back holding the default and the default is the one value the fixture never holds.
+> back holding the default and the default is the one value the fixture never holds.
 >
 >     Its first run found **twelve more fields in neither the save nor the digest**:
 >     eleven on `Realm` — including `pairs`, the entire diplomatic matrix, so two peers
->     could have diverged on every alliance, grudge and standing in the game with every
+> could have diverged on every alliance, grudge and standing in the game with every
 >     checksum agreeing — and `Unit::defence_mark`. Save `VERSION` 10.
 >
->     Two properties, not one, and the second is easy to miss: a *field* can go missing
+> Two properties, not one, and the second is easy to miss: a *field* can go missing
 >     from a record, and a whole *record* can go missing from the walk over an array.
 >     `no_record_slot_is_silenced` covers the second by looping over the array lengths.
 >     The original game has exactly that bug in its own sync checksum:

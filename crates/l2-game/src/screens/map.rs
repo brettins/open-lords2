@@ -133,7 +133,6 @@
 //! was in the painter, where the input inventory does not look.**
 //! `docs/decisions.md` C132.
 //!
-//! **And the assertion written to keep it gone was itself vacuous for a while.**
 //! `the_selection_is_not_drawn_on_the_map` compared the first two counties the
 //! player does not own — 1 and 2 — and the viewport this map opens on shows 8
 //! and 9. Putting the outline back turned nothing red. It sweeps the counties

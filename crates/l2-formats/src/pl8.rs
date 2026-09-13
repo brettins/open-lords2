@@ -118,12 +118,12 @@ pub struct FrameInfo {
 /// rectangle declaring `overhang_rows`, `height` is the record's height plus
 /// that count and the rectangle sits at canvas row `overhang_rows`; the rows
 /// above it are either the frame's stored artwork or transparent. That holds
-/// whether or not the file bothered to store them, so a caller must **never**
+/// whether or not the file bothered to store them,
 /// add `overhang_rows` again — doing so drew the whole `overhang = 3` half of
 /// `Fntl2_14.pl8` three pixels below the baseline, which a player caught by
 /// comparing our text with the original's.
 ///
-/// What the canvas does not decide is where its *anchor* is, and the two
+/// What the canvas does not decide is where its *anchor* is,
 /// consumers differ: `Glyph_Draw` puts the canvas top at the line top, while
 /// the map blitter anchors the tile and lets the chevrons extrude above it
 /// (`l2_view::campaign` subtracts `height - tile_h`). Both read the same
@@ -136,7 +136,7 @@ pub struct DecodedFrame {
     /// Palette indices, row-major, `width * height` entries.
     pub indices: Vec<u8>,
 /// Per-pixel coverage, i.e. whether the game would paint this
-    /// pixel. Two things make a pixel transparent: an RLE skip run, and a
+    /// pixel. Two things make a pixel transparent: an RLE skip run,
     /// palette index of 0 - every blitter copies only non-zero bytes
     /// (verified in the original at 0x004B43B1).
     pub opaque: Vec<bool>,
@@ -183,11 +183,11 @@ impl<'a> Pl8<'a> {
             });
         }
         // Reclassify hit-test region maps. Their shape byte says "rectangle",
-        // but they hold one byte per 8x8 block, so a rectangle read runs off the
+        // but they hold one byte per 8x8 block,
 // end of the file. Decided on the byte span.
         for i in 0..frames.len() {
             // RLE frames have variable-length data and no meaningful shape byte,
-            // so a coincidental span must not reclassify one.
+            //
             if storage == Storage::Rle || frames[i].shape != Shape::Rect {
                 continue;
             }
@@ -205,7 +205,7 @@ impl<'a> Pl8<'a> {
         // A file that declares RLE but whose every frame spans exactly w*h is
 // stored raw: the header byte is wrong. `Font_c2.pl8` is the same
         // font as `Fntl2_9.pl8`, exported twice, and shares 103 of its 108 frame
-        // records. Nothing in the engine reads the family byte, so a wrong one is
+        // records. Nothing in the engine reads the family byte,
         // invisible to the game.
         //
         // Decided over the *whole file*. Deciding per frame would let a single
@@ -272,7 +272,7 @@ impl<'a> Pl8<'a> {
         // one skip run covering a wholly transparent row) while `Fntl2_9.pl8`
         // declares exactly the same counts and stores nothing at all. Deciding
         // the canvas height on the byte span made one font's frames `h + rows`
-        // tall and the other's `h`, so no caller could be right about both, and
+        // tall and the other's `h`,
         // every `rows = 3` glyph in the body font drew three pixels low.
         //
         // Reserving unconditionally is also what the engine does: `Glyph_Draw`
@@ -302,7 +302,7 @@ impl<'a> Pl8<'a> {
             }
             indices.copy_from_slice(&self.data[start..end]);
             // Deliberately left fully transparent: these bytes are region ids,
-            // not palette indices, and the engine never blits them.
+            // not palette indices,
             return Ok((
                 DecodedFrame {
                     width: canvas_w as u16,
@@ -670,11 +670,11 @@ mod tests {
 
     #[test]
     fn zero_length_skip_run_is_rejected_rather_than_hanging() {
-        // "00 00" asks to skip zero pixels: no progress, so a naive decoder
+        // "00 00" asks to skip zero pixels: no progress,
         // spins forever. Must be an error instead.
         //
         // The payload is deliberately 5 bytes for a 4x1 frame. At exactly 4 it
-        // would span w*h, and the whole file would be reclassified as raw - a
+        // would span w*h,
         // real hazard this test caught, since that would quietly rescue a frame
         // that ought to fail.
         let bytes = build(1, 0, &[(4, 1, &[0x00, 0x00, 0x00, 0x04, 0x00])]);

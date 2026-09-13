@@ -23,7 +23,7 @@
 //! | kind 5 press | click | loud |
 //! | kind 5 delayed fire, twenty frames on | silent | `a_gauntlet_clicks_on_the_press_and_not_when_it_acts` |
 //! | kind 2 (`Hotspot_Test`) and its flat pulse | silent | `the_hotspot_kinds_are_silent` |
-//! | kinds 1 and 3 (`Hotspot_Test`) | silent | `the_hotspot_kinds_are_silent`, and the sidebar through the machine |
+//! | kinds 1 and 3 (`Hotspot_Test`) | silent | `the_hotspot_kinds_are_silent`
 //! | `Ui_OkButtonClicked` (`0x0040E7E4`) | silent | `the_ok_buttons_are_silent` |
 //!
 //! These drive [`Machine::handle`] and [`Machine::update`] and read

@@ -404,7 +404,7 @@ pub const HERD_NO_PASTURE_DIVISOR: i32 = 2;
 ///
 /// * `density_max` - the highest `herd / fieldsCattle` in the band. The binary
 ///   tests `density < 11`, `< 21`, `< 31`, so the inclusive bounds are 10, 20,
-///   30 and everything above.
+/// 30 and everything above.
 /// * `level` - what `FUN_0044D913` stores in county `+0x25C`, and what
 ///   `L2.eng` group 77 names *"Low herd crowding."*, *"Average herd
 ///   crowding."*, *"Herd overcrowded."* and *"Massive overcrowding!!"*.
@@ -482,7 +482,7 @@ pub const MAX_TAX_RATE: i32 = 50;
 /// 51 `i32` entries indexed by tax rate. `Tax_RecomputePreview` reads
 /// `g_taxHappinessOther[rate * 4]` into county `+0x16`, and
 /// `Tax_SumEmpireHappiness` sums that across the realm into a signed *byte* -
-/// so a large enough empire overflows it, which is a separate reproduced bug.
+/// so a large enough empire overflows it.
 ///
 /// The shape is the point, because it is nothing like a formula: **flat zero
 /// through rate 19**, then a shallow ramp reaching only −15 at the maximum.

@@ -266,7 +266,7 @@ site indexes. `crates/l2-game/src/movie.rs` carries the same table beside the co
 | `CastleBuild_Confirm` | a castle ordered, animations on | `castle1`…`5.smk` by level | (158, 20) | the map; bed restarts |
 | `Msg_DrawWindow`, category `0x0D` | a capture letter opens, animations on | `cap_cty1`…`3.smk`, rotating, **first shown is `cap_cty2`** | (40, 105) | the map; bed restarts; narrator reads over the film |
 | `Msg_DrawWindow`, category `0x0E` | an ending letter opens, animations on | `FUN_00475B41`: `win_game.smk` for 0xE1; else by lord and years since 1267 — cart <6, pillory <12, jail <18, gallows <24, axe; a human jail <12, gallows <32, axe | (89, 105) slow media, (25, 81) fast | the map or, if `Msg_Dismiss` ended the game, screen 0x1C; narrator reads over the film |
-| `Battle_CheckOutcome` | the banner raised, animations on and the local player a side | `bat_win1.smk + (outcome * 4 + DAT_0053F084) * 0x10` — six rows of four; a second table under `DAT_0057A0F0` | (39, 73) | the banner, which leaves with it |
+| `Battle_CheckOutcome` | the banner raised, animations on and the local player a side | `bat_win1.smk + (outcome * 4 + DAT_0053F084) * 0x10` — six rows of four; a second table under `DAT_0057A0F0` | (39, 73) | the banner|
 | `Smk_ReplayIntro` | screen `0x44`'s replay thumb | any of 40 names at `0x004D4D60` | (39, 73) | **unreachable**: no `mov byte ptr [g_screenId], 0x44` anywhere in the image |
 
 **Which films no reachable path plays.** `axemen.smk` (never named),

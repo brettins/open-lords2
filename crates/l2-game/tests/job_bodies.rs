@@ -194,7 +194,7 @@ fn signed_at(canvas: &Canvas, a: &Assets, value: i32, y: i32) {
 }
 
 /// The first county a predicate picks, or a setup failure naming what was
-/// wanted. The fixtures' realm assignment is rolled per game, so a test names
+/// wanted. The fixtures' realm assignment is rolled per game
 /// the property it needs.
 #[track_caller]
 fn county_where(k: &Kingdom, what: &str, pick: impl Fn(&l2_kingdom::county::County) -> bool) -> usize {
@@ -493,7 +493,7 @@ fn a_random_event_s_toll_is_drawn_on_the_popup_and_in_its_letter() {
     let quirks = game.kingdom.options.quirks;
 
     // Rats. The player's own county: the letter is posted only when
-    // `county.owner == g_localPlayer`, so a rival's rats reach nobody.
+    // `county.owner == g_localPlayer`
     let me = game.player;
     let rats = county_where(&game.kingdom, "the player's", |c| c.owner == me);
     // Stocking the barn is setup; the figure below is still the rule's.
@@ -718,7 +718,7 @@ fn the_industry_popup_counts_output_and_what_the_blacksmiths_will_use() {
 /// **Zero here: the builders.** Delivering the materials opens the
 /// castle's ceiling (`labour_useful` 1500) and even an industry split of 100
 /// staffs nobody, because castle building's share at `+0x130 + 3*4` is 0 after
-/// `order_castle` — wood cutting takes all 435. So a finite estimate is not
+/// `order_castle` — wood cutting takes all 435.
 /// drawn by any test either. Measured and not chased: whether `Castle_Order`
 /// leaves that share alone too was not read.
 ///
@@ -807,7 +807,7 @@ fn a_county_with_no_castle_reads_barracks_for_2500_from_the_next_table() {
 //
 // `TileInfo_DrawCastle` (`0x0041DA2F`) and `TileInfo_DrawGrain`/`…Herd` draw
 // groups 71 and 77 out of a county, at a y built
-// from `DAT_00553D2C` instead of a literal. The helpers above measure both, so
+// from `DAT_00553D2C` instead of a literal. The helpers above measure both
 // the tile panel's arms are checked here.
 
 /// The tile half of screen `0x04` for one tile, drawn on its own.
@@ -841,7 +841,7 @@ fn a_castle_tile(k: &Kingdom, county: usize) -> usize {
 ///
 /// `FUN_0041BEFE` gives an intact, unruined castle row `0x0E`, so every y is
 /// `0x0E * 0x10 + k`. The tax and barracks words are the same two table reads
-/// `Castle_DrawStatusBlock` makes, one word low, so a Norman keep (type 3)
+/// `Castle_DrawStatusBlock` makes, one word low
 /// prints `CASTLE_TAX_BONUS_PCT[2]` = 100 and `CASTLE_GARRISON_CAP[2]` = 200 —
 /// the shift `a_county_with_no_castle_reads_barracks_for_2500_from_the_next_table`
 /// pins at the other end of the run.
@@ -1062,7 +1062,7 @@ fn the_field_panel_says_what_the_weather_and_the_events_did() {
 /// **`Panel_JobReclamation`, on the stored zeros.** Every save on this machine
 /// has no field under reclamation, so this is **zero**: *"0 fields
 /// being reclaimed"* on `0xB8` and 77/0xF on `200`. It pins the two lines'
-/// places and the plural at zero, which is `Ui_DrawNumber` and not
+/// places and the plural at zero
 /// `Ui_DrawCount` here — `(byte) +0x204 == 1` picks 0xC, anything else 0xD.
 ///
 /// Ablation, run: the `'@'` lead → `' '` has no effect on the pixels (both are

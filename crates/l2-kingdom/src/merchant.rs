@@ -11,7 +11,7 @@
 //! missing piece is a table — `g_merchantRoutes` (`0x00567970`), six rows of
 //! sixteen county ids — and the cursor walk that reads it.
 //!
-//! # The table is in the save, and the England fixture proves the whole model
+//! # The table is in the save
 //!
 //! `g_merchantRoutes` falls inside a saved block, so it can be read straight
 //! out of `england-turn1.sav`. It holds:
@@ -35,7 +35,7 @@
 //!   stored route number"* checkable — and it holds, six for six. That
 //!   document marked its England start-county list `[I]`, predicted from a
 //!   simulation of `Merchant_PickStartCounties`; the file says **14, 5, 13, 11,
-//!   12, 4** and the prediction was `14, 5, 13, 11, 12, 4`. **`[V]`** now.
+//! 12, 4** and the prediction was `14, 5, 13, 11, 12, 4`. **`[V]`** now.
 //! * `nameIndex` (`+0x14F`) is `0, 1, 2, 3, 4, 5` — the route index, one per
 //!   slot, as §3 says;
 //! * **`moveAllowance` (`+0x154`) is stored as 0 in all six.** It is written by
@@ -248,7 +248,7 @@ fn scan_box(
 ///   The `hasNoDestination` test guards only the route lookup; the pathing
 ///   below it runs for every merchant that has somewhere to go. That is what
 /// lets a merchant interrupted mid-leg — blocked by another unit, or simply
-///   out of moves — resume the same leg next season instead of stalling for
+/// out of moves — resume the same leg next season instead of stalling for
 ///   ever. A phase that waits for merchants to stop moving and never restarts
 ///   them is a phase that settles instantly, which is the bug this whole
 ///   module exists to fix.
@@ -344,9 +344,9 @@ pub fn advance_all(
 ///   across three successive turns of one saved game;
 /// * the second loop is over **every unit slot**, so it credits a merchant to
 ///   whatever county its `+0x10` says, including county 0 — the clear loop only
-///   walks `1 ..= g_countyCount`, so a merchant standing outside the map's
+/// walks `1..= g_countyCount`, so a merchant standing outside the map's
 ///   county range writes into a record the pass never resets. Reproduced by
-///   bounds-checking the write instead of the clear, which is the same
+/// bounds-checking the write instead of the clear
 ///   behaviour for every county that exists;
 /// * two merchants in one county leave the **higher** slot in `merchantUnit`,
 ///   because the store overwrites.
@@ -363,7 +363,7 @@ pub fn recount_all(counties: &mut [County; MAX_COUNTIES], county_count: usize, u
         county.merchant_count = 0;
         county.merchant_unit = 0;
     }
-    // Ascending slot order — the original's `for (u = 1; ...)`, and the
+    // Ascending slot order — the original's `for (u = 1;...)`, and the
     // iteration order `docs/netcode.md` §5 requires anyway. `Units::iter`
     // yields slots in index order.
     for (id, unit) in units.iter() {
@@ -507,7 +507,7 @@ mod tests {
     }
 
     /// The road search grows its box to radius 3, so a road three tiles away is
-    /// found — and **grass next door is not a candidate at all**, because
+    /// found — and **grass next door is not a candidate at all**
     /// `Merchant_AdvanceAll` never calls the open-ground fallback.
     #[test]
     fn the_road_search_reaches_three_tiles_and_ignores_grass() {

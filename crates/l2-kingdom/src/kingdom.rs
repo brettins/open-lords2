@@ -20,7 +20,7 @@
 //! ```
 //!
 //! The subtlety that makes every seasonal rule read correctly: `g_season` is
-//! set to the season *about to begin* **before** the economy runs. So a rule
+//! set to the season *about to begin* **before** the economy runs. So
 //! guarded by `g_season == 1` fires at the **end of Winter** — which is exactly
 //! what the game's own help says about sowing grain.
 
@@ -87,7 +87,7 @@ pub struct Options {
     /// (`0x00499DC3`) puts the index through `g_timeLimitSeconds`
     /// (`0x004DBBF8`) = `30, 60, 120, 240, 480, 600, 0`, so what a game runs on
     /// is a duration and the seven strings are its labels. Carried for the same
-    /// reason as [`Options::exploration`]: a wall clock is not a rule, but it
+    /// reason as [`Options::exploration`]:
     /// is a setting the game was started with. `Setup_StartGame` copies it into
     /// the turn timer as the game begins.
     pub time_limit: i32,
@@ -100,7 +100,7 @@ pub struct Options {
     /// `docs/decisions.md` C62 records:
     ///
     /// * **not on [`Tables`]** — `save::ruleset_fingerprint` is hashed into the
-    ///   save *header* and `save::decode` refuses a mismatch, so a quirk there
+    /// save *header* and `save::decode` refuses a mismatch, so
     ///   would invalidate every existing save on the day it was added, and
     ///   would frame a quirk as a *rule*, which it is not;
     /// * **on `Options`** — `Options` is already in the save *body* and
@@ -1486,7 +1486,7 @@ impl Kingdom {
     /// **The estimate comes before the allocation**, which is the opposite way
     /// round from [`Kingdom::toggle_industry`] and is the original's order:
     /// `Industry_LabourEstimate` writes `labour_useful[7]`, the ceiling the
-    /// allocator then deals against, so a cheaper weapon can take more smiths
+    /// allocator then deals against, so
     /// on the same click. There is **no `Ration_Apply` and no second
     /// allocation** here; `docs/decisions.md` C177 and
     /// [`Kingdom::set_ration_wanted`] on why that asymmetry is not tidied.
@@ -1500,7 +1500,7 @@ impl Kingdom {
     /// Returns `false` for a county out of range or a weapon out of
     /// [`crate::tables::WEAPON_TYPE_COUNT`], and does nothing in that case. The
     /// original indexes `g_weaponCost` with the byte unchecked; the hotspot
-    /// table can only ever publish 0…5, so the clamp is unreachable from the
+    /// table can only ever publish 0…5, so
     /// screen and is here because this is a public method.
     pub fn set_weapon_type(&mut self, county: usize, weapon: usize) -> bool {
         if county == 0 || county > self.county_count || self.counties.len() <= county {
@@ -1710,7 +1710,7 @@ impl Kingdom {
     /// bounded by its population the milkmaid count *rises* when the player
     /// drags towards industry. That is the original's, and `docs/bugs.md` has
     /// it — the pipeline refreshes the ceilings after the last
-    /// `Labour_AllocateAll`, so a growth season parks its newborns in Idle.
+    /// `Labour_AllocateAll`, so
     pub fn set_industry_share(&mut self, county: usize, share: i32) -> bool {
         if county == 0 || county > self.county_count {
             return false;
@@ -1913,7 +1913,7 @@ impl Kingdom {
     ///
     /// **`Ration_Apply` does not spend.** It writes `rationAchieved`,
     /// `herdEaten`, `grainEaten`, the two `available` fields and the happiness
-    /// delta, and the store is debited by the season. So the pass called here up
+    /// delta, and the store is debited by the season. So
     /// to a hundred times is [`crate::ration::preview`] and **not**
     /// [`crate::ration::apply`], whose name matches the original's and whose
     /// behaviour does not — reaching for the same-named function would have had
@@ -2267,7 +2267,7 @@ impl Kingdom {
     }
 
     /// `Diplo_ReconcileAlliances` (`0x004A1847`) — called from `Turn_Tick`, and
-    /// what keeps the `allied` matrix and the `ally` bytes agreeing.
+    ///
     pub fn reconcile_alliances(&mut self) {
         crate::diplomacy::reconcile_alliances(&mut self.realms);
     }
@@ -2656,7 +2656,7 @@ mod tests {
     // --- the tax rate -------------------------------------------------------
 
     /// **`Tax_RecomputePreview` writes three fields and the panel draws all
-    /// three**, so a tax control that only writes the rate leaves the whole
+    /// three**, so
     /// panel stale. A player reported both halves of that in one sentence:
     /// *"'People pay 0 crowns' on the tax thing always says 0 crowns. And the
     /// happiness bonus/minus on the tax screen is also stuck."*
@@ -2728,7 +2728,7 @@ mod tests {
     /// them side by side and says it does not know.
     ///
     /// `Tax_RecomputePreview` has no suppression test in it; `Tax_Collect`
-    /// zeroes the base. So a suppressed county goes on telling the player what
+    /// zeroes the base. So
     /// his people *would* pay while the treasury banks nothing. `[D]`.
     #[test]
     fn a_suppressed_county_still_shows_what_people_would_pay() {
@@ -2910,7 +2910,7 @@ mod tests {
         // Chosen so that one point of split is below the rounding: thirty
         // people, two head of dairy feeding ten of them, so twenty people-worth
         // left to split. `pct(20, 50)` and `pct(20, 51)` are both 10, and ten
-        // people-worth is one head either way — so a one-point move changes
+        // people-worth is one head either way — so
         // nothing and the search is forced to run. Without that the guard
         // `herd_eaten != 0` is false, the search never fires, and this test
         // passes while asserting nothing, which is what its first draft did.
@@ -2980,7 +2980,7 @@ mod tests {
         assert!((0..=100).contains(&k.counties[1].ration_split));
     }
 
-    /// Another realm's county is refused, and the refusal is the rule's rather
+    /// Another realm's county is refused, and
     /// than the screen's: `Ration_SliderClick` opens
     /// `if (counties[sel].owner != g_localPlayer) return 0;`, and
     /// `Game::set_ration_split` is the gate here.

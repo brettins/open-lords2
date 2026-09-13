@@ -1,4 +1,4 @@
-//! **Where a saved game lives**, and the four operations on that directory.
+//! **Where a saved game lives**.
 //!
 //! [`crate::save`] turns a [`Game`] into bytes and knows nothing about files.
 //! This is the other half: one directory, a listing, a read and a write.
@@ -22,12 +22,12 @@
 //!
 //! [`DIR_VAR`] overrides all of it. That is not only for tests: a player who
 //! keeps a game on a second drive, and a machine with a roaming profile it
-//! would rather not fill, both want it, and the alternative is a settings file
+//! would rather not fill.
 //! whose own location has the same problem. [`scoped_dir`] overrides *that*,
 //! for one thread, and **is** only for tests — it says why.
 //!
 //! The directory is created on the first *write* and never on a read or a
-//! listing, so merely opening the load screen leaves the disk alone.
+//! listing.
 //!
 //! # The extension is `.l2sav`, not `.sav`
 //!
@@ -121,7 +121,7 @@ thread_local! {
 }
 
 /// **Every save operation on this thread uses `path` until the guard drops** —
-/// [`list`], [`write`], [`read`], [`remove`] and the save screen, which reaches
+/// [`list`], [`write`], [`read`], [`remove`] and the save screen.
 /// the directory through [`dir`] and nothing else.
 ///
 /// Nothing in the game calls it. It exists for the same reason [`remove`] does:
@@ -181,7 +181,7 @@ fn data_home() -> Option<PathBuf> {
 /// rejected name is reported, never silently repaired.
 ///
 /// It refuses anything that is not a plain file name — separators of either
-/// slash, a drive colon, a leading dot, `..`, a control byte, and the empty
+/// slash.
 /// string — because a save name reaches the file system and "the player typed
 /// it" is not a reason to let it name a path.
 pub fn is_valid_name(name: &str) -> bool {
@@ -217,7 +217,7 @@ pub fn path_for(name: &str) -> Result<PathBuf, Error> {
 /// iteration inside the simulation; the interface has no excuse for it either.
 ///
 /// A missing directory is an **empty list**, not an error: a player who has
-/// never saved has no directory, and that is not a fault to report.
+/// never saved has no directory.
 pub fn list() -> Vec<Entry> {
     let Some(dir) = dir() else { return Vec::new() };
     let Ok(entries) = std::fs::read_dir(&dir) else { return Vec::new() };
@@ -240,7 +240,7 @@ pub fn list() -> Vec<Entry> {
 /// Write a game out, creating the directory if it is not there.
 ///
 /// The write is **atomic where the platform allows it**: the bytes go to a
-/// neighbouring temporary file and are renamed over the target, so a crash or a
+/// neighbouring temporary file and are renamed over the target.
 /// full disk halfway through leaves the previous save intact
 /// truncated. Losing a saved game to a failed save of the same name is the one
 /// failure a player never forgives.
@@ -278,7 +278,7 @@ pub fn read_path(path: &Path, tables: Tables) -> Result<Game, Error> {
 ///
 /// The original's are `lastturn.sav`, `old_turn.sav` and `safeturn.sav` — three
 /// 13-byte literals at `0x004DC2F0`, `0x004DC300` and `0x004DC310`, `[V]` read
-/// out of `.rdata`. The stems are kept and the extension is ours, for
+/// out of `.rdata`. The stems are kept and the extension is ours.
 /// [`crate::save::EXTENSION`]'s reason: these are our files in our own format,
 /// and a directory listing that cannot tell them from the original's memory
 /// dumps is one somebody eventually confuses.
@@ -306,7 +306,7 @@ pub const AUTOSAVES: [&str; 3] = ["lastturn", "old_turn", "safeturn"];
 ///
 /// **Every rotation step's failure is ignored, as the original ignores it.** A
 /// game's first autosave has no `old_turn` to rename and no `safeturn` to
-/// remove, and `remove`/`rename` simply return non-zero there; the write is the
+/// remove.
 /// only step whose failure is worth a word.
 ///
 /// `DAT_00553260` is not built. It is set to 2 by `FUN_0049B973`, the

@@ -515,7 +515,7 @@ pub const WALKER_STEP: i32 = 4;
 pub const WALKER_Y: i32 = 0xD8;
 
 /// **`g_armouryWalkStopX` (`0x004DE6F0`)** — where the soldier stops, by basket
-/// slot, and the reason this animation is *about* something.
+/// slot.
 ///
 /// Read against [`WALL`], the six weapons hanging on the walls: crossbow at
 /// x 59 stops him at 45, mace at 157 at 120, sword at 496 at 490, pike at 199

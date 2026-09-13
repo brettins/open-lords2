@@ -26,7 +26,7 @@
 //!
 //! The mapping is self-checking, which is what makes it **[V]**
 //! **[D]**: it sends `'a'` to frame 0 and `'A'` to frame 26 in `Fntl2_14.pl8`,
-//! and the frames it sends `'g'`, `'j'`, `'p'`, `'q'`, `'y'` to are exactly the
+//! and the frames it sends `'g'`, `'j'`, `'p'`, `'q'`, `'y'` to are
 //! frames in that file that are four pixels taller than their neighbours.
 //! Descenders land on the descending letters. Nothing else would.
 //!
@@ -59,8 +59,8 @@
 //!   for the heading. So on those pages **the heading is embossed and nothing
 //!   else is**, which is not what a reimplementation would guess.
 //! * `DAT_0058FE2C` — when non-zero, characters `0x41 … 0x5A`, which is `A`
-//!   through `Z` and nothing else, are drawn in **colour 1** instead of the
-//!   caller's. The setup pages set it around their heading and the conquest
+//! through `Z` and nothing else, are drawn in **colour 1** instead of the
+//! caller's. The setup pages set it around their heading and the conquest
 //!   screen sets it around everything it draws. It is a drop-capital effect
 //!   applied to every capital in the line.
 //!
@@ -80,7 +80,7 @@ use l2_view::Canvas;
 /// this crate should not have to open `Lords2.exe` to draw a letter.
 /// `tests/shell.rs` reads the same bytes back out of the user's own copy.
 ///
-/// **It used to be 128 bytes, and the original's is 224.** **[V]**
+/// **It used to be 128 bytes, and the original's is 224.[V]**
 /// `Ui_DrawText` (`0x00402637`) looks up every character above `0x1F` as
 /// `g_glyphWidths[c - 0x20]`, with `c` a byte and no bound, so the index runs
 /// to `0xDF`; `Glyph_Draw` (`0x00402A14`) and the measure `FUN_004014F0`
@@ -145,7 +145,7 @@ pub const GLYPH_MAP: [u8; 224] = [
 /// raised.
 ///
 /// Every one of `Ui_DrawText`'s nine `Glyph_Draw` calls passes the same font
-/// and index, so the raise moves the two shadow passes and the drop shadow with
+/// and index,
 /// the glyph. [`Font::draw`] and [`Font::draw_dropped`] apply it to every blit
 /// of the character for the same reason.
 pub const ACCENT_RAISE: [(u8, u8); 3] = [(0x61, 0x6D), (0x73, 0x77), (0x80, 0x84)];
@@ -162,7 +162,7 @@ pub fn accent_raised(c: char) -> bool {
     ACCENT_RAISE.iter().any(|&(lo, hi)| index >= lo as u32 && index <= hi as u32)
 }
 
-/// Where that table lives, so a test can go and read it.
+/// Where that table lives,
 pub const GLYPH_MAP_VA: u32 = 0x004D_71F0;
 
 /// The character the table starts at.
@@ -193,7 +193,7 @@ pub const GLYPH_MAP_BASE: u8 = 0x20;
 /// `'@'` advances zero, which is the opposite of its own conclusion.
 ///
 /// **The measure disagrees with the draw.** `FUN_004014F0` (`0x004014F0`)
-/// charges 4 for `0x20` alone and **nothing** for any other empty entry, so a
+/// charges 4 for `0x20` alone and **nothing** for any other empty entry,
 /// string holding `'@'` draws four pixels wider than it measures. [`Font::width`]
 /// used to charge 4 for both; it now charges what the measure charges. That is
 /// only visible under centring, and no centred draw in this crate passes `'@'`
@@ -402,7 +402,7 @@ impl Font {
     ///
     /// **`Glyph_Draw`'s `y += frameRecord[0x0D]` is already in the frame.** The
     /// decoder reserves those rows at the top of the canvas and puts the
-    /// rectangle below them, so a glyph canvas is positioned by its own top
+    /// rectangle below them,
     /// edge and this function has nothing left to add. It used to add the count
     /// a second time, which cost every `0x0D = 3` glyph in `Fntl2_14.pl8` —
     /// `a c e m n o s u x z` and the descenders — three pixels of drop, while
@@ -487,7 +487,7 @@ impl Font {
             };
             // The order the original draws in: above, below, then the real one
             // on top of both. The glyph's own vertical offset is inside the
-            // frame — see `glyph` — so all three share `y` and the raise.
+            // frame — see `glyph` —
             let y = y + self.lift(c);
             if let Some((up, down)) = style.shadow {
                 Font::blit_mask(canvas, &frame, pen, y - 1, up);
@@ -524,7 +524,7 @@ impl Font {
     }
 
     /// `FUN_004025D7`: centred inside `width`, and **never left of `x`** — the
-    /// original clamps the offset at zero, so a string too long for its box
+    /// original clamps the offset at zero,
     /// starts at the box's left edge and runs out of it
     /// centred off the other side.
     ///

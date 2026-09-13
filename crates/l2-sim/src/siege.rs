@@ -534,7 +534,7 @@ pub fn strike_wall(state: &mut SiegeState, standing_on: u8, is_ram: bool) -> Wal
 /// * **A wall and a drawbridge both become [`SURFACE_BAILEY`]**, so the hole
 ///   joins the courtyard region.
 ///   That is what puts a besieger who is standing in it onto the *rampart*
-///   accumulator, so a breach spreads at 5,000 hits.
+/// accumulator, so a breach spreads at 5,000 hits.
 ///   20,000.
 /// * **The wall's graphic bump lands one row south** — `frame[+0x280] += 0x10`
 ///   — while the drawbridge's lands on the cell itself. Reproduced, because
@@ -635,7 +635,7 @@ pub fn collapse_wall(field: &mut Battlefield, state: &mut SiegeState, cell: usiz
 /// * **It is not siege-engine placement.** The hand-off this was built from
 ///   said it was. The game names it itself: the button's two refusals are
 ///   `L2.eng` 111 *"No drawbridge!"* and 157 *"Drawbridge is down."*, the
-///   guard is level 3 and up, and the shipped `Readme.txt` says *"only the
+/// guard is level 3 and up, and the shipped `Readme.txt` says *"only the
 ///   Stone and Royal castles have drawbridges."* Four sources, one verb.
 ///   `C79`.
 /// * It sets the *same*
@@ -644,7 +644,7 @@ pub fn collapse_wall(field: &mut Battlefield, state: &mut SiegeState, cell: usiz
 ///   garrison has opened its own gate**. That is the price of a sally, and it
 ///   is why the Readme says a drawbridge cannot be closed again.
 /// * The latch is set
-///   *inside* the `if`, so a level-3 castle whose layout happens to carry no
+/// *inside* the `if`, so a level-3 castle whose layout happens to carry no
 ///   `0x40` cell leaves the button live. Reproduced.
 ///
 /// > **The original's scan has a missing `break`.** `bVar1 = true; break;`
@@ -1303,14 +1303,14 @@ pub fn frames_with_code(level: u8, want: u8) -> Vec<u8> {
 ///
 /// * **The ground and the ditch are the game's.** `Battlefield_BuildCastle`'s
 ///   escape codes `0xEF` and `0xEE` — `FUN_0047E1DC` and `FUN_0047DCCE` —
-///   put open ground on `rand & 0x0F` and the moat on the 49-variant water
+/// put open ground on `rand & 0x0F` and the moat on the 49-variant water
 ///   auto-tiler, both with the cell's tileset selector set to **slot 1**,
 ///   `t32_stn2` / `t32_wod2`. Reproduced exactly, including the selector.
 ///   **[V]**
 /// * **The castle's tiles are the game's; its shape is not.** Which of
 ///   `t32_stn1`'s 256 frames is a wall, a keep door or a drawbridge plank is
 ///   [`frames_with_code`], read out of the binary — but *where* those go is
-///   [`our_castle`]'s ring, and the original's is a raster in `stnfield.pl8`
+/// [`our_castle`]'s ring, and the original's is a raster in `stnfield.pl8`
 ///   we have not read. Where a code carries several frames they are cycled by
 ///   position; which one the original's raster picks is the raster's. `[I]`
 ///   on the cycling, `[V]` on the set.

@@ -11,7 +11,7 @@
 //!
 //! # Simulation time is not frame time
 //!
-//! `docs/plan.md` is explicit, and the battle viewer had to learn it the hard
+//! `docs/plan.md` is explicit,
 //! way: pacing with `WaitUntil` decides **when to draw**, never what a tick
 //! contains. Without a throttle the loop repaints as fast as the machine can
 //! manage — about ten thousand frames a second — which is more than the surface
@@ -60,7 +60,7 @@ const CANVAS_H: u32 = l2_view::canvas::HEIGHT as u32;
 /// How long after a left press a second one is a **double** click.
 ///
 /// The original never measures this: Windows does, against the user's own
-/// `GetDoubleClickTime()`, and hands the game `WM_LBUTTONDBLCLK` instead of the
+/// `GetDoubleClickTime()`,
 /// second `WM_LBUTTONDOWN`. `winit` has no such event, so this file measures it
 /// — and it is this file's business alone, because it is a *clock*, and
 /// `docs/netcode.md` allows one only above [`l2_game::input`]. 500 ms is the
@@ -98,7 +98,7 @@ struct App {
     /// `docs/netcode.md`'s lockstep argument rests on, held by the type
     /// system
     audio: Audio,
-    /// **What decides what is audible**, and the edge counters it needs to
+    /// **What decides what is audible**,
     /// notice that something has *become* true. It lives in the library so that
     /// a test runs this code —
     /// `crates/l2-game/tests/audio_wiring.rs`.
@@ -112,7 +112,7 @@ struct App {
     /// double and then a single — which is what
     /// Windows itself does.
     last_press: Option<(Instant, (i32, i32))>,
-    /// **`DAT_004EABC2`'s left bit**, and the release edge the frame poll
+    /// **`DAT_004EABC2`'s left bit**,
     /// derives from it. In the library so a test can drive it without a window;
     /// see [`l2_game::input::LeftButton`].
     left: l2_game::input::LeftButton,
@@ -121,9 +121,9 @@ struct App {
 impl App {
     fn present(&mut self) {
         let Some(pixels) = self.pixels.as_mut() else { return };
-        // Which palette, and the end-of-turn fade. Most screens run under the
+        // Which palette,
         // campaign's; the front end, the merchant, the armoury, castle building,
-        // the battlefield and the ratings each read a `.256` of their own, and a
+        // the battlefield and the ratings each read a `.256` of their own,
         // window drawn over one of those runs under it; a film runs under its
         // own, which changes as it plays. `Machine::present` is
         // the whole decision, in the library, where a test can see its colours.
@@ -162,13 +162,13 @@ impl App {
     /// only channel into a painter.
     ///
     /// `docs/netcode.md` D-5 — *no wall clock, no scheduler* — is why it cannot
-    /// live any lower: `l2-game` the library has no `SystemTime` anywhere, so a
+    /// live any lower: `l2-game` the library has no `SystemTime` anywhere,
     /// simulation path physically has nothing to read. The same discipline
     /// [`l2_game::clock::Ticker`] holds for the monotonic clock
     /// (`docs/decisions.md` C193), for the same reason.
     ///
     /// A clock before 1970 — or one the machine cannot read — leaves the field
-    /// `None` and the screen simply draws no clock.
+    /// `None`
     fn sample_wall_clock(&mut self) {
         self.assets.wall_clock = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -239,8 +239,8 @@ impl App {
     /// One fixed simulation tick.
     fn tick(&mut self) {
         // Sampled here as well as in [`Self::redraw`], and it has to be: the
-        // redraw only happens when something is already dirty, so a reading
-        // taken there alone could never *become* stale and the title screen's
+        // redraw only happens when something is already dirty,
+        // taken there alone could never *become* stale
         // clock would stop at the minute the page opened. The tick is what
         // notices the minute turning; nothing under the shell may notice it.
         self.sample_wall_clock();
@@ -374,7 +374,7 @@ impl ApplicationHandler for App {
                 self.ctrl = mods.state().control_key();
             }
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
-                // F5 never reaches a screen: it is about the window, and the
+                // F5 never reaches a screen: it is about the window,
                 // window is this file's business alone.
                 if event.logical_key == WinitKey::Named(NamedKey::F5) {
                     self.snap_to_whole_scale();
@@ -390,7 +390,7 @@ impl ApplicationHandler for App {
                     // through the layout, which is what `WM_CHAR` carries.
                     //
                     // Control-held keys produce no `WM_CHAR` worth having —
-                    // `Ctrl+A` is `0x01` — and the original's control arm is a
+                    // `Ctrl+A` is `0x01` —
                     // `WM_KEYDOWN` one, so they are suppressed here.
                     if !self.ctrl {
                         for c in event.text.iter().flat_map(|t| t.chars()) {
@@ -524,7 +524,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // whether the product has the same bug.
     //
     // The front end is up from the first frame and `Setup`'s own *Start* builds
-    // the real game, so this world is only what stands behind the title page
+    // the real game,
     // until then. `docs/decisions.md` C117.
     let game = scenario::new_game(
         &assets,
@@ -549,7 +549,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Sound is opened through the same vfs every other asset comes through, so
     // the install is found once and a mod layer can replace a `.wav` for free.
     // `Audio::open` cannot fail: no device, no files, or a device that refuses
-    // a stream all end at the same silent object, and the game runs
+    // a stream all end at the same silent object,
     // it did before sound existed.
     let audio = if sound { Audio::open(&platform.vfs) } else { Audio::silent() };
     println!(

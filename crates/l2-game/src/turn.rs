@@ -52,7 +52,7 @@
 //!
 //! 3. **The AI's turn.** Phase 4 will not end until every realm's `aiStep`
 //!    reaches its threshold, and nothing was calling [`l2_kingdom::ai::run_step`]
-//!    at all — the crate exposes the machine and the handlers and had no
+//! at all — the crate exposes the machine and the handlers and had no
 //!    driver. [`drive_ai`] is the driver: one step per realm per tick, realms in
 //!    ascending index order, dispatching the four handlers `l2-kingdom`
 //!    implements and skipping the ten whose state lives elsewhere.
@@ -353,7 +353,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
 ///   the simulation produced are written back;
 /// * **the player retreated or autocalculated** — `FUN_0043BE65`, which runs
 ///   `Battle_AutoResolve` and **never calls `Battle_WriteBackCasualties`**. So
-///   every man killed so far is unkilled, and the result is computed from the
+/// every man killed so far is unkilled, and the result is computed from the
 ///   armies as they walked on. Reproduced by dropping the runner on the floor
 ///   and answering [`Answer::Decline`], which is the same autocalc.
 ///
@@ -379,7 +379,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
 ///
 /// And note what `Battle_AutoResolve` does *first*: it clears
 /// `g_battleWithdrawal`. Pressing Retreat therefore does not perform a retreat
-/// — it auto-resolves, so a player who loses the ladder has his army destroyed
+/// — it auto-resolves,
 ///
 /// rules are reachable only from `UnitOrder_SiegeAttKnight`.
 pub fn finish_battle(game: &mut Game) -> TurnStep {
@@ -438,11 +438,11 @@ pub fn tick_turn(game: &mut Game) -> TurnStep {
 /// { Turn_Tick(); Units_Tick(); }` and it runs *whenever the game is up*, not
 /// only while a turn is being wound on (`docs/decisions.md` C35 quotes the call
 /// site). That is what makes an army the player has just ordered walk away
-/// while he watches, instead of standing still until he presses End Turn — the
+/// while he watches, — the
 /// second half of *"can't seem to move my army"*, and indistinguishable from
 /// the order having been ignored.
 ///
-/// A unit walks at most `moveAllowance - movesUsed` tiles and then stops, so a
+/// A unit walks at most `moveAllowance - movesUsed` tiles and then stops,
 /// player who sits on the map gets no extra movement out of it;
 /// `Pass::UnitsResetMoves` at the end of the season is what starts it again.
 ///
@@ -472,7 +472,7 @@ pub fn tick_turn(game: &mut Game) -> TurnStep {
 /// flight. So the three settlements are answered here
 /// inside a turn, and the suspension is [`TurnProgress::idle`].
 ///
-/// Returns how many tiles were entered, so a caller can decide whether the
+/// Returns how many tiles were entered,
 /// frame needs repainting.
 pub fn tick_units_only(game: &mut Game) -> usize {
     let moved = game.sweep_units();
@@ -533,7 +533,7 @@ fn raise_idle_battle(game: &mut Game, e: Encounter) {
 /// **Put a question on the table without playing a turn to get one.**
 ///
 /// [`TurnProgress`]'s fields are private to this module on purpose — a
-/// suspended turn is a state only this machine may create — so a test that is
+/// suspended turn is a state only this machine may create —
 /// about what happens *while* one is on the table would otherwise have to march
 /// two armies together first. `cfg(test)` and crate-internal: it cannot be a
 /// route in a running game.
@@ -693,7 +693,7 @@ pub struct TurnProgress {
     /// walk, not ending his season, and winding a turn on because he answered a
     /// battle would advance the calendar behind his back.
     ///
-    /// So [`advance`] drops the progress instead of ticking when this is set
+    /// So [`advance`] drops the progress
     /// and there is nothing left to show. See [`tick_units_only`].
     idle: bool,
     ticks: u32,
@@ -862,7 +862,7 @@ fn run_phase_tick(game: &mut Game) {
 /// the turn — the season report.
 ///
 /// The order is the original's and is not cosmetic: the battle is fought before
-/// the contacts are recorded and before the report is delivered, so a realm
+/// the contacts are recorded and before the report is delivered,
 /// whose last army dies this tick is eliminated by [`Game::rank_realms`] on the
 /// same turn.
 fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
@@ -902,7 +902,7 @@ fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
     // `Msg_Pump` + the window's first-frame arms + `Msg_Dismiss`, run to
     // exhaustion with no window and no click, and it is the *same* ladder the
     // message screen walks one click at a time. `end_turn` cannot raise a
-    // screen, so a game driven through it still ends — and ends the same way.
+    // screen, — and ends the same way.
     //
     // `turn::begin_turn`, the interactive door, does **not** call this: there
     // the map screen is up, `Machine::update` pumps, and the person presses the
@@ -985,7 +985,7 @@ fn record(game: &mut Game, report: Option<BattleReport>) {
     let Some(report) = report else { return };
     // `County_ChangeOwner`'s letters. They are posted inside
     // `Battle_ReturnToCampaign`, before the `Realm_RecountStrength` at its
-    // bottom, so a capture is on the ring ahead of any *"Defeat!"* it causes.
+    // bottom,
     crate::arrival::post_captures(game, &report.aftermath.captures);
     game.recount_realm(report.aftermath.loser_owner);
     if let Some(p) = game.turn.as_mut() {
@@ -1055,7 +1055,7 @@ fn question_for(
     // himself.* Only two humans put the choice in the other man's hands.
     //
     // > **What this cost.** The version here tested `!d_human` where the
-    // > original tests `!a_human`, so a human whose castle an AI besieged was
+    // > original tests `!a_human`,
     // > handed `choice_owner = 2` — the *"your opponent has the choice"* notice,
     // > which `Battle_ChooseSettlement` draws with **zero widgets**
     // > (`DAT_00554408 = 2` only under `choiceOwner == 1`). In the original a
@@ -1155,7 +1155,7 @@ fn settled(kingdom: &Kingdom, phase: Phase) -> bool {
 ///
 /// The same rule as [`battle_seed`]: the turn counter and nothing that is a
 /// clock, an address or an iteration order. `run_siege_phase` adds the round
-/// number to it, so two assaults in one phase fight different battles and the
+/// number to it,
 /// same phase run twice fights the same two.
 fn siege_seed(kingdom: &Kingdom) -> u64 {
     let mut z = (kingdom.turn_count as u64)
@@ -1252,7 +1252,7 @@ fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
 ///
 /// `AI_RunTurnStep` interleaves: realm 1 takes step 0, then realm 2 takes step 0,
 /// and by the time realm 5 reaches its own step 0 the earlier realms have taken
-/// several of their fourteen. So a realm that realm 2's turn destroys is noticed
+/// several of their fourteen.
 /// *later in the same phase*. Here all five step 0s happen at the top of the
 /// phase instead.
 ///
@@ -1342,7 +1342,7 @@ fn begin_phase(game: &mut Game, phase: Phase) {
 ///
 /// **The `isHuman` test guards the handlers and the counter's increment, not
 /// this.** `Turn_BeginPlayersTurn` (`0x0049B6D3`) writes `aiStep = 0` into every
-/// realm — 999 only for a realm at zero strength — so a human realm reaches step
+/// realm — 999 only for a realm at zero strength —
 /// 0 exactly like an AI one and then stops, its counter parked at 1 until
 /// `Turn_End` (`0x0043AC23`) writes 999.
 ///
@@ -1360,7 +1360,7 @@ fn begin_phase(game: &mut Game, phase: Phase) {
 /// inverted for both realms out of the same hole.
 ///
 /// **`offer_pending` was set by [`l2_kingdom::diplomacy`] and cleared by nothing**
-/// — `grep -rn offer_pending crates/` found one writer and no reset — so a realm
+/// — `grep -rn offer_pending crates/` found one writer and no reset —
 /// that once courted somebody was refused as a candidate by
 /// `pick_ally_candidate` for the rest of the game. This is the clear the original
 /// does, at the line the original does it.
@@ -1369,7 +1369,7 @@ fn begin_phase(game: &mut Game, phase: Phase) {
 /// has never had a production caller; it is left as the crate's own statement of
 /// the rule, and this is the call site.
 fn step_zero(game: &mut Game, realm: u8) {
-// The original reads the guard before the recount, so a realm the
+// The original reads the guard before the recount,
     // recount *eliminates* still gets its totals rebuilt and its offer cleared.
     if game.kingdom.realms[realm as usize].strength == 0 {
         return;

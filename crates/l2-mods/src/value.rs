@@ -155,7 +155,7 @@ impl Value {
 
 /// The reserved key that removes entries during a merge.
 ///
-/// `$` is not a legal bare-key character in the document syntax, so it has to
+/// `$` is not a legal bare-key character in the document syntax,
 /// be written quoted — `"$delete" = ["knight"]` — and can therefore never
 /// collide with a key that means something in the game domain.
 pub const DELETE_KEY: &str = "$delete";

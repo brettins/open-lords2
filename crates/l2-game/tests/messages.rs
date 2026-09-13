@@ -41,7 +41,7 @@ fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     m.update(&mut ctx);
 }
 
-/// The middle of a widget, so a hit test that is off by a pixel still passes and
+/// The middle of a widget, and
 /// one that is off by a button does not.
 fn on(at: (i32, i32)) -> Event {
     Event::Click { x: at.0 + Prompt::SIDE / 2, y: at.1 + Prompt::SIDE / 2 }
@@ -65,7 +65,7 @@ fn world() -> (Game, Assets, Machine) {
     }
     g.kingdom.realms[1].is_human = true;
     g.kingdom.realms[1].lord = 1;
-    // **Animations off**, so a capture or an ending shows the window these tests
+    // **Animations off**, and the report names
     // read. With them on — the default — `Msg_DrawWindow` closes both on the
     // frame they open and plays a film instead; that branch is
     // `tests/movies.rs`'s.
@@ -388,7 +388,7 @@ fn declining_the_price_costs_nothing() {
 }
 
 /// **A click inside a prompt that is on neither button does not fall through.**
-/// `Widget_Test` is asked first and the corner button after it, so a miss lands
+/// `Widget_Test` is asked first and the corner button after it,
 /// on the corner box or on nothing — but it never reaches the map underneath
 /// while a question is up, because `Msg_DismissUnlessQuestion` refuses it.
 #[test]
@@ -627,7 +627,7 @@ fn a_letter_is_posted_once_however_long_the_county_stays_picked() {
     assert!(g.messages.waiting().is_empty());
 }
 
-/// **The clear is outside the owner test**, so a county that changed hands
+/// **The clear is outside the owner test**,
 /// between the roll and the click loses its letter without anyone reading it.
 /// `[V]` — `(eventFired = 0, owner == g_localPlayer)` is one comma expression:
 /// the assignment runs, then the test.
@@ -756,7 +756,7 @@ fn a_fresh_event_rearms_a_county_whose_letter_was_already_read() {
 
 /// **A save taken with messages queued keeps them.**
 ///
-/// This is not tidiness. The endings are shown one at a time now, so a person
+/// This is not tidiness. The endings are shown one at a time now,
 /// really can save on the campaign map with three obituaries behind the one on
 /// screen — and a save that dropped them would be a save that can never be won.
 #[test]
@@ -788,7 +788,7 @@ fn a_save_carries_the_ring_and_the_window() {
 
 /// **Drawing the scroll twice over itself changes nothing.**
 ///
-/// Every glyph and every frame is an opaque blit, so a second draw is a no-op —
+/// Every glyph and every frame is an opaque blit,
 /// *but only if the first one happened*. It is the build stamp's assertion, and
 /// it needs no threshold and no knowledge of what else is on the page.
 #[test]
@@ -846,7 +846,7 @@ fn two_variants_of_one_group_draw_two_different_bodies() {
 ///
 /// Not a pixel count and not a comparison against a different message: draw the
 /// frame, copy it, draw *those two things again* on the copy, and require the
-/// two canvases to be identical. A sprite is an opaque blit, so a second draw
+/// two canvases to be identical. A sprite is an opaque blit,
 /// over itself changes nothing — but only if the first one happened.
 ///
 /// Ablating `pen.ok_button` moves 500-odd pixels here and nothing anywhere else

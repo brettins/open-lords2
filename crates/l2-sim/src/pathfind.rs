@@ -4,11 +4,11 @@
 //! their target** with no search at all; the pathfinder runs only when one is
 //! blocked, and only if it has not already failed four times.
 //!
-//! The distinctive part, and the reason a textbook Dijkstra would produce
+//! The distinctive part
 //! different paths: **terrain cost is charged twice over, by weighting *and* by
 //! deferral.** The recorded cost is `cost[cur] + 1 + step_cost[neighbour]`, and
 //! separately an expensive cell must be popped `step_cost` extra times before it
-//! expands. Cheap ground therefore spreads first, and the number written down is
+//! expands. Cheap ground therefore spreads first
 //! accumulated cost, not hop count.
 //!
 //! An earlier revision of this file asserted the opposite — "deferral, not
@@ -28,7 +28,7 @@
 //!
 //! On a `.skr` battlefield every step costs zero, because
 //! `Battlefield_BuildFromSkr` never sets the flags `Path_BuildStepCost` looks
-//! for. Field pathfinding is therefore a plain breadth-first search, and the
+//! for. Field pathfinding is therefore a plain breadth-first search
 //! weighting only ever bites inside castles.
 //!
 //! Integer arithmetic, fixed neighbour order, no iteration over a hash. Two
@@ -39,7 +39,7 @@ pub const CELLS: usize = DIM * DIM;
 
 /// A **friendly figure** stands here (`Path_BuildBlockedMap`, `0x3E6`).
 ///
-/// Not the same as impassable, and the difference is load-bearing: if the
+/// Not the same as impassable: if the
 /// *destination* is occupied the original clears it to 0 and paths onto
 /// it anyway, leaving the mover to swap or wait.
 pub const OCCUPIED: u16 = 998;
@@ -47,7 +47,7 @@ pub const OCCUPIED: u16 = 998;
 /// or `0x40`, or the one-cell map border. A destination at this value aborts the
 /// search before it starts.
 pub const IMPASSABLE: u16 = 999;
-/// The original's frontier queue holds this many entries and **wraps**, so a
+/// The original's frontier queue holds this many entries and **wraps**
 /// search that outgrows it silently overwrites its own queue. Reproduced rather
 /// than fixed: a search that would have overrun produces the original's result.
 pub const QUEUE_CAP: usize = 0x1900;
@@ -133,13 +133,13 @@ impl Grid {
     }
 
 /// **`Path_LineIsClear` (`0x004710F2`) as the original writes it**
-    /// — and it is not a line, not a predicate, and not free of side effects.
+    /// — and it is not a line
     ///
     /// It is a **two-pronged greedy walk that leaves a cost field behind**, and
     /// all three of those matter:
     ///
     /// * it seeds `g_pathCost` from the blocked template **and calls
-    ///   `Path_BuildBlockedMap`**, so a friendly figure — 998 — is an obstacle
+    /// `Path_BuildBlockedMap`**
     /// here;
     /// * two walkers set out from the start together, each step choosing the
     ///   eight-way direction toward the target and, when that cell is taken,
@@ -153,7 +153,7 @@ impl Grid {
     ///
     /// > **That third property is the deadlock.** Ours was a strict Bresenham
     /// > returning a bare `bool`, and `search` answered `NoSearchNeeded` with
-    /// > an empty cost field — so a figure whose next step was taken by a
+    /// > an empty cost field —
     /// > comrade asked for a path, was told none was needed, and got nothing.
     /// > It then tried the same blocked step again, for ever. One figure does
     /// > that invisibly; an army packed six deep in front of a gate does it as
@@ -237,8 +237,8 @@ impl Grid {
     /// `Path_LineIsClear` (`0x004710F2`) opens by copying the blocked template
     /// over `g_pathCost` and calling **`Path_BuildBlockedMap`** — the routine
     /// that writes **998** into every cell a *friendly* figure is standing on —
-    /// and then walks the line testing that same array. So a comrade in the way
-    /// makes the line not clear, and the caller falls
+    /// and then walks the line testing that same array.
+    /// makes the line not clear
     /// through into the flood fill that will route around him.
     ///
     /// The destination is the one exception: the original clears a 998 there
@@ -247,7 +247,7 @@ impl Grid {
     /// the destination (≥ 999) still refuses outright.
     ///
     /// > **This omission is the whole of *"848 men could not reach two
-    /// > figures"*, and it is not a siege bug at all.** A figure whose next
+    /// > figures"*
     /// > step is taken by a comrade asks for a path; the path search sees a
     /// > clear line — because it was not looking at comrades — answers *no
     /// > search needed*, and hands back nothing. The figure then tries the same
@@ -320,7 +320,7 @@ pub struct Search {
 /// So cells 4,096 and above — **rows 51 to 79, the bottom 36% of the
 /// battlefield** — begin each search holding whatever counts the *previous*
 /// search left there. An expensive cell down there may expand immediately
-/// because it is already "visited enough", instead of being deferred.
+/// because it is already "visited enough"
 ///
 /// This only bites where step costs are non-zero: a `.skr`
 /// field is uniformly zero-cost (see the module docs). It is reproduced rather
@@ -433,13 +433,13 @@ pub fn search_with(scratch: &mut Scratch, grid: &Grid, start: Pos, dest: Pos) ->
         //
         // Deferring the *cost* as well as the expansion looks equivalent and is
         // not: the cell would stay marked unvisited, the frontier would leak
-        // past it, and the extraction walk could then never route back through
+        // past it
         // it. That bug was written once already; the shape of the original's
         // test is what rules it out.
         //
         // Reading the original's condition exactly, `stepCost == 0` short
         // circuits and the comparison is against the count *before* the
-        // increment, so a cell of cost k expands on its (k+1)-th pop.
+        // increment
         if grid.step_cost[cur] != 0 {
             let seen = visits[cur];
             visits[cur] = visits[cur].saturating_add(1);

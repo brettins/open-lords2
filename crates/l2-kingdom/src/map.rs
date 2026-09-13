@@ -10,7 +10,7 @@
 //! shape to the pathfinder afterwards. Trampling a field likewise rewrites the
 //! terrain byte, which changes that tile's cost from 6 back to 3. Two lockstep
 //! peers therefore have to agree about the map, and it belongs in the state
-//! rather than beside it.
+//!
 //!
 //! # Three planes, not six
 //!
@@ -25,7 +25,7 @@
 //! | `+7` | [`CampaignMap::county`] | the cost map, border crossings, trampling |
 //!
 //! The other five are graphics (`+2`, `+3`, `+6`), a plane the renderer uses
-//! (`+4`), and the occupying unit index (`+5`) — which is *not* stored here,
+//! (`+4`), and the occupying unit index (`+5`) — which is *not* stored here
 //! because [`crate::unit::Units::at`] answers the same question from the unit
 //! array and a second copy is a second thing to keep in step. `l2-kingdom` has
 //! no loader and never learns what `L2_maps.dat` is; building one of these out
@@ -148,7 +148,7 @@ pub mod terrain {
     pub const CASTLE_TO: u8 = 0x19;
 
     /// The castle standing on a tile, as a castle **type** 0..=5, or `None` if
-    /// this terrain is not a castle plot at all.
+    /// this terrain
     pub fn castle_type(terrain: u8) -> Option<u8> {
         match terrain {
             CASTLE_PLOT => Some(0),
@@ -427,7 +427,7 @@ impl CampaignMap {
     }
 
     /// Build from three 4,096-byte planes. `None` if any is the wrong length —
-    /// a map we cannot read is not a map to half-load,
+    /// a map we cannot read
     /// `l2-scenario` already applies to a save.
     pub fn from_planes(terrain: &[u8], flags: &[u8], county: &[u8]) -> Option<CampaignMap> {
         if terrain.len() != MAP_TILES || flags.len() != MAP_TILES || county.len() != MAP_TILES {
@@ -654,7 +654,7 @@ mod tests {
             let costs_six = m.cost_map().at(5, 5) == 6;
             assert_eq!(standing, costs_six, "terrain {t}");
         }
-        // And a standing crop on a tile with no farmland bit is not a field.
+        // And a standing crop on a tile with no farmland bit
         m.set_flags(5, 5, 0);
         m.set_terrain(5, 5, 10);
         assert!(!m.is_standing_field(5, 5));

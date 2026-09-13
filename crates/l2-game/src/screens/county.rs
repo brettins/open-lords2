@@ -14,7 +14,7 @@
 //! bottom-left and rations from bottom-right,
 //! any of them. Each is a floating `Ui_DrawBox` window over whatever was
 //! underneath, and each has **two ways out**: the 24 × 24 picture in its
-//! bottom-right corner, which is a live hotspot, and the **right mouse button**
+//! bottom-right corner, and the **right mouse button**
 //! anywhere. That picture is a cursor arrow pointing into a black hole — a
 //! close button whose artwork is the instruction, and not the tick this file
 //! used to call it. `docs/screens-county.md` §2.6 and §2.7.
@@ -168,7 +168,7 @@
 //!                             Panel_RationSlider()
 //! ```
 //!
-//! # Two things this file used to get wrong about alignment, and both are the
+//! # Two things this file used to get wrong about alignment.
 //! same mistake
 //!
 //! * **`Ui_DrawNumber` and `Ui_DrawDelta` draw *left*-aligned from their `x`.**
@@ -424,7 +424,7 @@ impl Panel {
     }
 
     /// `Ui_OkButton(x, y, 0)` — the 24 × 24 picture in the panel's own corner,
-    /// and the box `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests on a left
+    /// hit-tests on a left
     /// release.
     ///
 /// `System.pl8` frame `0x33` decodes to a cursor
@@ -498,7 +498,7 @@ impl Panel {
 // `CountyStrip_JobClick` (`0x00438E3B`) turns a press into a job popup. The
 // three are one fact and live together here.
 
-/// `CountyStrip_JobClick`'s hit box: `x 0x1DE … 0x27F, y 0x12E … 0x1AD`, and the
+/// `CountyStrip_JobClick`'s hit box: `x 0x1DE … 0x27F, y 0x12E … 0x1AD`.
 /// column split at `0x230`.
 const JOBS_Y0: i32 = 0x12E;
 const JOBS_Y1: i32 = 0x1AE;
@@ -544,7 +544,7 @@ pub fn industry_rows(c: &l2_kingdom::county::County) -> Vec<usize> {
 /// `DAT_0053E970` and `DAT_0053F04C`, the two row pitches, which
 /// `CountyStrip_Draw` picks from the two counts.
 ///
-/// **They are not the same rule.** The farm column has two cases and the
+/// **They are not the same rule.** The farm column has two cases.
 /// industry column three, because the industry column can hold five rows:
 ///
 /// ```c
@@ -607,11 +607,11 @@ pub fn panel_at(x: i32, y: i32) -> Option<Panel> {
 //
 // `Panel_RationSlider` (`0x00411FDE`) draws it and `Ration_SliderClick`
 // (`0x0043A379`) hit-tests it. The caps are drawn at 200 and 324 and are 24
-// wide, the track runs 224 … 323, and the knob is drawn at `220 + value`.
+// wide, the track runs 224 … 323.
 
 /// **Two y's, not one, and this file used to have one.** `Panel_RationSlider`
 /// draws the knob at `0xD8` = 216 and both caps at `0xDC` = 220, and
-/// `Ration_SliderClick` hit-tests all three boxes at `0xDC` — so a single
+/// `Ration_SliderClick` hit-tests all three boxes at `0xDC` —
 /// constant of 216 put every control four pixels above where the game has it,
 /// drawn *and* clickable.
 const SLIDER_KNOB_Y: i32 = 216;
@@ -814,7 +814,7 @@ pub struct CountyScreen {
     panel: Panel,
     /// The ration slider is being dragged: the left button went down inside it
     /// and has not come up. `Ration_SliderClick` fires on `g_mouseLeftDown &&
-    /// g_mouseInputChanged`, which is a held button and a moved pointer, so a
+    /// g_mouseInputChanged`, so a
     /// screen driven by discrete events needs to remember the first half.
     slider_held: bool,
     /// The two arrows' press timer and auto-repeat counter — `+0x0D` and
@@ -846,7 +846,7 @@ impl CountyScreen {
     /// Index 0 is **up** and index 1 is **down**, which is the tables' own order
     /// and puts the up arrow to the *left* of the pair.
     ///
-    /// The `arm!` is `Screen_HandleInput`'s widget tables' marker, and the kind
+    /// The `arm!` is `Screen_HandleInput`'s widget tables' marker.
     /// they are answered with, in one token.
     fn arrows(&self) -> Vec<Widget> {
         [self.panel.increase_button(), self.panel.decrease_button()]
@@ -902,7 +902,7 @@ impl CountyScreen {
     /// So it fires **while the button is held and the pointer has moved**, and
     /// the release is explicitly ignored. `held` is that condition; the caller
     /// passes it for both a press and a drag, which is what makes the thumb
-    /// follow the cursor instead of jumping once per click.
+    /// follow the cursor.
     ///
     /// The two gestures do not end the same way, and `g_uiHotspotArg` is what
     /// tells them apart: **1 for a jump on the track, 0 for an arrow.** A track
@@ -970,7 +970,7 @@ impl Screen for CountyScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        // **The whole right-hand column is live under an open panel**, and the
+        // **The whole right-hand column is live under an open panel**.
 // arm says so. `0x14`'s, verbatim:
         //
         // ```c
@@ -1035,14 +1035,14 @@ impl Screen for CountyScreen {
                 // picture the panel's own `Ui_OkButton` call stashed, **on the
                 // release**: its first statement is
                 // `if (g_mouseLeftReleased == 0) return 0;`. Ours tested it on
-                // the press, which is one of four such arms and the reason
+                // the press.
 // `docs/arms.json` now records a gesture KIND
                 // an arm's existence.
                 //
                 // **The BACK TO MAP button that used to be tested here is gone.**
                 // It was ours, it was drawn at (478, 460), and that is the
                 // original's **End Turn** strip to the pixel — record 5 of
-                // `g_sidebarButtons`. So a rectangle of ours sat on top of a
+                // `g_sidebarButtons`.
                 // live control of the game's. The column now passes down and
                 // the strip ends the turn.
                 // arm: 0x0040E7E4/panel-corner-closes left-release
@@ -1059,7 +1059,7 @@ impl Screen for CountyScreen {
                 self.split_click(ctx, x, y, false);
                 return Transition::Stay;
             }
-            // **`Ui_DrawBox` panels are dismissed by the right button**, and the
+            // **`Ui_DrawBox` panels are dismissed by the right button**.
             // game says so in its own words: `Screen_SliderBox` prints `L2.eng`
             // group 12 index 0, *"Click Right to Exit"*, under its caption.
             // `Screen_FrameInput`'s arm for each of `0x14`, `0x15`, `0x16` and
@@ -1098,14 +1098,14 @@ impl Screen for CountyScreen {
                 // **The BACK TO MAP button that used to be tested here is gone.**
                 // It was ours, it was drawn at (478, 460), and that is the
                 // original's **End Turn** strip to the pixel — record 5 of
-                // `g_sidebarButtons`. So a rectangle of ours sat on top of a
+                // `g_sidebarButtons`.
                 // live control of the game's, which is the same defect a player
                 // reported about the five sidebar icons a fortnight ago. The
                 // column now passes down and the strip ends the turn.
                 // The strip's four quadrants are in the column and went down
                 // with it, so nothing is tested for them here.
                 // `Ration_SliderClick` (`0x0043A379`) — `0x19`'s own extra
-                // guard, and the reason the ration panel's arm is one line
+                // guard.
                 // longer than the other three.
                 // arm: 0x0043A379/ration-split-slider left-press
                 if self.split_click(ctx, x, y, true) {
@@ -1123,7 +1123,7 @@ impl Screen for CountyScreen {
             }
             // **A double click is a press to both of this ladder's live tests**,
             // and this screen used to drop it on the floor. Windows sends
-            // `WM_LBUTTONDBLCLK` *instead of* the second `WM_LBUTTONDOWN`, so a
+            // `WM_LBUTTONDBLCLK` *instead of* the second `WM_LBUTTONDOWN`.
             // fast second press arrives as `g_mouseLeftDoubleClick` and never as
             // `g_mouseLeftPressed`. `Ration_SliderClick` reads the double-click
             // flag in its own guard (see [`CountyScreen::split_click`]), and
@@ -1229,7 +1229,7 @@ impl Screen for CountyScreen {
 // `Screen_DrawCampaign` puts `CountyStrip_Draw` in the sidebar of the map
 // itself; until now our map screen drew a box of our own numbers over the jobs
 // plate below it and left this plate empty, which is the thing a player looks
-// at every turn and the one place the original's own layout was going spare.
+// at every turn.
 
 /// The one line of text the strip's font draws.
 ///
@@ -1299,7 +1299,7 @@ fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: 
 /// **`Ui_DrawNumber` (`0x00402F64`) — a number with its sign column.**
 ///
 /// A player: *"Happiness # and population # in the sidebar are slightly left of
-/// where they should be."* **Four pixels left, both of them, and the tax rate
+/// where they should be."* **Four pixels left, both of them.
 /// too.** The cause is one character:
 ///
 /// ```c
@@ -1517,7 +1517,7 @@ const DELTA_NEG: u8 = 0xF9;
 /// The name is the original's shape — `docs/symbols.json`'s
 /// comment said *"Ui_DrawNumber, right-aligned inside width"* and that comment
 /// is corrected on this branch. Two draw audits found it independently in the
-/// same week, which is the usual sign that a name has been believed instead of
+/// same week.
 /// read.
 ///
 /// It lands here: the produce rows' stock figure was anchored at x = 540 and
@@ -1632,8 +1632,8 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // the wanted one, which is `0xF9`.
     //
     // These were `ink.text`, which resolves to *white*, and a player reported
-    // it: *"the text should be black not white over the happiness."* He is
-    // right, and the reason [`Ink`](l2_view::Ink) is not the answer here is
+    // it: *"the text should be black not white over the happiness."*
+    // right.
     // that this text is written on the **original's own plate** — `Misc_cty`
     // frame `0x37` — so the index is a reading of the binary and not a choice
     // of ours.
@@ -1717,7 +1717,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // **All three take the same pen**, and that is worth stating because it
         // is the natural place to expect a difference. `CountyStrip_Draw`
         // computes `colour` once and passes it to all of them — the banner, the
-        // "of", and the lord's name — so the grey is the *emboss* and the
+        // "of", and the lord's name —
         // realm's colour is the *pen*, on every line:
         //
         // ```c
@@ -1751,7 +1751,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // Two keys and three tables for one fact.
         //
         // The shield is what the *human picks*; the AI lords take the slots
-        // left over. So a realm id has no colour of its own, and ten of the
+        // left over.
         // twenty-five realms across this project's eleven save fixtures fly a
         // shield that is not their id — which is how the wrong key was caught.
         // `docs/decisions.md` C112.
@@ -2048,7 +2048,7 @@ fn draw_produce_rows(
         // **The reclamation row's second figure**, and it is the only produce row
         // with one: `Ui_DrawNumber(county +0x214, ' ', " ", 0x20A, y + 0x143,
         // &g_font10, 0xFA)`, drawn **only when it is non-zero** — the original's
-// own `if`, so a county reclaiming nothing shows a bare icon
+// own `if`.
         // a zero. `Field_ReclaimEstimate`'s tail computes it as *seasons until
         // the nearest-to-finished field is done*, rounded up, from the full
         // reclamation staffing.
@@ -2459,7 +2459,7 @@ impl CountyScreen {
                 //
                 // **Three numbers, not two, and the third explains the panel**:
                 // the standing herd feeds five people a head without being
-                // slaughtered, so a county with more dairy than mouths eats
+                // slaughtered.
                 // nothing at all and its slider has nothing to divide. That
                 // number is what says so.
                 //
@@ -2473,7 +2473,7 @@ impl CountyScreen {
                 //
 // Drawn through [`Pen`], and centred
 // `Ui_DrawNumberRight` **centres**
-                // (C110's neighbour, and the symbol's name is a false claim).
+                // (C110's neighbour).
                 //
                 // **These five are the only `Ui_DrawNumberRight` sites in the
                 // image whose suffix is empty.** `Panel_Ration` passes
@@ -2511,7 +2511,7 @@ impl CountyScreen {
                     // `Ui_DrawNumber(+0x19C + +0x198, ' ', "", 0x88, 0x150, body, 0x3F);`
                     // `Eng_DrawString(87, 8, g_penAdvance + 0x88, 0x150, body, 0x3F);`
                     //
-                    // **The suffix in that transcription was right and the line
+                    // **The suffix in that transcription was right.
                     // below it did not use it.** `Ui_DrawText` ends with
                     // `g_penAdvance += 4` — which is [`crate::shell::TRAILING`],
                     // and which [`Pen::body`] already adds — so the `" {men} "`
@@ -2571,7 +2571,7 @@ impl CountyScreen {
     ///   Pl8_DrawFrame(System, 0x4C, 0xDC + split, 0xD8)  the knob at y 216
     /// ```
     ///
-    /// **The caps sit at y = 220 and the knob at y = 216**, and this file used
+    /// **The caps sit at y = 220 and the knob at y = 216**.
     /// to draw both at 216 — which also put all three hit boxes four pixels
     /// high, because `Ration_SliderClick` (`0x0043A379`) tests
     /// `(200, 0xDC, 24, 24)`, `(0x145, 0xDC, 24, 24)` and
@@ -2698,7 +2698,7 @@ fn delta_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
 /// The value half on its own, for the emigration row, which puts a county name
 /// between the label and the number.
 ///
-/// Three things it is easy to get wrong and all three are the original's:
+/// Three things it is easy to get wrong:
 /// **a zero draws nothing at all** — mode 0 with `value == 0` returns before the
 /// first `Ui_DrawText` — the digits are **left-aligned from `x`**
 /// right-anchored to it, and the empty prefix still advances the pen by

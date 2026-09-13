@@ -19,7 +19,7 @@
 //!    exactly the staleness that bit the player. It does **not** rerun for an
 //!    unstaged edit, so `-DIRTY` means *"the tree was dirty when this build's
 //!    fingerprint was last taken"*, not *"…at this instant"*. Erring that way is
-//!    deliberate: the marker can lag on, never off, so a stamp with no `-DIRTY`
+//! deliberate: the marker can lag on,
 //!    is trustworthy and one with it is a warning.
 //! 2. Git may be missing, or the source may be a tarball. Then the stamp reads
 //! `NO GIT`.
@@ -35,7 +35,7 @@ fn main() {
     make_room_for_the_link();
     println!("cargo:rustc-env=L2_BUILD_ID={}", stamp());
 
-    // **`L2_ALWAYS_UNLOCK=1` makes this script run before every link**, so a
+    // **`L2_ALWAYS_UNLOCK=1` makes this script run before every link**,
     // build can never collide with a running game. It is opt-in because the cost
     // was measured: the two `rerun-if-changed` lines below
     // replace cargo's default of "any file in this package", and naming a path
@@ -123,7 +123,7 @@ fn git(args: &[&str]) -> Option<String> {
 
 /// **Move a running `l2-game.exe` aside so this build can link over it.**
 ///
-/// Windows will not let a build replace a running executable, so a player with
+/// Windows will not let a build replace a running executable,
 /// the game open turns every build in the workspace red — not only
 /// `cargo build`, but `cargo test --workspace`, which builds this same binary.
 /// That has cost the project real time twice: *"game is closed. You cant rebuild
@@ -152,7 +152,7 @@ fn git(args: &[&str]) -> Option<String> {
 /// so ten stranded copies are two per cent of what is there. **No count-based
 /// policy is needed and none is implemented**: every run of this script sweeps
 /// every `l2-game.old-*.exe`, and the only ones that survive are the ones still
-/// running, which are precisely the ones that must. *A run of this script is not
+/// running,
 /// every build* — see the rerun conditions in `main` — so they are collected on
 /// the first rerun after the player quits, not the first build. If the sweep
 /// ever leaves more than a handful behind, that is reported — it would

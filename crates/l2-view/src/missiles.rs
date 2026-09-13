@@ -32,7 +32,7 @@
 //!   thirty-seconds of a cell and a battle tile is 32 pixels, so the sub-cell
 //! unit and the screen pixel are the same unit — [`crate::scene::TILE`]. No
 //!   scaling anywhere.
-//! * **There is no sprite centring.** `BattleFigure_Draw` subtracts half the
+//! * `BattleFigure_Draw` subtracts half the
 //!   sprite width on both axes; this adds `tileSize / 2` and nothing else
 //!   (`DAT_004E5D44 = param_11 / 2`, stored by `FUN_004BC020`). Reproduced
 //!

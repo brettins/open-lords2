@@ -693,7 +693,6 @@ consecutive failures", not a permanent state — but a figure walled in never ge
 that step and so stands still for the rest of the battle.
 
 **[D]** `Path_Extract`'s return codes are three-valued, not two: **0** means the destination
-was never reached or is blocked; **150** means either the destination was adjacent to begin
 with or the descent ran out of downhill neighbours or hit the 150-waypoint cap. The caller
 accepts only `0 < len < 150`, so a 150 is a silent failure that leaves the figure walking
 straight at its target.

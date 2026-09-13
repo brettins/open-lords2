@@ -390,7 +390,7 @@ pub struct Aftermath {
     /// when this battle was not ended by a withdrawal.
     ///
 /// It is reported because it is charged **before**
-    /// the loser is destroyed, so a caller diffing the unit array afterwards
+    /// the loser is destroyed,
     /// cannot tell a retreat's losses from the whole army's.
     pub withdrawal_casualties: Option<i32>,
     /// The realm that lost, **captured before its record was emptied** — the
@@ -491,7 +491,7 @@ pub const AI_DEFENDER_MOVE_COST: i32 = 7;
 /// place — `UnitOrder_SiegeAttKnight`, an all-knight AI besieger giving up on
 /// an unbreached wall. The errata describe the rule as general and the shipped
 /// binary makes it specific; where they differ the code is what shipped, and
-/// `withdrawal` is a parameter here so a caller with a retreat of its own can
+/// `withdrawal` is a parameter here
 /// reach the branch honestly.
 #[allow(clippy::too_many_arguments)]
 pub fn return_to_campaign(
@@ -683,7 +683,7 @@ pub const WITHDRAWAL_WIPE_BELOW: i32 = 11;
 ///   however the integer division falls — the same discipline
 ///   [`auto_resolve`] uses.
 /// * **The army stops where it stands.** The path is thrown away and the move
-///   state cleared, so a retreat cancels the order that walked into the battle
+/// state cleared,
 /// That is the half of this function that is not a
 ///   casualty rule at all, and it is why the army is not carried on into a
 ///   second fight on the same turn.
@@ -697,7 +697,7 @@ pub const WITHDRAWAL_WIPE_BELOW: i32 = 11;
 /// > force is knights facing an unbreached wall — and three clearers, one of
 /// > which is [`auto_resolve`]'s first statement. **The Retreat button is not
 /// > one of them**: `FUN_0043BA29`'s confirm reaches `FUN_0043BE65`, which is
-/// > the autocalc and the return, so a player who "retreats" has auto-resolved
+/// > the autocalc and the return,
 /// > the battle and, if the ladder says he lost, watched his army destroyed
 /// > See this module's `retreat` note.
 pub fn withdraw_casualties(
@@ -796,7 +796,7 @@ pub fn disband_defence(
 ///     Army_Destroy(i);
 /// ```
 ///
-/// Called first thing in the wage pass, so a defence that somehow outlived its
+/// Called first thing in the wage pass,
 /// battle is gone before anyone is paid for it.
 pub const STRAY_COUNTY_LIMIT: u8 = 16;
 
@@ -1113,7 +1113,7 @@ mod tests {
         assert_eq!(units.get(d).unwrap().besieged_by, 0, "both halves of the link");
         assert_eq!(counties[2].owner, 2, "the castle held");
 
-        // …and the same battle with the besieger wiped out destroys it, which
+        // …and the same battle with the besieger wiped out destroys it,
         // is the outer test's other arm and the autocalc's only arm.
         let mut units = Units::new();
         let a = army(&mut units, 1, true, &[(TroopType::Peasant, 200)]);
@@ -1315,7 +1315,7 @@ mod tests {
     /// armies, resolved the way the original resolves a battle the player does
     /// not fight — and the survivor count it produces is the one the saved game
     /// holds. `crates/l2-game/tests/seam.rs` runs the same battle from the
-    /// bytes; this is the arithmetic on its own, so a broken fixture and a
+    /// bytes; this is the arithmetic on its own,
     /// broken ladder fail in different files.
     #[test]
     fn the_fixture_battle_resolves_to_the_thirty_six_men_the_save_holds() {

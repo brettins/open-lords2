@@ -24,9 +24,9 @@
 //! * [`fade`] — the end-of-turn palette fade, and the only effect in the game
 //!   that lives entirely in the colour table.
 //! * [`chrome`] — the original's interface artwork: the `Panels.pl8` framed-box
-//!   kit, the `Misc_cty.pl8` right column, and the `MAPnn.PL8` minimap.
+//! kit, the `Misc_cty.pl8` right column, and the `MAPnn.PL8` minimap.
 //! * [`village`] — the village screen's picture, its eight peasant clusters
-//!   and the `vill_gd8.pl8` grid that decides where a drop lands.
+//! and the `vill_gd8.pl8` grid that decides where a drop lands.
 //! * [`scene`] — the battlefield viewport and the men on it.
 //! * [`figures`] — sprite-frame arithmetic; [`sheet`] — cached PL8 decoding.
 //! * [`missiles`] — `A2_miss.pl8`: arrows, bolts, catapult shot, debris and

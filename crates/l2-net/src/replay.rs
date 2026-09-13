@@ -173,7 +173,7 @@ impl Replay {
 /// Always a bug, and always a determinism bug: the same inputs applied
 /// to the same state produced a different result. Either the
 /// simulation changed (in which case old replays are expected to fail
-/// and the corpus needs re-recording, deliberately and visibly), or
+/// and the corpus needs re-recording,
 /// something in it is not deterministic (in which case this is the only
 /// warning that will be given).
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -81,7 +81,7 @@ trailing block. An isometric file also routinely holds plain rectangles —
 | 4 | Diamond + right-half overhang | `height² + rows × height` |
 
 **The map renderer dispatches on this byte, and only on 2, 3 and 4.** That is a second
-derivation of the table above, from the code rather than from the file, and it was done
+derivation of the table above, from the code and it was done
 without reference to it. `Map_DrawTileApex` (`0x00406673`) loads the shape byte into
 `g_frameShape` (`0x00591568`) and picks an overhang blitter with a three-way test — `== 2`,
 `== 3`, `== 4` — and no default arm; the row pass at `0x00406BBA` does the same. So a
@@ -203,7 +203,7 @@ and through the mask blitter those draw in the caller's colour like any other in
 
 Each frame record keeps an atlas position that matches a full alphabet's (`a` at 0,5, `b`
 at 11,3 …), so **[I]** the export was cut from a sheet whose letter cells were cropped to
-2 × 2 rather than from a sheet that never had letters.
+2 × 2
 
 **What it means for a string.** A letter drawn in `Font_10.pl8` blits its stub and advances
 three: *"Seasons"* paints four pixels (its `e`) and moves the pen 21. That is what the
@@ -263,7 +263,7 @@ occupying the bottom `height` rows.
 
 Four files (`Arm_grid`, `Mercgrid`, `Vill_gd8`, `Villgrid`) declare shape 0 but hold
 only `(width/8) × (height/8)` bytes: mouse hit-test maps at 1/8 resolution, one byte
-per 8×8 screen block, holding region ids rather than palette indices. The engine
+per 8×8 screen block, holding region ids The engine
 reads them from region code and never blits them.
 
 The decoder detects these **structurally** — by the byte span, not the filename —
@@ -307,7 +307,7 @@ just the **first** such block per file — the largest are 18, 18, 74 and 242.
 **1 file: a wrong header byte.**
 `Font_c2` declares RLE but stores raw rectangles. It is the same font as `Fntl2_9`,
 exported twice, sharing 103 of 108 frame records. Detected file-wide — every frame
-spanning exactly `w*h` — rather than per frame, so one coincidental span cannot
+spanning exactly `w*h` — so one coincidental span cannot
 reinterpret a frame of an otherwise valid RLE file.
 
 ## Also open

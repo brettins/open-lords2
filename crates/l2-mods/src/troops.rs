@@ -5,7 +5,7 @@
 //! advantage — and it is fully documented in `docs/formats/eng.md`, so it can
 //! be used to demonstrate the whole path without guessing at anything.
 //!
-//! Three things about it are worth noticing, because they are the argument for
+//! Three things about it are worth noticing,
 //! doing this at all:
 //!
 //! * **The difficulty curve was hard-coded.** `Lords2.exe` reads only the
@@ -16,7 +16,7 @@
 //!   a rule file, and a mod that wants a harsher curve edits them.
 //! * **The clamps were a parser detail.** The engine clamps the siege columns
 //! to 9 and the advantage to 0..10 because a text file it could not validate
-//! might contain anything. We validate instead, so a mod with 40 catapults
+//! might contain anything. We validate instead,
 //! gets an error naming its file and line.
 //! * **The columns had no names.** The file has an eleven-column header of
 //! two-letter abbreviations and the code has indices. Naming the columns is
@@ -47,7 +47,7 @@ pub struct TroopType {
     pub id: String,
     /// Position in the eleven-column row.
     pub column: usize,
-    /// The two-letter header abbreviation, kept so a generated file can be
+    /// The two-letter header abbreviation,
     /// read next to the original.
     pub abbrev: String,
     pub name: String,
@@ -198,7 +198,7 @@ fn read_row(
         let Some(v) = rs.get(&path) else { continue };
         let _ = v;
         row[t.column] = if siege[t.column] {
-            // The original clamps siege columns to 9. We refuse instead, so a
+            // The original clamps siege columns to 9. We refuse instead,
             // mod finds out at load.
             // catapults went.
             rs.integer_in(&path, 0, 9)?

@@ -98,7 +98,7 @@ const AI_DIFFICULTIES: usize = 4;
 ///
 /// Every value is required. There are no defaults here on purpose: a kingdom
 /// rule that silently falls back to a built-in number is a rule a mod cannot
-/// tell it failed to set, and the whole point of the platform is that a mod
+/// tell it failed to set,
 /// author can see what took effect.
 pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     let mut t = Tables::DEFAULT;
@@ -150,7 +150,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         // `buy_ale` divides the population by this, so zero is a division by
 // zero.
         step_pct: int(rs, "kingdom.happiness.ale_step_pct", 1, 10_000)?,
-        // The rung count and the cumulative cap are one number, as they are in
+        // The rung count and the cumulative cap are one number,
         // the original. Zero means ale buys nothing, which is a rebalance and
         // not a crash, so it is allowed.
         max: int(rs, "kingdom.happiness.ale_max", 0, 100)?,
@@ -179,12 +179,12 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     }
 
     // Five bounds, not four. The table is `{bound, band}` pairs in the binary's
-// own layout, and the top band is an explicit entry —
+// own layout,
     // `tools/oracle/kingdom.ps1` checks that against the executable.
     //
     // The ruleset carries only the bounds, because in the shipped table the band
     // column always equals its own row index (10,0  35,1  65,2  90,3  100,4).
-    // That is a property of the data, not a rule, so a mod wanting non-identity
+    // That is a property of the data, not a rule,
 // bands would need the format to grow a column
     // accident.
     let bands = t.health_band_ladder.len();
@@ -1238,7 +1238,7 @@ fn join_i32(values: &[i32]) -> String {
     values.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ")
 }
 
-/// A long integer array, wrapped at `per_line` values and indented, so a
+/// A long integer array, wrapped at `per_line` values and indented,
 /// hundred-entry table is readable.
 fn wrap_i32(values: &[i32], per_line: usize) -> String {
     values

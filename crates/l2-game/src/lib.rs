@@ -22,7 +22,7 @@
 //! is refused: the castle designer, diplomacy, video, the multiplayer lobby,
 //! and any screen not on that list.
 //!
-//! Two things have since been let in and are worth naming, because the list
+//! Two things have since been let in and are worth naming,
 //! above is what stops this crate becoming the whole game. Sieges arrived with
 //! their own screens. **Sound arrived as [`audio`]** — the music bed and the
 //! message fanfare — and it is allowed here on one condition: it may only ever

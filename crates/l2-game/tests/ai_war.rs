@@ -24,7 +24,7 @@
 //! Neither is worth much alone. The synthetic one runs everywhere and proves
 //! only that the dispatch is wired; the England one is the evidence, and
 //! `docs/plan.md` §2.5 is the reason both are here — **every shipped fixture
-//! is turn one with every realm holding exactly one county**, so a rule that
+//! is turn one with every realm holding exactly one county**,
 //! fires only above one county has no oracle at all. Forty turns is the
 //! cheapest way to reach the game the project is trying to finish.
 
@@ -159,7 +159,7 @@ fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8], planted_peak: i32) {
 
     // 3. Planted. **This is the one the whole item was about.** Before
     //    `l2_kingdom::ai_farm` an AI realm could add fallow fields and could
-    // never lay one to grain, so a game played to the end was played against
+    // never lay one to grain,
     //    realms that starve.
     //
     //    **Over the whole game, not at its last turn.** This used to count the
@@ -567,10 +567,10 @@ fn forty_turns_of_england_leaves_a_diplomatic_position() {
         // `Diplo_Offend`'s entry guard refuses outright when the offended realm
         // is human, and `AI_Diplomacy` — the only writer that runs without a
         // letter — never runs for a human realm, because the AI turn machine is
-        // skipped for one. So a person's row has no source of *gain* whatever.
+        // skipped for one.
         // The one writer that reaches it is `Diplo_OffendAll`, which walks
         // realms 1..5 with **no `isHuman` test**, and which is reached from one
-        // place only: somebody betraying an ally. So a person's opinion of a
+        // place only: somebody betraying an ally.
         // rival is 0 until that rival breaks a treaty, and −15 a betrayal
         // thereafter, for ever.
         //
@@ -628,7 +628,7 @@ fn an_ai_owned_countys_farm_style_comes_from_its_lord_and_not_from_the_county() 
         }
     }
     // The human's county and the unowned one are the other half of the claim:
-    // nothing overwrites them, so a wrong import really would be read there.
+    // nothing overwrites them,
     assert_eq!(game.kingdom.counties[1].farm_style, 7, "the person's county is left alone");
 }
 
@@ -666,7 +666,7 @@ fn six_county_world() -> Game {
         // Twenty tiles of workable farmland per county, which is what the
         // farming styles lay out and what a raid heads for. **The flag is not
         // enough**: a county's fields are the twenty tile indices in
-        // `County::field_tiles`, and `field::recount` reads only those — so a
+        // `County::field_tiles`, and `field::recount` reads only those —
         // world that painted the flag and left the slots empty would have the
         // AI lay out nothing and would say so with the same message as an AI
 // that was never dispatched. That is the failure this file

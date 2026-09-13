@@ -487,7 +487,7 @@ fn b16_an_extinct_county_reports_negative_deaths_or_the_people_it_lost() {
 /// **B16 has one face, and `docs/bugs.md` describes it.**
 ///
 /// This test used to say the opposite — that the season a county loses its last
-/// person lands on exactly 0, and the negative number only appears the season
+/// person lands on, and the negative number only appears the season
 /// after, over a county that is already empty — and backed it with a survey that
 /// found no negative case starting from a living county. **That was true of our
 /// arithmetic and not of the original's.** We sent the season's extra person to

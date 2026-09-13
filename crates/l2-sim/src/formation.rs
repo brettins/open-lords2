@@ -133,7 +133,7 @@ impl Rect {
 /// against the disassembly:
 ///
 /// * the **width** collapses to 1 for a single-figure unit even when its
-///   footprint is 3, so a lone catapult forms up on one cell;
+/// footprint is 3, so a lone catapult forms up on one cell;
 /// * the two axes clamp **differently**. `x` is pulled back so the right edge
 ///   lands on 79, while `y` is pulled back by `bottom - 79` where `bottom` is
 /// `origin + depth` — one cell more

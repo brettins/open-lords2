@@ -755,7 +755,7 @@ impl LiveBattle {
         if self.sallied {
             return Err(0x9D);
         }
-        // The order enters the simulation here, and only here. It is not a
+        // The order enters the simulation here, and only here.
         // display flag: it rewrites cell flags and surfaces, so two peers that
         // disagreed about it would be pathing through different castles.
         if !self.runner.lower_drawbridge() {
@@ -794,7 +794,7 @@ impl LiveBattle {
     }
 
     /// What the two confirm boxes do when they are answered yes: `FUN_0043BE65`
-    /// (`0x0043BE65`), which is `Battle_AutoResolve` and the return to the
+    /// (`0x0043BE65`), and the return to the
     /// campaign. Declining a battle and giving up on one you are watching are
     /// the same code.
     pub fn confirm_autocalc(&mut self) {
@@ -866,7 +866,7 @@ impl LiveBattle {
     ///   boxes, **regroups the units** and narrows;
     /// * a click on one of your own men nudges the box out by eight pixels in
     ///   each direction and commits *that* — the original literally rewrites the
-    ///   anchor and the pointer, so a click selects a 16-pixel square and
+    /// anchor and the pointer, so a click selects a 16-pixel square and
     ///   therefore usually one man;
     /// * a click on nothing does **nothing**. It does not clear the selection.
     ///   Clearing is the right button's job and this is why.
@@ -924,7 +924,7 @@ impl LiveBattle {
     ///
     /// The test is `(g_mouseLeftReleased || g_mouseLeftDoubleClick) &&
     /// g_screenId == 0x2A`, so a double click **commits an open drag
-    /// a release would**. It is not a verb of its own; it exists because Windows
+    /// a release would**. It exists because Windows
     /// sends `WM_LBUTTONDBLCLK` instead of the second `WM_LBUTTONDOWN`, so
     /// without this clause the second click of a fast double click would leave
     /// the drag open for ever.

@@ -91,7 +91,7 @@ pub fn update(
 ) -> bool {
     if county.is_unowned() {
         // `Unrest_UpdateAll`'s first arm: an unowned county's counter is
-        // **cleared**, not merely left alone. Realm 0 is not a realm.
+        // **cleared** Realm 0 is not a realm.
         county.unrest = 0;
         return false;
     }

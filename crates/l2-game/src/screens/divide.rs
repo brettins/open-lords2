@@ -18,7 +18,7 @@
 //!     misc_cty frame 0x2F + t at (0x158, y - 8)         the same picture again
 //!     Ui_DrawNumber(basket[t].available, 0x188, y)      who leaves
 //! row 7, only when the army carries a band:
-//!     L2.eng 16/mercBand at (0x18, 0x180) and the troop noun at (0x58, 0x190)
+//! L2.eng 16/mercBand at (0x18, 0x180) and the troop noun at (0x58, 0x190)
 //! the two "Total men" lines at y 0x184 with a band, 0x160 without
 //! ```
 //!
@@ -34,7 +34,7 @@
 //! carries `mercBand`, `mercMen`, `mercTroop` and the live table's `hiredBy`
 //! across in one piece.
 //!
-//! # Every control on this screen was in the wrong place, and the painter is why
+//! # Every control on this screen was in the wrong place
 //!
 //! **`Screen_FrameInput`'s `0x11` arm holds no verb at all** — three exits, all
 //! of them to `g_screenId = 0x04`. The buttons are `Screen_HandleInput`'s
@@ -58,7 +58,7 @@
 //!
 //! *"An army normally can only be split only at the start of its movement in a
 //! turn."* — `FUN_004378B3` refuses with message `0x95` when `movesUsed >= 1`,
-//! and the screen never opens. Ours opens and says why, because a screen that
+//! and the screen never opens. Ours opens and says why
 //! silently will not appear is a screen a player thinks is broken.
 
 use l2_kingdom::divide::{SplitBasket, SplitInto, SplitRefusal};

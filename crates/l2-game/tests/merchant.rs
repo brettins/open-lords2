@@ -366,7 +366,7 @@ fn an_order_the_treasury_cannot_cover_is_refused_and_the_panel_stays() {
     let q = trade::quote(&game.kingdom.tables, Good::Grain, 100);
 
     // Enough for nine sacks, and ask for far more: the arrows clamp, which is
-    // the *first* line of defence and the reason the refusal is hard to reach.
+    // the *first* line of defence.
     game.kingdom.realms[game.player as usize].gold = 9 * q.buy;
     let mut panel = TradeScreen::new(merchant, Good::Grain.id() as u8);
     let up = up_button();

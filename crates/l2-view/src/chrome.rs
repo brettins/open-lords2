@@ -14,7 +14,7 @@
 //!   `Ui_DrawBoxInterior` indexes `52 + c%12 + (r%12)*12`.
 //! * **`Misc_cty.pl8`** is the campaign right column: seven 162-pixel-wide
 //!   frames that tile `y` 24 … 480 with no gap under either of the two middle
-//!   layouts, plus the realm banners and the minimap furniture.
+//! layouts, plus the realm banners and the minimap furniture.
 //! * **`MAPnn.PL8`** holds two 128 × 128 rasters per map slot, four slots to a
 //!   file: a county id per pixel and a shading mask. The *colour* of the
 //!   minimap is not in the file at all — it comes from an 8-bytes-per-realm
@@ -931,7 +931,7 @@ mod tests {
     fn the_minimap_sits_flush_with_the_bottom_of_the_panels_top_frame() {
         assert_eq!(MINIMAP_Y + MINIMAP_DIM, PANEL_MIDDLE_Y);
         assert_eq!(MINIMAP_X, crate::campaign::PANEL_X);
-        // ...and the hit rectangle is offset from it, which is the original's
+        //...and the hit rectangle is offset from it
 // own inconsistency.
         assert_ne!((MINIMAP_X, MINIMAP_Y), (MINIMAP_HIT_X, MINIMAP_HIT_Y));
         assert_eq!(MINIMAP_HIT_X - MINIMAP_X, 2);

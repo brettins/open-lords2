@@ -1599,7 +1599,6 @@ fn the_county_strip_shows_the_saves_numbers_where_the_original_puts_them() {
     assert_eq!(
         find_strip(&canvas, &assets, "72", STRIP_INK),
         // **Left origins, not right-anchored.** `Ui_DrawNumber` has no
-        // anchoring argument: the population's call and the happiness's differ
         // only in their value and their x. `docs/decisions.md` C42.
         Some((0x25A + lead, 189)),
         "the happiness, displaced by the same four pixels and not by more"

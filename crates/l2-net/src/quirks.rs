@@ -35,7 +35,7 @@
 //! That looks backwards for about ten seconds and then pays for itself twice:
 //!
 //! * **The default is byte-stable forever.** `Quirks` goes into the save body
-//!   and the per-tick digest as one `u64`. Adding a quirk next month does not
+//! and the per-tick digest as one `u64`. Adding a quirk next month does not
 //!   change the bytes a faithful game writes, so it costs no save-format
 //!   version bump — where a "1 means reproduce" bitset would need the mask
 //!   widened, and every old save reinterpreted, on every addition.
@@ -86,7 +86,7 @@ use crate::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 pub enum Quirk {
     /// **B1** — the harvest weather band throws away the labour cap.
     /// `Grain_Harvest` (`0x0044D1E5`). Four of the six bands overwrite the
-    /// labour-capped figure with a multiple of the *standing* crop, so a county
+    /// labour-capped figure with a multiple of the *standing* crop,
     /// that sends one reaper into a sunny field reaps 150 % of everything it
     /// grew. Only bites with *Advanced Farming* on.
     HarvestIgnoresLabourCap = 0,
@@ -119,7 +119,7 @@ pub enum Quirk {
 
     /// **B11a** — an unowned county trading on its own account is checked for
     /// neither stock nor gold. Both guards in `Merchant_Trade` are inside
-    /// `if (realm != 0)`, so a lordless county sells grain it does not have and
+    /// `if (realm != 0)`,
     /// buys with a purse it has already emptied.
     UnownedCountyTradesUnchecked = 5,
 
@@ -129,7 +129,7 @@ pub enum Quirk {
     /// wrong way on every click.
     CastleSwitchMovesShareBackwards = 6,
 
-    /// **B15** — the migration inflow list is written with no `break`, so a
+    /// **B15** — the migration inflow list is written with no `break`,
     /// county's sixteen `inflowSources` bytes hold one repeated value and the
     /// population panel's *"arrive from"* line names the wrong county.
     InflowListHasNoBreak = 7,
@@ -299,7 +299,7 @@ impl Quirk {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Quirks {
     /// One bit per [`Quirk`], at [`Quirk::bit`]. Bits above the defined set are
-    /// **always zero** — [`Quirks::from_bits`] masks them off, so a save from a
+    /// **always zero** — [`Quirks::from_bits`] masks them off,
     /// newer build loaded by an older one cannot smuggle in a flag this build
     /// would not otherwise honour.
     /// codec-via: `Quirks::from_bits`, so the name does not appear in `decode`.
@@ -482,7 +482,7 @@ mod tests {
         }
     }
 
-    /// A bit no quirk claims cannot be set — so a save from a newer build,
+    /// A bit no quirk claims cannot be set —
     /// read by an older one, cannot turn on a flag this build does not
     /// understand. It reads as faithful instead, which is the answer that
     /// cannot be wrong.
@@ -491,7 +491,7 @@ mod tests {
         let smuggled = Quirks::from_bits(u64::MAX);
         assert_eq!(smuggled, Quirks::FIXED);
         assert_eq!(smuggled.bits(), Quirks::MASK);
-        // And the top bit specifically, which is the one a future variant
+        // And the top bit specifically,
         // would not use for a very long time.
         assert_eq!(Quirks::from_bits(1 << 63), Quirks::FAITHFUL);
     }

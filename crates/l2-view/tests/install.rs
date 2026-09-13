@@ -239,7 +239,7 @@ fn the_knight_frame_table_fits_the_knight_sheets() {
 /// Getting any of the bases wrong breaks one of the three identities:
 ///
 /// * **81** in `A2_miss.pl8` = 33 + six shields × 8 — the banner block
-///   `FUN_004BD574` indexes runs to the last frame, and the missile blocks
+/// `FUN_004BD574` indexes runs to the last frame, and the missile blocks
 ///   0 … 40 sit under it;
 /// * **46** in `Engine.pl8`, and `(polarDirc >> 1) + 0x2A` reaches 45;
 /// * **20** in each `Catarm`, and `dirc % 4 × 5 + g_horseWalkCycle[…]`
@@ -348,7 +348,7 @@ fn va_to_offset(exe: &[u8], va: u32) -> Option<usize> {
 /// `0x004D8308`/`0x004D8388` at the far one, as `i8`.
 ///
 /// `campaign::walk_offset`'s tables were generated from a copy of the file
-/// rather than typed; this is what says that copy was the user's, all 256
+///; this is what says that copy was the user's, all 256
 /// entries of both zooms. The unit test beside the tables checks them against
 /// the projection instead, which is the second source.
 #[test]
@@ -1042,7 +1042,7 @@ fn the_panels_kit_in_the_file_has_the_shape_the_drawing_code_indexes() {
 /// In the original that state is unreachable by this route: `FUN_00439CC2`,
 /// which `Labour_Move` calls on every drop, **switches the industry on** when
 /// men are dropped on a site whose resource the county has. Ours did not, so it
-/// reached a picture the original only ever shows for a county that has no such
+/// reached a picture the original only ever shows for a county that has.
 /// resource at all. It does now — `l2_kingdom::Kingdom::move_labour`, and
 /// `crates/l2-game/tests/labour_move.rs` drives it through the village. (This
 /// comment named a `docs/arms.json` row for it: it is not
@@ -1147,7 +1147,7 @@ fn the_peasant_icons_account_for_every_frame_the_icon_table_names() {
 ///
 /// * every ringed frame is **exactly four wider and four taller** than its
 ///   plain twin, which is what a two-pixel ring around an unchanged picture
-///   measures as, and the drawing code moves it two pixels up and left;
+/// measures as, and the drawing code moves it two pixels up and left;
 /// * every non-transparent pixel of that two-pixel border is one of
 ///   **three palette entries, and all three are blue** — `95` = `rgb(0,0,121)`,
 ///   `65` = `rgb(157,202,234)`, `64` = `rgb(194,230,255)`.
@@ -1318,7 +1318,7 @@ fn the_village_files_are_the_size_the_drawing_code_indexes_them_at() {
 ///    what "indexed by cost" predicts and what a set of *different* pictures
 ///    would have refuted;
 /// 2. **`0x38` is the only frame in the ramp with no colour in it at all**, so
-///    the grey one is the out-of-range one and the inference is now a fact;
+/// the grey one is the out-of-range one and the inference is now a fact;
 /// 3. `0x4E` is the opposite extreme — not one grey pixel — which is the
 ///    castle marker being a different picture.
 ///
@@ -1614,7 +1614,7 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
 ///    the last of the `2 × 2` stubs the herd test already names, and `0x81` after it is the
 ///    mercenary marker `Sprite_TopIt` draws on the town's north-east quadrant.
 ///
-///    **The frames are `16 × 42`, and the first draft of this test said `32 × 24`** — the
+/// **The frames are `16 × 42`, and the first draft of this test said `32 × 24`** — the
 ///    size of the *realm* flags at the head of the sheet, assumed. The
 ///    file said so on the first run. Recorded because it is the whole argument for
 ///    asserting a block you have not built yet: a tall narrow standard on a pole is a
@@ -1940,7 +1940,7 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
     const COUNTESS: u8 = 3;
     const BISHOP: u8 = 4;
 
-    // The default, and the one arrangement a fixture can confirm: it is exactly
+    // The default, and the one arrangement a fixture can confirm: it is
     // what `england-turn1.sav` holds.
     assert_eq!(
         assign(1),
@@ -2002,7 +2002,7 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
 ///    carry almost none of it, which bounds the run from outside.
 ///
 /// "Gold" is read off the shipped palette: `r > 140`,
-/// `g > 110`, `b < 110`, `r >= g` — and the *ramp* is what is asserted rather
+/// `g > 110`, `b < 110`, `r >= g` — and the *ramp* is what is asserted
 /// than any count, because our palette widens 6-bit VGA by 255/63 where the
 /// original multiplies by 4 and an absolute threshold would sit on that seam.
 /// Ablating the `+ field_variant(terrain) * 4`

@@ -1,8 +1,8 @@
-//! An indexed 640x480 framebuffer and the two blitters the original uses.
+//! An indexed 640x480 framebuffer.
 //!
 //! The canvas holds **palette indices**, not colours. That is the whole point:
 //! the endgame for this crate is a pixel-for-pixel diff against `Lords2.exe`'s
-//! own framebuffer, and the original thinks in indices. Colour only appears at
+//! own framebuffer.
 //! the very last step, when `present` expands indices through a `.256` palette.
 //!
 //! Two blitters, because the original has two and they differ:
@@ -120,7 +120,7 @@ impl Tags {
 ///
 /// The original runs it over the whole back buffer immediately before it
 /// paints an *animated* message window or battle banner, so the screen behind
-/// a film goes dim: the capture and ending branches of `Msg_DrawWindow` and the
+/// a film goes dim: the capture and ending branches of `Msg_DrawWindow`.
 /// animated arm of `Screen_BattleOutcome` are its three callers that matter
 /// here. **`[I]` on the scale**: the formula is read off the decompilation, and
 /// it reads `g_paletteRgb`, which holds a `.256` file's **6-bit** values — so
@@ -209,7 +209,7 @@ impl Canvas {
     ///
     /// This is what draws a map tile. `docs/screens.md` §1.4: the original has
     /// five unrolled blitters for a map tile — whole, top half, bottom half,
-    /// left half, right half — and the halves exist purely so that a tile at
+    /// left half, right half —.
     /// the edge of the viewport writes nothing outside it. Working out where
     /// their dropped columns land shows a plain clip does the same job, so
     /// there is one blitter here and a rectangle
@@ -230,7 +230,7 @@ impl Canvas {
     ///
     /// `rgba` holds four bytes per pixel and is written until either it or the
     /// canvas runs out. This lives here
-    /// that the final image can be asserted on without a GPU — and so this
+    /// that the final image can be asserted on without a GPU —.
     /// crate needs no presentation dependency to produce one.
     pub fn to_rgba(&self, palette: &l2_formats::Palette, rgba: &mut [u8]) {
         for (px, &idx) in rgba.chunks_exact_mut(4).zip(self.pixels.iter()) {
@@ -247,7 +247,7 @@ impl Canvas {
     /// `y_scale` times, clipped to the canvas.
     ///
     /// `Smk_Open` (`0x0042DA18`) and `Smk_PlayLoop` (`0x0042DBC7`) hand the
-    /// original's `SmackToBuffer` the game's own 640 × 480 back buffer and the
+    /// original's `SmackToBuffer` the game's own 640 × 480 back buffer.
     /// film's position, and nothing else: no transparency, no clip rectangle of
     /// its own. The raster is a plain `&[u8]` so that this crate never learns a
     /// film decoder exists — a doubled film arrives already `display_height`

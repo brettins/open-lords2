@@ -28,7 +28,7 @@
 //! That form exists because the comment form was checked against the record
 //! and never against the code beside it. Every options row was once declared
 //! `Kind::Press` under a `left-press-delayed` comment, and this file stayed
-//! green; `tests/options.rs` caught it. **So a comment may not claim
+//! green; `tests/options.rs` caught it.
 //! `left-press-repeat`, `left-press-delayed` or `left-press-held`**: those are
 //! answered by nothing but a `Kind` handed to `Press`
 //! be that `Kind`. A plain press or a release can still be a comment, because

@@ -27,7 +27,7 @@
 //!   move"*.
 //! * **The clip.** `FUN_004BC020` also stores the viewport as the rectangle
 //!   every battle sprite is clipped to — [`FIELD_CLIP`]. Ours blitted men
-//!   unclipped into the menu bar, the right column and the strip under the
+//! unclipped into the menu bar, the right column and the strip under the
 //!   field, where nothing repaints them: the *"ghosting"*.
 //! * **The palette** is not here: this crate draws indices, and which `.256`
 //!   they mean is the presenter's, which resolves [`TILE_PALETTE`] through
@@ -459,7 +459,7 @@ impl BattleAssets {
 /// transparently and clipped whenever `cell[+0]` is non-zero and `cell[+4]` is
 /// 1, 2 or 3.
 ///
-/// **On a castle, cell byte `+0` is not a terrain id — it is a damage
+/// **On a castle, cell byte `+0`
 /// counter**, and the two writers say so:
 ///
 /// * `Missile_Step` (`0x00492C8B`) — *"if (cell.elevation < 4) { cell.terrain++; if (0xF <
@@ -557,7 +557,7 @@ pub fn draw_terrain(
 /// the last one, so this returned the cell the facing pointed into with
 /// `walking = substep − 1`. That got the trail right and left two faults the
 /// drawing cannot reach: a step refused *after* the count put the man back on
-/// the square he never left, and the runner re-chose his direction every tick,
+/// the square he
 /// so he could turn mid-crossing and be drawn jumping sideways. 324 drawn
 /// jumps of half a cell or more over a 42-figure battle; 0 once
 /// `BattleRunner::step_one` took `BattleMan_Step`'s order. `docs/battle.md`
@@ -749,7 +749,7 @@ fn banner_cell(cell: l2_sim::terrain::Cell) -> bool {
 ///
 /// **`docs/battle.md` §13.7 named the wrong byte for the overlap pass.** It
 /// reads *"a second terrain pass for cells flagged `0x04` on byte `+1`"*; the
-/// test here is byte **`+2`** bit **`0x80`**, and the thing drawn is not a
+/// test here is byte **`+2`** bit **`0x80`**, and the thing drawn is
 /// terrain tile — it is `Engine.pl8` (a docked tower's stair,
 /// [`engines::dock_overlay_frame`]) or `A2_miss.pl8` (`FUN_004BD574`'s animated
 /// banner — [`banner_frame`]).
@@ -890,7 +890,7 @@ fn dock_overlay(
 /// ([`drawn_cell`]): `FUN_00491B1F` moves his cell byte at the start of the
 /// crossing, and `+5` is that byte.
 ///
-/// **Two things the original does here and this does not**, both the dirty
+/// **Two things the original does here
 /// bits of byte `+2`, which our cells do not carry:
 ///
 /// * the per-cell dirty bits, `flags & 3` — we repaint every cell of the rows

@@ -2,7 +2,7 @@
 
 The first reading of the game's **user interface**. `docs/kingdom.md` says what a county
 *is*; this says what the player *sees* and what the player can *change*, with the pixel
-rectangles and the widget tables that decide both.
+rectangles.
 
 It exists because the interface had never been looked at once. 394 named symbols covered
 battle, battle AI, kingdom, units, sprites, maps, file I/O and text, and not one of them
@@ -26,8 +26,7 @@ Addresses are the GOG Windows build, `ImageBase 0x400000`, no ASLR. Every name b
 
 ## 0. The headline
 
-There are *four* county panels, plus a village, plus a job popup, and the thing that ties them together is a 162-pixel-wide sidebar down the right edge of the map.
-and the thing that ties them together is a 162-pixel-wide sidebar down the right edge of
+There are *four* county panels, plus a village, plus a job popup.
 the map.
 
 ```text
@@ -53,7 +52,7 @@ the map.
 
 **[V] The sidebar accounts for the screen exactly.** `Screen_DrawCampaign` (`0x0040F5FD`) and
 `CountyStrip_Draw` (`0x0040F7D3`) draw `Misc_cty.pl8` frames 0x36, 0x37, 0x42, 0x38, 0x39
-and 0x3B at y = 24, 156, 250, 302, 430 and 460, and the frame table in the shipped
+and 0x3B at y = 24, 156, 250, 302, 430 and 460.
 `Misc_cty.pl8` gives those six frames heights 132, 94, 52, 128, 30 and 20:
 
 ```text
@@ -67,7 +66,7 @@ both fall out of a file we did not write.
 
 ---
 
-## 1. Screens are a byte, and the byte is `g_screenId`
+## 1. Screens are a byte.
 
 **[D]** `g_screenId` (`0x004EAC50`) selects the whole interface. **Four** parallel
 `if`/`else if` chains switch on it and on nothing else:
@@ -80,10 +79,10 @@ both fall out of a file we did not write.
 | **input, late** | **`Screen_FrameInput` (`0x0042FF10`)** | 49 hand-written arms over 50 ids: the right button, the corner picture, and everything the widget tables cannot express. **How every screen is left.** §2.6 |
 
 An earlier revision of this section said there were three and that nothing else dispatched on
-`g_screenId`. The fourth is the largest of them and the only one that reads the right mouse
+`g_screenId`.
 button at all; right-click looked like it did nothing in the original.
 
-The cases, named from the `L2.eng` groups each painter draws and the PL8 files each loads.
+The cases, named from the `L2.eng` groups each painter draws.
 **[V]** for every row that names a group; **[D]** for the rest.
 
 | id | painter | screen | evidence |
@@ -96,19 +95,19 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x08 | `Screen_Merchant` `0x00415FB7` | the merchant | `merchant.256` + `merchant.pl8`, `mercgrid.pl8` |
 | 0x09 | `Court_Draw` `0x00416925` | **the court** — the realm's treasury and stores | group 70 |
 | 0x0A | `Screen_Armoury` `0x00417EA7` | **the armoury** — the realm's weapons hanging on the walls, the eight troop racks along the bottom, and **Create / Change / Cancel**. `Army_RaiseConfirm` is a hotspot *here*, not on `0x17`. `docs/armies.md` §6.2a | `armoury.256` + `armoury.pl8`, `arm_grid.pl8`, `arm_it_<colour>.pl8`; group 69 |
-| 0x0B | `Diplo_DrawScreen` `0x00416CF3` | the other lords, and the menu of what to send one | `faces.pl8`; group 72 |
+| 0x0B | `Diplo_DrawScreen` `0x00416CF3` | the other lords | `faces.pl8`; group 72 |
 | 0x0C | `Screen_TradeGoods` `0x00416308` | trade goods | group 68; `merchant.pl8` **again** as the background, then `icontrad.pl8` |
-| 0x0D | `Armoury_LoadScreen` `0x004184C6` | **one weapon's rack** — its 24-frame picture, its count and the four buttons that move men one at a time. `Screen_Draw` has **no** arm for it: `Armoury_ClickRack` paints it once on the way in, and only the widget and input passes run afterwards. **Nothing here is bought** | `arm_<weapon>.pl8`; `g_armouryBuyWidgets`; group 69 index 5, group 8 nouns |
-| 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output; the body is `Panel_JobGrain`, `Panel_JobCattle`, `Panel_JobReclamation`, `Castle_DrawStatusBlock`, `Panel_JobIndustry` or `Panel_JobBlacksmith` (`crates/l2-game/src/screens/job.rs`). **Job 8 is a full-screen page and the only one with a control**: `Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)` over the smithy picture, six kind-1 records into `FUN_0043A997` — which weapon the county forges | groups 74 and 8; the bodies 77, 76, 71, 22 and **75**, whose only consumer in the binary is `Panel_JobBlacksmith` |
+| 0x0D | `Armoury_LoadScreen` `0x004184C6` | **one weapon's rack** — its 24-frame picture, its count and the four buttons that move men one at a time. `Screen_Draw` has **no** arm for it: `Armoury_ClickRack` paints it once on the way in | `arm_<weapon>.pl8`; `g_armouryBuyWidgets`; group 69 index 5, group 8 nouns |
+| 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output; the body is `Panel_JobGrain`, `Panel_JobCattle`, `Panel_JobReclamation`, `Castle_DrawStatusBlock`, `Panel_JobIndustry` or `Panel_JobBlacksmith` (`crates/l2-game/src/screens/job.rs`). **Job 8 is a full-screen page**: `Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)` over the smithy picture, six kind-1 records into `FUN_0043A997` — which weapon the county forges | groups 74 and 8; the bodies 77, 76, 71, 22 and **75**, whose only consumer in the binary is `Panel_JobBlacksmith` |
 | 0x11 | `Screen_ArmyDivision` `0x004192B1` | **army division** — the levy basket reused, parent from `slot.chosen` and daughter from `slot.available`, row 7 the mercenary band | group 17; `icon_tmp.pl8` |
 | 0x14 | `Panel_Population` `0x004110B1` | **population** | group 73 |
 | 0x15 | `Panel_Tax` `0x0041152F` | **tax** | group 86 |
 | 0x16 | `Panel_Happiness` `0x004116FB` | **happiness** | group 85 |
-**raise an army** — the levy slider, the six weapon stocks and the mercenary offer, **drawn over the armoury**: the arm is `if (firstFrame == 1) Screen_Armoury(1); Screen_RaiseArmy();`, so this is a window on `0x0A` in `armoury.256`, and its only way forward is *Continue*. A separate mercenaries screen does not exist; `docs/decisions.md` C45, C61
+**raise an army** — the levy slider, the six weapon stocks and the mercenary offer, **drawn over the armoury**: the arm is `if (firstFrame == 1) Screen_Armoury(1); Screen_RaiseArmy();` | group 71; `cas_back.256` + `cas_back.pl8`, `caspics.pl8`, `cas_bits.pl8` |
 | 0x18 | `Screen_SendSupplies` `0x0041AD5D` | send supplies to another county | group 33 |
 | 0x19 | `Panel_Ration` `0x00411B72` | **rations** | groups 20, 21, 87 |
 | 0x1A | `Screen_DiploDialog` `0x0041789B` | **the seven diplomacy dialogs**, on `g_diploKind` — §10.4 | group 72 |
-| 0x1B | `Screen_CastleBuild` `0x00419789` | **the castle chooser** — five picture buttons and an OK, and the only way a castle is ever ordered. §11 | group 71; `cas_back.256` + `cas_back.pl8`, `caspics.pl8`, `cas_bits.pl8` |
+| 0x1B | `Screen_CastleBuild` `0x00419789` | **the castle chooser** — five picture buttons and an OK. §11 | group 71; `cas_back.256` + `cas_back.pl8`, `caspics.pl8`, `cas_bits.pl8` |
 | 0x1C | `0x0041E1DD` | **the campaign interstitial** — *not* the front end; §1.1 | group 36, group 101; `gateway.pl8`, `panels2.pl8` |
 | 0x1D | `0x00421F14` | siege preparations | group 83; `sgeplans.pl8` |
 | 0x1F | `0x0041E7E1` | **the front end**, and game setup: thirteen sub-pages on `g_setupPage` (`0x005530F0`) — §1.2 | groups 11, 39, 40, 101, 102, 103 |
@@ -129,14 +128,14 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x44 | `0x00425A6A` | the Smacker test page, left in the shipped build | group 89 |
 | 0x45 | `Screen_LordsOfMagicAd` `0x0041E5D0` | the *Lords of Magic* advertisement | `lom.256` + `lom.pl8` |
 
-**Our five-screen model is not the game's, and the gap is wider than this section first
+**Our five-screen model is not the game's
 said.** The management surface is a *campaign map plus insets*: the four county panels are
 windows floating over whatever was underneath — and so, it turns out, is the **village**,
 which this document called a full screen until a player looked at it (`docs/decisions.md`
 C22, and §3.1 below).
 
 No screen clear runs anywhere in this engine.
-`g_screenId` and the painter it picks fills a rectangle; everything outside that rectangle
+`g_screenId`
 is still there from the last frame. So "screen" in the table above means *"a value of
 `g_screenId`"* and nothing at all about how much of the display it owns. To learn that, read
 the painter's **rectangle** — and read the site that *sets* `g_screenId`, which is usually
@@ -146,7 +145,7 @@ one grep answers the question.
 popups run under the campaign palette; `0x08`, `0x0A`, `0x1B`, `0x1C`, `0x1F` and `0x2E`
 each do `File_ReadChunk("<name>.256", 0x004EA8A0, 0x300)` and then `Palette_Set`. A canvas
 `l2_game::screen::Screen::palette` exists; the presenter asks the top screen.
-`l2_game::screen::Screen::palette` exists and the presenter asks the top screen.
+`l2_game::screen::Screen::palette` exists.
 
 ### 1.1 `0x1C` is not the front end. It is the campaign interstitial.
 
@@ -166,7 +165,7 @@ with a map name from group 101 between the halves of each sentence: the map just
 over (`DAT_00553E78`), and on a win the next one (`g_scenarioIndex`). A third branch fires
 when the campaign counter `DAT_0053F258` reaches **8** — eight campaign maps — and drops
 indices 2 and 3 for 9 … 15, *"The whole of Christendom … now lies firmly within your iron
-fist."* **[V]**: three branches, each of which reads as one whole sentence, and the
+fist."* **[V]**: three branches, each of which reads as one whole sentence.
 `g_scenarioIndex` lookup happens only in the branch that mentions a *next* country.
 
 The window is `FUN_00409346(panels2, 0x70, 8, 0x1A, h)` — 416 pixels wide from x = 112,
@@ -201,28 +200,28 @@ pixels five below the top. Pages 1 and 2 step them 36 apart from y = 0x5B at x =
 
 **Page 4's shields come from `Panels2.pl8`, not from `Misc_cty`/`Misc_sel`.** `FUN_0041F1DD`
 blits from `DAT_004EABEC`, the general scratch buffer, which on this page holds
-`panels2.pl8`. `Misc_sel.pl8` has seventeen frames and the indices run to 215;
+`panels2.pl8`.
 `Panels2.pl8` has 216. The file confirms it: frames 205 … 214 are five pairs of ~60 × 65
 shields, 204 is a 224 × 32 name plate and 215 is a 54 × 27 plaque. **[V]** — nothing else
-in either file is that shape, and the reimplementation draws them and they are shields.
+in either file is that shape.
 
 **The custom game's twelve options close exactly.** **[V]** Three `.data` tables:
 
 | table | shape | what |
 |---|---|---|
-| `0x004D3098` | 12 × `(x, boxY, labelY)` | four columns of three; the value box is `FUN_004093E0(x, boxY, 6, 3)` and the label is the wrapped group 102 string at `(x, labelY)`, width 100 |
+| `0x004D3098` | 12 × `(x, boxY, labelY)` | four columns of three; the value box is `FUN_004093E0(x, boxY, 6, 3)` |
 | `0x004D3128` | 12 × `i32` | each option's base index into group 103 |
 | `0x004D3158` | 12 × `(x, y, rows)` | the open list; `rows` is the item count **plus two** |
 
 Bases `0, 2, 5, 9, 11, 15, 19, 25, 29, 34, 37, 44`; counts from the third table
 `2, 2, 4, 2, 4, 4, 6, 4, 5, 3, 7, 2`. Every run ends exactly where the next begins, the
-twelve runs use **45 of group 103's 46 strings**, and the one left over is index 4,
+twelve runs use **45 of group 103's 46 strings**.
 *"one"* — because *Nobles* starts at *"two"*. Twelve labels in group 102, twelve bases,
 twelve counts, no remainder. None of it was chosen by us.
 
 **One thing is unresolved.** `FUN_00432B05` and `FUN_00432CC8` are the two click handlers,
 and they branch on `g_uiHotspotId` in an order that does not match the order the painters
-draw the items: on page 1, id 3 sets the quit flag while id 4 plays `lom.smk`, and the
+draw the items: on page 1, id 3 sets the quit flag while id 4 plays `lom.smk`.
 painter draws *"Lords of Magic?"* third and *"Exit game"* fourth. Either the widget table
 is not in drawing order or one of the two readings is wrong. `crates/l2-game`'s front end
 keys its destinations to the **captions**, which are [V], and says so at the call site.
@@ -350,7 +349,7 @@ village are drawn as the seated *idle* figure; not as the job's own.
 
 **Two exceptions worth having written down.** The castle's `0x4E` is 32 × 34 against
 `0x40`'s 23 × 26 and is drawn six left and three up — it is a *different, larger picture*
-that also carries the ring, not the plain one inside one. And the industry pair is indexed
+that also carries the ring, not the plain one inside one.
 `n` by a county byte at `+0x290` that is not named here; the file has six of each
 (`0x30` … `0x35`, `0x4F` … `0x54`), so `n` reaches 5.
 
@@ -361,16 +360,16 @@ Three of the five right-hand rows — iron (`0x2C`), stone (`0x2D`) and wood (`0
 ### 2.2 Unowned
 
 Frame 0x3A, the county name, and — for a county held by another realm — group 15,
-*"Sovereign land / of"*, and the owner's name read out of `g_playerNames` (`0x00553D54`,
+*"Sovereign land / of"*.
 stride 0x2C), all in that realm's own colour (realm `+0x08`).
 
 #### 2.2a Realm `+0x08` is the realm's **pen**, and it is keyed by the shield **[V]**
 
-Worth its own heading, because a player reported the colours as wrong and the reason was
+Worth its own heading, because a player reported the colours as wrong
 that we had invented a table where the game has one.
 
 `CountyStrip_Draw` computes the colour **once** and passes it to all three lines — the
-banner, the *\"of\"*, and the lord's name — no per-line pen runs; the grey emboss (§B64) is the emboss, not the colour:
+banner, the *"of"* — no per-line pen runs; the grey emboss (§B64) is the emboss, not the colour:
 (§B64) is the emboss, not the colour:
 
 ```c
@@ -409,7 +408,7 @@ shield instead of carrying a second copy of it in the save.
 **It is a different table from the minimap's.** `MINIMAP_REALM_RAMP` (`0x004D2900`) is four
 shades per shield for tinting land; this is two pens per shield for drawing text. They agree
 on the colour *family* for every shield and share not one index in three of the five rows. The
-thing they share is the **key**, and the county strip was the one place on screen not using
+thing they share is the **key**.
 it — the minimap tint, the menu-bar banner and the campaign flag all did.
 
 `docs/decisions.md` C112.
@@ -426,11 +425,11 @@ if (mx > 487 && mx < 630 && my > 181 && my < 241) {
 ```
 
 The four quadrants are exactly the four things drawn above them, in the same corners.
-The dead band `548 … 567` is **19 pixels wide, and the health thermometer is 14 pixels wide
+The dead band `548 … 567` is **19 pixels wide
 and drawn at x = 552**: 552 … 566 sits inside 548 … 567 with two pixels to spare on each
-side. The bar is deliberately not clickable, and the gap exists for it.
+side.
 
-So: **population, tax, happiness and rations are four separate windows, and the county
+So: **population, tax, happiness and rations are four separate windows
 strip is the menu.** Nothing else opens them.
 
 ### 2.4 The rest of the sidebar
@@ -441,12 +440,12 @@ depending on how many rows there are — and a click opens the job popup (screen
 that job.
 
 The five buttons in the 162 × 30 strip at y = 430 are hotspot table `g_sidebarButtons`
-(`0x004DC680`), and the full-width button at y = 460 is **end turn**
+(`0x004DC680`)
 (`Turn_End`, `0x0043AC23`, which writes 999 into the realm's `+0x00`):
 
 | button | x range | sets | action |
 |---|---|---|---|
-| 1 | 478 … 510 | `g_screenId = 0x17` | **raise an army** — `Levy_SetPercent(sel, g_levyPercent)`, `FUN_004AA90A(sel, g_levyMen)`, and the mercenary band loaded on top when `county.mercenaryOffer != 0`. Refused with message `0x70` if the county is not yours |
+| 1 | 478 … 510 | `g_screenId = 0x17` | **raise an army** — `Levy_SetPercent(sel, g_levyPercent)`, `FUN_004AA90A(sel, g_levyMen)`. Refused with message `0x70` if the county is not yours |
 | 2 | 512 … 542 | `= 0x09` | the court. Ungated |
 | 3 | 544 … 574 | `= 0x18` | send supplies. Gated on ownership |
 | 4 | 576 … 606 | `= 0x1B` | **castle building** (`FUN_00436A88`). Gated |
@@ -459,11 +458,11 @@ so the widths are 33, 31, 31, 31, 31 with a one-pixel dead column between each p
 `34 + 32 × 4 = 162`. It closes.
 
 **`Hotspot_Test` is half-open on `y` as well, and that costs a row.** The reject is
-`my < y0 + oy || y1 + oy <= my`, and the five records are `(x, 0) … (x, 29)` at the `0x1AE`
+`my < y0 + oy || y1 + oy <= my`.
 offset — so the strip is **y 430 … 458, 29 pixels tall**, and *y 459 is dead*: the same
 one-pixel gutter the table leaves horizontally, once, across the whole strip. End turn is
 record 5, `(0, 30) … (161, 49)` — **161 × 19**, so its last column (x 639) and its last row
-(y 479) are dead too. The **plate** `Misc_cty` frame 59 really is 162 × 20 and the strip
+(y 479) are dead too.
 above it really is 162 × 30; the hotspots are one smaller in each direction, and deriving
 the hit box from the plate is what put a live pixel where the game has none.
 `crates/l2-game/tests/right_column.rs` reads both tables out of the player's own
@@ -471,7 +470,7 @@ the hit box from the plate is what put a live pixel where the game has none.
 
 Screen `0x17` is the **raise-army** screen: `L2.eng` group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads
 group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads
-*"Raising an army in"*, and the mercenary band is a conditional sub-panel worth three extra
+*"Raising an army in"*.
 window rows. `crates/l2-game/src/screens/shells.rs` calls it "Hire mercenaries", which names
 the smaller half.
 
@@ -516,8 +515,8 @@ indexes a **second** ramp, `g_minimapRatingRamp` (`0x004D28F8`) — not the real
 ## 2.6 The right mouse button, which is how you leave almost everything  **[V]**
 
 **Player-reported and then confirmed from the code.** He said *"right click would close a
-bunch of popups in the game"*, which turned out to understate it: the right button is the
-game's universal *back*, and the game says so in its own words — `Screen_SliderBox`
+bunch of popups in the game"*
+game's universal *back*.
 (`0x0040CD58`) prints `L2.eng` group 12 index 0, **"Click Right to Exit"**, under the value
 spinner's caption.
 
@@ -543,7 +542,7 @@ if ((iVar2 == 0) && (iVar2 = Screen_HandleInput(), iVar2 == 0)) {
 
 `Screen_HandleInput` (`0x004BA9C8`) contains **no reference to any right-button global at
 all**; nor do `Hotspot_Test` or `Widget_Test`, both of which test only the left button's
-press, release or held flags. Every right-button behaviour in the game is in the function
+press, release or held flags.
 no shared helper exists.
 
 **It is not only \"back\"; it is not called `Screen_HandleBack`.**
@@ -565,7 +564,7 @@ down when the turn ends or the network blocks**, with no user input involved.
 **Where it sits in the frame matters.** Its one caller is `Battle_Frame` (`0x004B99C0`) —
 the whole-game per-frame function — and it is the *last* thing in
 the frame, after every draw pass and after the cursor is chosen. So the `g_redrawRequest`
-it sets is consumed at the top of the **next** frame, and the scroll latch at line 6555 of
+it sets is consumed at the top of the **next** frame.
 the next frame: **its effects are one frame late by construction.** Anything that tries to
 reproduce the original's frame ordering has to know that.
 
@@ -579,7 +578,7 @@ for the right; `FUN_004B191E` derives the per-frame edges from it.
 | `DAT_004EAFB4` | left **pressed** this frame — 38 reads, the one this document already used |
 | `DAT_004E65D8` | left **released** this frame |
 | `DAT_004EABE0` | right **pressed** this frame — 8 reads |
-| **`DAT_004E6900`** | **right released this frame — 56 reads, and the one that does all the work** |
+| **`DAT_004E6900`** | **right released this frame — 56 reads** |
 | `DAT_004EA4B4`, `DAT_004EA51C` | right double-click and right debounced-single — computed every frame, **never read** |
 
 The asymmetry is real: the right button acts on *release* almost everywhere. The five reads
@@ -592,7 +591,7 @@ so a right press cancels an open menu.
 ### What it closes
 
 `FUN_0047685D` runs before anything else on every screen: if a message scroll is up, a right
-release dismisses it and the click is consumed. That is one right-click dismissing a popup
+release dismisses it and the click is consumed.
 regardless of what is on screen, and it is probably the behaviour the player remembers most.
 
 Then the per-screen arms. Right-release closes, or steps back one level, on `0x02`, `0x04`,
@@ -625,9 +624,9 @@ Turn were all dead. It is one predicate now — `crates/l2-game/src/screens/mod.
 `belongs_to_the_right_column`, shared with the village, whose arm opens with the same six —
 and `docs/arms.json` `0x0042FF10/inset-runs-the-sidebar-guards` is the record.
 
-Two things follow that §2.3 does not say. **The guards are tested first**, and every one of
+Two things follow that §2.3 does not say.
 them fires on a *left* click, so clicking the strip or the sidebar while a panel is open
-**switches** panel, opening a new choice without a trip via the map. `DAT_0055403C`
+**switches** panel, opening a new choice without a trip via the map.
 The outer condition is not a keyboard test; `DAT_0055403C`
 is what `Turn_End` writes, `DAT_00553FC8` is the multiplayer turn state and `DAT_00553018`
 is the F12 debug override, so its `else` **force-closes the panel when the turn ends under
@@ -637,7 +636,7 @@ does not dismiss the panel.
 **So a panel has three ways out and none of them is a key**: the corner picture (`FUN_0040E7E4`, a
 left release inside the 24 × 24 box the last `Ui_OkButton` call stashed), a right release
 anywhere, and a click on the campaign minimap — `Screen_FrameInput`'s tail runs `Minimap_Click`
-from any screen and closes to the map on a hit. The only `VK_ESCAPE` handler in the game
+from any screen and closes to the map on a hit.
 quits it (`Menu_Quit`, or the main-loop exit flag); **no key dismisses a panel**, verified by
 absence.
 
@@ -657,7 +656,7 @@ has exactly three right-button branches, in this order:
 3. `Map_PickTile` found a tile: **`g_screenId = 4; FUN_0043CAF4();`**
 
 `FUN_0043CAF4` (`0x0043CAF4`) calls `Map_ResolvePick` and remembers whatever was under the
-cursor, and the painter branches on it: `UnitPanel_Draw` (`0x0041B19D`) for a unit,
+cursor.
 `FUN_0041BEFE` for a bare tile. It is gated on neither ownership nor hitting anything.
 
 **`Readme.txt`'s errata is this panel**: *"Disbanding Armies (pg75) Right-clicking on an army
@@ -697,8 +696,8 @@ the user's own file.
 
 **And it is live.** `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests a 24 × 24 box at
 `(DAT_0055CE78, DAT_0057C8A0)` on a **left release** and consumes the click; `Ui_OkButton`
-is the only writer of those two globals (`00400000.c:7114`). So a panel has two ways out and
-the game offers both: this corner, and the right button anywhere (§2.6). The one consequence
+is the only writer of those two globals (`00400000.c:7114`).
+the game offers both: this corner, and the right button anywhere (§2.6).
 worth knowing is that `Ui_OkButton` stashes only the **last** call's position, so on a screen
 that draws two corner pictures only the second is clickable — safe only because the draw
 pass runs before the input pass in the frame.
@@ -709,7 +708,7 @@ had a *button* with the wrong *picture* — it called the corner "the tick" in f
 inferred from `L2.eng` group 12 index 0, *"Click Right to Exit"*, that the corner must
 therefore be **signage** — a clean story that the artwork does not
 support. Each was a plausible account of one half built from evidence about the other, which
-is C3's shape at the scale of a single 24 × 24 frame, and the fix in both directions was to
+is C3's shape at the scale of a single 24 × 24 frame.
 decode the frame and look at it. `docs/decisions.md` C46.
 
 **Why the name is kept.** `Ui_OkButton` and `l2-view`'s `system::OK` stay as they are,
@@ -749,7 +748,7 @@ their own bodies.
 | `Ui_DrawYear` `0x0041A900` | `(year, x, y, style)` | a year with **BC / AD** from group 26 |
 | `Ui_OkButton` `0x0040D1BC` | `(x, y, mode)` | the picture that closes a panel - a mouse pointer going into a black hole, button-sheet frame 0x33 (mode 0) or 0x10 (mode 1). Section 2.7 |
 
-**[V] `Ui_DrawNumberRight` centres. It does not right-align, and the name misled every
+**[V] `Ui_DrawNumberRight` centres.
 document that quoted it** — this table, `symbols.json`, `symbols.md` and `armies.md`'s
 battle-HUD paragraph. It and `Ui_DrawCentred` end in the *same* four lines,
 `FUN_004025D7` (`0x004025D7`):
@@ -764,7 +763,7 @@ Ui_DrawText(text, local_c + x, y, font, colour);
 Right-alignment would be `x + width - iVar1`. The difference is half the slack — a number
 in a 56-pixel column lands about 28 pixels left of where the name promises — so a layout
 built from the name is wrong everywhere that primitive is used, and it is used on the court,
-the ration panel, the ratings sheet and the battle HUD. `docs/draws.md` §7; ours is
+the ration panel, the ratings sheet and the battle HUD.
 `Pen::number_centred`, named for the behaviour, not for the symbol.
 
 `Ui_DrawText` advances a pen width in `g_penAdvance` (`0x005CD404`), which every caller
@@ -778,7 +777,7 @@ Four details worth carrying into any reimplementation:
   population panels are full of blank rows in a quiet season, on purpose.
 * **Numbers reserve a character for their sign.** `Ui_NumberToBuffer` (`0x004022BD`)
   formats from buffer index 1, leaving index 0 for the caller to fill with `'+'`, `'-'`,
-  `' '` or `'@'`. `'@'` has an empty glyph, so a zero still occupies the sign column and a
+  ' ' or '@'.
   column of numbers stays aligned.
 * **The `suffix` is part of the measured string, and `Panel_Ration`'s is empty.** `[V]`
   `FUN_004014F0` charges four pixels for a space at any position and trims nothing, so
@@ -796,7 +795,7 @@ Four details worth carrying into any reimplementation:
   cattle, *"Serf"* for reclamation, then *"Builder"*, *"Miner"*, *"Quarrier"*,
   *"Forester"*, *"Blacksmith"* and *"Peasant"* — nine jobs, in order. **[V]**
 * **Every string is drawn three times**, at y−1 and y+1 in two shadow colours and then at y
-in the real colour. Text on these panels is embossed.
+in the real colour.
 
 ### 3.1 There are **two** ways to float something over the screen  **[V]**
 
@@ -827,7 +826,7 @@ value.** `g_spriteWidth` is `0x78` and the copy advances an `undefined4 *` that 
 row — 0x78 × 4 = **480 bytes**, one byte a pixel — then adds the argument `0xA0` = 160 to
 reach the next row. `480 + 160 = 640`, the screen stride, exactly. So the village's band is
 **480 × 320 at (0, `g_villageTopY`)** and not 120 wide; the picture inside it is narrower
-still, and the county sidebar (x ≥ 478) and the menu bar (y ≤ 23) are outside it.
+still.
 
 ---
 
@@ -842,7 +841,7 @@ records at `g_preloadTable` (`0x004D9F48`), each into a fixed `.data` buffer. Th
 | 0–2 | `base01.256`, `t32_stn1.256`, `t32_bat1.256` | | palettes |
 | 3 | `Fnt_8.pl8` | `0x005CBFB0` | 8 px font — **developer read-outs only**: all 85 non-loader `.text` references are in `Net_DrawDebugOverlay`, `BattleDebug_Panel` and `FUN_00425314`/`…487`/`…63C`/`…799`. No screen a player sees. **[V]**, from the bytes |
 | 4 | `Fntl2_9.pl8` | `0x005C9A90` | **9 px font — the county strip**, and one `Ui_DrawCentred` in `Screen_DrawEndTurn`. Nine `.text` references: six in `CountyStrip_Draw`, two in `CountyStrip_DrawCastleIcon`, one there. **[V]** |
-| 5 | `Font_10.pl8` | `0x005AEBA0` | 10 px **numeral** face — **every number on the county strip's jobs plate**: nine references, the seven `Ui_DrawDelta` forecasts and the reclamation figure in `FUN_004100AF` … `FUN_004106C4`, and the castle's seasons in `CountyStrip_DrawCastleIcon`. All nine are drawn under `g_dropShadow`. Its 108 frames are the full layout but **every letter is a 2 × 2 stub**, so a word drawn in it paints nothing; the words beside those numbers are `Fntl2_9.pl8`. `docs/formats/pl8.md` *The five faces*. **[V]** |
+| 5 | `Font_10.pl8` | `0x005AEBA0` | 10 px **numeral** face — **every number on the county strip's jobs plate**: nine references, the seven `Ui_DrawDelta` forecasts and the reclamation figure in `FUN_004100AF` … `FUN_004106C4`, and the castle's seasons in `CountyStrip_DrawCastleIcon`. All nine are drawn under `g_dropShadow`. Its 108 frames are the full layout but **every letter is a 2 × 2 stub**; the words beside those numbers are `Fntl2_9.pl8`. `docs/formats/pl8.md` *The five faces*. **[V]** |
 | 6 | `Fntl2_14.pl8` | `0x005AF8F0` | **14 px font — every panel body line** |
 | 7 | `Fntl2_22.pl8` | `0x005B2FA0` | **22 px font — every panel heading** |
 | 8 | `mouse.pl8` | `0x0058FEC0` | the pointer |
@@ -878,10 +877,10 @@ Alongside those, one mode-dependent sheet lives in `g_miscCtySheet` (`0x005530C8
 
 **The `0xCC` belongs to the border and not to the interior.** `FUN_004093E0` — the box
 every management popup opens — is literally `Ui_DrawBoxBorder(1, x, y, w, h)` followed by
-`Ui_DrawBoxInterior(x + 0x10, y + 0x10, w - 2, h - 2)`, and the interior function takes no
+`Ui_DrawBoxInterior(x + 0x10, y + 0x10, w - 2, h - 2)`.
 style argument at all. Adding 0xCC to an interior index sends `0x34 + n` past 255 and into
 the five 13 × 16 banner frames at the end of the file. Ours did, the first time anything
-asked for set 1, and the custom-game screen's twelve option boxes came out full of shields.
+asked for set 1.
 
 `Panels2.pl8` has the same layout for its first 204 frames and then diverges: 196 … 203 are
 the 24 × 24 strip, 204 is a 224 × 32 name plate, 205 … 214 are the five shield pairs and
@@ -904,7 +903,7 @@ looks like a cosmetic skin. It is not. **69 of `System2.pl8`'s 84 frames are ent
 index 0** — every frame in the table below except `Ui_OkButton`'s — while **none of
 `System.pl8`'s are**. Drawing a panel from `System2.pl8` draws its arrows and its slider as
 nothing at all, which is exactly how this was found: the reimplementation loaded
-`System2.pl8`, its slider test could not tell two knob positions apart, and the files' own
+`System2.pl8`.
 bytes said why.
 
 84 frames into a 56,600-byte buffer. Every button is a **normal/pressed pair**:
@@ -958,7 +957,7 @@ screens and leaves the rest looking correct, which is the hardest kind of wrong 
 | 0x42 | 162 × 52 | sidebar middle plate | §0 |
 | 0x46 … 0x4A | 14 × 59 | health thermometer, five levels | `frame = 0x46 + healthBand` |
 
-### 4.4 The fonts, and the one table that makes them readable
+### 4.4 The fonts
 
 **[V]** A font is a `.pl8` plus ninety-six bytes of `.data`. `Glyph_Draw` (`0x00402A14`) is
 four lines of arithmetic:
@@ -979,17 +978,17 @@ suggests; the widths are in the file's own frame records. The name is kept becau
 the one in `symbols.json`.
 
 The mapping is self-checking; it is [V], not [D].
-frame 0 and `'A'` to frame 26 of `Fntl2_14.pl8`, and the frames it sends `'g'`, `'j'`,
+frame 0 and `'A'` to frame 26 of `Fntl2_14.pl8`.
 `'p'`, `'q'` and `'y'` to are exactly the frames in that file that are four pixels taller
 than their neighbours. Descenders land on the descending letters. Nothing else would.
 
 Four more details a reimplementation needs:
 
 * **Every string is drawn three times** — `Ui_DrawText` blits each glyph at `y - 1` in one
-  shadow colour, at `y + 1` in another, then at `y` in the real one. The pair is `0x10` and
+  shadow colour, at `y + 1` in another, then at `y` in the real one.
   `0x1F` everywhere **except** when `g_screenId` is `0x1C` or `0x1F`, where the same
   function uses `0x36` and `0x2C` instead — those two screens run under `gateway.256` and
-  different indices read as shadow. That branch is the first thing in the function and the
+  different indices read as shadow.
   only thing in it that knows which screen it is on.
 * **`DAT_005AEA40` switches the emboss off.** When it is non-zero the glyph is drawn once,
   at `y`, in its own colour. The front end sets it around every menu item, every button
@@ -1079,7 +1078,7 @@ Vignette frame 0x3E at (320, 160); button `Ui_OkButton(372, 260, 0)`.
 **Both live numbers on this panel come from the save, not from a recompute.** `+0xC0` and
 `+0x0F` are written by `Tax_RecomputePreview` (`0x0044B80B`) — on a control, and once per
 county at the end of every season — and are then *restored* by a load like any other part of
-the memory image. Our importer read neither, so a freshly loaded tax panel said *"People pay
+the memory image.
 0 crowns"* at any rate and drew `( 0 ☺ )` where the original draws `( +5 ☺ )` at rate 0;
 `docs/decisions.md` C142, and `battle-during.sav` is the save that shows
 recomputing on load would be wrong.
@@ -1123,7 +1122,7 @@ the \"Fed\" row — how many mouths each of the three food sources fed — and
 
 ### 6.1 The widget record
 
-**[V]** Both hit-testers and the drawer agree on a **24-byte record**, and a widget table
+**[V]** Both hit-testers and the drawer agree on a **24-byte record**.
 is a plain array of them in `.data`:
 
 | off | type | meaning |
@@ -1146,7 +1145,7 @@ every button in this document is 24 or 32 pixels square.
 `Widget_Test` (`0x0040DA1E`) is the hit test and the auto-repeat clock.
 
 A second table format, hit-tested by `Hotspot_Test` (`0x0040E3EE`) and never drawn, reuses
-the same 24 bytes as `{x0, y0, x1, y1, callback, …}`. The sidebar's five buttons and the
+the same 24 bytes as `{x0, y0, x1, y1, callback, …}`.
 end-turn strip are that.
 
 ### 6.2 What the player can set on a county
@@ -1160,7 +1159,7 @@ end-turn strip are that.
 
 **Every one of them is refused outright on a county you do not own.**
 `Ration_SliderClick` opens `if (county.owner == g_localPlayer)`, `CountyStrip_Click` the
-same, and the strip does not even draw the tax and ration rows otherwise.
+same.
 
 **The slider closes arithmetically.** `Panel_RationSlider` (`0x00411FDE`) draws cap 0x4A at
 x = 200 and cap 0x4B at x = 324, both 24 wide → 200 … 224 and 324 … 348; the track runs
@@ -1179,7 +1178,7 @@ if (county[+0xB9] < 0x32) county[+0xB9]++;
 
 No other player-facing writer exists for `+0xB9`: the only others are `AI_SetTaxRates`, whose four ladders
 player-facing writer of `+0xB9`: the only others are `AI_SetTaxRates`, whose four ladders
-top out at 15, and the multiplayer message handler at `0x004434EB`, which applies a peer's
+top out at 15.
 already-clamped value.
 
 **And a table confirms it independently.** `Tax_RecomputePreview` (`0x0044B80B`) sets the
@@ -1192,7 +1191,7 @@ indexed by the rate. Read out of the file:
 
 **The table has exactly 51 entries and the 52nd word is the start of the next table.** An
 array indexed by a rate that could reach 100 would need 101 entries; it has 51, and 50 is
-the last index that is not zero. Two independent readings — the branch and the data — give
+the last index that is not zero.
 the same ceiling.
 
 `crates/l2-game`'s `MAX_TAX_RATE` was **100**, and its own doc comment said so:
@@ -1227,11 +1226,11 @@ has industry 1's resource but not industry 3's.
 mine (`villani2.pl8` frame 0x2B) and the quarry (frame 0x28) are painted at the same spot,
 `(0x4C, top + 0x0C)`. `Village_ClusterHasJob` (`0x0045183A`) refuses that one cluster, and
 only when the county has neither — the other seven never refuse, and
-**`Village_DrawPeasants` loops 0 … 7 with no test at all**, so a county with no mine still
+**`Village_DrawPeasants` loops 0 … 7 with no test at all**.
 shows the slot; nobody fills it.
 
 **The three buildings, and the file they come from `[V]`.** This document said `Misc_cty.pl8`
-until `docs/decisions.md` C57; the frame numbers were right and the file was not. `Village_Draw`
+until `docs/decisions.md` C57; the frame numbers were right and the file was not.
 (`0x00412143`) ends with three consecutive blits out of **`villani2.pl8`**, each gated on one
 there are **three** of them, not the two that share a spot:
 
@@ -1273,7 +1272,7 @@ fall into five blocks of equal-sized cells laid out in rows on the artist's shee
 26 × 29, 7 … 14 at 39 × 40, 15 … 24 at 15 × 12, 25 … 32 at 32 × 42, 33 … 39 at 19 × 18 —
 which is exactly the table above, start index and length, five times over. What is left is
 frames 40, 41 and 43, the three static buildings, and a 2 × 2 stub at 42. Nothing over,
-nothing short. The counter bounds were read from the decompilation and the block boundaries
+nothing short.
 from the file; they agree, and
 `l2-game/tests/screens.rs::the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in`
 asserts it including the frames either side of each run.
@@ -1304,7 +1303,7 @@ gesture is:
 | id | what | leaves when |
 |---|---|---|
 | `0x02` | the village, idle | `Village_BandStart` (`0x004393EB`) sees the pointer **9 pixels** from where the button went down → `0x05` |
-| `0x05` | the band | `Village_BandRelease` (`0x00439541`) sees the button **released**: `0x06` if anything is selected, back to `0x02` if not. **The outline is `Village_DrawBand` (`0x00412795`)**, the original's own — `Ui_DrawRectOutline(x, y, w, h, 0x20)`, clamped to x `0 … 0x1FF` and y `g_villageTopY … +0x178` with both clamps written as `else if`, so a band that starts left of 0 is never clamped on the right |
+| `0x05` | the band | `Village_BandRelease` (`0x00439541`) sees the button **released**: `0x06` if anything is selected, back to `0x02` if not. **The outline is `Village_DrawBand` (`0x00412795`)**, the original's own — `Ui_DrawRectOutline(x, y, w, h, 0x20)`, clamped to x `0 … 0x1FF` and y `g_villageTopY … +0x178` with both clamps written as `else if` |
 | `0x06` | carrying | `Village_Drop` (`0x004399B0`) sees the next **press**, and drops there |
 
 So: **press, drag, release, then a second click** — not drag-and-drop. A press that never
@@ -1322,7 +1321,7 @@ workers the job wants and has not got.
 `Village_ClickJob` that this document did not have: `Village_DoubleClick` (`0x00439DF0`).
 
 **The game never times the clicks.** The window procedure (`0x004B29BE`) handles message
-`0x203` — `WM_LBUTTONDBLCLK` — with `DAT_004EADA1 |= 1`, and the frame poll turns that into
+`0x203` — `WM_LBUTTONDBLCLK` — with `DAT_004EADA1 |= 1`.
 `DAT_004EABC5`. Windows decides, against the user's own `GetDoubleClickTime()`, and sends
 the double click, so the button-level
 flag never rises for it. `DAT_004EABC5` is read in exactly one place in the whole binary,
@@ -1421,16 +1420,16 @@ Labour slot 0 is grain: `Grain_Sow(county, county[+0xC4], …)` passes slot 0 di
 ### 6.4.4 The village is an **inset**, and this document said otherwise  **[V]**
 
 Kept, not quietly edited, because the wrong version was in three documents and a
-module header and it is worth knowing how it got there. `docs/decisions.md` C22 is the full
+module header and it is worth knowing how it got there.
 entry; this is what the section now claims.
 
 > ~~It is a full screen, not a window over the county panels: it has its own painter, loads
 > its own artwork, and neither draws the campaign sidebar nor calls `CountyStrip_Draw`.~~
 
-Every clause of that is true and the conclusion does not follow, because **nothing in this
+Every clause of that is true and the conclusion does not follow.
 engine clears the screen** (§3.1). Not redrawing the sidebar means the sidebar is still
 there. A player opened the game, clicked the town square and reported *"a dialog… still
-being able to see the map around it and the rest of the screen"*, and he was right.
+being able to see the map around it and the rest of the screen"*
 
 ### 6.5 What the village covers:
 
@@ -1441,7 +1440,7 @@ being able to see the map around it and the rest of the screen"*, and he was rig
 | the band it saves and restores | **480 × 320 at (0, `g_villageTopY`)** — §3.1 |
 | the corner picture | `Ui_OkButton(0x180, g_villageTopY + 0x118, 1)` |
 
-`g_villageTopY` is 64, or 132 with *Advanced Farming*. The menu bar (y 0 … 23) and the
+`g_villageTopY` is 64, or 132 with *Advanced Farming*.
 county sidebar (x 478 … 639) are outside all of it, and so is a strip of campaign map on
 either side of the picture even inside the band.
 
@@ -1455,7 +1454,7 @@ every time it is called with `reload != 0`.
 ### 6.4.4a The sidebar stays **live** under the village, and dies for the length of a drag  **[V]**
 
 §6.4.4 established that the sidebar is still *visible*. Whether it is still *clickable* is a
-separate question and the arm answers it outright. `Screen_FrameInput`'s `g_screenId == 0x02`
+separate question and the arm answers it outright.
 ladder, in order, before a single village verb:
 
 | # | guard | what it is |
@@ -1489,7 +1488,7 @@ the `g_screenId == 0` arm and appears **nowhere** in the `0x02` arm, so the camp
 draw pass (`Map_DrawFrame`'s `tick`), which `Village_Draw` re-enters on every repaint, so flags
 keep waving behind the inset. Ours runs both from `MapScreen::update`, and `Machine::update`
 ticks only the top screen, so with the village open we stop both. **Neither half is right**:
-the scroll should stay stopped for a different reason than it currently is, and the wave should
+the scroll should stay stopped for a different reason than it currently is.
 not have stopped at all. Untouched, and written down here so whoever separates them meets the
 distinction, not making one of the two behaviours match and calling it done.
 
@@ -1531,12 +1530,12 @@ the campaign map**, and nothing on any county panel does it.
 **[D]** `Panel_JobGrain` (`0x00413590`) *reports* what will be sown — group 77.1
 *"to be sown, yielding"* from `+0x230`, and `+0x230 × g_grainYieldPerSack` *"in 4
 seasons."* — and reports what is growing and when it will be harvested. Nothing on it is
-clickable. Sowing and harvesting are consequences of the number of farmers and the number
-of grain fields, and the season pipeline does them.
+clickable.
+of grain fields.
 
 The **field types** are painted on the campaign map, not set from a county panel:
 `Field_SetType` (`0x00438BEC`) is called from a map click with a brush id in
-`g_uiHotspotId`. The five brushes and the two menus they sit in are
+`g_uiHotspotId`.
 `docs/kingdom.md` §7.2.
 
 **Ale is bought at the merchant** (screen 0x08), not from a county panel — `L2.eng` group
@@ -1545,7 +1544,7 @@ one of fifteen tradeable goods. The happiness it grants is `docs/kingdom.md` §4
 
 ---
 
-## 7. The history graph, and the array behind it
+## 7. The history graph
 
 `Ui_HistoryGraph` (`0x004156A7`) draws the centrepiece of both the population and the
 happiness panel: a recessed **402 × 155** box at (32, 84), a background from `graphs.pl8`
@@ -1573,7 +1572,7 @@ So the record is **128 bytes a turn — sixteen counties of eight — with popul
 at `+0` and happiness as a u8 at `+4`**, and because the county index is 1-based the array
 really begins at `0x0056D8B8 + 8` = **`0x0056D8C0`**.
 
-Three things confirm it, and none of them is the disassembly:
+Three things confirm it.
 
 * **`g_saveBlocks` block 10 is `{0x0056D8C0, 51200}`**, and `400 × 16 × 8 = 51,200`. The
   base and the length both land exactly.
@@ -1621,7 +1620,7 @@ The two agree at rate 0 — every rate in the England turn-one fixture; the
    same three to decide how many icons to draw in the "wrong" state. `l2-kingdom` has
    `labour: [i32; 9]` and no room for them. **[D]**
 
-   *Fixed — this entry is kept for the record.* **All three words now import**, and the
+   *Fixed — this entry is kept for the record.* **All three words now import**.
    two that did not are a **wanted floor** (`+0x04`) and a **useful ceiling** (`+0x08`).
    Their writers are `Grain_LabourEstimate` (`0x0044D374`) and `Herd_LabourEstimate`
    (`0x0044DD4D`), which each walk `workers = 0 … population` and store the first count
@@ -1661,14 +1660,14 @@ the mismatch red, which needs both fields live (they are); and `Ui_DrawYear` pri
 Named here so nobody mistakes silence for coverage.
 
 * **The fonts.** `Fntl2_9`, `Fntl2_14` and `Fntl2_22` are identified as files and as
-  buffers. Their glyph metrics, the width table at `0x004D71F0`, and the exact shadow
+  buffers.
   colours in `Ui_DrawText` are read but not reproduced. Our text is still our own 5 × 7
   font, and `crates/l2-game` says so where it draws.
 * **The palette indices.** Panels draw in colour `0x3F`, with `0xF9` for negatives and
   `0xFC` for a second warning state. Which actual colours those are depends on
   `base01.256`, which this document does not decode.
 * ~~**Screens 0x04 and 0x1A**~~ *Half done — **0x1A is the seven diplomacy dialogs**, §10.4.
-  **0x04 is still unread**; it is the map information panel, and the only thing established
+  **0x04 is still unread**; it is the map information panel.
   about it is which branch it takes. The two sidebar buttons at `0x00436A88` and
   `0x0043611B` are now known to open screens 0x1B and 0x0B — castle building and the other
   lords — but what they do first is not read.*
@@ -1687,7 +1686,7 @@ Named here so nobody mistakes silence for coverage.
   the binary's own default setters close on both halves: 33 / 50 / 17 with 0 / 0 / 0 / 100 /
   0, and 33 / 50 / 17 with 40 / 15 / 15 / 15 / 15. **[V]**
 
-  **Both readings were half right, and the caller is what separates them.** The function
+  **Both readings were half right**.
   this section pointed at — `FUN_00450639`, 677 bytes, redistributing three percentages —
   is `Labour_ToggleShare(county, job, on, divisor)`, and its **only** caller is
   `Field_SetType`, which uses it to give *field reclamation* a share of the farm the moment
@@ -1701,7 +1700,7 @@ Named here so nobody mistakes silence for coverage.
   chain in `Tick_Pulses` that steps them. `villani1.pl8` turned out to be the iron mine's
   eighteen-frame loop and nothing else.*
 * ~~**`Misc_cty.pl8` frames 0 … 0x16.**~~ *Wrong — they are the **peasant icons**, not the
-  menu bar. §6.4.3, and the four 2 × 2 stubs among them are exactly the four the icon table
+  menu bar.
   never names. This was the only **[I]** in this document that turned out to be false, and
   it was false because nobody had looked at the one screen that draws them.*
 * **Groups 62 and 63** — *"Click on a food to swap its priority."*, *"Barrels swilled."*,
@@ -1713,10 +1712,10 @@ Named here so nobody mistakes silence for coverage.
 
 ---
 
-## 10. The menu bar, the two generic dialogs, and the option screens
+## 10. The menu bar, the two generic dialogs
 
 Written after §9 listed *"screens 0x04 and 0x1A"* as unestablished and nobody had yet
-followed the menu bar past the three words painted on it. Everything below was reached by
+followed the menu bar past the three words painted on it.
 one method: **read the table, not the painter.** The interface is data — 24-byte widget
 records with a function pointer in them, and 12-byte menu records with another — and a table
 in `Lords2.exe` cannot be talked into agreeing with a story. Those pointers appear in no
@@ -1735,7 +1734,7 @@ node tools/oracle/widgets.js ref 434d33         # who *points at* a function
 titles, the sixteen items, screen `0x32` and its four arms. Six of the sixteen reach a
 screen — load, save, quit and the four option pages — and the rest refuse in one line naming
 the screen or the message id they want, because the confirm box (`0x1E`), the value spinner
-(`0x21`) and the message scroll are not built. `docs/arms.json` group `menu-bar`, and
+(`0x21`) and the message scroll are not built.
 `docs/decisions.md` C76 on what one *"not reproduced"* table row was hiding.
 
 **One thing the geometry forces.** `Ui_DrawMenuTitles` writes
@@ -1791,14 +1790,14 @@ pointer agreed afterwards.
 
 Four items, five items, seven items; groups 1, 2 and 3 hold exactly four, five and seven
 strings after their label. The `y` column is 0, 20, 40, … with no gaps, the string indices
-are 1, 2, 3, … with no gaps, and the five help topics use five **consecutive** message ids.
+are 1, 2, 3, … with no gaps.
 Nothing here was chosen by us.
 
 **`Menu_ScrollSpeed` is the row that proves the table.** It passes `&g_optScrollSpeed` — a
 global named earlier for unrelated reasons — and the caption above it is *"Scroll Speed"*.
 That is a check that could have failed and did not.
 
-### 10.2 The four option screens, and the twelve rows behind them **[V]**
+### 10.2 The four option screens
 
 Each painter is the same shape: `FUN_004093E0(x, y, w, h)` for the box, group index 0 as the
 heading, indices 1 … n as rows 32 pixels apart, and beside each row a **Yes/No from group 18**
@@ -1839,7 +1838,7 @@ Five of these have a second, independent anchor; the block is **[V]**, not
 * **`g_optAdvancedFarming` and `g_optArmiesEat` were already named**, for farming reasons, and
   they land on rows 1 and 2 of a group whose captions are *"Advanced farming"* and
   *"Army foraging"*.
-* **`g_optFullScreen`**: group 52 index 3 is *"(F5 key re-sizes window to 640x480)"* and the
+* **`g_optFullScreen`**: group 52 index 3 is *"(F5 key re-sizes window to 640x480)"*.
   painter draws it **only while the flag is 0**. A hint about the window appears exactly when
   there is a window.
 * **`g_optAnimations`**: `Screen_BattleOutcome`, four screens away, branches on the same flag
@@ -1906,7 +1905,7 @@ chain on `g_diploKind`, and every arm draws `L2.eng` group **72**:
 
 The two request dialogs draw index 19 / 20 — *"Choose the county you want help in."* /
 *"...attacked."* — while `g_pickedCounty` is 0, and index 21 / 22 plus the county's name from
-group 100 once one is picked. The prompt and the state agree with each other.
+group 100 once one is picked.
 
 **Where they are opened from closes the loop.** `g_diploWidgets` (`0x004DD940`) holds six
 records at (400, 102 + 50n), and their handlers are exactly the six openers above, **in the
@@ -1929,10 +1928,10 @@ Worth writing down because they turn an unread widget table into a legible one:
   **This line said *"68 / 66 a minus and plus"* until the draw-call audit, and that is the
   second time this project has written that pair down backwards.** `tools/oracle/widgets.js`
   carries a note in its own header saying it made the same error and how it was settled —
-  and the correction did not reach here, so the wrong version survived in the document a
+  and the correction did not reach here.
 reader would consult.
   `FUN_00436372`, the diplomacy gift stepper's handler, reads
-  `if (g_uiHotspotId == 1) g_diploGold += 10;`, and the record carrying hotspot id 1 in
+  `if (g_uiHotspotId == 1) g_diploGold += 10;`.
   `0x004DD9D0` is the one whose frame is **68**. Quote the handler, not this bullet.
 * **Hotspot id 1 is confirm, 0 is cancel.** Both halves of a pair share one handler and read
   `g_uiHotspotId` to find out which was pressed. `Ui_ConfirmClicked`, `Diplo_SendClicked`,
@@ -1953,7 +1952,7 @@ reader would consult.
 
 The first run of `node tools/oracle/anchor.js screens` reported the merchant at id **0x62**,
 the court at **0x74**, the armoury at **0x6E**, the other lords at **0x76**, trade goods at
-**0x66** and the campaign map at **0x30** — every management screen the game has. The
+**0x66** and the campaign map at **0x30** — every management screen the game has.
 decompiler prints those cases as `g_screenId == '\b'`, `'\t'`, `'\n'`, `'\v'`, `'\f'` and
 `'\0'`, and `litNum`'s regex swallowed the backslash and read the *letter*: `'b'` is 0x62,
 `'t'` is 0x74, `'0'` is 0x30. The fix is a proper C escape table; the check is `Screen_Draw`'s
@@ -1973,7 +1972,7 @@ wiring them up; both screens are implemented now, not shelled
 group 40 string index, so `0x35` draws index 0 *"Loading a conquest."* and `0x36` index 1
 *"Saving a conquest."* and nothing else about them differs. `SaveLoad_DrawStatus` is shared
 with the front end's page 3 (`FUN_004148E4`) and switches its origin on a flag: the box is
-at `(0x10, 0x90)` in game and `(0x60, 0x0A)` on the front end. Everything below is an
+at `(0x10, 0x90)` in game and `(0x60, 0x0A)` on the front end.
 offset from that origin `o`.
 
 | what | call | in game |
@@ -1992,16 +1991,16 @@ offset from that origin `o`.
 (48, 252), steps x by `0x78` twice, then resets x and steps y by `0x10`, and breaks once it
 has drawn thirty — which is exactly the ten 16-pixel rows the interior above covers. The
 names come from a table of **65-byte records** at `0x004E8790`, indexed `base + i * 0x41`,
-so a save name is at most 64 characters. The selected row is a 6 × 16 mark at `(x − 2,
+so a save name is at most 64 characters.
 y − 1)` and its text in colour `0x20`, not `0x3F`; the status text is drawn only
 while `DAT_0057D3C4` is set, so the line is blank until something is happening.
 
 **The scroll clamp is off by half a page in the original.** `SaveLoad_Scroll` clamps the top
 row at `g_fileListCount − 15` and zeroes it below 30 entries, while thirty are on screen —
-so a list of, say, twenty scrolls into empty space. Recorded, not reproduced.
+so a list of, say, twenty scrolls into empty space.
 
 **The four widget records are box-relative, and that is `[I]`.** `g_saveLoadWidgets`
-(`0x004DDD78`) holds a thumb-up at (304, 64) frame 29, a thumb-down at (352, 64) frame 31, and the
+(`0x004DDD78`) holds a thumb-up at (304, 64) frame 29, a thumb-down at (352, 64) frame 31.
 list's two scroll arrows at (384, 144) and (384, 176), frames 35 and 37, carrying the
 deltas −3 and +3 with list id 1. Read as absolute screen coordinates all four sit above or
 on the top edge of a window that begins at y = 144, which would put the two hands
@@ -2038,10 +2037,10 @@ Neither had been decoded, and between them they are the whole interface:
 what says the table was decoded at the right base address: a mis-aligned read does not
 produce five abutting rectangles. `the_five_castle_strips_tile_the_row_exactly` asserts it.
 
-`CastleBuild_Select` is a bare `DAT_0056D898 = g_uiHotspotId` with **no guard**, so a player
+`CastleBuild_Select` is a bare `DAT_0056D898 = g_uiHotspotId` with **no guard**.
 may select a castle smaller than the one he has and learns otherwise only from the OK button.
 
-### 11.2 What the panel draws, and the two refusals
+### 11.2 What the panel draws
 
 `Screen_CastleBuildPanel` (`0x004198AA`), redrawn only when `DAT_005440B8` is set:
 

@@ -11,12 +11,12 @@
 //! our interface palette — where `ink.panel` happens to be a parchment colour —
 //! and is a hole under the game's own. That is `docs/decisions.md` C61's
 //! armoury bug, and it is why every assertion in this file is against the
-//! install rather than against a placeholder.
+//! install
 //!
 //! **The model is `l2-view`'s path-marker test**: specific opaque palette
 //! indices at a named position, matched against the sheet the frame came from.
 //! A canvas diff would pass on a garbage sprite or on the wrong frame of the
-//! right sheet — and the wrong frame of the right sheet is exactly what
+//! right sheet — and the wrong frame of the right sheet is
 //! `battlefield.rs` was drawing for the yes/no pair.
 //!
 //! Every test here has been ablated: the line the assertion names was deleted
@@ -121,7 +121,7 @@
 //! the game does not have, and the target's name was `L2.eng` group 7 — the
 //! lord's **title** — where the painter draws `g_playerNames`.
 //!
-//! Still standing, and all of them behind a missing-sheet guard rather than in
+//! Still standing, and all of them behind a missing-sheet guard
 //! front of the picture: `"+1" "-1" "NONE" "ALL"` (armoury), `"+" "-"` (siege,
 //! county), `"<" ">"` (the ration slider), `"CLOSE"` (village), `"YES" "NO"`
 //! (battlefield, army). Each is a fallback, so the honest verdict is *not an
@@ -137,7 +137,7 @@ use l2_view::chrome::panels;
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-/// The install's own `Panels.pl8` and `System.pl8`, read straight rather than
+/// The install's own `Panels.pl8` and `System.pl8`, read straight
 /// through [`l2_view::chrome::Chrome`] — the point is to compare what we drew
 /// with what the file holds, and going through the same object that drew it
 /// would be comparing the code with itself.
@@ -148,7 +148,7 @@ struct Sheets {
 
 macro_rules! world {
     () => {{
-        // `install_dir` is named here rather than behind a helper so that
+        // `install_dir` is named here
         // `crates/l2-testkit/tests/census.rs` files these seven under "install"
         // and not under the catch-all gate.
         let Some(dir) = l2_testkit::install_dir() else {
@@ -235,7 +235,7 @@ fn frame_is_drawn(canvas: &Canvas, sheet: &Sheet, index: usize, x: i32, y: i32, 
 // ----------------------------------------------------------- the oracle's own
 //
 // Every number below is a literal argument in a decompiled painter, written out
-// here rather than imported, so that no probe in this file can be computed from
+// here
 // the constant it is meant to be testing. `pinned` is where the two lists are
 // joined, and it is the only test that mentions both.
 
@@ -362,7 +362,7 @@ fn pinned() {
 /// The **set** is half the claim and it has bitten this project once already:
 /// adding `0xCC` to an *interior* index sends it past 255 and into the banner
 /// frames, which is how the custom-game screen's option boxes came out full of
-/// shields. Asserting the corner rather than the interior is what makes the set
+/// shields. Asserting the corner
 /// visible at all.
 ///
 /// **Ablated** two ways: `pen.window(…, WINDOW_SET)` back to
@@ -397,7 +397,7 @@ fn the_diplomacy_window_is_panels_pl8_in_border_set_one() {
 /// nothing can overwrite them: the portrait is blitted at `(r.x + 1, r.y + 1)`,
 /// one pixel inside, so a sprite of any size leaves column `r.x` and row `r.y`
 /// alone. The colours `0x1F` and `0x10` are written out here as literals from
-/// `Ui_DrawInsetRect` (`0x00403DEB`) rather than read from the code under test,
+/// `Ui_DrawInsetRect` (`0x00403DEB`)
 /// because `docs/agents.md`'s first way to ablate wrongly is computing the probe
 /// from the constant being ablated.
 ///
@@ -536,7 +536,7 @@ fn the_army_division_rows_sit_on_the_parchment_field() {
     // The well is 26 × 18 cells and the eight troop rows are painted over the
     // top of it — nouns at x 0x18, icons at 0xA8 and 0x158, numbers at 0xD8 and
     // 0x188, arrow pairs at y 120 + 32n — so a probe in the upper two thirds
-    // reads a glyph or a sprite rather than the ground. The first draft of this
+    // reads a glyph or a sprite
     // test probed cell (0, 0) and read `0x10`, which is the body font's own
     // shadow colour under `Ui_DrawUnitNoun(2, 0x34, 0x18, 0x80)`: the parchment
     // was there all along and the probe was on top of the first row's word.

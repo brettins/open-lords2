@@ -349,7 +349,7 @@ mod tests {
     ///
     /// Checked tick by tick against the men, both halves of the duel, so the
     /// assertion is about each occasion Macemen against
-    /// knights, because both land heavy blows and the two troops pick
+    /// knights
     /// *different* swords (slot 4 against slot 5). Ablation: delete
     /// `self.cues.melee_casualty(striker)` and the first assertion names the
     /// tick; swap `other` for `me` in the striker and the second does.

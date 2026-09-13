@@ -8,7 +8,7 @@
 //!   dispatches on, wrapping 7 back to 1.
 //! * [`Pass`] and [`SEASON_PIPELINE`] — the end-of-season pipeline, as an array
 //!   the season driver walks. A test can therefore assert the order directly
-//!   instead of inferring it from which function calls which.
+//! instead of inferring it from which function calls which.
 //!
 //! Making the pipeline an array is the whole point. Taxation reads the
 //! happiness migration has not yet changed; population growth reads the
@@ -61,7 +61,7 @@ pub const PHASE_ORDER: [Phase; 7] = [
 /// values.** It was declared here while `crate::unit` did not exist; it does
 /// now, and two identical `UnitKind`s in one crate is a trap
 /// separation — a phase that waits on `phase::UnitKind::Merchant` and a unit
-/// that is a `unit::UnitKind::Merchant` would not have compared equal, and the
+/// that is a `unit::UnitKind::Merchant` would not have compared equal,
 /// compiler would have said nothing useful about why. There is one, and it is
 /// the unit record's own.
 pub use crate::unit::UnitKind;
@@ -233,7 +233,7 @@ impl TurnMachine {
 ///
 /// `Season_Advance` (`0x00448440`) calls 29 functions in a fixed order.
 /// `docs/kingdom.md` §3.4 identifies the ones below and abridges the rest; the
-/// **`[V]`** in that section is on the call list and its order, and the
+/// **`[V]`** in that section is on the call list and its order,
 /// one-line descriptions are **`[D]`/`[I]`**.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Pass {
@@ -241,7 +241,7 @@ pub enum Pass {
     /// ahead of the clock**: `Ai_ManageCountyFarms` for every realm whose
     /// strength is non-zero and which no person drives. It is the AI's farming
     /// pass a second time in the same turn — step 5 already ran it in phase 4
-    /// — and it runs before tax, rations and industry read the fields and the
+    /// — and it runs before tax, rations and industry read the fields
     /// labour split. See [`crate::Kingdom::ai_manage_farms_all`].
     AiManageFarms,
     /// season, year, turn counter.
@@ -250,7 +250,7 @@ pub enum Pass {
     EventRoll,
     /// `Weather_UpdateAll` — dryness -> weather band.
     Weather,
-    /// `Tax_CollectAll` — gold, and the tax happiness term.
+    /// `Tax_CollectAll` — gold,
     TaxCollect,
     /// `Wages_PayAll` — army wages, bankruptcy.
     WagesPay,
@@ -268,13 +268,13 @@ pub enum Pass {
     SecedeIsolatedCounties,
     /// `County_RecountFieldsAll` (`FUN_00469B51`) — every county's five field
     /// counts, rebuilt from the map. **The first of the estimate inputs**, and
-    /// the reason it is a pass of its own: the counts are a cache, and the
+    /// the reason it is a pass of its own: the counts are a cache,
     /// reclamation that runs two passes later turns a finished field into
     /// fallow on the map without touching them.
     CountyRecountFields,
     /// `Fertility_Update` — fertility.
     FertilityUpdate,
-    /// `Field_ReclaimTick`, and the `Field_ReclaimEstimate` that is its tail
+    /// `Field_ReclaimTick`,
     /// call. Together with [`Pass::FertilityUpdate`] this is
     /// `Fields_SeasonTick` (`0x0044BF7A`).
     FieldReclaim,
@@ -350,7 +350,7 @@ pub enum Pass {
     ///
     /// **It was implemented and never called.** `crate::diplomacy` has it,
     /// `Kingdom::reconcile_alliances` wraps it, and until this pass existed
-    /// nothing in the workspace invoked either — so the `allied` matrix and the
+    /// nothing in the workspace invoked either — so the `allied` matrix
     /// `ally` bytes were only ever written by the two functions that form and
     /// break an alliance, and an alliance with a realm that had just been
     /// eliminated. `tests/long_game.rs` catches
@@ -377,7 +377,7 @@ pub enum Pass {
 ///    this way round.
 /// 3. [`Pass::HappinessUpdate`] before [`Pass::MigrationUpdate`] and
 ///    [`Pass::PopulationUpdate`] — migration compares this season's happiness,
-///    and the birth factor reads it.
+/// and the birth factor reads it.
 /// 4. [`Pass::MigrationUpdate`] before [`Pass::PopulationUpdate`] — population
 ///    applies `pop -= emigrants; pop += immigrants` at the end of its own pass.
 ///
@@ -454,7 +454,7 @@ pub const SEASON_PIPELINE: [Pass; 33] = [
     Pass::RefreshEstimates,
     Pass::MercenaryAdvance,
     Pass::UnitsResetMoves,
-    // **Appended, and the position is the original's own.** `Turn_Tick`'s
+    // **Appended,** `Turn_Tick`'s
     // phase-7 arm is `Season_Advance(); Mercenary_AdvanceAll();
     // Units_ResetMoves(); Move_BuildCostMap(); Score_RankRealms();
     // Diplo_ReconcileAlliances(); Turn_AdvancePhase();` — so this really is
@@ -468,7 +468,7 @@ pub const SEASON_PIPELINE: [Pass; 33] = [
 /// this crate runs there for want of anywhere better.
 ///
 /// Four are in the second group: [`Pass::ScoreRank`], which has five callers
-/// and none of them is `Season_Advance`, and the three campaign passes, which
+/// and none of them is `Season_Advance`,
 /// belong to `Turn_Tick`'s seventh phase alongside it. See [`SEASON_PIPELINE`].
 pub fn is_in_season_advance(pass: Pass) -> bool {
     !matches!(
@@ -595,7 +595,7 @@ mod tests {
     }
 
     /// **The blacksmith runs before the mines.** The obvious reading — mine the
-    /// ore, then forge it — is wrong, and the pipeline now says so: the driver
+    /// ore, then forge it — is wrong,
     /// runs weapons over every county first, so a season's weapons are paid for
     /// out of the *previous* season's ore.
     #[test]
@@ -616,7 +616,7 @@ mod tests {
 
     /// **Four passes here are not `Season_Advance`'s calls**, whatever
     /// `docs/kingdom.md` §3.4 says of the first: `Score_RankRealms` has five
-    /// callers and none of them is the season, and the three campaign passes
+    /// callers and none of them is the season,
     /// belong to `Turn_Tick`'s seventh phase alongside it. All four are kept
     /// in the pipeline because the work has to happen somewhere, and flagged so
     /// nobody reads the array as a transcription.

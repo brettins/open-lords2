@@ -117,7 +117,7 @@ fn clamp_level(level: i32) -> i32 {
 /// Cost out one ration level, without deciding whether it is affordable.
 ///
 /// `split` is `rationSplit`: the percentage of the remaining requirement taken
-/// from livestock rather than grain.
+/// from livestock.
 /// than `Pct(remainder, 100 - split)`, so the two sides always sum back to the
 /// whole and a split of 33% does not silently lose a person.
 pub fn plan(t: &Tables, people: i32, level: i32, herd: i32, split: i32) -> Plan {
@@ -174,7 +174,7 @@ pub fn people_to_feed(county: &County, armies_eat: bool) -> i32 {
 /// > re-runs the county's food passes before it charges anything.
 /// >
 /// > Each term is guarded independently, so a negative field contributes
-/// > nothing rather than subtracting
+/// > nothing
 ///
 /// There are two sibling functions computing superficially similar sums from
 /// *different* county fields (`+0x178`/`+0x17C`, the food eaten). Any

@@ -25,7 +25,7 @@
 //! 2. **Expand the two deployment markers** into twelve start slots each, then
 //!    overwrite the marker cell with open ground. **[V]**
 //! 3. **Choose a graphic index per cell.** Ground, rocks and the unused id 6
-//!    pick at random; hills, water, woodland and the `0x15` lines run an
+//! pick at random; hills, water, woodland and the `0x15` lines run an
 //!    **auto-tiling** lookup: build an eight-neighbour "is this the same
 //!    terrain" mask, match it against a table of patterns, and take that
 //!    pattern's base index plus a **rotating counter**. **[V]**

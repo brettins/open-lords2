@@ -50,7 +50,7 @@ fn root() -> PathBuf {
 /// `docs/work.json` is the first whose records are not the whole file: they
 /// sit under `items` beside `about`, `states` and `tracks`, their **order is
 /// intent** (the merge queue reads top to bottom), and each row is one line.
-/// So the driver keeps the file's order and shape instead of sorting and
+/// So the driver keeps the file's order and shape
 /// re-indenting it — `FILE_POLICY` in `merge-json.js` — and
 /// [`the_ledger_merges_by_id_and_keeps_its_order_and_its_shape`] is the proof.
 const KEYED: &[&str] = &[
@@ -99,7 +99,7 @@ fn the_attributes_file_and_this_test_name_the_same_keyed_files() {
 /// holds several arms — so sorting it correctly, by `id`, made this test fail.
 ///
 /// The rule about what a file's key IS now lives in exactly one place,
-/// `KEY_FIELDS` in `merge-json.js`, and both the order check and the uniqueness
+/// `KEY_FIELDS` in `merge-json.js`
 /// check ask it. A Rust copy of that rule was a second list that could disagree
 /// with the first, which is the failure this whole area is about — and it did
 /// disagree, within a day of being written.
@@ -142,7 +142,7 @@ fn every_keyed_arrays_key_is_unique() {
 /// **The ledger merges by id, and keeps its order and its shape.**
 ///
 /// `docs/work.json` is the one keyed file whose array order is intent and whose
-/// rows are one line each, and the driver's default would destroy both: it
+/// rows are one line each
 /// sorts by key and pretty-prints. So this runs the real driver on a three-way
 /// merge in which each side does something a text merge would find adjacent:
 ///
@@ -150,7 +150,7 @@ fn every_keyed_arrays_key_is_unique() {
 /// * theirs deletes a row, adds a different row further down, and rewrites
 ///   `about` — a sibling member, not a row.
 ///
-/// The rows are deliberately **not** in id order, so a sorting merge cannot
+/// The rows are deliberately **not** in id order
 /// pass by accident. And the result is compared **byte for byte** with the
 /// expected file, which is the claim exactly: every change kept, in the file's
 /// order, in the file's shape. A synthetic ledger
@@ -335,9 +335,8 @@ fn stored_fields_merges_by_id_and_stays_one_row_per_line() {
 ///
 /// The same one-row-per-line rows, merged under a path that has no
 /// `FILE_POLICY`: the driver's default layout for such a path is plain two-space
-/// JSON, so a "clean" merge would rewrite every line. It must refuse — non-zero,
+/// JSON
 /// the `ours` file untouched, and `REFUSED` said — so git shows a conflict
-/// instead of a reformatted file with a clean report.
 #[test]
 fn the_driver_refuses_a_merge_that_would_reformat_the_file() {
     let base = std::fs::read_to_string(root().join("docs/stored-fields.json")).expect("docs/stored-fields.json");
@@ -359,9 +358,9 @@ fn the_driver_refuses_a_merge_that_would_reformat_the_file() {
 ///
 /// `.gitattributes` names it; git refuses to *run* a driver a repository merely
 /// names, which is a sensible refusal to execute code on checkout. So the
-/// attribute alone does nothing, and the failure is silent in the direction that
+/// attribute alone does nothing
 /// matters: the merge falls back to text, which is safe only because it is
-/// noisy — and tonight git took both sides of three duplicates without a murmur,
+/// noisy — and tonight git took both sides of three duplicates without a murmur
 /// so "noisy" is not a property to lean on.
 ///
 /// Skipped

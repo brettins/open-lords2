@@ -598,7 +598,7 @@ pub mod speech {
     ///
     /// 1. **The ladder.** `FUN_004B37BC` is the last statement of *both*
     ///    functions that open screen `0x04` (`FUN_0043893C` and `Map_Click`'s
-    ///    `flags & 0x20` arm). It tests kinds 1, 4 and 2 and the castle branch
+    /// `flags & 0x20` arm). It tests kinds 1, 4 and 2 and the castle branch
     ///    and `return`s for everything else; kind 3 falls out of the bottom.
 /// 2. **The files.** Four `S031_*.wav` ship.
     /// 3. **The group, which is the reading that settles it.** `L2.eng` group

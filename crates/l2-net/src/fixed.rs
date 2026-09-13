@@ -12,7 +12,7 @@
 //! 32767.99998` in steps of `1/65536`.
 //!
 //! That range is not tight for this game. The battlefield is 80×80
-//! (`docs/formats/skr.md`) and the world map 64×64, so a coordinate
+//! (`docs/formats/skr.md`) and the world map 64×64
 //! uses seven of the sixteen integer bits; the remaining nine are
 //! headroom for intermediate results. A value that overflows Q16.16
 //! here is a bug, not a large number, and [`Fixed`] is built to make
@@ -56,7 +56,7 @@
 //! same simulation compute different numbers from the same inputs. Two
 //! peers must agree, and "are you running a release build?" cannot be
 //! part of the determinism contract. So the profile-dependent behaviour
-//! has to go, and the choice is between always-panic and always-
+//! has to go
 //! saturate.
 //!
 //! Saturation wins on the failure shape. A wrap turns a large positive
@@ -64,7 +64,7 @@
 //! of the map — plausible-looking, hard to trace. A panic is honest but
 //! takes the game down for something that may be one bad frame in a
 //! cutscene. Saturation pins the value at the end of the range, where
-//! it stays visibly wrong and stays *there*, and the checksum still
+//! it stays visibly wrong and stays *there*
 //! matches on both peers because saturation is
 //! as wrapping.
 //!
@@ -74,7 +74,7 @@
 //! them.
 //!
 //! Division by zero is the exception: `/` panics.
-//! saturate to that is not a lie, and a panic is deterministic — both
+//! saturate to that is not a lie
 //! peers panic on the same tick, which is a bug report.
 //! desync. [`Fixed::checked_div`] is there for callers who would rather
 //! branch.

@@ -365,7 +365,7 @@ fn a_breach_is_nine_cells_wide_and_a_collapse_is_one() {
 /// | the rampart walk sat **against the wall** | `Wall_Collapse` scores only bailey neighbours, so a catapult earned nothing |
 ///
 /// Before them the besieger stood in the field for 400,000 frames. After them
-/// every level ends, and the *cause* differs by level, which is the sign that
+/// every level ends, and the *cause* differs by level.
 /// the three different ways in are all live.
 #[test]
 fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
@@ -431,7 +431,7 @@ fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
     assert!(walls_struck > 0, "no catapult shot was ever counted against a wall");
 }
 
-/// And the other direction, because a besieger that always wins is not a siege
+/// And the other direction.
 /// either: **the same 848 men lose to a garrison that outnumbers them.**
 ///
 /// The pair is the real assertion. One of them alone passes for a model that
@@ -464,7 +464,7 @@ fn the_same_besieger_is_thrown_off_a_castle_held_in_strength() {
 /// The first draft gave the besieger 148 archers, and at three of the five
 /// castle levels it won with `breach_score` 0, `wall_damage` 0 and the wall
 /// untouched — 148 archers simply shot two garrison figures off the rampart
-/// from the open field, and the test that was supposed to prove an assault
+/// from the open field.
 /// proved a shooting match. `docs/agents.md`'s *"a check that passes for an
 /// accidental reason looks exactly like one that passes"*: it went green for a
 /// reason unrelated to anything the branch changed, and would have gone on

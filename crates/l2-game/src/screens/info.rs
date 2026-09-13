@@ -1126,7 +1126,7 @@ impl Screen for InfoScreen {
                 // **`Map_EdgeScroll` is the SECOND guard of the `0x04` arm and a
                 // scroll CLOSES the panel**: pushing the pointer into the edge
                 // of the screen with the information panel up puts you back on
-                // the map. It is not a click at all
+                // the map.
                 //
                 // ```c
                 // if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }

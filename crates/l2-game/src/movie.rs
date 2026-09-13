@@ -241,7 +241,7 @@ impl Film {
     ///
     /// * During start-up (`g_appPhase == 1`) it `strcmp`s the path: `intro.smk`
     ///   plays `imptitle.smk`, `imptitle.smk` plays `credits.smk`, and anything
-    ///   else lets the front end up. **So a skip moves one film along, not
+    /// else lets the front end up. **So a skip moves one film along,
     ///   out of the sequence**, which is what the original does to a player
     ///   who clicks through the intro.
     /// * Otherwise `g_screenId = g_smkReturnScreen`: the screen that raised the

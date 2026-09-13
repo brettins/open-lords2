@@ -15,12 +15,12 @@
 //! * *"An army normally can only be split only at the start of its movement in
 //!   a turn. Splitting does not use all the movement for a turn, but cannot be
 //!   done if the army has used any movement points that turn."* — the gate is
-//!   `movesUsed < 1` in `FUN_004378B3`, and the *"does not use all"* half is the
+//! `movesUsed < 1` in `FUN_004378B3`.
 //!   **+5 both halves pay** in `Army_Split`, which nothing had recorded.
 //! * *"When splitting into castles, you may split off less than 50 men. This
 //!   will make it much easier to bring a current garrison up to its maximum
 //!   size."* — the minimum is a local that is `0x32` on the plain path and **0**
-//!   when a destination county was named, and the cap is that castle's garrison
+//! when a destination county was named.
 //!   limit less whoever is already inside.
 //! * *"If you no longer control an army's county of origin, you can only disband
 //!   it by moving it to any friendly county before disbanding it."* —
@@ -92,7 +92,7 @@ pub struct SplitBasket {
 
 impl SplitBasket {
     /// `FUN_004378B3`'s seeding: every man in the parent's column, the daughter
-    /// empty, and the band with the parent.
+    /// empty.
     pub fn seed(unit: &Unit) -> SplitBasket {
         SplitBasket {
             parent: unit.troops,
@@ -161,7 +161,7 @@ pub enum SplitInto {
     /// No destination county. Both halves need [`crate::tables::ARMY_MIN_MEN`]
     /// and both pay [`SPLIT_MOVE_COST`].
     Field,
-    /// The daughter is walking into `county`'s castle. **No minimum**, and the
+    /// The daughter is walking into `county`'s castle. **No minimum**.
     /// cap is that castle's garrison limit less whoever is already in it.
     Castle { county: u8, tile: (u8, u8) },
 }
@@ -312,20 +312,20 @@ pub fn refuse_split(
 /// if (parent has a band && the band is in the daughter's column) the band moves whole;
 /// ```
 ///
-/// Four things a reimplementation gets wrong by default, each `[D]` from the
+/// Four things a reimplementation gets wrong by default.
 /// instruction stream:
 ///
 /// 1. **`men` is the sum of all eight slots**, so an army whose whole strength
 ///    is its mercenary band still has the right total.
 /// 2. **The daughter inherits the parent's morale**, not the county's happiness
-/// — this is not `Army_Create` and there is no levy here.
+/// — this is not `Army_Create`.
 /// 3. **Both halves are set walking** (`moving = 2`) even on the plain split,
 ///    with no path; the stepper finds nothing to do and they stand still. It is
 ///    the same value `Unit_OrderMove` writes, and reproducing it matters because
 ///    the phase waits read it.
 /// 4. **The daughter does not inherit the home county.** `Army_Split` writes
 ///    `county` and never writes `homeCounty`, and `Unit_Spawn` has just zeroed
-///    the record — so a split army's county of origin is **0**. That is not
+/// the record — so a split army's county of origin is **0**. That is not
 ///    lost men: [`disband_county`] falls through to the county the army is
 ///    standing in whenever the home county is not the owner's, and county 0
 ///    never is. The visible effect is that **a daughter army always disbands
@@ -379,7 +379,7 @@ pub fn split(
         parent.men = basket.parent_total();
         parent.moving = true;
     }
-    // The band crosses whole, and the live table's `hiredBy` follows it.
+    // The band crosses whole.
     if let (Some(band), true) = (basket.mercenaries, basket.mercenaries_leave) {
         if let Some(p) = units.get_mut(army) {
             p.mercenaries = None;
@@ -458,7 +458,7 @@ pub fn disband_county(counties: &[County; MAX_COUNTIES], units: &Units, army: us
 /// ...Labour_Allocate / Ration_Apply / County_RefreshEstimates, three times over...
 /// ```
 ///
-/// **The weapons come back and the men do not stay soldiers.** `troops[t]` maps
+/// **The weapons come back.** `troops[t]` maps
 /// to `weapons[t - 1]` — the same off-by-one [`crate::levy::LevyBasket::seed`]
 /// uses in the other direction, and a peasant (`troops[0]`) returns nothing
 /// because he was carrying nothing. The Readme says it in one line: *"Any
@@ -466,7 +466,7 @@ pub fn disband_county(counties: &[County; MAX_COUNTIES], units: &Units, army: us
 ///
 /// **The mercenaries are released first**, which is what makes the men returned
 /// to the county the levy's men: `Mercenary_Release`
-/// subtracts the band from `men` before anything reads it, so a hired band
+/// subtracts the band from `men` before anything reads it.
 /// walks off
 ///
 /// Returns the county the men joined and how many joined it. The three
@@ -555,7 +555,7 @@ mod tests {
         assert_eq!(b.to_daughter(TroopType::Peasant, 60), 60);
         assert_eq!(b.parent_total(), 100);
         assert_eq!(b.daughter_total(), 60);
-        // A column cannot go below zero, and the button that would is a no-op.
+        // A column cannot go below zero.
         assert_eq!(b.to_daughter(TroopType::Peasant, 999), 40);
         assert_eq!(b.to_parent(TroopType::Crossbowman, 5), 0);
         assert_eq!(b.parent_total() + b.daughter_total(), 160, "men are conserved");

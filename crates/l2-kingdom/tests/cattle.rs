@@ -183,7 +183,7 @@ fn the_herd_that_lost_sixteen_head_was_below_its_break_even_floor() {
 /// **`Herd_SeasonTick`'s own tail writes both words**, which is a separate call
 /// site from `County_RefreshEstimates` and was a separate omission.
 ///
-/// It needs its own test and the reason is worth stating, because the obvious
+/// It needs its own test and the reason is worth stating,
 /// test does not work: `Panels_RefreshAll` runs later in the same season and
 /// rewrites the record, so deleting this write and running a whole season
 /// leaves every number unchanged — measured, that ablation is **green** against
@@ -191,7 +191,7 @@ fn the_herd_that_lost_sixteen_head_was_below_its_break_even_floor() {
 /// the simulation reads the floor,
 /// either; `Labour_Allocate` reads the ceiling and only the ceiling.
 ///
-/// So the pass is run **alone**. That is not a weaker test, it is the only one
+/// So the pass is run **alone**.
 /// that distinguishes the two call sites, and the write stays because
 /// `Herd_LabourEstimate` is one function filling two words of one record and
 /// writing half of it is the deviation.

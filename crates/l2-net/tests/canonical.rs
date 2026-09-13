@@ -50,7 +50,7 @@ fn the_length_reported_is_the_length_written() {
 
 /// The reason variable-length fields are prefixed. Without it these two
 /// states produce identical bytes and therefore identical checksums,
-/// and the detector has a blind spot exactly where field boundaries
+/// and the detector has a blind spot
 /// move.
 #[test]
 fn adjacent_strings_cannot_be_confused_with_each_other() {

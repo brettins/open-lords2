@@ -67,7 +67,7 @@
 //!   the levy, the punitive tax rate, the industry share — happens.
 //! * **The garrison eviction's battle.** `FUN_00437535` starts a battle when
 //!   the evicted garrison had a besieger. [`Kingdom::run_ai_move_armies`]
-//!   reports the pair instead of starting one, for the same reason
+//! reports the pair instead of starting one, for the same reason
 //!   [`crate::ai::taunt`] returns its letters.
 //!
 //! # Determinism
@@ -768,7 +768,7 @@ impl Aim {
 /// Two reproduced details:
 ///
 /// * **The scan is the whole 64 × 64 map**, row by row, and the comparison is
-///   strict — so a tie goes to the lowest `y`, then the lowest `x`.
+/// strict — so a tie goes to the lowest `y`, then the lowest `x`.
 /// * **Tile (0, 0) can never be chosen.** The original keeps its best as a
 ///   byte *offset* into the tile array and uses 0 for *"nothing found"*, so
 ///   offset 0 — tile (0, 0) — is indistinguishable from failure. Harmless on
@@ -1830,13 +1830,13 @@ impl Kingdom {
     /// worth walking to: it must still have room for **all** of the army, be
     /// standing, not be under construction, and still belong to the realm. Any
     /// of those failing sends it to
-    /// [`first_castle_with_room`] instead, and if there is no such castle the
+    /// [`first_castle_with_room`] instead.
     /// army is **disbanded** — its men go back into a county and its weapons
     /// back into the armoury.
     ///
     /// **The original returns 1 even after disbanding**, so its caller then
     /// flood-fills from a record `Army_Destroy` has already cleared. Here the
-/// slot is empty and the re-path finds nothing to do, which is the
+/// slot is empty and the re-path finds nothing to do.
     /// same observable outcome by a route that cannot read freed memory.
     fn mission_join_garrison(&mut self, unit: usize, report: &mut MoveReport) -> bool {
         let Some(u) = self.campaign.units.get(unit) else { return false };
@@ -1889,7 +1889,7 @@ impl Kingdom {
     /// [`Mission::GARRISON`] — `FUN_004A60B9`, *"should I still be in here?"*
     ///
     /// A garrison whose county still belongs to its realm does **nothing at
-    /// all** — the common case, and the reason this handler returns `false`
+    /// all** — the common case.
     /// nearly always. Once the county is lost, the garrison is turned out
     /// ([`Kingdom::evict_garrison`]) and demoted to [`Mission::SEEK_ENEMY`],
     /// and in the one case where the castle is still standing and unruined it

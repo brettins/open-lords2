@@ -43,7 +43,7 @@ pub use l2_kingdom::tables::MAX_TAX_RATE;
 /// The grain-to-livestock split runs the full width of its slider track.
 ///
 /// `Ration_SliderClick` (`0x0043A379`) clamps `mouseX - 224` to `0 … 100` and
-/// the track is exactly 100 pixels wide, so the field's range and the widget's
+/// the track is
 /// geometry are the same number.
 ///
 /// **Re-exported**: the rule moved to `l2-kingdom` with
@@ -76,7 +76,7 @@ pub use l2_kingdom::county::MAX_RATION_SPLIT;
 /// # The original keeps these in a file, and we do not yet
 ///
 /// `Options_Save` (`0x004AE15F`) writes the whole `g_options` block —
-/// **0x468 bytes, and the shipped `lords2.inf` is exactly that long** — from a
+/// **0x468 bytes, and the shipped `lords2.inf` is
 /// single call site on the shutdown path, so the original loses every setting
 /// changed that session if it crashes. `Options_Load` (`0x004AE1B8`) reads it
 /// back and `Options_Validate` (`0x004AE2BD`) checks `g_optionsMagic`
@@ -254,7 +254,7 @@ pub struct Quirks {
     /// so faithful is zero.** `docs/bugs.md` B64 has the defect and
     /// [`crate::shell::font::SHADOW_GREY`] the two palette indices.
     ///
-    /// This field and the table around it were built on two branches that never
+    /// This field and the table around it were built on two branches that
 /// met, so the comment standing in this space said *"no
     /// presentation quirk has landed yet"* and named this one as the first.
     pub grey_county_name: bool,
@@ -643,7 +643,7 @@ pub struct Game {
     ///
     /// Session state, exactly like [`Game::field_policy`] and [`Game::turn`]
     /// above, and not in the save for the same reason: the original saves from
-    /// the campaign map and nowhere else, so a levy is never half-made when a
+    /// the campaign map and nowhere else, so a levy is
     /// file is written. See [`LevyOrder`].
     ///
     /// not-encoded: session state. The durable half — the realm's weapon stocks
@@ -1225,7 +1225,7 @@ impl Game {
     ///   phase for player movement, which is the finding
     ///   [`crate::turn`] is built on.
     /// * **the cost map is rebuilt for the order**, inside
-    ///   [`l2_kingdom::movement::order_move`], so a tile trampled two steps ago
+    /// [`l2_kingdom::movement::order_move`], so a tile trampled two steps ago
     ///   is already impassable to this one.
     ///
     /// Returns the number of steps ordered, or `None` if the unit is not the

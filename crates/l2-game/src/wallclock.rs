@@ -55,7 +55,7 @@ use l2_view::Canvas;
 use crate::shell::{font, Pen};
 
 /// **MST is UTC−7 and stays UTC−7.** See the module header: the daylight zone
-/// is MDT, which is a different thing with a different name, and the player
+/// is MDT, and the player
 /// asked for MST.
 pub const MST_OFFSET_SECS: i64 = -7 * 3600;
 
@@ -146,7 +146,7 @@ mod tests {
     /// Two instants six months apart — 15 January and 15 July 2026, both
     /// 19:00:00 UTC — must read the same clock face. A `chrono`-style local
     /// zone, or any conditional on the date, gives 12:00 in January and 13:00
-    /// in July; MST gives 12:00 for both because MST *is* UTC−7 and the zone
+    /// in July; MST gives 12:00 for both and the zone
     /// that shifts is called MDT.
     #[test]
     fn mst_does_not_shift_in_summer() {

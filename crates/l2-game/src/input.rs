@@ -16,7 +16,7 @@
 /// The picture is 640 × 480 and the window is whatever the player dragged it
 /// to. We scale by a **whole number** — a 1996 sprite game at a fractional
 /// scale gets pixels of two different widths in the same row, which is visible
-/// on every diagonal in the tile art — and centre what is left, so a window
+/// on every diagonal in the tile art — and centre what is left
 /// that is not an exact multiple has black borders. At the size the bug was
 /// reported from, 1898 × 1562, the scale is 2 and the picture is 1280 × 960
 /// with 309 pixels of border on each side and 301 above and below.
@@ -300,7 +300,7 @@ impl LeftButton {
     }
 
     /// **`WM_LBUTTONDBLCLK`** — a different byte, and the down bit is left
-    /// . Windows sends this *instead of* the second
+    ///. Windows sends this *instead of* the second
     /// `WM_LBUTTONDOWN`, so the bit is clear here and stays clear for as long
     /// as the second press is held.
     pub fn double_clicked(&mut self, x: i32, y: i32) -> Event {

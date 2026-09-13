@@ -1,5 +1,5 @@
 //! **A realm must stay in one piece.** `Realm_SecedeIsolatedCounties`
-//! (`0x0044AE3C`), and the two functions it is.
+//! (`0x0044AE3C`).
 //!
 //! Every season, between the unrest counter and the field recount, the game
 //! partitions every owned county into **contiguous same-owner blocks** and then
@@ -43,7 +43,7 @@
 //! `Territory_ExtendBlock`, and **never merges two blocks that a newly placed
 //! county would join**. A county placed into block A that also neighbours block
 //! B leaves A and B separate for that sweep —
-//! function sweeps repeatedly (up to [`SWEEP_CAP`] times) instead of once, and
+//! function sweeps repeatedly (up to [`SWEEP_CAP`] times) instead of once,
 //! why [`build_blocks`] is a fixpoint loop. Run to a
 //! fixpoint the two agree; run once they do not.
 //!
@@ -82,7 +82,7 @@ pub const MAX_BLOCKS: usize = 17;
 pub const MAX_BLOCK_MEMBERS: usize = 20;
 
 /// `Territory_BuildBlocks`' sweep cap. **A real bound, not a loop guard**: the
-/// counter is compared against the count of counties already placed, so a
+/// counter is compared against the count of counties already placed,
 /// pathological map stops after a hundred sweeps with counties unplaced rather
 /// than spinning.
 pub const SWEEP_CAP: u32 = 100;
@@ -93,7 +93,7 @@ pub struct Block {
     /// `+0x00` — the sum of the members' populations. **The key the secession
     /// pass ranks on**, filled by `Territory_BuildBlocks`' last loop.
     pub population: i32,
-    /// `+0x04` — the owning realm, 1..=5. Zero means the slot is free, and the
+    /// `+0x04` — the owning realm, 1..=5. Zero means the slot is free,
     /// list is dense and zero-terminated: every scan stops at the first zero.
     pub owner: u8,
     /// `+0x05 … +0x18` — the member county ids, zero-padded.
@@ -324,7 +324,7 @@ pub struct Secession {
 ///
 /// Realms **1 … 5** with a non-zero [`crate::Realm::strength`] are considered.
 /// A realm out of play is skipped, and so is realm 0 — an unowned county was
-/// never in a block, so a scatter of neutral counties never "secedes".
+/// never in a block,
 ///
 /// **The human is not treated differently.** The only branch on
 /// `g_localPlayer` in the whole pass is the message: `0x7F` when exactly one
@@ -344,7 +344,7 @@ pub fn minor_blocks(blocks: &Blocks, strength: &[u8]) -> Vec<Secession> {
         for (slot, block) in blocks.of_realm(realm) {
             count += 1;
             // `<=`, scanning upward: an equal population **overwrites** the
-            // incumbent, so a tie goes to the *highest* block index.
+            // incumbent,
             if best <= block.population {
                 kept = slot;
                 best = block.population;
@@ -413,7 +413,7 @@ mod tests {
     }
 
     /// The tie-break, isolated: equal populations and the **highest** slot
-    /// wins, because the comparison is `<=` and the scan runs upward.
+    /// wins,
     /// `docs/symbols.json` had this backwards.
     #[test]
     fn an_equal_population_hands_the_realm_the_higher_numbered_block() {
@@ -460,7 +460,7 @@ mod tests {
     }
 
     /// **The shape that makes the repeated sweep necessary.** County 2 is the
-    /// bridge and it is discovered *last*, so a single sweep would leave 1 and
+    /// bridge and it is discovered *last*,
     /// 3 in two blocks for ever. The original sweeps until nothing changes, and
     /// so does this.
     #[test]

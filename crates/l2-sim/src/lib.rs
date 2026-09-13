@@ -28,13 +28,13 @@
 //!
 //! In [`runner`], and nowhere else. A [`Figure`] still has men, hits and a
 //! recovery counter and no coordinates — the *rules* modules ([`melee`],
-//! [`missile`], [`troop`]) do not need them, and the two that genuinely do take
+//! [`missile`], [`troop`]) do not need them
 //! them as arguments: [`pathfind`] takes a [`Grid`] and [`ai`] takes a slice of
 //! per-figure positions. What changed is who supplies that slice. It used to be
 //! the renderer.
 //!
 //! [`runner::BattleRunner`] owns the battlefield ([`terrain`]), the figures'
-//! cells, the occupancy array and the tick loop, and it is the composition of
+//! cells, the occupancy array and the tick loop
 //! every rule in this crate into a battle that runs. It lives here because it
 //! is *simulation state*: two lockstep peers must agree about where a man
 //! stands to the cell, and `docs/netcode.md` D-3 is why a crate that has to be
@@ -84,6 +84,6 @@ pub use troop::{Troop, TroopStats, TroopTable, ALL_TROOPS};
 pub use unit::{BattleUnit, Units, MAX_UNITS};
 
 /// The array bound the original allocates nothing beyond. An army that would
-/// produce more figures than this is silently truncated, and the shipped data
+/// produce more figures than this is silently truncated
 /// sits right against the ceiling — see `docs/battle.md` §5.4.
 pub const MAX_FIGURES: usize = 80;

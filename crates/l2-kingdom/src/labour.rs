@@ -1,6 +1,6 @@
 //! The labour allocator — who works, and at what.
 //!
-//! `FUN_0044F6E7` (`0x0044F6E7`, 2,147 bytes), and the two small functions that
+//! `FUN_0044F6E7` (`0x0044F6E7`, 2,147 bytes)
 //! feed it. It is the writer of the nine job records, and it is called from
 //! about fifteen places: whenever a field is repainted, whenever a county
 //! changes hands, at new-game setup, and **twice** in the season pipeline —
@@ -25,7 +25,7 @@
 //! **Then by round robin**: whatever the quotas left over is walked round the
 //! jobs that still have room, until either the pool is empty or every job is
 //! full. The round is not even — the farm half offers grain two places and
-//! cattle three before it offers reclamation one, and the industry half offers
+//! cattle three before it offers reclamation one
 //! wood, stone, iron and the smithy one each before castle building — so a
 //! county with slack fills its cattle before its fields.
 //!
@@ -47,7 +47,7 @@
 //! [`crate::phase::Pass::LabourAllocateAgain`], at the two points
 //! [`SEASON_CALL_SITES`] names.
 //!
-//! It was not in the pipeline for a long time, and the reason is worth keeping
+//! It was not in the pipeline for a long time
 //! because it is the shape of every "why is this pass not wired in" question.
 //! `Season_Advance` does not call `County_RefreshEstimates` before either
 //! allocation at all: **each of the nine ceilings is refreshed by the pass that
@@ -135,11 +135,11 @@ const INDUSTRY_TAIL: usize = JOB_CASTLE_BUILDING;
 /// **One gate is deliberately not applied**: castle building is gated on
 /// `+0x1C3` *and* on `+0x1B0`, and `+0x1B0` is a switch the player throws by
 /// clicking the castle on the map. The field exists now
-/// ([`County::castle_switch`], and `Industry_ToggleFromMap` moves it), and the
+/// ([`County::castle_switch`], and `Industry_ToggleFromMap` moves it)
 /// gate is still not applied — the original has three UI writers for that
 /// switch and **no AI writer at all**, so gating on it here would stop every AI
 /// realm building a castle. That is a rule which is right for the original's
-/// human player and wrong for everybody else in it, and the AI's own path to
+/// human player and wrong for everybody else in it
 /// the switch has not been found.
 pub fn ceilings(county: &County) -> [i32; JOB_COUNT] {
     let mut out = [0i32; JOB_COUNT];
@@ -282,7 +282,7 @@ pub const SHARE_TABLE: [i32; 8] = [100, 50, 33, 25, 20, 0, 5, 0];
 /// whole of one.
 pub const FARM_GROUP_DIVISOR: i32 = 3;
 
-/// The three jobs [`toggle_share`] renormalises, and the slot its remainder
+/// The three jobs [`toggle_share`] renormalises
 /// search is seeded with — cattle, so a tie goes to the herd.
 const FARM_GROUP: [usize; 3] =
     [JOB_GRAIN_FARMING, JOB_CATTLE_FARMING, JOB_FIELD_RECLAMATION];
@@ -345,7 +345,7 @@ pub fn toggle_share(county: &mut County, job: usize, on: bool, divisor: i32) {
 }
 
 /// `FUN_004502CA` (`0x004502CA`, 879 bytes) — the same thing for the five
-/// industry jobs, and the only caller is `Industry_ToggleFromMap`.
+/// industry jobs
 ///
 /// Line for line the twin of [`toggle_share`] with a five-member group and no
 /// divisor. Switching an industry off on the

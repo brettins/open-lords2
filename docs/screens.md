@@ -118,7 +118,7 @@ A `w × h` diamond body is `h²/2` bytes: 30²/2 = **450** per half, 900 for bot
 **196 = 0xc4**; 6²/2 = 18, **36 = 0x24**. All three match, which pins the tile sizes from
 the instruction stream alone.
 
-### 1.3 `Map_RenderIso` walks a window, and the arithmetic closes  **[V]**
+### 1.3 `Map_RenderIso` walks a window, and the arithmetic closes **[V]**
 
 `Map_RenderIso` (`0x0040526E`) draws `g_mapViewRows + 1` lattice rows, alternating between
 *aligned* rows (drawn at `x = g_mapViewX + c·pitch`) and *offset* rows (shifted left by
@@ -1131,7 +1131,7 @@ else
     Cursor_Set(g_cursorByScreen[g_screenId]);  /* a table lookup */
 ```
 
-### 9.5 The table, and the question mark  **[V]**
+### 9.5 The table, and the question mark **[V]**
 
 `g_cursorByScreen` (`0x004E3098`) is **64 dwords, one per `g_screenId`**. Read out of the
 image, **five** rows are non-zero and every other screen in the game gets 0, the plain arrow:

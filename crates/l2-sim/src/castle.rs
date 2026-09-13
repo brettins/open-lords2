@@ -37,7 +37,7 @@
 //!   height, its passability and its structure code;
 //! * the **structure** layer is markers, not tiles: `Battlefield_ReadStructureLayer` walks it for
 //!   the twelve deployment slots a side, the wall-slot groups, the approach
-//!   lanes and the castle's reference cell — every one of which
+//! lanes and the castle's reference cell — every one of which
 //!   [`crate::AiField`] had marked `[I]` because this function was unread.
 //!
 //! Nothing here reads a file. The caller hands over the bytes.

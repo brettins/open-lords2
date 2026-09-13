@@ -31,7 +31,7 @@
 //!    `l2-formats` knows nothing about a kingdom, which is what makes this
 //!    evidence.
 //! 4. Compare, field by field, and print every divergence with the field's
-//!    path, the original's value, ours, and the delta.
+//! path, the original's value, ours, and the delta.
 //!
 //! **This is a measuring instrument, not a passing test.** Nothing here was
 //! tuned to agree and no comparison was weakened to go green. The assertion is
@@ -105,7 +105,7 @@
 //! * [`Kind::Simulated`] — we compute it, and a divergence is **ours to
 //!   explain**;
 //! * [`Kind::PlayerInput`] — a person or an AI lord set it during the turn we
-//!   cannot replay, so a divergence is a **missing input**, not a wrong rule;
+//! cannot replay, so a divergence is a **missing input**, not a wrong rule;
 //! * [`Kind::Unsimulated`] — nothing of ours ever writes it. A field we never
 //!   write is a different fact from a field we write differently, and lumping
 //!   them produces a number that means nothing;
@@ -128,7 +128,7 @@
 //! arithmetic lands.
 //!
 //! **And the honest note about [`Kind::Unsimulated`]**: it has exactly one
-//! member, and that is not because we simulate everything else. It is because
+//! member,
 //! the *field list is the save reader's vocabulary*, and
 //! `l2_formats::save::County` was written by people adding the fields they had
 //! a use for — so a field we do not model is usually a field it does not read
@@ -165,12 +165,12 @@
 //! 1. **The human realm's `score` and `rank` were never recomputed** — 50 in
 //!    ours against 576, 590, 1333 and 1334, every pair, 50 being
 //!    `Tables::score_gold_bracket` alone with all six weighted inputs at zero.
-//!    **Fixed, and the first entry's *"we have not found the function that does
+//! **Fixed, and the first entry's *"we have not found the function that does
 //!    it"* is answered.** Two call sites, both read out of `Lords2.exe`:
 //!
 //!    * `Turn_BeginPlayersTurn` (`0x0049B6D3`) writes `aiStep = 0` into **every**
 //!      realm — 999 only for one at zero strength — and `AI_RunTurnStep`'s
-//!      (`0x0049A581`) `isHuman` test guards the fourteen handlers and the
+//! (`0x0049A581`) `isHuman` test guards the fourteen handlers and the
 //!      counter's increment, **not the step-0 prologue above them**. That
 //!      prologue is `Realm_RecountStrength(r); Realm_UpdateTotals(r);
 //!      offerPending = 0; aiStep = 1;` and it runs for the human. We ran only
@@ -210,15 +210,15 @@
 //!    **The comment that documented it was wrong, and that is the lesson.**
 //! `l2_kingdom::ai_farm::NoMarket` said *"
 //!    style's opening shopping cascade is refused."* County `+0x1A4`, the stall
-//!    gate, is **non-zero on every fixture county holding a merchant**, and the
+//! gate, is **non-zero on every fixture county holding a merchant**, and the
 //!    purse at `+0x1F4` carries 186, 297 and 260 on county 1 and 195, 316 and
-//!    294 on county 3. The stall was there and the money was there; nobody had
+//! 294 on county 3. The stall was there and the money was there; nobody had
 //!    opened the file. Third of the class after `NOT SIMULATED` (C120), the font
 //!    comment (C107) and `INDUSTRY / NOT DRAWN` (C136) — **a placeholder that
 //!    explains itself is asserting a finding, and nothing checks it.**
 //!
 //!    The 50 is a *computation*, not a constant: grain's base price is 2 and
-//!    every merchant's morale is 100, so a sack costs 4 crowns, and
+//! every merchant's morale is 100, so a sack costs 4 crowns, and
 //!    `Ai_BuyGood` (`0x004A4B12`) takes the first of 400/200/100/50 whose whole
 //!    bill the purse covers. The control is in the same fixture — at 186 and 195
 //!    crowns one turn earlier the 200-crown rung is unaffordable and nothing is
@@ -231,7 +231,7 @@
 //!    doing it.** `County_RecountMerchants` (`0x00451061`) was in the printed
 //!    season-pass list and in no pipeline.
 //! 3. **`g_optAiLords` is read by the save reader and dropped by the
-//!    importer**, so a loaded game does not know how many lords it was started
+//! importer**, so a loaded game does not know how many lords it was started
 //!    with. [V] — `grep -rn ai_lords crates/` puts it in `l2-formats`, in
 //!    `l2_game::setup` (which *starts* a game) and nowhere on the load path.
 //!

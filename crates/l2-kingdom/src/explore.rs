@@ -27,7 +27,7 @@
 //! `Map_LoadPlanes`' load from the map file, which `FUN_0046DF51` follows.
 //!
 //! **None of the writers tests `g_optExploration`.** The bits are kept whether
-//! the option is on or off, and the England turn-one fixture is the proof from
+//! the option is on or off
 //! the data: it was saved with the option off, and its
 //! seen bits are exactly the local player's county and its one-tile border, bit
 //! for bit (`crates/l2-scenario/tests/explored.rs`). So turning the option on in the
@@ -87,8 +87,8 @@ impl Default for Explored {
     }
 }
 
-/// The bit a realm's seen flag occupies, or `None` for anything— 0, and the owner 6 that ownerless units and merchants carry.
-/// realm — 0, and the owner 6 that ownerless units and merchants carry.
+/// The bit a realm's seen flag occupies, or `None` for anything— 0
+/// realm — 0
 fn realm_bit(realm: u8) -> Option<u8> {
     if realm == 0 || realm as usize >= MAX_REALMS {
         None
@@ -193,7 +193,7 @@ impl Encode for Explored {
     }
 }
 
-/// **The test every painter makes**, and the only one:
+/// **The test every painter makes**
 ///
 /// ```c
 /// if (g_optExploration == 1 && (g_tiles[t].bank & 0x20) == 0)  /* hidden */

@@ -47,7 +47,7 @@
 //! rows are exactly 36 apart. That is the original's own untidiness and it is
 //! reproduced, because a tidied layout is a layout nobody can check.
 //!
-//! # The shipment record, and the row that is not there
+//! # The shipment record
 //!
 //! `DAT_005678C0 + player * 0x18`, six `i32`, **three pairs of (left in the
 //! county, in the cart)**:
@@ -62,7 +62,7 @@
 //! subsystem** (`docs/bugs.md` D20), and it is the most structural one yet:
 //!
 //! * `g_sendSuppliesWidgets` holds **a complete sheep row** — a minus/plus pair
-//!   at (216, 296) and (296, 296) with hotspot id 1 and the same two handlers —
+//! at (216, 296) and (296, 296) with hotspot id 1 and the same two handlers —
 //!   immediately after the six records every caller passes. `count = 6`, so it
 //!   is never drawn and never tested.
 //! * The two rows that survive carry hotspot ids **0 and 2, skipping 1**. The
@@ -78,7 +78,7 @@
 //! [`SHEEP_ROW`] carries the orphan so the absence is countable
 //! merely missing.
 //!
-//! # The spinner step is one or ten, and the **source pool** picks
+//! # The spinner step is one or ten
 //!
 //! ```c
 //! FUN_0043B1CA  /* minus */  if (cart < 11) { if (cart) { cart--; left++; } }
@@ -100,7 +100,7 @@
 //! **(254, 294)–(284, 323)**. `FUN_0043B32A`: if the cart is empty put
 //! everything in it, otherwise take everything out.
 //!
-//! # Dispatching, and the confirm that cancels
+//! # Dispatching
 //!
 //! `FUN_0043B04C`, the thumbs-up and thumbs-down at (320, 342) and (360, 346):
 //!
@@ -117,7 +117,7 @@
 //!
 //! **`Transport_Spawn` can silently drop the shipment.** It looks for a free
 //! road tile and then any free open tile; if neither exists it spawns nothing
-//! *and deducts nothing*, and the screen has already closed. No message. That
+//! *and deducts nothing*. No message. That
 //! is reproduced — see [`Dispatch::Nowhere`] — because a shipment that
 //! evaporates with a warning is not the shipment the original loses.
 //!
@@ -266,7 +266,7 @@ pub enum Dispatch {
     Nowhere,
 }
 
-/// One player's shipment record — three pairs, and the middle one is dead.
+/// One player's shipment record — three pairs
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Cart {
     /// `(left in the county, in the cart)`.
@@ -543,7 +543,7 @@ impl Screen for SuppliesScreen {
                 // read `g_mouseLeftPressed || g_mouseLeftDoubleClick`; the
                 // minimap pick `FUN_0043B412` opens `if (g_mouseLeftPressed ==
                 // 0) return 0`. So a spinner steps once more, a thumb restarts
-                // its twenty frames, and the icons and the map ignore it. `[V]`
+                // its twenty frames. `[V]`
                 // This screen dropped it.
                 Event::DoubleClick { .. } => match self.press.event(&widgets(), event) {
                     Some(i) => self.fire(ctx, i),

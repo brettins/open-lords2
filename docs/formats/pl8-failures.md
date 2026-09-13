@@ -217,7 +217,7 @@ Only six files in the corpus have a shape-0 frame with `rec[0x0D] != 0`:
 
 70 stored, 94 not, no in-between. *Inferred:* header byte 0x00 == 0 is the
 discriminator. The sample is thin — the two "no" files are the same font asset
-exported twice (identical frame tables, see §5) — so a decoder that would rather not
+exported twice (identical frame tables, see §5) — so a decoder that
 lean on it can detect the block structurally: try consuming `rows` RLE rows and accept
 only if it lands on the next `dataOffset`. That detection is unambiguous over both
 corpora (0 misfits, 0 false positives across 21,344 + 14,648 frames).

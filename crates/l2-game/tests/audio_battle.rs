@@ -270,7 +270,7 @@ fn the_formation_key_cries_with_nothing_held_and_the_battle_paused() {
 /// between the key and the order asks about the pause. The window procedure's
 /// `WM_CHAR` arm tests `g_battlePhase == 2 && DAT_0057A0CC == 0`, and
 /// `FUN_0043C77A` tests `DAT_00553C6C == 0 && g_appPhase == 3`; the pause word is
-/// `DAT_0053F238`, which `Battle_OrderClicked` tests and these do not. So a
+/// `DAT_0053F238`, which `Battle_OrderClicked` tests.
 /// player can put a paused battle's men in a column before a blow is struck.
 /// `[V]`
 ///

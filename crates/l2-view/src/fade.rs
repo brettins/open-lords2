@@ -20,7 +20,7 @@
 //! quarter brightness and back**. The stepper at `0x004B0E03` moves each
 //! channel by at most [`STEP`] every ~20 ms, over palette entries
 //! [`FIRST`] … [`LAST`] **only** —
-//! map dims. A channel of 255 has 191 to travel, so a full fade is
+//! map dims. A channel of 255 has 191 to travel,
 //! [`STEPS`] steps ≈ 320 ms each way.
 //!
 //! Inferred, from where the two calls sit
@@ -32,7 +32,7 @@
 //! The original steps on a `GetTickCount` interval. Nothing below `main.rs` may
 //! read a clock (`docs/netcode.md`), so ours steps once per fixed 16 ms tick —
 //! the same trade `MapScreen::flag_tick` and `VillageScreen::CLICK_SETTLE_TICKS`
-//! already make, and the same one `docs/decisions.md` C49 records for the flag
+//! already make,
 //! wave. Sixteen steps at 16 ms is 256 ms
 //! palettes* is the original's, the interval between them is ours.
 //!
@@ -84,7 +84,7 @@ fn quarter(v: u8) -> u8 {
 /// late on the way up. Reproduced
 /// `min`/`max` either way and a smoothed version would be a guess.
 ///
-/// A phase past [`PHASES`] is clamped to it, so a caller that overruns gets the
+/// A phase past [`PHASES`] is clamped to it,
 /// full palette
 pub fn at(full: &Palette, phase: u8) -> Palette {
     let mut entries = *full.entries();
@@ -121,7 +121,7 @@ pub fn is_darkest(phase: u8) -> bool {
 mod tests {
     use super::*;
 
-    /// A palette whose every entry is the same triple, so a test can talk about
+    /// A palette whose every entry is the same triple,
     /// "the value" without indexing.
     fn flat(v: u8) -> Palette {
         Palette::from_entries([[v, v, v]; 256])

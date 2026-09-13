@@ -1,7 +1,7 @@
 //! **The battlefield** — `g_screenId` `0x29`, its drag mode `0x2A`, and the
 //! outcome banner `0x2B`.
 //!
-//! The state and the rules are [`crate::battlefield`]; this is the screen that
+//! The state and the rules are [`crate::battlefield` harvest]; this is the screen that
 //! drives them and the picture. One [`ScreenId`] covers all three, because all
 //! three are the same painter over the same globals and the difference between
 //! them is which arms run — see [`crate::battlefield::Mode`].
@@ -177,7 +177,7 @@ pub const CONFIRM_NO_FRAME: usize = 31;
 /// the press puts the gauntlet down and the handler runs
 /// [`crate::press::DELAYED_FRAMES`] frames later. That delay, with the picture
 /// visibly held down through it, is what a player read as *"the game waited on
-/// mouse-up, and the gauntlet would go down slightly when clicked."*
+/// mouse-up, and the gauntlet would go down slightly when clicked."
 ///
 /// Order matters: index 0 is hotspot id **1**, the tick, and index 1 is id
 /// **0**, the cross. `Ui_ConfirmClicked` (`0x00434E1F`) is
@@ -593,7 +593,7 @@ impl Screen for BattlefieldScreen {
                 live.update_hover();
                 // **The ladder short-circuits.** `FUN_0043BF07` runs first, and
                 // when it consumes the release — a committed box or a picked man
-                // — `Screen_FrameInput` jumps past `FUN_0043C57D`. So a finished
+                // — `Screen_FrameInput` jumps past `FUN_0043C57D`.
                 // box does *not* also order at the corner it ended on. When it
                 // declines (a click that moved nothing and hit nobody) the order
                 // arm behind it gets the release, and that is the only way a
@@ -969,7 +969,7 @@ fn ours_confirm(prompt: usize) -> &'static str {
 /// `g_battleLoser` holds the **winner** despite its name, and army A is always
 /// the besieger, so a siege reads four ways: took the castle (2), held it (4),
 /// lost it (5), driven off it (3). **This used to collapse the four to two** —
-/// a won siege was always 2 and a lost one always 3 — so a player who held his
+/// a won siege was always 2 and a lost one always 3 —
 /// castle was told he had taken it. Our attacker is `l2_sim::SIDE_B`
 /// (`engagement.rs` writes the attacker's survivors from that side), which is
 /// the original's army A. `Screen_BattleOutcome` shows the neutral pair 6 when

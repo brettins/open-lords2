@@ -4,14 +4,14 @@
 //! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test tooltips
 //! ```
 //!
-//! `FUN_00476E95` (`0x00476E95`) and the six functions under it, which were not
+//! `FUN_00476E95` (`0x00476E95`) and the six functions under it
 //! built: the Help Options panel's *"Tool tips"* row flipped a flag nothing
 //! read. `crate::tooltip` has the decompilation.
 //!
 //! What is asserted is the subject: **which tip** a pointer position gets on
 //! which screen, **the tick** it appears on, **what takes it away**, **where the
 //! box is**, and **the words in the box** — never a whole canvas. Every number
-//! the oracle gives is typed as a literal rather than read from the constant
+//! the oracle gives is typed as a literal read from the constant
 //! under test (`docs/agents.md`, *ablating a constant while computing your probe
 //! from that same constant tests nothing at all*).
 //!

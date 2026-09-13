@@ -24,7 +24,7 @@
 //!
 //!, so the inventory record
 //! names the first kind in `literals_ours` and the check is *set equality*
-//! against what the module actually draws. A new literal
+//! A new literal
 //! fails; a defence for a literal somebody deleted fails too.
 //!
 //! **The two artefacts are not maintained by the same work**, which is the
@@ -42,7 +42,7 @@
 //! font was not decoded yet and nothing anywhere counted the consequence.
 //!
 //! **That a screen with no record is fine.** A screen the audit has not reached
-//! is *skipped and counted*, and the count is printed. A skip that is silent is
+//! is *skipped and counted*, and the count is printed.
 //! a skip that becomes permanent.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -150,7 +150,7 @@ fn caption_of(entry: &str) -> String {
     entry[..end].trim().trim_matches('"').to_string()
 }
 
-/// The five call sites that put *our own letters* on the canvas, and the
+/// The five call sites that put *our own letters* on the canvas,
 /// literal caption each is given.
 ///
 /// Pinned by name from `crates/l2-view/src/text.rs` and `crates/l2-game/src/
@@ -264,7 +264,7 @@ fn every_english_caption_we_draw_is_one_the_inventory_defends() {
     let mut undefended: Vec<String> = Vec::new();
     let mut stale: Vec<String> = Vec::new();
     // A module can serve two screens (`0x35` and `0x36` are one painter and one
-    // flag), so a caption only has to be defended by *one* of its records.
+    // flag),
     let mut by_module: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut declared_for: BTreeSet<String> = BTreeSet::new();
 

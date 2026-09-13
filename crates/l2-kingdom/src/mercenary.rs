@@ -178,7 +178,7 @@ impl MercenaryBands {
     /// many bands the map supports and seed each from the roster.
     ///
     /// The band's *start* county is copied into both `start` and `next`, and
-    /// the period into both `countdown` and `reload`, so a band offers itself
+    /// the period into both `countdown` and `reload`.
     /// for the first time `period` seasons in.
     pub fn init(county_count: usize) -> MercenaryBands {
         let in_play = bands_in_play(county_count);
@@ -208,7 +208,7 @@ impl MercenaryBands {
     }
 
     /// A slot regardless of whether it is in play, for [`crate::save`]: the
-    /// file carries all thirteen so a band that a modded map put out of play
+    /// file carries all thirteen.
     /// still round-trips.
     pub fn band_raw(&self, band: usize) -> Band {
         self.bands.get(band).copied().unwrap_or_default()
@@ -251,13 +251,13 @@ impl MercenaryBands {
     /// wins.
     ///
     /// `[D]`, and one detail worth reproducing: the second
-    /// `nextCounty++` has **no wrap guard**, so a band that has just made an
+    /// `nextCounty++` has **no wrap guard**.
     /// offer sits at `countyCount + 1` for one season until the next call wraps
     /// it. Reproduce the sequence, not the invariant.
     ///
     /// **Switchable** — [`Quirk::MercenaryBandOvershoots`], `docs/bugs.md` B42.
     /// The fixed path gives the second increment the wrap guard the first one
-    /// has, so a band that has just made an offer stands next season in the
+    /// has.
     /// county after it.
     pub fn advance(
         &mut self,
@@ -371,7 +371,7 @@ impl MercenaryBands {
     /// ```
     ///
     /// It frees **only** `hiredBy`: the countdown, the offer and the walk
-    /// position are left alone, so a released band rejoins its round mid-cycle
+    /// position are left alone.
     /// `[D]`
     ///
     /// Two callers matter: an army being destroyed, and **bankruptcy stage 1**,
@@ -560,7 +560,7 @@ mod tests {
         assert_eq!(*bands.get(3).unwrap(), before, "a hired band is frozen");
     }
 
-    /// The county's offer is a one-slot cache, and the lower-numbered band
+    /// The county's offer is a one-slot cache.
     /// wins when two land together.
     #[test]
     fn a_county_holds_one_offer_and_the_lower_numbered_band_wins() {

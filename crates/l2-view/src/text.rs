@@ -242,7 +242,7 @@ mod tests {
     ///
     /// Asserted as an equality against the same string drawn one cell to the
     /// right without the lead, so it pins both halves at once: nothing in the
-    /// first cell, and the digit exactly one [`ADVANCE`] along.
+    /// first cell, and the digit
     ///
     /// Ablated by restoring the at-sign bitmap to `GLYPHS`: the first cell
     /// paints and the two canvases differ.

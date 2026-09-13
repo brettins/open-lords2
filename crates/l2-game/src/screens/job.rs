@@ -172,7 +172,7 @@
 //!
 //! **The two `Ui_OkButton` call sites are an if/else, not two buttons.** Worth
 //! saying because `Ui_OkButton` (`0x0040D1BC`) stashes only the last call's
-//! position, so a screen that really drew two would have a dead first one —
+//! position,
 //! here only one ever runs per frame, and the mechanical count of 2 is a count
 //! of *call sites*.
 //!
@@ -213,7 +213,7 @@
 //! `Eng_DrawString(77, 1, g_penAdvance + 0x40, y)` is one sentence: the second
 //! piece starts where the first ended. `Ui_DrawCount` (`0x0041AB67`) and
 //! `Ui_DrawDelta` (`0x00402E0C`) both **save `g_penAdvance`, zero it, draw, and
-//! add the saved value back**, so a count passed `x = g_penAdvance + 0x40`
+//! add the saved value back**,
 //! places its own noun from its own start and never counts the pen twice.
 //! Every [`Pen`] method returns the absolute x of the next glyph, which is that
 //! sum already. **[V]**, both bodies read.
@@ -353,7 +353,7 @@ pub const WEAPON_HOTSPOTS: [(i32, i32, i32, i32); l2_kingdom::tables::WEAPON_TYP
 /// (`Hotspot_Test`, `0x0040E3EE`).
 ///
 /// `0x18` is 24, which is exactly where `Sprite_WGenSprite(0, 0, 0x18)` puts the
-/// smithy picture — so the table is in the *picture's* coordinates and the
+/// smithy picture —
 /// offset is the picture's origin. Reading the table as screen coordinates puts
 /// every weapon 24 pixels high, and a player clicking a pike gets a bow.
 pub const HOTSPOT_ORIGIN: (i32, i32) = (0, 0x18);
@@ -402,7 +402,6 @@ const FLOOR_BAND: Rect = Rect::new(0, HEARTH_FLOOR, 0x1E * 16, 0x38);
 /// ```
 ///
 /// `scratch` still holds `Hearth.pl8` from the painter's second read, which is
-/// why the fire frames and the hearth pictures are one file.
 pub const FORGE_FRAMES: usize = 11;
 const FORGE_AT: (i32, i32) = (0x58, 0x9D);
 
@@ -504,7 +503,7 @@ pub enum Staffing {
 }
 
 /// The colour rule out of `Panel_JobDetail`, in the original's own order: short
-/// is tested first, so a job that is somehow both reads as short.
+/// is tested first,
 pub fn staffing(c: &County, job: usize) -> Staffing {
     let (have, wanted, useful) = (c.labour[job], c.labour_wanted[job], c.labour_useful[job]);
     if have < wanted {
@@ -583,7 +582,7 @@ impl Screen for JobScreen {
             // from the right-hand column that is: `0x0F`'s arm runs
             // `Ui_OkButtonClicked` and a right-release test and **none** of the
             // six sidebar guards, while `Screen_FrameInput`'s epilogue runs
-            // `Minimap_Click` on every screen id but `0x12`. So a press on the
+            // `Minimap_Click` on every screen id but `0x12`.
             // raster selects that county, re-centres the map and drops the
             // popup — and the epilogue names this screen specially while doing
             // it: `if (g_screenId == 0x0F) Sound_StopOneShot();`, because the

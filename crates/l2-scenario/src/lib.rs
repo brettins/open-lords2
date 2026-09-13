@@ -34,7 +34,7 @@
 //!
 //! # What the save does not record
 //!
-//! One thing, and it is worth stating where a reader will find it
+//! One thing
 //! burying it in a test. The file stores `popLast` and `happinessLast`, so the
 //! previous season's population and happiness are recoverable exactly. It
 //! stores **no previous herd and no previous grain** — the ration pass spent
@@ -49,7 +49,7 @@
 //!
 //! [`Scenario::from_save`] reads a world the original had already built.
 //! [`Scenario::from_map`] — [`newgame`] — **builds** one, out of an
-//! `L2_maps.dat` slot and the twelve custom-game settings, which is what the
+//! `L2_maps.dat` slot and the twelve custom-game settings.
 //! *New Game* button needs. Both produce the same plain data, so
 //! [`Scenario::starting_kingdom`] cannot tell them apart and
 //! `crates/l2-scenario/tests/newgame.rs` can diff England built both ways.
@@ -273,7 +273,7 @@ const TILE_STRIDE: u32 = 8;
 /// 64 × 64 plane, is a misread and not a field: it becomes an **empty slot**
 /// Nothing in the fixture takes that path
 /// — `crates/l2-scenario/tests/import.rs` asserts every populated slot is a
-/// real tile — and it is here so that a corrupt save loses a field instead of
+/// real tile —
 /// panicking somewhere else later.
 fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_FIELDS], SaveError> {
     let base = COUNTY_FIELD_TILES + county as u32 * COUNTY_FIELD_STRIDE;
@@ -726,7 +726,7 @@ pub struct CountyState {
     // `l2_kingdom::county::County`, carried by our own save format — and read
     // out of a `.sav` by nothing,
     // value until a season rewrote it. `docs/stored-fields.json` is the
-    // inventory that found them and the offsets are in [`stored`]; each
+    // inventory that found them and the offsets are in [`stored` text mapping key: number to string map.]; each
     // kingdom field's doc comment says what it is.
     /// `+0x258`, `+0x268`, `+0x26C` — the cattle row's forecast: overall
     /// change, calf births, cow deaths.

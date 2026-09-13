@@ -59,7 +59,7 @@
 //!   Pl8_DrawFrame(system, 0x53, pen + 0x188, base + 0x30)   AFTER either number
 //!   no offer:
 //!     FUN_0040328E(69, 4, 0x80, base + 0x60, 400, 100, body)  wrapped, 400 wide
-//!     Ui_DrawInsetRect(0x70, base + 0x58, 0x1A0, 0x32)   ... and the well AFTER it
+//! Ui_DrawInsetRect(0x70, base + 0x58, 0x1A0, 0x32)... and the well AFTER it
 //!   an offer:
 //!     Ui_DrawInsetRect(0x70, base + 0x58, 0x1A0, 0x60)
 //!     Ui_DrawNumber(band.men, '@', 0x70, base + 0x60, HEADING)
@@ -163,7 +163,7 @@
 //! | 400 | 260 | 31 | `FUN_00435C89` | the cross: hire = no |
 //!
 //! Only the first is always there; the tick and the cross appear when the
-//! county has a band on offer **and the treasury can meet its price**, which is
+//! county has a band on offer **and the treasury can meet its price**
 //! the `DAT_00522F58 = 3` branch. The *"Yes"* / *"No"* word this screen prints
 //! at `(0x1D0, base + 0x98)` is a **read-out of the flag, not a button** — it
 //! is 88 pixels to the right of the cross and nothing tests it. This module
@@ -771,7 +771,7 @@ impl Screen for RaiseArmyScreen {
             }
             // The release ends the hold in both halves at once: it clears the
             // record's `held` in `Press` and `g_mouseLeftDown` for the track.
-            // Neither consumes it — there is no kind-3 record on this screen
+            // Neither consumes it —
             // and the slider reads a level, not an edge.
             //
             // **And the corner picture is here, not in the press.** The `0x17`

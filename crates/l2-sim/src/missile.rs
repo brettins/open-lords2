@@ -41,12 +41,12 @@
 //! * **A target that dies or walks away is not tracked.** The impact point is
 //!   frozen at launch; the arrow arrives at an empty cell and carries on.
 //! * **Friendly fire cannot happen**, because the test is on the *owner* byte
-//! rather than the side — and a friendly body does not stop the arrow either.
+//! — and a friendly body does not stop the arrow either.
 //!
 //! # The timing is one number wearing two hats
 //!
 //! A missile advances [`SUB_STEPS`] sub-steps a tick and one sub-step is
-//! [`SUB_CELL`]⁻¹ of a cell, so a tick is exactly ⅛ of a cell. The range in
+//! [`SUB_CELL`]⁻¹ of a cell, The range in
 //! `g_missileStats` is stored in **eighths of a cell**, so the same number is
 //! both the distance and the tick budget, and `range >> 3` is the range in
 //! cells with no conversion anywhere. That is why [`MissileStats::range_ticks`]
@@ -74,7 +74,7 @@ use crate::troop::Troop;
 pub const SUB_CELL: i16 = 32;
 
 /// Sub-steps a missile takes per tick — `g_missileStats[class][2]`, **4 for
-/// every weapon class**. One sub-step is one unit of [`SUB_CELL`], so a tick is
+/// every weapon class**. One sub-step is one unit of [`SUB_CELL`],
 /// an eighth of a cell.
 pub const SUB_STEPS: i8 = 4;
 
@@ -86,7 +86,7 @@ pub const MAX_MISSILES: usize = 100;
 /// **A missile is born a whole cell out from its shooter.**
 /// `BattleMan_FireMissile` runs eight `Missile_Step`s on the spot before the
 /// missile is ever linked to a cell or drawn — eight ticks, thirty-two
-/// sub-steps, one cell — and those eight come out of the range budget. So a
+/// sub-steps, one cell — and those eight come out of the range budget.
 /// shot can already have hit something before anybody sees it.
 pub const LAUNCH_STEPS: u32 = 8;
 
@@ -96,7 +96,7 @@ pub const BLOCKED_LIMIT: u8 = 0x20;
 
 /// What a hit sets the missile's countdown to. `Missile_UpdateAll` decrements
 /// it, so an arrow lives exactly one more tick after impact — which is what
-/// makes **one hit per missile** structural rather than a rule anybody wrote.
+/// makes **one hit per missile** structural
 pub const HIT_TTL: i16 = 2;
 
 /// What a catapult shot striking a wall sets its countdown to, as it becomes
@@ -172,7 +172,7 @@ impl MissileStats {
 }
 
 /// **When a shot's target is chosen.** `BattleMan_FireMissile` acquires ten
-/// ticks before the reload expires, so a figure that loses its target in the
+/// ticks before the reload expires,
 /// last ten ticks of a cycle does not shoot at all.
 pub const ACQUIRE_LEAD: u16 = 10;
 
@@ -196,7 +196,7 @@ impl WeaponClass {
 
     /// Whether a missile of this class can hurt a **figure**.
     ///
-    /// `Missile_Step`'s hit test is gated on `class < 3`, so a catapult shot
+    /// `Missile_Step`'s hit test is gated on `class < 3`,
     /// passing straight through a crowd does nothing to the men in it at all.
     /// A catapult is a wall-breaker and only a wall-breaker. **[V]**
     pub fn hits_men(self) -> bool {
@@ -234,7 +234,7 @@ pub struct Missile {
     /// 1 bow, 2 crossbow, 3 catapult, [`CLASS_DEBRIS`] what a catapult shot
     /// becomes when it strikes a wall.
     pub class: u8,
-    /// **The firing figure**, not the target. There is no target field on the
+    /// **The firing figure**, not the target.
     /// record at all — see the module header.
     pub shooter: u16,
     /// Position, in [`SUB_CELL`]ths of a cell.
@@ -262,7 +262,7 @@ pub struct Missile {
     /// Cell elevation under the shooter. Ground more than one level above this
     /// blocks the shot.
     pub launch_elevation: u8,
-    /// Ticks spent blocked. Seeded per shooter so a volley does not all give up
+    /// Ticks spent blocked. Seeded per shooter
     /// on the same frame.
     pub blocked_ticks: u8,
     /// Sub-steps this tick — [`SUB_STEPS`] normally, 1 for debris.
@@ -333,10 +333,10 @@ impl Missile {
     }
 
     /// `Missile_StepError` (`0x00493B61`) — one Bresenham error update, over the
-    /// **remaining** counts rather than the original ones, and one decrement of
+    /// **remaining** counts and one decrement of
     /// the major axis.
     ///
-    /// Using the remaining counts is the original's and is not a mistake: they
+    /// Using the remaining counts is the original's
     /// shrink together, so the slope it re-derives each step is the same slope.
     /// **[I]** on whether the decrement precedes or follows the error update —
     /// the path is identical either way, and nothing else reads the counts.
@@ -511,8 +511,8 @@ pub fn spawn(
         dir: facing_from_delta(to.0 as i32 - from.0 as i32, to.1 as i32 - from.1 as i32)
             .unwrap_or(8),
         launch_elevation,
-        // `(shooterIndex & 0x10) + 4` — 4 or 20, so a blocked volley gives up
-        // raggedly rather than all at once.
+        // `(shooterIndex & 0x10) + 4` — 4 or 20,
+        // raggedly
         blocked_ticks: ((shooter as u8) & 0x10) + 4,
         sub_steps: SUB_STEPS,
         range_ticks: class.stats().range_ticks(),
@@ -539,7 +539,7 @@ pub fn band_scaled(damage: u16, band: u8) -> u16 {
 
 /// Damage a missile delivers, before it is applied.
 ///
-/// `elevation_delta` is the target's cell elevation minus the shooter's, so a
+/// `elevation_delta` is the target's cell elevation minus the shooter's,
 /// positive value means the target holds the high ground. It is always zero on
 /// skirmish maps, which carry no elevation at all.
 pub fn resolve_power(

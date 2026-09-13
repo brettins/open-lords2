@@ -14,12 +14,12 @@
 //!   covered in `tests/lockstep.rs`.
 //! * **NAT is not testable on one machine at all.** Two peers on loopback never
 //!   traverse anything. This is a real gap and is recorded as one in
-//!   `docs/netcode.md`; no test here should be read as covering it.
+//! `docs/netcode.md`; no test here should be read as covering it.
 //! * **MTU is real and is testable**, because it is really a question about
 //!   *framing*: the transport must not care where the operating system chose to
 //!   split the stream. The strongest version of that is one byte at a time.
 //! * **Head-of-line blocking is real and is the interesting one.** With TCP,
-//!   one slow peer stalls everyone, and the correct behaviour is to *wait* —
+//! one slow peer stalls everyone, and the correct behaviour is to *wait* —
 //!   never to guess ahead, because a guess is a desync and a desync is worse
 //!   than a pause. That is the last and longest test here.
 

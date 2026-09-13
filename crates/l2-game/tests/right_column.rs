@@ -71,7 +71,7 @@ fn widget(t: &l2_testkit::pe::Table, i: usize, off: (i32, i32)) -> Rect {
 
 /// **The tables, out of the player's own copy of the game.**
 ///
-/// Ablation, which was run: change `SIDEBAR_BUTTONS[0].w` from 33 to 32 and the
+/// Ablation, change `SIDEBAR_BUTTONS[0].w` from 33 to 32 and the
 /// first assertion fails naming record 0. The probe is the exe and the subject
 /// is our constant,
 /// which is the trap `docs/agents.md` records: *ablating a constant while
@@ -109,7 +109,7 @@ fn the_right_columns_geometry_is_the_exes_own_tables() {
     // original's own data and this is where it is pinned.
     assert_eq!(map::MINIMAP_MODE_BUTTONS[1].h, 34, "the overlapping band is the exe's");
 
-    // And the army-division screen, which is where the third overlap was.
+    // And the army-division screen.
     let split = l2_testkit::pe::Table::at(&exe, SPLIT_TABLE);
     assert_eq!(divide::SPLIT_TICK, widget(&split, 0, (0, 0)), "the confirm tick");
     assert_eq!(divide::SPLIT_CROSS, widget(&split, 1, (0, 0)), "the cancel cross");
@@ -145,13 +145,13 @@ fn world() -> (Game, Assets) {
     // The lesson is the fixture one: **a fixture in a degenerate state tests
     // the degenerate state**, and it stays invisible for
     // the rule that would object is unimplemented.
-    // Realms 2..5 each hold one, and the human holds county 1 because that is
+    // Realms 2..5 each hold one, and the human holds county 1
     // the one every screen in this file is built against.
     for realm in 2..g.kingdom.realms.len() as u8 {
         g.kingdom.counties[realm as usize].owner = realm;
         // `Realm::in_play` is what the ranking counts, **not** county
         // ownership. Giving a realm land is not the same as it being alive, and
-        // the two are only ever equal because the loader sets both —
+        // the two are only ever equal —
         // why a hand-built fixture can hold land for six lords and still be a
         // won game.
         g.kingdom.realms[realm as usize].in_play = true;

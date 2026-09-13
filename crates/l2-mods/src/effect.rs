@@ -10,9 +10,9 @@
 //! ways, and telling them apart is the whole value here:
 //!
 //! 1. **It lost.** A later mod in the load order set the same path. The fix is
-//!    load order, and the report names the mod that won.
+//! load order, and the report names the mod that won.
 //! 2. **It landed on nothing.** The path existed nowhere below, so the merge
-//!    added it and the engine reads it from a name nothing looks up. Almost
+//! added it and the engine reads it from a name nothing looks up. Almost
 //!    always a typo — `battle.three_brdiges` — or a mod written against a
 //!    version of another mod that has since renamed something. This one is
 //! invisible without provenance.

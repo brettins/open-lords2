@@ -103,7 +103,7 @@ fn tick(counties: &mut [County; MAX_COUNTIES], map: &mut CampaignMap, season: Se
 fn a_sown_field_is_a_tile_the_ai_raid_finder_can_see_all_year() {
     let (mut counties, mut map) = a_county_about_to_be_sown();
 
-    // Before the sowing there is nothing to raid, and the finder says so by
+    // Before the sowing there is nothing to raid,
     // falling back to the anchor. This is the control: it is the answer C124's
     // reading gave in Spring, Summer and Autumn as well.
     assert_eq!(

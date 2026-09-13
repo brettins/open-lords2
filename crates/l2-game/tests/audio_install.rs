@@ -50,7 +50,7 @@ fn every_wav(dir: &Path) -> Vec<PathBuf> {
 fn every_track_the_ladder_can_choose_is_in_the_install() {
     let dir = l2_testkit::install!();
     // Both ladders, exhaustively: the five campaign tracks a share of the map
-    // can reach and the four a battle can. A missing one is silence at exactly
+    // can reach and the four a battle can. A missing one is silence at
     // the moment the game gets interesting.
     for share in [0, 7, 8, 14, 15, 28, 29, 42, 43, 100] {
         let m = track::campaign(4, share);
@@ -74,7 +74,7 @@ fn the_two_sample_banks_ship_apart_from_the_hole_in_both() {
         for (i, name) in bank.iter().enumerate() {
             if *name == "null.wav" {
                 // Slot 1 of both banks. `null.wav` is not in the install and
-                // never was: the original loads a bank of a fixed size and
+                //
                 // this is how it spells an unused slot.
                 assert!(find(&dir, name).is_none(), "null.wav actually exists?");
                 continue;
@@ -117,7 +117,7 @@ fn the_message_fanfares_ship() {
     assert!(find(&dir, "ff_win.wav").is_some(), "ff_win.wav ships even so");
 }
 
-/// **The four screen-voice tables, and the one entry that is not a
+/// **The four screen-voice tables, and the one entry that is
 /// convention.**
 ///
 /// `S016_*`, `S020_*`, `S031_*` and `S071_*` are read out of `.data` as
@@ -244,7 +244,7 @@ fn england_turn_one_would_play_scroll1() {
     assert_eq!(realm.county_count, 1, "the England start is one county");
     assert_eq!(game.kingdom.county_count, 14);
 
-    // **Not a real machine, and the comment here used to claim it was.**
+    // **
     //
     // `Machine::new(ScreenId::Campaign)` is a stack the application cannot
     // produce: it starts on `Setup(Title)` and the Start button *pushes* the
@@ -263,7 +263,7 @@ fn england_turn_one_would_play_scroll1() {
     );
     assert_eq!(track::campaign(1, 7), track::Music::Scroll(1));
 
-    // And the reason `scene` computes the share instead of reading it: the
+    //
     // importer leaves the derived field at zero until a turn has been ended.
     // If this ever stops being 0 the recompute still agrees with it, so this
     // is a note - but it is why the note exists.
@@ -282,7 +282,7 @@ fn england_turn_one_would_play_scroll1() {
 /// has to be audible and finite.
 ///
 /// The failure this exists for is silence — a resampler that steps by zero, a
-/// bias that centres 8-bit audio on 0 instead of 128, a gain shifted the wrong
+/// bias that centres 8-bit audio on 0
 /// way. All three produce a buffer of zeroes and no error anywhere.
 #[test]
 fn a_real_track_comes_out_of_the_mixer_audible() {

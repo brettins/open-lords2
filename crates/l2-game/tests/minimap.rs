@@ -262,7 +262,7 @@ fn the_labour_overlay_paints_only_the_two_ends_of_the_ramp() {
 
 /// **The four buttons are not radio buttons.** `Minimap_ModeButton` takes a
 /// mode button only while the overlay is off, and once it is on the fourth
-/// button turns the overlay off instead of toggling the zoom. So going from
+/// button turns the overlay off. So going from
 /// food to happiness takes three clicks, not one — and the pixels say which
 /// mode is up.
 #[test]
@@ -290,7 +290,7 @@ fn a_mode_button_does_nothing_while_another_mode_is_up() {
         "a mode button is ignored while a mode is up"
     );
 
-    // The fourth button leaves the overlay instead of zooming.
+    // The fourth button leaves the overlay.
     click(&mut screen, &mut game, &assets, 3);
     assert_eq!(
         land_colours(&draw(&mut screen, &mut game, &assets), &raster, &mine),

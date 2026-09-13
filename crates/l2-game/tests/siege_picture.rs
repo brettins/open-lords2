@@ -414,7 +414,7 @@ fn a_raised_cell_takes_a_second_blit_from_the_second_sheet() {
 /// either structure table files under code 6 — so the cell the pass sends to
 /// the banner is the keep and nothing else.
 ///
-/// Two halves, because the arithmetic and the pixels can fail apart:
+/// Two halves,
 ///
 /// * `shield * 8 + counter + 0x21` over six shields and eight phases must land
 ///   inside `A2_miss.pl8` and end on its last frame, 80;

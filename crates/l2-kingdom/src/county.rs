@@ -871,7 +871,7 @@ pub struct County {
 /// [`crate::land::grain_preview`] exists as a second pass
     /// value the estimate returns.
     ///
-    /// **Encoded, deliberately, and the argument is worth keeping.** They are
+    /// **Encoded, deliberately
     /// *derived* — every estimate round recomputes them from state the digest
     /// already carries — so they cannot diverge on their own and could have been
     /// left out. They are in anyway, for the reason the three cattle fields

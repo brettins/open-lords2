@@ -1,7 +1,7 @@
 //! **Smacker video, decoded from the published format description.**
 //!
 //! Lords of the Realm II ships 45 `.smk` films — the intro, the Impressions
-//! logo, the credits, a Lords of Magic trailer, and the stingers the game plays
+//! logo, the credits, a Lords of Magic trailer
 //! over a captured county, a finished battle, a new castle and a fallen lord.
 //! `docs/formats/smk.md` measured all of them: every one is `SMK2`, 8-bit
 //! palettised video with one Huffman-packed 8-bit audio track, no ring frame
@@ -14,7 +14,7 @@
 //! LGPL-2.1+ and ScummVM's is GPL. So this is written from the format's
 //! *description* — the container layout, the four Huffman trees and their
 //! three-value recency cache, the four block types, the palette delta opcodes
-//! and the DPCM audio — which is a set of facts about a file format, and facts
+//! and the DPCM audio — which is a set of facts about a file format
 //! are not copyrightable (`CLAUDE.md` rule 3). No line of any of those
 //! implementations was read while writing this one.
 //!
@@ -552,7 +552,7 @@ impl Smk {
         let mut pos = 0usize;
         let mut palette = None;
         if flags & 1 != 0 {
-            // One byte of length in units of four, and the byte counts itself.
+            // One byte of length in units of four
             let len = *data.first().ok_or(Error::Truncated("a palette chunk"))? as usize * 4;
             if len == 0 || len > data.len() {
                 return Err(Error::Truncated("a palette chunk"));
@@ -577,7 +577,7 @@ impl Smk {
     }
 
     /// A decoder positioned before this film's first frame. It borrows
-    /// nothing: every call that needs the film is handed it, so a player can
+    /// nothing: every call that needs the film is handed it
     /// own the film and its decoder side by side.
     pub fn decoder(&self) -> Decoder {
         Decoder::new(self)
@@ -730,7 +730,7 @@ impl Decoder {
     ///   `s`;
     /// * `00rrrrrr gg bb` — one entry, three 6-bit components.
     ///
-    /// Copying reads a snapshot, so a copy whose source overlaps what this
+    /// Copying reads a snapshot
     /// frame has already written reads the old values. `Pill_brn.smk` frame
     /// 104 depends on exactly that.
     fn apply_palette(&mut self, chunk: &[u8]) -> Result<()> {
@@ -774,7 +774,7 @@ impl Decoder {
     }
 
     /// **The block pass.** The picture is cut into 4 × 4 blocks in reading
-    /// order, and the Type tree gives runs of them: the low two bits a block
+    /// order
     /// type, the next six an index into [`RUN`], the high byte a colour.
     ///
     /// | type | name | per block |

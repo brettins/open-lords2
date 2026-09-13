@@ -40,7 +40,7 @@ pub const MIGRATION_CAP: i32 = 100;
 
 /// The flat number of people a population event adds on top of its percentage:
 /// `Pct(deaths or births, |pct|) + 10`. `[V]` — `Population_UpdateAll`
-/// (`0x00449EF3`) adds the literal `10` in both arms, and nowhere else. So a
+/// (`0x00449EF3`) adds the literal `10` in both arms, and nowhere else.
 /// plague always costs at least ten, and a county under fifty people, whose
 /// 20% cap is below ten, loses the whole cap instead.
 ///
@@ -79,7 +79,7 @@ pub fn movers(population: i32, happiness: i32, best_neighbour: i32, unowned: boo
 /// `Migration_UpdateAll` — every county's emigrants and immigrants for this
 /// season.
 ///
-/// Happiness is snapshotted before anything moves, so a county's decision does
+/// Happiness is snapshotted before anything moves,
 /// not depend on how many counties happen to be earlier in the array. The
 /// original walks the array in index order and so does this, which is the same
 /// thing said twice — but only one of the two is still true if somebody later
@@ -241,7 +241,7 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
     if county.population < 1 {
         births = 0;
         // Written
-        // here, so a county that dies out stores a *negative* death count -
+        // here,
         // see the errata note in the crate documentation.
         //
         // **Switchable** - [`Quirk::ExtinctCountyRecordsNegativeDeaths`],
@@ -601,7 +601,7 @@ mod tests {
         assert_eq!(c.event_population_swing, 20, "capped at Pct(100, 20), not 46");
         assert_eq!(c.births, 61 + 20);
 
-        // Band 4 in Summer dies of nothing — a rate of 0 earns no `+1` — so a
+        // Band 4 in Summer dies of nothing — a rate of 0 earns no `+1` —
         // Summer plague's 20% is of zero deaths.
         let mut c = County::new();
         c.population = 1000;
@@ -615,7 +615,7 @@ mod tests {
     }
 
     /// `Population_UpdateAll` zeroes `+0x2F8` in every county before it looks
-    /// at the event byte, so a season without an event clears last season's
+    /// at the event byte,
     /// figure
     #[test]
     fn a_season_without_an_event_writes_the_figure_back_to_zero() {

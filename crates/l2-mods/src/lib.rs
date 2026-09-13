@@ -404,7 +404,7 @@ impl PlatformBuilder {
 
     /// Whether to apply the engine's own ruleset underneath everything else.
     ///
-    /// On by default, and the only reason to turn it off is to inspect exactly
+    /// On by default, and the only reason to turn it off is to inspect
     /// one install's documents in isolation — a diagnostic, not a game. A
     /// running game without the core rules has no combat constants and no
     /// economy.

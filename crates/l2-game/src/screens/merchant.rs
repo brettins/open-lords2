@@ -114,7 +114,7 @@
 //!
 //! ```text
 //! Screen_TradeGoods():                                         0x00416308
-//!   Trade_BeginGood()                       the prices and the two clamps
+//! Trade_BeginGood() the prices and the two clamps
 //!   FUN_00408FCB("merchant.pl8", 0x1E0)     the stall again, as a backdrop
 //!   File_ReadChunk("icontrad.pl8", DAT_004EABEC, 160000)   the sprite bank
 //!   Trade_DrawPanel()
@@ -188,7 +188,7 @@
 //! four values is one of the model's own limits:
 //!
 //! * **68/18** *"You do not have enough crowns to buy, my Lord."* — the up
-//!   arrow clamped **and the ceiling was zero**. The original's test is
+//! arrow clamped **and the ceiling was zero**. The original's test is
 //!   `if (maxQty < qty && (qty = maxQty, maxQty == 0))`, so it is not "you hit
 //!   the limit", it is "you cannot afford even one".
 //! * **68/16** *"You have no goods to sell, my Lord."* — the down arrow, with

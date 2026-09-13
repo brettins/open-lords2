@@ -46,17 +46,17 @@
 //!   [`crate::phase::Phase::wait`], which is corrected, and `docs/decisions.md`
 //!   C35.
 //! * **An army moving is not confined to a phase**, so [`Kingdom::tick_units`]
-//!   is called on *every* tick by the turn driver, and the per-phase work is
+//! is called on *every* tick by the turn driver, and the per-phase work is
 //!   [`Kingdom::begin_unit_phase`].
 //!
 //! # One tile per tick, not a march
 //!
 //! `Unit_Step` (`0x00465D28`) loops only on the sub-tile animation code and
-//! returns as soon as a tile is committed, so a unit enters **at most one tile
+//! returns as soon as a tile is committed,
 //! per tick**. With an army's 15 points that is five open-ground tiles or
 //! fifteen road tiles a season; with the other three types' 10 it is three and
 //! ten. [`crate::movement::march`] — which walks to exhaustion — is therefore
-//! the right shape for a test and the wrong shape for the turn, because a
+//! the right shape for a test and the wrong shape for the turn,
 //! battle has to be able to interrupt the sweep between two tiles.
 //!
 //! # `moving` is really three states, and this crate has two
@@ -71,7 +71,7 @@
 //! the order was given, in the same phase, before `Units_Tick` runs; nothing
 //! observes a unit sitting at 1. The one place the distinction has teeth is a
 //! *different* phase's units, and this driver steps every kind on every tick
-//! exactly as the original's frame loop does,
+//!,
 //! state to gate. **`[D]`** — recorded because if a mob is ever seen stepping a
 //! tick early, this is the paragraph that is wrong.
 
@@ -199,7 +199,7 @@ pub struct Incursion {
 ///
 /// Two kinds, and they differ in who decides the recipient. A [`Posted::Letter`]
 /// is fully addressed by the world — `County_GreetArmy` writes to the army's
-/// owner and the invasion letter to the county's — so any peer's ring filter
+/// owner and the invasion letter to the county's —
 /// keeps or drops it. A [`Posted::Capture`] is not: `County_ChangeOwner` chooses
 /// its letter by comparing realms against `g_localPlayer`, so what is reported
 /// is the facts, and the peer chooses. `l2_game::arrival` posts both.
@@ -269,7 +269,7 @@ impl Kingdom {
     /// Three things the shape decides:
     ///
     /// * **The cap is tested against the pair**, not against the new arrival,
-    ///   so a castle 90 % full refuses an army that would have fitted in the
+    ///
     ///   10 %. Reproduced.
     /// * **It is a teleport, not a step.** The army does not walk onto the
     ///   castle tile; it is placed on it and charged five moves. The tile it
@@ -561,12 +561,12 @@ impl Kingdom {
     /// The original's ladder, in its own order:
     ///
     /// 1. the **mover** is a merchant or a transport — walk through;
-    /// 2. the **occupant** is a merchant — walk through, so a merchant is never
+    /// 2. the **occupant** is a merchant — walk through,
     ///    attacked;
     ///
     /// **Rungs 1 and 2 no longer reach here.** They are not "no fight, but the
     /// move ends": the original returns the tile's ordinary Road or Open code
-    /// and the mover steps onto the tile, which is a *movement* answer rather
+    /// and the mover steps onto the tile,
     /// than a contact. [`crate::movement::pass_through`] gives it, so
     /// [`Entry::Occupied`] never reaches this function in those two cases and
     /// the rungs are kept below only because the ladder reads wrong without
@@ -599,7 +599,7 @@ impl Kingdom {
     }
 
     /// `Diplo_ActionAllowed` (`0x004A0710`)'s ally test, and nothing else of it.
-    /// Realm `+0x81` is one byte, so a realm has at most one ally, and the
+    /// Realm `+0x81` is one byte,
     /// relation is read from both sides because the original stores it on both.
     fn allied(&self, a: u8, b: u8) -> bool {
         if a == b {
@@ -641,7 +641,7 @@ impl Kingdom {
     ///
     /// **Phase 5's is narrower and the difference is real**: it counts only
     /// mobs owned by realm **6** whose `ownerIsHuman` byte is clear — the
-    /// ownerless rabble — so a type-2 unit belonging to a player would not hold
+    /// ownerless rabble —
     /// the phase open. Nothing creates one, and the guard is reproduced anyway
     /// because a rule that only matters in a case that cannot arise is exactly
     /// the kind that stops being true later.
@@ -828,7 +828,7 @@ pub fn ids_of_kind(units: &Units, kind: UnitKind) -> Vec<usize> {
 ///
 /// `Army_Tick` writes **15** to `+0x154` as its first statement, and the other
 /// three write **10** — *every tick*, unconditionally. The field is therefore
-/// derived, never stored, and the England fixture proves it: all six merchants
+/// derived,
 /// in `england-turn1.sav` have `moveAllowance = 0` on disk because nothing had
 /// ticked them since the load.
 ///
@@ -897,7 +897,7 @@ pub fn refresh_allowances(units: &mut Units) {
 ///   road-keyed divider above are every unit's.
 /// * `Map_DrawArmies` (`0x00408438`) reads its six `8 × 16` offset tables
 ///   **before** the first `kind` comparison; the only kind-dependent parts are
-///   sheet B for a transport, the nudge and the mark-tile size.
+/// sheet B for a transport, the nudge and the mark-tile size.
 ///
 /// His walk frames advance too, and faster than an army's: `Merchant_Tick`
 /// writes `+0x07 = ((facing + 1) & 7) * 6 + g_merchantWalkFrames[+0x1B]` — six
@@ -1005,7 +1005,7 @@ mod tests {
 
         let mut ticks = 0usize;
         // (the tick it happened on, the tile it arrived at) — one entry per
-// tile entered, so a stall then a sprint cannot satisfy it.
+// tile entered,
         let mut arrivals: Vec<(usize, u8)> = Vec::new();
         while k.units_moving(UnitKind::Army) && ticks < 1000 {
             let t = k.tick_units();
@@ -1303,7 +1303,7 @@ mod tests {
         assert!(k.campaign.units.get(id).unwrap().needs_destination);
     }
 
-    /// The allowance is derived from the type on every tick, so a unit that
+    /// The allowance is derived from the type on every tick,
     /// arrives from a save with a zero in it still walks.
     #[test]
     fn the_allowance_is_rebuilt_from_the_type() {

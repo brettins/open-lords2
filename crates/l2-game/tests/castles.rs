@@ -119,7 +119,7 @@ fn run_until(
 /// `Unit_StepOnce`'s sub-tile counter landed a unit takes 8 ticks to cross a
 /// road tile and 32 to cross anything else. Nothing in the turn machine waits
 /// on the human's armies,
-/// the order is asserting a race rather than a rule.
+/// the order is asserting a race
 fn march(m: &mut Machine, g: &mut Game, a: &Assets) {
     run_until(m, g, a, "the march", |_, g| {
         !g.kingdom.campaign.units.iter().any(|(_, u)| u.moving)
@@ -309,7 +309,7 @@ fn picking_a_castle_and_pressing_ok_starts_the_work() {
     assert_eq!(g.kingdom.realms[1].stone, stone - 1_000);
     assert_eq!((c.castle_wood_owed, c.castle_stone_owed), (0, 0));
 
-    // And the map knows: the plot's terrain is a castle now, not bare ground.
+    // And the map knows: the plot's terrain is a castle now.
     assert_eq!(
         g.kingdom.campaign.map.terrain_at(here.0, here.1),
         terrain::CASTLE_PLOT + 3,

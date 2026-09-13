@@ -62,7 +62,7 @@ below.**
 
 ## Specific holes
 
-### 1. The shipped save is a complete campaign, and the plan calls reading it a stretch goal
+### 1. The shipped save is a complete campaign
 
 `docs/plan.md` §C: *"Reading the original's `lastturn.sav` is a stretch goal — the container
 arithmetic is already proven exactly."* The container arithmetic is the least of what is
@@ -190,7 +190,7 @@ others. `crates/l2-mods/src/kingdom.rs` has no ruleset keys for them either.
 So the stated goal — *"a modded `kingdom.toml` … take effect"* — is not reached by
 threading `&Tables` through. It also needs `Tables` widened, `l2-mods`'s reader widened in
 lockstep, and the round-trip and digest tests extended. Still worth doing and still mostly
-mechanical, but it is a three-crate change, not a one-crate one, and the plan should say
+mechanical, but it is a three-crate change, not a one-crate one
 which of the 21 are in scope. Deciding "these 21 stay hard-coded for now" is a fine answer;
 discovering them halfway through is not.
 
@@ -300,7 +300,7 @@ what workstream A is about to reimplement.
 
 This does **not** mean the plan's conclusion is wrong. Not naming them is still probably
 right, because we are writing our own interface, and
-`docs/method.md` §7 argues that well. But the *reason given* is false, and the plan's fourth
+`docs/method.md` §7 argues that well. But the *reason given* is false
 risk — "could be wrong in a way that bites during integration" — is now measured and comes
 out badly. Rewrite the risk as what it is: **we are choosing to
 invent the UI, and pixel-comparison against the original is off the
@@ -434,7 +434,7 @@ for vendoring PCG32 and XXH64. Right call, well argued,
   `0x004DA050`, back-to-front by `x+y`. It just has no test and its own projection.
 * **`Canonical` as the save encoder.** Section-tagged, deterministic, already used by the
   checksum, the snapshot and the replay. C should build on it and needs nothing new.
-* **Holding A for review while B starts.** Correct instinct, and the plan is right that A is
+* **Holding A for review while B starts.** Correct instinct
   the contested piece. The review's answer is that B is contested too.
 
 ---

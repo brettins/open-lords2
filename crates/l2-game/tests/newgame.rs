@@ -131,7 +131,7 @@ fn choosing_ireland_starts_ireland() {
     let t = press_start(&mut screen, &mut game, &assets);
     assert_eq!(t, Transition::Push(ScreenId::Campaign));
 
-    // `g_scenarioIndex`, which is what the campaign painter and the minimap
+    // `g_scenarioIndex`
     // read to know which artwork to draw.
     assert_eq!(game.map_slot, IRELAND);
 
@@ -210,7 +210,7 @@ fn a_turn_runs_on_a_world_built_from_a_map_file() {
     );
 }
 
-/// **Two different maps are two different worlds**, and the second one does not
+/// **Two different maps are two different worlds**
 /// inherit the first.
 ///
 /// The failure this catches is the one the feature replaced: a *Start* that
@@ -553,7 +553,7 @@ fn the_colour_a_person_picks_is_the_colour_their_realm_flies() {
             "the person picked shield {shield} and their realm flies {}",
             game.kingdom.realms[me].shield_index
         );
-        // And the copy the *map* painter reads, which is the one the player was
+        // And the copy the *map* painter reads
         // looking at when he said it had not been honoured.
         assert_eq!(game.realm_colour[me], shield, "shield {shield}: the drawn colour");
         // Five realms, five different colours, none of them left at zero.
@@ -564,7 +564,7 @@ fn the_colour_a_person_picks_is_the_colour_their_realm_flies() {
     }
 }
 
-/// **The counter-intuitive half, and the one a player will check: taking a
+/// **The counter-intuitive half
 /// middle colour moves the lords, not only their colours.**
 ///
 /// `Realms_AssignLords` (`0x0049CAAA`) hands the AIs the lowest shield nobody
@@ -609,7 +609,7 @@ fn taking_a_middle_colour_moves_which_lord_flies_which_shield() {
         "nobody but the person has yellow"
     );
 
-    // …and the name the interface prints for that realm, which is
+    // …and the name the interface prints for that realm
     // `Realms_AssignLords`' own `Eng_Seek(7, lord)` and what a player reads on
     // the diplomacy screen.
     let red = by_shield(1);

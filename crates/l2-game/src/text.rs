@@ -3,7 +3,7 @@
 //!
 //! # Why this module exists at all
 //!
-//! A player reported *"I can't type my name in the start menu?"* and the answer
+//! A player reported *"I can't type my name in the start menu?"*
 //! was larger than the report: **this workspace had no keyboard text entry of
 //! any kind.** `crate::input::Key::Backspace` was manufactured by `main.rs` and
 //! read by nothing outside one hand-rolled field on the save screen;
@@ -20,8 +20,8 @@
 //!
 //! | function | what it is | here |
 //! |---|---|---|
-//! | `Edit_Begin` `0x00402009` | clear, seed from a string, set the two limits and the kind, caret to 0 | [`TextField::begin`] |
-//! | `Edit_TypeChar` `0x00401A20` | **the character filter**, and the only way a printable character gets in | [`TextField::type_char`] |
+//! | `Edit_Begin` `0x00402009` | clear, seed from a string, set the two limits and the kind, caret to 0 | [`TextField::begin`]
+//! | `Edit_TypeChar` `0x00401A20` | **the character filter** | [`TextField::type_char`]
 //! | `Edit_Insert` `0x00401D26` | put one accepted character at the caret, insert or overwrite | [`TextField::put`] |
 //! | `Edit_Clamp` `0x00401984` | recompute the pixel width, clamp the caret, decide whether the field is full | [`TextField::clamp`] |
 //! | `Edit_Backspace` `0x00401C70` | caret back one, then delete | [`TextField::backspace`] |
@@ -34,7 +34,7 @@
 //!
 //! **The keyboard dispatch is the window procedure** (`0x004B29BE`), not
 //! `Screen_FrameInput` and not `Screen_HandleInput`. `WM_CHAR` (`0x102`) goes
-//! straight to `Edit_TypeChar` with no screen test whatever, and the nine
+//! straight to `Edit_TypeChar` with no screen test whatever
 //! editing keys are arms of `WM_KEYDOWN` (`0x100`) that are equally ungated.
 //! What decides whether any of it *lands* is a single flag, `g_editActive`
 //! (`0x005AEB78`): `Screen_HandleInput` clears it at the top of every frame and
@@ -65,7 +65,7 @@
 //!   pixels and cannot move a number.
 //! * **The buffer is a `Vec<char>` of Latin-1 characters**, not 2,000 bytes.
 //!   `docs/formats/eng.md` §"String character set" settles that the game's text
-//!   is Latin-1, so a `char` under `0x100` *is* the original's byte and every
+//! is Latin-1
 //!   range test below is the original's byte test unchanged.
 
 use l2_view::Canvas;
@@ -93,7 +93,7 @@ pub const DEFAULT_PLAYER_NAME: &str = "Player1";
 /// **One record of `g_playerNames`** (`0x00553D54`) — a lord's name as the
 /// interface shows it.
 ///
-/// Fixed width on purpose, and the width is the original's. The array is six
+/// Fixed width on purpose
 /// 44-byte slots at `0x00553D50` and one save block of its own
 /// (`g_saveBlocks[2] = {0x00553D50, 264}`); the name is 31 bytes at `+4`, the
 /// banner colour is `+0x25` and `+0x27` is the "a person drives this" byte
@@ -106,7 +106,7 @@ pub const DEFAULT_PLAYER_NAME: &str = "Player1";
 /// writes as a fixed run of bytes.
 ///
 /// **Latin-1 in, Latin-1 out** — `docs/formats/eng.md` — so a byte here is a
-/// `char` under `0x100` and the two are the same thing.
+/// `char` under `0x100`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct PlayerName([u8; PLAYER_NAME_LEN]);
 
@@ -255,7 +255,7 @@ pub struct TextField {
     blink: u32,
 }
 
-/// The caret is drawn while the counter is above eight, and the counter wraps
+/// The caret is drawn while the counter is above eight
 /// past sixteen — so eight ticks lit, nine dark. `Edit_DrawCaret`.
 const BLINK_PERIOD: u32 = 17;
 const BLINK_LIT_FROM: u32 = 9;
@@ -435,7 +435,7 @@ impl TextField {
     /// `Edit_Backspace` (`0x00401C70`): caret back one, **then** delete.
     ///
     /// Not gated on the full state — deleting is how a person gets out of a
-    /// field that has hit either limit, and the original leaves that road open.
+    /// field that has hit either limit
     pub fn backspace(&mut self, m: &dyn Metrics) {
         if self.caret > 0 {
             self.caret -= 1;
@@ -483,7 +483,7 @@ impl TextField {
     ///
     /// Returns whether the field consumed it. The original's split is two
     /// Windows messages and this is the same split: [`Event::Text`] is
-    /// `WM_CHAR` (`0x102`), whose whole arm is `Edit_TypeChar`, and the six
+    /// `WM_CHAR` (`0x102`), whose whole arm is `Edit_TypeChar`
     /// [`Event::KeyDown`] arms below are `WM_KEYDOWN`'s (`0x100`) editing
     /// cases. Every other key belongs to the screen and is handed back.
     ///
@@ -497,8 +497,8 @@ impl TextField {
     /// seven of these arms are *ungated by screen* in the binary. The caret
     /// keys move a caret on the campaign map, in a battle and on the title
     /// page, because the window procedure never asks what is on screen; only
-    /// the insert and the delete consult `g_editActive`. Reproducing that would
-    /// mean a hidden caret walking about while a person plays, so a field here
+    /// the insert and the delete consult `g_editActive`.
+    /// mean a hidden caret walking about while a person plays
     /// is stepped by the screen that owns it and by nothing else.
     pub fn event(&mut self, event: Event, m: &dyn Metrics) -> bool {
         match event {
@@ -553,7 +553,7 @@ impl TextField {
                 // `VK_SPACE` and the letter keys have **no `WM_KEYDOWN` arm at
                 // all** — the window procedure's `0x100` switch handles
                 // backspace, return, control, escape, home, end, the arrows,
-                // insert, delete, the nine digits and the function keys, and
+                // insert, delete, the nine digits and the function keys
                 // nothing else. A field being live is exactly when a letter is
                 // a letter.
                 Key::Char(_) | Key::Space => true,
@@ -587,7 +587,7 @@ impl TextField {
 
     /// `Edit_DrawCaret` (`0x0040ACCE`), at the text origin `(x, y)` the field's
     /// painter used. The original's caller adds two to the text's `y` before
-    /// calling, and that two is folded in here so a screen passes the same `y`
+    /// calling
     /// it passed to the text.
     ///
     /// **Two shapes, and they are the opposite way round to the convention.**
@@ -699,7 +699,7 @@ mod tests {
         );
     }
 
-    /// The two limits, and the fact that deleting is the only way back.
+    /// The two limits
     #[test]
     fn typing_stops_at_the_character_limit_and_at_the_pixel_limit() {
         let mut f = text("", 4);

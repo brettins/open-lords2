@@ -155,7 +155,7 @@ pub struct VillageScreen {
     /// also what the original does — `Village_Draw`'s reload path resets the
     /// counters through `FUN_004050C0`.
     clock: vill::AnimationClock,
-    /// Whether the last tick moved an animation, so a still village costs no
+    /// Whether the last tick moved an animation,
     /// repaint. The same economy `MapScreen`'s flag phase makes.
     animated: bool,
 }
@@ -284,7 +284,7 @@ impl VillageScreen {
     /// FUN_00403cf4(x0, y0, w, h, 0x20);
     /// ```
     ///
-    /// Both branches are `else if`, so a band that starts off the left edge is
+    /// Both branches are `else if`,
     /// never clamped on the right. That is the original's, kept.
     ///
     /// `FUN_00403CF4` is the four-line rectangle outline — it draws top,
@@ -502,7 +502,7 @@ impl Screen for VillageScreen {
         // and every one of the six hit-tests `x >= 0x1DE` — 478, which is
         // [`campaign::PANEL_X`]. So the rule is exactly *"the column at x >=
         // 478 keeps working"*, and nothing else does: `Map_Click` is **not** in
-        // this ladder, so a click on the terrain round the inset does nothing.
+        // this ladder,
         //
         // **The two drag states do not do this.** The `0x05` (banding) and
         // `0x06` (carrying) arms test no sidebar guard at all — they run
@@ -532,7 +532,7 @@ impl Screen for VillageScreen {
             //                                    FUN_004120E0(); FUN_00432893(1); }
             // ```
             //
-            // — so a right click **while carrying** puts the peasants back and
+            // —
             // stays in the village, and only a right click on the idle village
             // leaves it. (`0x05`, the rubber band, has no right arm at all: the
             // band ends on the *release* of the left button and nothing else.)

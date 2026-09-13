@@ -197,7 +197,7 @@ pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
     take
 }
 
-/// **Where the take goes**, which is `Tax_CollectAll`'s last statement and the
+/// **Where the take goes**
 /// half of the pass this crate used to drop on the floor.
 ///
 /// ```c
@@ -216,7 +216,7 @@ pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
 /// this branch writes. They used to be named here and not ported, on the
 /// reading that *"nothing has been found that reads either"* — which is still
 /// true, and is now established: no function in
-/// the decompilation names them except this one and the new-game clear, and no
+/// the decompilation names them except this one and the new-game clear
 /// instruction in `Lords2.exe` carries either absolute address except those
 /// two functions' four. See [`Realm::tax_ledger`] for the scan and what it
 /// cannot see. **Unread is not unstored**: the realm block is in the save and
@@ -230,7 +230,7 @@ pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
 /// funds every trade a lordless county makes.
 ///
 /// What it costs when it is missing is measurable and was measured: an unowned
-/// county's purse is the only thing `Ai_BuyGood` tests before buying grain, so a
+/// county's purse is the only thing `Ai_BuyGood` tests before buying grain
 /// purse permanently at zero is a county that never shops. On the `old_turn` →
 /// `battle-before` pair the original's counties 1 and 3 each buy the cascade's
 /// 50-sack lot for 200 crowns out of purses of 297 and 316 — and on the
@@ -371,7 +371,7 @@ mod tests {
         assert_eq!(counties[2].d_hap_tax, (5 - 25) - 2, "and the culprit suffers twice");
     }
 
-    /// The shape of the real table, which is nothing like the formula it
+    /// The shape of the real table
     /// replaced: **taxing at 19% costs the rest of the realm nothing at all**,
     /// and even the maximum rate costs only 15.
     ///
@@ -478,7 +478,7 @@ mod tests {
     /// **Collection is not clamped, and that is not an oversight.**
     ///
     /// `Tax_CollectAll` reads the rate byte and multiplies; the 0..=50 guard is
-    /// in the *panel*, not in the rule. So a mod or a corrupt save can present
+    /// in the *panel*
     /// a rate of 100 and it will be collected — while
     /// [`empire_contribution`] clamps, because it indexes an array.
     #[test]

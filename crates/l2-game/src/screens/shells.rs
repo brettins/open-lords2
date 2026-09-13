@@ -88,9 +88,9 @@ pub struct Shell {
 ///   with one, at `0x0041B1D9` and `0x0041C1B0`, and `window: None` followed
 ///   from that. What it had *right* was refusing to place a line at a runtime
 ///   `DAT_00553D2C * 16 + 74`; the arithmetic closes now — top + height is 464
-///   for all eleven layouts — and the answer is y 106 or y 362.
+/// for all eleven layouts — and the answer is y 106 or y 362.
 /// * `0x08` **the merchant** → `screens/merchant.rs`. The row said *"the price
-///   grid (`mercgrid.pl8`) and the eight commodities"*; `mercgrid.pl8` is not
+/// grid (`mercgrid.pl8`) and the eight commodities"*; `mercgrid.pl8` is not
 ///   drawn at all — it is the hit test, an 80 × 60 byte map of good ids — and
 ///   there are **twelve** wares on the stall. `0x0C` went with it.
 /// * `0x09` **the court** → `screens/court.rs`. Group 70 was right. The *fonts*
@@ -99,7 +99,7 @@ pub struct Shell {
 ///.
 /// * `0x0A` **the armoury** → `screens/armoury.rs`, and it took `0x0D` with it.
 ///   The group was **69**, not 16 — 16 is the twelve mercenary nationalities
-///   and the painter never touches it. Filing it wrong made it look like a
+/// and the painter never touches it. Filing it wrong made it look like a
 /// mercenary panel with nothing behind it
 ///   levy is confirmed on.
 /// * `0x0B` **diplomacy** → `screens/diplomacy.rs`. Group 72 was right; the
@@ -111,7 +111,7 @@ pub struct Shell {
 ///   had graduated. Two index entries for one screen of the original.
 ///   Everything in the row that was not a copy was wrong: the window was
 /// admitted invented and the real one is `Ui_DrawBox(0x30, 0x60, 0x19,
-///   g_jobPanelRows[job])`, a *variable* height, and the heading index is the
+/// g_jobPanelRows[job])`, a *variable* height, and the heading index is the
 ///   **job**, not a constant 1. Nothing caught it, because the only check
 ///   dedupped *within* this table.
 /// * `0x11` **army division** → `screens/divide.rs`.
@@ -129,7 +129,7 @@ pub struct Shell {
 ///   input and a test, not paint.
 /// * `0x2E` **Battle Master ratings** → `screens/ratings.rs`. Everything right
 ///   except the shape: *"the seven rating rows per player"* is **seven columns
-///   by three rows**, twice over, and the columns are troop types.
+/// by three rows**, twice over, and the columns are troop types.
 /// * `0x31`, `0x39`, `0x42`, `0x43` **the four options panels** →
 ///   `screens/options.rs`.
 /// * `0x35`, `0x36` **load and save** → `screens/saveload.rs`.

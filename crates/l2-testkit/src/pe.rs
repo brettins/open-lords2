@@ -1,7 +1,7 @@
 //! Just enough PE to turn one of `Lords2.exe`'s virtual addresses into a file
 //! offset.
 //!
-//! The game has no ASLR and a fixed image base of `0x400000`, so a virtual
+//! The game has no ASLR and a fixed image base of `0x400000`
 //! address written in `docs/symbols.md` is a constant and the bytes behind it
 //! can be read straight off disk — no process, no window, nothing a screen lock
 //! can spoil (`docs/decisions.md` C16).
@@ -18,7 +18,7 @@ pub const IMAGE_BASE: u32 = 0x0040_0000;
 /// File offset of a virtual address, or `None` when no section covers it.
 ///
 /// Uses the **raw** size, so an address in
-/// uninitialised `.data` returns `None` instead of an offset into whatever
+/// uninitialised `.data` returns `None`
 /// follows it in the file. That distinction is C14/C16: the bytes for a runtime
 /// constant are not in the image, and a reader that confidently returns zero for
 /// them is worse than one that admits it cannot answer.

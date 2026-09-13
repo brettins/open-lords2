@@ -98,7 +98,7 @@ fn a_win_steps_the_campaign_on_to_the_next_map() {
     // is the headless stand-in for the frame loop and it dismisses the victory
     // message, which is where `Campaign_EnterConquest` runs -- so the counter has
     // already moved by the time `end_turn` returns and this asks for the BRANCH
-    // rather than stepping again. Calling `enter_conquest_screen` here a second
+    // Calling `enter_conquest_screen` here a second
     // time is what turned this test red, correctly.
     assert_eq!(g.campaign.branch(), ConquestBranch::Won);
     assert_eq!(g.campaign.map, 1);
@@ -208,7 +208,7 @@ fn an_unfinished_game_stays_unfinished_over_several_turns() {
 // The screen
 // ---------------------------------------------------------------------------
 
-/// The interstitial draws the branch the game actually reached
+/// The interstitial draws the branch the game reached
 /// shell's cycling default.
 #[test]
 fn the_conquest_screen_takes_its_branch_from_the_game() {

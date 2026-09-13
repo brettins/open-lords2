@@ -102,13 +102,13 @@
 //!   bullet used to say the whole battlefield — 25 sites — was *"a limit of the
 //!   design, because a sword swing is an event inside a
 //!   tick and [`Director`] derives sound from the world after it. The premise
-//!   was right and the conclusion was not: the world did not *record*
+//! was right and the conclusion was not: the world did not *record*
 //!   the event. `l2_sim::cue` is that record — monotone counts the battle writes
 //!   and never reads — and because every battlefield call is drop-if-busy, a
 //!   count that moved since the last tick is exactly what the original's calls
 //!   could make audible. Twenty-two of the 25 sound now: sixteen from the
 //!   record as it was written, and six more once fire, boiling oil, a tower
-//!   docking and the rampart too high to shoot down were built in
+//! docking and the rampart too high to shoot down were built in
 //!   `l2_sim::fire` and `l2_sim::siege`. The three that do not are state 17's
 //!   own loose and a realm eliminated mid-battle — each named in
 //!   `docs/audio.json`, and each a mechanic `l2-sim` does not have.
@@ -116,7 +116,7 @@
 //!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
 //!   their 29 slots ship. The campaign half of the kingdom bank now sounds —
 //!   the march, the resource sites, the village's work — and `dest_ind.wav`'s
-//!   six campaign sites, the field brush and the peasant mob's other arms do
+//! six campaign sites, the field brush and the peasant mob's other arms do
 //!   not. (The battlefield's bridge fire plays the same `dest_ind.wav` by name,
 //!   so the file is reachable; those six sites are not.)
 //!
@@ -138,7 +138,7 @@
 //!   the original that posts those categories. **This bullet used to say the
 //!   blocker was a per-message cursor and that the chain was *"why
 //!   `S010_13.wav` exists"*.** The cursor is two globals and a table, and
-//!   [`Audio::is_playing`] now answers the gate; what is missing is a screen —
+//! [`Audio::is_playing`] now answers the gate; what is missing is a screen —
 //!   `Tip_Update`, `Tip_Show`, the paragraph window and its computed OK corner.
 //!   `S010_13.wav` is `g_msgVoiceS010`'s, which `FUN_004B36C0` reads. The
 //!   letter's sting, `FUN_004B3B92(lord - 1)`, is `S246_02.wav + lord * 0x10`
@@ -814,10 +814,10 @@ impl Audio {
 ///
 /// * `Realm::share_of_map_pct` is **0 on a freshly imported save** and stays 0
 ///   until a turn has been ended, because `l2-scenario` reads what the `.sav`
-///   holds and the field is derived. A player who loads a
+/// holds and the field is derived. A player who loads a
 ///   game at forty per cent of the map would get `Scroll1`.
 /// * and a music bed that depends on *whether some other subsystem has run
-///   yet* is a bug waiting for the order to change. This function should be a
+/// yet* is a bug waiting for the order to change. This function should be a
 ///   function of the world, not of the schedule.
 ///
 /// The divergence is that the original's music can be up to a season stale

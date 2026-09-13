@@ -312,7 +312,7 @@ alliance offer."*, *"Help in"*, *"Pay -"*, *"Attack of"*. Each handler's *arithm
 One fact shared by all of them: every reply advances the sender's `voiceRotation`, so the
 four recorded takes cycle. **[V]**
 
-### 3.1 Gold — and the ratchet nobody would guess
+### 3.1 Gold —
 
 Let `T = personality[+0x08]` and `best = pair[me][them].bestGift`:
 
@@ -923,7 +923,7 @@ because nothing that could raise it will ever run for a human realm.
 **The asymmetry that follows is worth stating as a rule for a player**: an AI's opinion of
 *you* only ever goes down, and its opinion of *another AI* heals a point a turn. So the raid
 rule fires against a person far more readily than against a rival — on the England position
-in forty turns, **only** against a person. That is not a balance decision anybody made; it is
+in forty turns, **only** against a person.
 one `isHuman` in a loop guard.
 
 ### 10.9 The last two personality fields have no reader at all
@@ -1002,7 +1002,7 @@ and two of them are the *ally's* answer to a request the player made — groups 
 `0xFB`, handlers `Diplo_ReplyHelpClicked` and `Diplo_ReplyAttackClicked`. Both set
 `g_diploKind` to a value **beyond the composer's seven** (7 and 8 for help, 9 and 10 for
 attack) and post `Net_SendCommand(0x49)`, and nothing else consumes those numbers: **in a
-single-player game they dismiss the letter and do nothing.** That is not a gap in the
+single-player game they dismiss the letter and do nothing.**
 reading; it is the branch the original takes with `g_multiplayer` clear.
 
 The third is group `0xF8`, an alliance offer arriving inside a letter, and it re-uses the

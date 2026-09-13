@@ -269,7 +269,7 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
                 // **`pub(crate)` counts.** Stripping only `pub ` left a
                 // `pub(crate) turn: …` field with a parenthesis in its name,
                 // which the alphanumeric guard below then dropped in silence —
-                // so a restricted field was invisible to this check for exactly
+                // so a restricted field was invisible to this check for
                 // as long as nobody looked. Found while bringing `Game` in.
                 let lhs = lhs.trim();
                 let lhs = lhs

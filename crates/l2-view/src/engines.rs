@@ -1,4 +1,4 @@
-//! **Siege engines** — the four troop types that are not men, and the four
+//! **Siege engines** — the four troop types that are not men
 //! painters that put them on a battlefield. `docs/battle.md` §13.11,
 //! `docs/decisions.md` `C202`.
 //!
@@ -7,13 +7,13 @@
 //! `BattleFigure_Draw` (`0x004BDC31`). What is different is everything about
 //! *which* picture.
 //!
-//! # One sheet for all four, and it is not a colour
+//! # One sheet for all four
 //!
 //! `FUN_00480F8B` (`0x00480F8B`) assigns every figure its sheet pointer at the
 //! start of a battle. Troop types 0…6 take one of the thirty-six
 //! `a2<colour>_<troop>.pl8` files; **troop types 7, 8, 9 and 10 all take
 //! `DAT_00553250`, which is slot 8 of the battle asset table — `engine.pl8` —
-//! in both banks.** So a siege engine has no side colour, and the eight
+//! in both banks.** So a siege engine has no side colour
 //! branches that say so are the same assignment written eight times. **[V]**
 //!
 //! A catapult's *arm* is a second sprite from a second pair of files,
@@ -39,7 +39,7 @@
 //! | 35 … 40 | a pot of oil, idling | `(animPhase >> 3) + 0x23` |
 //! | 42 … 45 | a pot of oil, pouring | `(polarDirc >> 1) + 0x2A` |
 //!
-//! `Engine.pl8` holds exactly **46** frames and the table's highest index is
+//! `Engine.pl8` holds exactly **46** frames
 //! 45. `Catarm1.pl8` and `Catarm2.pl8` hold exactly **20** each, and four
 //! facings of five arm poses is twenty. Frame 41 is the only one nothing
 //! reaches. `tests/install.rs` asserts the counts against the install.
@@ -58,7 +58,7 @@ use l2_sim::{Motion, Troop};
 /// types, both banks.
 pub const ENGINE_SHEET: &str = "Engine.pl8";
 
-/// Slots 9 and 10. `FUN_004BE7BE` picks the first for `dirc < 4` and the
+/// Slots 9 and 10. `FUN_004BE7BE` picks the first for `dirc < 4`
 /// second otherwise, which is what makes four facings of artwork cover eight.
 pub const ARM_SHEETS: [&str; 2] = ["Catarm1.pl8", "Catarm2.pl8"];
 
@@ -138,7 +138,7 @@ pub fn frame(troop: Troop, anim: Motion, facing: u8, polar: u8, phase: u8) -> Op
     })
 }
 
-/// Which of the two `Catarm` files a facing's arm comes from, and the base
+/// Which of the two `Catarm` files a facing's arm comes from
 /// frame in it — `FUN_004BE7BE` (`0x004BE7BE`) picks the sheet on
 /// `dirc < 4`, and `FUN_00488436` computes `dirc * 5`, less `0x14` for the far
 /// half. **[V]**
@@ -208,7 +208,7 @@ pub fn ram_strips(anim: Motion, phase: u8) -> Option<((usize, i32), (usize, i32)
 /// `l2_sim::siege::lay_tower_ramp` sets on the same nine cells and nothing
 /// else in the crate sets at all. **That gate matters**: the field tileset's
 /// hill range covers 64 … 111, so codes 73, 76, 97 and 100 are ordinary hill
-/// tiles too, and the gfx byte alone would paint a tower's roof on a hillside.
+/// tiles too
 pub const DOCK_OVERLAY: [(u8, usize); 4] = [(0x49, 0x1F), (0x4C, 0x20), (0x61, 0x21), (0x64, 0x22)];
 
 /// The `engine.pl8` frame a docked tower's centre cell draws, if it is one.
@@ -248,7 +248,7 @@ mod tests {
         }
     }
 
-    /// The carriage occupies 5 … 12, one per facing, and the tower 1 … 4, one
+    /// The carriage occupies 5 … 12, one per facing
     /// per orthogonal — the two blocks the frame map closes with.
     #[test]
     fn the_carriage_is_eight_facings_and_the_tower_is_four() {
@@ -277,7 +277,7 @@ mod tests {
     }
 
     /// Four facings of five poses, twice — every arm frame is inside one
-    /// `Catarm` file, and the two halves of the compass use different files.
+    /// `Catarm` file
     #[test]
     fn the_arm_is_four_facings_of_five_poses_in_each_of_two_files() {
         for facing in 0..8u8 {

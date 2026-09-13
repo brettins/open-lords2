@@ -184,7 +184,7 @@ path intact. **Not verified:** a double-click, because that opens a window.
 
 **A shortcut already aimed at `target\debug\l2-game.exe` is unaffected.** The binary is
 still built at that path, under that name, by the same command — which is the reason
-`build.rs` renames the *stale* file rather than versioning the new one. It keeps working;
+`build.rs` renames the *stale* file. It keeps working;
 it just locks the build output again, so builds collide with a game started from it as
 they always did.
 

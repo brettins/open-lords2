@@ -555,7 +555,7 @@ pub fn herd_update_crowding(
 /// but pasture as `0x12 < t && t < 0x17`, which is only `0x13 … 0x16`. **A
 /// pasture at terrain `0x0F … 0x12` is counted by the recount and invisible to
 /// the AI's brush.** `[D]`, and the two comparisons sit four lines apart in
-/// both functions, so it is not a decompiler artefact.
+/// both functions,
 fn ai_brush_matches(kind: FieldType, terrain: u8) -> bool {
     match kind {
         FieldType::Grain => (terrain::GRAIN..=terrain::GRAIN_LAST).contains(&terrain),

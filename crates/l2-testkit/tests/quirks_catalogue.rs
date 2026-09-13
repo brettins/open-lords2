@@ -96,7 +96,7 @@ enum Disposition {
 use Disposition::{Retracted, Switchable, Unswitchable, Unwired};
 use Home::{Behavioural, Presentation};
 
-/// **Which of the two homes a switch lives in**, and the assertion that keeps a
+/// **Which of the two homes a switch lives in**
 /// quirk from drifting between them.
 ///
 /// `docs/bugs.md` §6.3a: *if flipping it can change a number in a saved game it
@@ -292,7 +292,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
              would be a switch on uniformity, which nothing asks for",
         ),
     ),
-    // Presentation — the first of its kind, and the reason `PRESENTATION` exists.
+    // Presentation — the first of its kind
     ("B64", Switchable(Presentation)),
     // Nothing to switch: both counters are stepped every frame and read by
 // NOTHING in the whole binary. The
@@ -392,7 +392,7 @@ fn read(root: &Path, rel: &str) -> String {
 /// will get, so it writes `B` + `NEW-` + a slug and the integrator assigns the
 /// number at merge with `node tools/decisions/corrections.js --assign`. This
 /// parser used to accept digits only:
-/// the branch's own suite was green, and the two tests below went red only once
+/// the branch's own suite was green
 /// the row was numbered, on `main`, in the integrator's hands. Now the row is
 /// seen on the branch, `DISPOSITIONS` has to carry the placeholder, and
 /// `--assign` renames it here in the same pass that renames the document.
@@ -505,7 +505,7 @@ fn sources(root: &Path) -> Vec<(String, String)> {
         .collect()
 }
 
-/// `(field, docs/bugs.md entry)` out of `l2_game::game::PRESENTATION`, and the
+/// `(field, docs/bugs.md entry)` out of `l2_game::game::PRESENTATION`
 /// field list of `l2_game::game::Quirks`.
 ///
 /// The presentation half of the switch list. Parsed from the source for the same
@@ -768,7 +768,7 @@ fn every_switch_is_read_by_the_simulation() {
                     && text.contains(&needle)
                     // Only the *reading* side counts. A `match` arm inside a
                     // name or summary table is the definition wearing another
-                    // hat, and the definition lives in one file anyway.
+                    // hat
                     && text.contains("reproduces(")
             })
             .map(|(path, _)| path.as_str())

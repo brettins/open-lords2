@@ -29,7 +29,7 @@
 //! **A shipment with nowhere to stand is lost in silence.** `Transport_Spawn`
 //! looks for a free tile with `County_FindFreeRoadTile` and then
 //! `County_FindFreeOpenTile`; if neither answers it spawns nothing **and
-//! deducts nothing**, and the screen that sent it has already closed. There is
+//! deducts nothing**, and the screen that sent it has already closed.
 //! no message. [`Sent::Nowhere`] is that outcome, and it is a returned value
 //!
 //!

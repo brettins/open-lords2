@@ -254,7 +254,7 @@ impl SetupOptions {
     ///
     /// The drop-down is shortened to match at the same time —
     /// `FUN_00433999` sets the open list to `g_playerStartCount - 1` rows when
-    /// the map seats fewer than five — so a person cannot re-break it
+    /// the map seats fewer than five —
     /// afterwards. See [`SetupOptions::nobles_rows_for_map`].
     pub fn set_nobles_from_map(&mut self, player_starts: usize) {
         self.value[option::NOBLES] = if player_starts < 3 {
@@ -308,7 +308,7 @@ impl SetupOptions {
             county: COUNTY_STATUS[self.get(option::COUNTY_STATUS)],
             // `DAT_0053F268 = (nobles + 2) - humanPlayers`. It is not clamped
             // in the original either; `Realms_AssignLords` walks five realms and
-            // stops handing out lords when it has handed out this many, so a
+            // stops handing out lords when it has handed out this many,
             // negative simply means.
             ai_lords: self.lords() as i32 - human_players as i32,
         }

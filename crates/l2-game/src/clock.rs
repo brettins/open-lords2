@@ -32,15 +32,15 @@
 //! A tick that is not 16 ms therefore desynchronises the picture from the
 //! sound, and only in one direction. `docs/decisions.md` C193.
 //!
-//! # The rule, and the rule it replaces
+//! # The rule
 //!
 //! ```text
 //! self.next_tick = Instant::now() + TICK;      // what main.rs used to do
 //! ```
 //!
 //! `Instant::now()` there is read **after** the wait, so it is the deadline
-//! *plus* however far the wait overshot, and the next deadline is measured from
-//! that. Overshoot is never negative, so the clock can only ever run slow, and
+//! *plus* however far the wait overshot
+//! that. Overshoot is never negative
 //! the error is kept: it compounds once per tick. Measured
 //! with winit 0.30's own wait primitive — `CreateWaitableTimerExW` with
 //! `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` and `WaitForSingleObject`, which is
@@ -49,7 +49,7 @@
 //! two and a half to three and a half seconds of picture behind sound.
 //!
 //! [`Ticker`] measures every deadline from the **previous deadline**, so an
-//! overshoot is repaid on the next tick instead of being carried, and the tick
+//! overshoot is repaid on the next tick instead of being carried
 //! count is a true clock. What a wake cannot repay in [`MAX_CATCH_UP`] ticks it
 //! gives up on, which is the one place time is allowed to be lost: a machine
 //! that has been stopped for a second must not then run a second of game at
@@ -63,10 +63,10 @@ pub const TICK_NS: u64 = TICK_MS as u64 * 1_000_000;
 
 /// **The most ticks one wake may run.** 128 ms of catch-up.
 ///
-/// Without a cap, a loop that was stopped — the window dragged, the machine
+/// Without a cap
 /// suspended, a breakpoint — returns owing every tick of the gap and runs them
 /// back to back, which is worse than the lost time: the game visibly
-/// fast-forwards. With it, a stall is *dropped* and the clock restarts from
+/// fast-forwards. With it
 /// now.
 pub const MAX_CATCH_UP: u32 = 8;
 

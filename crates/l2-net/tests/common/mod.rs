@@ -7,8 +7,8 @@
 //! contract worries about:
 //!
 //! * fixed-point positions ([`Fixed`], D-2), advanced by multiplication
-//! and division, so a rounding change is visible;
-//! * the frozen PRNG ([`Pcg32`], D-3) drawn from inside `step`, so a
+//! and division;
+//! * the frozen PRNG ([`Pcg32`], D-3) drawn from inside `step`,
 //!   stream change is visible;
 //! * a `Vec` walked by index (D-4), never a map;
 //! * a sort with an id tiebreak (D-7);

@@ -18,7 +18,7 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 
 | | state |
 |---|---|
-| Screens | the front end and its thirteen setup pages, the campaign map, the four county panels, the village, the job popup and the conquest screen are drawn; **nineteen more exist only as shells** — right artwork, right hotspots, contents unbuilt. `Screen_Draw` has 39 arms and 35 now have a named painter |
+| Screens | the front end and its thirteen setup pages, the campaign map, the four county panels, the village, the job popup and the conquest screen are drawn; right artwork, right hotspots, contents unbuilt. `Screen_Draw` has 39 arms and 35 now have a named painter |
 | Kingdom economy | the full end-of-season pipeline: tax, rations, health, happiness, grain, herds, industry, migration, population, scoring |
 | Battle | figures, units, formations, movement, pathfinding, melee, missile resolution, the battle AI |
 | Campaign map | scrolling viewport, two zooms, the minimap, county tinting |
@@ -26,7 +26,7 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 | Mods | rules are data; a mod can override the tables |
 | Multiplayer | deterministic lockstep, tested — no matchmaking or UI |
 | **Castle designer** | **not started.** One of the game's signature features |
-| **Sieges** | built, both halves — and the 14 siege battle AI handlers are reachable at last. The castle's *layout* on the battlefield is ours, not the original's, and says so |
+| built, both halves — and the 14 siege battle AI handlers are reachable at last. The castle's *layout* on the battlefield is ours, not the original's, and says so |
 | Merchants, diplomacy, armies | documented in detail, implemented barely or not at all |
 
 **<!--fig:tests-->2,676<!--/fig--> tests pass**, and roughly a third of them assert things
@@ -43,7 +43,7 @@ of the program is still dark.
 
 ## The idea that shapes everything
 
-`Lords2.exe` is an **oracle, not a target.** We do not patch it or link against it — we ask
+`Lords2.exe` is an We do not patch it or link against it — we ask
 it questions. It has no ASLR and a fixed image base of `0x400000`, so its state lives at
 stable addresses and can be read from a live process while it runs.
 
@@ -62,7 +62,7 @@ The `docs/` tree is the real substance of this project; the code is downstream o
 
 | | |
 |---|---|
-| [`docs/rules.md`](docs/rules.md) | **How the game works, in plain language, with the real numbers.** Start here |
+| [`docs/rules.md`](docs/rules.md) | Start here |
 | [`docs/mechanics.md`](docs/mechanics.md) | What has been looked at and what has not — written to be read by someone who has *played* the game, so they can point at what is missing |
 | [`docs/formats/`](docs/formats/) | The file formats: PL8 sprites, maps, saves, strings |
 | [`docs/symbols.md`](docs/symbols.md) | Named functions and globals in the executable |
@@ -98,7 +98,7 @@ $env:LORDS2_DIR = 'F:\games\Lords of the Realm II'
 cargo test -- --nocapture                      # + corpus validation against a real install
 ```
 
-The corpus tests **skip** when `LORDS2_DIR` is unset, so a checkout without the game still
+The corpus tests when `LORDS2_DIR` is unset, so a checkout without the game still
 has a real suite to run.
 
 ## Contributing

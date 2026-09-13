@@ -455,7 +455,7 @@ fn opening_the_same_bytes_twice_reads_the_same_save() {
     }
 }
 
-/// A cheap census of what the machine offered, so a run that asserted
+/// A cheap census of what the machine offered,
 /// almost nothing says so out loud instead of printing thirteen `ok`s.
 #[test]
 fn the_suite_reports_which_saves_it_ran_over() {
@@ -518,7 +518,7 @@ fn every_units_tile_offset_agrees_with_its_coordinates_in_every_save() {
 /// Every live unit names one of the four handlers in `g_unitTickTable`, is owned
 /// by a realm or by nobody, and stands on the map.
 ///
-/// Slot 5 of that table is NULL while the dispatcher accepts types up to 5, so a
+/// Slot 5 of that table is NULL while the dispatcher accepts types up to 5,
 /// type-5 unit would call address 0. Nothing spawns one, and this says so over
 /// every save.
 #[test]
@@ -551,7 +551,7 @@ fn every_live_unit_is_one_of_the_four_types_and_owned_by_somebody() {
 /// It also pins the coupling `Merchant_AdvanceAll` depends on: the merchants
 /// occupy slots **1 … n**, contiguously and from 1, because they are spawned
 /// before anything else exists. That routine indexes the route table by *slot
-/// minus one*, so a merchant anywhere else would walk somebody else's route.
+/// minus one*,.
 #[test]
 fn the_merchants_are_the_first_slots_and_there_are_as_many_as_the_counter_says() {
     let saves = saves!();

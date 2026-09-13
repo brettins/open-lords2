@@ -6,7 +6,7 @@
 //! joined up,
 //! believe without evidence.
 //!
-//! `docs/decisions.md` C11, so it is worth a file of its own. These numbers
+//! `docs/decisions.md` C11. These numbers
 //! live in `Lords2.exe` as instructions.
 //! game that reaches them. A test that starts at a text file and ends at a
 //! different casualty count is the demonstration that the situation has
@@ -20,7 +20,7 @@ use l2_sim::{Battle, Troop, TroopTable, SIDE_A, SIDE_B};
 
 fn empty_base(dir: &TempDir) {
     // A layer must be a directory that exists; it need contain nothing. The
-    // engine's own rules are compiled in, so a game with no install at all
+    // engine's own rules are compiled in
     // still has combat constants.
     dir.write("placeholder.txt", "not a rule and not an asset the engine asks for");
 }
@@ -82,7 +82,7 @@ fn a_mod_file_changes_the_outcome_of_a_battle() {
     assert!(after.1 < before.1, "and the swordsmen should suffer for it");
 }
 
-/// The whole stack, in order: two mods, the later one wins, and the winning
+/// The whole stack, in order: two mods, the later one wins
 /// number is the one the simulation fights with. Load order is the
 /// conflict-resolution policy right through to the casualty count.
 #[test]
@@ -172,7 +172,7 @@ fn a_rising_strength_band_is_refused_rather_than_sorted() {
 /// the table carries — two of them at once, with nothing else moved.
 ///
 /// This stops at the table on purpose; that the table is then *consumed* is
-/// what `a_mod_file_changes_what_a_county_harvests` asserts, and the two are
+/// what `a_mod_file_changes_what_a_county_harvests` asserts
 /// worth keeping apart. An earlier revision of this test was named
 /// `..._even_though_the_economy_does_not_read_it_yet`, which was true when it
 /// was written and is not now.
@@ -245,7 +245,7 @@ use l2_kingdom::{Kingdom, Options};
 /// more labour than sowing can use, run through a full year: Spring sows,
 /// Summer and Autumn grow, Winter harvests.
 ///
-/// Rations come entirely from the herd (`ration_split = 100`) and the herd is
+/// Rations come entirely from the herd (`ration_split = 100`)
 /// large, so nothing eats the grain and the store at the end of the year is the
 /// harvest.
 fn a_years_harvest(tables: Tables) -> i32 {
@@ -311,7 +311,7 @@ fn a_load_with_no_mods_reproduces_the_engines_own_economy() {
     assert_eq!(Kingdom::new(1).tables, Tables::DEFAULT);
 }
 
-/// **Two lines of TOML, and the county starves.**
+/// **Two lines of TOML**
 ///
 /// This is the assertion `docs/modding.md` §11 used to say could not be made.
 /// It starts at a text file in a mod directory and ends at a different number
@@ -392,7 +392,7 @@ fn the_last_kingdom_mod_in_the_load_order_is_the_one_the_economy_runs_on() {
     // **And it is not four times, which is the labour cap talking.** The yield
     // per sack is in `Grain_Sow`'s own labour test — `yield * seed / divisor`
     // hands are needed to tend the seed — so a fourfold yield makes each sack
-    // four times as hungry for farmhands, and the county sows correspondingly
+    // four times as hungry for farmhands
     // less of it. `Grain_Grow` and `Grain_Harvest` then cap the standing crop
     // at `labour * multiplier` twice more. Quadrupling the number in the file
     // doubles what reaches the barn.
@@ -438,7 +438,7 @@ fn a_mod_can_postpone_the_first_year_random_events_are_drawn() {
 //
 // `docs/modding.md` §11 used to end with a list of rules a document could not
 // reach at all: the ale ladder, the army-raising cost, the efficiency ramp's
-// ceiling, and the AI's tax ladders and personality table. Each has a field
+// ceiling
 // now, and each test below is the same shape as
 // `a_mod_file_changes_what_a_county_harvests` — a `.toml` in a mod directory
 // in, a different number out of the real simulation.
@@ -496,12 +496,12 @@ fn one_county(tables: Tables) -> Kingdom {
 }
 
 /// A hundred crowns of ale, then a full year through `Season_Advance`.
-/// Returns the happiness the ale itself bought and the county's population a
+/// Returns the happiness the ale itself bought
 /// year later.
 fn ale_then_a_year(tables: Tables) -> (i32, i32) {
     let mut k = one_county(tables);
     // The setup season moved the population; pin it back so the ladder's step
-    // is a round tenth and the two runs differ only in the rule.
+    // is a round tenth
     k.counties[1].population = 500;
     k.counties[1].happiness = 55;
     let gained = l2_kingdom::happiness::buy_ale(&k.tables, &mut k.counties[1], 100, k.options.quirks);
@@ -547,7 +547,7 @@ fn army_then_a_year(tables: Tables) -> (i32, i32, i32) {
 
 #[test]
 fn what_raising_an_army_costs_a_county_is_a_rule_a_mod_sets() {
-    // The table is indexed by the percentage of the county taken, so a mod
+    // The table is indexed by the percentage of the county taken
     // restates all 102 rows. This one is flat: any army at all costs 60.
     let mut rows = String::from("[kingdom.happiness]\narmy_cost = [0");
     for _ in 1..102 {
@@ -571,7 +571,7 @@ fn what_raising_an_army_costs_a_county_is_a_rule_a_mod_sets() {
 }
 
 /// Three years of wood-cutting with *Advanced Farming* on, so the efficiency
-/// ramp runs. Returns the realm's timber and the county's final
+/// ramp runs. Returns the realm's timber
 /// efficiency.
 fn three_years_of_timber(tables: Tables) -> (i32, i32) {
     let mut k = one_county(tables);
@@ -582,7 +582,7 @@ fn three_years_of_timber(tables: Tables) -> (i32, i32) {
     c.industry[wood].enabled = true;
     c.industry[wood].has_resource = true;
     c.industry[wood].capacity = 100_000;
-    // The ramp compounds from wherever it left off, and the setup season ran
+    // The ramp compounds from wherever it left off
     // on the flat Advanced-Farming-off figure. Start it at zero so the twelve
     // seasons below are the whole ramp and nothing else.
     c.industry[wood].efficiency = 0;
@@ -592,9 +592,9 @@ fn three_years_of_timber(tables: Tables) -> (i32, i32) {
     c.labour[job] = 100;
     k.realms[1].wood = 0;
     // **Twelve wood-cutting passes, not twelve whole seasons.** The season
-    // pipeline runs `Labour_AllocateAll` twice now, so a workforce written
+    // pipeline runs `Labour_AllocateAll` twice now
     // straight into the record does not survive a full `advance_season` — the
-    // allocator rebuilds all nine records from the population and the
+    // allocator rebuilds all nine records from the population
     // ceilings. Running the one pass keeps the hundred cutters fixed, which is
 // what makes the totals below exact arithmetic on the ramp
     // measurement of the allocator.
@@ -619,7 +619,7 @@ fn the_efficiency_ramps_ceiling_is_a_rule_a_mod_sets() {
     let (mod_wood, mod_eff) = three_years_of_timber(capped);
 
     // Wood's base is 20, so the stock ramp reaches its ceiling in five seasons
-    // and the modded one is stopped at its own after two.
+    //
     assert_eq!(stock_eff, 100);
     assert_eq!(mod_eff, 30);
     // A hundred wood-cutters at e percent efficiency fell e loads a season, so
@@ -629,7 +629,7 @@ fn the_efficiency_ramps_ceiling_is_a_rule_a_mod_sets() {
 }
 
 /// An AI realm taxing one county for a season. Returns the rate its ladder
-/// chose and the gold that rate collected.
+/// chose
 fn an_ai_seasons_tax(tables: Tables, happiness: i32) -> (i32, i32) {
     let mut k = one_county(tables);
     k.realms[1].is_human = false;
@@ -667,7 +667,7 @@ fn an_ai_lays_out_a_county(tables: Tables, lord: u8) -> (i32, i32, i32) {
     k.counties[1].herd_crowding =
         l2_kingdom::land::herd_crowding(&k.tables, k.counties[1].herd, k.counties[1].fields_cattle);
     // No merchant stall in this scenario, so every style's opening shopping
-    // cascade is refused and the layout is the only thing that differs.
+    // cascade is refused
     k.run_ai_farms(1, &mut l2_kingdom::ai_farm::NoMarket);
     l2_kingdom::field::recount(&mut k.counties[1], &k.campaign.map);
     (k.counties[1].fields_grain, k.counties[1].fields_cattle, k.counties[1].industry_share)
@@ -676,7 +676,7 @@ fn an_ai_lays_out_a_county(tables: Tables, lord: u8) -> (i32, i32, i32) {
 /// **`farm_style` is a rule a mod sets, and it changes the map.**
 #[test]
 fn which_way_an_ai_lord_farms_is_a_rule_a_mod_sets() {
-    // Lord 1 ships as style 1, a grazier: no grain at all, and the pasture
+    // Lord 1 ships as style 1, a grazier: no grain at all
     // grows one field a pass towards all but one of the county.
     let (grain, pasture, share) = an_ai_lays_out_a_county(Tables::DEFAULT, 1);
     assert_eq!(grain, 0, "a grazier plants nothing, even in Winter");
@@ -782,7 +782,7 @@ fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
         "the ladders themselves are untouched: only which one lord 1 walks changed"
     );
 
-    // At 85 happiness the gentle ladder charges 3% and the greedy one 15%.
+    // At 85 happiness the gentle ladder charges 3%
     let (stock_rate, stock_gold) = an_ai_seasons_tax(Tables::DEFAULT, 85);
     let (mod_rate, mod_gold) = an_ai_seasons_tax(ruthless, 85);
     assert_eq!((stock_rate, mod_rate), (3, 15));

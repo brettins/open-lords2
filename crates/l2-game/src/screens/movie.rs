@@ -242,7 +242,7 @@ impl Screen for MovieScreen {
         let (w, _) = player.decoder().size();
         let (x, y) = self.film.at();
         // **`_SmackToBuffer@28` (`0x403AF0`) writes a doubled film's even rows
-        // only**, and the three that are doubled are exactly the three the
+        // only**, and the three that are doubled are
         // clear above covers, so the odd rows are the black it left.
         canvas.blit_raster(&player.decoder().display(), w, x, y, 1);
         for (line, at) in player.subtitles.lines.iter().zip(SUBTITLE_Y) {

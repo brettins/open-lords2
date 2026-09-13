@@ -161,7 +161,7 @@ impl Cues {
     /// **One of every occasion the record can hold** — for a census of what a
     /// listener can be asked to play, not for a battle.
     ///
-    /// An exhaustive literal with no `..`, so a counter added to this struct
+    /// An exhaustive literal with no `..`
     /// does not compile until it is given a value here, and a census built on
     /// this cannot silently miss it. `docs/agents.md`: prefer a shape that
     /// cannot be wrong.
@@ -184,7 +184,7 @@ impl Cues {
     }
 
     /// Whether any count is **behind** `earlier`, which no single battle can
-    /// produce — so a listener holding a previous battle's record knows it is
+    /// produce
     /// looking at a new one.
     pub fn is_behind(&self, earlier: &Cues) -> bool {
         let pairs = self

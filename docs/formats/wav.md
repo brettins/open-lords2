@@ -3,7 +3,7 @@
 Status: **771 / 771 files validated as standard PCM RIFF/WAVE.** Nothing non-standard,
 nothing compressed, nothing custom. The older DOS install validates too, 770 / 770.
 
-There is no Lords-specific format here — this is the one asset type Impressions did not
+This is the one asset type Impressions did not
 invent. The work is therefore not decoding but deciding what to depend on.
 
 Analysis script:
@@ -160,7 +160,7 @@ DirectSound streaming path at `0x00427990`; `hound`'s behaviour on the whole cor
 **Inferred**: that the 31 stereo files are music/ambience (from names and lengths); that
 `PUMKIN` is an easter egg (from the name and the date).
 
-**Open**: what `PUMKIN.WAV` actually contains and where the game plays it; whether any
+**Open**: what `PUMKIN.WAV` contains and where the game plays it; whether any
 game logic depends on sample-accurate lengths (nothing suggests it does); how the engine
 chooses the streaming path over the resident one.
 

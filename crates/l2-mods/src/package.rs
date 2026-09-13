@@ -4,7 +4,6 @@
 //!
 //! A directory with a `mod.toml` at its root. Everything else — which assets
 //! it replaces, which rules it changes — is discovered from its contents
-//! rather than declared, because a declaration is a second source of truth
 //! that goes stale the first time someone adds a file and forgets.
 //!
 //! ```text
@@ -14,7 +13,6 @@
 //!   <anything else>     assets, shadowing the same name in a lower layer
 //! ```
 //!
-//! # Why there is no archive format
 //!
 //! The obvious next step is a `.l2mod` file, and it was left out on purpose.
 //! An archive buys one thing — a single file to send someone — and every
@@ -90,7 +88,7 @@ pub struct ModPackage {
     ///
     /// Deliberately *not* a checksum of the files: an asset the author
     /// re-exported with a different timestamp is the same mod, and a digest
-    /// that said otherwise would be noise. Asset identity, if it is ever
+    /// that said otherwise would be noise. Asset identity
     /// needed, is a separate question from rule identity.
     pub rules_digest: u64,
 }

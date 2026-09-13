@@ -223,7 +223,7 @@ fn a_full_game_refuses_the_next_arrival() {
 /// `Hello::check` reports `SameSlot` because it is written for a direct
 /// two-peer handshake with no authority to move anyone. A lobby has one. This
 /// test pins the difference: the first version of the lobby forwarded that
-/// mismatch straight through, so a client whose saved slot happened to be 0 was
+/// mismatch straight through,
 /// told it was "incompatible" with a game it could play perfectly well — while
 /// two clients colliding on slot 2 were reseated silently. Same situation,
 /// opposite answer, decided by who opened the game.
@@ -301,7 +301,7 @@ fn a_player_who_drops_leaves_the_roster() {
     );
 }
 
-/// A roster is the one message whose *order* is part of its meaning, so a peer
+/// A roster is the one message whose *order* is part of its meaning,
 /// claiming an out-of-order one is refused
 #[test]
 fn an_out_of_order_roster_is_rejected_by_the_decoder() {
@@ -516,7 +516,6 @@ fn a_peer_with_a_different_quirk_set_is_refused_in_the_lobby() {
     assert!(text.contains("bugs"), "{text}");
     assert!(!text.contains("mod set"), "{text}");
 
-    // And the same quirk set on both sides is no obstacle at all.
     let same = Hello { quirks: 0x3FFF, slot: PlayerSlot::new(2), ..hello(2) };
     let mine = Hello { quirks: 0x3FFF, ..hello(1) };
     assert_eq!(mine.check(&same), vec![]);

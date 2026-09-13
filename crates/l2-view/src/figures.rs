@@ -33,7 +33,7 @@
 //! The arithmetic is checked against the shipped art
 //! decompiler. For every one of the **36** `a2` sprite files that are not
 //! knights — six player colours times six troop types — the frame count is
-//! exactly `8 * poses_per_facing + 18`, and the dying handler's base index is
+//!, and the dying handler's base index is
 //! exactly `8 * poses_per_facing + 6` in all four of its groups. Getting
 //! `poses_per_facing` wrong for any troop breaks both identities at once.
 //! `tests/install.rs` asserts both identities over the install.

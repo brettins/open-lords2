@@ -173,13 +173,13 @@ for types 3 and 4) and its destination by one screen row upward.
 
 ### One unresolved detail: type 4, the apex pair
 
-For type 4 the natural mapping — the exact mirror of type 3, and the one that
+For type 4 the natural mapping — the exact mirror of type 3,
 consumes all 30 bytes — is pair `p` (bytes `2p`, `2p+1`) at column `28 + 2p`,
 for `p = 0..14`.
 
 The game's own type-4 blitter does something slightly different. `FUN_00459258`
 executes `ADD ESI, 0x2` on entry to each record and reads only bytes 2..29; it
-paints bytes 2-3 at **both** the apex column and the next column out, and never
+paints bytes 2-3 at **both** the apex column and the next column out,
 reads bytes 0-1.
 
 The two readings agree on columns 30..56 and differ only at the apex column
@@ -191,7 +191,7 @@ consistent with them being the rarely-reached bottom tip.
 
 **Recommendation: use the natural mapping** (`p -> column 28 + 2p`, all 30 bytes).
 It loses no data, and it makes types 3 and 4 exact mirrors. Flagging it because
-it is the one place where the shipped binary and the stored data disagree, and
+it is the one place where the shipped binary and the stored data disagree,
 I could not rule out that the game ships an off-by-one here. Rendering both
 gives near-identical output; the literal reading simply discards 186 non-zero
 bytes across the corpus.
@@ -340,7 +340,7 @@ $A = @("E:\dev\ghidra-projects", "lords2", "-process", "Lords2.exe",
 # raw disassembly, to check the type-4 ADD ESI,0x2 for yourself
 & $GH @A -postScript Disasm.java 00459258 40
 
-# where the map tile sets get loaded, and the resource-name table
+# where the map tile sets get loaded,
 & $GH @A -postScript DecompSlice.java 004984dc 0 99999
 & $GH @A -postScript DumpBytes.java 004d9fc0 400
 ```
@@ -372,8 +372,8 @@ literal string and its referrers), `DumpBytes.java`, `Disasm.java`.
 The isometric layout is already public. **https://github.com/s-ayers/pl8image**
 (npm `pl8image`, docs at https://pl8image.readthedocs.io/en/latest/.pl8.html),
 the parser behind https://github.com/s-ayers/OpenLotR2, documents the same
-16-byte record with the type byte at 0x0C and the extra-row count at 0x0D, the
-same 0/1/2/3/4 type values, the same `2 + 4*r` row-width progression, and the
+16-byte record with the type byte at 0x0C and the extra-row count at 0x0D,
+same 0/1/2/3/4 type values, the same `2 + 4*r` row-width progression,
 same size formulas (`h^2`, `h^2 + rows*w`, `h^2 + rows*(w/2 + 1)`).
 
 The work above was done independently from the binary before that source was

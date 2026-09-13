@@ -52,7 +52,7 @@
 //! # What this module does not do
 //!
 //! * **Multiplayer.** `Diplo_SendClicked` issues net commands `0x48`/`0x49`
-//!   instead of calling `Diplo_Post` when `g_multiplayer` is set, and
+//! instead of calling `Diplo_Post` when `g_multiplayer` is set, and
 //!   `FUN_00448308` calls `Diplo_Post` on every peer. Replication is paused by
 //!   instruction; the seam is [`post`] and nothing else.
 //! * **Draw anything.** A [`Letter`] is a `Msg_Enqueue` record as a value; what
@@ -586,7 +586,7 @@ pub fn action_allowed(realms: &mut [Realm], actor: u8, target: u8) -> bool {
 /// 2. **The Bishop's guard covers `warTarget` as well as `atWar`.**
 ///    `docs/diplomacy.md` §5 says the test *"guards only the `atWar` write"*;
 ///    the `atWar` store is a comma-expression inside the same `&&` chain as the
-///    `warTarget == 0` test, so a betrayed Bishop sets **neither**. He breaks
+/// `warTarget == 0` test, so a betrayed Bishop sets **neither**. He breaks
 ///    the alliance, takes the standing hit, sends group 182 and stays
 ///    technically at peace with a realm he has not even resolved to attack.
 /// 3. **Betraying an ally is the only act in the game that costs reputation

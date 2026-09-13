@@ -27,7 +27,7 @@
 //!
 //! Order matters and is the original's: the strength advantage is recomputed
 //! before any unit thinks, a unit is recentred on its figures before its handler
-//! runs, and the reform countdown runs **outside** the human-control guard so a
+//! runs, and the reform countdown runs **outside** the human-control guard
 //! player's units tidy their formation too (`docs/battle-ai.md` §5).
 //!
 //! # Determinism
@@ -251,7 +251,7 @@ pub fn size_class(total_men: u32) -> usize {
 }
 
 /// The **per-side** refinement of §5.1: a side that would draw fewer than nine
-/// figures halves the scale, so a small army is not nearly invisible beside a
+/// figures halves the scale,
 /// large one. Floor of four men, the smallest figure the ladder produces.
 ///
 /// The original's condition is `sideTotal / menPerFigure < 9 && menPerFigure > 7`.
@@ -354,7 +354,7 @@ pub struct BattleRunner {
     /// **The arrows in the air** — `g_missiles`, a hundred fixed slots.
     ///
     /// Simulation state like any other: two lockstep peers must agree about
-    /// where a shot is, and the original agrees — its own sync digest copies all
+    /// where a shot is,
     /// hundred records (`Sync_RecordDigest(&g_missiles + i*0x4c, 0x4c, 4)`).
     pub missiles: crate::missile::Missiles,
     /// Impassable terrain, built once from the battlefield flags.
@@ -383,7 +383,7 @@ pub struct BattleRunner {
     /// a frame turns something from catching to burning.
     pub wood_fire: bool,
     /// **`DAT_005530E8`** — a human's figures standing in woodland, counted
-    /// **during** the man sweep and zeroed at its head, so a figure early in
+    /// **during** the man sweep and zeroed at its head,
     /// the sweep sees only the figures before it. Over three of them and an AI
     /// garrison looses fire arrows. Recomputed every frame before it is read,
     /// so it carries nothing from one frame to the next.
@@ -668,7 +668,7 @@ impl BattleRunner {
     ///
     /// The two tables are adjacent in the original's `.data` — side 0's twelve
     /// at `0x00553150` and side 4's twelve at `0x005531B0` — and the routine
-    /// **does not bound-check the ordinal**. So a side-0 army of more than
+    /// **does not bound-check the ordinal**.
     /// twelve units deploys its thirteenth unit on the *enemy's* first
     /// deployment slot, which is reachable: oil holds one figure per unit.
     /// Reproduced. Past the twenty-fourth entry the original reads memory we
@@ -890,13 +890,13 @@ impl BattleRunner {
     ///
     /// siege arms — the escape tile, *assault repulsed, repeat*, and *siege
     /// lifted* — are deliberately not here: sieges are out of scope, and
-    /// `Battlefield_BuildCastle` has not been implemented, so a battle in this
+    /// `Battlefield_BuildCastle` has not been implemented,
     /// crate cannot be one.
     pub fn conclusion(&self) -> Option<Conclusion> {
         if let Some(side) = self.withdrawn {
             return Some(Conclusion { winner: other_side(side), cause: End::Withdrawal });
         }
-        // The original tests A first, so a battle that wipes both sides out on
+        // The original tests A first,
         // the same frame is won by B. Reproduced.
         if self.men_of_side(SIDE_B) < 1 {
             return Some(Conclusion { winner: SIDE_A, cause: End::Annihilation });
@@ -1291,7 +1291,7 @@ impl BattleRunner {
 
     /// `Formation_NearestFreeFigure` (`0x00489A62`): the member nearest `(x, y)`
     /// by Manhattan distance that has not been given a slot this pass. Greedy
-    /// nearest-first, so a unit does not fold through itself.
+    /// nearest-first,
     fn nearest_free_figure(
         &self,
         members: &[usize],
@@ -1412,7 +1412,7 @@ impl BattleRunner {
     /// > reached from any order, by the player or by the AI, and
     /// > `State::FillingMoat` had no writer at all. The original instead caches
     /// > the flag in `Formation_RectIsClear` off the *unit's* destination and
-    /// > then rejects the rectangle for the same reason, so a unit ordered at
+    /// > then rejects the rectangle for the same reason,
     /// > the ditch has every one of its figures enter state 9 while walking to a
     /// > **dry** slot beside it; `BattleMan_Step`'s state-9 arm then latches
     /// > whatever impassable cell stops it. `docs/decisions.md`
@@ -1426,7 +1426,7 @@ impl BattleRunner {
         if state == State::FillingMoat && !gate {
             return;
         }
-        // Deviation, and the module doc says why: a figure locked in a duel is
+        // Deviation,
         // left in it.
         if state == State::Melee {
             return;
@@ -1540,7 +1540,7 @@ impl BattleRunner {
         // `BattleMan_StateMelee` (`0x004831D8`): `Anim_Strike(); … Melee_Tick();
         // if ((stepFlags & 1) == 0 && BattleMan_Step(1)) Anim_Walk();`. The
         // `noInterrupt = 1` argument makes the mover count and nothing else —
-        // it returns at the landing without deciding a new step — so a man
+        // it returns at the landing without deciding a new step —
         // engaged mid-crossing keeps walking to the cell he committed to and
         // is drawn walking while he does. Ours zeroed his progress and struck
         // on the spot, which put him on that cell up to 30 pixels early.
@@ -1574,7 +1574,7 @@ impl BattleRunner {
         // decision section.** `0x0048F1DD` opens with the sub-cell counter and
         // returns from it while `(stepFlags & 1) == 0` — before
         // `Melee_AdjacentEnemyDir`, before `Dir_FromDelta` /
-        // `BattleMan_NextPathDir`, before `BattleMan_TryStepDir`. So a man who
+        // `BattleMan_NextPathDir`, before `BattleMan_TryStepDir`.
         // has committed to a cell finishes the crossing: he does not look for
         // a duel, does not re-aim, and cannot be refused half-way.
         //
@@ -1680,7 +1680,7 @@ impl BattleRunner {
                 }
             }
             State::Shooting => {
-                // Nothing fires yet, so a shooter whose target dies would stand
+                // Nothing fires yet,
                 // for the rest of the battle. Returning it to idle lets its
                 // unit order it again.
                 let alive = self.sim.figures[sim]
@@ -1707,9 +1707,9 @@ impl BattleRunner {
     /// ```
     ///
     /// Two details that look like slips and are not. The target is acquired
-    /// **ten ticks early**, so a figure whose target dies inside that window
+    /// **ten ticks early**,
     /// does not shoot at all. And a failed acquisition resets the counter to
-/// [`NO_TARGET_RESET`], so a figure with nothing to
+/// [`NO_TARGET_RESET`],
     /// shoot at looks again almost immediately instead of once a cycle.
     ///
     /// **Where it is called from is ours, and it is the one inference in the
@@ -1929,7 +1929,7 @@ impl BattleRunner {
             let m = self.missiles.get_mut(slot);
             m.ticks_flown += 1;
             // **Out of range.** The budget is the range in eighths of a cell and
-            // a tick is an eighth of a cell, so this counter and the distance
+            // a tick is an eighth of a cell,
             // are the same number.
             if m.ticks_flown > m.range_ticks {
                 self.missiles.free(slot);
@@ -2081,7 +2081,7 @@ impl BattleRunner {
     /// [`missile::WALL_HITS_PER_COLLAPSE`] does the cell collapse, and the
     /// collapse is what scores. The original's collapse routine
     /// (`FUN_0047DFE0`) then adds **one per orthogonal neighbour that is still
-    /// rampart**, so a shot into the middle of a wall is worth more than one
+    /// rampart**,
     /// into its end.
     ///
     /// Either way the missile becomes class 4 debris: it stops testing for
@@ -2141,7 +2141,7 @@ impl BattleRunner {
             self.ai.approach_score += score;
             // `FUN_0048EE46` files each billed neighbour in the twenty-entry
             // defence-post table the garrison's handlers claim from. It is the
-            // table's **only** appender, so a castle nobody has shot at has no
+            // table's **only** appender,
             // defence posts at all.
             self.register_defence_posts(cell);
         }
@@ -2270,7 +2270,7 @@ impl BattleRunner {
     /// }
     /// ```
     ///
-    /// > **A moat cell takes four loads, not fifteen**, and the reason is that
+    /// > **A moat cell takes four loads, not fifteen**,
     /// > the counter does not start at zero. `Battlefield_BuildCastle` writes
     /// > `terrain = 11` — the water id — into every moat cell and `terrain = 1`
     /// > into everything else (`docs/battle.md` §3.0), and *this* is what reads
@@ -2292,7 +2292,7 @@ impl BattleRunner {
     ///
     /// `FUN_004926FB` answers 1 if the figure's own destination is already
     /// water, and otherwise hunts radii 1…19 for a cell that is and **retargets
-    /// the figure at it**. So a man who has filled one cell walks to the next
+    /// the figure at it**.
     /// one by himself
     /// does he leave state 9. Without that tail a figure sat on the cell it had
     /// just filled for the rest of the battle, and — because
@@ -2482,7 +2482,7 @@ impl BattleRunner {
         // elevations differ by at most 1, unless the destination's elevation is
         // exactly 5"*, marked `[V]`. [`crate::movement::can_step_elevation`]
         // has said so since it was written and **nothing called it** — the
-        // pathfinder enforced the rule and the mover did not, so a figure
+        // pathfinder enforced the rule and the mover did not,
         // walking straight at its target (which is what a figure does when the
         // line is clear, and no search ever runs) climbed cliffs. It is inert
         // on a `.skr` field, where every cell is at elevation 0, and it is the
@@ -2600,7 +2600,7 @@ impl BattleRunner {
     ///
     /// and a **siege engine** goes through `Cell_TryEnterEngine` instead, which
     /// returns **6** — the value `BattleMan_Step` turns into state 14 — for a
-    /// `0x20` or `0x40` cell, and **only when `troopType == 9`**. So a ram is
+    /// `0x20` or `0x40` cell, and **only when `troopType == 9`**.
     /// the only figure in the game that reaches state 14, and every other
 /// engine is stopped by a wall.
     fn strike_castle(&mut self, i: usize, dst: usize) -> bool {
@@ -2734,7 +2734,7 @@ impl BattleRunner {
         self.refresh_ai_surfaces();
     }
 
-    /// The AI reads the surfaces out of its own copy, so a breach has to reach
+    /// The AI reads the surfaces out of its own copy,
     /// it. Cheap enough at once per breach; there are at most a handful.
     fn refresh_ai_surfaces(&mut self) {
         for (c, cell) in self.field.cells.iter().enumerate() {
@@ -2833,7 +2833,7 @@ impl BattleRunner {
                     f.barred = 0;
                 }
             }
-            // **The line is clear and the figure still could not move**, which
+            // **The line is clear and the figure still could not move**,
             // means a comrade is standing in the one cell it wanted. This arm
             // used to do nothing at all, and *nothing* is a deadlock: the
             // figure retries the same taken step, frame after frame, with
@@ -2853,7 +2853,7 @@ impl BattleRunner {
             // out of `0x004710F2`.
             //
             // It is applied **only here** — where the straight line is clear
-            // and the step was refused anyway — because that is the only
+            // and the step was refused anyway —
             // position in which the two readings differ. A figure that is not
             // blocked never asks for a path at all.
             Outcome::NoSearchNeeded => {
@@ -2953,7 +2953,7 @@ impl BattleRunner {
     /// ```
     ///
     /// **The pot is spent**: state 2, the corpse state. It pours once and is a
-/// casualty of its own pour, so a garrison's oil is counted in
+/// casualty of its own pour,
     /// pots and not in men. With a hundred records in flight the spawn fails
     /// and the original runs its four steps on a record past the array; here
     ///
@@ -3313,7 +3313,7 @@ impl BattleRunner {
     /// Two things it does that a modern box-select would not:
     ///
     /// * it marks the *occupant of a cell*, not a figure whose sprite overlaps
-    ///   the box — so a man drawn half inside it and standing outside is not
+    /// the box —
     ///   picked, and one drawn outside and standing inside is;
     /// * it only sets `selected` on figures this player **owns**, but it sets
     ///   the drawing bit on everything in the box, friend or enemy. We keep only
@@ -3645,7 +3645,7 @@ impl BattleRunner {
     /// the withdraw flag and the figures' targets; this one does neither.
     ///
     /// The button that calls it is guarded by a once-per-battle latch
-    /// (`DAT_0055322C`), so a player gets exactly one of these.
+    /// (`DAT_0055322C`),
     pub fn charge_all(&mut self, owner: u8) {
         for i in 0..self.fighters.len() {
             let sim = self.fighters[i].sim;
@@ -3789,7 +3789,7 @@ mod tests {
         );
     }
 
-    /// The original tests army A first, so a frame that empties both sides is
+    /// The original tests army A first,
     /// won by B — army A is side 4 here, and `menA < 1` is the first arm.
     #[test]
     fn a_battle_that_kills_everyone_at_once_falls_to_the_side_tested_first() {
@@ -3802,7 +3802,7 @@ mod tests {
     }
 
     /// Withdrawal outranks annihilation: the original tests `DAT_0056D5C8`
-    /// before it looks at either men counter, so a side that has already
+    /// before it looks at either men counter,
     /// withdrawn loses even if the enemy is the one that was wiped out.
     #[test]
     fn a_withdrawal_decides_the_battle_before_the_men_are_counted() {
@@ -3820,7 +3820,7 @@ mod tests {
     }
 
     /// Siege engines are worth no men: the original's counting loop is
-    /// `if (troopType < 7)`, so a side reduced to catapults has already lost.
+    /// `if (troopType < 7)`,
     #[test]
     fn siege_engines_do_not_count_towards_a_sides_men() {
         let mut r = BattleRunner::deploy_muster(
@@ -4044,7 +4044,7 @@ mod tests {
         // > be `any(anim == Attacking)` on the state at exactly 3,000, and that
 // > is a snapshot of an emergent timing
         // > is named for. It went red the day blocked figures started detouring
-        // > around each other instead of standing still — because the armies
+        // > around each other instead of standing still —
         // > closed *sooner* and the whole fight was over by 3,000, with every
         // > survivor already `Dying`. The claim is *"they close and they
         // > fight"*; sampling one frame tests *"they are still fighting at this
@@ -4212,7 +4212,7 @@ mod tests {
     }
 
     /// **A lopsided fight is seed-invariant because the threshold swallows the
-    /// jitter, not because no roll is taken.**
+    /// jitter,
     ///
     /// Seven seeds at 400 v 200 and at 200 v 400 gave identical survivors and
     /// tick counts; only an even fight varied. The roll is still drawn:
@@ -4312,7 +4312,7 @@ mod tests {
             .collect();
         let unique: std::collections::HashSet<_> = targets.iter().collect();
         assert_eq!(unique.len(), 10, "every figure needs its own slot: {targets:?}");
-        // Pikemen: footprint 1, five to a row, so a 5 x 2 block centred on the
+        // Pikemen: footprint 1, five to a row,
         // destination.
         let xs: Vec<u8> = targets.iter().map(|t| t.0).collect();
         let ys: Vec<u8> = targets.iter().map(|t| t.1).collect();
@@ -4440,7 +4440,7 @@ mod tests {
     }
 
     /// **An arrow does not stop where it was aimed.** Once the Bresenham line is
-    /// spent the missile coasts along its launch direction, so a man standing
+    /// spent the missile coasts along its launch direction,
     /// *behind* the target is in danger too.
     #[test]
     fn a_shot_that_misses_keeps_flying_past_the_target() {
@@ -4461,7 +4461,7 @@ mod tests {
     }
 
     /// A missile is retired by its range and by nothing else when it meets
-    /// nobody — and the range is the tick budget, eight ticks a cell.
+    /// nobody —
     #[test]
     fn an_arrow_that_hits_nothing_dies_at_the_end_of_its_range() {
         let mut r = firing_line(Troop::Archers, Troop::Peasants, 40);

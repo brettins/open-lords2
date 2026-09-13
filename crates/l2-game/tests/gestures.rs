@@ -115,7 +115,7 @@ fn holding_the_tax_arrow_keeps_raising_the_tax_and_speeds_up() {
 
 /// **Letting go stops it**, and so does sliding off the arrow.
 ///
-/// `Widget_Test` re-runs the hit test every frame, so a pointer that has walked
+/// `Widget_Test` re-runs the hit test every frame,
 /// off the button simply stops matching and the record's counter is never
 /// advanced. Both halves are here because they are two different callers of
 /// [`Press::pointer`] / [`Press::release`] and only one of them is obvious.
@@ -150,12 +150,12 @@ fn releasing_the_arrow_or_sliding_off_it_stops_the_repeat() {
 ///
 /// `Widget_Draw` (`0x0040CFD2`) is
 /// `if (kind == 4 || kind == 5) { frame = rec[0x04]; if (rec[0x0D]) frame++; }`.
-/// Nothing in this engine drew one until the gesture-kind work, and the county
+/// Nothing in this engine drew one until the gesture-kind work,
 /// panel's own painter said so in a comment for weeks.
 ///
 /// This asserts on [`Press`]: the pressed
 /// picture is a *sprite index* and an install with no artwork draws the
-/// fallback button, so a canvas assertion here would be gated and would measure
+/// fallback button,
 /// the fallback. The painter's use of it is one expression, `frame + 1`, three
 /// lines into the painter's loop, beside `self.press.is_pressed(i)`.
 ///
@@ -180,7 +180,7 @@ fn a_kind_four_button_shows_the_pressed_picture_and_a_kind_one_box_does_not() {
 /// **A kind-5 press does not act, and twenty ticks later it does.**
 ///
 /// This is the gauntlet: *"clicking yes/no is instant, whereas the game waited
-/// on mouse-up, and the gauntlet would go down slightly when clicked."* Both
+/// on mouse-up,
 /// halves are one kind byte.
 ///
 /// **Ablation, run: delete the `fired.delayed |= 1 << i;` line from
@@ -203,7 +203,7 @@ fn a_kind_five_press_waits_twenty_ticks_with_the_picture_held_down() {
     assert!(!p.any_pressed(), "and the picture comes back up");
 }
 
-/// **Kind 2 is a flat pulse and kind 4 is a ramp**, and the whole point of
+/// **Kind 2 is a flat pulse and kind 4 is a ramp**,
 /// keeping them apart is that they are not the same repeat.
 ///
 /// `Hotspot_Test`'s kind-2 arm consults `DAT_0057D3C8` — one of `Tick_Pulses`'
@@ -286,7 +286,7 @@ fn a_double_click_on_a_repeating_button_fires_once_and_does_not_hold() {
 /// visually shown until release. OG game you could see the numbers count up
 /// when you held mousedown."* `Tax_IncreaseCounty` (`0x0043AA83`) ends
 /// `Panel_Tax()`, so the number is painted on the frame it stepped. Ours
-/// repaints when the machine is dirty, an event makes it dirty, and the repeat
+/// repaints when the machine is dirty,
 /// is not an event.
 ///
 /// This presents — draw only when `take_dirty` says
@@ -380,7 +380,7 @@ fn a_double_click_on_a_prompt_thumb_answers_it() {
 /// **A double click on the ration slider's track does not start a drag.**
 ///
 /// `Ration_SliderClick` (`0x0043A379`) has two doors: the arrows want
-/// `g_mouseLeftPressed || g_mouseLeftDoubleClick`, and the **track** wants
+/// `g_mouseLeftPressed || g_mouseLeftDoubleClick`,
 /// `g_mouseLeftDown && g_mouseInputChanged`. `App_WndProc` (`0x004B29BE`)
 /// answers `WM_LBUTTONDBLCLK` with `DAT_004EADA1 |= 1` and nothing else — only
 /// `WM_LBUTTONDOWN` sets the down bit — so after a double click the button is
@@ -522,7 +522,7 @@ fn a_double_click_on_the_garrison_widget_opens_the_garrison() {
 /// other end of the same axis.
 ///
 /// It carries no memory of a press: `Hotspot_Test` hit-tests the box and reads
-/// `g_mouseLeftReleased`, so a release inside it fires it whether or not the
+/// `g_mouseLeftReleased`,
 /// press that preceded it happened there.
 #[test]
 fn a_kind_three_box_answers_the_release_wherever_the_press_was() {
@@ -554,7 +554,7 @@ fn every_kinds_gesture_word_is_the_inventorys() {
     ] {
         assert_eq!(k.gesture(), word);
     }
-    // And the mapping from the exe's own byte, which is the only place the
+    // And the mapping from the exe's own byte,
     // tester matters: the two use the same record and different numbers.
     assert_eq!(Kind::from_record(false, 3), Some(Kind::Release));
     assert_eq!(Kind::from_record(true, 3), None, "Widget_Test has no 3 that fires");
@@ -567,7 +567,7 @@ fn every_kinds_gesture_word_is_the_inventorys() {
 ///
 /// What this proves and what it does not, because the difference matters: it
 /// proves the table `BattlefieldScreen::handle` passes to [`Press::event`] says
-/// `Delayed`, and the tests above prove what `Press` then does with that. It
+/// `Delayed`,
 /// does **not** drive a live battle to the box, because raising one takes a
 /// settled campaign fixture; the same wiring is driven end to end through the
 /// divide screen's tick and cross in `military.rs`, whose `press_and_wait`
@@ -607,7 +607,7 @@ fn the_two_order_panels_declare_kind_four_and_the_other_two_have_no_table() {
 /// [`l2_game::screens::supplies::ROWS`]' minus and plus and then the two thumbs,
 /// so the thumbs are records 4 and 5. `THUMB_UP_INDEX` was 6: a thumb's
 /// countdown reached `SuppliesScreen::fire` below it, took the spinner arm and
-/// indexed `ROWS[2]`, and the game panicked twenty ticks after either thumb was
+/// indexed `ROWS[2]`,
 /// pressed. Found by the input branch (`worktree-agent-aec40493a34ed1508`).
 ///
 /// **Ablation, run:** put `THUMB_UP_INDEX` back to `6` and this panics with an

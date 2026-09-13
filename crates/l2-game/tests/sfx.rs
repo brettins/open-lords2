@@ -24,7 +24,7 @@
 //!
 //! `tests/arms.rs` allows exactly one id per marker, because an input arm is a
 //! gesture and two gestures are two behaviours. **Sound is not shaped like
-//! that**, and pretending otherwise would be the fiction rather than the
+//! that**, and pretending otherwise would be the fiction
 //! honesty: `Msg_DrawWindow` asks for the narrator at sixteen places, each
 //! guarded by one value of one countdown, and [`l2_game::audio::voice_tick`] is
 //! that whole ladder in one function. Fourteen markers on one call would be
@@ -108,10 +108,10 @@ struct Site {
 
 /// `docs/audio.json`'s `sites` array.
 ///
-/// A scanner rather than a JSON crate, for `tests/arms.rs`'s reason: this check
+/// A scanner
 /// must not add a dependency to the build, and the file is generated with one
 /// field per line by `tools/oracle/sounds.js --rebuild`. It **fails loudly**
-/// rather than quietly returning fewer records, which is the failure mode that
+///
 /// matters for a file whose whole purpose is a count.
 fn sites(root: &Path) -> Vec<Site> {
     let text = std::fs::read_to_string(root.join("docs/audio.json")).expect("docs/audio.json");
@@ -161,7 +161,7 @@ fn sites(root: &Path) -> Vec<Site> {
 /// **The denominator, pinned.**
 ///
 /// `docs/audio-triggers.md` makes a great deal of this number being *generated
-/// rather than typed*, and it is — by `tools/oracle/sounds.js`, from the
+///
 /// decompilation, which is gitignored and absent on every machine that has not
 /// run Ghidra. So the generated number cannot be asserted here, and what can be
 /// is that the file still holds the number the generator last produced. The two

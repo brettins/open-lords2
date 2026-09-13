@@ -9,7 +9,7 @@
 /// name throughout `docs/kingdom.md` §4 and §5.
 ///
 /// The intermediate is `i64` so a large population times a large percentage
-/// cannot overflow, and the division truncates **toward zero**, which is what
+/// cannot overflow, and the division truncates **toward zero**.
 /// C's `/` does and therefore what the original does. That matters for the
 /// random-event modifiers, which are the only place `p` is ever negative:
 /// `pct(-100, 7)` is `-7`, not `-8`.
@@ -17,7 +17,7 @@
 /// ```
 /// # use l2_kingdom::math::pct;
 /// assert_eq!(pct(417, 15), 62);   // docs/kingdom.md §9, the births chain
-/// assert_eq!(pct(417, 11), 45);   // ... and the deaths chain
+/// assert_eq!(pct(417, 11), 45); //... and the deaths chain
 /// assert_eq!(pct(-100, 7), -7);   // truncation toward zero, both signs
 /// assert_eq!(pct(100, -7), -7);
 /// ```
@@ -71,7 +71,7 @@ pub fn per_myriad(x: i32, p: i32) -> i32 {
 ///
 /// Only ever called with a non-negative `a` and a positive `b`; a negative `a`
 /// would mean "a negative number of people to feed", which is a bug rather
-/// than a quantity, so it clamps to zero instead of producing a negative
+/// than a quantity.
 /// requirement.
 ///
 /// ```

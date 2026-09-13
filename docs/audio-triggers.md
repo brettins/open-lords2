@@ -72,7 +72,7 @@ the title screen stayed silent, and `audio::scene` said so in a comment that was
 true and complete and still lost the track:
 
 > *"The original plays no music here: `Music_StartCampaign` is reached from the
-> campaign coming up, and the title screen's only sound is `setup.wav`."*
+> campaign coming up, and the title screen's only sound is `setup.wav`."
 
 Every clause is correct. `setup.wav` **is** the music. And because no row of the
 inventory covered `Music_Play`, nothing anywhere said a sound was missing — the
@@ -126,7 +126,7 @@ Two of the sixteen are now built, and they are the two a player meets:
 They carry no `// sfx:` marker:
 `tools/oracle/sounds.js` scans for the nine *play* primitives. That is the right
 denominator for *"what does the game ask for"* and the wrong one for *"does our
-audio behave like the game's"*, and the gap is worth stating
+audio behave like the game's"*
 closing — adding stops to the census would put sixteen rows in it that no file
 depends on. `crates/l2-game/tests/audio_wiring.rs` is where the two are
 asserted.
@@ -334,7 +334,7 @@ Both are fired now. `[I]` that the words are the ones he remembered, and that is
 an oracle request — `docs/oracle-requests.md` §11: somebody
 with the game needs to open a dairy-fed county's ration panel and listen.
 
-> **C133's search was for the right condition in the wrong medium**, and the
+> **C133's search was for the right condition in the wrong medium**
 > reason it looked exhaustive is that `L2.eng` really is where this game keeps
 > its words. It keeps some of them in `.wav` files instead, and a group with one
 > consumer is a screen's vocabulary only for the half of the vocabulary that is

@@ -63,7 +63,7 @@
 //! > excusing it.
 //! * **Mercenaries lose their band.** `FUN_0047F474` tells a mercenary figure
 //!   from a levied one by a flag on the figure record; `l2_sim::Figure` has no
-//!   such flag, so a band that goes into a fought battle comes out folded into
+//! such flag, so a band that goes into a fought battle comes out folded into
 //!   its troop type. The autocalc path scales the band correctly.
 
 use l2_kingdom::battle::{self, Aftermath, Settlement, Verdict};
@@ -301,7 +301,7 @@ pub fn resolve_fought(
 ///   table has been in that function since the seam landed with nothing to
 ///   pass it; this is what passes it.
 /// * `Army_PrepareForBattle` fills the four battle-only troop slots — the
-///   besieger's engines and the garrison's oil — and they go into the muster
+/// besieger's engines and the garrison's oil — and they go into the muster
 ///   because the original zeroes them
 ///   again the instant the battle ends.
 /// * `g_battleIsSiege` reaches [`battle::return_to_campaign`], where it decides
@@ -529,14 +529,14 @@ fn resolve_battle(
     // Three rules come out of that call site and each of them is visible:
     //
     // * **Only a battle somebody watched to its end bills a repair.**
-    //   `Battle_Decline` and the retreat/autocalc button both leave for the
-    //   report screen without ever reaching this counter, so a player who
+    // `Battle_Decline` and the retreat/autocalc button both leave for the
+    // report screen without ever reaching this counter, so a player who
     //   knocks a wall down and then presses Autocalc un-knocks it down — the
     //   same un-doing the casualty write-back suffers on that path, and for the
     //   same reason.
     // * **It runs before the write-back and before the return**, so the county
-    //   is billed while it still belongs to the defender and the *conqueror*
-    //   inherits both the wreck and the bill. That ordering is why this block
+    // is billed while it still belongs to the defender and the *conqueror*
+    // inherits both the wreck and the bill. That ordering
 //   sits above `return_to_campaign`.
     // * **`g_multiplayer` skips it entirely**, which cannot be right and is not
     //   reproduced: a peer that billed and a peer that did not would hold
@@ -687,7 +687,7 @@ fn from_scars(s: l2_kingdom::siege::SiegeScars) -> l2_sim::CastleDamage {
 /// pacing a screen.
 ///
 /// Writing back is that function: both records' eleven counts are zeroed and
-/// rebuilt from the surviving figures, and the total follows the counts rather
+/// rebuilt from the surviving figures, and the total follows the counts
 /// than being scaled.
 fn fight(
     kingdom: &mut Kingdom,
@@ -1266,7 +1266,7 @@ mod tests {
         );
     }
 
-    /// **The engines and the oil reach the battle**, which is the whole of
+    /// **The engines and the oil reach the battle**,
     /// `Army_PrepareForBattle` — and neither survives it.
     #[test]
     fn the_besiegers_engines_and_the_garrisons_oil_are_raised_and_then_gone() {
@@ -1281,7 +1281,7 @@ mod tests {
         assert!(at.iter().any(|&(t, n)| t == l2_sim::Troop::Catapults && n == 2));
         assert!(dt.iter().any(|&(t, n)| t == l2_sim::Troop::Oil && n == 6));
 
-        // And the campaign record never learns about them: `Unit::troops` is
+        // And the campaign record
         // seven columns and the four battle slots are produced on the way in.
         assert_eq!(k.campaign.units.get(a).unwrap().troops.len(), TROOP_TYPES);
     }

@@ -12,7 +12,7 @@
 //! **The TCP implementation lives in [`tcp`](crate::tcp)**, and it was
 //! written only once it could be tested the way everything else here
 //! is: on a bare checkout, with no game install and no second machine.
-//! That was the standing condition, and it is worth restating because
+//! That was the standing condition
 //! it is the reason this module existed alone for as long as it did — a
 //! socket implementation whose tests are skipped by default is code
 //! that compiles and is never run, which for a networking layer is the
@@ -21,7 +21,7 @@
 //! condition exactly, so `tests/tcp.rs` runs on every `cargo test` with
 //! nothing ignored and nothing conditional.
 //!
-//! What is here is the seam itself, and everything above it can be
+//! What is here is the seam itself
 //! tested against the [`Loopback`] with no sockets at all:
 //!
 //! * [`Transport`] — the trait from §7, unchanged apart from a
@@ -45,7 +45,7 @@
 //!   framing — is not broken, it just pays eight prefix bytes instead
 //!   of four.
 //! * [`Loopback`] — a complete in-process network with controllable
-//!   latency, reordering and partitioning, so that [`Session`] and the
+//! latency, reordering and partitioning
 //! desync detector are exercised for real.
 //!
 //! [`Session`]: crate::Session
@@ -156,7 +156,7 @@ pub trait Transport {
     /// Using `?` inside the loop — which this originally did — aborts on the
     /// first failing peer and silently skips every peer after it. A host whose
     /// player 2 has just dropped then never sends the turn to players 3, 4 and
-    /// 5, and the game stops for everyone with no error anywhere near the cause.
+    /// 5
     ///
     /// `Loopback` cannot produce that failure at all: a partitioned peer still
     /// returns `Ok`. So the whole suite passed while the bug sat here, and it
@@ -189,7 +189,7 @@ pub const MAX_FRAME: usize = 1 << 20;
 
 /// Length-prefix a message: four little-endian bytes, then the payload.
 ///
-/// Framing lives above [`Transport`] precisely so
+/// Framing lives above [`Transport`]
 /// that both kinds of implementation present the same interface (§7).
 pub fn frame(payload: &[u8]) -> Result<Vec<u8>, TransportError> {
     if payload.len() > MAX_FRAME {
@@ -307,7 +307,7 @@ struct Switch {
 /// failures are injected — [`Loopback::set_latency`],
 /// [`Loopback::set_reorder`] and [`Loopback::partition`] cover the
 /// three ways a real network makes a lockstep session behave
-/// differently, and the session must survive all three with identical
+/// differently
 /// results.
 ///
 /// ```
@@ -393,9 +393,9 @@ impl Loopback {
     /// connection.
     ///
     /// This is what a peer going quiet looks like over TCP: nothing is
-    /// lost, everything is late, and the moment the link recovers the
+    /// lost, everything is late
     /// backlog arrives in order. It is the case §4's stalling rule is
-    /// written for, and the one a session must be able to resume from.
+    /// written for
     pub fn hold(&self, peer: PeerId, holding: bool) {
         self.with_box(peer, |mailbox| {
             mailbox.holding = holding;

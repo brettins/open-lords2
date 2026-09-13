@@ -22,7 +22,7 @@
 //! exactly. For the shipped `lastturn.sav` that is
 //! `267,028 + 16 × 12,800 = 471,828` — and if a single length were misread the
 //! arithmetic would not close. [`Save::open`] checks it and refuses the file
-//! otherwise, so a wrong schema fails loudly
+//! otherwise,
 //! numbers from the wrong offsets.
 //!
 //! # What this is for
@@ -173,7 +173,7 @@ pub enum SaveError {
     /// The block table ran off the end of the image, or held nothing.
     BadBlockTable,
     /// The blocks and castle data do not account for the file exactly. The
-    /// arithmetic closing is the evidence the schema was read correctly, so a
+    /// arithmetic closing is the evidence the schema was read correctly,
     /// mismatch means the reading is wrong, not that the file is odd.
     SizeMismatch { expected: usize, actual: usize },
     /// A runtime address that no saved block covers.
@@ -685,7 +685,7 @@ pub struct Realm {
     pub is_human: bool,
     pub lord: u8,
     /// `+0x0A` — which shield and flag colour this realm flies.
-    /// `Game_SetupRealmsAndCounties` initialises it to the realm id, so a default
+    /// `Game_SetupRealmsAndCounties` initialises it to the realm id,
     /// game has `shield_index == index`; a custom game's colour picker
     /// (`0x0049CE1F`, a free-slot pool) permutes it, which is the only case
     /// where the two differ.
@@ -854,7 +854,7 @@ pub struct Unit {
 
 impl Unit {
     /// A slot that holds a unit. `Unit_Spawn` marks a free slot with owner 0,
-    /// and the type byte is 0 there too; both are tested so a record that is
+    /// and the type byte is 0 there too; both are tested
 /// half-cleared reads as free
     /// would send to `Unit_TickNone`.
     pub fn is_live(&self) -> bool {

@@ -161,8 +161,8 @@ mod tests {
         assert_eq!(ticks_per_cell(Troop::Catapults), 48);
     }
 
-    /// The manual states two speed facts. Both hold exactly, and the knight to
-    /// pikeman ratio is precisely 1:5.
+    /// The manual states two speed facts. Both hold
+    /// pikeman ratio is 1:5.
     #[test]
     fn speeds_match_what_the_manual_says() {
         // "macemen are second only to knights in speed"

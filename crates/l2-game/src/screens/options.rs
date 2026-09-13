@@ -21,7 +21,7 @@
 //! All four panels were rows of [`crate::screens::shells::SHELLS`] until now —
 //! the original's window, the original's words, and a click that closed them
 //! again. **[`Shell::unfinished`] said exactly what was missing in each case**
-//! (*"the two values, and the F5 note that only shows in windowed mode"*), which
+//! (*"the two values"), which
 //! is what a shell is for; this module is those four sentences answered.
 //!
 //! [`Shell::unfinished`]: crate::screens::shells::Shell::unfinished
@@ -107,7 +107,7 @@
 //! which is the shape that hid `g_sendSuppliesWidgets`' cut sheep row. **It is
 //! not hiding anything here.** `xref.js touches` finds exactly three functions
 //! per count — the painter, which writes it, and `Screen_DrawWidgets` and
-//! `Screen_HandleInput`, which only read it — and the tables decoded out of
+//! `Screen_HandleInput` — and the tables decoded out of
 //! `.data` are
 //!
 //! ```text
@@ -766,7 +766,7 @@ pub fn toggle(setting: Setting, ctx: &mut Ctx) {
 
 /// Where a quirk's flag
 ///
-/// **Two homes, and the split is not an implementation detail a player should
+/// **Two homes
 /// ever meet.** `docs/bugs.md` §6.3a: *if flipping it can change a number in a
 /// saved game it is behavioural; if it can only change which pixels are painted
 /// from the same numbers it is presentation.* A behavioural quirk is on

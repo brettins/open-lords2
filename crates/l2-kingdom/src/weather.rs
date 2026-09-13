@@ -40,7 +40,7 @@
 //! feeding bit 30, thirty-one iterations a call — and then publishes six masked
 //! values from them. `Weather_UpdateAll` reads two:
 //!
-//! * the jitter is `(LFSR_B & 0x7F) >> 3`, so **`random` is 0..=127 and the
+//! * the jitter is `(LFSR_B & 0x7F) >> 3`
 //!   jitter is 0..=15**;
 //! * the county that gets the local swing is `(LFSR_A & 0x7F) & 0xF`, i.e.
 //!   0..=15, with three fallbacks when that misses — see [`chosen_county`].
@@ -58,7 +58,7 @@
 //!
 //! It is `FUN_00449D6E` — [`local_modifier`] — and it is not zero any more.
 //! Read for the hundred-turn game (`docs/plan.md` §2.5), because weather drives
-//! sowing, growth, harvest and the herd every season for a hundred seasons and
+//! sowing
 //! a term that is wrong by up to 12 a season is not survivable there.
 //!
 //! It reads county `+0x21E`, a **climate band 0…4**, and returns a swing that
@@ -123,7 +123,7 @@ pub const WEATHER_COUNTY_MASK: u32 = 0xF;
 ///
 /// **Nothing else in the binary writes `+0x21E`** — one writer, one reader
 /// ([`local_modifier`]) — so it is derived here. A saved
-/// game holds the byte, and the byte is always this function of the index, so
+/// game holds the byte
 /// the two cannot disagree
 /// (`docs/agents.md`, *a field is only tested if something a test reads was
 /// written by something the game runs*). `[V]`
@@ -164,7 +164,7 @@ pub fn climate_band(county_id: usize) -> u8 {
 /// complete: band 0 has no arm because its value is the fall-through 0.
 ///
 /// Spring and Autumn get nothing at all
-/// the same everywhere on the map and the two extreme ones are not.
+/// the same everywhere on the map.
 pub fn local_modifier(county_id: usize, season: Season) -> i32 {
     let band = climate_band(county_id);
     match season {
@@ -246,7 +246,7 @@ pub fn band(dryness: &mut i32) -> Weather {
 
 /// The cold-season rewrite. `dryness` is the reading the band came from,
 /// **before** the drought clamp would have moved it — which does not matter,
-/// because the only band the threshold applies to is Sunny and the clamp only
+/// because the only band the threshold applies to is Sunny.
 /// touches Drought.
 pub fn apply_frost(band: Weather, dryness: i32, season: Season) -> Weather {
     if season != Season::Winter && season != Season::Spring {
@@ -436,7 +436,7 @@ mod tests {
     ///
     /// **This is the assertion that goes red if [`local_modifier`] returns to
     /// zero**, which is what it did until `FUN_00449D6E` was read: delete the
-    /// `+ local_modifier(...)` from either arm of [`update_all`] and the
+    /// `+ local_modifier(...)` from either arm of [`update_all`].
     /// counts come out 0 instead of 1 and 2.
     #[test]
     fn the_chosen_county_swings_twice_and_its_neighbours_by_half_again() {
@@ -484,7 +484,7 @@ mod tests {
     /// **`FUN_00449D6E` in full, including the arm that cannot run.**
     ///
     /// Summer's fourth test reads `band == 4` where the ladder wants `band ==
-    /// 3`, so band 3 gets nothing and the −24 arm is dead. Spring and Autumn
+    /// 3`
     /// return zero for every band
     /// Summer-and-Winter term only.
     #[test]
@@ -558,7 +558,7 @@ mod tests {
     }
 
     /// The county picked for the local swing is masked to 0..=15 whatever the
-    /// map holds, and the two fallbacks walk it on from last season's.
+    /// map holds.
     #[test]
     fn an_out_of_range_draw_walks_the_local_swing_on_from_last_season() {
         // In range: the draw wins.
@@ -579,7 +579,7 @@ mod tests {
         }
     }
 
-    /// The determinism property that matters: the same seed and the same
+    /// The determinism property that matters: the same seed.
     /// kingdom give the same weather, every time.
     #[test]
     fn the_same_seed_produces_the_same_weather_every_run() {

@@ -3,7 +3,7 @@
 //!
 //! # The shell's description was wrong in shape
 //!
-//! It said *"the seven rating rows per player and the shield sprites"*. There
+//! It said *"the seven rating rows per player and the shield sprites"*.
 //! are no rating rows. There are **two player blocks**, each a table of **seven
 //! columns by three rows**: the columns are the seven campaign troop types and
 //! the rows are *Before*, *Killed* and *Kills*. There are always exactly two
@@ -104,7 +104,7 @@
 //! would settle it. [`HANDICAP_IS_DEAD`] is the switch, and it is *off*,
 //! because reproducing a dead computation is reproducing nothing.
 //!
-//! # It is not dead code, and the way out is forward
+//! # It is not dead code,
 //!
 //! Seven sites write `g_screenId = 0x2E`, every one guarded by `DAT_0057A0F0`
 //! — *this is a stand-alone battle, not a campaign one* — whose `== 0` sibling
@@ -120,10 +120,10 @@
 //! }
 //! ```
 //!
-//! Three things follow, and each is a decision somebody made:
+//! Three things follow,
 //!
 //! * **the OK picture at (516, 390) is decorative** — the arm never calls
-//!   `Ui_OkButtonClicked`, so a click *anywhere* leaves;
+//! `Ui_OkButtonClicked`, so a click *anywhere* leaves;
 //! * it fires on **press**, not release, unlike essentially every other arm in
 //!   the function;
 //! * it goes **forward** to `0x2F`, the rank screen, not back. The exit chain is
@@ -131,13 +131,13 @@
 //!   screen has no back door.
 //!
 //! `0x2F` is not built. This screen therefore pops, which is where `0x2F`
-//! eventually returns to anyway, and the difference is recorded.
+//! eventually returns to anyway,
 //!
 //! # `0x2F`, the rank sheet — `Screen_BattleMasterRank` (`0x00421D09`)
 //!
 //! Read as part of the draw-call audit and **not built**, so that the next
 //! person to reach for it starts from the painter.
-//! **Its six draw calls are all it has**, and the two `Screen_DrawWidgets`
+//! **Its six draw calls are all it has**,
 //! functions that looked like they might be hiding its content are not drawing
 //! functions at all:
 //!
@@ -200,7 +200,7 @@
 //! snapshot and no `score.dat`. So [`Ratings`] is a value the *battle* fills in
 //! and this screen draws, and until a skirmish exists the only thing that fills
 //! it is a test. That is stated: a screen whose input does
-//! not exist yet is honest about it, and the scoring rule is the part worth
+//! not exist yet is honest about it,
 //! having now, because it is a rule and it was written down nowhere.
 
 use l2_view::Canvas;
@@ -242,7 +242,7 @@ pub const NAME_AT: (i32, i32) = (0xD8, 10);
 /// through a `Pen::number` that could not ask for any other face.
 pub const SCORE_DX: i32 = 0xEC - 0xD8;
 pub const SCORE_DY: i32 = 5;
-/// The label column, and the three row offsets from the block's top.
+/// The label column,
 pub const LABEL_X: i32 = 0x68;
 pub const ROW_DY: [i32; 3] = [80, 100, 120];
 /// The seven columns: `c * 0x32 + 0xAD`, centred in a 60-pixel box.
@@ -284,7 +284,7 @@ impl Snapshot {
 /// How the battle ended, which is what the ladder switches on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ending {
-    /// One side left the field. The withdrawer scores **zero** and the other
+    /// One side left the field. The withdrawer scores **zero**
     /// side gets no win bonus.
     Withdrew { local: bool },
     /// A castle was entered. `local` is true when it was the local player's.
@@ -357,7 +357,7 @@ fn shield_frame(ctx: &Ctx, realm: u8) -> usize {
 }
 
 /// `PctOf(a, b) = a * 100 / b`, **zero when `b` is zero** — the original's own
-/// guard, and the reason a battle that started with no men does not divide.
+/// guard,
 fn pct_of(a: i32, b: i32) -> i32 {
     if b == 0 {
         0
@@ -455,7 +455,7 @@ impl Screen for RatingsScreen {
             // `0x12`: a press inside the minimap raster selects that county,
             // recentres the map and sets `g_screenId = 0`. The shell wrapper
             // did this for all seven shells generically; graduating them lost
-            // it, and the arm is per screen now because the screens are.
+            // it,
             //
             // Only the raster, not the column — see `screens/job.rs` at the
             // same arm.
@@ -519,7 +519,7 @@ impl Screen for RatingsScreen {
             // **[`Pen::body`] returns an absolute x, not a width** — see its
             // own doc comment and `docs/decisions.md` C61. These three lines
             // added it to `NAME_AT.0` a second time
-            // loaded put *"Scored"* and the score off the right of the block.
+            // loaded put *"Scored"*
             let x = pen.body(canvas, NAME_AT.0, top + NAME_AT.1, &name, font::TEXT);
             let x = pen.eng(canvas, GROUP, SCORED, x, top + NAME_AT.1, font::TEXT);
             // `Ui_DrawNumber(score, ' ', &DAT_004D43B4 | &DAT_004D43C4, …,

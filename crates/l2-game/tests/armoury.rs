@@ -6,7 +6,7 @@
 //! ```
 //!
 //! `crates/l2-game/tests/military.rs` walks the whole verb on
-//! `Assets::placeholder`, which is the configuration a broken hit test and the
+//! `Assets::placeholder`, picture agree in. This file is the other half: **the hit map and the sprites
 //! picture agree in. This file is the other half: **the hit map and the sprites
 //! it is supposed to sit on, out of the install.** `docs/decisions.md` C58 —
 //! every campaign-map test on this project ran on the placeholder once, and a
@@ -529,7 +529,7 @@ fn a_soldier_walks_over_and_takes_the_weapon() {
     assert_eq!(w.slot, first, "and he is of the type just equipped");
     assert_eq!(w.x, armoury::WALKER_START_X, "starting off the left edge");
 
-    // Now walk him. Everything below is `Anim::tick`, which is fixed ticks and
+    // Now walk him. Everything below is `Anim::tick`, fixed ticks and
     // no clock at all.
     let stop = armoury::WALKER_STOP_X[first as usize];
     let mut walked_in = false;
@@ -773,7 +773,7 @@ fn the_soldier_and_the_torches_are_painted_where_the_animation_says() {
             );
         }
 
-        // And the weapon turning in the panel's own well, which is the third
+        // And the weapon turning in the panel's own well, third
         // animation and the one that was drawing frame 0 for ever. **This was
         // added because ablating it found nothing**: every assertion above is
         // about the room, and the well is on the panel.
@@ -793,7 +793,7 @@ fn the_soldier_and_the_torches_are_painted_where_the_animation_says() {
 /// **A hundred ticks of the armoury leave the kingdom byte-identical.**
 ///
 /// The room moves and the world does not. `Anim` is on
-/// [`l2_game::game::LevyOrder`], which the save resets and the lockstep digest
+/// [`l2_game::game::LevyOrder`], lockstep digest
 /// never sees — `docs/netcode.md` — and this is the assertion that keeps it
 /// there. Ablated by writing anything at all into `ctx.game.kingdom` from
 /// `Anim::tick`'s callers.
@@ -847,7 +847,7 @@ fn shoot() {
     g.kingdom.realms[g.player as usize].weapons = [50, 0, 120, 40, 90, 0];
     g.open_levy(county);
     g.set_levy_percent(35);
-    // What *Continue* does, and the reason the basket is not already full:
+    // What *Continue* does, basket is not already full:
     // the slider writes g_levyMen and nothing else.
     g.seed_levy_basket();
 

@@ -3,8 +3,8 @@
 //!
 //! # This is not the battlefield pathfinder, and reusing that one would be a bug
 //!
-//! `l2-sim` already has a pathfinder, and the obvious economy would be to share
-//! it. It is the wrong one, and the two are different functions in the original
+//! `l2-sim` already has a pathfinder
+//! It is the wrong one, and the two are different functions in the original
 //! with different behaviour, not one function called twice:
 //!
 //! | | battlefield `Path_Search` `0x0047095E` | campaign `Move_FloodFill` `0x0046F700` |
@@ -17,7 +17,7 @@
 //! | early out | stops when the destination is reached | no goal test at all; always fills the component |
 //! | diagonals | always | **forbidden out of a road tile** |
 //!
-//! Two of those differences change where an army walks, so a shared
+//! Two of those differences change where an army walks
 //! implementation would be a silent divergence.
 //! also a hard structural reason: `l2-kingdom` may not depend on `l2-sim`
 //! (`docs/netcode.md` D-3 and both crates' manifests), and moving the search
@@ -30,9 +30,9 @@
 //! §8 said *"`Move_FloodFill` (2,115 bytes) was not read … that the fill itself
 //! is a cost-weighted breadth-first search is `[I]`"*. It has been read. It is
 //! **SPFA — a FIFO-queue Bellman–Ford with full relaxation** — not a
-//! breadth-first search, and the difference is load-bearing: without the
+//! breadth-first search
 //! relaxation branch a FIFO queue over non-uniform weights produces a field
-//! that is not a shortest-cost field at all, and the greedy descent in
+//! that is not a shortest-cost field at all
 //! [`extract_path`] would then be unsound. Everything below is `[D]` from
 //! `0x0046F700` unless marked otherwise.
 
@@ -70,7 +70,7 @@ pub const STEP_DIRECTIONS: [(i32, i32); 8] = [
 ];
 
 /// The original's frontier queue holds exactly this many cell indices and
-/// **wraps**, so a fill that outgrows it silently overwrites its own queue and
+/// **wraps**
 /// stops early with a half-filled field.
 ///
 /// Reproduced, for the same reason
@@ -133,7 +133,7 @@ impl Routing {
 }
 
 /// `g_moveDistLocal` / `g_moveDistOther` — the 64 × 64 `i16` distance field the
-/// fill leaves behind, and the preview reads.
+/// fill leaves behind
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DistanceField {
     dist: Vec<i16>,
@@ -184,7 +184,7 @@ impl DistanceField {
 ///             dist[nbr] = dist[cur] + c;  push nbr
 /// ```
 ///
-/// Four things worth reading twice, because each of them is a place a
+/// Four things worth reading twice
 /// reasonable reimplementation goes wrong:
 ///
 /// * **The cost charged is the cost of the tile being *entered*.** The start
@@ -197,7 +197,7 @@ impl DistanceField {
 ///   impassable cell keeps `dist == 0` forever, which is indistinguishable
 ///   from unreached — deliberately, since neither can be walked to.
 /// * **A road tile expands orthogonally only.** `if (cost[cur] != 1)` gates the
-/// four diagonals, and the gate reads the *raw* cost, so it holds in both
+/// four diagonals
 ///   routing modes. `docs/armies.md` §2.3 records the extractor's half of this
 ///   rule and not the fill's; this is the other half. Off a road a diagonal
 ///   costs exactly what an orthogonal step costs — no √2, no scaling — so
@@ -268,11 +268,11 @@ pub fn flood_fill(cost: &CostMap, start: (u8, u8), routing: Routing) -> Distance
 /// The scan:
 ///
 /// * on a **road** tile (raw cost 1) the direction index steps by **2**,
-/// hitting N, E, S, W only, and the full eight-direction pass is re-run
+/// hitting N, E, S, W only
 ///   verbatim only if that found nothing. `[D]`, and it confirms
 ///   `docs/armies.md` §2.3.
 /// * the running best is seeded with `dist[cur]` itself and the test is a
-/// strict `<`, so **only a strictly cheaper neighbour is a candidate and the
+/// strict `<`
 ///   lowest direction index wins a tie**. That is the whole tie-break rule.
 /// * the candidate's *cost* is never consulted — only the distance field, and
 ///   only the road test on the tile being left.
@@ -280,12 +280,12 @@ pub fn flood_fill(cost: &CostMap, start: (u8, u8), routing: Routing) -> Distance
 /// **An unreachable destination comes back as an empty path, not as a
 /// failure.** `dist[dest] == 0` makes the first `< 2` test true immediately, so
 /// the original returns success with `pathLen = 0`, the caller copies it,
-/// sets `moveState = 2`, and the army does not move. Reproduced: the order is
+/// sets `moveState = 2`
 /// accepted and nothing happens, which is observable and therefore not ours to
 /// improve.
 ///
 /// The result is capped at [`MAX_PATH`]. The original does *not* cap it — the
-/// AI checks the length before copying and `Unit_OrderMove` does not, so a path
+/// AI checks the length before copying and `Unit_OrderMove` does not
 /// over 150 steps writes past `g_pathBuf`'s 300-byte slot and stores a length
 /// the unit's array cannot hold. That one is a buffer overrun
 /// rule, and it is clamped here.
@@ -405,10 +405,10 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
 /// ```
 ///
 /// Three callers run it statement for statement — the transport re-target
-/// (`FUN_00429418`, turn phase 3), `Merchant_AdvanceAll` (phase 6), and the
+/// (`FUN_00429418`, turn phase 3), `Merchant_AdvanceAll` (phase 6)
 /// AI's army walk — against [`order_move`] with [`Routing::Direct`], which is
 /// what a *human* order does. So [`Routing::PreferRoads`]'s doc comment is
-/// exactly right that "AI armies prefer roads and the player's do not", and the
+/// exactly right that "AI armies prefer roads and the player's do not"
 /// rule is wider than armies: **everything the game moves for itself hugs
 /// roads.**
 ///
@@ -437,7 +437,7 @@ pub enum Entry {
     /// Return 3 — a road. Costs 1, and sets the unit's road flag for this step.
     Road,
     /// Return 8 — farmland. `Unit_CrossField` charges 3 and then the general
-    /// step charges 3, so a standing field costs 6 in total.
+    /// step charges 3
     Field,
     /// Return 5 — a castle site. The move ends and the step itself charges
     /// nothing.
@@ -470,7 +470,7 @@ impl Entry {
 
 /// `Unit_TryEnterTile` (`0x00466C3C`) — classify the tile in front.
 ///
-/// The tests are made in this order and the order is the rule, because the bits
+/// The tests are made in this order and the order is the rule
 /// combine: occupancy first, then road, castle, settlement, plot, farmland,
 /// and ordinary ground last. Note this is **not** the cost map's order — the
 /// cost map tests farmland before the castle — and the two only agree because
@@ -587,7 +587,7 @@ pub struct Step {
     /// and the caller resolves it with [`crate::conquest::attack_county`] —
 /// which is what [`march_and_fight`] does. Reported
     /// inside [`step`] because taking a county needs the realm array, the
-    /// ruleset and the name counters, and a stepper that took all of those
+    /// ruleset and the name counters
     /// would be a stepper nothing could test in isolation.
     pub reached_castle: Option<u8>,
     /// **The army reached the castle *building*** — a settlement tile
@@ -596,8 +596,8 @@ pub struct Step {
     /// `Unit_Step`'s other code-6 handler.
     ///
     /// **This is a different tile from [`Step::reached_castle`] and a different
-    /// rule**, and the two are easy to cross. `flags::CASTLE` (`0x40`) is *the
-    /// county town* — `docs/decisions.md` C25, and the constant keeps the wrong
+    /// rule**
+    /// county town* — `docs/decisions.md` C25
     /// name — and walking onto it is how a county is **taken**. `0x80` with a
     /// castle terrain is the castle itself.
     ///
@@ -652,7 +652,7 @@ impl Step {
 /// immediately.
 ///
 /// Returns `None` when the unit is not there, has no path left, or has no moves
-/// left. The budget test is `moveAllowance <= movesUsed`, so a unit with
+/// left. The budget test is `moveAllowance <= movesUsed`
 /// exactly its allowance spent stops.
 pub fn step(
     map: &mut CampaignMap,
@@ -762,7 +762,7 @@ pub fn step(
     }
 
     let u = units.get_mut(id)?;
-    // The tile is being entered, so the latch goes down and the counter starts
+    // The tile is being entered
     // again — at **1**, not 0, which is `Unit_StepOnce`'s literal. It costs
     // nothing (eight admissions either way: 1 + 2×8 ≥ 16 and 0 + 2×8 ≥ 16) and
     // it is written as the original writes it so that a future change to
@@ -798,8 +798,8 @@ pub fn step(
 
 /// Walk a unit until it runs out of moves, runs out of path, or is stopped.
 ///
-/// The natural shape of a turn's worth of movement, and the loop the caller
-/// would otherwise write. Returns every step taken, in order, so a caller can
+/// The natural shape of a turn's worth of movement
+/// would otherwise write. Returns every step taken, in order
 /// raise the border messages and recount the counties without re-deriving what
 /// happened.
 pub fn march(
@@ -821,7 +821,7 @@ pub fn march(
     // that empties its path, because `Unit_Step` (`0x00465D28`) does not: the
     // unit crosses into its last tile and the latched arm finds `field_0x1c ==
     // 0` at that tile's edge. `march` has no sub-tile counter, so the end of the
-    // loop *is* that edge, and the stop is written here — the same two writes
+    // loop *is* that edge
     // [`crate::Kingdom::tick_units`] makes when the edge is really reached.
     if let Some(u) = units.get_mut(id) {
         if u.moving && u.path.is_empty() {
@@ -832,7 +832,7 @@ pub fn march(
     steps
 }
 
-/// `Unit_CrossField` (`0x0046673C`) — the extra 3 moves, and the field.
+/// `Unit_CrossField` (`0x0046673C`) — the extra 3 moves
 ///
 /// ```c
 /// if (type != 3 && type != 4) {
@@ -900,7 +900,7 @@ pub const FIELD_TRAMPLE_OFFENCE: i32 = 10;
 /// What burning a dwelling costs — `Unit_BurnDwelling` (`0x00468AE2`) passes
 /// `'\x14'` = 20, and unlike the trample it does so whoever the burner is.
 ///
-/// **The other half of `Unit_BurnDwelling` is not reproduced**, and it is worth
+/// **The other half of `Unit_BurnDwelling` is not reproduced**
 /// saying at the constant: the original also
 /// rewrites the tile (content `0x10` → `0x13`, frame `0x3C`) and takes **a
 /// quarter of the county's population** with it. This crate charges the seven
@@ -935,7 +935,7 @@ pub const DWELLING_BURN_OFFENCE: i32 = 20;
 /// county that has painted *more* grain than it sowed loses no crop at all
 /// when one field is wrecked, because the share is only charged while
 /// `fieldsGrain` is within the sown count. And the step-down is what
-/// `Grain_SeasonTick`'s picture divides by, so a trampled field moves the
+/// `Grain_SeasonTick`'s picture divides by
 /// wheat on every other tile of the county. `docs/decisions.md`
 /// C195.
 ///
@@ -998,7 +998,7 @@ pub fn destroy_field(county: &mut County, map: &mut CampaignMap, x: u8, y: u8) -
 ///
 /// **It always writes 3 seasons** — no ladder, no dependence on the army's
 /// size — and only when the army's owner differs from the *county's* owner, so
-/// you cannot wreck your own. The `+7` is charged **inside** each branch, so a
+/// you cannot wreck your own. The `+7` is charged **inside** each branch
 /// site that is already ruined costs nothing and an army walking over its own
 /// county's mine costs nothing either: `docs/armies.md` §2.2's flat "+7" for a
 /// settlement is conditional on both.
@@ -1068,7 +1068,7 @@ mod tests {
     }
 
     /// **`County_DestroyField` (`0x00469E5B`) charges against `+0x206` and
-    /// steps it down**, and the tile goes bare whatever the guards say.
+    /// steps it down**
     ///
     /// Literals throughout: `PctOf(1, 4)` is 25, and a quarter of 400 is 100.
     #[test]
@@ -1094,7 +1094,7 @@ mod tests {
         assert_eq!(destroy_field(&mut c, &mut map, 3, 3), 0);
         assert_eq!((c.crop[1], c.fields_grain, c.fields_grain_standing), (400, 5, 4));
 
-        // Nothing sown: neither arm fires, and the tile is **still** repainted —
+        // Nothing sown: neither arm fires
         // `Terrain_Set(tile, 0)` is outside the `if`.
         let mut c = County::new();
         c.fields_grain = 2;
@@ -1178,7 +1178,7 @@ mod tests {
         // direct route wins and is what is recorded.
         assert_eq!(f.cost_to(11, 10), Some(6));
 
-        // Now make the direct crossing ruinous and the detour cheap, and check
+        // Now make the direct crossing ruinous and the detour cheap
 // the field takes the detour's number.
         let mut m = open_map();
         for y in 0..MAP_DIM as u8 {
@@ -1187,7 +1187,7 @@ mod tests {
             }
         }
         let f = flood_fill(&m.cost_map(), (10, 10), Routing::Direct);
-        // The only way round is over row 0, and the diagonals cut the corners:
+        // The only way round is over row 0
         // nine steps up to (10, 1), one diagonal to (11, 0), one more to
         // (12, 1), then nine down. Twenty steps of open ground.
         assert_eq!(f.cost_to(12, 10), Some(3 * 20));
@@ -1205,7 +1205,7 @@ mod tests {
         let hugging = flood_fill(&cost, (0, 10), Routing::PreferRoads);
         assert_eq!(direct.cost_to(10, 10), Some(10));
         assert_eq!(hugging.cost_to(10, 10), Some(10), "a road is 1 in both modes");
-        // **13, not 11** — and the 2 is the road's diagonal rule, not a
+        // **13, not 11** — and the 2 is the road's diagonal rule
         // rounding. A road tile expands orthogonally only, so the cheapest way
         // onto (10, 11) is to walk the road to (10, 10) at 10 and step south
 // for 3.
@@ -1247,7 +1247,7 @@ mod tests {
         // than assuming. On open ground a diagonal costs exactly what an
         // orthogonal step costs, so every route of four steps ties; the
         // extractor scans N, NE, E, SE, S, SW, W, NW and takes the first
-        // strictly-cheaper neighbour, so **SW is reached before W** and the
+        // strictly-cheaper neighbour
         // descent leans south-west before turning back. The zigzag is the
         // original's tie-break made visible.
         assert_eq!(path, vec![(11, 11), (12, 12), (13, 11), (14, 10)]);
@@ -1507,7 +1507,7 @@ mod tests {
         assert_eq!(m.cost_map().at(11, 10), 0, "and a hole in the map afterwards");
     }
 
-    /// All four ladders, and the correspondence with the placer.
+    /// All four ladders
     #[test]
     fn each_terrain_group_ruins_its_own_industry_record() {
         for (terrain_byte, ruined, record) in
@@ -1668,10 +1668,10 @@ mod tests {
         assert!(units.get(mover).unwrap().on_road);
     }
 
-    /// **Occupancy is tested first**, so a merchant standing on a castle tile
+    /// **Occupancy is tested first**
     /// hides it: the mover walks on at open-ground cost and no capture is
 /// reported. A consequence of the order in `Unit_TryEnterTile`
-    /// a rule anybody wrote, and the kind of thing that only shows up once
+    /// a rule anybody wrote
     /// units exist.
     #[test]
     fn a_unit_on_a_castle_tile_hides_it_from_a_merchant() {

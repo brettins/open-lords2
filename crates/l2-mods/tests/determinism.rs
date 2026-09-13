@@ -9,7 +9,7 @@
 //! so a merge that is even slightly order-dependent turns into a refused
 //! session — or worse, a session that starts and desyncs later.
 //!
-//! Three things could break it, and there is a test here for each:
+//! Three things could break it, and the two
 //!
 //! * **Iteration in hash order.** The value tree is `BTreeMap` throughout, and
 //!   a source-level test makes adding a `HashMap` a visible decision rather
@@ -18,7 +18,7 @@
 //!   and differs between filesystems. Every layer's documents are sorted by
 //!   name before they apply.
 //! * **Floats.** Not forbidden by the reader — a mod may carry one for
-//!   something the simulation never reads — but they are reported, and the
+//! something the simulation never reads — but they are reported, and the
 //!   engine's own rules contain none.
 //!
 //! And one thing that must *not* affect the answer: where anything is
@@ -176,7 +176,7 @@ fn reordering_mods_that_do_not_overlap_leaves_the_digest_alone() {
 }
 
 /// Documents inside one layer apply in sorted name order, whatever order the
-/// filesystem hands them back in. `read_dir` promises nothing, and the two
+/// filesystem hands them back in. `read_dir` promises nothing, and the cheapest way to keep that
 /// filesystems this project runs on do not agree.
 #[test]
 fn documents_within_a_layer_apply_in_sorted_name_order_not_creation_order() {
@@ -279,7 +279,7 @@ fn a_decimal_in_a_mod_is_reported_even_though_it_is_not_refused() {
 }
 
 /// The guard that keeps the rest of this file true. `docs/netcode.md` bans
-/// iteration whose order depends on hashing, and the cheapest way to keep that
+/// iteration whose order depends on hashing, and the difference
 /// rule is to make breaking it visible: this fails the moment a hash container
 /// appears in the crate, so adding one has to be a decision someone takes on
 /// purpose.
@@ -318,7 +318,7 @@ fn no_hash_ordered_container_appears_anywhere_in_this_crate() {
     );
 }
 
-/// The handshake digest is stricter than the rules digest, and the difference
+/// The handshake digest is stricter than the rules digest
 /// is deliberate. `docs/netcode.md` D-12 says peers must agree on the mod set
 /// and load order, and `l2_net::Hello::ruleset_hash` documents exactly that —
 /// so `session_digest` is what fills it, not `digest`.

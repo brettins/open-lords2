@@ -87,7 +87,7 @@ use crate::input::Event;
 /// six that reads it, it consumes the click only while an overlay is up, and
 /// the arm's *own* right-release — which closes the panel or the village — comes
 /// after it. An overlay that passed every right click down would reach the
-/// campaign map's information panel instead of closing, which is the opposite
+/// campaign map's information panel instead of closing
 /// behaviour. `docs/arms.json`'s `0x00439079/right-clears-minimap-mode` records
 /// what that costs.
 ///

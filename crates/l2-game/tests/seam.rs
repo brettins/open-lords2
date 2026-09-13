@@ -6,7 +6,7 @@
 //!
 //! # The oracle
 //!
-//! `docs/armies.md` said no army oracle could exist. It was wrong, and the
+//! `docs/armies.md` said no army oracle could exist. It was wrong,
 //! three files it was wrong about are the reason this file can be written:
 //! `battle-before.sav`, `battle-during.sav` and `battle-after.sav` are **one
 //! battle caught at three moments**, saved by a player to make exactly this
@@ -51,7 +51,7 @@ const UNIT_STRIDE: u32 = 0x1A4;
 
 /// The county the battle was fought over in all three saves.
 const COUNTY: u8 = 3;
-/// The player's army, and the defence county 3 levied against it.
+/// The player's army,
 const ATTACKER_SLOT: u32 = 5;
 const DEFENCE_SLOT: u32 = 6;
 
@@ -104,7 +104,7 @@ fn map_of_one_county(county: u8) -> CampaignMap {
     m
 }
 
-/// Build the kingdom `battle-before.sav` holds, for the county and the army the
+/// Build the kingdom `battle-before.sav` holds,
 /// battle was between.
 fn before(save: &Save) -> (Kingdom, usize) {
 
@@ -238,7 +238,7 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
     )
     .expect("a battle");
 
-    // Declining is the autocalc, and the autocalc is what the fixture was
+    // Declining is the autocalc,
     // settled by — see the survivor count below, which no other path produces.
     assert_eq!(report.resolution, Resolution::Autocalc);
 
@@ -260,8 +260,8 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
     assert_eq!(report.aftermath.county_taken_by, None);
     assert_eq!(k.counties[COUNTY as usize].owner, 0);
 
-    // **And the survivors went home.** 546 + 36 = 582, and the 36 is not a
-    // parameter: it is 20 % of 122 and 60, and the 20 is the ladder rung a
+    // **And the survivors went home.** 546 + 36 = 582,
+    // parameter: it is 20 % of 122 and 60,
     // 112 % strength ratio lands on.
     assert_eq!(report.defenders_returned, 36);
     assert_eq!(
@@ -358,7 +358,7 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
         report.defender_men.1
     );
 
-    // The loser is gone, and the county's people balance.
+    // The loser is gone,
     assert!(k.campaign.units.get(report.verdict.loser()).is_none());
     assert_eq!(k.counties[COUNTY as usize].owner, 0, "the county is still neutral");
     assert_eq!(k.counties[COUNTY as usize].population, after_levy + report.defenders_returned);

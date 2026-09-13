@@ -86,7 +86,7 @@ pub struct TickPacket {
     /// with that
     /// than by reading:
     ///
-    /// 1. There is no value of `u32` meaning "I have not simulated
+    /// 1.
     ///    anything yet". Tick 0 is a real tick and a hash of 0 is a
     ///    real hash, so the first packet of a session would have to
     ///    lie.

@@ -453,7 +453,7 @@ fn an_unread_backlog_is_bounded_rather_than_unbounded() {
 /// every peer and report afterwards.
 ///
 /// Note what this test can and cannot pin down. Whether the send to the
-/// dropped peer actually fails depends on whether the RST has arrived
+/// dropped peer depends on whether the RST has arrived
 /// yet, which is not ours to schedule — so sometimes this exercises the
 /// override and sometimes it exercises the happy path. The assertion is
 /// the part that must hold either way: the live peer gets the message.
@@ -587,7 +587,7 @@ impl NetPeer {
         }
 
         while let Some(packet) = self.session.next_packet() {
-            // Note there is no `frame()` here: the transport's contract
+            // Note; here there is no pacing on
             // is whole messages, and `TcpTransport` does the framing.
             self.outbox.push(Canonical::bytes_of(&Message::Tick(packet)));
         }
@@ -620,7 +620,7 @@ impl NetPeer {
         // Advancing until `Waiting` is right for a test and wrong for
         // live play — it runs the simulation as fast as the machine
         // allows, up to the input delay ahead. Pacing is the caller's
-        // job (`Session`'s own docs say so); here there is no pacing on
+        // job (`Session`'s own docs say so)
         // purpose, so the socket is exercised as hard as it can be.
         while let Advance::Stepped { tick, hash } = self.session.advance(&mut self.sim) {
             self.hashes.push((tick, hash));

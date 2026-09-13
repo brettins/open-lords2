@@ -15,7 +15,7 @@
 //!
 //! So no existing instrument could have seen it. `cargo test` compiles no
 //! Markdown. `figures.js --check` was satisfied. `symbols_md.js`,
-//! `corrections.js` and the census test all look at files that happened not to
+//! `corrections.js` and the census test all look at files that happened
 //! be hit. It was found by eye, in a `git diff` run for an unrelated reason,
 //! and only because that diff put the two identical halves next to each other.
 //!
@@ -63,7 +63,7 @@ fn is_marker(line: &str) -> bool {
 /// Every marker line in the tracked tree, fenced ones included.
 ///
 /// Fenced hits are kept
-/// the exemption is actually exercised. An exemption no test travels is an
+/// the exemption is
 /// exemption that could be swallowing everything.
 fn scan() -> Vec<Hit> {
     let root = root();

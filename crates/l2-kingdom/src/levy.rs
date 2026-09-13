@@ -2,7 +2,7 @@
 //! `docs/armies.md` §6.
 //!
 //! **Recruitment is a headcount.** You take a percentage of a county's people
-//! and the county's happiness pays for it;
+//!;
 //! recruitment price anywhere on this path. What the men are *carrying* is
 //! decided separately, out of the realm's weapon stockpiles, and a man with no
 //! weapon is a peasant.
@@ -43,7 +43,7 @@ pub const BASKET_TOTAL: usize = TROOP_TYPES;
 
 /// One slot of the armoury basket.
 ///
-/// Three fields, and the third is not redundant: `available` is the number the
+/// Three fields: `available` is the number the
 /// screen prints, `remaining` is what the `+` button compares against. Both are
 /// seeded from the same stockpile and they only diverge on the AI's auto-equip
 /// path, which decrements `remaining` and leaves `available` alone.
@@ -68,7 +68,7 @@ pub struct BasketSlot {
 /// > army-raising helpers. The **player's** raise-army screen goes through
 /// > `FUN_004AA90A`, which is the same seeding plus three UI resets. The
 /// > distinction matters for modding — a rule attached to the wrong one of the
-/// > two would apply to only half the armies in the game — and the seeding
+/// > two would apply to only half the armies in the game —
 /// > itself is identical, so [`LevyBasket::seed`] is both. Corrected in the
 /// > document. `[V]`
 ///
@@ -163,12 +163,12 @@ impl LevyBasket {
     ///
     /// > **`docs/armies.md` §6.2 says it runs *"until either the men or a
     /// > weapon type runs out"*. Wrong on the second half:** a weapon type that
-    /// > runs out is *skipped* on every later pass and the round-robin
+    /// > runs out is *skipped* on every later pass
     /// > continues with the others, so an army is equipped from whatever the
     /// > armoury still has
     /// > is also a **50-pass ceiling** — at six types and ten men a pass that is
     /// > 3,000 men, twice [`crate::tables::ARMY_MAX_MEN`], so it never bites in
-    /// > play — and the floor is `men < 10`, not `men == 0`, so **up to nine men
+    /// > play —
     /// > are always left as peasants.** Corrected in the document. `[V]`
     pub fn auto_equip(&mut self) {
         let mut men = self.slots[BASKET_TOTAL].chosen;
@@ -244,7 +244,7 @@ pub struct Levy {
 /// >    happiness would walk `pct` negative and index the table at −1 forever.
 /// > 3. It says *"in a county at happiness 100 with no surcharge the largest
 /// >    levy is 59 % (cost 98)"*. The percentage is right and **the cost is
-/// >    99** — the table's index 58 is 98 and index 59 is 99, and the loop needs
+/// > 99** — the table's index 58 is 98 and index 59 is 99,
 /// >    `happiness - cost >= 1`, so 99 is exactly affordable at happiness 100.
 /// >
 /// > Its reasoning about the saturation is also wrong even though the
@@ -345,9 +345,9 @@ pub fn refuse_levy(men: i32, hiring_mercenaries: bool) -> Option<LevyRefusal> {
 /// Two further facts fall out of the quoted code and both are the original's:
 ///
 /// * **The county is never tested.** A county whose anchor sits near a border
-///   can raise its army onto a *neighbour's* tile, and the original lets it.
+/// can raise its army onto a *neighbour's* tile.
 /// * **The open-ground fallback is stricter than "passable"**: `& 0xFD == 0`
-///   admits bare ground and the county-boundary bit `0x02` and nothing else —
+/// admits bare ground
 ///   not farmland, not a settlement, not rough ground, not a road. The road
 ///   pass is the only way an army lands on a road.
 ///
@@ -436,16 +436,16 @@ pub struct Muster {
 /// > **Three corrections to `docs/armies.md` §6.3, all `[V]`.**
 /// >
 /// > 1. **`morale` is the county's happiness *before* the levy cost is
-/// >    deducted.** It is the fifth write after the spawn and the debit is
-/// >    nearly last, so a county at 80 that pays 30 for its army still gives it
+/// > deducted.** It is the fifth write after the spawn
+/// > nearly last,
 /// >    morale 80. The document's pseudocode lists them in the other order.
 /// > 2. **The happiness debit is clamped.** §6.3 renders it as a flat
 /// >    `happiness -= cost`. When the county cannot afford the full cost its
-/// > happiness goes to 0 and the panel is debited only what was
+/// > happiness goes to 0
 /// >    taken, so the two always agree. This is reachable: the AI paths pass an
 /// >    unclamped cost.
 /// > 3. **`Army_Create` sets neither `moveAllowance` nor `movesUsed`.**
-/// >    `Unit_Spawn` memsets the whole `0x1A4`-byte record, so a fresh army has
+/// > `Unit_Spawn` memsets the whole `0x1A4`-byte record,
 /// >    an allowance of **0** until the next tick, when `Army_Tick` writes 15.
 /// >    Reproduced by [`crate::unit::Unit::new`] setting the allowance from the
 /// >    kind — the one-frame stale 0 is a rendering artefact of the original's
@@ -575,7 +575,7 @@ pub enum Defence {
 ///
 /// Read straight out of `FUN_004A50AE`'s nested `if`, which tests 480, 360, 240
 /// and 120 in that order and equips nobody below 120. The three slots are
-/// basket slots 5, 4 and 2 — archers, pikemen, macemen — and the peasant slot
+/// basket slots 5, 4 and 2 — archers, pikemen, macemen —
 /// is decremented by the sum. `[D]`
 pub const MILITIA_LADDER: [(i32, i32, i32, i32); 4] =
     [(480, 150, 100, 50), (360, 100, 70, 0), (240, 80, 40, 0), (120, 60, 0, 0)];
@@ -737,7 +737,7 @@ mod tests {
         assert_eq!(l.men, 0);
     }
 
-    /// The surcharge is added **before** the clamp, and the clamp is on the
+    /// The surcharge is added **before** the clamp,
     /// cost.
     #[test]
     fn the_surcharge_is_added_before_the_cost_is_clamped_at_a_hundred() {
@@ -816,7 +816,7 @@ mod tests {
         assert_eq!(troops.iter().sum::<i32>(), 200, "nobody is lost");
     }
 
-    /// …and the floor is `men < 10`, so up to nine always stay peasants.
+    /// …
     #[test]
     fn auto_equip_always_leaves_the_last_nine_men_as_peasants() {
         let (_, mut realms) = world();
@@ -983,7 +983,7 @@ mod tests {
 
     /// **C47.** The finders search a box around the county's *anchor*, radius 1
     /// then 2 then 3, and stop. A road tile four tiles away is out of reach,
-    /// and the army lands on open ground beside the anchor instead — which is
+    ///
     /// why a raised army is always in shot on a screen eight lattice columns
     /// wide.
     #[test]
@@ -995,7 +995,7 @@ mod tests {
         let at = muster_tile(&m, &units, (20, 20)).expect("open ground beside the anchor");
         assert_eq!(at, (19, 19), "neither road is within three of (20, 20)");
 
-        // Three away is in reach, at radius 3, and the road wins over the open
+        // Three away is in reach, at radius 3,
         // ground the radius-1 box already held.
         m.set_flags(23, 20, flags::ROAD);
         assert_eq!(muster_tile(&m, &units, (20, 20)), Some((23, 20)));
@@ -1083,7 +1083,7 @@ mod tests {
         assert_eq!(counties[2].happiness, 77, "a militia costs the county nothing");
     }
 
-    /// The whole ladder, and the floor below which a militia is all peasants.
+    /// The whole ladder.
     #[test]
     fn the_militia_ladder_equips_by_size_and_arms_nobody_below_a_hundred_and_twenty() {
         for (men, want) in [

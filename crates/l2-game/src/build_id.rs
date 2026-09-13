@@ -11,7 +11,7 @@
 //! documents what the marker can and cannot promise.
 //!
 //! **This is not a version number and must not become one.** A version says
-//! what we *intended* to ship; this says what is actually running
+//! what we *intended* to ship; this says what is running
 //! only thing a bug report needs. `0.1.0` would have been true of every build
 //! for two months.
 //!
@@ -44,7 +44,7 @@ pub const ID: &str = env!("L2_BUILD_ID");
 /// seen"* are different claims, and only the second is what anybody wanted.
 const X: i32 = 4;
 /// The gap left below the stamp. The top edge is derived from the font
-/// actually in use
+/// in use
 const BOTTOM_MARGIN: i32 = 2;
 
 /// One line, in the dim ink, over whatever is already there, in the game's
@@ -63,7 +63,7 @@ const BOTTOM_MARGIN: i32 = 2;
 /// uses and using the game's own font is the right instinct for anything on a
 /// screen. It is the wrong instinct **here**, and a player said why:
 ///
-/// > *"illegible, since it's the all-caps version of the font — and the all-caps
+/// > *"
 /// > are intentionally ridiculously stylistic, not really legible, just
 /// > old-timey over the top"*
 ///

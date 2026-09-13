@@ -41,7 +41,7 @@
 //! two rows above should be read:
 //!
 //! * **Page 6 is multiplayer-only.** The two writers are the `g_multiplayer !=
-//!   0` arm of page 4's *Continue* handler and the net message handler
+//! 0` arm of page 4's *Continue* handler and the net message handler
 //!   `FUN_00445F80`. A single player leaving page 4 goes straight to page 7
 //!   (custom) or page 12 (skirmish). So *"full game or skirmish"* is a question
 //!   put to a **host**, and its `g_netIsMaster == 0` arm — a smaller window and
@@ -56,7 +56,7 @@
 //!   the `.bss` initial value and every writer sets 1..=13.
 //! * **Pages 9 and 10 have a `Screen_Draw` arm and no `Screen_DrawWidgets`
 //!   arm, and both are reachable.** That combination is what made screen `0x28`
-//!   suspicious, and here it is benign: an open drop-down and the no-CD notice
+//! suspicious, and here it is benign: an open drop-down and the no-CD notice
 //!   are both static, so there is nothing for the per-frame pass to repaint.
 //!   Page 9 is written by `FUN_00432xxx`'s drop-down opener (`DAT_00553E5C =
 //!   g_setupPage; g_setupPage = 9`) and page 10 by two arms of the page-1
@@ -243,7 +243,7 @@
 //! # What this page does, and the one thing it still does not
 //!
 //! **The twelve options reach the game now.** This section used to say the
-//! opposite. [`crate::setup`] is what each of them means — and the reason it is
+//! opposite. [`crate::setup`] is what each of them means —
 //! a module is that the drop-downs do **not**
 //! write `g_optDifficulty` and its neighbours: they write a separate block at
 //! `0x0053F288`, and `Setup_CommitOptions` (`0x00499DC3`) turns those twelve
@@ -986,7 +986,7 @@ impl SetupScreen {
     /// The page graph, read out of `FUN_00432B05` (page 1) and `FUN_00432CC8`
     /// (page 2).
     ///
-    /// **[D], and the one thing that was unresolved is settled.** Those
+    /// **[D], ** Those
     /// handlers branch on `g_uiHotspotId`, and the ids do not run in the order
     /// the painter draws the items: on page 1 id 3 sets the quit flag and id 4
     /// plays `lom.smk`, while the painter draws *"Lords of Magic?"* third and
@@ -1053,7 +1053,7 @@ impl SetupScreen {
             // Smk_Play("lom.smk", 0x46, 0x50, 0, g_screenId);  g_redrawRequest = 2;
             // ```
             //
-            // Sierra's trailer for its 1997 game, and the reason `LOM.SMK` is
+            // Sierra's trailer for its 1997 game,
             // the largest file in the install.
             (SetupPage::Title, 2) => {
                 Transition::Push(ScreenId::Movie(crate::movie::Film::LordsOfMagic))
@@ -1179,7 +1179,7 @@ impl SetupScreen {
         Transition::Stay
     }
 
-    /// ***Start*, and the twelve settings now go with it.**
+    /// ***Start*, **
     ///
     /// The original's own order is `FUN_004335F0`'s hotspot-2 arm:
     ///
@@ -1211,7 +1211,7 @@ impl SetupScreen {
     /// 1. [`crate::scenario::new_game`] — `Map_InitScenario` and
     ///    `County_Reset`, which is the world;
     /// 2. [`crate::setup::Settings::apply_to`] — `FUN_0049BD99`'s option half:
-    ///    the stores, the treasury, the armoury, the castle and the lord count;
+    /// the stores, the treasury, the armoury, the castle and the lord count;
     /// 3. `Kingdom::start_new_game` — the one immediate `Season_Advance` that
     ///    is why a new game begins in **Winter 1268**.
     ///
@@ -1377,7 +1377,7 @@ impl SetupScreen {
     ///   `FUN_00401136(0x53F1E0, &g_playerNames + p * 0x2C, 0x1F)`;
     /// * every other realm's is `Eng_Seek(7, realm.lord)` and **sixteen** bytes
     ///   copied. `L2.eng` group 7 is *"The Knight, The Baron, The Countess, The
-    ///   Bishop"* and index 4 is *"No player"*, and the index is the **lord**,
+    /// Bishop"* and index 4 is *"No player"*, and the index is the **lord**,
     ///   not the realm and not the colour — `docs/diplomacy.md` §0.1.
     ///
     /// **Sixteen, not thirty-one, for the AI half** — the copy width really is
@@ -1649,7 +1649,7 @@ impl SetupScreen {
                 // executable never sees. This is the same sentence on the first
                 // screen he does.
                 missing_fonts_banner(ctx, canvas);
-                // **Ours, and the one caption on this screen that has to be.**
+                // **Ours, **
                 // Not the original's — see [`crate::build_id`], which exists
                 // because a player spent an evening reporting three defects
                 // against a binary four merges old.
@@ -1827,7 +1827,7 @@ impl SetupScreen {
                 }
             }
             // Free, not taken: this shell has no lobby, so every colour is
-            // offered and the taken variant (`2i + 0xCC`) is never drawn.
+            // offered and the taken variant (`2i + 0xCC`)
             if let Some(f) = sheet.frame(i * 2 + 0xCB) {
                 canvas.blit(&f, x, 0x8C);
             }
@@ -2138,7 +2138,7 @@ mod tests {
     /// `ScenarioList_Draw`'s scroll bar is 44 pixels of track whatever the
     /// scroll position, because the thumb absorbs the rounding.
     ///
-    /// **[V] and the empty case is the one that matters**: `PctOf` returns 0
+    /// **[V] **: `PctOf` returns 0
     /// when the total is 0, so a machine with no `MAPnn.PL8` gets a thumb the
     /// full length of the track and five rows of *"England"*.
     #[test]

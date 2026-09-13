@@ -618,7 +618,7 @@ corpus is the evidence; the tools are a convenience over it.
 And one rule the file did not state and now does: **an address verified in `symbols.json`
 must not also appear here.** Two subsystems reached `g_screenIdSaved` from opposite
 directions within a day, one filing it as a hypothesis and one as verified. The verified
-entry wins and the hypothesis is deleted, which is what "promotion is a deletion plus an
+entry wins and the hypothesis is deleted.
 addition" already meant — but nothing had said what to do when the two happen
 concurrently.
 

@@ -6,7 +6,7 @@
 //!
 //! `Battlefield_BuildCastle`'s layout rasters are unread, and the castle this
 //! crate draws for itself has **no cell two high** — its walls stand at 1 —
-//! so a tower there has nothing it may dock with, and an AI's oil, which will
+//! so a tower there has nothing it may dock with, and an AI's oil,
 //! not pour from below elevation 2 (`Oil_FindPourTarget`), never finds a
 //! target. That is a property of our layout, not of the rules, and it is why
 //! the rules need a field of their own to be seen at all. Nothing here is a

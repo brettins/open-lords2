@@ -86,7 +86,7 @@ fn a_mod_overrides_a_rule_and_a_sprite_at_once() {
     assert_eq!(p.rules.integer("battle.three_bridges.attacker.peasants").unwrap(), 100);
     assert_eq!(p.rules.integer("battle.three_bridges.defender.crossbows").unwrap(), 30);
 
-    // And the report says exactly what happened.
+    // And the report says
     let report = p.report();
     assert_eq!(report.shadowed_assets.len(), 1);
     assert_eq!(report.shadowed_assets[0].0, "base1a.pl8");

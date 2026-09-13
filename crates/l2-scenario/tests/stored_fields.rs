@@ -25,7 +25,7 @@
 //!   `node tools/oracle/fields.js --check`, which fails on any county or realm
 //!   offset an instruction reads or writes that no row covers. Needs the corpus.
 //! * [`every_imported_and_derived_field_reaches_the_kingdom_holding_the_files_bytes`]
-//!   — and the one that cannot be typed into agreement: after
+//! — and the one that cannot be typed into agreement: after
 //!   [`Scenario::kingdom`], every row claimed `imported` or `derived` must hold
 //!   **the file's own value**, in every county and realm of every save on the
 //!   machine. A row marked imported whose field the loader drops fails here with
@@ -455,7 +455,7 @@ fn at(id: &'static str, get: Get) -> (&'static str, Get) {
 /// **Where each claimed row lives in a loaded kingdom.**
 ///
 /// Written by the same hand as the inventory, which `docs/agents.md` warns is
-/// the shape of a check that lies — and the reason this one does not is that
+/// the shape of a check that lies
 /// neither list is what it is compared against. Both are held to the bytes the
 /// original wrote.
 fn accessors() -> Vec<(&'static str, Get)> {

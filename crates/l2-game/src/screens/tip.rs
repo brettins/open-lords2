@@ -45,7 +45,7 @@
 //!   }
 //!   ```
 //!
-//!   `FUN_004323FE` (`0x004323FE`) is `Minimap_Click` outside a battle. So a
+//! `FUN_004323FE` (`0x004323FE`) is `Minimap_Click` outside a battle.
 //!   **press** — either button — on the minimap raster while a tip is up picks
 //!   that county, centres the map on it and drops the byte straight to `0`,
 //!   **without** `FUN_00476E21`: the screen the tip was shown over is not put
@@ -83,7 +83,7 @@ impl Screen for TipScreen {
     }
 
     /// No per-screen arm for `0x27`, so nothing reaches the screen underneath —
-    /// **except the minimap**, which is not a per-screen arm but
+    /// **except the minimap**
     /// `Screen_FrameInput`'s epilogue and runs on every id but `0x12`. See the
     /// module header.
     ///
@@ -105,7 +105,7 @@ impl Screen for TipScreen {
     /// the pointer and recentres the map on it before the byte is dropped. That
     /// needs the county raster, which belongs to `MapScreen` and is not reachable
     /// from here; `docs/arms.json` `0x0043253A/minimap-click` is that arm, and it
-    /// is reproduced on the map's own ladder and not on this path. So a minimap
+    /// is reproduced on the map's own ladder and not on this path.
     /// press under a tip closes the tip's hold and does not yet move the map.
     ///
     /// **The left press only**

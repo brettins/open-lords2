@@ -36,7 +36,7 @@
 //! What *is* strange is everything around it, and all three are reproduced here:
 //!
 //! * **The empty case passes too.** With nobody in play, leader and trailer are
-//!   both `0`, `0 == 0`, and the original crowns `g_realms[0]` — the array slot.
+//! both `0`, `0 == 0`, and the original crowns `g_realms[0]` — the array slot.
 //!   See [`Ranking::sole_survivor`].
 //! * **The last realm standing being an AI does not end the game the first
 //!   time.** It sends group 195, *"Just call me king."*, and sets the one-shot
@@ -54,7 +54,7 @@
 //!
 //! * `AI_RunTurnStep` (`0x0049A581`) runs **step 0 for every realm**, including
 //!   the human: the `isHuman` test guards the fourteen *handlers*, not the
-//!   initialisation above them. So the human's strength is recounted, and the
+//! initialisation above them. So the human's strength is recounted, and the
 //!   human's elimination detected, on the human's own turn. See
 //!   [`crate::ai::begin_realm_turn`], whose caller must therefore not skip
 //!   humans.
