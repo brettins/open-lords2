@@ -558,7 +558,7 @@ fn the_players_page_shows_every_feature_and_every_open_row_once_and_no_prose() {
 
     let real_features = row_ids(&std::fs::read_to_string(root.join("docs/features.json")).unwrap());
     let real_rows = row_ids(&std::fs::read_to_string(root.join("docs/work.json")).unwrap());
-    assert!(!real_features.is_empty() && !real_rows.is_empty(), "no ids were read from the real files");
+    assert!(!real_features.is_empty() && !real_rows.is_empty(), "no ids were read from the real files: {} features, {} rows", real_features.len(), real_rows.len());
     for id in real_features {
         assert!(once(&real_html, "data-feature", &id), "docs/features.json's {id} is not on the page exactly once");
     }
