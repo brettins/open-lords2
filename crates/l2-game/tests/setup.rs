@@ -345,9 +345,11 @@ fn the_build_stamp_names_a_commit_rather_than_a_version() {
         return; // A tarball build. Honest, and there is nothing else to check.
     }
 
-    let (commit, date) = id.split_once(' ').unwrap_or_else(|| {
-        panic!("the stamp is `<commit>[-DIRTY] <date>`, got {id:?}")
-    });
+    let mut parts = id.splitn(3, ' ');
+    let (commit, date, time) = match (parts.next(), parts.next(), parts.next()) {
+        (Some(c), Some(d), Some(t)) => (c, d, t),
+        _ => panic!("the stamp is `<commit>[-DIRTY] <date> <HH:MM>`, got {id:?}"),
+    };
     let hex = commit.strip_suffix("-DIRTY").unwrap_or(commit);
     assert_eq!(hex.len(), 9, "nine hex digits of commit, got {hex:?}");
     assert!(
@@ -357,6 +359,10 @@ fn the_build_stamp_names_a_commit_rather_than_a_version() {
     assert!(
         date.len() == 10 && date.split('-').count() == 3,
         "a date, because `is this old?` is the question a hash cannot answer: {date:?}",
+    );
+    assert!(
+        time.len() == 5 && time.as_bytes()[2] == b':',
+        "the build's own HH:MM, which tells two builds of one commit apart: {time:?}",
     );
 
     // The point of the whole exercise: two different builds must be able to
