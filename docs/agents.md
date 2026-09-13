@@ -123,6 +123,11 @@ Ask for reports that separate **verified** from **inferred**, and that state wha
 unknown. An agent reporting "done" without saying what it could not establish is a report
 you cannot act on.
 
+**Tell them how to test.** A feature agent runs `powershell -File tools/run/changed.ps1`,
+which diffs against `main`, maps the touched files to crates and runs `cargo test -p` for
+each. The **integrator** runs the full workspace suite, once, per merge — not every agent
+on every edit.
+
 ## What agents are good and bad at here
 
 **Good:** bounded investigations with a clear validation test (crack a format, find a
