@@ -81,7 +81,7 @@ pub const COMMODITY_IDS: [&str; 4] = ["wood", "iron", "weapons", "stone"];
 /// Weapon ids, in the order `g_weaponCost` stores them.
 pub const WEAPON_IDS: [&str; 6] = ["crossbow", "mace", "sword", "pike", "bow", "armour"];
 
-/// Tradeable good ids, `L2.eng` group 6. Index 0 is not a good.
+/// Tradeable good ids, `L2.eng` group 6.
 pub const GOOD_IDS: [&str; 15] = [
     "none", "grain", "cattle", "sheep", "ale", "wool", "iron", "stone", "timber", "pikes", "bows",
     "maces", "crossbows", "swords", "mail",
@@ -441,6 +441,11 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         castle_gold: [0; CASTLE_TYPE_COUNT - 1],
         weapon_rota: [0; 6],
         siege_doctrine: 0,
+        trade_gold_floor: 0,
+        weapon_buy_qty: 0,
+        reserve_wood: 0,
+        reserve_stone: 0,
+        reserve_iron: 0,
     }; AI_PERSONALITY_COUNT];
     expect_rows(rs, "kingdom.ai.personality", AI_PERSONALITY_COUNT)?;
     for (i, slot) in personality.iter_mut().enumerate() {
@@ -516,6 +521,15 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             // order and anything else falls to the default of two towers, so
 // the range is deliberately open.
             siege_doctrine: int(rs, &format!("{base}.siege_doctrine"), 0, 255)?,
+            // `Ai_TradeForCounty` (`0x0049E39B`): personality `+0x78`, `+0x7C`
+            // and the three reserves `+0x84`/`+0x88`/`+0x8C`.
+            // buys weapons on any positive treasury and a zero reserve sells
+            // the realm bare; both are rebalances, so the low bound is open.
+            trade_gold_floor: int(rs, &format!("{base}.trade_gold_floor"), 0, 1_000_000)?,
+            weapon_buy_qty: int(rs, &format!("{base}.weapon_buy_qty"), 0, 1_000_000)?,
+            reserve_wood: int(rs, &format!("{base}.reserve_wood"), 0, 1_000_000)?,
+            reserve_stone: int(rs, &format!("{base}.reserve_stone"), 0, 1_000_000)?,
+            reserve_iron: int(rs, &format!("{base}.reserve_iron"), 0, 1_000_000)?,
         };
     }
 
@@ -573,7 +587,7 @@ fn int(rs: &Ruleset, path: &str, lo: i64, hi: i64) -> Result<i32, RuleError> {
 /// The simulation's ladder is a fixed [`TAX_LADDER_RUNGS`]-row array because
 /// the neutral ladder needs all eight, but the three personality ladders use
 /// five, five and six.
-/// `below = 2147483647`, a document may give **1 to 8** rows and the last one
+/// `below = 2147483647`
 /// is repeated to fill. That is lossless in both directions: a fall-through
 /// returns the last row's rate whether the padding is there or not, and
 /// [`render_toml`] trims exactly the rows this adds back.
@@ -1185,7 +1199,9 @@ pub fn render_toml(t: &Tables) -> String {
              muster_patience = {}\nmuster_arms = {}\ngarrison_min_population = {}\n\
              raid_interval = {}\nabandon_tax_rate = {}\n\
              castle_concurrent = {}\ncastle_min_population = {}\ncastle_gold = [{}]\n\
-             weapon_rota = [{}]\nsiege_doctrine = {}\n",
+             weapon_rota = [{}]\nsiege_doctrine = {}\n\
+             trade_gold_floor = {}\nweapon_buy_qty = {}\nreserve_wood = {}\n\
+             reserve_stone = {}\nreserve_iron = {}\n",
             i + 1,
             row.farm_style,
             row.tax_ladder,
@@ -1204,7 +1220,12 @@ pub fn render_toml(t: &Tables) -> String {
             row.castle_min_population,
             join_i32(&row.castle_gold),
             row.weapon_rota.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", "),
-            row.siege_doctrine
+            row.siege_doctrine,
+            row.trade_gold_floor,
+            row.weapon_buy_qty,
+            row.reserve_wood,
+            row.reserve_stone,
+            row.reserve_iron
         );
     }
 

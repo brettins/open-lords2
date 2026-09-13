@@ -39,7 +39,7 @@ pub const GRAIN_YIELD_PER_SACK: i32 = 12;
 
 /// `g_grainMaxSacksPerField` (`0x00552FFC`) = 10.
 ///
-/// **The printed manual says 5, twice, and the manual is wrong** - see
+/// **The printed manual says 5, twice
 /// `docs/decisions.md` C10 and `docs/kingdom.md` §7.1 and §11. Two independent
 /// players measuring their own saves reported 6 fields sowing 60 sacks and 9
 /// fields sowing 90.
@@ -357,7 +357,7 @@ impl Weather {
 ///
 /// The signs match `L2.eng` group 66's own descriptions one for one: only
 /// *Sunny* is *"Boosts growing crops"*, only *Cloudy* is *"Little effect on
-/// farming"*, and the other four all say crops are lost.
+/// farming"*
 pub const HERD_WEATHER_PCT: [i32; 6] = [-2, -10, 5, 0, -5, -10];
 
 // ---------------------------------------------------------------------------
@@ -375,7 +375,7 @@ pub const HERD_LABOUR_PER_HEAD: i32 = 3;
 
 /// Staffing above this buys nothing. `if (199 < staffing) staffing = 200;` -
 /// twice-staffed is the ceiling, and the comparison is against 199.
-/// 200, so a staffing of exactly 199 is *not* rounded up.
+/// 200,
 pub const HERD_STAFFING_MAX: i32 = 200;
 
 /// Understaffing adds `(100 - staffing) / 3` to the death rate.
@@ -482,7 +482,7 @@ pub const MAX_TAX_RATE: i32 = 50;
 /// 51 `i32` entries indexed by tax rate. `Tax_RecomputePreview` reads
 /// `g_taxHappinessOther[rate * 4]` into county `+0x16`, and
 /// `Tax_SumEmpireHappiness` sums that across the realm into a signed *byte* -
-/// so a large enough empire overflows it.
+///
 ///
 /// The shape is the point, because it is nothing like a formula: **flat zero
 /// through rate 19**, then a shallow ramp reaching only −15 at the maximum.
@@ -695,7 +695,7 @@ pub const EFFICIENCY_WITHOUT_ADVANCED_FARMING: i32 = 80;
 pub const EFFICIENCY_MAX: i32 = 100;
 
 /// What `FUN_0044EF4E` returns as "no limit" for an enabled non-weapon
-/// industry. It is a literal 999, so a county
+/// industry. It is a literal 999,
 /// with enough workers really is capped at 999 units a season.
 pub const RESOURCE_LIMIT_UNLIMITED: i32 = 999;
 
@@ -736,7 +736,7 @@ pub const BANKRUPT_STAGE_MAX: u8 = 5;
 ///
 /// The two zeros are sheep and wool, the two goods a county cannot produce or
 /// trade in the base game. A published guide's prices are uniformly twice
-/// these, and the manual explains why: the merchant scroll shows `30/60`, sell
+/// these
 /// then buy. `docs/kingdom.md` §10 and §11.
 pub const GOOD_SELL_PRICE: [i32; 15] = [0, 2, 12, 0, 1, 0, 1, 2, 1, 13, 16, 10, 24, 23, 44];
 
@@ -881,7 +881,7 @@ pub const AI_TAX_LADDERS: [TaxLadder; AI_TAX_LADDER_COUNT] = [
 ];
 
 /// Walk a ladder. Happiness is a signed byte in the original and the
-/// comparisons are signed, so a negative happiness lands on the first rung.
+/// comparisons are signed,
 #[inline]
 pub fn tax_rate_for(ladder: &TaxLadder, happiness: i32) -> i32 {
     let mut i = 0;
@@ -937,7 +937,7 @@ pub const AI_PERSONALITY_FARM_STYLE: [u8; AI_PERSONALITY_COUNT] = [1, 1, 0, 9];
 /// Record `+0x08` — the increment a gift is judged against.
 ///
 /// A gift under `bestGift + T/2` **costs** 8 standing and one at or above
-/// `bestGift + T` gains 10, so `T` is both the price of a good gift and the
+/// `bestGift + T` gains 10,
 /// width of the band that insults. The Bishop's 50 makes him the cheapest lord
 /// to please and the Countess's 200 the dearest.
 /// Read by `Diplo_ReplyGift`. `docs/diplomacy.md` §3.1.
@@ -1142,6 +1142,32 @@ pub const AI_PERSONALITY_CASTLE_GOLD: [[i32; AI_CASTLE_LADDER_LEN]; AI_PERSONALI
 /// the Knight is the only lord who brings no artillery to a siege.
 pub const AI_PERSONALITY_SIEGE_DOCTRINE: [i32; AI_PERSONALITY_COUNT] = [8, 9, 7, 7];
 
+/// Record `+0x78` — **the treasury floor `Ai_TradeForCounty` (`0x0049E39B`)
+/// buys weapons above**: `if (personality[+0x78] < realm.gold)`, strictly.
+///
+/// **[V]** — read out of `g_aiPersonality` (`0x004D8A58`, stride `0xF0`) in
+/// `Lords2.exe`, by the same dump that re-derives the two neighbouring fields
+/// this crate already carries (`+0x70` 300/300/250/150 and `+0x74` 6/10/5/10).
+pub const AI_PERSONALITY_TRADE_GOLD_FLOOR: [i32; AI_PERSONALITY_COUNT] =
+    [1000, 1500, 2500, 4000];
+
+/// Record `+0x7C` — **how many weapons of the county's own type the lord buys**
+/// once his gold clears [`AI_PERSONALITY_TRADE_GOLD_FLOOR`]. One order, halved
+/// by `Ai_BuyGoodDownTo` (`0x004A4C41`) until the treasury covers it. **[V]**.
+pub const AI_PERSONALITY_WEAPON_BUY_QTY: [i32; AI_PERSONALITY_COUNT] = [100, 80, 70, 150];
+
+/// Record `+0x84`, `+0x88`, `+0x8C` — **the wood, stone and iron a lord keeps
+/// back.** Everything above the reserve is sold to the county merchant, and
+/// only when the matching realm *want* ([`crate::realm::Realm::want`]) is zero.
+///
+/// All three offsets hold the same number within a lord, which is consistent
+/// with one "keep this much of everything" figure written into three slots
+/// (`docs/diplomacy.md` §8.4). They are carried as three because
+/// `Ai_TradeForCounty` reads three, and a mod may want them apart. **[V]**.
+pub const AI_PERSONALITY_RESERVE_WOOD: [i32; AI_PERSONALITY_COUNT] = [250, 300, 500, 1000];
+pub const AI_PERSONALITY_RESERVE_STONE: [i32; AI_PERSONALITY_COUNT] = [250, 300, 500, 1000];
+pub const AI_PERSONALITY_RESERVE_IRON: [i32; AI_PERSONALITY_COUNT] = [250, 300, 500, 1000];
+
 /// How many buildable castle types an AI chooses between — five, where
 /// [`CASTLE_TYPE_COUNT`] is six because it counts *no castle* as type 0. A
 /// size, not a balance figure.
@@ -1198,7 +1224,7 @@ pub const ALE_HAPPINESS_STEP_PCT: i32 = 10;
 ///
 /// **The cap is cumulative and nothing resets it.** County `+0x219` holds the
 /// total already granted and the bonus is clamped to `5 - that`; no write to
-/// `+0x219` other than this `+=` was found anywhere in the binary. So a county
+/// `+0x219` other than this `+=` was found anywhere in the binary.
 /// can be given at most **five happiness from ale for the whole game**, not
 /// five per season. `[D]` - a negative, and negatives are hard to prove; the
 /// search was a cross-reference of every instruction touching the offset.
@@ -1328,14 +1354,14 @@ pub const SUBTILE_STEP_NET: u8 = 4;
 /// three off one.
 ///
 /// `Unit_StepOnce`'s `cVar1 = onRoad ? 0 : 3`, tested as
-/// `if (cVar1 < ++field_0x14a)`. So a road tile is entered four times as often
+/// `if (cVar1 < ++field_0x14a)`.
 /// as an open one **on top of** costing a third as much
 /// ([`STEP_COST_ROAD`] against [`STEP_COST_OPEN`]) — two independent
 /// mechanisms, and only the second one was here.
 pub const SUBTILE_DIVIDER: [u8; 2] = [3, 0];
 
 /// `Unit_CrossField` (`0x0046673C`) charges this **before** `Unit_StepOnce`'s
-/// general `+3`, so a standing field costs `3 + 3 = 6` — and
+/// general `+3`,
 /// `Move_BuildCostMap` stores a single literal `6` for the same tile. Two
 /// unrelated codings landing on one number is what makes the field cost `[V]`.
 pub const STEP_COST_FIELD_EXTRA: i32 = 3;
@@ -1381,7 +1407,7 @@ pub const MOB_DESTROYED_BELOW_MEN: i32 = 30;
 pub const DESERTION_PCT: i32 = 10;
 
 /// …but only from a troop count that **exceeds** this. A type with ten men or
-/// fewer loses none, so a small army stops shrinking.
+/// fewer loses none,
 pub const DESERTION_MIN_TROOPS: i32 = 10;
 
 /// `Army_Starve` (`0x004ACE5E`) destroys the army once its starvation counter
@@ -1475,7 +1501,7 @@ pub const HISTORY_COUNTIES: usize = 16;
 ///
 /// A treasury is therefore worth **one castle**, not four, and `docs/rules.md`'s
 /// *"hoarding past 10,000 adds nothing at all"* is true a great deal earlier than
-/// it says. The table keeps its three thresholds so a ruleset that wants the
+/// it says. The table keeps its three thresholds
 /// designed ladder is three numbers away — see [`Tables::DEFAULT`].
 #[inline]
 pub fn score_gold_bracket(gold: i32) -> i32 {
@@ -1550,7 +1576,7 @@ pub const SCORE_INPUT_OFFSETS: [u16; 6] = [0x60, 0x10, 0x0C, 0x58, 0x54, 0x4C];
 ///
 /// The timing that difference buys is real and is why this is stored
 /// derived at scoring time. `Castle_BuildTick` is a *season* pass; nothing
-/// between one season and the next rewrites the count, so a castle knocked down
+/// between one season and the next rewrites the count,
 /// by a siege in phase 2, or a county that changes hands, still scores its 50
 /// until the next `Castle_BuildTick`. A count derived inside `compute_score`
 /// would drop it immediately, which is a different game.
@@ -2129,12 +2155,22 @@ pub struct AiPersonalityRow {
     /// [`AI_PERSONALITY_SIEGE_DOCTRINE`]. `crate::siege::prepare` is its only
     /// reader.
     pub siege_doctrine: i32,
+    /// Record `+0x78` — [`AI_PERSONALITY_TRADE_GOLD_FLOOR`].
+    pub trade_gold_floor: i32,
+    /// Record `+0x7C` — [`AI_PERSONALITY_WEAPON_BUY_QTY`].
+    pub weapon_buy_qty: i32,
+    /// Record `+0x84` — [`AI_PERSONALITY_RESERVE_WOOD`].
+    pub reserve_wood: i32,
+    /// Record `+0x88` — [`AI_PERSONALITY_RESERVE_STONE`].
+    pub reserve_stone: i32,
+    /// Record `+0x8C` — [`AI_PERSONALITY_RESERVE_IRON`].
+    pub reserve_iron: i32,
 }
 
 impl AiPersonalityRow {
     /// The castle type 1..=5 this lord's treasury reaches, or `None`.
     ///
-    /// `AI_BuildCastles` (`0x0049EDC7`) walks the ladder **from the top**, so a
+    /// `AI_BuildCastles` (`0x0049EDC7`) walks the ladder **from the top**,
     /// realm that can afford a royal castle never builds a palisade. Each rung
     /// is guarded `threshold != 0 && gold >= threshold`, and that guard is the
     /// whole of *"the Baron and the Countess never build a royal castle"*: their
@@ -2193,7 +2229,7 @@ pub struct UnitTable {
     /// [`STEP_COST_OPEN`].
     pub step_cost_open: i32,
     /// [`STEP_COST_FIELD_EXTRA`] — charged *in addition to*
-/// [`UnitTable::step_cost_open`], so a field costs six.
+/// [`UnitTable::step_cost_open`],
     pub step_cost_field_extra: i32,
     /// [`STEP_COST_TRAMPLE`].
     pub step_cost_trample: i32,
@@ -2315,7 +2351,7 @@ impl Tables {
             birth_rate_ladder: BIRTH_RATE_LADDER,
             // The four thresholds `happiness_birth_factor` compares against,
             // plus its `else`. The catch-all threshold is never read; it is
-            // written as `i32::MAX` so a reader that does compare it is right.
+            // written as `i32::MAX`
             happiness_factor_ladder: [(26, 25), (51, 50), (76, 75), (100, 100), (i32::MAX, 120)],
         },
         weather: [
@@ -2476,6 +2512,11 @@ impl Tables {
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[0],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[0],
                     siege_doctrine: AI_PERSONALITY_SIEGE_DOCTRINE[0],
+                    trade_gold_floor: AI_PERSONALITY_TRADE_GOLD_FLOOR[0],
+                    weapon_buy_qty: AI_PERSONALITY_WEAPON_BUY_QTY[0],
+                    reserve_wood: AI_PERSONALITY_RESERVE_WOOD[0],
+                    reserve_stone: AI_PERSONALITY_RESERVE_STONE[0],
+                    reserve_iron: AI_PERSONALITY_RESERVE_IRON[0],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[1],
@@ -2496,6 +2537,11 @@ impl Tables {
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[1],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[1],
                     siege_doctrine: AI_PERSONALITY_SIEGE_DOCTRINE[1],
+                    trade_gold_floor: AI_PERSONALITY_TRADE_GOLD_FLOOR[1],
+                    weapon_buy_qty: AI_PERSONALITY_WEAPON_BUY_QTY[1],
+                    reserve_wood: AI_PERSONALITY_RESERVE_WOOD[1],
+                    reserve_stone: AI_PERSONALITY_RESERVE_STONE[1],
+                    reserve_iron: AI_PERSONALITY_RESERVE_IRON[1],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[2],
@@ -2516,6 +2562,11 @@ impl Tables {
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[2],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[2],
                     siege_doctrine: AI_PERSONALITY_SIEGE_DOCTRINE[2],
+                    trade_gold_floor: AI_PERSONALITY_TRADE_GOLD_FLOOR[2],
+                    weapon_buy_qty: AI_PERSONALITY_WEAPON_BUY_QTY[2],
+                    reserve_wood: AI_PERSONALITY_RESERVE_WOOD[2],
+                    reserve_stone: AI_PERSONALITY_RESERVE_STONE[2],
+                    reserve_iron: AI_PERSONALITY_RESERVE_IRON[2],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[3],
@@ -2536,6 +2587,11 @@ impl Tables {
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[3],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[3],
                     siege_doctrine: AI_PERSONALITY_SIEGE_DOCTRINE[3],
+                    trade_gold_floor: AI_PERSONALITY_TRADE_GOLD_FLOOR[3],
+                    weapon_buy_qty: AI_PERSONALITY_WEAPON_BUY_QTY[3],
+                    reserve_wood: AI_PERSONALITY_RESERVE_WOOD[3],
+                    reserve_stone: AI_PERSONALITY_RESERVE_STONE[3],
+                    reserve_iron: AI_PERSONALITY_RESERVE_IRON[3],
                 },
             ],
         },

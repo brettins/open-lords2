@@ -2191,6 +2191,23 @@ impl Kingdom {
         ordered
     }
 
+    /// `FUN_0049DF48` — the **last call of `Battle_ReturnToCampaign`**
+    /// (`0x004AB383`): `FUN_004AD426(); Panels_RefreshAll(); FUN_0049DF48();`.
+    ///
+    /// It is the fourth caller of `Ai_ManageCountyFarms` and the same loop as
+    /// [`Kingdom::ai_manage_farms_all`] (`Ai_ManageFarmsAll`, `0x0049A990`)
+    /// with its two tests written the other way round — `isHuman == 0 &&
+    /// strength != 0` there against `strength != 0 && isHuman == 0` here.
+    /// Neither test has a side effect, so the predicate is one predicate and
+    /// this delegates
+    ///
+    /// So **every battle re-farms every AI realm on the map**, not only the two
+    /// that fought and not only the county fought over: an AI whose army died
+    /// three counties away re-lays its fields the same instant.
+    pub fn ai_manage_farms_after_battle(&mut self) -> i32 {
+        self.ai_manage_farms_all()
+    }
+
     /// AI step 6 — `AI_BuildCastles`.
     pub fn run_ai_castles(&mut self, realm: u8) -> Vec<u8> {
         ai::build_castles(
@@ -2451,9 +2468,16 @@ mod tests {
     ///
     /// Three realms each hold one county set up identically — a merchant
     /// standing in it, no grain, a herd above the grazing style's cattle floor,
-    /// and 2,000 crowns in the treasury. Realm 2 is an AI lord (lord 1, style 1,
+    /// and 4,000 crowns in the treasury. Realm 2 is an AI lord (lord 1, style 1,
     /// whose only grain line is `if (grain < 100) buy 400`), realm 3 is a
     /// person, and realm 4 is an AI at strength 0. Only realm 2 buys.
+    ///
+    /// **The treasury is 4,000 because `Ai_TradeForCounty` (`0x0049E39B`) now
+    /// shops first**: the Knight's floor of 1,000 is cleared, the county makes
+    /// crossbows (weapon type 0, good 12) at 24 + `Pct(24, 100)` = 48, and
+    /// `Ai_BuyGoodDownTo` halves 100 to 50 for 2,400. That leaves exactly the
+    /// 1,600 the grain lot costs, so both orders land and the test still says
+    /// what it said.
     ///
     /// *Ablation*: empty `ai_manage_farms_all`'s loop and the first assertion
     /// goes red; drop its `!realm.is_human` and the realm-3 one does; drop the
@@ -2468,7 +2492,7 @@ mod tests {
             r.strength = strength;
             r.is_human = human;
             r.lord = 1;
-            r.gold = 2_000;
+            r.gold = 4_000;
             let c = &mut k.counties[id];
             c.owner = realm as u8;
             c.population = 500;
@@ -2485,10 +2509,11 @@ mod tests {
 
         k.ai_manage_farms_all();
 
-        assert_eq!((k.counties[1].grain, k.realms[2].gold), (400, 400), "the AI lord buys 400 sacks for 1,600");
-        assert_eq!(k.realms[2].trade_spent_a, 1_600);
-        assert_eq!((k.counties[2].grain, k.realms[3].gold), (0, 2_000), "a person's realm is not farmed");
-        assert_eq!((k.counties[3].grain, k.realms[4].gold), (0, 2_000), "a realm at strength 0 is not farmed");
+        assert_eq!((k.counties[1].grain, k.realms[2].gold), (400, 0), "the AI lord buys 50 crossbows for 2,400 and 400 sacks for 1,600");
+        assert_eq!(k.realms[2].weapons[0], 50);
+        assert_eq!(k.realms[2].trade_spent_a, 4_000);
+        assert_eq!((k.counties[2].grain, k.realms[3].gold), (0, 4_000), "a persons realm is not farmed");
+        assert_eq!((k.counties[3].grain, k.realms[4].gold), (0, 4_000), "a realm at strength 0 is not farmed");
     }
 
     /// The determinism property lockstep depends on. Two kingdoms built the

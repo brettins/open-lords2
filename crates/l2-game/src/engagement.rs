@@ -368,7 +368,7 @@ pub fn run_siege_phase(kingdom: &mut Kingdom, answer: Answer, seed: u64) -> Vec<
 ///
 /// **[`SiegePhase::next`] has already launched the assault it hands back.**
 /// `Siege_LaunchAssault` breaks the siege link whichever way the assault goes,
-/// so a caller that takes a value from `next` and never settles it has lifted a
+/// so a caller that takes a value from `next`
 /// siege and fought nothing. The pair is not optional.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SiegePhase {
@@ -567,6 +567,12 @@ fn resolve_battle(
             restore,
         )
     };
+
+    // `FUN_0049DF48` — `Battle_ReturnToCampaign`'s (`0x004AB383`) last call,
+    // after `FUN_004AD426` and `Panels_RefreshAll`, and so **before**
+    // `Defence_Disband` below, which the original runs after the return. Every
+    // AI realm on the map re-manages its farms when any battle ends.
+    kingdom.ai_manage_farms_after_battle();
 
     // **`Realm_RecountStrength` (`0x0049B42B`) on the loser's realm** is the
     // last thing both of `Battle_ReturnToCampaign`'s branches do, and it is
