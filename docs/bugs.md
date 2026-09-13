@@ -914,6 +914,20 @@ anything. `docs/kingdom.md` §7.5.2, and
 `a_county_with_its_mines_running_never_gets_round_to_the_castle` in
 `crates/l2-game/tests/castles.rs`.
 
+### B105 — A county with no castle is told it has barracks for 2500 troops
+
+`Castle_DrawStatusBlock` (`0x0041DEDB`) indexes both of its tables one word low:
+`&DAT_004D8A0C + type*4` and `&DAT_004D8A24 + type*4` are right for types 1 … 5,
+and at type **0** they read `g_castleWorkforce[4].1` and `g_castleGarrisonCap[5]` —
+bytes `c4 09 00 00` and `00 00 00 00`. So the castle block of a county with no
+castle says *"Boosts tax revenues by 0 %"* and *"Barracks for 2500 troops."*
+
+`[V]` on the bytes and on the painter; `siege-aftersie.sav` holds such a county of
+the player's. Reproduced on both screens that draw the block: `screens::job::castle_word`
+is the one function, and the job page and the tile panel both call it. Unswitchable —
+the two words are the whole of what the block says about a castle that is not there,
+and a corrected pair is a different screen, not a variation of it.
+
 ## 2.11 The turn timer
 
 ### B99 — End a turn early and a slow turn can end the next one before you see it
