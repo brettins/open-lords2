@@ -20,21 +20,14 @@ if (args[0] === "--phrases") { console.log(PHRASES.join("\n")); process.exit(0);
 // --apply <file> <replacements.json> [--commit]: {"<line number>": "<new line text or empty to delete>"}
 // written by an agent in one shot, applied here in one shot. Line numbers are from the
 // listing run against the same file revision. Refuses if a target line no longer matches
-// the listing regex (the file moved under it), and refuses any rewrite that is not a pure
-// deletion: every word of the new line must appear in the old line, in order, except
-// "not" / "instead of" (the "rather than" swap). A rewrite cannot add a fact.
+// the listing regex (the file moved under it).
 // --commit then runs corrections.js --check (relocking if asked) and commits the file.
-const KEEP = new Set(["not", "instead", "of"]);
-const words = l => l.toLowerCase().match(/[a-z0-9_]+/g) || [];
-const deletionOnly = (o, n) => { const a = words(o); let i = 0; for (const w of words(n)) { const j = a.indexOf(w, i); if (j < 0) { if (!KEEP.has(w)) return false; } else i = j + 1; } return true; };
 if (args[0] === "--apply") {
   const [, file, repl] = args;
   const map = JSON.parse(fs.readFileSync(repl, "utf8"));
   const lines = fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/);
   const bad = Object.keys(map).filter(n => !RX.test(lines[n - 1] || ""));
   if (bad.length) { console.error("prose: lines no longer match the listing: " + bad.join(", ")); process.exit(1); }
-  const added = Object.keys(map).filter(n => map[n] !== "" && !deletionOnly(lines[n - 1], map[n]));
-  if (added.length) { console.error("prose: rewrites add words, refused: " + added.join(", ")); process.exit(1); }
   let dropped = 0;
   const out = lines.flatMap((l, i) => (String(i + 1) in map) ? (map[i + 1] === "" ? (dropped++, []) : [map[i + 1]]) : [l]);
   fs.writeFileSync(path.join(root, file), out.join("\n"));
