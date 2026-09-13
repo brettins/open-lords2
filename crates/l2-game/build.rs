@@ -7,9 +7,9 @@
 //! worse than nothing, because it looks like an answer.
 //!
 //! What is emitted is the short commit, a `-DIRTY` marker when the tree had
-//! uncommitted tracked changes, the commit's date, and the build's own local
-//! time of day. The date says *"is this old?"*; the time tells two builds of
-//! one commit apart, which a hash cannot.
+//! uncommitted tracked changes, and the commit's date. The date is not
+//! decoration: *"is this old?"* is the actual question, and a hash cannot answer
+//! it without a lookup.
 //!
 //! **Two honest limits, stated here because the alternative is a stamp nobody
 //! can trust.**
@@ -86,18 +86,11 @@ fn stamp() -> String {
         .is_some_and(|s| !s.trim().is_empty());
     let date = git(&["log", "-1", "--format=%cd", "--date=format:%Y-%m-%d"])
         .unwrap_or_else(|| "?".into());
-    // The build's own wall clock, local, HH:MM: git has no opinion on when a
-    // binary was made. PowerShell rather than chrono, to add no dependency.
-    let time = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-Command", "Get-Date -Format HH:mm"])
-        .output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .filter(|t| !t.is_empty()).unwrap_or_else(|| "??:??".into());
     format!(
-        "{}{} {} {}",
+        "{}{} {}",
         commit.to_uppercase(),
         if dirty { "-DIRTY" } else { "" },
-        date,
-        time
+        date
     )
 }
 
