@@ -11985,3 +11985,62 @@ for a road tile and 32 for an open one, with a non-zero `campaign::walk_offset`
 mid-crossing. Ablated by gating `cross_sub_tile` on `UnitKind::Army`, the road
 gap is 1 against 8. `Unit_StepOnce` (`0x0046634D`) has no kind test (C213); the
 behaviour was already right and nothing held it.
+
+---
+
+**C216 — an ordered castle gets its builders; the moat is why a level 3 castle neither pours nor docks; B105.**
+
+`Castle_Order` (`0x00436D02`) calls `Labour_ToggleIndustryShare(county, 3, 1)`
+between `Castle_EvictTile` and the take, and `Castle_BuildTick` (`0x004508DE`)
+calls `(county, 3, 0)` at completion; ours never did, so an ordered castle's
+labour share stayed 0 at any split. Test `industry::tests::ordering_a_castle_puts_builders_on_it`, ablation red. The fix falsifies half of B68: a palisade's
+200 man-seasons finish in four seasons with every industry running;
+`castles.rs` test `a_county_with_its_mines_running_never_gets_round_to_the_castle`
+replaced by `the_orders_labour_share_is_what_gets_a_castle_built`. B68 carries a
+correction paragraph; census 561 to 562.
+
+Level 3 castle pours no oil and docks no tower because of the moat `[V]`:
+`Battlefield_PlaceMoatCell` zeroes the approach score the builder set to 500,
+`UnitOrder_SiegeAttTower` (`0x0048DDC7`) walks a tower only on
+`(orders > 0x3C && approach > 6) || approach > 10`. C203's docks 1,0,1,0,0 are
+the two dry castles; level 3 has 256 cells at elevation 2 against level 2's 134.
+`Moat_Fill` scores a filled cell by neighbours of surface 3/5/4 and a filled cell
+is surface 1, so 24 filled cells earned 1 point in 60,000 frames while levels 1 and
+4 reached 5 and 8 and poured. Test `only_a_dry_castle_opens_the_approach_a_siege_tower_needs`;
+`docs/battle.md` §17.6. B105: `Castle_DrawStatusBlock` indexes one word low,
+castle type 0 shows "Barracks for 2500 troops." and a 0% tax bonus;
+`docs/bugs.md` §2.10, quirks catalogue Unswitchable, reproduced in
+`screens::job::castle_word`.
+
+---
+
+**C217 — the pulse chain drops its remainder at every rung; the maceman blow is 300 once per battle; a lopsided fight rolls and the threshold swallows it.**
+
+`Tick_Pulses` (`0x004BBC80`) is a 20 ms gate that sets `elapsed = 0` (stamp = now);
+`l2_view::village::AnimationClock` gated on 80 ms with a while loop carrying the
+remainder, and `MapScreen::step_industry` took each rung as `period_ms / TICK_MS`
+ticks; both now use `village::gates_per_rung` (4 gates at 80 ms, 32 at 640). At the
+16 ms tick a gate is two ticks, so both ran 1.6x fast, the C179 factor. Tests
+`the_pulse_chain_drops_its_remainder_at_every_rung`,
+`every_rung_is_its_milliseconds_in_twenty_millisecond_gates` (l2-view);
+`industry.rs` `EVERY = [64, 32, 16, 8]` over 384 ticks; ablation 48 fast pulses
+against 30, 9 wheel turns against 6. `press.rs` and the map's flag and herd
+counters are `FUN_004B20ED` and `FUN_004CFB08`, another chain, left alone.
+
+`TroopTick_Maceman` (`0x00482789`) stores `0x12C` (300) at figure +0x198 at
+`0x004827D5`, bytes `66 c7 80 18 46 55 00 2c 01`; swordsman `0x64` at
+`0x004828B1`, knight `0xC8` at `0x00482B3C`; all eleven handlers are the same
+217 bytes with four immediates changed. `blowUsed` +0x18C (`0x0055460C`) has three
+references: `BattleUnit_Create` zeroes it at `0x00480D47`, `Melee_Tick`
+(`0x00494908`) reads and sets at `0x00494BE7` and `0x00494C46`, so the blow lands
+once per figure per battle `[V]`; `docs/battle.md`'s once-per-exchange reading,
+its +0x198 row, and three code comments (`TroopStats::heavy_blow`,
+`Figure::blow_used`, the `units.toml` header) corrected.
+
+Seed invariance when outnumbered is the threshold, not a dead RNG:
+`Battle_UpdateStrengthAdvantage` (`0x0047FC01`) fires every 101st frame and
+`Ai::rng` advances; two to one is an advantage of +100 or -50 and the jitter
+`(rand & 0x1F) - 10` spans 31, which cannot cross `AGGRESSION_THRESHOLD` 5, so
+every unit takes the same arm of `unit_order_advance` (ai.rs:1273). Test
+`a_lopsided_fight_draws_its_jitter_and_the_threshold_swallows_it`, ablation gives
+both seeds 100 at 40 v 20.
