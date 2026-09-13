@@ -58,7 +58,7 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
   `main`; no unmerged `worktree-agent-*` or `wip/*` branch with commits ahead of `main` goes
   without a row; no `queued-merge` branch carries `HANDOFF.md`. A fresh clone or a CI runner
   has no agent branches, so this half **prints `SKIP` with the reason and the number of rows
-  it did not compare** rather than reporting every branch missing.
+  it did not compare** instead of reporting every branch missing.
 
 `--status` is the derived view as text. `--html <path>` writes **the player's page**: the
 original game's features graded done / partial / missing / not assessed from
@@ -85,7 +85,7 @@ commit, or says plainly that no commit holds it. The lead caught it by reading t
 is the only reason this paragraph exists; `work_ledger.rs` now holds both, in a scratch
 repository whose working tree disagrees with its `main` on every inventory.
 
-### Limits, stated rather than discovered
+### Limits, stated, not discovered
 
 * **"Merged" means the branch tip is reachable from `main` and is not on `main`'s own
   first-parent line.** The second clause is what tells a merged branch from one cut a minute
@@ -199,7 +199,7 @@ while agents are running, wait.
 **Any agent that launches a process must terminate it before reporting.** The game in
 particular takes over the entire screen, so leaving it running blocks the user from
 seeing their own desktop, and they have no way to tell whether the agent is still using
-it or simply abandoned it.
+it or abandoned it.
 
 ```powershell
 Stop-Process -Name Lords2,l2-view,dxwnd -Force -ErrorAction SilentlyContinue
@@ -209,7 +209,7 @@ Run that at the end of the task whether it succeeded or not. Put the requirement
 brief — an agent told it may run the game will not infer that it should also close it.
 
 Prefer short focused sessions with the game over keeping it open across a long
-investigation, and if a task genuinely needs it open for a long stretch, say so in the
+investigation, and if a task needs it open for a long stretch, say so in the
 report so the cost is visible.
 
 ## Never drive the real mouse or keyboard to test our engine
@@ -236,8 +236,8 @@ agent's mouse from a fault.
 that needs nothing of the world.** An in-process event cannot be disturbed by focus, a
 screen lock, a resolution change or a person moving the mouse. It is also faster,
 deterministic, and runnable in CI — which the OS route can never be. That is the same
-reasoning behind reading a struct definition rather than enumerating fields by hand, and
-behind a check that runs on every push rather than a rule an agent is asked to remember:
+reasoning behind reading a struct definition instead of enumerating fields by hand, and
+behind a check that runs on every push, not a rule an agent is asked to remember:
 **the mechanism with fewer dependencies on the world is usually also the more accurate
 one**, and where the two pull apart it is worth noticing why.
 
@@ -253,7 +253,7 @@ Two rules follow, and they are cheap:
 * **Every agent uses scratch filenames unique to itself.** Put the agent's own id in the
   path. A shared temp directory with a predictable name — `out.json`, `syms.json`,
   `tmp.txt` — is a collision waiting for the day two agents run at once, and that day is
-  now normal here rather than rare.
+  now normal here, not rare.
 * **Count before and after any edit to a shared JSON file**, and say both numbers in the
   report. `docs/symbols.json`, `docs/hypotheses.json` and `docs/records.json` are all
   appended to by several agents at once. A count that moves by the wrong amount is the only
@@ -273,7 +273,7 @@ problem and the one that went unnoticed for weeks. Run it before you finish and 
 hand the integrator a collision.
 
 It is still not worth serialising the log, and the integrator can renumber safely. What
-makes that cheap rather than archaeological is one line:
+makes that cheap, not archaeological, is one line:
 
 > **Say in your report which correction number you took**, and grep the tree for
 > cross-references to it before you finish — `symbols.json` comments, Rust doc comments and
@@ -310,7 +310,7 @@ fails loudly and names the line to put back.
 **Why a lockfile and not the obvious alternative, which is worth more than the mechanism.**
 The first proposal was to make citations self-describing — write `C34 (secession-tie)`, so a
 dragged citation carries its old slug against its new number and fails immediately. It was
-refuted by measuring rather than by arguing:
+refuted by measuring, not by arguing:
 
 * **80 of 261 citations are shapes that would not survive it.** Lists especially:
   *"C10, C12, C17 and C20 are four instances of one mechanism"* becomes unreadable when every
@@ -326,7 +326,7 @@ refuted by measuring rather than by arguing:
 The lockfile costs 10 KB, has no migration, changes nothing about how a citation is written,
 and flagged the real historical failure with zero false positives across a merge that moved
 seven citations and drifted every line number in the tree. That is the general lesson too:
-**when two mechanisms are proposed, measure them against a failure that actually happened**
+**when two mechanisms are proposed, measure them against a failure that happened**
 rather than reasoning about which is more elegant.
 
 **An honest note about the paragraph above, because the record is worth more than the rule
@@ -367,17 +367,17 @@ It passed.
 full-screen `gateway.pl8`, so no pixel down there is background, and the test had been measuring
 the artwork the whole time. Nothing about it looked wrong. The threshold had been chosen by
 looking at what the passing case produced — which is exactly how a test comes to describe the
-status quo rather than the claim, and it is a very easy thing to do while being careful.
+status quo, not the claim, and it is a very easy thing to do while being careful.
 
 Thirty seconds of ablation found it. Nothing else would have, until the day the draw call was
 lost in a merge and the stamp quietly stopped appearing — which is the specific failure the
-stamp exists to prevent, so the test would have failed at precisely the moment it mattered.
+stamp exists to prevent, so the test would have failed at the moment it mattered.
 
 ### Idempotence is a stronger assertion than effect
 
 The replacement is worth recording as a technique, because it applies well beyond this screen:
 
-**Where an operation is idempotent, assert idempotence rather than an effect.**
+**Where an operation is idempotent, assert idempotence, not an effect.**
 
 Draw the page. Copy it. Draw the stamp **again** onto the copy. Require the two canvases to be
 *identical*. Text is an opaque blit, so a second draw over itself changes nothing — but only if
@@ -436,7 +436,7 @@ point owned; ablate by deletion where you can.
 
 **Four: read the count instead of the names.** `cargo test --workspace` stops at the first
 failing crate, so an ablation that should turn three tests red reports **one**. Use
-`--no-fail-fast`, and read *which* tests went red rather than how many. The identity of the
+`--no-fail-fast`, and read *which* tests went red, not how many. The identity of the
 failing test is the finding; the count is not.
 
 **Five: ablate the draw and forget the viewport.** The build stamp's test has now failed three
@@ -464,7 +464,7 @@ switches came from `County::new()`'s defaults, and **every map toggle sat in the
 position to the one the player saw.** Eleven passing tests, and a struct field that no
 importer had ever written.
 
-That is C30 from the drawing side rather than the save side, and the pair states the rule
+That is C30 from the drawing side, not the save side, and the pair states the rule
 better than either alone: **a field is only tested if something a test reads was written by
 something the game runs.** A test that populates the state it then asserts on is checking
 its own fixture. C30's four fields were absent from the *encoding*; these were absent from
@@ -507,7 +507,7 @@ Every one is prose that is accurate, that a reviewer would nod at, and that desc
 which then did not get done. The usual defence on this project — write it down, cite it,
 cross-reference it — is the thing that already happened.
 
-**What would actually have caught it**, in rising order of cost:
+**What would have caught it**, in rising order of cost:
 
 * **Port a function's tail with its loop, or say at the loop that you did not.** The omission
   is invisible because `grain_labour_estimate` is a *complete-looking* function: it takes the
@@ -566,7 +566,7 @@ What happened, in order:
 
 **Why this is worse than a wrong tool.** A tool's output is treated as a lead. A correction is
 treated as settled — the whole point of the log is that it outranks prose written earlier, and
-C58's flat statement is precisely what stopped anyone re-reading `Map_Click` for weeks. A wrong
+C58's flat statement is what stopped anyone re-reading `Map_Click` for weeks. A wrong
 correction therefore propagates *further* than the mistake it replaced and is *harder* to
 dislodge, because the next reader finds a numbered entry that says the question was already
 asked and answered. It had already reached three documents and two tests before it was caught.
@@ -586,7 +586,7 @@ that found something overturned it, and a fourth reading overturned that. `docs/
 
 One consolation worth recording, because it is the reason to keep doing this: the corrected fix is
 *smaller* than the fix that was asked for, and the fix that was asked for was smaller than the one
-the draft proposed. Every time this project has actually read the binary rather than reasoned from
+the draft proposed. Every time this project has read the binary, not reasoned from
 an absence, the answer has been less work than the guess.
 
 ## C-numbers: the protocol assumes a serial writer, and we have eight
@@ -616,7 +616,7 @@ spawned. Both were considered and both are worse than they look.
   value is that it reads as a complete sequence.
 - **One file per correction** — one markdown file per entry, named for its number and assembled
   by a script — makes the
-  collision *mechanical* rather than textual — two files claiming the same number is trivially detectable —
+  collision *mechanical*, not textual — two files claiming the same number is trivially detectable —
   but it does not prevent it, and it costs a build step on the project's most-read document.
 
 ### The proposal: assign at merge, not at write
@@ -643,7 +643,7 @@ paragraph described a tag-less `--assign` that walked every heading at once for 
 before any `--assign` existed; the integrator did the job with `git grep -l | perl -pi`. What
 exists now is described under* The tool as it is *below.)*
 
-**And the check that makes it structural rather than a habit: `--check` fails if any
+**And the check that makes it structural, not a habit: `--check` fails if any
 placeholder, of any family, survives anywhere on `main`.** That is what stops the placeholder
 from being merged unassigned, and it is the whole enforcement. It goes red on ordinary work, in
 CI, on the commit that would have introduced the problem — which is the property *"read the
@@ -668,7 +668,7 @@ because there is nothing to collide.
 
 What it does not fix, said plainly: **two agents writing corrections about the same thing.** That
 is a content collision, not a numbering one, and no tool resolves it — it is the coordinator
-knowing what is in flight. Today's three were three genuinely different subjects that happened to
+knowing what is in flight. Today's three were three different subjects that happened to
 want the same integer, which is the case this removes entirely.
 
 ### The tool as it is
@@ -743,7 +743,7 @@ pointer into the log the project trusts most, which is the failure mode recorded
 ## A check that passes for an accidental reason looks exactly like one that passes
 
 Three of these in two days, and the third was found while writing this section, which is the
-best evidence that it is a class rather than a run of bad luck.
+best evidence that it is a class, not a run of bad luck.
 
 > **A check that passes for an accidental reason is indistinguishable from one that passes for
 > the right reason, until the accident stops holding.**
@@ -769,7 +769,7 @@ tested anything*.
 
 ### The defence
 
-**State the predicate the check *means*, then implement that** — rather than implementing
+**State the predicate the check *means*, then implement that** — instead of implementing
 something that happens to agree with it on the data in front of you.
 
 * The marker rule now reads `Record::in_the_tree()`, and that method is the sentence *"is
@@ -792,7 +792,7 @@ thirty seconds of this.
 ## A file that looks like data is usually a claim, and claims cannot be merged positionally
 
 Six branches landed in one evening. Nine merge defects came with them and **all nine are the same
-mistake**: a file was treated as a list of lines or a list of entries, when what it actually held
+mistake**: a file was treated as a list of lines or a list of entries, when what it held
 was an assertion about the current state of the project. Every one of them was made by choosing
 the resolution a careful person would choose.
 
@@ -840,16 +840,16 @@ That is worth its own rule, because the temptation is to file it as the check wo
 > report, not a success.** The next instance will differ by whatever made this one syntactically
 > invalid, and nothing will fire.
 
-Had the two orderings happened to produce valid JSON — one entry moved rather than several, or a
+Had the two orderings happened to produce valid JSON — one entry moved, not several, or a
 conflict that closed its braces evenly — the file would have been committed, `symbols_md.js` would
 have regenerated `symbols.md` from it without complaint, both would have been green, and the
 project would have carried a wrong comment on a right address until somebody read that function
 again. **It is not a defence to rely on again**, which is why `symbols.json` and
-`hypotheses.json` now merge by key through a driver rather than by anyone remembering to.
+`hypotheses.json` now merge by key through a driver, not by anyone remembering to.
 
 ### The nine, and what caught each
 
-| # | what was merged positionally | what it actually asserted | what caught it |
+| # | what was merged positionally | what it asserted | what caught it |
 |---|---|---|---|
 | 1 | `--theirs` on `shells.rs` | *these screens are not built yet* — so an older copy **un-builds** them | a test: *"CASTLE is both a shell and a screen"* |
 | 2 | union of two `symbols.json` runs | *this hypothesis was promoted* — a union turns a move back into a copy | `symbols_md.js`, four times, one at a time |
@@ -890,9 +890,9 @@ as prose.
    Anything with a stable id and an unstable order belongs there too.
 2. **Ask what the file asserts before choosing a side.** If the answer is *"what is true right
    now"* — what is unbuilt, what was promoted, which number means which defect — then neither
-   side is safe and the resolution has to be derived rather than picked.
+   side is safe and the resolution has to be derived, not picked.
 3. **A union is safe for a list and unsafe for anything else.** Twice tonight a union was applied
-   across a scalar, in files whose surrounding lines genuinely were a list.
+   across a scalar, in files whose surrounding lines were a list.
 4. **Compile, then test, then read.** The compiler caught two of these, tests caught two, and
    three had no automated defence whatever. Budget the reading.
 
@@ -916,7 +916,7 @@ because one function can hold several input arms — `Screen_FrameInput` alone h
 Sit with what that output would have looked like: a smaller file, internally consistent, every
 remaining record correct, valid JSON, passing every check that existed. **A deduplicating merge
 is the worst possible failure for a counting file**, because the thing it destroys is the count,
-and a count has no local evidence of being wrong. The 1:1 percentage would simply have been
+and a count has no local evidence of being wrong. The 1:1 percentage would have been
 computed from a smaller denominator, and nobody would have had any reason to look.
 
 **Three: the assumption was never checked.** A keyed merge silently assumes its key is unique.
@@ -940,14 +940,14 @@ It has a failure mode and it is worth naming beside it:
 > pattern that lies.**
 
 Both copies get updated together, by someone holding one intention, and they agree because they
-were written to agree rather than because the thing they describe is true. The check passes
+were written to agree, not because the thing they describe is true. The check passes
 firmly and means nothing.
 
 So the test for the uniqueness rule **shells out to `merge-json.js --check`** rather than
 reimplementing `KEY_FIELDS` in Rust. A Rust copy of the key rule would be a second list, edited
-by whoever edits the first, in the same session, for the same reason — which is precisely the
+by whoever edits the first, in the same session, for the same reason — which is the
 failure this whole area is about, reproduced inside its own remedy. The driver's logic is what a
-merge will actually use, so the driver's logic is what has to be asked.
+merge will use, so the driver's logic is what has to be asked.
 
 The discipline: before duplicating, ask **who maintains each copy and when.** If the answer is
 "the same person, in the same commit", you have not built a check — you have built two places to
@@ -1018,7 +1018,7 @@ The same fix had a second decision in it, and it is the one that generalises fur
 `County` has **101** fields; `CountyState` has **46**. Destructuring the destination would have
 been an exhaustive literal over 101 names, of which some seventy are derived, computed later, or
 genuinely absent from the save — seventy lines of `x: 0` for a reader to scan past. Destructuring
-the source is 46 names, **every one of which is something the file actually stored**, so the
+the source is 46 names, **every one of which is something the file stored**, so the
 question *"is this carried?"* is meaningful on every line.
 
 > **Noise is where an omission hides. A check over a smaller list of things that all matter is
@@ -1061,7 +1061,7 @@ it returned a clean number either way.
 The sharp illustration, which is the thing to quote:
 `ten_seasons_from_a_reloaded_game_are_the_same_ten` **passes with the field dropped.** It saves a
 played game, reloads it, and compares the digest after each of ten further seasons. The reloaded
-kingdom genuinely *is* a different world — a mine with no ore behaves differently from one with
+kingdom *is* a different world — a mine with no ore behaves differently from one with
 ore — and ten seasons of that divergence never moved the number.
 
 **And a third instance, from the same hour and the same person, which is why this is a pattern
@@ -1077,7 +1077,7 @@ what, done without checking** — which is the same act the whole project exists
 subject is `Lords2.exe`, applied to our own tools instead, where it feels like knowledge rather
 than inference because we wrote them.
 
-**A fourth, and the first that travelled in a BRIEF rather than in a tool's output.** An agent
+**A fourth, and the first that travelled in a BRIEF, not in a tool's output.** An agent
 reported that retreat and autocalc discard casualties. True — of the solo retreat arm. It was
 repeated as *"every casualty we have fought so far is unkilled"*, which is a statement about the
 seam, and briefed onward in that form. Measured: the forty-turn run kills 1,951 men and always
@@ -1115,7 +1115,7 @@ makes the point better than either alone. *A tool that overstates is one people 
 discount*, and a tool discounted is a tool switched off. Both directions cost the same thing in
 the end; only the flattering one buys a few days of feeling productive first.
 
-It was caught by **reading the failures rather than counting them** — opening the first row and
+It was caught by **reading the failures instead of counting them** — opening the first row and
 asking which `Unit` it meant. That is the only defence that has ever worked, and it is expensive
 enough that it has to be spent deliberately: read the first three findings of every new tool's
 first run, in full, before believing the total.
@@ -1175,7 +1175,7 @@ The proposal was: a per-screen inventory of the original's input arms, and a cen
 when a screen graduates out of the shell table without one.
 
 **The inventory is right.** `Screen_FrameInput`'s `0x02` arm running six sidebar guards was found
-by enumerating rather than by reacting to a report, and enumerating three screen groups is what
+by enumerating, not by reacting to a report, and enumerating three screen groups is what
 produced the 43% at all. Nothing else this project has tried finds an arm nobody asked about.
 
 **The trigger is wrong, for a measurable reason.** "Red when a screen graduates" fires once per
@@ -1198,7 +1198,7 @@ addresses and is wrong about all of them.
 
 ### What is proposed instead
 
-The three checks that have actually worked here — `symbols_md.js`, `figures.js`, `corrections.js`
+The three checks that have worked here — `symbols_md.js`, `figures.js`, `corrections.js`
 — all have the same shape, and it is not "a file must exist". It is **two artefacts maintained by
 different work, that must agree.** A number in a document versus a number derived from the tree. A
 citation versus the heading it names. That shape goes red on ordinary work, in both directions,
@@ -1209,7 +1209,7 @@ blocked waiting on one and is the file's largest single contributor, which makes
 author; this section is the requirement, not the design. Three constraints are non-negotiable
 and they are the reason the file exists at all: set equality in both directions between
 `// arm: 0x…` markers and `reproduced` records; an **invention** must be representable and
-countable rather than merely absent; and a **dead** arm must be distinguishable from a missing
+countable, not absent; and a **dead** arm must be distinguishable from a missing
 one. Amend that schema once if it is wrong, and say why — two schemas would be worse than
 either.
 
@@ -1235,7 +1235,7 @@ Then four checks, in rising order of cost and value:
    between the markers in the code and the `reproduced`/`ours` records in the file. This is the
    half that fires on ordinary work: a new handler with no marker fails, a marker with no record
    fails, a record claiming an arm nobody built fails, and a deleted handler fails. It is also the
-   half that makes an invention **countable**, which is what a 1:1 goal actually needs — `ours`
+   half that makes an invention **countable**, which is what a 1:1 goal needs — `ours`
    arms are a number that should go down.
 4. **A per-screen percentage, printed by the census.** Not a gate: a number in `status.html` and
    the README, maintained by the script, that cannot drift because nobody types it. `figures.js`
@@ -1250,7 +1250,7 @@ before this is believed.
 ### What it costs, honestly
 
 Enumerating three screen groups took three agents about half an hour of wall time each and
-produced ~185 rows, most of which are verdicts rather than research. Marking up the existing
+produced ~185 rows, most of which are verdicts, not research. Marking up the existing
 handlers is the larger job — perhaps a day — and it is unavoidable, because check 3 is worthless
 until the markers exist and check 3 is the only one that fires on ordinary work.
 
@@ -1258,7 +1258,7 @@ until the markers exist and check 3 is the only one that fires on ordinary work.
 `village.rs`/`job.rs`, and `county.rs`/`divide.rs`/`shells.rs`, and their tables are in C61 and in
 the three agent reports. Land those, run the two falsification experiments, and let the census go
 red for a screen that has arms in the file and no markers in the code. The battlefield's 49 arms
-are the argument for doing this *before* that screen is built rather than after — it is the only
+are the argument for doing this *before* that screen is built, not after — it is the only
 screen group where the inventory would be written ahead of the code, which is the cheap direction.
 
 ### Counting arms cannot tell you whether a screen is reachable
@@ -1276,13 +1276,13 @@ field, `0x2A` drag, `0x2B` outcome — and every arm audited on `0x28` counts to
 denominator it should not be in.
 
 So the totals in C61 are provisional until the corrected denominator lands, and the corrected
-one goes into `tools/figures/figures.js` rather than into prose: it is about to be the headline
+one goes into `tools/figures/figures.js`, not into prose: it is about to be the headline
 of `docs/plan.md` revision 5 and quoted widely, and 34 figures have already gone stale in four
 documents by being typed. **A number that cannot drift beats a number that is checked.**
 
 The general rule for the arms file: **every screen carries a reachability record beside its arm
 records** — the addresses that write its id — and a screen with no writer is `dead`, which is
-why `dead` has to be a distinguishable status rather than an absence. Two enumerations from
+why `dead` has to be a distinguishable status, not an absence. Two enumerations from
 different directions are what has caught things all evening; one enumeration is a claim.
 
 ### One entry here that is not a failure
@@ -1303,12 +1303,12 @@ temptation wins.
 
 ### The rest of the pattern, recorded
 
-Two other things fell out of the enumeration and belong here rather than in a correction:
+Two other things fell out of the enumeration and belong here, not in a correction:
 
 - **Right-click is the gesture we systematically miss**, because "right click exits" was learned
   early and generalised. The original uses that button for four different verbs — exit, cancel a
   drag, clear a selection, re-centre a panel — and 11 of the 22 right-button arms found are either
-  missing or wrong. One is *wrong* rather than absent: a right-click while carrying peasants leaves
+  missing or wrong. One is *wrong*, not absent: a right-click while carrying peasants leaves
   the village instead of cancelling the carry.
 - **Two documented claims were falsified by the enumeration**, both of the "verified" tier:
   `Village_DoubleClick` is *not* the only reader of `g_mouseLeftDoubleClick` (`FUN_0043BF07` and
@@ -1353,7 +1353,7 @@ inside this boundary is wrong"* — and it is read, always, as *"nothing is wron
 There is no instrument for this and probably cannot be one, because an instrument that could see
 its own boundary would need a larger boundary. What there can be is a **habit of naming the
 boundary in the same sentence as the number**, so that the overreach has to be written down
-deliberately rather than happening by omission. `docs/plan.md` §0's third row does this, and it
+deliberately instead of happening by omission. `docs/plan.md` §0's third row does this, and it
 is the reason that row is worth more than the figures above it: it says which instrument covers
 it *and what that instrument still cannot see*.
 
@@ -1459,7 +1459,7 @@ there is nothing in a string literal that can be wrong in a way a compiler or a 
 > name.**
 
 Where the subject can be derived — from the widget table, from the file, from the enumeration —
-derive it, and let the check quantify over everything rather than naming one thing. Where it
+derive it, and let the check quantify over everything instead of naming one thing. Where it
 genuinely must be named, the name deserves the same scepticism as a number: ask what would be
 different if it were wrong, and if the answer is *"nothing visible"*, that is the finding.
 
@@ -1483,7 +1483,7 @@ Two things to take from it.
 **A fixture that constructs the state a feature is supposed to produce cannot tell you whether
 the feature produces it.** The fix is a test that walks the road: an army moved onto a castle
 tile, and the order read out of what came back. That test did not exist for any siege in the
-workspace, which is why the hole was subsystem-wide rather than one test's oversight.
+workspace, which is why the hole was subsystem-wide, not one test's oversight.
 
 **And name the function.** This is the same shape as C71 — a true statement about one branch,
 promoted to a statement about a subsystem, in prose, between agents, where no check in the tree
@@ -1553,8 +1553,8 @@ assert_eq!(
 );
 ```
 
-The *sentence* is true — the two fields are genuinely different things. The *assertion* is
-false, and it was derived from the code rather than from the binary: someone observed that our
+The *sentence* is true — the two fields are different things. The *assertion* is
+false, and it was derived from the code, not from the binary: someone observed that our
 setter left `ration_achieved` alone, recognised a real distinction that explains it, and wrote
 the observation down as a requirement. Fixing the code turned the test red, which is how it
 was found.
@@ -1578,7 +1578,7 @@ So, when a fix turns an old test red:
    built on it was not — a correct premise carried into a wrong requirement, which is the
    shape that survives review.
 2. **If the old assertion was a description, replace it with the claim it was reaching for**
-   rather than deleting it. The distinction it named is real, so the new test asserts it a way
+   instead of deleting it. The distinction it named is real, so the new test asserts it a way
    that does not depend on the bug: ask for triple rations with an empty larder and require
    `wanted == 5, achieved == 0`.
 
@@ -1591,7 +1591,7 @@ trivially, because the requirement is zero. The assertion `achieved == 0` read `
 Had the numbers happened to line up, it would have passed while measuring nothing — the same
 family as the sweep test three functions away whose first draft never fired its search because
 the county's herd was not being eaten. **Both were caught by running the test and reading the
-number rather than the verdict**, which is the cheapest habit in this document and the one that
+number, not the verdict**, which is the cheapest habit in this document and the one that
 keeps paying: a test that passes on the first attempt against a state you did not deliberately
 construct deserves thirty seconds of *why*.
 
@@ -1637,7 +1637,7 @@ omission would have looked like a fact about our architecture.
 **File the unread members `open`.** An unread member of an enumerated class is a *known*
 unknown, and every expensive thing in this document is the other kind. `open` costs a row in a
 table and buys the difference between "we checked" and "nobody has looked", which is the only
-thing the next reader actually needs from you.
+thing the next reader needs from you.
 
 **Write down the members you looked at and cleared.** The ration path has `ration::preview`
 and `ration::apply` — the same name as the original's single `Ration_Apply`, opposite
