@@ -1091,10 +1091,23 @@ impl Kingdom {
         // is taken away, and what un-wrecks a trampled one the season its
         // countdown expires — the branch inside `Industry_Produce` calls the
         // same function.
+        //
+        // **`Industry_ProduceAll` (`0x0044E852`) has no owner test here, and
+        // this used to.** Its loop is `for (c = 1; c <= g_countyCount; c++)`
+        // with the update unconditional; the owner test is one level down, in
+        // `Industry_Produce` (`0x0044EA92`), where `if (realm != 0)` guards the
+        // *production* and nothing else. A county that leaves a realm still has
+        // its site tiles repainted the next season.
+        //
+        // The visible defect was a seceded county's mine going on turning for
+        // the rest of the game. `County_MakeIndependent` (`0x004AC3C6`) clears
+        // all four `enabled` flags and repaints nothing — `Industry_Produce`
+        // and `Industry_ProduceAll` hold every call site of
+        // `Industry_UpdateSiteTile` there is — so the terrain byte stays on
+        // `base + 1`, the *working* value `Sprite_TopIt` (`0x004071A0`)
+        // animates, and this pass is the only thing that ever writes
+        // `base + 0` over it.
         for id in 1..=self.county_count {
-            if self.counties[id].owner == 0 {
-                continue;
-            }
             self.update_industry_site(id, commodity);
         }
     }

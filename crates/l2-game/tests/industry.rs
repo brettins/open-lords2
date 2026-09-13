@@ -529,3 +529,53 @@ fn two_maps_whose_wheels_are_out_of_phase_reach_the_same_kingdom() {
          only thing that differed between them was where the industry wheels were"
     );
 }
+
+/// **A county that breaks away stops showing a working mine** — and what
+/// repaints it is the season, not the secession.
+///
+/// `County_MakeIndependent` (`0x004AC3C6`) clears all four `enabled` flags and
+/// touches no tile; every call site of `Industry_UpdateSiteTile` (`0x0044EDC2`)
+/// in the binary is inside `Industry_Produce` (`0x0044EA92`) or
+/// `Industry_ProduceAll` (`0x0044E852`). So the site keeps its *working*
+/// terrain until the next season's industry pass writes `base + (enabled != 0)`
+/// over it — and `Industry_ProduceAll`'s loop is
+/// `for (c = 1; c <= g_countyCount; c++)`, with **no owner test**. The owner
+/// test is one level down, guarding production alone.
+///
+/// Ours had that test on the repaint, so a seceded county's wheel turned for the
+/// rest of the game. A player would have read it as a mine still being worked
+/// by a realm that no longer owns the county.
+///
+/// **Ablation.** Put `if self.counties[id].owner == 0 { continue; }` back on the
+/// site-tile loop in `Kingdom::industry` and the last assertion goes red.
+#[test]
+fn a_seceded_countys_mine_is_repainted_by_the_next_season() {
+    let (mut game, _assets) = world!();
+    let sites = working_sites(&game);
+    let (tile, county, commodity) = *sites.first().expect("a working site on the fixture");
+    let base = l2_kingdom::map::terrain::INDUSTRY_IDLE[commodity];
+
+    assert_eq!(game.kingdom.campaign.map.terrain[tile], base + 1, "the site starts working");
+
+    // `County_MakeIndependent`: the switches go off and the map is not touched.
+    game.kingdom.make_county_independent(county);
+    assert_eq!(game.kingdom.counties[county].owner, 0, "the county left its realm");
+    assert!(!game.kingdom.counties[county].industry[commodity].enabled, "the switch went off");
+    assert_eq!(
+        game.kingdom.campaign.map.terrain[tile],
+        base + 1,
+        "secession repaints nothing, so the mine is still turning this season"
+    );
+
+    l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+
+    assert_eq!(
+        game.kingdom.counties[county].owner, 0,
+        "the county was retaken within the turn, so this proves nothing"
+    );
+    assert_eq!(
+        game.kingdom.campaign.map.terrain[tile],
+        base,
+        "`Industry_ProduceAll` repaints an unowned county's site tiles too"
+    );
+}
