@@ -472,12 +472,28 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // `g_multiplayer` — session, not world. A save carries no session.
         multiplayer: false,
         player,
-        // **A save is between turns, always.** The original saves from the
-        // campaign map and nowhere else, so a loaded game has no half-run turn,
-        // no battle waiting to be answered and no half-made levy — the three
-        // fields below are session state rather than world state, which is why
-        // they are not in the ten-field prefix and why `VERSION` did not have to
-        // move.
+        // **A save of ours is between turns, always** — and that is a limit of
+        // ours, not a fact about the original.
+        //
+        // This comment used to read *"The original saves from the campaign map
+        // and nowhere else"*, which is **false**. `Screen_FrameInput`'s `0x29`
+        // arm opens with `Menu_OpenDropdown(&g_menuBarItems, 3)` and
+        // `Menu_SaveGame` (`0x00433F49`) does not test `g_battlePhase`, so the
+        // original saves from the **battlefield** as readily as from the map —
+        // its `.sav` is a memory dump and the battle goes into it with
+        // everything else. `Screen_FrameInput` even *exempts* screens `0x35` and
+        // `0x36` from its multiplayer force-close while `g_battlePhase != 0`,
+        // which is the save box being deliberately kept alive in a battle.
+        // **[V]**
+        //
+        // Ours cannot: `crate::battlefield::LiveBattle` wraps an
+        // `l2_sim::runner::BattleRunner` and none of it is encoded here. So the
+        // save screen **refuses** while a battle is live rather than writing a
+        // file that silently loses it — `crate::screens::saveload`, and
+        // `docs/arms.json`'s `ours/save-refuses-mid-battle`.
+        //
+        // The two fields either side of `battle` keep the original argument: a
+        // loaded game has no half-run turn and no half-made levy.
         //
         // The levy is the clearest case of the three: `g_levyBasket` is scratch
         // that `Army_Create` spends and abandons, and the only durable half of

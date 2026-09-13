@@ -853,6 +853,15 @@ impl Machine {
     /// [`crate::screens::message`] — stopped the turn while it was open. So did
     /// walking into a county panel. `docs/decisions.md` C197.
     ///
+    /// **And the `else if` is the battle's**, which is why this is one function.
+    /// The second arm has no `g_screenId` test either, so a battle runs under
+    /// whatever is on top of *it* exactly as a turn runs under whatever is on
+    /// top of the map. That mattered the moment the battlefield got a menu bar:
+    /// the drop-down is screen `0x32`, a push here, and
+    /// [`Screen::update`] is the top screen's alone — so opening *File* over a
+    /// battle froze the battle until the menu closed. See
+    /// [`crate::screens::battlefield`].
+    ///
     /// Returns whether the stack moved.
     // arm: 0x004B99C0/frame-winds-the-turn frame
     fn wind_turn(&mut self, ctx: &mut Ctx) -> bool {
@@ -860,6 +869,17 @@ impl Machine {
         // of a fought battle and `Game::battle` for the whole of a suspended
         // one, and neither implies the other.
         if ctx.game.battle.is_some() || self.stack.iter().any(|s| s.id() == ScreenId::Battlefield) {
+            // **`else if ((g_battlePhase == 2) && ticksDue) { …the battle's
+            // passes… }`** — the loop's other arm, and it is the battlefield's
+            // own tick run at whatever depth it sits. Only when something is
+            // over it: on top it is [`Machine::update`]'s job and running both
+            // would step the simulation twice a frame.
+            // arm: 0x004B99C0/frame-winds-the-battle frame
+            if let Some(depth) = self.stack.iter().position(|s| s.id() == ScreenId::Battlefield) {
+                if depth + 1 < self.stack.len() {
+                    self.wind_battle(ctx, depth);
+                }
+            }
             return false;
         }
         let Some(depth) = self.stack.iter().position(|s| s.id() == ScreenId::Campaign) else {
@@ -884,6 +904,41 @@ impl Machine {
         self.apply_at(depth, t);
         self.dirty = true;
         true
+    }
+
+    /// **`Battle_Frame`'s `g_battlePhase == 2` arm** — the battle's passes, run
+    /// at `depth` while something else is on top of the battlefield.
+    ///
+    /// The original's inner loop is one `if / else if` on `g_battlePhase` with
+    /// **no `g_screenId` test on either side**, so a battle steps under an open
+    /// drop-down exactly as a campaign turn steps under an open letter. Ours
+    /// stepped only from [`Screen::update`], which the machine gives to the top
+    /// screen alone, so the menu bar this screen has just been given would have
+    /// frozen the fight every time a player opened it. Same absence, same fix,
+    /// one screen along: `docs/decisions.md` C197 is the turn's half of it.
+    ///
+    /// A transition from down here is applied at `depth`, which is what
+    /// [`Machine::apply_at`] is for: a battle that *ends* while a menu is open
+    /// settles underneath the menu rather than closing it.
+    fn wind_battle(&mut self, ctx: &mut Ctx, depth: usize) {
+        let t = self.stack[depth].update(ctx);
+        if self.stack[depth].take_redraw() {
+            self.dirty = true;
+        }
+        self.clicks = self.clicks.wrapping_add(self.stack[depth].take_clicks() as u32);
+        self.autosave |= self.stack[depth].take_autosave();
+        // **A screen it is already waiting on is not put up twice** — the same
+        // guard `wind_turn` needs, for the same reason: the outcome film is
+        // asked for on every frame the banner stands.
+        if let Transition::Push(id) = t {
+            if self.stack.iter().any(|s| s.id() == id) {
+                return;
+            }
+        }
+        if t != Transition::Stay {
+            self.apply_at(depth, t);
+            self.dirty = true;
+        }
     }
 
     /// **`FUN_00476E95` (`0x00476E95`)** — the tool tips, near the end of

@@ -533,6 +533,28 @@ impl SaveLoadScreen {
                 }
             }
             Mode::Save => {
+                // **OURS, and it is a refusal the original does not make.**
+                //
+                // `Menu_SaveGame` (`0x00433F49`) is reachable from the
+                // battlefield — `Screen_FrameInput`'s `0x29` arm opens with
+                // `Menu_OpenDropdown` and neither the opener nor the handler
+                // tests `g_battlePhase` — and the original's `.sav` is a memory
+                // dump, so the battle goes into it. Ours is a versioned format
+                // that does not encode `crate::battlefield::LiveBattle`, and
+                // `crate::save::decode` puts `battle: None` back.
+                //
+                // So a mid-battle save would write a file that quietly lost the
+                // battle the player was fighting. It is refused instead, through
+                // `Status::Failed`, whose first line is the game's **own**
+                // sentence — `Eng_DrawString(40, ERROR_INDEX)` — so a player
+                // sees a refusal rather than a file that is wrong.
+                //
+                // arm: ours/save-refuses-mid-battle left-press
+                if ctx.game.battle.is_some() {
+                    self.status =
+                        Status::Failed("A BATTLE IN PROGRESS IS NOT IN THE SAVE FORMAT".into());
+                    return Transition::Stay;
+                }
                 let name = self.name.text().trim().to_string();
                 if !saves::is_valid_name(&name) {
                     self.status = Status::Failed(format!("{name:?} IS NOT A SAVE NAME"));
