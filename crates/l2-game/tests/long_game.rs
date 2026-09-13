@@ -80,6 +80,8 @@ impl Census {
                 Message::UnrestWarning { .. } => self.fire("unrest warning", turn),
                 Message::UnrestRising { .. } => self.fire("unrest rising", turn),
                 Message::Revolt { .. } => self.fire("REVOLT", turn),
+                Message::Drought { .. } => self.fire("drought", turn),
+                Message::Flooding { .. } => self.fire("flooding", turn),
                 Message::Bankrupt { stage, action, .. } => {
                     self.max_bankrupt_stage = self.max_bankrupt_stage.max(*stage);
                     self.fire("bankruptcy", turn);

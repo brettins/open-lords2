@@ -483,7 +483,21 @@ fn the_pipeline_reaches_the_files_clock() {
         })
         .collect();
     assert_eq!(report.passes, expected, "in the documented order");
-    assert!(report.messages.is_empty(), "a happy kingdom raises no messages");
+    // The weather letters are the exception: `Weather_UpdateAll` posts `0x8F`
+    // or `0x90` for a county that bands Drought or Flooding, and a new game
+    // runs that pass like any other season.
+    let unexpected: Vec<_> = report
+        .messages
+        .iter()
+        .filter(|m| {
+            !matches!(
+                m,
+                l2_kingdom::report::Message::Drought { .. }
+                    | l2_kingdom::report::Message::Flooding { .. }
+            )
+        })
+        .collect();
+    assert!(unexpected.is_empty(), "a happy kingdom raises nothing but weather: {unexpected:?}");
     assert!(report.revolts.is_empty());
 }
 

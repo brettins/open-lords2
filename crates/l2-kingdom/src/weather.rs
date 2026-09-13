@@ -266,14 +266,31 @@ pub fn apply_frost(band: Weather, dryness: i32, season: Season) -> Weather {
 /// number of draws this pass makes is `1 + 1` regardless of the kingdom's size
 /// (`docs/netcode.md` §3: the stream must not depend on how much work there was
 /// to do).
+///
+/// # The two blighted fields
+///
+/// The band loop's tail is three calls the rule layer used to have nowhere to
+/// put: `FUN_0046942C` clears last season's ruined fields back to waste, then a
+/// county reading *Drought* has one field parched (`FUN_00469A9C(county, 0x18)`)
+/// and one reading *Flooding* has one flooded (`0x17`), each behind a
+/// `Msg_Enqueue` to the owner. See [`crate::field::blight_one_field`].
+///
+/// **The *Advanced Farming* override runs after them, in a loop of its own.**
+/// So with the option off the fields are still ruined and the letters still
+/// sent, and only the weather *byte* is flattened to Cloudy. `[V]` — two
+/// separate loops in the decompilation.
+#[allow(clippy::too_many_arguments)]
 pub fn update_all(
     t: &Tables,
     counties: &mut [County],
     county_count: usize,
+    map: &mut crate::map::CampaignMap,
     season: Season,
     advanced_farming: bool,
     rng: &mut Pcg32,
     previous_county: &mut usize,
+    owner_is_human: &impl Fn(u8) -> bool,
+    messages: &mut Vec<crate::report::Message>,
 ) {
     if county_count == 0 {
         return;
@@ -310,9 +327,32 @@ pub fn update_all(
         let b = band(&mut dryness);
         counties[id].dryness = clamp(dryness, DRYNESS_MIN, DRYNESS_MAX);
         let b = apply_frost(b, counties[id].dryness, season);
-        // "and every county's weather byte is 3 (Cloudy)" - docs/kingdom.md §9
-        // point 3, which is exactly what this override forces.
-        counties[id].weather = if advanced_farming { b } else { Weather::Cloudy };
+        counties[id].weather = b;
+        // `FUN_0046942C` first: last season's blight goes back to waste.
+        crate::field::clear_blight(&counties[id], map);
+        // Frost has already eaten Drought in Winter and Spring, so a field can
+        // only be parched in the two warm seasons.
+        if b == Weather::Drought {
+            if owner_is_human(counties[id].owner) {
+                messages.push(crate::report::Message::Drought { county: id as u8 });
+            }
+            crate::field::blight_one_field(&mut counties[id], map, crate::field::terrain::PARCHED);
+        }
+        if b == Weather::Flooding {
+            if owner_is_human(counties[id].owner) {
+                messages.push(crate::report::Message::Flooding { county: id as u8 });
+            }
+            crate::field::blight_one_field(&mut counties[id], map, crate::field::terrain::FLOODED);
+        }
+    }
+
+    // "and every county's weather byte is 3 (Cloudy)" - docs/kingdom.md §9
+    // point 3. A second loop, after the blight, because that is where the
+    // original's `if (g_optAdvancedFarming == 0)` sits.
+    if !advanced_farming {
+        for id in 1..=county_count {
+            counties[id].weather = Weather::Cloudy;
+        }
     }
 }
 
@@ -333,6 +373,123 @@ mod tests {
             c[id].dryness = dryness;
         }
         c
+    }
+
+    /// One county at `dryness`, owned by realm 1, with four fallow fields.
+    fn blightable(dryness: i32) -> (Vec<County>, crate::map::CampaignMap) {
+        let mut c = kingdom(1, dryness);
+        let mut map = crate::map::CampaignMap::empty();
+        for slot in 0..4 {
+            let tile = crate::map::index(slot as u8, 8);
+            c[1].set_field_tile(slot, Some(tile));
+            map.terrain[tile] = crate::field::terrain::FALLOW;
+        }
+        c[1].owner = 1;
+        (c, map)
+    }
+
+    /// A drought parches one field and tells the owner — `Msg_Enqueue(0x8F)`,
+    /// `L2.eng` group 143 *"Drought."*.
+    #[test]
+    fn a_drought_parches_one_field_and_posts_group_143() {
+        let (mut c, mut map) = blightable(DRYNESS_MAX);
+        let mut msgs = Vec::new();
+        // Summer, so the frost rewrite leaves the band alone.
+        update_all(
+            T,
+            &mut c,
+            1,
+            &mut map,
+            Season::Summer,
+            true,
+            &mut Pcg32::new(7, 1),
+            &mut 1,
+            &|owner| owner == 1,
+            &mut msgs,
+        );
+        assert_eq!(c[1].weather, Weather::Drought);
+        let parched = (0..4)
+            .filter(|&s| map.terrain[c[1].field_tile(s).unwrap()] == crate::field::terrain::PARCHED)
+            .count();
+        assert_eq!(parched, 1, "one field, not all four");
+        assert_eq!(msgs, vec![crate::report::Message::Drought { county: 1 }]);
+        assert_eq!(msgs[0].original_id(), Some(crate::report::MSG_DROUGHT));
+    }
+
+    /// …and a flood floods one, `Msg_Enqueue(0x90)`, group 144 *"Flooding."*.
+    #[test]
+    fn a_flood_floods_one_field_and_posts_group_144() {
+        let (mut c, mut map) = blightable(DRYNESS_MIN);
+        let mut msgs = Vec::new();
+        update_all(
+            T,
+            &mut c,
+            1,
+            &mut map,
+            Season::Summer,
+            true,
+            &mut Pcg32::new(7, 1),
+            &mut 1,
+            &|owner| owner == 1,
+            &mut msgs,
+        );
+        assert_eq!(c[1].weather, Weather::Flooding);
+        let flooded = (0..4)
+            .filter(|&s| map.terrain[c[1].field_tile(s).unwrap()] == crate::field::terrain::FLOODED)
+            .count();
+        assert_eq!(flooded, 1);
+        assert_eq!(msgs, vec![crate::report::Message::Flooding { county: 1 }]);
+        assert_eq!(msgs[0].original_id(), Some(crate::report::MSG_FLOODING));
+    }
+
+    /// **The *Advanced Farming* override is a second loop, after the blight.**
+    /// So the field is still ruined and the letter still sent in a game with
+    /// the option off; only the weather byte reads Cloudy.
+    #[test]
+    fn basic_farming_flattens_the_byte_and_still_ruins_the_field() {
+        let (mut c, mut map) = blightable(DRYNESS_MIN);
+        let mut msgs = Vec::new();
+        update_all(
+            T,
+            &mut c,
+            1,
+            &mut map,
+            Season::Summer,
+            false,
+            &mut Pcg32::new(7, 1),
+            &mut 1,
+            &|owner| owner == 1,
+            &mut msgs,
+        );
+        assert_eq!(c[1].weather, Weather::Cloudy);
+        assert_eq!(map.terrain[c[1].field_tile(1).unwrap()], crate::field::terrain::FLOODED);
+        assert_eq!(msgs.len(), 1);
+    }
+
+    /// The dryness rules below care about neither the map nor the letters: an
+    /// empty map has no field tiles, so the blight sweep finds nothing to
+    /// ruin, and no realm is human, so nothing is posted.
+    fn run(
+        t: &Tables,
+        counties: &mut [County],
+        n: usize,
+        season: Season,
+        advanced_farming: bool,
+        rng: &mut Pcg32,
+        previous: &mut usize,
+    ) {
+        update_all(
+            t,
+            counties,
+            n,
+            &mut crate::map::CampaignMap::empty(),
+            season,
+            advanced_farming,
+            rng,
+            previous,
+            &|_| false,
+            &mut Vec::new(),
+        );
     }
 
     #[test]
@@ -407,7 +564,7 @@ mod tests {
     fn basic_farming_forces_cloudy_everywhere_whatever_the_accumulator_says() {
         let mut rng = Pcg32::from_seed(1);
         let mut c = kingdom(14, 200);
-        update_all(T, &mut c, 14, Season::Winter, false, &mut rng, &mut 1);
+        run(T, &mut c, 14, Season::Winter, false, &mut rng, &mut 1);
         for id in 1..=14 {
             assert_eq!(c[id].weather, Weather::Cloudy, "county {id}");
         }
@@ -421,7 +578,7 @@ mod tests {
         let mut rng = Pcg32::from_seed(7);
         let mut c = kingdom(6, 50);
         // No adjacency, so only the chosen county diverges.
-        update_all(T, &mut c, 6, Season::Summer, true, &mut rng, &mut 1);
+        run(T, &mut c, 6, Season::Summer, true, &mut rng, &mut 1);
         let mut readings: Vec<i32> = (1..=6).map(|i| c[i].dryness).collect();
         readings.sort_unstable();
         readings.dedup();
@@ -456,7 +613,7 @@ mod tests {
         let local = local_modifier(1, Season::Summer);
         assert_eq!(local, 4, "counties 1..3 are climate band 0");
 
-        update_all(T, &mut c, 3, Season::Summer, true, &mut rng, &mut 1);
+        run(T, &mut c, 3, Season::Summer, true, &mut rng, &mut 1);
 
         let readings: Vec<i32> = (1..=3).map(|i| c[i].dryness).collect();
         let chosen = 20 + 2 * delta + local;
@@ -590,7 +747,7 @@ mod tests {
                 c[id].add_neighbour((id % 8 + 1) as u8);
             }
             for season in [Season::Spring, Season::Summer, Season::Autumn, Season::Winter] {
-                update_all(T, &mut c, 8, season, true, &mut rng, &mut 1);
+                run(T, &mut c, 8, season, true, &mut rng, &mut 1);
             }
             c
         };
@@ -604,7 +761,7 @@ mod tests {
         for n in [1usize, 5, 16] {
             let mut rng = Pcg32::from_seed(42);
             let mut c = kingdom(n, 50);
-            update_all(T, &mut c, n, Season::Summer, true, &mut rng, &mut 1);
+            run(T, &mut c, n, Season::Summer, true, &mut rng, &mut 1);
             let mut reference = Pcg32::from_seed(42);
             reference.advance(2);
             assert_eq!(rng, reference, "kingdom of {n} should have drawn twice");
@@ -616,7 +773,7 @@ mod tests {
         let mut rng = Pcg32::from_seed(5);
         let before = rng.clone();
         let mut c = kingdom(0, 0);
-        update_all(T, &mut c, 0, Season::Spring, true, &mut rng, &mut 1);
+        run(T, &mut c, 0, Season::Spring, true, &mut rng, &mut 1);
         assert_eq!(rng, before);
     }
 }

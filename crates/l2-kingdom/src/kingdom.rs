@@ -1,11 +1,11 @@
-//! The kingdom — the whole state, and the driver that walks
+//! The kingdom — the whole state
 //! [`SEASON_PIPELINE`] over it.
 //!
 //! `Season_Advance` (`0x00448440`) calls 29 functions in a fixed order, and
 //! `docs/kingdom.md` §3.4 is explicit that **the order is the rule**. So the
 //! driver here is a loop over an array:
 //! [`Kingdom::advance_season`] walks [`SEASON_PIPELINE`] and records what it
-//! ran, and the ordering assertions live in tests
+//! ran
 //! head.
 //!
 //! # The clock
@@ -108,7 +108,7 @@ pub struct Options {
     ///   [`save::checksum`] is `Canonical::hash_of(kingdom)`. That is exactly
     ///   where something that changes what the simulation computes belongs: two
     ///   peers whose quirk sets differ disagree at the first tick a quirk
-    /// touches, and the desync detector names the `options` section.
+    /// touches
     ///
 /// Sound, animations and the scroll
     /// speed are — they live in `l2_game::prefs`, are never encoded here and
@@ -129,9 +129,9 @@ impl Default for Options {
             fight_humans_only_byte: crate::battle::FIGHT_HUMANS_ONLY_DEFAULT,
             exploration: false,
             time_limit: 0,
-            // **Faithful by default**, and the argument is `docs/bugs.md` §6.5's:
+            // **Faithful by default**
             // the original is the oracle, the bugs are load-bearing on a balance
-            // nobody has measured, and the default becomes the value the whole
+            // nobody has measured
             // corpus of saves and replays is recorded under. It is also the
             // integer zero, so this line costs nothing.
             quirks: l2_net::Quirks::FAITHFUL,
@@ -185,7 +185,7 @@ pub struct Kingdom {
     /// dropped it would keep the economy and lose the war. See [`Campaign`].
     pub campaign: Campaign,
     /// **The diplomatic state that does not live in a realm record** — the
-    /// five-slot inbox per realm, the outstanding pay-for-help price, and the
+    /// five-slot inbox per realm, the outstanding pay-for-help price
     /// dice the three bargaining replies roll.
     ///
     /// It is inside the kingdom for the reason [`Campaign`] is: two lockstep
@@ -217,7 +217,7 @@ pub struct Kingdom {
 /// block, so the whole structure is confirmed by the save layout
 /// only by the code.
 ///
-/// Once the ring is full the head keeps advancing and the tail follows it, so a
+/// Once the ring is full the head keeps advancing and the tail follows it
 /// game longer than 400 seasons — a hundred years — silently forgets its
 /// beginning.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -284,7 +284,7 @@ impl History {
                 population: county.population,
                 // The original stores a signed byte. Happiness is clamped
                 // 0..=100 by `Happiness_UpdateAll`, so the narrowing is safe
-// here, but it is done so a caller cannot
+// here
                 // come to depend on a range the original does not have.
                 happiness: county.happiness as i8,
             };
@@ -330,7 +330,7 @@ impl History {
 /// The campaign-map half of the state — `docs/armies.md`.
 ///
 /// Four things that only make sense together: the unit array, the map they
-/// stand on, the mercenary bands walking it, and the per-realm army-name
+/// stand on, the mercenary bands walking it
 /// counters. They are one struct because every rule in [`crate::movement`],
 /// [`crate::levy`] and [`crate::conquest`] needs two or three of them at once,
 /// and because grouping them keeps [`Kingdom`] readable as *economy plus war*
@@ -494,7 +494,7 @@ impl Kingdom {
     /// the season's refresh, and this shows the new one at once.
     ///
     /// The original skips a county with owner 0; this asks for a match on
-    /// `realm`, and realm 0 is not a realm.
+    /// `realm`
     pub fn tax_expected(&self, realm: u8) -> i32 {
         if realm == 0 {
             return 0;
@@ -523,7 +523,7 @@ impl Kingdom {
         Season::from_index(self.season)
     }
 
-    /// Whether a realm index is a person. Realm 0 is not a realm, so an
+    /// Whether a realm index is a person. Realm 0 is not a realm
     /// unowned county's "owner" is never human.
     pub fn owner_is_human(&self, owner: u8) -> bool {
         owner != 0 && (owner as usize) < MAX_REALMS && self.realms[owner as usize].is_human
@@ -578,7 +578,7 @@ impl Kingdom {
             }
             Pass::Clock => self.clock(),
             Pass::EventRoll => self.event_roll(report),
-            Pass::Weather => self.weather(),
+            Pass::Weather => self.weather(report),
             Pass::TaxCollect => self.tax_collect(),
             Pass::WagesPay => self.wages_pay(report),
             Pass::RationApply => self.ration_apply(false),
@@ -668,16 +668,28 @@ impl Kingdom {
         }
     }
 
-    fn weather(&mut self) {
+    fn weather(&mut self, report: &mut SeasonReport) {
         let Some(season) = self.season() else { return };
+        // `Msg_Enqueue`'s own filter is `to == 0 || to == g_localPlayer`; this
+        // crate has no local player and every other rule asks the same
+        // question of the realm record instead.
+        let humans: [bool; MAX_REALMS] = core::array::from_fn(|i| self.realms[i].is_human);
+        let owner_is_human =
+            move |owner: u8| owner != 0 && (owner as usize) < MAX_REALMS && humans[owner as usize];
+        let advanced_farming = self.options.advanced_farming;
+        let county_count = self.county_count;
+        let Kingdom { tables, counties, campaign, rng, weather_county, .. } = self;
         weather::update_all(
-            &self.tables,
-            &mut self.counties,
-            self.county_count,
+            tables,
+            counties,
+            county_count,
+            &mut campaign.map,
             season,
-            self.options.advanced_farming,
-            &mut self.rng,
-            &mut self.weather_county,
+            advanced_farming,
+            rng,
+            weather_county,
+            &owner_is_human,
+            &mut report.messages,
         );
     }
 
@@ -877,7 +889,7 @@ impl Kingdom {
     fn field_reclaim(&mut self) {
         for id in 1..=self.county_count {
             land::reclaim_fields(&self.tables, &mut self.counties[id], &mut self.campaign.map);
-            // The estimate is the pass's own tail call, and the tick has just
+            // The estimate is the pass's own tail call
             // moved every input it has.
             self.counties[id].labour_wanted[crate::tables::JOB_FIELD_RECLAMATION] =
                 crate::county::LABOUR_NO_FLOOR;
@@ -1059,7 +1071,7 @@ impl Kingdom {
     /// before anything is drawn. Folding the passes together would move
     /// `l2_game::save`'s pass indices.
     ///
-    /// **Not here, as C136 says:** the estimate's efficiency write-back and the
+    /// **Not here
     /// `capacity = workers` writes.
     fn industry(&mut self, commodity: Commodity) {
         let shares: [industry::WeaponShare; MAX_REALMS] = core::array::from_fn(|realm| {
@@ -1091,7 +1103,7 @@ impl Kingdom {
                 );
             }
             // …but it is still estimated: `Industry_ProduceAll` has no owner
-            // test, and the estimate's own is what zeroes a neutral county.
+            // test
             let realm = realms.get(owner).unwrap_or(&neutral);
             for &c in estimated {
                 industry::refresh(tables, &mut counties[id], c, realm, shares[owner], advanced);
@@ -1126,9 +1138,9 @@ impl Kingdom {
 
     /// `Castle_BuildTick` (`0x004508DE`) over every county, plus the two things
     /// it does that [`industry::build_tick`] cannot reach: the free garrison a
-    /// finished castle comes with, and the tile the castle is drawn on.
+    /// finished castle comes with
     fn castle_build_tick(&mut self, report: &mut SeasonReport) {
-        // **`Castle_BuildTick`'s first loop, and the sixth score input.**
+        // **`Castle_BuildTick`'s first loop
         // `for (r = 1; r < 6; r++) { realm[r][0x4C] = 0; realm[r][0x4D] = 0; }`
         // — realms 1..=5 only, so realm 0's counters are cleared by
         // `Game_SetupRealmsAndCounties` and never again.
@@ -1338,7 +1350,7 @@ impl Kingdom {
 
     /// **Switch one industry, or castle building, on or off.**
     /// `Industry_ToggleFromMap` (`0x0043D309`) assembled — the enable byte, the
-    /// industry share, and the allocation the original runs afterwards.
+    /// industry share
     ///
     /// Like [`Kingdom::paint_field`] this is only reachable from a click on the
     /// map, because in the original it is only reachable from a click on the
@@ -1359,7 +1371,7 @@ impl Kingdom {
     /// [`crate::industry::toggle_from_map`] does the flip and the share toggle
     /// together, so the first two refreshes are one here: an estimate reads no
     /// labour share, and it is idempotent while the efficiency write-back is
-    /// not ported (C136), so a refresh on either side of the share toggle is the
+    /// not ported (C136)
     /// same refresh. **The last line was missing, and it is a visible one.**
     /// The Readme: *"turning a blacksmith on will reduce the resources
     /// available to other blacksmiths"* — every other smithy of the realm has
@@ -1470,7 +1482,7 @@ impl Kingdom {
     }
 
     /// **`FUN_0043A997(county, weaponType)` (`0x0043A997`) — what the blacksmith
-    /// page's six hotspots do**, and the one thing a player could not tell this
+    /// page's six hotspots do**
     /// simulation: *"I can't choose what type of weapon my blacksmiths are
     /// making."*
     ///
@@ -1512,7 +1524,7 @@ impl Kingdom {
     /// Returns `false` for a county out of range or a weapon out of
     /// [`crate::tables::WEAPON_TYPE_COUNT`], and does nothing in that case. The
     /// original indexes `g_weaponCost` with the byte unchecked; the hotspot
-    /// table can only ever publish 0…5, so
+    /// table can only ever publish 0…5
     /// screen and is here because this is a public method.
     pub fn set_weapon_type(&mut self, county: usize, weapon: usize) -> bool {
         if county == 0 || county > self.county_count || self.counties.len() <= county {
@@ -1564,7 +1576,7 @@ impl Kingdom {
     /// FUN_00448648(owner);
     /// ```
     ///
-    /// allocator deals a county out from its shares, and the season runs it
+    /// allocator deals a county out from its shares
     /// twice; `Labour_RecomputeShares` rewrites the shares from where people
     /// now stand, so the season deals the player's own split back to him. Ours
     /// moved the counts and nothing else, so every drag lasted until the
@@ -1615,12 +1627,12 @@ impl Kingdom {
     /// if (to == 3) castleSwitch = 1;
     /// ```
     ///
-    /// **Putting men on a site is how a player switches it on**, and the only
+    /// **Putting men on a site is how a player switches it on**
     /// way besides the map. A new game opens with one industry on per start
     /// county — the first of wood, iron and stone it has, so never the mine in
     /// a county that also has a forest (`Game_SetupRealmsAndCounties`,
     /// `0x0049BD99`) — and without this a player who staffed that mine saw his
-    /// men drawn as idle, no iron row on the sidebar, and the season send them
+    /// men drawn as idle, no iron row on the sidebar
     /// home. `docs/decisions.md` C121 found it; nothing had built it. The share
     /// is not toggled here: `Labour_RecomputeShares` writes it from the workers.
     fn switch_on_by_drop(&mut self, county: usize, to: usize) {
@@ -1703,7 +1715,7 @@ impl Kingdom {
     /// on the reasoning that a control which moves the labour must re-allocate,
     /// which is true and is not the same as running the same pair twice. The
     /// omitted `Ration_Apply` is the one that matters: `herd_eaten` sizes the
-    /// herd the estimate that follows searches over, and the forecast subtracts
+    /// herd the estimate that follows searches over
     /// it twice. Two passes and a bare `Ration_SetSplit` is a different
     /// control — see [`set_ration_wanted`](Self::set_ration_wanted), which
     /// explains why that asymmetry is deliberate and must not be tidied.
@@ -1754,7 +1766,7 @@ impl Kingdom {
     /// ```
     ///
     /// **One pass each, where `Ration_SetSplit` runs two. Do not tidy this into
-    /// symmetry.** It is the original's asymmetry, it is deliberate, and the
+    /// symmetry.** It is the original's asymmetry, it is deliberate
     /// reason is legible: the split's search walks the value up to a hundred
     /// times and can leave the county's labour describing a split it then
     /// walked away from, so that control re-runs the pair to settle it. A level
@@ -1804,7 +1816,7 @@ impl Kingdom {
     ///
     /// The switch changes who a county feeds — [`crate::ration::people_to_feed`]
     /// adds the armies standing in it — so the original re-runs the ration
-    /// pass and the forecasts over every county *on the flip*, and the ration
+    /// pass and the forecasts over every county *on the flip*
     /// panel is right the moment the options panel closes. Ours flipped the
     /// flag and left every county's ration fields describing the old rule until
     /// the next season. `Ration_Apply` is [`crate::ration::preview`] here for the
@@ -1924,7 +1936,7 @@ impl Kingdom {
     ///
     /// **`Ration_Apply` does not spend.** It writes `rationAchieved`,
     /// `herdEaten`, `grainEaten`, the two `available` fields and the happiness
-    /// delta, and the store is debited by the season. So
+    /// delta
     /// to a hundred times is [`crate::ration::preview`] and **not**
     /// [`crate::ration::apply`], whose name matches the original's and whose
     /// behaviour does not — reaching for the same-named function would have had
@@ -1977,7 +1989,7 @@ impl Kingdom {
                 if self.counties[county].herd_eaten != was {
                     break;
                 }
-                // The `do … while` condition, and the whole of the difference
+                // The `do … while` condition
                 // between the two gestures.
                 if self.counties[county].ration_split == split && sweep {
                     self.counties[county].ration_split = old;
@@ -2080,7 +2092,7 @@ impl Kingdom {
     /// to feed itself.
     ///
     /// [`Kingdom::run_neutral_farms`] takes any [`crate::ai_farm::Market`] and
-    /// stays the seam; this is the one call that supplies the real one, built
+    /// stays the seam; this is the one call that supplies the real one
     /// from `County::merchant_count` / `merchant_unit` and the unit array
 /// as `Ai_BuyGood` reads them. Returns the number of fields
     /// ordered, as [`Kingdom::run_neutral_farms`] does.
@@ -2121,7 +2133,7 @@ impl Kingdom {
     /// The stall needs the realm array mutably, to test and debit the treasury
     /// and book the spend; the pass needs it immutably, because
     /// `County_RefreshEstimates` reads the owner's record for the blacksmith's
-    /// ceiling. The pass is handed a copy taken before it starts, and the copy
+    /// ceiling. The pass is handed a copy taken before it starts
 /// is **exact**: a grain or cattle purchase
     /// writes `gold`, `trade_spent_a` and `trade_spent_b` and nothing else on
     /// the realm, and no estimate reads any of the three (`crate::field` and
@@ -2234,7 +2246,7 @@ impl Kingdom {
             }
             crate::labour::allocate(&mut self.counties[id]);
             // The blacksmith's ceiling is a share of the realm's stockpile
-            // split across every *staffed* smithy it owns, and the allocation
+            // split across every *staffed* smithy it owns
             // on the line above is what staffs them — so the share is
 // recomputed per county, inside the loop, as
             // `crate::field::set_type` recomputes it inside its own.
@@ -2301,7 +2313,7 @@ impl Kingdom {
     }
 
     /// `Diplo_Post` — a person's letter into an AI's inbox. The player's whole
-    /// outgoing side in single player, and the seam multiplayer would replace.
+    /// outgoing side in single player
     pub fn post_letter(
         &mut self,
         from: u8,
@@ -2618,7 +2630,7 @@ mod tests {
 
     // --- the history ring --------------------------------------------------
 
-    /// The ring's shape, and the arithmetic that pins it: save block 10 is
+    /// The ring's shape
     /// 51,200 bytes, and `400 * 16 * 8` is 51,200.
     #[test]
     fn the_history_ring_is_four_hundred_seasons_of_sixteen_counties() {
@@ -2758,15 +2770,15 @@ mod tests {
         // the second and fourth assertions fail with 0.
     }
 
-    /// **The *Other counties* line really is stuck, and the panel is right.**
+    /// **The *Other counties* line really is stuck
     ///
-    /// `taxHapOther` is `g_taxHappinessOther[rate]`, a table, and the table is
+    /// `taxHapOther` is `g_taxHappinessOther[rate]`, a table
     /// flat zero from 0 to 19. Every county in every fixture sits at rate 0 and
     /// the highest an AI reaches in a hundred turns is 12, so **most of this
     /// mechanic is human-only and no run of ours exercises it** —
     /// `docs/decisions.md` C26.
     ///
-    /// This is the half of the player's report that is not a defect, and it is
+    /// This is the half of the player's report that is not a defect
     /// asserted so that nobody "fixes" it later.
     #[test]
     fn the_empire_tax_happiness_term_is_flat_until_the_rate_reaches_twenty() {
@@ -2923,7 +2935,7 @@ mod tests {
     /// a slider whose effect is invisible is what a player reported as *"moves
     /// but is inoperable"*.
     ///
-    /// The old test asserted `ration_split == 37` and passed, and the slider was
+    /// The old test asserted `ration_split == 37` and passed
     /// broken the whole time: it was checking the field the gesture writes, and
     /// the defect was the absence of everything after the write.
     #[test]
@@ -3023,7 +3035,7 @@ mod tests {
     }
 
 
-    /// The search is bounded, and the bound is the original's hundred steps.
+    /// The search is bounded
     /// Nothing here may loop for ever on a county whose herd never moves.
     #[test]
     fn the_search_terminates_on_a_county_whose_herd_never_changes() {

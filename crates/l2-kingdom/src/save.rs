@@ -74,7 +74,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// * 1 — the first layout.
 /// * 2 — the county grew four herd fields (`docs/kingdom.md` §13), and the
 /// ruleset fingerprint grew the tax-happiness table, the herd table and the
-/// cattle-farming job slot. Both halves of the file moved, so a version 1
+/// cattle-farming job slot. Both halves of the file moved,
 ///   save is refused.
 /// * 3 — the **campaign layer** (`docs/armies.md`): the 151-slot unit array,
 /// the map's three tile planes, the twelve mercenary bands and the realms'
@@ -106,7 +106,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// * 7 — **the grain year got a memory**: `fields_grain_sown` (county `+0x202`)
 ///   and `sow_shortfall` (`+0x1A7`). `Grain_Grow` and `Grain_Harvest` scale the
 ///   standing crop by the grain fields still standing *against the fields that
-/// were sown*, so a save that dropped the second number would resume a
+/// were sown*,
 ///   half-grown crop with no basis to measure it against. A version 5 save has
 ///   both missing, and defaulting `fields_grain_sown` to 0 would silently mean
 ///   "no fields were sown" — it is a different game.
@@ -136,9 +136,9 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// * 9 — **the AI's farming style and its weapon rota**: county `farm_style`
 ///   (`+0x1FE`) and realm `weapon_rota` (`+0x6C`). Neither is derivable from the
 ///   rest of the file. An *unowned* county's style is whichever lord held it
-/// last and `AI_ManageFields(0)` only reads it, so a save without it cannot
+/// last and `AI_ManageFields(0)` only reads it,
 /// say how a county that has changed hands should be farmed; and AI step 12
-/// advances the rota cursor once per county, so a game reloaded without it
+/// advances the rota cursor once per county,
 ///   restarts every AI's weapon programme from the top. See
 ///   [`crate::ai_farm`].
 ///
@@ -281,7 +281,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   Every one of them is a *standing order that persists between turns*, which
 ///   is exactly what a save is for. `mission` is the sharpest: it is the byte
-/// AI step 11 dispatches on, so a save that dropped it would reload every AI
+/// AI step 11 dispatches on,
 ///   army as an attacker — **including the garrisons**, which would then
 ///   discover their county was still theirs, do nothing, and be marched out of
 ///   their castles the first time anything took one. The realm fields are
@@ -327,7 +327,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   **They are state, not a report.** A besieger thrown off a half-wrecked
 ///   castle comes back to a half-wrecked castle, and a save that dropped them
 ///   would quietly rebuild the walls over a load. Two of the six also carry the
-/// repair the county is *already* paying for, so a version 14 save reloaded
+/// repair the county is *already* paying for,
 ///   with them defaulted would show a castle mid-repair with no reason for it.
 ///
 ///   **Refusal**, on the standing reasoning — and here the
@@ -346,12 +346,12 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   The eleven fields entry 11 added are a realm's *opinions*; these are the
 ///   letters in flight. `Diplo_Post` moves a gift's gold the moment it is
-/// posted and the reply arrives a turn later, so a save taken between the two
+/// posted and the reply arrives a turn later,
 ///   that dropped the slot would take the money and never answer — and a
 ///   pay-for-help prompt reloaded without its price would ask for nothing.
 ///
 ///   **Refusal**, and here for a reason none of the earlier
-/// entries had: the pair block *is* carried by a version 14 save, so a
+/// entries had: the pair block *is* carried by a version 14 save,
 ///   defaulted inbox would produce a kingdom that looks entirely coherent — the
 ///   standings, alliances and grudges all present and correct — with the mail
 ///   silently thrown away. A wrong load that looks right is the one to refuse.
@@ -422,7 +422,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   produced next season"*.
 ///
 ///   Carried for entry 16's own reason and no stronger
-/// one: nothing re-runs the estimate round on load, so a zeroed forecast is a
+/// one: nothing re-runs the estimate round on load,
 ///   blank row a player would see. `docs/decisions.md`
 ///   C136.
 ///
@@ -480,7 +480,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   [`crate::phase::Pass::AiManageFarms`] is `Season_Advance`'s first call and
 ///   went in at position 0 of `SEASON_PIPELINE`, which shifts every index
 ///   `l2_game::save` writes a season report's pass list as. `l2_game::save`
-/// decodes this body **before** its own prefix, so a version 19 game file is
+/// decodes this body **before** its own prefix,
 ///   refused by this check before a shifted index is ever read.
 ///
 ///   **Refusal**: a version 19 save was written by a build
@@ -501,7 +501,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   season, and `Msg_DrawWindow` prints it in *Plague* and *Wedding fever*'s
 ///   letters before *"extra deaths."* / *"extra births."* It is the one output
 ///   of that pass nothing else re-derives: the percentage it came from is
-/// cleared inside the same season, so a defaulted load cannot reconstruct it.
+/// cleared inside the same season,
 ///   Carried for entry 16's reason — it feeds no
 ///   rule. `docs/decisions.md` C169.
 ///
@@ -574,7 +574,22 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 26 with `VERSION` at 25 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
-pub const VERSION: u32 = 26;
+///
+/// * 27 — **the two field cursors**, [`crate::county::County::pasture_cursor`]
+///   (`+0x15A`) and [`crate::county::County::blight_cursor`] (`+0x15B`): one
+///   byte each a county over 17 slots, **+34**.
+///
+///   `County_EnsurePasture`'s two sweeps share the first and
+///   `Weather_UpdateAll`'s blight walks the second. Both advance before they
+///   read, so the cursor decides *which* field a cattle purchase eats and which
+///   one a flood ruins.
+///
+///   **Refusal**, under entry 16's rule: a defaulted load feeds the simulation.
+///   Two saves of the same position would blight different fields.
+///
+///   *Written as 27 with `VERSION` at 26 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 27;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1090,7 +1105,7 @@ impl Encode for crate::unit::Unit {
         out.u8(self.besieged_by);
         out.u8(self.cargo_county);
         // The mission byte and its county (`VERSION` 14). `+0x1A` is what AI
-        // step 11 dispatches on, so a save that dropped it would reload every
+        // step 11 dispatches on,
         // army as an attacker � including the garrisons, which would then
         // walk out of their castles.
         out.u8(self.mission);
@@ -1306,6 +1321,9 @@ impl Encode for County {
         for tile in &self.field_tiles {
             out.u16(*tile);
         }
+        // The two round-robin field cursors, `VERSION` 27.
+        out.u8(self.pasture_cursor);
+        out.u8(self.blight_cursor);
         out.i32(self.fields_fallow);
         out.i32(self.fields_cattle);
         out.i32(self.fields_grain);
@@ -1460,6 +1478,8 @@ impl Decode for County {
         for slot in 0..c.field_tiles.len() {
             c.field_tiles[slot] = input.u16()?;
         }
+        c.pasture_cursor = input.u8()?;
+        c.blight_cursor = input.u8()?;
         c.fields_fallow = input.i32()?;
         c.fields_cattle = input.i32()?;
         c.fields_grain = input.i32()?;

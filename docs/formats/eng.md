@@ -757,8 +757,8 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 140 | 2 | `Bad cattle stock` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
 | 141 | 2 | `Cow bonanza!!` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
 | 142 | 2 | `Wedding fever.` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
-| 143 | 2 | `Drought.` | Weather event: drought. | `Weather_UpdateAll` [D] |
-| 144 | 2 | `Flooding.` | Weather event: flooding. | `Weather_UpdateAll` [D] |
+| 143 | 2 | `Drought.` | Weather event: drought. | `Weather_UpdateAll` `Msg_Enqueue(0x8F)` [V] |
+| 144 | 2 | `Flooding.` | Weather event: flooding. | `Weather_UpdateAll` `Msg_Enqueue(0x90)` [V] |
 | 145 | 2 | `Cannot disband army` | Refusal: army must disband in its county of origin. | `Panel_DisbandButton` [D] |
 | 146 | 2 | `Uncertain times.` | Unrest level 0 warning. | `Unrest_UpdateAll` [D] |
 | 147 | 2 | `Cannot alter castle.` | Refusal: castle already of the proposed type. | `Msg_Enqueue` <- `FUN_00436b59` [D] |
