@@ -7,7 +7,7 @@
 //! layer had no way in — `docs/decisions.md` C27's shape
 //! [`l2_kingdom::County::castle_degraded`] had no reachable writer.
 //!
-//! # The five buttons and the OK
+//! # The five buttons and the OK, from the widget tables
 //!
 //! Two tables, and neither had been decoded:
 //!
@@ -99,7 +99,7 @@
 //! bailey, blits **no big picture at all** and the backdrop shows through. The
 //! shipped `Caspics.pl8` is 256,072 bytes, which is 72 of header and
 //! `4 x 320 x 200` exactly — four rasters for four used slots, so the table and
-//! the file close on each other and the gap is the original's
+//! the file close on each other and the gap is the original's, not a misread.
 //!
 //! # The five strips are hit rectangles over painted artwork
 //!
@@ -110,7 +110,7 @@
 //! positions — and, when a castle already stands, frame `0x0C` at
 //! [`STANDING_MARK_X`]`[type] - 10`.
 //!
-//! # The OK button's two refusals
+//! # The OK button's two refusals, and the one it does not have
 //!
 //! `CastleBuild_Confirm` (`0x00436B59`) has exactly two guards, both of which
 //! close the screen with a message:
@@ -171,7 +171,7 @@ pub const BOOSTS_TAX: usize = 0x10;
 /// *"Builder"* / *"Builders"*. **[V]** against the words.
 pub const BUILDER_NOUN: usize = 0x26;
 /// `Ui_DrawCount(1, 0x42, …)` — group 8 `0x42`/`0x43`, *"Season"* /
-/// *"Seasons"*
+/// *"Seasons"*, and the value is the **literal 1**: every castle takes one
 /// season regardless of type, which is a rule stated only by this draw call.
 pub const SEASON_NOUN: usize = 0x42;
 
@@ -223,7 +223,7 @@ pub const WOOD_NUM_Y: i32 = 0x80;
 /// `cas_bits.pl8` frame `0x0C` — *the castle you already have*, drawn over its
 /// strip only when one stands.
 pub const STANDING_MARK: usize = 0x0C;
-/// `DAT_004D2E64`, indexed by the **standing castle type** 1…5
+/// `DAT_004D2E64`, indexed by the **standing castle type** 1…5, and the painter
 /// subtracts ten from it. Slot 0 is never read: `castleType == 0` skips the
 /// draw.
 pub const STANDING_MARK_X: [i32; 6] = [0, 52, 153, 253, 370, 538];
@@ -297,7 +297,7 @@ pub const CANCEL: Rect = Rect::new(472, 444, 32, 32);
 /// pressed picture and played no click — the yes/no box's defect, a second
 /// time, on a screen that
 ///
-/// Each `arm!` is the marker and the kind. Index 0 is hotspot 1
+/// Each `arm!` is the marker and the kind. Index 0 is hotspot 1, index 1
 /// hotspot 0.
 fn widgets() -> [Widget; 2] {
     [
@@ -416,7 +416,7 @@ impl CastleScreen {
         let l2_kingdom::Kingdom { counties, realms, campaign, .. } = &mut ctx.game.kingdom;
         let Some(realm) = realms.get_mut(owner) else { return Transition::Pop };
         industry::order_castle(&t, &mut counties[self.county as usize], realm, want);
-        // `Castle_Order` stamps the map in the same breath
+        // `Castle_Order` stamps the map in the same breath, and the scaffolding
         // is an obstacle from that moment: the plot stops being walkable and
         // starts being a castle. See [`l2_kingdom::map::stamp_castle_terrain`].
         l2_kingdom::map::stamp_castle_terrain(&mut campaign.map, self.county, want);
@@ -466,7 +466,7 @@ impl Screen for CastleScreen {
     /// film has gone, and an order is the one choice that leaves it up.
     ///
     /// Until then it is `Widget_Test`'s countdown over `g_castleBuildWidgets`:
-    /// the thumb's handler runs on its twentieth frame
+    /// the thumb's handler runs on its twentieth frame, and the order — and so
 /// the film — begins there.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         if let CastleChoice::Ordered(_) = self.choice {
@@ -518,7 +518,7 @@ impl Screen for CastleScreen {
             // **And it is the release, not the press.** `Ui_OkButtonClicked`
             // (`0x0040E7E4`) opens `if (g_mouseLeftReleased == 0) return 0;`.
             // The marker below said `left-release` from the day it was written
-            // and the code beneath it read `Event::Click`
+            // and the code beneath it read `Event::Click`.
             // drift `docs/arms.json`'s gesture field exists to catch and could
             // not here: this arm is dispatched from `Screen_FrameInput`'s own
             // ladder, so it has no kind byte for the third check to read
@@ -548,6 +548,25 @@ impl Screen for CastleScreen {
                 for level in 0..5 {
                     if type_rect(level).contains(x, y) {
                         self.select(level);
+                        // **The picture says its own name.**
+                        // `CastleBuild_Select` (`0x00436B22`) ends
+                        // `FUN_004B3940(g_uiHotspotId)`, which is
+                        // `Sound_PlayFile(&S071_02 + hotspot * 0x10, 1, 0)` —
+                        // the same five files the information panel's tile
+                        // branch speaks, indexed by the button
+                        // `castleType - 1`.
+                        //
+                        // Reported: the selection is this
+                        // screen's own field and gone by the next tick, so
+                        // there is nothing for `Director::listen` to diff
+                        // (`docs/netcode.md` D-3, and `Game::spoken` is the
+                        // channel six other sites already use). Bare
+                        // `Sound_PlayFile(name, 1, 0)`, so it is dropped over
+                        // anything still sounding.
+                        // sfx: FUN_004b3940#1
+                        if let Some(&line) = crate::audio::names::speech::PICKED_CASTLE.get(level) {
+                            ctx.game.spoken = (ctx.game.spoken.0.wrapping_add(1), line);
+                        }
                         break;
                     }
                 }
@@ -561,7 +580,7 @@ impl Screen for CastleScreen {
     /// `Screen_CastleBuildPanel`, in the original's order, at the original's
     /// coordinate, through the original's fonts and sheets. Nothing on this
     /// screen is a caption of ours: the words it shows are `L2.eng` group 71
-    /// and the pictures are `cas_back.pl8`
+    /// and the pictures are `cas_back.pl8`, `caspics.pl8` and `cas_bits.pl8`.
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let a = &ctx.assets.shell;
         let ink = &ctx.assets.ink;
@@ -596,7 +615,7 @@ impl Screen for CastleScreen {
             }
         }
 
-        // The two `cas_bits.pl8` plates: the name plate at (19
+        // The two `cas_bits.pl8` plates: the name plate at (19, 63) and the
         // mark over the chosen strip.
         let bits = |canvas: &mut Canvas, frame: usize, x: i32, y: i32| {
             if let Some(f) = a.sheet(BITS).and_then(|s| s.frame(frame)) {
@@ -644,12 +663,12 @@ impl Screen for CastleScreen {
         pen.eng(canvas, GROUP, TO_BUILD, TO_BUILD_AT.0, TO_BUILD_AT.1, font::TEXT);
 
         // `Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)` — border **set 0**, unlike the
-        // court's and the trade panel's `FUN_004093E0`
+        // court's and the trade panel's `FUN_004093E0`.
         pen.window(canvas, TAX_PLAQUE.0, TAX_PLAQUE.1, TAX_PLAQUE.2, TAX_PLAQUE.3, 0);
         let bonus = t.castle.tax_bonus_pct[level.min(t.castle.tax_bonus_pct.len() - 1)];
         let x = pen.eng(canvas, GROUP, BOOSTS_TAX, BOOSTS_TAX_AT.0, BOOSTS_TAX_AT.1, font::TEXT);
         // `Ui_DrawNumber(bonus, ' ', " %", …)` — a leading space, not the blank
-// glyph
+// glyph, and the per-cent sign is the suffix.
         pen.body(canvas, x, BOOSTS_TAX_AT.1, &format!(" {bonus} %"), font::TEXT);
         pen.eng(canvas, GROUP, START_CONSTRUCTION, START_AT.0, START_AT.1, font::TEXT);
 
@@ -693,7 +712,7 @@ impl Screen for CastleScreen {
         // The five strips are `cas_back.pl8`'s pixels and `Hotspot_Test`'s
         // rectangles; nothing paints them. With no install there is nothing at
         // all in the row, so this names the five so the screen can be used —
-        // and it is **our** font
+        // and it is **our** font, deliberately
         if !have_backdrop {
             for strip in 0..5usize {
                 let r = type_rect(strip);
@@ -777,21 +796,21 @@ mod tests {
     fn the_two_mark_tables_land_inside_the_five_strips() {
         let strips: [(i32, i32); 5] = [(17, 95), (96, 209), (210, 290), (291, 414), (415, 618)];
         for (i, &(x0, x1)) in strips.iter().enumerate() {
-            // …and the pinned copy is the table's
+            // …and the pinned copy is the table's, so ablating TYPE_BOUNDS
 // reddens this too.
             assert_eq!((TYPE_BOUNDS[i].0, TYPE_BOUNDS[i].2), (x0, x1), "strip {i}");
             let (_, mx, my) = SELECTED_MARK[i];
             assert!((x0..=x1).contains(&mx), "selection mark {i} at x {mx} is not in {x0}..{x1}");
             assert!((270..=415).contains(&my), "selection mark {i} at y {my} is off the row");
             // The standing mark is indexed by castle **type**, so strip i is
-            // type i + 1
+            // type i + 1, and the painter subtracts ten before drawing.
             let sx = STANDING_MARK_X[i + 1] + STANDING_MARK_DX;
             assert!((x0..=x1).contains(&sx), "standing mark {i} at x {sx} is not in {x0}..{x1}");
         }
         assert_eq!(STANDING_MARK_X[0], 0, "slot 0 is never read: castleType 0 skips the draw");
     }
 
-    /// **`caspics.pl8` has four big pictures for five castles**
+    /// **`caspics.pl8` has four big pictures for five castles**, and the file
     /// says so independently of the table: 256,072 bytes is 72 of header plus
     /// `4 * 320 * 200`, and [`PICTURE`] is 320 × 200.
     #[test]

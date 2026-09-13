@@ -193,7 +193,7 @@ fn the_front_end_is_its_own_scene_on_all_thirteen_of_its_pages() {
         let m = Machine::new(ScreenId::Setup(page));
         assert_eq!(audio::scene(&m, &game), Scene::FrontEnd, "{page:?}");
     }
-    // And the index, which is ours and is pushed from the title by `I`.
+    // And the index, and is pushed from the title by `I`.
     let mut m = Machine::new(APP_ROOT);
     m.push(ScreenId::Index);
     assert_eq!(audio::scene(&m, &game), Scene::FrontEnd, "the index over the title");
@@ -545,7 +545,7 @@ fn the_industry_toggle_groups_all_have_a_voice_that_ships() {
 ///
 /// 771 files ship. The number that matters is how many of them any code path
 /// can reach, and it was **0** until the fix in `docs/decisions.md`
-/// C116. Nobody had ever quoted it, and the first time it *was* quoted
+/// C116.
 /// — in three documents, by typing — it was wrong: `battle5.wav` is in the
 /// table, ships, decodes, and **cannot be reached**, because the counter that
 /// selects it is `DAT_0057A0F0`, the third battle mode `BattleKind` does not
@@ -1005,6 +1005,150 @@ fn the_field_brush_sounds_what_it_paints() {
     }
 }
 
+/// **The castle chooser's five pictures say their own names** —
+/// `CastleBuild_Select` (`0x00436B22`), whose last statement is
+/// `FUN_004B3940(g_uiHotspotId)`: `S071_02.wav + hotspot * 0x10`.
+///
+/// The selection is the screen's own field, so the screen reports the line on
+/// `Game::spoken` and `Director::listen` plays it — the channel six other
+/// screen-local `Sound_PlayFile` sites already use.
+///
+/// **Ablations, run:** delete the `ctx.game.spoken = …` in `castle.rs`'s click
+/// arm and every level goes silent; index `PICKED_CASTLE` by anything but the
+/// hotspot and the wrong file is asserted against.
+#[test]
+fn picking_a_castle_picture_speaks_that_castles_name() {
+    use l2_game::screens::castle;
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no S071 lines");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+
+    for level in 0..5usize {
+        let mut audio = Audio::headless(&platform.vfs);
+        let mut director = audio::Director::new();
+        let mut game = world();
+        let mut machine = Machine::new(APP_ROOT);
+        machine.push(ScreenId::Campaign);
+        machine.push(ScreenId::Castle(1));
+
+        director.listen(&mut audio, &machine, &game);
+        let want = l2_game::audio::names::speech::PICKED_CASTLE[level].to_ascii_lowercase();
+        assert!(!audio.heard().contains(&want.as_str()), "opening the chooser picks nothing");
+
+        let r = castle::type_rect(level);
+        let at = (r.x + r.w / 2, r.y + r.h / 2);
+        send(&mut machine, &mut game, &assets, Event::Click { x: at.0, y: at.1 });
+        send(&mut machine, &mut game, &assets, Event::Release { x: at.0, y: at.1 });
+        director.listen(&mut audio, &machine, &game);
+
+        let spoken: Vec<&str> = l2_game::audio::names::speech::PICKED_CASTLE
+            .iter()
+            .map(|n| n.to_ascii_lowercase())
+            .enumerate()
+            .filter(|(_, n)| audio.heard().contains(&n.as_str()))
+            .map(|(i, _)| l2_game::audio::names::speech::PICKED_CASTLE[i])
+            .collect();
+        assert_eq!(
+            spoken,
+            [l2_game::audio::names::speech::PICKED_CASTLE[level]],
+            "picture {level} at {at:?}: heard {:?}",
+            audio.heard()
+        );
+    }
+}
+
+/// **The wreck** — `dest_ind.wav`, all six `Sound_RestartSlot(3)` sites, heard
+/// by `Director::hear_the_wreck` off the content plane it diffs.
+///
+/// One army, one foreign dwelling plot: `Unit_BurnDwelling` (`0x00468AE2`)
+/// writes content `0x10` → `0x13` and the sound follows on the next listen.
+///
+/// **Ablations, run:** put the plot in the army's own county and the burn does
+/// not fire, so neither does the sound (second arm); change a farmland tile's
+/// crop stage instead and the plane has moved with nothing wrecked (third arm).
+/// Deleting the `hear_the_wreck` call from `Director::listen` reds the first.
+#[test]
+fn wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not() {
+    use l2_kingdom::map::{flags, terrain};
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no dest_ind.wav");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+
+    // county owner, whether the step burns, and whether it sounds.
+    let arms: [(u8, bool, bool); 2] = [(2, true, true), (1, false, false)];
+    for (county_owner, burns, sounds) in arms {
+        let mut audio = Audio::headless(&platform.vfs);
+        let mut director = audio::Director::new();
+        let mut game = world();
+        let mut machine = Machine::new(APP_ROOT);
+        machine.push(ScreenId::Campaign);
+
+        let army;
+        {
+            let k = &mut game.kingdom;
+            for i in 0..l2_kingdom::map::MAP_TILES {
+                k.campaign.map.county[i] = 2;
+            }
+            k.counties[2].owner = county_owner;
+            k.counties[2].population = 400;
+            k.campaign.map.set_flags(11, 10, flags::PLOT);
+            k.campaign.map.set_terrain(11, 10, terrain::DWELLING);
+            let mut u = l2_kingdom::Unit::new(l2_kingdom::UnitKind::Army, 1, 10, 10);
+            u.men = 200;
+            u.county = 2;
+            u.path = vec![(11, 10)];
+            army = k.campaign.units.spawn(u).expect("a slot for the army");
+        }
+        // Seed the plane; the first tick is silent by construction.
+        director.listen(&mut audio, &machine, &game);
+        assert!(!audio.heard().contains(&"dest_ind.wav"), "the first tick is silent");
+
+        let k = &mut game.kingdom;
+        l2_kingdom::movement::step(
+            &mut k.campaign.map,
+            &mut k.counties,
+            &k.realms,
+            &mut k.campaign.units,
+            army,
+        )
+        .expect("the army steps at the plot");
+        assert_eq!(
+            game.kingdom.campaign.map.terrain_at(11, 10) == terrain::DWELLING_BURNT,
+            burns,
+            "county owner {county_owner}"
+        );
+        assert_eq!(game.kingdom.counties[2].population, if burns { 300 } else { 400 });
+
+        director.listen(&mut audio, &machine, &game);
+        assert_eq!(
+            audio.heard().contains(&"dest_ind.wav"),
+            sounds,
+            "county owner {county_owner}: heard {:?}",
+            audio.heard()
+        );
+    }
+
+    // A crop growing moves the same plane and wrecks nothing.
+    let mut audio = Audio::headless(&platform.vfs);
+    let mut director = audio::Director::new();
+    let mut game = world();
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    game.kingdom.campaign.map.set_flags(11, 10, flags::FARMLAND);
+    game.kingdom.campaign.map.set_terrain(11, 10, 4);
+    director.listen(&mut audio, &machine, &game);
+    game.kingdom.campaign.map.set_terrain(11, 10, 9);
+    director.listen(&mut audio, &machine, &game);
+    assert!(
+        !audio.heard().contains(&"dest_ind.wav"),
+        "a crop stage is not a wreck: {:?}",
+        audio.heard()
+    );
+}
+
 /// **The narrator has to stop when the window he is reading closes.**
 ///
 /// A player reported it on build `EE0CB9233`: *"VO doesn't seem to stop when
@@ -1266,7 +1410,7 @@ fn the_population_panel_speaks_the_countys_health_band() {
 ///
 /// Four of its five arms are the unit ladder, and the fifth is the ladder's
 /// hole: **a merchant is silent**, because `Map_Click` sends a click on one to
-/// the stall instead and the panel never opens on it. That hole is what this
+/// the stall instead and the panel never opens on it.
 /// asserts hardest, because the easy mistake is to fill it.
 ///
 /// **And it is silence in the original, not a gap of ours** — it was reported

@@ -408,7 +408,7 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
 /// (`FUN_00429418`, turn phase 3), `Merchant_AdvanceAll` (phase 6)
 /// AI's army walk — against [`order_move`] with [`Routing::Direct`], which is
 /// what a *human* order does. So [`Routing::PreferRoads`]'s doc comment is
-/// exactly right that "AI armies prefer roads and the player's do not"
+///
 /// rule is wider than armies: **everything the game moves for itself hugs
 /// roads.**
 ///
@@ -614,6 +614,9 @@ pub struct Step {
     /// A resource site was ruined: the county, and which of its four industry
     /// records went down.
     pub site_ruined: Option<(u8, usize)>,
+    /// **A dwelling was burnt down**, and this is the county that lost a
+    /// quarter of its people. `Unit_BurnDwelling` (`0x00468AE2`).
+    pub dwelling_burnt: Option<u8>,
     pub offence: Option<Offence>,
 }
 
@@ -628,6 +631,7 @@ impl Step {
             reached_castle_building: None,
             field_destroyed: None,
             site_ruined: None,
+            dwelling_burnt: None,
             offence: None,
         }
     }
@@ -738,6 +742,27 @@ pub fn step(
                 let u = units.get_mut(id)?;
                 u.moves_used += crate::tables::STEP_COST_TRAMPLE;
                 out.charged = crate::tables::STEP_COST_TRAMPLE;
+                // **The other half, and it is the whole of the rest of the
+                // function.** `Unit_BurnDwelling` (`0x00468AE2`), `[V]` from
+                // the decompilation, in its own order:
+                //
+                // ```c
+                // movesUsed += 7;
+                // tile.content = 0x13;  tile.frame = 0x3c;
+                // county.population -= (population + (population >> 31 & 3)) >> 2;
+                // Diplo_Offend(county.owner, g_units[g_movingUnit].owner, '\x14');
+                // Sound_RestartSlot(3);
+                // ```
+                //
+                // The shift pair is C's `population / 4` on a signed int —
+                // truncation towards zero, which Rust's `/` already is — so the
+                // quarter is exact at every value, no float and no rounding to
+                // disagree about (`docs/netcode.md`).
+                map.set_terrain(nx, ny, terrain::DWELLING_BURNT);
+                out.dwelling_burnt = Some(tile_county);
+                if let Some(c) = counties.get_mut(tile_county as usize) {
+                    c.population -= c.population / 4;
+                }
                 // `Diplo_Offend(countyOwner, mover, 20)`, and note there is
                 // **no `isHuman` guard here** — unlike `Unit_CrossField`, an AI
                 // that burns somebody's houses is resented for it. It is the
@@ -900,11 +925,14 @@ pub const FIELD_TRAMPLE_OFFENCE: i32 = 10;
 /// What burning a dwelling costs — `Unit_BurnDwelling` (`0x00468AE2`) passes
 /// `'\x14'` = 20, and unlike the trample it does so whoever the burner is.
 ///
-/// **The other half of `Unit_BurnDwelling` is not reproduced**
-/// saying at the constant: the original also
-/// rewrites the tile (content `0x10` → `0x13`, frame `0x3C`) and takes **a
-/// quarter of the county's population** with it. This crate charges the seven
-/// moves and now the twenty standing; the burnt plot and the dead are a gap.
+/// The rest of `Unit_BurnDwelling` is in the [`Entry::Plot`] arm: the tile
+/// rewrite to [`terrain::DWELLING_BURNT`] and the quarter of the population.
+/// The `frame = 0x3C` beside it is the renderer's.
+///
+/// One difference, visible only in a save with a corrupt `g_movingUnit`: the
+/// original passes `g_units[g_movingUnit].owner` as the offender
+/// the unit it was handed. The mover sets `g_movingUnit` to that unit before
+/// the call, so the two are the same value on every path. `[D]`
 pub const DWELLING_BURN_OFFENCE: i32 = 20;
 
 /// `County_DestroyField` (`0x00469E5B`) — remove one field and its share of
@@ -1205,7 +1233,7 @@ mod tests {
         let hugging = flood_fill(&cost, (0, 10), Routing::PreferRoads);
         assert_eq!(direct.cost_to(10, 10), Some(10));
         assert_eq!(hugging.cost_to(10, 10), Some(10), "a road is 1 in both modes");
-        // **13, not 11** — and the 2 is the road's diagonal rule
+        // **13,** — and the 2 is the road's diagonal rule
         // rounding. A road tile expands orthogonally only, so the cheapest way
         // onto (10, 11) is to walk the road to (10, 10) at 10 and step south
 // for 3.
@@ -1568,6 +1596,74 @@ mod tests {
         assert_eq!(s.entry, Entry::Plot);
         assert_eq!(s.charged, 7);
         assert!(!s.moved);
+    }
+
+    /// **The other half of `Unit_BurnDwelling` (`0x00468AE2`)** — the tile and
+    /// the dead. 400 → 300 is the literal quarter; the plot goes to `0x13`,
+    /// which `docs/draws-map.md` §3.2 draws the sixteen damage frames over.
+    #[test]
+    fn burning_a_dwelling_burns_the_plot_and_takes_a_quarter_of_the_people() {
+        let mut m = open_map();
+        m.set_flags(11, 10, flags::PLOT);
+        m.set_terrain(11, 10, terrain::DWELLING);
+        let (mut counties, realms) = blank();
+        counties[1].owner = 1;
+        counties[1].population = 400;
+        let mut units = Units::new();
+        let id = army_at(&mut units, 2, 10, 10);
+        units.get_mut(id).unwrap().path = vec![(11, 10)];
+        let s = step(&mut m, &mut counties, &realms, &mut units, id).unwrap();
+        assert_eq!(s.dwelling_burnt, Some(1));
+        assert_eq!(m.terrain_at(11, 10), terrain::DWELLING_BURNT);
+        assert_eq!(counties[1].population, 300);
+        assert_eq!(s.offence.map(|o| o.amount), Some(DWELLING_BURN_OFFENCE));
+    }
+
+    /// **Ablation.** The three guards are the original's, and each one alone
+    /// leaves the plot standing and the people alive: a merchant, the owner's
+    /// own army, and a plot that is already burnt. A burn that fired on any of
+    /// these would still pass the test above.
+    #[test]
+    fn nothing_is_burnt_by_a_merchant_by_its_owner_or_twice() {
+        for (kind, unit_owner, t) in [
+            (UnitKind::Merchant, 2u8, terrain::DWELLING),
+            (UnitKind::Army, 1, terrain::DWELLING),
+            (UnitKind::Army, 2, terrain::DWELLING_BURNT),
+        ] {
+            let mut m = open_map();
+            m.set_flags(11, 10, flags::PLOT);
+            m.set_terrain(11, 10, t);
+            let (mut counties, realms) = blank();
+            counties[1].owner = 1;
+            counties[1].population = 400;
+            let mut units = Units::new();
+            let id = army_at(&mut units, unit_owner, 10, 10);
+            units.get_mut(id).unwrap().kind = kind;
+            units.get_mut(id).unwrap().path = vec![(11, 10)];
+            let s = step(&mut m, &mut counties, &realms, &mut units, id).unwrap();
+            assert_eq!(s.dwelling_burnt, None, "{kind:?} owner {unit_owner} terrain {t:#04x}");
+            assert_eq!(m.terrain_at(11, 10), t);
+            assert_eq!(counties[1].population, 400);
+        }
+    }
+
+    /// Population 0 and 3 — C's truncating divide, which is Rust's. A quarter
+    /// of 3 is 0, so the smallest county a burn can empty is not emptied.
+    #[test]
+    fn the_quarter_truncates_towards_zero_like_the_originals_shift() {
+        for (before, after) in [(0i32, 0i32), (3, 3), (4, 3), (7, 6)] {
+            let mut m = open_map();
+            m.set_flags(11, 10, flags::PLOT);
+            m.set_terrain(11, 10, terrain::DWELLING);
+            let (mut counties, realms) = blank();
+            counties[1].owner = 1;
+            counties[1].population = before;
+            let mut units = Units::new();
+            let id = army_at(&mut units, 2, 10, 10);
+            units.get_mut(id).unwrap().path = vec![(11, 10)];
+            step(&mut m, &mut counties, &realms, &mut units, id).unwrap();
+            assert_eq!(counties[1].population, after, "from {before}");
+        }
     }
 
     // --- classification ----------------------------------------------------
