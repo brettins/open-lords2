@@ -138,6 +138,7 @@ impl App {
         // a click, a key, a future command replay - is on screen the next
         // frame without every writer having to remember.
         self.assets.quirks = self.game.presentation_quirks;
+        self.sample_wall_clock();
         let App { game, assets, machine, canvas, window, .. } = self;
         let ctx = Ctx { game, assets };
         machine.draw(&ctx, canvas);
@@ -145,6 +146,30 @@ impl App {
         if let Some(w) = window {
             w.set_title(&title);
         }
+    }
+
+    /// **The only wall clock in the program, and it is in the shell.**
+    ///
+    /// `l2_game::wallclock` draws the title screen's MST clock — ours, not the
+    /// original's; see that module — and it is arithmetic on a number, with no
+    /// `SystemTime` of its own. This is where the number comes from, projected
+    /// into [`Assets`] the way the presentation quirks are projected in
+    /// [`Self::redraw`], because `Ctx` hands a screen `&Assets` and that is the
+    /// only channel into a painter.
+    ///
+    /// `docs/netcode.md` D-5 — *no wall clock, no scheduler* — is why it cannot
+    /// live any lower: `l2-game` the library has no `SystemTime` anywhere, so a
+    /// simulation path physically has nothing to read. The same discipline
+    /// [`l2_game::clock::Ticker`] holds for the monotonic clock
+    /// (`docs/decisions.md` C193), for the same reason.
+    ///
+    /// A clock before 1970 — or one the machine cannot read — leaves the field
+    /// `None` and the screen simply draws no clock, rather than a wrong one.
+    fn sample_wall_clock(&mut self) {
+        self.assets.wall_clock = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_secs() as i64);
     }
 
     /// Window coordinates to canvas pixels.
@@ -209,6 +234,12 @@ impl App {
 
     /// One fixed simulation tick.
     fn tick(&mut self) {
+        // Sampled here as well as in [`Self::redraw`], and it has to be: the
+        // redraw only happens when something is already dirty, so a reading
+        // taken there alone could never *become* stale and the title screen's
+        // clock would stop at the minute the page opened. The tick is what
+        // notices the minute turning; nothing under the shell may notice it.
+        self.sample_wall_clock();
         let App { game, assets, machine, .. } = self;
         let mut ctx = Ctx { game, assets };
         machine.update(&mut ctx);

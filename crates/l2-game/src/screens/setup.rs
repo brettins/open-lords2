@@ -750,6 +750,17 @@ pub struct SetupScreen {
     /// so this is that byte run and nothing else, defaulted the way
     /// `Options_SetDefaults` defaults it.
     saved_name: String,
+    /// **Which minute the drawn clock says** — [`crate::wallclock::minute`] of
+    /// the reading the last tick saw, or `None` before the first.
+    ///
+    /// A still screen costs nothing here: [`Machine::update`] only repaints
+    /// when [`Screen::take_redraw`] says so, and this is what makes it say so
+    /// **once a minute** rather than sixty times a second. It is a cached
+    /// *picture* fact, not a clock — the reading itself is handed in through
+    /// `Assets` and is never read from the system by anything in this crate.
+    clock_minute: Option<i64>,
+    /// Whether the minute turned since the last paint.
+    clock_redraw: bool,
 }
 
 impl SetupScreen {
@@ -772,6 +783,8 @@ impl SetupScreen {
             track: crate::victory::Track::First,
             name: begin_name(text::DEFAULT_PLAYER_NAME),
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
+            clock_minute: None,
+            clock_redraw: false,
         }
     }
 
@@ -1440,7 +1453,24 @@ impl Screen for SetupScreen {
         if self.page == SetupPage::Shield {
             self.name.tick();
         }
+        // **The clock on page 1 — ours, and this is the only thing that makes
+        // it move.** The reading comes in on `Assets`; the minute it falls in
+        // is compared with the minute already on the screen, and only a change
+        // asks for a repaint. Nothing here reads a clock, and on any page but
+        // the title there is no clock drawn to keep.
+        if self.page == SetupPage::Title {
+            let minute = ctx.assets.wall_clock.map(crate::wallclock::minute);
+            if minute != self.clock_minute {
+                self.clock_minute = minute;
+                self.clock_redraw = true;
+            }
+        }
         Transition::Stay
+    }
+
+    /// The minute turning, and nothing else — see [`SetupScreen::clock_minute`].
+    fn take_redraw(&mut self) -> bool {
+        core::mem::take(&mut self.clock_redraw)
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -1624,6 +1654,21 @@ impl SetupScreen {
                 // because a player spent an evening reporting three defects
                 // against a binary four merges old.
                 crate::build_id::draw(canvas, pen);
+                // **Ours too, and a deliberate divergence: `FUN_0041EA14`
+                // draws no clock.** A player asked for the time in MST on this
+                // screen. Bottom-right, opposite the build stamp, below
+                // everything the original's page-1 painter reaches (its window
+                // ends at y 250). Do not "fix" it toward the binary and do not
+                // count it as a reproduction — `crate::wallclock` carries the
+                // reading of `FUN_0041EA14` that says there is nothing there.
+                //
+                // The time itself is `ctx.assets.wall_clock`, which only the
+                // shell ever fills: no clock is read here or anywhere below it
+                // (`docs/netcode.md` D-5), and with no shell there is no clock
+                // on the page rather than a wrong one.
+                if let Some(now) = ctx.assets.wall_clock {
+                    crate::wallclock::draw(canvas, pen, now);
+                }
             }
             SetupPage::Options => {
                 pen.window_from(canvas, BOX_SHEET, 0xB0, 10, 0x12, 0x12);
