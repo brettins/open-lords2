@@ -12076,3 +12076,21 @@ herd 4 with 1/3/6 hands births 1,1,1; herd 40 births 0,1,1. `births = per_myriad
 Staffing is `PctOf(labour, herd * 3)`, cliff is three hands a head: 12 on herd 4
 (births 4), 120 on herd 40 (births 5). Hands past the ceiling `Herd_LabourEstimate`
 picks are idle by C151. No code changed.
+
+---
+
+**C219 — the binary's SetCursor caller re-chooses every frame; ours added the table of five screen modes and read the English intro without subtitles.**
+
+`Cursor_Set` (`0x004B1CF3`) is the binary's only `SetCursor` caller; its only caller `Battle_Frame` (`0x004B99C0`) re-chooses every frame. Battlefield ids `0x28..0x2B` follow the hover ladder; everything else reads `g_cursorByScreen` (`0x004E3098`, 64 dwords, five non-zero). Ours chose nothing until now: new `l2_game::cursor` (the table), `Machine::pointer`, `VillageScreen::mode_screen_id` yielding 0x02/0x05/0x06, `main.rs` `apply_pointer` the only `set_cursor`. The question mark belongs to the whole village screen: 0x02 idle only, 0x05 band is the plain arrow, 0x06 carrying is the peasant. Pictures are the system's (Help, Crosshair, Pointer, Grabbing, Move), labelled ours; the seven `RT_GROUP_CURSOR` resources in `Lords2.exe` remain unread. `docs/screens.md` §9.8 holds the table (0x02, 0x05, 0x06, 0x10 scythe, the battle ids, 0x07 and 0x0E dead). Tests `crates/l2-game/tests/cursor.rs`: `the_table_is_its_five_non_zero_rows`, `the_village_is_the_question_mark_and_the_map_is_not`, `the_band_is_the_plain_arrow`, `carrying_a_selection_is_the_peasant`; ablation `mode_screen_id None` turns the last two red.
+
+Intro subtitles: `screens/movie.rs:141` gates cues on `!is_english(L2.eng 300/0)` (`Intro_DrawSubtitle` `0x0041A166`); new test `the_english_intro_carries_no_subtitles` drives 400 ticks, rows 400..432 black; ablation puts ink at (284, 400) on tick 152. `docs/formats/smk.md` cites the test.
+
+Palette flash: `Machine::present` read the palette off the live stack, so a click delivered between `request_redraw` and `RedrawRequested` changed the page while the canvas held the old one, measured at the probes on the campaign map. Fix is three lines in `App::present` redrawing what went dirty before presenting; a recorded palette would freeze `Screen::fade` (`FUN_004B0CB4`) and a film's `live_palette`. Test `a_page_change_between_the_draw_and_the_present_would_flash` (`overlay_palette.rs`), ablation run.
+
+---
+
+**C220 — Unit_BurnDwelling cuts the population by one quarter; Director::hear_the_wreck diffs the plot and five sound callsites speak its name.**
+
+`Unit_BurnDwelling` (`0x00468AE2`): the Entry::Plot arm had the +7 moves and +20 offence and stopped; the rest is content 0x10 to 0x13, frame 0x3c, `population -= (p + (p>>31 & 3)) >> 2`, C's truncating divide by 4, no float, no PRNG. Added `terrain::DWELLING_BURNT` and `Step::dwelling_burnt`. `Director::hear_the_wreck` diffs the 4,096-byte content plane and classifies by the value written: plot 0x13, settlement the ruin value, standing field 0; `l2_kingdom` has exactly those three writers. All six `Sound_RestartSlot(3)` sites reproduced: `Unit_BurnDwelling#1`, `Unit_TrampleTile#1..4`, `Unit_CrossField#1`; `sounds.js --check` and `tests/sfx.rs` green. Tests `burning_a_dwelling_burns_the_plot_and_takes_a_quarter_of_the_people`, `the_quarter_truncates_towards_zero_like_the_originals_shift`, `wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not`; ablation `nothing_is_burnt_by_a_merchant_by_its_owner_or_twice`.
+
+Voice: `CastleBuild_Select` (`FUN_004b3940#1`, `0x00436B22` calls `FUN_004B3940(hotspot)`, file S071_02 + `hotspot*0x10`) built through `Game::spoken`, one assignment in the click arm; test `picking_a_castle_picture_speaks_that_castles_name`, five pictures. The other three blockers are in `docs/audio.json`; the row's "screen 0x20" was wrong, 0x20 is the standings page (`FUN_004b3994#1`, reproduced), the front-end site is `FUN_00497a34#3`. Census 564 to 566 then recounted after the merge (ef71d05).
