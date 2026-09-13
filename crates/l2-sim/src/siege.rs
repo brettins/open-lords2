@@ -1134,6 +1134,11 @@ pub fn our_castle(level: u8) -> Battlefield {
     // > `docs/decisions.md` `C82`.
     cells[at(cx, cy)].flags |= FLAG_KEEP;
     cells[at(cx, cy)].surface = SURFACE_KEEP;
+    // `Battlefield_BuildCastle`'s code-6 arm sets `flags2 |= 0x80` as well, and
+    // that bit is the whole of the banner's gate — `BattleBanner_Draw`
+    // (`0x004BD574`) by way of `FUN_004BD355`. Without it the stand-in castle
+    // is the one castle in the game that flies no flag.
+    cells[at(cx, cy)].flags2 |= 0x80;
 
     paint_our_castle(&mut cells, level);
 

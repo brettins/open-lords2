@@ -1593,3 +1593,93 @@ fn saving_is_refused_while_a_battle_is_live() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// **A body is cleared away, and a spent pot of oil with it** — the corpse
+/// state's own count, figure record `+0x173`.
+///
+/// `docs/battle.md` §14.2: state 2 steps the collapse animation and counts
+/// `+0x173` to **80** before freeing the slot; state 15 is the siege engine's
+/// twin at 120. Nothing here had a corpse lifetime, so every body stayed on
+/// the field for the rest of the battle — and for a pot that is worse than
+/// untidy, because `FUN_0047A814` puts a spent pot into state **2** and the
+/// state-2 tick is what draws `FUN_0048895E`'s pour frames 42 … 45. A pot that
+/// had poured therefore held its pouring picture for ever.
+///
+/// The pot is killed through the simulation — `men = 0`, which is what
+/// `Melee_Tick` leaves — so the runner's own death arm starts the count.
+///
+/// Ablation: return `false` from `BattleRunner::corpse_gone` — red, *"the pot
+/// is still on the field 120 frames after it died"*. Return
+/// `ENGINE_CORPSE_FRAMES` from `Fighter::corpse_frames`, which is state 15's
+/// count and not the pot's — red at the same line.
+#[test]
+fn a_corpse_is_cleared_away_after_eighty_frames() {
+    let Some((assets, platform)) = install() else {
+        l2_testkit::skip!("no game install, so no Engine.pl8 to find the pot with");
+    };
+    let engine = Sheet::new(platform.vfs.read("Engine.pl8").expect("Engine.pl8")).expect("a PL8");
+
+    let (mut g, mut m) = staged(
+        24,
+        &[(Troop::Oil, 1), (Troop::Peasants, 1)],
+        &[(Troop::Peasants, 1)],
+        |(x, y)| (x as i32 - 7, y as i32 - 7),
+    );
+    let pot = live(&g)
+        .runner
+        .fighters
+        .iter()
+        .position(|f| f.troop == Troop::Oil && f.side == SIDE_A)
+        .expect("a pot of oil was raised");
+
+    let mut canvas = Canvas::screen();
+    frame(&mut m, &mut g, &assets, &mut canvas);
+    let (px, py) = {
+        let f = &live(&g).runner.fighters[pot];
+        (f.x, f.y)
+    };
+
+    // `Melee_Tick`'s end of it: the men are gone, and the runner's own death
+    // arm moves the figure into the corpse state on the next step.
+    let sim_index = live(&g).runner.fighters[pot].sim;
+    g.battle.as_mut().unwrap().runner.sim.figures[sim_index].men = 0;
+
+    let mut first_gone = None;
+    let mut pour_seen = false;
+    for n in 1..=(l2_sim::runner::CORPSE_FRAMES as usize + 40) {
+        canvas = Canvas::screen();
+        frame(&mut m, &mut g, &assets, &mut canvas);
+        let l = live(&g);
+        let f = &l.runner.fighters[pot];
+        assert_eq!((f.x, f.y), (px, py), "a corpse does not move");
+        // `(polarDirc >> 1) + 0x2A` — the picture state 2 draws a pot with.
+        let index = 0x2A + (f.polar % 8) as usize / 2;
+        let sprite = engine.frame(index).expect("the pour frame decodes");
+        let (cx, cy) = (f.x as i32 - l.cam.0, f.y as i32 - l.cam.1);
+        let w = sprite.width as i32;
+        let want = (
+            bf::VIEW.x + cx * bf::TILE + (32 / 2 - w / 2),
+            bf::VIEW.y + cy * bf::TILE - w / 2 + 8 + 8,
+        );
+        let there = locate(&canvas, &sprite, want.0..want.0 + 1, want.1..want.1 + 1)
+            .contains(&want);
+        if there {
+            pour_seen = true;
+            assert!(first_gone.is_none(), "the pot came back {n} frames after it died");
+        } else if first_gone.is_none() && pour_seen {
+            first_gone = Some(n);
+        }
+    }
+
+    assert!(pour_seen, "the dead pot never showed its collapse picture at all");
+    let gone = first_gone.expect("the pot is still on the field 120 frames after it died");
+    // The count starts on the tick the death arm sees, one frame after the men
+    // were zeroed, and the picture goes with the frame that reaches the bound.
+    assert!(
+        (l2_sim::runner::CORPSE_FRAMES as usize..=l2_sim::runner::CORPSE_FRAMES as usize + 3)
+            .contains(&gone),
+        "the pot vanished on frame {gone}, not around {}",
+        l2_sim::runner::CORPSE_FRAMES
+    );
+    assert!(live(&g).runner.corpse_gone(pot), "and it stays gone");
+}

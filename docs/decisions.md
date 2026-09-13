@@ -11442,3 +11442,43 @@ whose first line is the game's own — `Eng_DrawString(40, ERROR_INDEX)` — so 
 player is told rather than silently robbed. `docs/arms.json`
 `ours/save-refuses-mid-battle`; the feature is `partial`, not `done`, and the gap
 names the reason.
+
+---
+
+**CNEW-battlefield — three things the battlefield did not draw, and two of them
+were counting in the wrong place.**
+
+*Placeholder. The lead assigns the number on merge.*
+
+**The keep flew no flag.** `FUN_004BD355`'s overlap pass branches on cell byte
+`+2` bit `0x80`: a frame byte of zero takes `BattleBanner_Draw` (`0x004BD574`),
+anything else takes the docked tower's stair. Only one arm of
+`Battlefield_BuildCastle` sets that bit — structure code 6, the keep — and frame
+byte **0** is the only byte either structure table files under code 6, so the
+gate closes on itself. The frame is
+`g_units[g_battleArmyB]+0x02 × 8 + DAT_004E5B18 + 0x21` out of `A2_miss.pl8`:
+the garrison's shield, eight phases on `g_pulse80`, ending on the sheet's last
+frame. `l2_sim::siege::our_castle`'s keep did not carry the bit either, so the
+stand-in castle was the one castle in the game that could not have flown one.
+
+**A wall being shot did not visibly break up, and the arithmetic was right.**
+`Missile_Step` writes `cell.terrain++` — byte `+0`, which on a castle is not a
+terrain id but the damage counter — and the renderer's second pass draws slot-1
+frame `cell[+0] + 0x8B` from that same byte. This crate kept the count in a
+`wall_hits` vector beside the field: the wall came down on the right shot and
+nothing between the first shot and the last changed on screen. A filling ditch
+*did* animate, for the single reason that `fill_moat_tick` writes
+`cell.terrain`. **Two writers of one byte, one of which had been given a private
+copy** — and the copy is invisible to every test that asserts on the rule.
+The threshold moves with it: `Battlefield_BuildCastle` seeds a non-moat cell at
+1 and the collapse is `0xF < cell.terrain`, so a wall takes **fifteen** shots,
+not sixteen.
+
+**And a corpse had no lifetime.** State 2 counts `+0x173` to 80 before freeing
+the slot (state 15, the siege engine's, to 120). Nothing here counted, so every
+body stayed on the field — and for a pot of oil that is worse than untidy:
+`FUN_0047A814` puts a spent pot into state 2, and the state-2 tick is what draws
+the pour frames 42 … 45. A pot that had poured held its pouring picture for the
+rest of the battle. Two smaller pieces of the same arm came with it: debris is
+stepped one frame in two (`Missile_UpdateAll` alternates `+0x31`) and is nudged
+half a cell up and left as the shot becomes it (`m[+0x0A] -= 0x10`).

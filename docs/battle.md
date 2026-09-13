@@ -1268,6 +1268,14 @@ terrain id but a counter, and both writers are damage:
 * `BattleMan_StateFillMoat` (`0x00483FE1`): the same byte, from the **11** the builder seeds a
   ditch with up to `g_moatFillSteps` = 15, then zeroed and `Moat_Fill` run.
 
+**Both writers are now the cell's byte in this tree too**, and one of them was
+not: the catapult's count lived in a `wall_hits` vector beside the field, so the
+wall came down on the right shot and nothing on screen moved between the first
+and the last. The ditch animated only because `fill_moat_tick` already wrote
+`cell.terrain`. `CNEW-battlefield`. The threshold moves with the seed — a
+non-moat castle cell starts at **1** and the collapse is `0xF < terrain`, so a
+wall takes **fifteen** shots.
+
 Decoded, `t32_stn2.pl8` frames `0x8C`…`0x9A` are one rubble pile growing from a
 speck to a full tile. And the elevation gate is the shot's own — `Missile_Step`
 refuses to count a hit on a rampart 4 or more high, and the renderer refuses to
@@ -1592,7 +1600,7 @@ New, and not in section 2 or section 3:
 | cell `+2` bit `0x01` | [V] | dirty; the renderer clears it after drawing |
 | cell `+2` bit `0x02` | [V] | set on the viewport border |
 | cell `+2` bits `0x1C` | [V] | tileset selector: 0 picks **slot 0** of the battle asset table and 4 picks **slot 1** — see §13.2a. A field battle's slot 1 is `t32_bat2.pl8` at size 0 and no cell ever asks for it; a siege's is `t32_stn2` / `t32_wod2` and most of the map does |
-| cell `+2` bit `0x80` | [D] | something is drawn on this cell this frame |
+| cell `+2` bit `0x80` | [V] | **an overlap sprite belongs on this cell.** `FUN_004BD355` branches on the frame byte: zero takes `BattleBanner_Draw` (`0x004BD574`), anything else `FUN_004BD759(gfx)`. Two writers — `Battlefield_BuildCastle`'s structure code 6 (the keep, whose frame byte **is** zero in both tables) and `FUN_00491492`'s docked tower, which writes a stair code. So the bit is not "drawn this frame"; the pass sets `+2` bit `0x01` for that |
 
 Section 2.1's `+0x0C` — "animation phase, seeded as `(index*9 + x*16) & 0x3F +
 0xB4`" — is **not** the counter the animation handlers step; they step `+0x0E`.
@@ -1611,8 +1619,10 @@ layout above.
 * **The LFSR seed** a battle starts from, and therefore which grass tile any
   particular cell gets.
 * ~~**Missiles, siege engines and the panel.**~~ Settled and built — §13.11 for
-  the six painters and the frame map. What is left of this bullet is
-  `Misc_bat.pl8` and `FUN_004BD574`'s banner.
+  the six painters and the frame map. ~~`FUN_004BD574`'s banner~~ is built too:
+  the keep cell, `shield × 8 + phase + 0x21` out of `A2_miss.pl8`, `CNEW-battlefield`.
+  `Misc_bat.pl8` is the right column's chrome and is drawn by
+  `l2_game::screens::battlefield`, not by this pass.
 * **Nothing has been compared against the original's framebuffer.** Every claim
   here is arithmetic over the binary and the shipped art. The renderer produces
   an indexed 640 x 480 buffer precisely so that comparison stays possible, but
@@ -2707,7 +2717,8 @@ bias differs is not established.
 
 `[D]`, not reproduced: `BattleUnit_Order`'s loop tests a figure's owner, not its state, and a pot
 that has poured is a corpse with an owner for eighty frames — so a unit re-ordered downhill in that
-window pours again. `crates/l2-sim` has no corpse lifetime.
+window pours again. `crates/l2-sim` now **has** the lifetime — `Fighter::corpse`, `+0x173`,
+`CNEW-battlefield` — but the oil loop still tests the living, so the re-pour stays `[D]`.
 
 ### 17.3 A bridge goes up — `FUN_0048551D`
 
@@ -2795,10 +2806,13 @@ chapter and not changed by it: our castle has no frames, and its rampart walk is
   engine. Only the oil half of that is reproduced.
 * **Rams and catapults still step as one cell**; only towers test the leading edge. No engine stamps
   `0x80` over its 3 × 3, so men walk under ours.
-* The player's fire arrow (state 17), the engine side-step, a corpse's eighty frames, and
+* The player's fire arrow (state 17), the engine side-step, and
   `g_battleSizeClass`'s `scale × siegeEngines` term — `size_class` is fed the two armies' total
   alone, and the missile hit still passes size class 0.
-* **A corpse's eighty frames now costs a picture too.** `FUN_0047A814` puts a spent pot
-  into state 2, whose collapse tick reaches `FUN_0048895E` and the pour frames 42 … 45.
-  Ours has no corpse lifetime, so a pot that has poured holds its pouring picture for the
-  rest of the battle instead of collapsing out of it. §13.11.
+* ~~**A corpse's eighty frames now costs a picture too.**~~ **Built**, `CNEW-battlefield`.
+  `FUN_0047A814` puts a spent pot into state 2, whose collapse tick reaches `FUN_0048895E`
+  and the pour frames 42 … 45. `Fighter::corpse` is `+0x173`, counted to 80 — 120 for state
+  15, the siege engine's — and `BattleRunner::corpse_gone` stands in for the original's
+  freed slot, because an index here is a key and is not in the original.
+  `BattleUnit_Order`'s re-pour inside that window is still `[D]`: §17.2's loop tests the
+  owner and ours tests the living. §13.11.

@@ -103,9 +103,19 @@ pub const HIT_TTL: i16 = 2;
 /// class 4 debris.
 pub const DEBRIS_TTL: i16 = 0x78;
 
-/// Catapult hits one wall cell absorbs before it collapses. The original counts
-/// them in cell byte `+0` and collapses at `> 0x0F`, so the sixteenth hit is
-/// the one that lands.
+/// **The cell byte a shot may not pass.** `Missile_Step`: `cell.terrain++; if
+/// (0xF < cell.terrain) Wall_Collapse(cell);` — and because
+/// `Battlefield_BuildCastle` seeds a castle's non-moat cells at 1, a wall takes
+/// **fifteen** shots, not sixteen. **[V]**
+///
+/// The same byte drives the picture: the renderer's second pass draws slot-1
+/// frame `cell[+0] + 0x8B`, so 1 is the untouched wall and 15 the last rubble
+/// frame before it comes down.
+pub const WALL_DAMAGE_MAX: u8 = 0x0F;
+
+/// Catapult hits one wall cell absorbs before it collapses, counted from a
+/// zeroed byte. Kept for [`crate::siege`]'s callers; the rule is
+/// [`WALL_DAMAGE_MAX`].
 pub const WALL_HITS_PER_COLLAPSE: u8 = 16;
 
 /// **A wall this high cannot be shot down.** `Missile_Step`'s class-3 arm
@@ -124,6 +134,10 @@ pub enum WeaponClass {
 /// The missile classes that are not weapons — the other three users of the same
 /// array. Class 6 does not exist: nothing in the binary writes it.
 pub const CLASS_DEBRIS: u8 = 4;
+/// **Half a cell up and left**, in the same thirty-seconds the position is in:
+/// `Missile_Step`'s wall arm ends `m[+0x0A] -= 0x10; m[+0x0C] -= 0x10;` as it
+/// turns the shot into debris. **[V]**
+pub const DEBRIS_NUDGE: i16 = 0x10;
 /// A burning cell — `FUN_00485675` and `FUN_00485861` write it. See
 /// [`crate::fire`].
 pub const CLASS_FIRE: u8 = 5;
