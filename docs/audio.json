@@ -1304,10 +1304,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup_wav_004d42a4,0,1",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The conquest interstitial’s bed: setup.wav looped below the eighth campaign map, setup2.wav unlooped above it. Needs Scene to name the interstitial, which today answers Campaign."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "setup.wav",
+      "note": "Scene::Conquest { ended: false } — the interstitial below the eighth campaign map, looped."
     },
     {
       "id": "Screen_DrawConquest#2",
@@ -1315,10 +1315,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup2_wav_004d4298,0,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The conquest interstitial’s bed: setup.wav looped below the eighth campaign map, setup2.wav unlooped above it. Needs Scene to name the interstitial, which today answers Campaign."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "setup2.wav",
+      "note": "Scene::Conquest { ended: true } — the finished campaign's interstitial, and the game's only unlooped bed (Mixer::set_music_once)."
     },
     {
       "id": "Screen_FrameInput#1",

@@ -127,7 +127,6 @@ fn every_in_game_screen_over_the_front_end_is_campaign_music() {
         ScreenId::SaveLoad(l2_game::screens::saveload::Mode::Save),
         ScreenId::Options(l2_game::screens::options::Page::Sound),
         ScreenId::BattlePrompt,
-        ScreenId::Conquest,
     ];
     for id in in_game {
         let mut m = Machine::new(APP_ROOT);
@@ -139,6 +138,49 @@ fn every_in_game_screen_over_the_front_end_is_campaign_music() {
              whole session"
         );
     }
+
+    // **The conquest interstitial is the exception and used to be in the list
+    // above.** It is over a running game, so it is not silence — but
+    // `Screen_DrawConquest` (`0x0041E1DD`) plays its own bed rather than
+    // `Music_StartCampaign`'s, so asserting campaign music here was asserting
+    // the thing the screen does not do. Which bed is
+    // `the_conquest_interstitial_plays_its_own_bed`'s subject.
+    let mut m = Machine::new(APP_ROOT);
+    m.push(ScreenId::Conquest);
+    assert!(
+        matches!(audio::scene(&m, &game), Scene::Conquest { .. }),
+        "the interstitial is neither silent nor the campaign's music"
+    );
+}
+
+/// **The interstitial's own bed, and the only unlooped music in the game.**
+///
+/// `Screen_DrawConquest` (`0x0041E1DD`) opens with
+/// `Music_Play(g_campaignMap < 8 ? "setup.wav" : "setup2.wav", 0,
+/// g_campaignMap < 8)`, so one test covers the file and the loop flag: the
+/// campaign in flight gets the front end's looping bed back, and the campaign
+/// past its eighth map gets `setup2.wav` once.
+///
+/// **Ablated**: `Music::Setup2` for both arms, or `Mixer::set_music` for both
+/// loop flags, each goes red on one half.
+#[test]
+fn the_conquest_interstitial_plays_its_own_bed() {
+    use l2_game::audio::track::Music;
+
+    let mut game = world();
+    let mut m = Machine::new(APP_ROOT);
+    m.push(ScreenId::Conquest);
+
+    assert!(!game.campaign.is_complete(), "a new campaign is on its first map");
+    assert_eq!(audio::scene(&m, &game), Scene::Conquest { ended: false });
+    assert_eq!(Music::Setup.file(), "setup.wav");
+    assert!(Music::Setup.loops(), "`Music_Play(…, 0, 1)` below the eighth map");
+
+    // The eighth map won: `g_campaignMap` is 8 and the screen says so.
+    game.campaign.map = l2_game::victory::CAMPAIGN_LENGTH;
+    assert_eq!(audio::scene(&m, &game), Scene::Conquest { ended: true });
+    assert_eq!(Music::Setup2.file(), "setup2.wav");
+    assert!(!Music::Setup2.loops(), "`Music_Play(…, 0, 0)` above it");
 }
 
 /// The front end's own pages stay silent however deep the stack gets, which is
