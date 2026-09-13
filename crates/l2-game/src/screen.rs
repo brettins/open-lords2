@@ -1059,6 +1059,29 @@ impl Machine {
     /// and a measurable 399 against 400 in a network game.
     // arm: 0x00472E46/pump-screen-ladder frame
     fn pump_messages(&mut self, ctx: &mut Ctx) {
+        // **`Msg_Pump`'s first test, inside the ladder** — a battle swallows
+        // messages:
+        //
+        // ```c
+        // if (g_battlePhase == 2 && g_messageGroup != 0) Msg_Dismiss();
+        // else { …pull, count down, draw… }
+        // ```
+        //
+        // It is the *open* window it closes, not the pull: with the queue
+        // non-empty and nothing up, the else arm still runs and the next record
+        // is drawn for exactly one frame before this test dismisses it. So a
+        // battle drains the ring, and a player fighting
+        // one sees each letter flash. `g_battlePhase == 2` is the battlefield
+        // anywhere in our stack, as `crate::audio::scene` reads it — the
+        // original's 0x29, 0x2A and 0x2B are one screen of ours and a panel can
+        // sit over them.
+        // arm: 0x00472E46/battle-phase-swallows-messages frame
+        let fighting = self.ids().iter().any(|id| matches!(id, ScreenId::Battlefield));
+        if fighting && ctx.game.messages.is_open() {
+            crate::message::dismiss(ctx.game);
+            self.dirty = true;
+            return;
+        }
         if self.top_id() == Some(ScreenId::Message) {
             // The countdown half. When it expires the window closes and the
             // screen's own `update` pops itself on its first line.

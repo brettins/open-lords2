@@ -2704,14 +2704,15 @@
     },
     {
       "id": "0x00472E46/battle-phase-swallows-messages",
-      "status": "missing",
+      "status": "reproduced",
       "group": "messages",
       "screen": "0x29",
       "gesture": "frame",
       "addr": "0x00472E46",
-      "what": "Msg_Pump’s FIRST test, inside the screen ladder rather than beside it: it dismisses any open message and skips the pull, the countdown and the draw whenever g_battlePhase is 2. So while a battle is actually running, an open message is closed at once and no new one is ever pulled -- the whole pump is skipped for the duration.",
-      "note": "NOT BUILT, and it sits oddly against 0x0047685D/message-scroll-dismiss, which is recorded under the battlefield group on the grounds that a battle can raise messages (the siege gate button enqueues three). Both are true and they do not meet: the gate button’s messages go into the ring during phase 2 and are pulled when the phase leaves 2, which is when the battle ends. Nothing here has been driven against the original to check what a player actually sees, so the arm is recorded rather than guessed at. Building it needs a battle-phase byte the message code can read, which our LiveBattle has and Machine::pump_messages does not consult.",
-      "evidence": "V"
+      "what": "Msg_Pump’s FIRST test, inside the screen ladder rather than beside it: `if (g_battlePhase == 2 && g_messageGroup != 0) Msg_Dismiss(); else { pull, count down, draw }`. It closes the OPEN window and does not stop the pull -- the record’s old wording said it skipped the pull too, and the guard on g_messageGroup is what makes that wrong: with nothing up, the else arm runs, the next record is drawn, and this test dismisses it on the following frame. A battle therefore DRAINS the ring at one letter per two frames rather than holding it, and each letter flashes for a frame.",
+      "note": "Built in Machine::pump_messages, ahead of the ladder, where g_battlePhase == 2 is the battlefield anywhere in our stack -- the same reading crate::audio::scene takes, since the original’s 0x29, 0x2A and 0x2B are one screen of ours. It sits beside 0x0047685D/message-scroll-dismiss, recorded under the battlefield group because a battle raises messages (the siege gate button enqueues three): those go into the ring during phase 2 and are now pulled and swallowed there, not held until the phase leaves 2. Still not driven against the original, so what a player sees of the one-frame flash is unobserved.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screen.rs"
     },
     {
       "id": "0x00472E46/pump-screen-ladder",
