@@ -13,7 +13,7 @@ const PHRASES = ["rather than","is not a","there is no","actually","which is why
   "it is worth","not just","note that","not because","that said","nothing to do with",
   "is in no","does not mean","this only","never was","in fact","in no way","importantly",
   "not a skin","not a target","not a manual","to be clear","of course","crucially","needless to say"];
-const RX = new RegExp("\b(" + PHRASES.map(p => p.replace(/ /g, "\s+")).join("|") + ")\b", "i");
+const RX = new RegExp("\\b(" + PHRASES.map(p => p.replace(/ /g, "\\s+")).join("|") + ")\\b", "i");
 const args = process.argv.slice(2);
 if (args[0] === "--phrases") { console.log(PHRASES.join("\n")); process.exit(0); }
 const root = path.resolve(__dirname, "..", "..");
