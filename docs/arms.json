@@ -1553,7 +1553,7 @@
       "gesture": "left-press-delayed",
       "addr": "0x00434AD5",
       "what": "Display options row 1: g_displayOptWidgets record 0 (0x004DDCB8) at (280, 204), kind 5. Flips g_optAnimations.",
-      "note": "THE FLIP IS REPRODUCED AND IT CHANGES NOTHING. Prefs::animations has no reader in this engine. The original has five, in four functions: Screen_BattleOutcome (the taller box with the inset animation), CastleBuild_Confirm (Castle1 .. Castle5.smk), Msg_DrawWindow twice (its animation once g_messageTimer passes 0x7C6) and Battle_CheckOutcome. Also reused in the orphaned kind-4 table; see opt-speech.",
+      "note": "THE FLIP IS REPRODUCED AND ALL FIVE READS NOW ANSWER IT. The original reads it five times in four functions -- Screen_BattleOutcome (the taller box with the inset animation), CastleBuild_Confirm (Castle1 .. Castle5.smk), Msg_DrawWindow twice (its animation once g_messageTimer passes 0x7C6) and Battle_CheckOutcome -- and each has a test with the flag off as its discrimination: the_outcome_box_is_the_tall_one_only_when_animations_are_on, an_ordered_castle_plays_its_film_over_the_chooser, a_capture_letter_would_play_the_capture_films_in_rotation with an_ending_with_animations_on_is_a_film_and_the_victory_after_it_is_another, and a_decided_battle_plays_the_film_for_its_outcome_in_rotation. Also reused in the orphaned kind-4 table; see opt-speech.",
       "ours": "crates/l2-game/src/screens/options.rs",
       "evidence": "V"
     },

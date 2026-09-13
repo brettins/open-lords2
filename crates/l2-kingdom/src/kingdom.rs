@@ -108,7 +108,7 @@ pub struct Options {
     ///   [`save::checksum`] is `Canonical::hash_of(kingdom)`. That is exactly
     ///   where something that changes what the simulation computes belongs: two
     ///   peers whose quirk sets differ disagree at the first tick a quirk
-    ///   touches, and the desync detector names the `options` section.
+    /// touches, and the desync detector names the `options` section.
     ///
 /// Sound, animations and the scroll
     /// speed are — they live in `l2_game::prefs`, are never encoded here and
@@ -443,7 +443,7 @@ impl Kingdom {
     /// back `g_season = 4`, `g_year = 1268`, `g_turnCount = 1`, and this is the
     /// arithmetic that produces them.
     ///
-    /// **Every pass but the mercenary walk.** `Game_NewGame` (`0x00497CED`)
+    /// **Every pass but phase 7's three.** `Game_NewGame` (`0x00497CED`)
     /// runs `Mercenary_Init(); … Season_Advance();` and never
     /// `Mercenary_AdvanceAll`, which is `Turn_Tick`'s phase-7 call and not
     /// `Season_Advance`'s. It did not matter while no new game had bands in
@@ -460,7 +460,19 @@ impl Kingdom {
         self.turn_count = 0;
         let mut report = SeasonReport::new();
         for pass in SEASON_PIPELINE {
-            if pass == Pass::MercenaryAdvance {
+            // **No phase-7 pass.** `Game_NewGame` (`0x00497CED`) calls
+            // `Season_Advance` and `Score_RankRealms` and neither
+            // `Mercenary_AdvanceAll`, `Units_ResetMoves` (`0x004651B9`) nor
+            // `Diplo_ReconcileAlliances` (`0x004A1847`) — those three are
+            // `Turn_Tick`'s phase-7 arm, which a new game has not reached.
+            // `[V]` from its own call list, and `Season_Advance`'s
+            // (`0x00448440`) does not hold them either. End Turn still runs
+            // all three: they are skipped here, not removed from the pipeline,
+            // so no pass index moves.
+            if matches!(
+                pass,
+                Pass::MercenaryAdvance | Pass::UnitsResetMoves | Pass::ReconcileAlliances
+            ) {
                 continue;
             }
             self.run_pass(pass, &mut report);
@@ -1552,7 +1564,6 @@ impl Kingdom {
     /// FUN_00448648(owner);
     /// ```
     ///
-    /// **No `Labour_Allocate`, and the two recomputes are why that works.** The
     /// allocator deals a county out from its shares, and the season runs it
     /// twice; `Labour_RecomputeShares` rewrites the shares from where people
     /// now stand, so the season deals the player's own split back to him. Ours
@@ -2386,6 +2397,36 @@ mod tests {
         k.set_county_count(3);
         let report = k.advance_season();
         assert_eq!(report.passes, SEASON_PIPELINE.to_vec());
+    }
+
+    /// **A new game runs no phase-7 pass.** `Game_NewGame` (`0x00497CED`)
+    /// calls `Season_Advance` and `Score_RankRealms`; `Mercenary_AdvanceAll`,
+    /// `Units_ResetMoves` (`0x004651B9`) and `Diplo_ReconcileAlliances`
+    /// (`0x004A1847`) are `Turn_Tick`'s phase-7 arm, which a game that has not
+    /// started has not reached. End Turn still runs all three, and that is the
+    /// second half here.
+    ///
+    /// Ablation: drop either name from the `matches!` in [`Kingdom::start_new_game`]
+    /// — red, *"a new game ran a phase-7 pass"*.
+    #[test]
+    fn a_new_game_runs_no_phase_seven_pass_and_a_season_end_runs_all_three() {
+        let phase7 =
+            [Pass::MercenaryAdvance, Pass::UnitsResetMoves, Pass::ReconcileAlliances];
+        let mut k = Kingdom::new(1);
+        k.set_county_count(3);
+        let new = k.start_new_game();
+        for pass in phase7 {
+            assert!(!new.passes.contains(&pass), "a new game ran a phase-7 pass: {pass:?}");
+        }
+        assert_eq!(
+            new.passes.len(),
+            SEASON_PIPELINE.len() - phase7.len(),
+            "and it ran every other pass"
+        );
+        let ended = k.advance_season();
+        for pass in phase7 {
+            assert!(ended.passes.contains(&pass), "End Turn stopped running {pass:?}");
+        }
     }
 
     /// The whole point of the phase machine: only phase 7 advances the season.

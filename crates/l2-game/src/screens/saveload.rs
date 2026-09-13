@@ -189,6 +189,12 @@ pub const GROUP: usize = 40;
 /// Group 40 index 4 — *"File error. Operation canceled."*
 pub const ERROR_INDEX: usize = 4;
 
+/// The detail under group 40 index 4 when a save is asked for mid-battle. It
+/// says the battle is not saved, because that is the thing a player loses.
+/// Group 40 has three strings and none of them is about a battle, so this one
+/// is ours. See the refusal in [`SaveLoadScreen::handle`].
+pub const BATTLE_REFUSAL: &str = "THE BATTLE IS NOT SAVED. FINISH IT, THEN SAVE.";
+
 /// `Ui_DrawBox(0x10, 0x90, 0x1C, 0x14)`.
 pub const BOX_X: i32 = 0x10;
 pub const BOX_Y: i32 = 0x90;
@@ -302,7 +308,7 @@ pub const WORK_FRAMES: u8 = 0x96;
 /// and that is the original's behaviour.
 /// omission: group 40's status strings are *"Loading game. Please wait."*,
 /// *"Saving game. Please wait."* and *"File error. Operation canceled."* — two
-/// progress messages and a failure. Success is not a message,
+/// progress messages and a failure.
 /// success `SaveLoad_Cancel`'s counterpart restores `g_screenIdSaved` and the
 /// box is gone before anybody could read one.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -565,10 +571,18 @@ impl SaveLoadScreen {
                 // sentence — `Eng_DrawString(40, ERROR_INDEX)` —
 // sees a refusal.
                 //
+                // **Measured, and that is why it is still a refusal.** The
+                // state a mid-battle save would have to carry is
+                // `LiveBattle` -> `BattleRunner` -> `Battle`, `Battlefield`,
+                // `Vec<Fighter>`, `Units`, `Ai`, `AiField`, `Missiles`,
+                // `SiegeState`: **196 fields over 16 structs, 21 of them
+                // private to `l2-sim`**. The kingdom encoder next door spends
+                // 1975 lines on 242 stored fields, so this is four figures of
+                // encoder, not the ~150 lines the question was worth.
+                //
                 // arm: ours/save-refuses-mid-battle left-press
                 if ctx.game.battle.is_some() {
-                    self.status =
-                        Status::Failed("A BATTLE IN PROGRESS IS NOT IN THE SAVE FORMAT".into());
+                    self.status = Status::Failed(BATTLE_REFUSAL.into());
                     return Transition::Stay;
                 }
                 let name = self.name.text().trim().to_string();

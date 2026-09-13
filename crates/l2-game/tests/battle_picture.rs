@@ -897,7 +897,7 @@ fn staged_with_shields(
 /// `Battle_LoadAssets` (`0x004987B7`) registers the painter with
 /// `FUN_004BC107(t2_bat1, t2_bat2, t2_spri, 0x1E0, 0x18, 2)` — entries `0x0B`,
 /// `0x0C` and `0x11` of the asset table at `0x004DA550` — and `FUN_004BC51A`
-/// draws exactly two things a cell: frame `cell[+3]` of the tileset, or frame
+/// draws
 /// `g_realms[owner].shieldIndex` of `t2_spri` over a cell holding a man. It
 /// draws **no viewport rectangle**, and this compares every pixel of the panel,
 ///
@@ -1573,6 +1573,40 @@ fn saving_is_refused_while_a_battle_is_live() {
         "the box closed on a refusal, so the player was told nothing"
     );
 
+    // **And what it says.** Group 40 index 4 is the heading the painter draws;
+    // the detail under it has to name the thing being lost, so a player who
+    // reads it knows the battle is not in the file. The same refusal, reached
+    // on a screen the test holds, because `Machine` hands out no screen.
+    {
+        let mut screen = l2_game::screens::saveload::SaveLoadScreen::new(
+            l2_game::screens::saveload::Mode::Save,
+        );
+        let mut ctx = Ctx { game: &mut g, assets: &assets };
+        for c in "MIDFIGHT2".chars() {
+            l2_game::Screen::handle(&mut screen, Event::Text(c), &mut ctx);
+        }
+        let mut t = l2_game::Screen::handle(
+            &mut screen,
+            Event::KeyDown(l2_game::input::Key::Enter),
+            &mut ctx,
+        );
+        for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
+            t = l2_game::Screen::update(&mut screen, &mut ctx);
+        }
+        assert_eq!(t, l2_game::Transition::Stay, "a refused save leaves the box open");
+        assert_eq!(
+            screen.status(),
+            &l2_game::screens::saveload::Status::Failed(
+                l2_game::screens::saveload::BATTLE_REFUSAL.into()
+            ),
+            "the refusal must say the battle is not saved"
+        );
+        assert!(
+            l2_game::screens::saveload::BATTLE_REFUSAL.contains("NOT SAVED"),
+            "and it must say it in words, not in a format name"
+        );
+    }
+
     // **The discrimination**: the same screen and the same keystrokes with no
     // battle live. A refusal that fired on every save would pass the half above
     // on its own.
@@ -1680,4 +1714,55 @@ fn a_corpse_is_cleared_away_after_eighty_frames() {
         l2_sim::runner::CORPSE_FRAMES
     );
     assert!(live(&g).runner.corpse_gone(pot), "and it stays gone");
+}
+
+/// **`Screen_BattleOutcome` (`0x00423241`) reads `g_optAnimations` too**, and
+/// what it chooses is the *box*, not a film: off is `FUN_004093E0(0x10, 0x90,
+/// 0x1C, 0x0A)`, the short window at (16, 144); on is `FUN_004093E0(0x10,
+/// 0x30, 0x1C, 0x16)` with `Ui_DrawInsetRect(0x27, 0x48, 0x192, 0xC2)` inside
+/// it — a window that starts at y 48 and a recess for the film. The fourth
+/// reader of the flag, beside `CastleBuild_Confirm` (`0x00436B59`),
+/// `Msg_DrawWindow` (`0x0047309E`) and `Battle_CheckOutcome` (`0x00477DFC`),
+/// and the only one whose answer is pixels.
+///
+/// The probe is the band between the two windows' tops, y 48 … 144, which the
+/// short window never reaches. Compared against the same frame with no banner
+/// at all, so a band the field paints by itself cannot pass either half.
+///
+/// Ablation: drop `ctx.game.prefs.animations` from `animated` — red, *"the
+/// short window painted the tall window's band"*.
+#[test]
+fn the_outcome_box_is_the_tall_one_only_when_animations_are_on() {
+    let Some((assets, _p)) = install() else {
+        l2_testkit::skip!("no game install, so no window art");
+    };
+    // y 0x30 … 0x90: the tall window's own height, above the short one's top.
+    let band = |c: &Canvas| {
+        let mut v = Vec::new();
+        for y in 0x30..0x90usize {
+            for x in 0x10..(0x10 + 0x1C * 16) as usize {
+                v.push(c.at(x, y));
+            }
+        }
+        v
+    };
+    let shot = |mode: bf::Mode, animations: bool| {
+        let (mut g, mut m) =
+            staged(24, &[(Troop::Peasants, 8)], &[(Troop::Peasants, 8)], |(x, y)| {
+                (x as i32 - 7, y as i32 - 7)
+            });
+        g.prefs.animations = animations;
+        g.battle.as_deref_mut().expect("a live battle").mode = mode;
+        let mut canvas = Canvas::screen();
+        paint(&mut m, &mut g, &assets, &mut canvas);
+        band(&canvas)
+    };
+
+    let none = shot(bf::Mode::Field, true);
+    assert_eq!(
+        shot(bf::Mode::Outcome, false),
+        none,
+        "the short window painted the tall window's band"
+    );
+    assert_ne!(shot(bf::Mode::Outcome, true), none, "animations on, and no tall window was drawn");
 }

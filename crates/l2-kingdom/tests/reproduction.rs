@@ -367,7 +367,7 @@ fn the_array_holds_seventeen_records_and_only_fourteen_are_a_county() {
     }
 }
 
-/// Adjacency comes from the file, and it is the real map: county 1 is a dead
+/// Adjacency comes from the file:
 /// end with a single neighbour, county 10 is a hub with seven, and every border
 /// is named from both sides.
 #[test]
@@ -468,10 +468,20 @@ fn the_pipeline_reaches_the_files_clock() {
     assert_eq!(k.season_next, s.clock.season_next);
     assert_eq!(k.year, s.clock.year);
     assert_eq!(k.turn_count, s.clock.turn_count);
-    // Every pass but `Mercenary_AdvanceAll`, which `Game_NewGame` does not call:
-    // the file's twelve bands are still at `Mercenary_Init`'s state.
-    let expected: Vec<_> =
-        SEASON_PIPELINE.iter().copied().filter(|p| *p != l2_kingdom::phase::Pass::MercenaryAdvance).collect();
+    // **Every pass but phase 7's three**, none of which `Game_NewGame`
+    // (`0x00497CED`) calls — `Mercenary_AdvanceAll`, `Units_ResetMoves`
+    // (`0x004651B9`) and `Diplo_ReconcileAlliances` (`0x004A1847`) are
+    // `Turn_Tick`'s phase-7 arm. The file agrees: its twelve bands are still at
+    // `Mercenary_Init`'s state, and the clock and stored fields below land
+    // without the other two.
+    use l2_kingdom::phase::Pass;
+    let expected: Vec<_> = SEASON_PIPELINE
+        .iter()
+        .copied()
+        .filter(|p| {
+            !matches!(p, Pass::MercenaryAdvance | Pass::UnitsResetMoves | Pass::ReconcileAlliances)
+        })
+        .collect();
     assert_eq!(report.passes, expected, "in the documented order");
     assert!(report.messages.is_empty(), "a happy kingdom raises no messages");
     assert!(report.revolts.is_empty());
@@ -479,7 +489,7 @@ fn the_pipeline_reaches_the_files_clock() {
 
 /// **Thirteen of the fourteen counties reproduce every stored field** from the
 /// starting position the save itself supplies — no reconstruction, no
-/// adjustment. The fourteenth is county 1, and the next test says exactly why.
+/// adjustment. The fourteenth is county 1.
 ///
 /// The herd is skipped and only the herd: the save records no earlier balance
 /// to spend from. Everything the herd *feeds* still lands, which is the part

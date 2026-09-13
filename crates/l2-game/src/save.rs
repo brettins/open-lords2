@@ -500,8 +500,12 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // which is the save box being deliberately kept alive in a battle.
         // **[V]**
         //
-        // Ours cannot: `crate::battlefield::LiveBattle` wraps an
-        // `l2_sim::runner::BattleRunner` and none of it is encoded here. So the
+        // Ours cannot, and the cost of making it: `crate::battlefield::LiveBattle`
+        // wraps an `l2_sim::runner::BattleRunner`, and that graph —
+        // `Battle`, `Battlefield`, `Vec<Fighter>`, `Units`, `Ai`, `AiField`,
+        // `Missiles`, `SiegeState` — is **196 fields over 16 structs, 21 of
+        // them private to `l2-sim`**, against 242 stored fields for the whole
+        // kingdom. Measured; none of it is encoded here. So the
 // save screen **refuses** while a battle is live
         // file that silently loses it — `crate::screens::saveload`, and
         // `docs/arms.json`'s `ours/save-refuses-mid-battle`.

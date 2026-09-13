@@ -382,6 +382,18 @@ fn a_capture_letter_would_play_the_capture_films_in_rotation() {
         assert_eq!(m.top_id(), Some(ScreenId::Campaign));
     }
     assert_eq!(takes, vec![(1, "cap_cty2.smk"), (2, "cap_cty3.smk"), (0, "cap_cty1.smk")]);
+
+    // **`Msg_DrawWindow`'s guard, the other way.** `g_optAnimations == 0` never
+    // reaches the taller window, so the letter is the ordinary one and no film
+    // plays. Ablation: drop `!game.prefs.animations` from `message::animate` —
+    // red here, and the capture half above passes either way.
+    g.prefs.animations = false;
+    let player = g.player;
+    let r = Record { to: 0, group: 0x75, category: category::CAPTURE, county: 2, ..Record::default() };
+    assert!(g.messages.enqueue(r, player));
+    tick(&mut m, &mut g, &a);
+    assert_eq!(film_on_top(&m), None, "a capture letter played a film with animations off");
+    assert_eq!(m.top_id(), Some(ScreenId::Message), "and the ordinary window is up instead");
 }
 
 fn army(g: &mut Game, owner: u8, county: u8, at: (u8, u8)) -> usize {
