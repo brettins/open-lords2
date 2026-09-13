@@ -193,6 +193,20 @@ impl Tips {
         }
     }
 
+    /// **`Screen_FrameInput`'s epilogue writing `g_screenId = 0` over the
+    /// `0x27`** — the byte goes and `FUN_00476E21` never runs, so the screen
+    /// the tip was shown over is **not** put back and [`DELAY`] is **not**
+    /// re-armed.
+    ///
+    /// That is the whole difference from [`Tips::restore`], and it is the
+    /// original's: the epilogue assigns the byte directly, where every
+    /// dismissal goes through `Msg_Dismiss` → `FUN_00476E21`. With the delay
+    /// left where it was — at zero, since the ladder has already run — the next
+    /// frame on the campaign map may post the next tip at once.
+    pub fn unhost(&mut self) {
+        self.hosting = false;
+    }
+
     /// Whether `g_tipShown[group]` is set.
     pub fn shown(&self, group: u16) -> bool {
         index(group).is_some_and(|i| self.shown[i])

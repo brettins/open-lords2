@@ -510,7 +510,30 @@ impl Screen for CastleScreen {
                 debug_assert!(fired.is_none(), "both castle-build widgets are kind 5");
                 Transition::Stay
             }
-            Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
+            // `Screen_FrameInput`'s `0x1B` arm: `Ui_OkButtonClicked()` →
+            // `g_screenId = 0`, so the **corner** picture closes to the map and
+            // orders nothing. It is a third way out that this screen drew and
+            // did not answer.
+            //
+            // **And it is the release, not the press.** `Ui_OkButtonClicked`
+            // (`0x0040E7E4`) opens `if (g_mouseLeftReleased == 0) return 0;`.
+            // The marker below said `left-release` from the day it was written
+            // and the code beneath it read `Event::Click`, which is the exact
+            // drift `docs/arms.json`'s gesture field exists to catch and could
+            // not here: this arm is dispatched from `Screen_FrameInput`'s own
+            // ladder, so it has no kind byte for the third check to read
+            // (`docs/input.md` §7, the blind spot).
+            // arm: 0x0042FF10/castle-corner-ok left-release
+            Event::Release { x, y } => {
+                let fired = self.press.event(&widgets(), event);
+                debug_assert!(fired.is_none(), "both castle-build widgets are kind 5");
+                if CORNER_OK.contains(x, y) {
+                    self.choice = CastleChoice::Cancelled;
+                    return Transition::Pop;
+                }
+                Transition::Stay
+            }
+            Event::Pointer { .. } | Event::PointerLeft => {
                 let fired = self.press.event(&widgets(), event);
                 debug_assert!(fired.is_none(), "both castle-build widgets are kind 5");
                 Transition::Stay
@@ -521,15 +544,6 @@ impl Screen for CastleScreen {
                 debug_assert!(fired.is_none(), "both castle-build widgets are kind 5");
                 if table.iter().any(|w| w.rect.contains(x, y)) {
                     return Transition::Stay;
-                }
-                // `Screen_FrameInput`'s `0x1B` arm: `Ui_OkButtonClicked()` →
-                // `g_screenId = 0`, so the **corner** picture closes to the map
-                // and orders nothing. It is a third way out that this screen
-                // drew and did not answer.
-                // arm: 0x0042FF10/castle-corner-ok left-release
-                if CORNER_OK.contains(x, y) {
-                    self.choice = CastleChoice::Cancelled;
-                    return Transition::Pop;
                 }
                 for level in 0..5 {
                     if type_rect(level).contains(x, y) {

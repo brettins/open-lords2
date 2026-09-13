@@ -344,6 +344,34 @@ impl TurnClock {
         core::mem::take(&mut self.end_turn)
     }
 
+    /// **`Screen_FrameInput`'s force-close guard**, which is the standing
+    /// latch and not the clock's own request:
+    ///
+    /// ```c
+    /// if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0)) …
+    /// ```
+    ///
+    /// Twenty-seven sites, twenty-six of which close their screen —
+    /// [`CLOSED_BY_TURN_END`]. `DAT_0055403C` is what `Turn_End`
+    /// (`0x0043AC23`) writes — `2` in single player — and `Turn_Tick`'s
+    /// restart clears it on the first frame of the person's next live turn, so
+    /// the guard stands for **the whole turn that follows**, not only for the
+    /// frame the clock ran out on. That is [`TurnClock::restart_pending`]
+    /// exactly, and it is a wider window than [`TurnClock::end_turn_pending`],
+    /// which the map takes as soon as it is on top.
+    ///
+    /// **Two clauses are not ours and are named so the reader knows what is
+    /// missing rather than finding a bare `restart_pending`.** `DAT_00553FC8`
+    /// is the multiplayer sync-wait latch, which nothing in this engine sets
+    /// (`docs/netcode.md`); `DAT_00553018` is the F12 debug override, whose one
+    /// setter is `App_WndProc`'s `VK_F12` arm and which we do not have. With
+    /// both absent the guard reduces to this one field.
+    ///
+    /// [`TurnClock::restart_pending`]: TurnClock
+    pub fn force_close(&self) -> bool {
+        self.restart_pending
+    }
+
     /// **`Turn_Tick`'s phase-2 arm: `DAT_0055403C = 0; Siege_LaunchAssault(…)`.**
     ///
     /// Every assault the phase launches — refused or fought, anybody's — clears

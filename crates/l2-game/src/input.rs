@@ -245,6 +245,76 @@ pub enum Event {
     Release { x: i32, y: i32 },
 }
 
+/// **The left button's down bit, and the release edge derived from it.**
+///
+/// `App_WndProc` (`0x004B29BE`) keeps one bit for the left button —
+/// `DAT_004EABC2 & 1` — and three messages touch it:
+///
+/// ```c
+/// case 0x201: DAT_004EABC2 |= 1;        /* WM_LBUTTONDOWN   */
+/// case 0x202: DAT_004EABC2 &= 0xFE;     /* WM_LBUTTONUP     */
+/// case 0x203: DAT_004EADA1 |= 1;        /* WM_LBUTTONDBLCLK */
+/// ```
+///
+/// The double click sets a **different** byte and leaves the down bit alone.
+/// The frame poll (`0x004B2CF7`) then derives the two edges from a change in
+/// that bit and from nothing else:
+///
+/// ```c
+/// DAT_004EABBC = g_mouseLeftDown;                 /* last frame's */
+/// g_mouseLeftDown = (DAT_004EABC2 & 1) != 0;
+/// if (DAT_004EABBC != g_mouseLeftDown) {
+///     if (g_mouseLeftDown) g_mouseLeftPressed = 1; else g_mouseLeftReleased = 1;
+/// }
+/// ```
+///
+/// So **the `WM_LBUTTONUP` that ends a double click raises no release**: the
+/// bit was never set by `0x203`, clearing it changes nothing, and there is no
+/// edge. `[V]` `docs/input.md` §5 said so and said we still delivered one; this
+/// is the type that stops it, and it lives here rather than in `main.rs` so a
+/// test can drive it without a window.
+///
+/// Nothing here measures time. *Which* press is a double click is Windows'
+/// judgement in the original and `main.rs`' clock here; this only carries the
+/// consequence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct LeftButton {
+    /// `DAT_004EABC2 & 1`.
+    down: bool,
+}
+
+impl LeftButton {
+    pub const fn new() -> LeftButton {
+        LeftButton { down: false }
+    }
+
+    /// `g_mouseLeftDown`.
+    pub fn is_down(&self) -> bool {
+        self.down
+    }
+
+    /// **`WM_LBUTTONDOWN`** — the bit goes up, and the poll calls that a press.
+    pub fn pressed(&mut self, x: i32, y: i32) -> Event {
+        self.down = true;
+        Event::Click { x, y }
+    }
+
+    /// **`WM_LBUTTONDBLCLK`** — a different byte, and the down bit is left
+    /// exactly as it was. Windows sends this *instead of* the second
+    /// `WM_LBUTTONDOWN`, so the bit is clear here and stays clear for as long
+    /// as the second press is held.
+    pub fn double_clicked(&mut self, x: i32, y: i32) -> Event {
+        Event::DoubleClick { x, y }
+    }
+
+    /// **`WM_LBUTTONUP`** — the bit goes down. `None` when it was already down,
+    /// because then nothing changed and the poll raises no
+    /// `g_mouseLeftReleased`.
+    pub fn released(&mut self, x: i32, y: i32) -> Option<Event> {
+        core::mem::take(&mut self.down).then_some(Event::Release { x, y })
+    }
+}
+
 /// A rectangle in canvas coordinates, and the hit test that goes with it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rect {
@@ -356,6 +426,39 @@ mod tests {
             seen_x[px as usize] = true;
         }
         assert!(seen_x.iter().all(|&s| s), "every canvas column is reachable");
+    }
+
+    /// **A double click's own button-up raises no release**, because the down
+    /// bit it would have cleared was never set. The whole sequence Windows
+    /// sends for a double click is asserted, in order.
+    ///
+    /// **Ablation, run:** make `released` return `Some` unconditionally — which
+    /// is what `main.rs` did — and the fourth assertion goes red with a
+    /// `Release` the original never raises.
+    #[test]
+    fn the_button_up_that_ends_a_double_click_raises_no_release() {
+        let mut b = LeftButton::new();
+        // down, up: an ordinary click, and its release.
+        assert_eq!(b.pressed(10, 20), Event::Click { x: 10, y: 20 });
+        assert!(b.is_down());
+        assert_eq!(b.released(10, 20), Some(Event::Release { x: 10, y: 20 }));
+        assert!(!b.is_down());
+        // WM_LBUTTONDBLCLK, in place of the second WM_LBUTTONDOWN.
+        assert_eq!(b.double_clicked(10, 20), Event::DoubleClick { x: 10, y: 20 });
+        assert!(!b.is_down(), "0x203 sets DAT_004EADA1, never the down bit");
+        // and the up that ends it.
+        assert_eq!(b.released(10, 20), None, "no edge, so no g_mouseLeftReleased");
+    }
+
+    /// A release with no press before it is not an edge either — the same line
+    /// of the poll, reached the other way.
+    #[test]
+    fn a_release_with_no_press_behind_it_is_not_an_edge() {
+        let mut b = LeftButton::new();
+        assert_eq!(b.released(0, 0), None);
+        b.pressed(0, 0);
+        assert!(b.released(0, 0).is_some());
+        assert_eq!(b.released(0, 0), None, "and the second up changes nothing");
     }
 
     #[test]

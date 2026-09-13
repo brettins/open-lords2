@@ -757,12 +757,7 @@ impl Screen for RaiseArmyScreen {
                 if self.widget_press(ctx, event) {
                     return Transition::Stay;
                 }
-                if self.slider_click(ctx, x, y, true, true) {
-                    return Transition::Stay;
-                }
-                if OK.contains(x, y) {
-                    return Transition::Pop;
-                }
+                self.slider_click(ctx, x, y, true, true);
                 Transition::Stay
             }
             // **A double click is a press to a kind-5 record**, and restarts its
@@ -780,9 +775,32 @@ impl Screen for RaiseArmyScreen {
             // record's `held` in `Press` and `g_mouseLeftDown` for the track.
             // Neither consumes it — there is no kind-3 record on this screen
             // and the slider reads a level, not an edge.
-            Event::Release { .. } => {
+            //
+            // **And the corner picture is here, not in the press.** The `0x17`
+            // arm is
+            //
+            // ```c
+            // if (!Levy_SliderClick()) {
+            //   if (!rightReleased) { if (Ui_OkButtonClicked()) { g_screenId = 0; … } }
+            //   else { g_screenId = 0x0A; Levy_Seed(…); }
+            // }
+            // ```
+            //
+            // and `Ui_OkButtonClicked` (`0x0040E7E4`) opens
+            // `if (g_mouseLeftReleased == 0) return 0;`. This screen closed on
+            // the press. `Levy_SliderClick` is asked first and cannot answer a
+            // release — its two arrow branches want `g_mouseLeftPressed ||
+            // g_mouseLeftDoubleClick` and its track branch `g_mouseLeftDown`,
+            // all three clear on the release frame — so the order is kept and
+            // changes nothing. The corner is at x `0x24C` and the slider's band
+            // ends at `0x176`, so they do not overlap either.
+            // arm: 0x0042FF10/raise-army-ok left-release
+            Event::Release { x, y } => {
                 self.widget_press(ctx, event);
                 self.left_down = false;
+                if OK.contains(x, y) {
+                    return Transition::Pop;
+                }
                 Transition::Stay
             }
             // **The track follows the button's level.** See
