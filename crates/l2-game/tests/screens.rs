@@ -50,7 +50,7 @@ macro_rules! world {
         // The **assets** come from the install and the **position** comes from
         // the named fixture. They used to come from the same place, and every
         // number below - fourteen counties, the treasury, the selected county -
-        // is the England turn-one position's rather than any save's.
+        // is the England turn-one position's.
         let save = l2_testkit::england!();
         let mut game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
         // **Tip screens: No.** A new game's tips come up over the campaign map
@@ -94,7 +94,7 @@ fn draw_stack(m: &mut Machine, game: &mut Game, assets: &Assets) -> Canvas {
 }
 
 /// The campaign map with one screen opened over it, which is what every county
-/// panel, the village and the job popup actually are.
+/// panel, the village and the job popup are.
 fn over_the_map(over: ScreenId) -> Machine {
     let mut m = Machine::new(ScreenId::Campaign);
     m.push(over);
@@ -207,9 +207,9 @@ fn find_font_text(
     None
 }
 
-/// One line of the county strip, found in whichever font actually drew it: the
+/// One line of the county strip, found in whichever font drew it: the
 /// original's 9-pixel one where the install has it, ours where it does not.
-/// **What the county strip's text is actually drawn in**: the literal `0x3F`
+/// **What the county strip's text is drawn in**: the literal `0x3F`
 /// every `Ui_DrawText` call in `CountyStrip_Draw` passes, which is `rgb(0,0,0)`
 /// in `Base01.256`. These assertions used to look for `ink.text` — white — and
 /// a player reported the strip as white-on-parchment before anyone read the
@@ -263,7 +263,7 @@ fn pick_counts(screen: &MapScreen) -> [usize; 17] {
     counts
 }
 
-/// Find a pixel belonging to a county, by scanning the pick plane rather than
+/// Find a pixel belonging to a county, by scanning the pick plane.
 /// hard-coding a coordinate a layout change would invalidate.
 fn pixel_of(screen: &MapScreen, county: u8) -> Option<(i32, i32)> {
     let clip = screen.map_clip();
@@ -299,7 +299,7 @@ fn the_near_view_is_a_window_of_england_and_not_the_whole_map() {
     // The opening viewport is fixed — `Map_InitMode`'s row 0x4A, col 0x14,
     // then `Game_SetupRealmsAndCounties`'s centre on the player's own town
     // (C48, see [`the_map_opens_on_the_players_own_county`]) — so this is a
-    // number rather than a range: **two** of England's fourteen counties are on
+    // **Two** of England's fourteen counties are on
     // screen when the game opens.
     let counts = pick_counts(&screen);
     assert_eq!(visible_counties(&screen), 2, "eight lattice columns hold two counties, not 14");
@@ -330,7 +330,7 @@ fn the_near_view_is_a_window_of_england_and_not_the_whole_map() {
 ///   radius 1, 2 then 3 **around the county's anchor**, so the original never
 ///   puts a new army more than three tiles from the county's centre.
 ///
-/// Both are measured here rather than described: the town has a pixel, the
+/// Both are measured here: the town has a pixel, the
 /// army's tile is within three of the anchor and has a pixel, and removing the
 /// unit changes that many pixels and no others.
 #[test]
@@ -400,7 +400,7 @@ fn the_map_opens_on_the_players_own_county_and_a_raised_army_is_in_shot() {
     // bottom vertex — `tileOrigin + (halfPitch, halfPitch)`, which at the near
     // zoom is `tileCentre + (1, 15)` — and the army frames are 53 x 44. So the
     // ink hangs upwards from just below the tile centre, and this box is that
-    // rectangle with a pixel of slack rather than a guess.
+    // rectangle with a pixel of slack.
     let frame = (53, 44);
     for (x, y) in &moved {
         assert!(
@@ -513,7 +513,7 @@ fn a_mercenary_band_stands_on_the_town_blocks_third_tile_and_nowhere_else() {
     // `Mercenary_AdvanceAll` refreshes the offers once a season and the England
     // fixture is turn one, so nothing here has a band yet. That is also the
     // likeliest reason nobody had seen the marker in a short session, and is
-    // why this test writes the byte rather than waiting for one.
+    // This test writes the byte.
     for c in game.kingdom.counties.iter_mut() {
         c.mercenary_offer = 0;
     }
@@ -528,7 +528,7 @@ fn a_mercenary_band_stands_on_the_town_blocks_third_tile_and_nowhere_else() {
     };
     assert_eq!(town.len(), 4, "a county town is a 2 x 2 block");
     let (ox, oy) = l2_kingdom::map::coords(town[0]);
-    // Put the whole block in shot rather than trusting the opening viewport to
+    // Put the whole block in shot.
     // hold it.
     screen.centre_on_tile(ox as usize, oy as usize);
     draw(&mut screen, &mut game, &assets);
@@ -597,7 +597,7 @@ fn a_mercenary_band_stands_on_the_town_blocks_third_tile_and_nowhere_else() {
 
 /// **A merchant is drawn, and clicking one opens the merchant.** C50.
 ///
-/// The player: *"I don't see the merchants on the map and of course I can't
+/// The player: *"I don't see the merchants on the map, I can't
 /// click them."* Both halves were true. The figure was a square marker in
 /// `ink.dim`, because a merchant's owner byte is **6** and `Ink::realm` has six
 /// entries — and the click fell into `NOT YOUR UNIT` for the same reason.
@@ -806,8 +806,8 @@ fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
         far_visible > near_visible,
         "the far view shows {far_visible} counties and the near one {near_visible}"
     );
-    // At the far zoom's pinned origin all fourteen are reachable, which is why
-    // the original disables scrolling there rather than leaving it stranded.
+    // At the far zoom's pinned origin all fourteen are reachable.
+    // The original disables scrolling there.
     assert_eq!(far_visible, 14);
     assert!(before.diff_count(&far) > 10_000, "and it is a different picture");
 
@@ -832,7 +832,7 @@ fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
 /// panel — our convenience, which a player reported: *"there's some weird thing
 /// where if you click anywhere on grass it opens up the tax window too."* It
 /// was then rewritten to assert that the click *selects and recentres*, on the
-/// strength of a "last arm" quoted into three documents. There is no last arm.
+/// A "last arm" is not quoted into three documents.
 /// The quoted code is the **prologue of the industry branch**, guarded by tile
 /// flag `0x80` and by the county being the local player's, and `Map_Click`'s
 /// three writes to `g_selectedCounty` are all inside branches that open
@@ -867,8 +867,8 @@ fn a_click_on_a_countys_open_ground_selects_nothing() {
 /// upper half (C57), the merchant's nine-pixel box (C58) and `pick_tile`'s 56
 /// dead pixels around every tile centre (C60). Every one of them was a
 /// *geometric* shortfall, and every one became **the wrong screen opening**
-/// rather than nothing happening, purely because a miss had somewhere to fall
-/// through to. It asserts over the whole state rather than the screen id,
+/// A miss had somewhere to fall
+/// through to. It asserts over the whole state,
 /// because "nothing happened" is the claim.
 #[test]
 fn a_click_on_plain_ground_changes_nothing_at_all() {
@@ -889,7 +889,7 @@ fn a_click_on_plain_ground_changes_nothing_at_all() {
     assert_eq!(game.kingdom, before, "and changes no part of the world");
 }
 
-/// A click picks the county the player can actually see at that pixel. The
+/// A click picks the county the player can see at that pixel. The
 /// pixel is found through the pick plane, so this exercises exactly the path
 /// the mouse takes.
 
@@ -944,7 +944,7 @@ fn every_county_town_is_re_stamped_off_the_quarry_frames_and_onto_a_village() {
 
 /// And it reaches the picture: **the same viewport, painted twice** — once
 /// through the override and once straight from the file — differs, and it
-/// differs by about the area of four tiles rather than by the whole screen.
+/// Differs by about the area of four tiles.
 ///
 /// Both halves go through `campaign::draw` and nothing else, so nothing but the
 /// tile frames can account for the difference. Reverting the rewrite turns this
@@ -1032,7 +1032,7 @@ fn clicking_the_county_town_centres_the_map_on_it_and_opens_the_village() {
 #[test]
 fn every_painted_pixel_of_a_mine_reaches_the_industry_toggle() {
     let (mut game, assets) = world!();
-    // A county the player holds that actually has a mine, from the save.
+    // A county the player holds that has a mine, from the save.
     let county = game
         .kingdom
         .county_ids()
@@ -1089,7 +1089,7 @@ fn every_painted_pixel_of_a_mine_reaches_the_industry_toggle() {
 /// The minimap is the original's own raster out of `MAPnn.PL8`, and clicking it
 /// selects the county under the pixel *and* moves the viewport onto it.
 ///
-/// This is the one place we use the original's algorithm and not just reach its
+/// This is the one place we use the original's algorithm and reach its
 /// answer: `Minimap_Click` reads the same county byte out of the same file.
 #[test]
 fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
@@ -1118,7 +1118,7 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
     assert_ne!(screen.viewport(), before, "and the map moves");
 
     // Having moved, that county is now on screen — which is what "centred"
-    // means, and is not implied by the origin merely changing.
+    // The origin's changing does not imply this.
     draw(&mut screen, &mut game, &assets);
     assert!(pick_counts(&screen)[county as usize] > 0, "county {county} is now in view");
 }
@@ -1129,8 +1129,8 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
 /// The original draws no selection over the terrain: its borders live in the
 /// tile data — `docs/formats/maps-layers.md` §2.1, plane-0 bit `0x02` — and its
 /// *selection* is which county the right panel describes. Ours outlined the
-/// selected county in the highlight colour, which is why a player wrote *"still
-/// a weird yellow outline around the county that is selected on the real
+/// Selected county in the highlight colour.
+/// A yellow outline around the county, selected on the
 /// map."*
 ///
 /// This is the inverse of the test it replaces, and it is a stronger claim than
@@ -1141,7 +1141,7 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
 /// legitimately shows.
 ///
 /// **The counties are derived, not named**, and none of them is the player's.
-/// That is not a convenience: the field markers under `brush` were drawn for
+/// The field markers under `brush` were drawn for
 /// the *selected* county when the player owns it — the visible half of
 /// `ours/brush-popup-on-the-map`, since removed, and the markers now debug
 /// overlay only. Naming two counties by number would have made this
@@ -1155,14 +1155,14 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
 /// 1 and 2 on the England fixture — and required the map to be byte-identical
 /// between them. The map the fixture opens on shows counties **8 and 9**.
 /// Neither 1 nor 2 has a single pixel on screen, so the two canvases were
-/// identical for a reason that has nothing to do with what the painter draws,
+/// Identical for a reason independent of what the painter draws,
 /// and re-adding the yellow outline turned **nothing** red. The claim
 /// `docs/decisions.md` C132 makes for it — *"a stronger claim than the outline
 /// is gone, because any future selection paint fails it"* — was false as
 /// written. `docs/decisions.md` C138.
 ///
 /// So the shape here is: a **baseline** selection that is off-camera, and then
-/// every foreign county that is actually *on* camera selected in turn against
+/// Every foreign county that is *on* camera selected in turn against
 /// it. The `assert!` that at least one county is visible is what stops the
 /// sweep being empty, which is the only way this can go vacuous again.
 #[test]
@@ -1171,7 +1171,7 @@ fn the_selection_is_not_drawn_on_the_map() {
     let mut screen = MapScreen::new();
     draw(&mut screen, &mut game, &assets);
 
-    // Which counties the opening viewport actually shows, read off the pick
+    // Which counties the opening viewport shows, read off the pick
     // plane — the same plane a click goes through, so "visible" here means the
     // painter put pixels of it on screen.
     let counts = pick_counts(&screen);
@@ -1320,7 +1320,7 @@ fn the_five_sidebar_buttons_each_open_the_screen_the_original_opens() {
             Event::Click { x: r.x + r.w / 2, y: r.y + r.h / 2 },
         );
         // `map::sidebar_destination` is the one place a graduated screen is
-        // named, so this asks it rather than assuming every button is a shell:
+        // Named, this asks it:
         // `0x17` is the raise-army screen now, and it takes the county.
         assert_eq!(
             t,
@@ -1330,7 +1330,7 @@ fn the_five_sidebar_buttons_each_open_the_screen_the_original_opens() {
         );
     }
 
-    // Three of the five are gated on the county being yours, exactly as
+    // Three of the five are gated on the county being yours.
     // `Sidebar_Button` gates them. County 1 belongs to realm 5.
     game.select(1);
     for b in map::SIDEBAR_BUTTONS {
@@ -1353,7 +1353,7 @@ fn the_five_sidebar_buttons_each_open_the_screen_the_original_opens() {
             );
             // The ungated two are the court (`0x09`, still a shell) and the
             // lords (`0x0B`, which has graduated) — so this asks
-            // `sidebar_destination` too rather than assuming a shell. The
+            // `sidebar_destination` too. The
             // ungating is the point: **the diplomacy screen is about realms,
             // not counties**, and `FUN_0043611B` has no county gate at all.
             assert_eq!(t, Transition::Push(map::sidebar_destination(id, 1)), "{} is not gated", b.name);
@@ -1380,7 +1380,7 @@ fn the_sidebar_split_slider_moves_the_countys_labour_between_farm_and_industry()
     send(&mut screen, &mut game, &assets, Event::Click { x: 581, y: 270 });
     assert_eq!(game.kingdom.counties[8].industry_share, 100);
 
-    // The allocation followed it rather than being left describing the old
+    // The allocation follows it.
     // split: with everybody in the mines, the farm jobs empty.
     let farm: i32 = (0..3).map(|j| game.kingdom.counties[8].labour[j]).sum();
     send(&mut screen, &mut game, &assets, Event::Click { x: 531, y: 270 });
@@ -1451,7 +1451,7 @@ fn the_strip_draws_the_blue_ring_on_the_slider_and_on_the_overstaffed_job() {
     );
 
     // Putting the ceiling back takes the cow's ring away again and leaves the
-    // slider's, which is what makes them two tests rather than one.
+    // Slider's: two tests.
     game.kingdom.counties[8].labour_useful[cattle] = 200;
     assert_eq!(ring_pixels(&draw(&mut screen, &mut game, &assets)), with_slider);
 }
@@ -1481,7 +1481,7 @@ fn the_split_slider_tracks_the_pointer_while_the_button_is_held() {
     }
 
     // Off the sidebar entirely and the slider stops, without the drag ending —
-    // the original re-tests the rectangle every frame and simply skips.
+// the original re-tests the rectangle every frame and skips.
     send(&mut screen, &mut game, &assets, Event::Pointer { x: 200, y: 270 });
     assert_eq!(share(&game), 40, "outside the rectangle nothing moves");
     send(&mut screen, &mut game, &assets, Event::Pointer { x: 561, y: 270 });
@@ -1493,7 +1493,7 @@ fn the_split_slider_tracks_the_pointer_while_the_button_is_held() {
     send(&mut screen, &mut game, &assets, Event::Pointer { x: 533, y: 270 });
     assert_eq!(share(&game), 60, "and a bare pointer move is not a drag");
 
-    // Off the track, each move steps by four rather than jumping.
+    // Off the track, each move steps by four.
     send(&mut screen, &mut game, &assets, Event::Click { x: 600, y: 270 });
     assert_eq!(share(&game), 64, "right of the track: +4");
     send(&mut screen, &mut game, &assets, Event::Pointer { x: 601, y: 270 });
@@ -1561,7 +1561,7 @@ fn the_right_button_closes_a_panel_and_opens_the_map_information_screen() {
 /// at the coordinates it puts them: population at (508, 189), happiness ending
 /// at 602 on the same line, and the tax rate at (506, 226).
 ///
-/// The exact coordinates are the point. A panel that merely *contained* the
+/// The exact coordinates are the point. A panel *contains* the
 /// right digits somewhere would pass a looser test and still be laid out
 /// wrongly, which is the mistake this whole task exists to correct.
 #[test]
@@ -1619,7 +1619,7 @@ fn the_county_strip_shows_the_saves_numbers_where_the_original_puts_them() {
     // "The Normans". `scenarioIndex * 20 + countyId` lands on the county's own
     // name with no off-by-one, and county 8 of England is Dyfed.
     assert_eq!(name, "Dyfed", "L2.eng group 100, index map_slot * 20 + 8");
-    // rationAchieved == rationWanted, so it is drawn plain rather than red.
+    // rationAchieved == rationWanted, so it is drawn plain.
     assert!(find_strip(&canvas, &assets, "Normal", STRIP_INK).is_some());
     assert!(find_strip(&canvas, &assets, "Normal", STRIP_BAD).is_none());
 
@@ -1665,7 +1665,7 @@ fn the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should
 
     // **The panel is drawn in the game's own fonts and from the game's own
     // `L2.eng`** — so the strings here are the file's words, lower case and
-    // all, and the search is [`find_body`]/[`find_heading`] rather than the
+    // All; the search is [`find_body`]/[`find_heading`].
     // 5 x 7 probe. It used to be our own transcriptions in our own font.
     let canvas = draw_stack(&mut m, &mut game, &assets);
     assert_eq!(
@@ -1874,7 +1874,7 @@ fn moving_the_ration_slider_changes_a_number_on_the_panel_in_the_same_frame() {
     // nothing at all. `herd_eaten` and `grain_eaten` are 0 at **every** split,
     // so the slider has nothing to divide and the panel is inert — in the
     // original as much as here. That is very likely what the player was looking
-    // at, and it is `docs/rules.md`'s to explain rather than a defect.
+    // At. `docs/rules.md` explains this.
     //
     // So the herd is cut to something the county has to eat *around*. The state
     // is the input and the screen is the subject; asserting on a county whose
@@ -2008,7 +2008,7 @@ fn stepping_the_tax_rate_changes_the_panel_in_the_same_frame() {
 ///   *"Tax in"*, is drawn by nothing. The install's strings are mixed case and
 ///   [`county::…::g86`]'s fallbacks are upper case, so *"People pay"* on the
 ///   canvas and *"PEOPLE PAY"* absent is the whole of `CLAUDE.md` rule 6 for
-///   this screen, stated as an equality rather than a promise.
+///   this screen: an equality.
 /// * **The *This county* line is right on the frame the game is loaded**, not
 ///   only after an arrow is pressed. `Tax_RecomputePreview` writes county
 ///   `+0x0F = 5 - taxRate` and the original's own saves store exactly that, so
@@ -2016,7 +2016,7 @@ fn stepping_the_tax_rate_changes_the_panel_in_the_same_frame() {
 ///   read `( 0 ☺ )` until the player touched a control.
 /// * **The *People pay* number is the arithmetic**, at a rate the fixture does
 ///   not start at: `Pct(Pct(435, 640), 20)` is **556**, and 640 is
-///   `g_castleTaxBase[3]` written out rather than fetched from our own table.
+///   `g_castleTaxBase[3]` written out.
 ///
 /// **Ablation, run:** delete `c.d_hap_tax_local = *d_hap_tax_local;` from
 /// `l2_scenario::Scenario::apply_counties` and the `+5` clause fails; replace
@@ -2037,7 +2037,7 @@ fn the_tax_panel_draws_the_originals_numbers_in_the_originals_words() {
     let mut m = over_the_map(ScreenId::County(county as u8, Panel::Tax));
     let before = draw_stack(&mut m, &mut game, &assets);
 
-    // --- the words, from the install rather than from us
+    // The words are from the install.
     assert_eq!(assets.shell.text(86, 2), "People pay", "the install's own string");
     assert_eq!(
         find_body(&before, &assets, "People pay", font::TEXT).map(|p| p.0),
@@ -2115,7 +2115,7 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
 
     let mut screen = CountyScreen::new(1, Panel::Tax);
     let canvas = draw(&mut screen, &mut game, &assets);
-    // `CountyStrip_Draw`'s unowned branch: the name at (480, 180) rather than
+    // The name at (480, 180)
     // 165, then group 15's two lines and the owner at 240 / 260 / 280 — all
     // four in the body font and in the owning realm's own colour.
     // **The pen is the realm's shield colour**, `g_realmColour[shield]`, which
@@ -2126,7 +2126,7 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     // **The lord's real name, out of the save.** This read `"REALM 5"` while
     // nothing filled `g_playerNames`; the save's own player table does now, so
     // the line says what the original's says. The near miss is another realm's
-    // lord rather than an adjacent number.
+    // Lord.
     let lord5 = game.player_names[5].as_str().to_owned();
     let lord4 = game.player_names[4].as_str().to_owned();
     assert!(!lord5.is_empty() && lord5 != lord4, "the fixture names its lords: {lord5:?}");
@@ -2323,7 +2323,7 @@ fn the_village_draws_the_picture_and_the_people_on_it() {
     let colours = seen.iter().filter(|&&s| s).count();
     assert!(colours > 32, "vill.pl8 frame 0 drew in {colours} palette indices");
 
-    // And every cluster the county actually staffs has ink where its icons go.
+    // Every cluster the county staffs has ink where its icons go.
     let c = &game.kingdom.counties[county as usize];
     let icons = VillageScreen::icons(c);
     let mut clusters_with_people = 0;
@@ -2349,7 +2349,7 @@ fn the_village_draws_the_picture_and_the_people_on_it() {
 ///   each gated on `county.industry[c].hasResource` — frame `0x29` at
 ///   `(0xac, top + 0xe5)` for wood, `0x28` at `(0x4c, top + 0x0c)` for stone
 ///   and `0x2b` at the *same spot* for iron. None of the three was drawn.
-/// * `has_resource` was never imported, so every county claimed all four and
+/// * Every county claimed all four resources
 ///   the mine could not have been chosen even if it had been drawn.
 ///
 /// The check is exact: the shared spot is compared against the frame it should
@@ -2367,7 +2367,7 @@ fn the_village_draws_the_mine_for_an_iron_county_and_the_quarry_for_a_stone_one(
     assert_eq!((stone_slot, iron_slot), (3, 1), "stone is industry 3 and iron is industry 1");
     assert_eq!((bx, by), (ix, iy), "and they are drawn at the same spot");
 
-    // A county of each kind, chosen by what the *save* says rather than by id.
+    // A county of each kind, from the *save*.
     let kind = |id: usize| {
         let c = &game.kingdom.counties[id];
         (c.industry[1].has_resource, c.industry[3].has_resource)
@@ -2471,7 +2471,7 @@ fn the_village_paints_an_inset_and_leaves_the_rest_of_the_screen_alone() {
         escaped.first()
     );
 
-    // Said the other way round, on the two things the player could actually
+    // The two things the player can
     // see: the menu bar and the sidebar are untouched.
     for x in 0..640 {
         for y in 0..chrome::PANEL_TOP_Y {
@@ -2545,7 +2545,7 @@ fn the_machine_paints_the_campaign_map_under_the_village() {
     assert_ne!(with_village, bare.at(mid, row), "the picture is over the map, not beside it");
 }
 
-/// The whole gesture against the real grid: band a cluster, release, drop on
+/// The whole gesture on the grid: band a cluster, release, drop on
 /// another, and the workers land in the other cluster's job.
 #[test]
 fn a_drag_across_the_real_drop_grid_moves_the_county_s_peasants() {
@@ -2600,7 +2600,7 @@ fn a_drag_across_the_real_drop_grid_moves_the_county_s_peasants() {
 ///
 /// **But not on the release.** `Village_ClickJob` (`0x0043A123`) is gated on
 /// `DAT_004EABF0`, which the frame poll sets only once the click has stood for
-/// 300 ms without a second one; until then the click might be the first half of
+/// 300 ms, then one; the click might be the first half of
 /// a double click, and a double click means something else entirely. So the
 /// popup opens on a *tick*, and the ticks are what this test counts.
 #[test]
@@ -2679,7 +2679,7 @@ fn a_double_click_on_a_job_sheds_its_surplus_and_fills_its_shortfall() {
     assert_eq!(c.labour[cattle], 250, "the shortfall came out of the idle pool");
     assert_eq!(c.labour[idle], 50);
 
-    // And it is not a click: nothing is pending, so no job popup ever opens.
+    // Nothing is pending; no job popup opens.
     for _ in 0..VillageScreen::CLICK_SETTLE_TICKS + 2 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         assert_eq!(screen.update(&mut ctx), Transition::Stay, "a double click opens no popup");
@@ -2688,7 +2688,7 @@ fn a_double_click_on_a_job_sheds_its_surplus_and_fills_its_shortfall() {
 
 /// **A double click cancels the single click it interrupted.** The frame poll
 /// clears `DAT_004E65E8` — the pending click — the instant `DAT_004EABC5` is
-/// set, which is why the job popup does not open behind the reassignment.
+/// Set; the job popup does not open behind the reassignment.
 #[test]
 fn a_double_click_cancels_the_pending_single_click() {
     let (mut game, assets) = world!();
@@ -2839,7 +2839,7 @@ fn visible_field(
 /// grain button on it sows the field.
 ///
 /// A player: *"Clicking on a field still brings up placeholder … right click
-/// and left click on fields does the same thing in the real game."*
+/// and left click on fields in game."*
 /// `Map_Click`'s farmland arm is `_DAT_005681CC = 3; g_screenId = 4;
 /// FUN_0041B032();` and the right button's `FUN_0043CAF4` ends in the same two
 /// statements, so both land on screen `0x04`'s tile half for the picked tile.
@@ -2847,7 +2847,7 @@ fn visible_field(
 /// 48 square — the literal from the table, not our constant.
 ///
 /// Driven through the [`Machine`] at the pixel a player would click, on a field
-/// that is actually on screen. **Ablation, run:** deleting the `Push` in the
+/// That is on screen. **Ablation, run:** deleting the `Push` in the
 /// farmland arm of `screens/map.rs` fails the second assertion — the left click
 /// stays on the campaign map.
 #[test]
@@ -3018,7 +3018,7 @@ fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
 
 /// **The four resource sites say which site they are, how big it is and
 /// whether it is working** — `TileInfo_Draw`'s `flags & 0x80` arm below graphic
-/// `0x0D`. A player clicked a mine exactly as he clicks a field and got nothing
+/// `0x0D`. A player clicked a mine like he clicks a field and got nothing
 /// back.
 ///
 /// Every `y` is `row * 16 + k` with `row = 0x11` (`FUN_0041BEFE`'s
@@ -3044,7 +3044,7 @@ fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
 /// `flags::BOUNDARY` to `settlement_tile`'s exclusion set changes nothing,
 /// because no resource site in the England position carries `0x02`. The bit is
 /// not in `TileInfo_Draw`'s ladder either, so the set is right for the reason
-/// the painter gives and not because the fixture would catch it.
+/// The painter gives; the fixture does not catch it.
 #[test]
 fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
     use l2_game::screens::info::Target;
@@ -3078,7 +3078,7 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
     // **`TileInfo_Draw`'s ladder reaches `0x80` only after six other bits have
     // failed.** `FUN_0041BEFE` tests a shorter one, so a settlement tile that
     // also carried road or rough would take two different arms of two painters.
-    // Asserted rather than assumed.
+    // Asserted.
     let map = &game.kingdom.campaign.map;
     let sites: Vec<usize> = (0..map.flags.len())
         .filter(|&i| map.flags[i] & flags::SETTLEMENT != 0 && map.terrain[i] < 0x0D)
@@ -3189,7 +3189,7 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
 
     // --- destroyed bypasses the buckets, and is NOT the status line --------
     // `disabledSeasons` picks the body; `enabled` picks the tail. Two bytes, so
-    // a trampled site that was never switched off reads operational **and**
+// a trampled site reads operational when switched off
     // destroyed at once — the original's, reproduced.
     game.kingdom.counties[county].industry[Commodity::Iron.index()].output = 999;
     game.kingdom.counties[county].industry[Commodity::Iron.index()].disabled_seasons = 2;
@@ -3216,7 +3216,7 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
 
     // --- no ownership gate ------------------------------------------------
     // Both sides of `g_localPlayer == g_pickedCountyOwner` are the identical
-    // call in this arm, so a rival's mine says exactly as much as yours.
+// call in this arm, so a rival's mine says as much as yours.
     let other = (1..game.kingdom.realms.len() as u8).find(|&r| r != game.player).expect("a rival");
     game.kingdom.counties[county].owner = other;
     let canvas = panel(&mut game, mine);
@@ -3653,13 +3653,13 @@ fn shoot() {
 /// Group and index are the only things a screen can get wrong that no pixel
 /// assertion would notice: a window in the right place, full of the wrong
 /// sentence, looks finished. So this reads the shipped `L2.eng` and pins the
-/// six indices `Screen_BattlePrompt` and `Screen_BattleResult` actually use —
+/// six indices `Screen_BattlePrompt` and `Screen_BattleResult` use
 /// and the two they do not, which is the more interesting half.
 ///
 /// **Group 80 indices 4, 5 and 6 and group 81 indices 1 through 7 are dead.**
 /// Every `Eng_DrawString` on group 80 in the whole binary is index 0, 1, 2, 3
 /// or 7, and every one on group 81 is index 0 or 8. *"The army of"*, *"are
-/// victorious."* and the rest are never drawn anywhere: there is no victory
+/// Victory graphics for outcomes.
 /// sentence on the result screen. They are asserted to exist and to be
 /// unused, because a screen that composed one out of them would be inventing
 /// a line the game never printed.
@@ -3725,7 +3725,7 @@ fn the_battle_screens_draw_the_original_sentences() {
 /// A sprite's **exact ink**, found anywhere on the canvas.
 ///
 /// The same idea as [`find_text`] and for the same reason: render the thing
-/// being looked for, keep the pixels it would actually paint, and scan for that
+/// Being looked for: keep the pixels it paints.
 /// pattern. A PL8 blit copies only its opaque bytes, so a match is the frame's
 /// own palette indices standing where the frame was blitted — several hundred
 /// of them for a flag. That cannot arise from terrain.
@@ -3787,7 +3787,7 @@ fn town_view(game: &mut Game, assets: &Assets, county: u8) -> (MapScreen, Canvas
 /// **The county town flies its owner's flag, and it waves.**
 ///
 /// A player: *"I didn't see the colorful waving flag over my county."* It is
-/// there, and this is the assertion that says so in numbers rather than in a
+/// There: the assertion in numbers.
 /// screenshot somebody has to open.
 ///
 /// Three claims, each with its own pixels:
@@ -3880,7 +3880,7 @@ fn the_county_town_flies_its_owners_flag_and_the_wave_advances() {
 /// case worth testing, and it is the case a fixture cannot supply: the position
 /// is set up here — a county the player holds, its castle built, and somebody
 /// *else's* army standing in it — so the two flags must be two different
-/// pictures. A save that merely happened to have a garrison would almost always
+/// Pictures. A save with a garrison would almost always
 /// have one whose shield matched its host's, and would prove nothing about
 /// which of the two fields the branch reads.
 ///
@@ -4152,7 +4152,7 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
 /// are one draw in the original and are one function here.
 ///
 /// The fixture is a `.sav`, which carries no typed names into this tree, so on
-/// it the group is what answers — and that is precisely the case the private
+/// It the group is what answers; this is the case the private
 /// copies got wrong. **Ablated**: restore `format!("REALM {realm}")` at either
 /// site and the name it invents is not on the canvas.
 #[test]
@@ -4201,7 +4201,7 @@ fn the_diplomacy_screen_names_a_lord_out_of_the_games_own_sources() {
 
 /// **The minimap tints by owner, and a realm's ramp is its own.**
 ///
-/// A player: *"the minimap had default colors, it didn't actually identify who
+/// A player: *"the minimap had default colors, it didn't identify who
 /// owned a county."* The number that settles it is the count of distinct ramp
 /// **rows** standing in the minimap rectangle. `MINIMAP_REALM_RAMP` is six rows
 /// of four shades — row 0 the raster's own shading for unowned land, rows 1 … 5
@@ -4287,7 +4287,7 @@ fn the_minimap_paints_one_ramp_row_per_owning_realm() {
     }
 
     // What the save says the answer should be, worked out from the counties
-    // rather than from the picture.
+    // From the painting.
     let mut wanted = std::collections::BTreeSet::new();
     for id in game.kingdom.county_ids() {
         let owner = game.kingdom.counties[id].owner as usize;
@@ -4331,9 +4331,9 @@ fn the_minimap_paints_one_ramp_row_per_owning_realm() {
 /// stopped there.
 ///
 /// The second half is the half a person would never think to check, and it is
-/// the reason this is a test rather than a one-line change: the `0x05`
+/// The reason this is a test: the `0x05`
 /// (banding) and `0x06` (carrying) arms test **no sidebar guard at all**, so
-/// the sidebar is dead for exactly as long as a peasant is in the air. Making
+/// the sidebar is dead for as long as a peasant is in the air. Making
 /// all three behave alike would look like a tidy-up and would be wrong. C59.
 #[test]
 fn the_sidebar_slider_still_works_with_the_village_open_but_not_mid_drag() {
@@ -4392,9 +4392,9 @@ fn the_sidebar_slider_still_works_with_the_village_open_but_not_mid_drag() {
 }
 
 /// **Closing a screen opened over the village closes the village with it**, and
-/// that is the original's behaviour rather than a shortcut of ours.
+/// That is the original's behaviour.
 ///
-/// The player, again from the real game: *"things that open a dialog will open
+/// The player, from that game: *"things that open a dialog will open
 /// it and when you close that dialogue it will close town square and that
 /// dialogue, probably something to fix so it only closes the dialog you
 /// opened."* `docs/bugs.md` B63 records why it happens — `g_screenId` is one
@@ -4414,7 +4414,7 @@ fn a_screen_opened_over_the_village_takes_the_village_with_it_when_it_closes() {
 
     // A sidebar button, clicked through the village. `FUN_00432967` is
     // `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)` and it is the second
-    // of the six guards. COURT rather than ARMY because a shell's right button
+    // Of the six guards. COURT, as a shell's right button
     // closes it and this test needs to watch it close.
     let button = map::SIDEBAR_BUTTONS[1].rect();
     {
@@ -4444,7 +4444,7 @@ fn a_screen_opened_over_the_village_takes_the_village_with_it_when_it_closes() {
 /// redrawn from different files. We hard-coded the `a` set and the map looked
 /// the same in January and in August.
 ///
-/// **This ends a turn rather than assigning to `season`.** A test that sets
+/// **This ends a turn.** A test that sets
 /// `kingdom.season = 4` and then reads a lookup table is checking its own
 /// fixture (`docs/agents.md`); the season has to be moved by the thing that
 /// moves it in play. `l2_game::turn::end_turn` runs the whole phase machine.
@@ -4494,7 +4494,7 @@ fn a_real_turn_turns_the_season_and_the_map_is_repainted_from_other_files() {
 /// `Town1a.pl8`, every county town on the map would turn back into a quarry in
 /// autumn — a defect a player would report as *"my buildings disappear"*. The
 /// frame tables agree, so it does not happen, and this asserts the consequence
-/// at the pixel rather than the claim in the file.
+/// At the pixel.
 #[test]
 fn a_towns_overridden_graphic_survives_every_season() {
     let (mut game, assets) = world!();
@@ -4575,7 +4575,7 @@ fn a_fields_picture_follows_its_crop_state() {
     // own variation — the two low bits the file stored — never moves.
     //
     // **`0x05` used to be in this list and it was asserting a falsehood.** The
-    // list is now the values the game can actually write to a farm tile —
+    // list is now the values the game writes to a farm tile.
     // `Terrain_Set`'s twenty-four call sites pass `0`, `1`, `2 … 0x0E` through
     // `FUN_00469D21`, `0x13 … 0x16`, `0x17`, `0x18` and `0x19 … 0x1C` — and the
     // crop states are handled by their own claim below, because they are the
@@ -4720,7 +4720,7 @@ fn the_village_animates_and_the_iron_mine_comes_out_of_villani1() {
 /// independently of the decompilation.**
 ///
 /// The six runs in [`village::OVERLAYS`] — their first frame and their length —
-/// were read out of `Village_Animate`'s counter bounds. The sheet was never
+/// were read from `Village_Animate`'s counter bounds. The sheet
 /// looked at. Looking at it: `villani2.pl8`'s 44 frames fall into **five blocks
 /// of equal-sized frames laid out in rows on the artist's canvas**, and the
 /// blocks are
@@ -4805,9 +4805,9 @@ fn the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in() {
 }
 
 /// **Every overlay's frame run is inside the sheet it is indexed against**, and
-/// the two counters nothing draws are recorded rather than drawn.
+/// The two counters nothing draws are recorded.
 ///
-/// A frame index off the end of a PL8 is a hole rather than a crash here, so
+/// A frame index off the end of a PL8 is a hole here;
 /// without this the six runs could be wrong by any amount and nothing would
 /// say so.
 ///
@@ -4819,7 +4819,7 @@ fn the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in() {
 /// And `Village_Animate`'s **dead** counter `DAT_004D2934` wraps at `0x14` —
 /// **21 states, which is exactly the file's frame count** — and is read by
 /// nothing in the executable. **[I]**, and deliberately only that: the two
-/// numbers agreeing is a striking coincidence and it is not a demonstration
+/// Numbers agreeing is a coincidence.
 /// that the mine was meant to run off that counter. `docs/bugs.md` B65 records
 /// the numbers and says the same thing.
 #[test]
@@ -4880,7 +4880,7 @@ fn every_village_overlay_run_fits_inside_its_own_sheet() {
         "no overlay uses the 21-state counter, which is why it is called dead"
     );
     // …and the coincidence, asserted so that it stays visible: the dead
-    // counter has exactly as many states as villani1.pl8 has frames.
+// counter has as many states as villani1.pl8 has frames.
     assert_eq!(
         village::DEAD_COUNTER_PERIODS[0].1,
         counts[0],
@@ -4903,7 +4903,7 @@ fn body_mask(assets: &Assets, s: &str) -> Vec<(i32, i32)> {
         .collect()
 }
 
-/// **The emboss pair a line was actually drawn with, read back off the canvas.**
+/// **The emboss pair a line was drawn with, read back off the canvas.**
 ///
 /// `Ui_DrawText` draws each glyph three times, in this order: at `y - 1` in the
 /// *up* colour, at `y + 1` in the *down* colour, then at `y` in its own. So the
@@ -4914,7 +4914,7 @@ fn body_mask(assets: &Assets, s: &str) -> Vec<(i32, i32)> {
 /// * else in the mask shifted **down** one → the *down* shadow;
 /// * else in the mask shifted **up** one → the *up* shadow.
 ///
-/// Reading those two sets back is exact, and it is not a colour picked by eye:
+/// Reading those two sets back is exact;
 /// every pixel of each set has to agree or this returns `None`. The two shadow
 /// colours come out as palette indices, which is the form the binary states
 /// them in.
@@ -5034,7 +5034,7 @@ fn the_county_name_keeps_the_parchment_emboss_and_the_sovereign_lines_do_not() {
 /// county that is not yours, and guards the three extra lines with
 /// `owner != 0`. `L2.eng` group 15 holds exactly two strings, `"Sovereign
 /// land"` and `"of"`, and the third line is a lord's name out of
-/// `g_playerNames` — there is no wording in the file for a county nobody owns,
+/// Wording in the file holds a county nobody owns,
 /// because the original never needs one.
 ///
 /// Ours drew `SOVEREIGN LAND / OF / UNCLAIMED`, a sentence the original cannot
@@ -5129,7 +5129,7 @@ fn the_grey_county_name_quirk_changes_the_emboss_and_nothing_else() {
 // `docs/arms.json`, groups `right-column`, `menu-bar`, `county-panels`,
 // `village` and `management-screens`. Every test below names the arm it is
 // about; the point of them is that an arm can only be shown to be live from the
-// screen a player actually has on top, and half of these arms are answered by a
+// screen a player has on top; half of these arms are answered by a
 // screen that is not the top one.
 // ===========================================================================
 
@@ -5267,7 +5267,7 @@ fn a_press_on_the_minimap_drops_whatever_is_open_over_the_map() {
 /// titles is dead bar.
 ///
 /// Install-gated by `world!`, so the widths are the shipped `Fntl2_14.pl8`'s
-/// through the shipped `L2.eng`'s own captions rather than our 5 x 7 fallback's.
+/// Through the shipped `L2.eng`'s own captions.
 #[test]
 fn the_menu_bar_titles_are_their_own_words_wide_with_a_dead_gap_between_them() {
     let (mut game, assets) = world!();
@@ -5358,7 +5358,7 @@ fn the_options_menu_reaches_the_four_option_screens() {
 /// **A right click during the village's drag gesture does not leave the
 /// village.** `docs/arms.json` `0x0042FF10/carry-right-cancels`.
 ///
-/// This is the arm that was *wrong* rather than missing: the screen popped from
+/// This arm was *wrong*; the screen popped from
 /// every phase, so a player who picked peasants up and changed his mind lost the
 /// village with them. `0x06`'s arm is `g_screenId = 0x02`, not 0.
 #[test]
@@ -5482,9 +5482,9 @@ fn the_produce_rows_map_to_labour_slots_by_column_and_pitch() {
 ///    (+4, −4) — by requiring the pixels the sheet holds at a named position to
 ///    be on the canvas at the position the placement predicts;
 /// 2. **it is not there before**. The base layer is painted first and compared,
-///    so what is being measured is the overlay pass rather than the meadow;
+///    What is being measured is the overlay pass;
 /// 3. **the picture changes with the herd**, driven from `County::herd` through
-///    the season pass rather than by writing a terrain byte — which is
+///    The season pass; a terrain byte is
 ///    `docs/agents.md`'s *"a field is only tested if something a test reads was
 ///    written by something the game runs."*
 #[test]
@@ -5633,21 +5633,21 @@ fn the_pastures_have_cattle_in_them_and_the_herd_chooses_which() {
 /// **The first version of this test was wrong, and the way it was wrong is
 /// the one `docs/agents.md` warns about.** It ticked `MapScreen::update` a
 /// hundred times and required the kingdom's checksum not to move. It moved,
-/// and not because of the clock: `update` also runs `Units_Tick`, picks up a
+/// The clock is not the cause: `update` also runs `Units_Tick`, picks up a
 /// suspended turn and edge-scrolls. The experiment was structurally incapable
 /// of measuring the thing it was run to measure, and it returned a clean
 /// number either way.
 ///
-/// So this asserts what is actually true and actually checkable, in two
+/// This asserts what is true and checkable, in two
 /// halves that are different in kind:
 ///
 /// 1. **The compiler owns the safety.** `Screen::draw` takes `&Ctx`, so a
 ///    renderer cannot reach the simulation at all - which is a stronger
 ///    guarantee than any number this test could compare, and the reason the
-///    phase lives on the screen rather than on the `Kingdom`. Drawing the
+///    Phase lives on the screen. Drawing the
 ///    same world at every phase and comparing the checksum is a *witness* to
 ///    that, not the proof.
-/// 2. **The clock has to actually animate**, or the phase is display state
+/// 2. **The clock animates**, or the phase is display state
 ///    nobody would notice was broken. Six phases of a stocked pasture must
 ///    produce more than one picture.
 #[test]
@@ -5667,7 +5667,7 @@ fn the_grazing_clock_changes_the_picture_and_cannot_change_the_world() {
     let terrain = game.kingdom.campaign.map.terrain[tile];
 
     // Six phases, six frames of one meadow. Distinct *frames* first, because
-    // that is the claim about the ladder rather than about the artwork.
+    // The claim is about the ladder.
     let frames: Vec<usize> = (0..campaign::HERD_PHASES)
         .map(|p| campaign::herd_sprite(terrain, p).expect("stocked").0)
         .collect();
@@ -5712,7 +5712,7 @@ fn the_grazing_clock_changes_the_picture_and_cannot_change_the_world() {
 }
 
 /// **The Sovereign land lines are drawn in the owning realm's shield colour,
-/// and the colour follows the shield rather than the realm id.**
+/// The colour follows the shield.
 ///
 /// A player, on a build with the previous code: *"The sovereign land text has
 /// the wrong colours. When I start, the counties seem to have the right colours
@@ -5727,7 +5727,7 @@ fn the_grazing_clock_changes_the_picture_and_cannot_change_the_world() {
 /// `g_realms[owner].field_0x8`, which `Realms_AssignLords` fills from
 /// `g_realmColour[shieldIndex]`.
 ///
-/// **Changing the shield is what makes this a test of the key** rather than of
+/// **Changing the shield tests the key**
 /// the table. A fixed table keyed by the realm id passes any check that only
 /// ever looks at one game; it fails the moment the same realm flies a different
 /// colour, which is exactly what happens when a different human picks red.
@@ -5844,7 +5844,7 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
 fn the_cattle_row_draws_its_forecast_with_a_sign() {
     let (mut game, assets) = world!();
     // `colourPos` and `colourNeg`, typed from the call site in `FUN_004100AF`
-    // rather than imported from the constants under test.
+    // Not imported from the constants under test.
     const POS: u8 = 0xFA;
     const NEG: u8 = 0xF9;
 
@@ -5924,7 +5924,7 @@ fn the_cattle_row_draws_its_forecast_with_a_sign() {
 #[test]
 fn a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame() {
     let (mut game, assets) = world!();
-    // `colourPos`, typed from the four call sites rather than imported.
+    // `colourPos`, typed from the four call sites.
     const POS: u8 = 0xFA;
     // `Ui_DrawDelta`'s x and the row's own y, from `FUN_00410502` and its three
     // siblings.
@@ -5984,7 +5984,7 @@ fn a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame() {
 
 /// Whether the string found at `at` carries `Ui_DrawText`'s **drop shadow**:
 /// every pixel one right and one down of a glyph pixel that is not itself a
-/// glyph pixel is `0x3F`. Typed here rather than read from
+/// Glyph pixel is `0x3F`. Typed here.
 /// `font::DROP_SHADOW_COLOUR`, so ablating the constant cannot move the probe.
 fn is_dropped(canvas: &Canvas, f: &font::Font, s: &str, at: (i32, i32)) -> bool {
     const SHADOW: u8 = 0x3F;
@@ -6141,7 +6141,7 @@ fn the_castle_cell_puts_its_number_in_font_10_and_its_word_in_fntl2_9() {
 /// of the next turn. So it is a **conditional draw**, and the interval is
 /// exactly *turn in flight*.
 ///
-/// The assertion is idempotence rather than a pixel count, for the reason
+/// The assertion is idempotence, for the reason
 /// `docs/agents.md` gives: draw the page, copy it, draw again, require equality.
 /// Text is an opaque blit, so a second draw over itself changes nothing — but
 /// only if it was there the first time. No threshold, and nothing to re-tune
@@ -6313,7 +6313,7 @@ fn the_ration_panels_five_numbers_centre_where_panel_ration_centres_them() {
     }
 
     // And the whole-canvas position of the one number that is unambiguous, as a
-    // hard integer rather than an expression — 0x144 + (0x40 - 34) / 2 + 4.
+    // hard integer: 0x144 + (0x40 - 34) / 2 + 4.
     assert_eq!(
         find_body(&canvas, &assets, "505", font::TEXT),
         Some((343, 286)),
@@ -6386,7 +6386,7 @@ fn the_foraging_label_starts_one_trailing_gap_after_its_number() {
 ///
 /// 1. **the number the simulation computed is the number on the plate**, in
 ///    `colourNeg` (`0xF9`) with a `'-'` lead, and in no other colour;
-/// 2. **it is on the produce plate**, not merely painted somewhere — *"is it
+/// 2. **it is on the produce plate** - *"is it
 ///    drawn"* and *"can it be seen"* are different claims (`docs/agents.md`).
 ///
 /// Ablations, both run, and they fail at **different** assertions, which is the
@@ -6473,7 +6473,7 @@ fn the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel() {
 /// ```
 ///
 /// Three claims, and the first is the one that makes this worth a test of its
-/// own rather than a second copy of the grain row's:
+/// Own copy, not the grain row's:
 ///
 /// 1. **The two land sixteen pixels apart in `y` and are anchored differently
 ///    in `x`** — `0x204`/`0x133` against `0x20A`/`0x143`. Reading only
@@ -6485,11 +6485,11 @@ fn the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel() {
 /// 2. **The delta is a count of fields, not of work**, so a gang with enough
 ///    labour for two finished fields draws `+2` and not `+1`.
 /// 3. **The countdown is drawn only when it is non-zero** — the original's own
-///    `if`, so a county reclaiming nothing shows a bare icon rather than a `0`.
+///    `if`, so a county reclaiming nothing shows a bare icon.
 ///
 /// The row is the second of the farm list here (cattle, then reclamation, with
 /// no grain), so the pitch is `0x3C` and both `y`s carry one row of it. That is
-/// asserted rather than assumed: a wrong pitch would move both figures
+/// Asserted: a wrong pitch would move both figures
 /// together and claim 1 would still hold.
 ///
 /// Ablation, run: deleting the `ten_number` call (then `strip_number`) fails claim 1's second half
@@ -6543,7 +6543,7 @@ fn the_reclamation_row_draws_both_of_its_figures_where_the_call_sites_put_them()
     let delta = find_font_text(&canvas, f, "+2 ", POS).expect("the reclamation row draws +2");
     assert_eq!(delta.1, pitch + 0x133, "the delta sits on the row's 0x133 line");
     // 1 and 3 — the countdown, sixteen pixels below it and six to the right,
-    // and it is `Ui_DrawNumber` with a `' '` lead rather than a sign.
+    // It is `Ui_DrawNumber` with a `' '` lead.
     let countdown = find_font_text(&canvas, f, " 1 ", POS).expect("and the seasons countdown");
     assert_eq!(countdown, (0x20A, pitch + 0x143), "the countdown is its own call site");
     assert_eq!(
@@ -6555,7 +6555,7 @@ fn the_reclamation_row_draws_both_of_its_figures_where_the_call_sites_put_them()
     // `" "` prefix at `0x204`, lets it advance the pen, and places the number
     // at `x + g_penAdvance` — so a match at `0x204` itself would mean the
     // advance had been dropped, which is C127 on this row. The countdown is a
-    // plain `Ui_DrawNumber` and does sit on its own `x`, which is why the two
+    // Plain `Ui_DrawNumber` does sit on its own `x`; the two
     // assertions are different shapes.
     assert!(
         delta.0 > 0x204,
@@ -6605,7 +6605,7 @@ fn the_reclamation_row_draws_both_of_its_figures_where_the_call_sites_put_them()
 ///
 /// Ablations, each observed red: `ai_step < 999` literally in `draw_menu_bar`
 /// (claim 1); the `realm_turn_ended` clause deleted (claim 2); `slot`
-/// advanced for every realm rather than every banner drawn (claim 2).
+/// Advanced for every realm (claim 2).
 #[test]
 fn the_menu_bar_shields_are_the_realms_still_to_move() {
     let (mut game, assets) = world!();
@@ -6715,7 +6715,7 @@ fn timer_digits(canvas: &Canvas, assets: &Assets, v: i32) -> Option<(i32, i32)> 
 /// The buffer is lead, digits and suffix, centred whole. **The suffix is under
 /// test and the expectation does not go through it**: `&DAT_004D41D0` is `20 00`
 /// in the image, one space, and it is written here as one more space's advance
-/// rather than read from `turn_clock::SUFFIX` — so emptying the constant moves
+/// Not read from `turn_clock::SUFFIX`; emptying the constant moves
 /// the picture two pixels and leaves this where it is.
 fn timer_digits_expected(assets: &Assets, v: i32) -> (i32, i32) {
     let space = body_width(assets, " ");
@@ -6748,7 +6748,7 @@ fn timer_digits_expected(assets: &Assets, v: i32) -> (i32, i32) {
 /// Ablations, each observed red: the guard as documented, the person's
 /// `ai_step == 999` alone (claim 1); the suffix emptied (claim 1, two pixels);
 /// the `Turn_End` request `Turn_Tick` makes deleted (claim 4); the person's turn
-/// read literally off his `ai_step` rather than off `turn::players_turn_ended`
+/// Read off his `ai_step`.
 /// (claim 5, and nothing earlier).
 #[test]
 fn the_turn_timer_is_up_for_the_players_own_turn_and_ends_it_when_it_runs_out() {
@@ -6973,7 +6973,7 @@ fn map_pixels_differ(a: &Canvas, b: &Canvas, clip: l2_view::Clip) -> usize {
 /// **`Map_DrawTile` (`0x004063C1`): `if (g_optExploration == 1 && (bank & 0x20)
 /// == 0) { bank = 0; frame = 0; }`**, and `Map_DrawTileApex` draws nothing.
 ///
-/// The check is idempotence rather than an effect (`docs/agents.md`): blit the
+/// The check is idempotence (`docs/agents.md`): blit the
 /// `base` bank's frame 0 over the drawn tile again, and a tile that was already
 /// that picture does not change by a pixel. A tile drawn as its own terrain
 /// does. The tile is chosen with its own picture *not* frame 0, every tile
@@ -7013,7 +7013,7 @@ fn a_dark_tile_draws_the_base_banks_first_frame_until_it_is_seen_or_the_fog_is_o
         .expect("England at turn one is dark almost everywhere");
     let (x, y) = coords(tile);
 
-    // **What "base frame 0" is, measured rather than assumed — and it is two
+    // **What "base frame 0" is: it is two
     // different pictures.** Over the player's own files, all four seasons:
     //
     // * **near zoom, 58 × 30: not one opaque pixel.** Every byte is palette
@@ -7088,7 +7088,7 @@ fn a_dark_tile_draws_the_base_banks_first_frame_until_it_is_seen_or_the_fog_is_o
 /// `Map_RenderOffsetRow`**: `frame = g_optExploration == 1 ? 0 : cell -
 /// 0x0FFF0000`. Everything seen, the corner of the map in view: turning the
 /// option on changes the picture, and it changes only because of the surround —
-/// there is no unseen tile left for anything else to hide.
+/// An unseen tile is left.
 #[test]
 fn with_the_fog_on_the_sea_round_the_map_is_the_base_banks_first_frame() {
     let (mut game, assets) = world!();
@@ -7147,7 +7147,7 @@ fn a_county_in_the_dark_gives_nothing_away_on_the_map() {
     });
     assert!(pasture.is_some(), "county {county} has a field with no herd on it");
 
-    // `with_herd` is false for the control below, and that is not a
+    // `with_herd` is false for the control below.
     // convenience: turning a field into a pasture also repaints the field's own
     // terrain, which the fog-off render shows whatever `hides_tile` says. With
     // it in, the control moved on the terrain alone, and deleting
@@ -7303,7 +7303,7 @@ fn open_step_east(game: &Game, ok: impl Fn(usize, usize) -> bool) -> Option<((u8
 /// four frames it could be, so a wrong frame at the right place and the right
 /// frame at the wrong place both fail. Both tiles are asserted seen with the fog
 /// **on**, and the whole figure inside the map viewport, on every tick: C138 was
-/// an assertion about an army that was never on screen.
+/// Assertion about an army not on screen.
 #[test]
 fn a_marching_army_is_drawn_part_way_across_its_tile_with_the_originals_walk_frames() {
     use l2_kingdom::{Unit, UnitKind};

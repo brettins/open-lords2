@@ -27,7 +27,7 @@
 //! army is picked *none of the arms below the first heading run at all*.
 //!
 //! Rule 5 in `CLAUDE.md` says a behaviour must name the function it reproduces.
-//! This module's arms, so that the next person can check the list rather than
+//! This module's arms. A behaviour must name the function it reproduces.
 //! rediscover it:
 //!
 //! ## Screen `0` — the map
@@ -98,13 +98,13 @@
 //! the tiles behind it (C57, the mine); and one whose arithmetic was simply
 //! wrong (C60, `pick_tile` dividing by `tile_w / 2` where `Map_PickTile` divides
 //! by the half pitch — 56 dead pixels around every tile centre). Three different
-//! mistakes. **All three became *the wrong screen opening* rather than nothing
+//! mistakes. **All three became *the wrong screen opening*
 //! happening**, because a miss had somewhere to fall through to — and the player
 //! reported the arm itself in the end: *"if you click anywhere on grass it opens
 //! up the tax window too."*
 //!
 //! So the hit tests are still worth getting right, and now a mistake in one is
-//! quiet rather than loud. `a_click_on_plain_ground_changes_nothing_at_all` is
+//! quiet. `a_click_on_plain_ground_changes_nothing_at_all` is
 //! the assertion that could not exist while the arm did; it covers the whole
 //! kingdom, not the screen id, because *nothing happened* is the claim.
 //!
@@ -128,7 +128,7 @@
 //! county-selection arm and the outline were one invention with two halves, the
 //! arm was removed and the paint was not, and a player reported the leftover
 //! four merges later — *"still a weird yellow outline around the county that is
-//! selected on the real map."* The lesson is not that somebody was careless.
+//! selected on the real map."* This was recorded in the input inventory.
 //! **The removal was recorded in the input inventory, and the surviving half
 //! was in the painter, where the input inventory does not look.**
 //! `docs/decisions.md` C132.
@@ -144,7 +144,7 @@
 //! # Picking
 //!
 //! A click on the map reads the tag plane, which is exact by construction: it
-//! answers with the county whose tile is actually visible at that pixel. The
+//! answers with the county whose tile is visible at that pixel. The
 //! original inverts the projection instead (`Map_PickTile`), which is a
 //! different algorithm reaching the same answer for the same reason.
 //!
@@ -181,14 +181,14 @@ pub const PANEL: Rect = Rect::new(PANEL_X, TOP_BAR, PANEL_W, 480 - TOP_BAR);
 /// 4 centred in it.
 ///
 /// **The hit box is 161 × 19 and not 162 × 20**, and that is `g_sidebarButtons`
-/// record 5 rather than the plate: `(0, 30) … (161, 49)` at the table's
+/// record 5: `(0, 30) … (161, 49)` at the table's
 /// (`0x1DE`, `0x1AE`) offset, with `Hotspot_Test` half-open on **both** axes —
 /// `my < y0 + off || y1 + off <= my` rejects. So the strip's own last column
 /// (x 639) and last row (y 479) are dead in the original, exactly like the
 /// one-pixel dead columns between the five icons above it, and ours had them
 /// live. Read out of the player's `Lords2.exe` in
 /// `crates/l2-game/tests/right_column.rs`; the artwork is 162 × 20 and the
-/// hotspot is not, which is why deriving this from the plate was wrong.
+/// hotspot is not.
 pub const END_TURN_BUTTON: Rect =
     Rect::new(PANEL_X, chrome::PANEL_END_TURN_Y, PANEL_W - 1, 19);
 
@@ -213,7 +213,7 @@ pub const END_TURN_BUTTON: Rect =
 /// more: `Sidebar_ButtonClicked` (`0x00432967`) is one
 /// `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)` call and nothing else.
 /// The sixth record is **End Turn**, `(0, 30) … (161, 49)` at that offset, whose
-/// handler is `Turn_End` rather than `Sidebar_Button`; it is [`END_TURN_BUTTON`]
+/// handler is `Turn_End`; it is [`END_TURN_BUTTON`]
 /// here and its own arm.
 // arm: 0x00432967/sidebar-hit-test left-press
 pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
@@ -225,7 +225,7 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
     // mercenaries" — the smaller half naming the larger — and this button and
     // that name were corrected in the same afternoon by two agents who had not
     // spoken. `docs/decisions.md` C45; the screen is `crate::screens::army` and
-    // is not a shell any more, which is why this goes through
+// is not a shell; this goes through
     // [`sidebar_destination`].
     SidebarButton { x: 0, w: 33, action: SidebarAction::Screen(0x17), name: "ARMY" },
     SidebarButton { x: 34, w: 31, action: SidebarAction::Screen(0x09), name: "COURT" },
@@ -252,7 +252,7 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
 /// The second record's `y1` is `0x42` where the pattern wants `0x3F`, so band 2
 /// is 34 pixels tall and overlaps band 3's first two rows. `Hotspot_Test`
 /// returns on the first match, so y 96 and 97 select mode 2. **That is the
-/// original's own data**, transcribed rather than tidied.
+/// original's own data**, transcribed.
 /// What our status line calls each overlay. **Ours** — the original labels them
 /// only with the button icons and the badge.
 ///
@@ -263,7 +263,7 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
 /// idle."*, *"Ration status"* and *"Overall happiness"* — with *"Overview map"*
 /// on the fourth button and *"Return census map to empire mode"* (index 31) once
 /// an overlay is up. `docs/draws-map.md` §5.1, **C86**. The status line stays
-/// ours, because a status line is not a tooltip; the tips themselves are drawn
+/// ours; the tips themselves are drawn
 /// from the player's own group 220 by [`crate::tooltip`], which reads
 /// [`MapScreen::minimap_mode`] through [`Screen::minimap_mode`].
 fn minimap_mode_name(mode: MinimapMode) -> &'static str {
@@ -332,7 +332,7 @@ pub enum SidebarAction {
 /// `Levy_SetPercent(g_selectedCounty, g_levyPercent); FUN_004AA90A(g_selectedCounty, g_levyMen)`.
 ///
 /// **This is the function to change when a screen graduates**, and the test
-/// below is what makes forgetting it a failure rather than a silently dead
+/// below makes forgetting it a failure:
 /// button: every id in the table must resolve to a screen this function names.
 ///
 /// The five ids are `Sidebar_Button`'s five hotspots — 1 the levy, 2 the court,
@@ -354,13 +354,13 @@ pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
         0x18 => ScreenId::Supplies(county),
         // `FUN_0043611B` — the LORDS button — is a bare `g_screenId = 0x0B`
         // with no county in it at all, because the diplomacy screen is about
-        // realms rather than counties. `Diplo_DrawScreen` picks its own target
+// realms. `Diplo_DrawScreen` picks its own target
         // through `Diplo_DefaultTarget`.
         // It does not touch `g_diploTarget`; the painter's prologue heals a
         // stale one.
         0x0B => ScreenId::Diplomacy,
         //
-        // There is no sixth hotspot, so the fall-through is unreachable from
+// The sixth hotspot is End Turn; the fall-through is unreachable from
         // the strip. It went to a shell until the table was emptied; the map
         // is the honest destination for an id nothing claims.
         _ => ScreenId::Campaign,
@@ -375,7 +375,7 @@ pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
 /// one control on the campaign screen that moves peasants in bulk: it sets
 /// [`County::industry_share`](l2_kingdom::county::County::industry_share), the
 /// percentage of the county's people that goes to the mines and the smithy
-/// rather than to the fields. It was not wired, and a player reported that he
+/// rather than to the fields. A player reported that he
 /// could not assign peasants.
 ///
 /// # It is a **drag**, and the flags say which kind
@@ -413,7 +413,7 @@ pub const SPLIT_SLIDER: Rect = Rect::new(PANEL_X, 257, PANEL_W, 296 - 257 + 1);
 /// **The three zones are half-open and the upper bound is 594, not 595.** The
 /// original is `if (mx < 0x213) down; else if (mx < 0x252) track; else up;` —
 /// so x = 594 steps the share **up**. This read `x > 594` and put that one
-/// column on the track instead: a wrong arm rather than a missing one, and the
+/// column on the track instead: a wrong arm, and the
 /// kind nothing looks broken about.
 pub fn split_from_click(x: i32, current: i32) -> i32 {
     let next = if x < 531 {
@@ -427,7 +427,7 @@ pub fn split_from_click(x: i32, current: i32) -> i32 {
 }
 
 /// Where a click means "that county on the map". Half-open, and it stops at
-/// 478 rather than 480 because that is where `Clip_Horizontal` stops.
+/// 478 because `Clip_Horizontal` stops there.
 pub const MAP_AREA: Rect = Rect::new(0, TOP_BAR, PANEL_X, NEAR.bottom() - TOP_BAR);
 
 /// Half-width of a county's marker square. **Ours** — the original draws a
@@ -500,13 +500,13 @@ pub struct MapScreen {
     saved: Viewport,
     /// The painted tiles, and what county each pixel came from. Rebuilt when
     /// the slot, the zoom or the scroll origin changes — which is what makes
-    /// scrolling cost one repaint rather than one per frame.
+/// scrolling costs one repaint per frame.
     base: Canvas,
     tags: Tags,
     /// `(map slot, zoom, viewport, turn, season, field digest, castle digest)`
     /// — everything the painted base plane depends on. **Two branches added a
     /// component to this tuple on the same day and neither knew about the
-    /// other**, which is the argument for it being a tuple rather than a
+/// other**. It is a tuple, not a
     /// hand-written comparison: a missed component is a stale picture, and a
     /// stale picture is the hardest defect on this screen to attribute.
     /// The last `u64` is the fog — [`MapScreen::fog_key`].
@@ -548,7 +548,7 @@ pub struct MapScreen {
     scrolled: bool,
     /// Whether the opening centre-on-the-player's-county has been done.
     ///
-    /// See [`MapScreen::open_on_the_player`] for why the map does not simply
+/// for why the map does not simply
     /// stay where `Map_InitMode` put it.
     opened: bool,
     /// `DAT_0057D378`, the map's animation tick, and `DAT_0057D390`, the flag's
@@ -563,7 +563,7 @@ pub struct MapScreen {
     flag_phase: u8,
     /// `DAT_0057D388`, the map's **second** animation counter, and
     /// `_DAT_0057D38C`, the herd's grazing phase, which is that counter mod
-    /// `0x60` shifted right by four — so **six** phases rather than the flag's
+/// **six** phases, not eight.
     /// eight.
     ///
     /// `FUN_004CFB08` steps both counters behind one 16 ms `GetTickCount` gate,
@@ -620,7 +620,7 @@ pub struct MapScreen {
     /// the options slider as 0 … 10; the shipped default is
     /// [`DEFAULT_SCROLL_SPEED`].
     ///
-    /// It lives on the screen rather than in `Options` because it is not a
+/// It lives on the screen, not in `Options`;
     /// rule: nothing in the simulation reads it, and two lockstep peers may
     /// disagree about it the way they may disagree about window size.
     /// `Menu_ScrollSpeed` (`0x00434CEE`) is the control that sets it, the
@@ -646,7 +646,7 @@ pub struct MapScreen {
 #[derive(Debug, Clone)]
 struct Fading {
     phase: u8,
-    /// What to put in the status line once the light is back. Held rather than
+/// Held
     /// written immediately because the numbers it names change *during* the
     /// dark, and announcing them early is the abruptness the fade hides.
     status: String,
@@ -744,7 +744,7 @@ impl MapScreen {
     /// `Minimap_ModeButton` (`0x0043AB76`), button 0…3 of
     /// [`MINIMAP_MODE_BUTTONS`].
     ///
-    /// **The original is not a set of four radio buttons**, and this is the
+/// **This is not a set of four radio buttons:**
     /// shape of it:
     ///
     /// * in mode 0, buttons 1…3 select their mode and button 4 toggles the map
@@ -752,7 +752,7 @@ impl MapScreen {
     /// * in any other mode, **button 4 turns the overlay off** and buttons 1…3
     ///   do nothing at all.
     ///
-    /// So there is no switching straight from food to happiness: the overlay
+/// There is no switching straight from food to happiness: the overlay
     /// has to be turned off first. The artwork agrees — `Misc_cty` frame `0x5B`,
     /// the strip drawn while a mode is up, has one button on it where frame
     /// `0x5C` has four.
@@ -828,7 +828,7 @@ impl MapScreen {
     /// ```
     ///
     /// So the interval is **`((100 − speed) / 10) × 12 + 2` milliseconds**, the
-    /// remainder is discarded rather than carried, and `Map_EdgeScroll` itself
+/// remainder is discarded, and `Map_EdgeScroll` itself
     /// is called unconditionally every frame — the *detection* runs at frame
     /// rate and only the *movement* is gated. `g_optScrollSpeed` is a 0 … 100
     /// slider in steps of ten shown as 0 … 10, and the default written by the
@@ -847,7 +847,7 @@ impl MapScreen {
     /// millisecond interval becomes a whole number of [`TICK_MS`] ticks,
     /// **rounded to nearest** and never below one. At the default that is 3
     /// ticks — 48 ms, 20.8 tiles a second against the original's 20.0. Rounding
-    /// rather than flooring or ceiling is what keeps it close: 4 ticks would be
+/// keeps it close:
     /// 64 ms and visibly slower than the game.
     fn scroll_interval_ticks(&self) -> u32 {
         let speed = self.scroll_speed.clamp(0, 100);
@@ -1009,9 +1009,9 @@ impl MapScreen {
     /// answers instead of doing nothing. It can only *add* hits, never move
     /// one: the diamond is tried first and wins, and the fallback tests the
     /// frame's own opaque mask, so it fires only on pixels where that building
-    /// is actually painted.
+/// is painted.
     ///
-    /// It reads the map file rather than [`MapScreen::town_graphics`] because
+/// It reads the map file, not [`MapScreen::town_graphics`],
     /// the overrides plane holds towns — plane-0 bit `0x40` — and a settlement
     /// is bit `0x80`; the two sets are disjoint.
     fn settlement_at(&self, ctx: &Ctx, county: u8, x: i32, y: i32) -> Option<usize> {
@@ -1086,7 +1086,7 @@ impl MapScreen {
     ///   original does not even *visit* the tile we were drawing on.
     ///
     /// `None` when the county has no town block, or a block that is not four
-    /// tiles — which no shipped map has, and which is a refusal rather than a
+/// which no shipped map has; a refusal, not a
     /// guess.
     fn town_quadrant(ctx: &Ctx, county: u8, part: usize) -> Option<usize> {
         let town = Self::town(ctx, county);
@@ -1108,7 +1108,7 @@ impl MapScreen {
         self.view
     }
 
-    /// The rectangle the map is actually drawn in at the current zoom.
+/// The rectangle the map is drawn in at the current zoom.
     pub fn map_clip(&self) -> Clip {
         self.zoom.clip()
     }
@@ -1142,17 +1142,17 @@ impl MapScreen {
             ctx.game.kingdom.season,
             Self::field_digest(ctx),
             Self::castle_key(ctx),
-            // **And the industry wheels**, which move without a turn ending and
+// **And the industry wheels** move without a turn ending and
             // without anything being clicked — the eighth component, and the
             // first one a *clock* writes. Without it a mine that stepped its
             // frame would keep the cached picture until something else
-            // invalidated it, which is precisely the shape of *"industry map
+// invalidated it. That is the shape of *"industry map
             // things are still not animated when active."*
             self.industry_key(),
-            // **And the fog**, which a march lifts without a turn ending and
+// **And the fog** lifts without a turn ending and
             // the options page drops or raises in the middle of one. The
             // seventh painter-side input, and the only one that is a viewer's
-            // rather than the world's.
+// rather than the world's.
             Self::fog_key(ctx),
         );
         if self.built == Some(key) {
@@ -1218,7 +1218,7 @@ impl MapScreen {
     /// Everything the game rewrites over the map file: the towns, and the
     /// fields.
     ///
-    /// Two passes over one plane rather than two planes, because they are
+/// Two passes over one plane because they are
     /// disjoint by construction — a town tile carries plane-0 bit `0x40` and a
     /// field carries `0x20`, and `maps-layers.md` §2's census has no tile with
     /// both.
@@ -1234,7 +1234,7 @@ impl MapScreen {
     /// `content` byte and it picks the graphic at the same moment; the frame it
     /// writes is a pure function of the new terrain and the two low bits of
     /// whatever frame the tile already had, so it can be recomputed from the
-    /// file rather than tracked. [`l2_view::campaign::field_graphic`] is that
+/// file. [`l2_view::campaign::field_graphic`] is that
     /// function and carries the derivation.
     ///
     /// Until this existed the field brush painted markers of our own and the
@@ -1281,7 +1281,7 @@ impl MapScreen {
     /// a placeholder the original never draws.
     ///
     /// Drawing the placeholder is what put **four quarries where a player's
-    /// town should be**, and it is not a coincidence that they looked like
+/// town should be**, and they looked like that.
     /// quarries: `Town1a.pl8` frame 0 *is* the stone quarry, which is how
     /// `County_PlaceResourceSites` identifies one (frame 0 stone, 20 wood, 30
     /// iron). The stored frames 0 … 3 are four of them.
@@ -1331,7 +1331,7 @@ impl MapScreen {
     /// c*0x18`) and every reader indexes it. We derive it from the settlement
     /// bit and the terrain ladder instead —
     /// [`l2_kingdom::map::industry_site`] carries the argument for deriving
-    /// rather than storing — and cache the answer here, because the *tile* is
+/// rather than storing — and cache the answer here:
     /// what never changes while the terrain on it does.
     fn rebuild_industry_sites(&mut self, ctx: &Ctx) {
         if self.industry_slot == Some(ctx.game.map_slot) {
@@ -1374,18 +1374,18 @@ impl MapScreen {
     /// A site whose terrain says *working* steps its own frame; one that is
     /// idle or wrecked is pinned to [`MapScreen::industry_rest_frame`]. There is
     /// **no overlay for either state**: the whole of "this mine is running" is
-    /// that its picture moves, which is why a feature that was fully enumerated
+/// that its picture moves. A feature fully enumerated
     /// still looked like nothing was happening — `Overrides` was written for
     /// fields, towns and castles, so every site drew the frame `L2_maps.dat`
     /// stores, and that is the idle frame in all four cases.
     ///
     /// The rate is [`campaign::industry_period_ms`], banded from the season's
-    /// output. Converted here rather than there because the tick is this
+/// output. Converted here because the tick is this
     /// crate's: `main::TICK` is 16 ms, so 640 ms is 40 ticks and 80 ms is 5.
     ///
     /// **This is the only thing in the screen that a clock drives into a
     /// picture the base plane holds**, so it returns whether anything moved and
-    /// the caller repaints on that rather than every frame.
+/// the caller repaints on that.
     fn step_industry(&mut self, ctx: &Ctx) -> bool {
         self.rebuild_industry_sites(ctx);
         self.industry_tick = self.industry_tick.wrapping_add(1);
@@ -1467,13 +1467,13 @@ impl MapScreen {
     ///
     /// A county's castle is **not in `L2_maps.dat`**. Unlike the mine, the
     /// quarry and the forest — which the file stores as real pictures and
-    /// `County_PlaceResourceSites` merely flags — the castle plot is plain
+/// `County_PlaceResourceSites` merely flags — the castle plot is plain
     /// ground in the base bank, and every castle you have ever seen on the
     /// original's campaign map was stamped in at run time. Ours drew the plain
     /// ground, so **no county's castle was on the map**.
     ///
-    /// The frame is chosen from the *castle's state*, which is why this lives
-    /// with the map screen's per-turn cache rather than in a load-time pass:
+/// The frame is chosen from the *castle's state*;
+/// with the map screen's per-turn cache:
     /// three appearances per level, twenty frames apart, and a castle going up
     /// changes picture twice on its way.
     ///
@@ -1538,7 +1538,7 @@ impl MapScreen {
         // is 60, so the diamonds were two pixels narrow and **did not tile the
         // plane** — 56 dead pixels around every tile centre.
         //
-        // A `None` from here is not a refusal. The click falls through to
+// A `None` from here is not a refusal.
         // county selection, so a march order aimed at one of those pixels
         // quietly reselected a county instead of ordering anything.
         // `the_diamonds_leave_no_pixel_unpicked` is the assertion.
@@ -1593,7 +1593,7 @@ impl MapScreen {
         }
         units.iter().find_map(|(id, u)| {
             if u.is_garrisoned() {
-                // Drawn as a hollow marker, not a figure — there is no sprite
+// Drawn as a hollow marker, not a figure — no sprite
                 // to hit-test, so the marker box is the whole of it.
                 let (cx, cy) = campaign::tile_centre(self.view, &self.zoom, u.x as usize, u.y as usize)?;
                 let r = unit_marker_half(&self.zoom, u) + 1;
@@ -1609,7 +1609,7 @@ impl MapScreen {
     /// missing, which is the case in every test that runs without an install.
     ///
     /// **Where it is drawn, walk offset and all**, so an army part-way across a
-    /// tile is hit on its figure rather than on the tile it has not reached.
+/// tile is hit on its figure, not on the tile it has not reached.
     fn unit_sprite_covers(&self, ctx: &Ctx, id: usize, u: &l2_kingdom::Unit, x: i32, y: i32) -> bool {
         let Some((cx, cy)) =
             campaign::tile_centre(self.view, &self.zoom, u.x as usize, u.y as usize)
@@ -1651,7 +1651,7 @@ impl MapScreen {
     /// Three things worth stating because each is a decision the original made
     /// and a reimplementation would not:
     ///
-    /// * **An enemy unit does nothing at all.** There is no `else`: clicking
+/// * **An enemy unit does nothing at all.**
     ///   another lord's army is a click that falls off the end of the branch.
     /// * **The validate runs first**, so a besieger whose target garrison has
     ///   gone gets its link cleared *by the click* and lands on the move branch
@@ -1671,7 +1671,7 @@ impl MapScreen {
     /// press which opened the mode cannot also close it. **We do not need it
     /// and do not have it**: the original polls the button's level once a frame,
     /// where we are handed one [`Event::Click`] per press, and the press that
-    /// selected the army was consumed by this call. Recorded rather than
+/// selected the army was consumed by this call. Recorded
     /// silently dropped — it is an arm of the original, and the reason it is
     /// absent is a difference in our input model, not a judgement that it is
     /// unimportant.
@@ -1749,7 +1749,7 @@ impl MapScreen {
     }
 
     fn click_unit(&mut self, ctx: &mut Ctx, unit: usize) -> Transition {
-        // **The merchant arm, and its guard is the county's owner rather than
+// **The merchant arm** — the county's owner guards it.
         // the merchant's.** `Map_Click` tests `kind != 1` first, then `kind !=
         // 3`, and the merchant branch is
         //
@@ -1771,7 +1771,7 @@ impl MapScreen {
         // rewrites it, and all six of the England fixture's merchants have it.
         // So a guard on the *merchant's* owner could never fire, and "your
         // merchant" — which `docs/screens.md` §6 and `docs/symbols.md` both said
-        // — is not a thing that exists. A merchant belongs to nobody and is
+// — is not a thing that exists. A merchant belongs to nobody and is
         // clickable while it stands in a county you own. C50.
         if ctx.game.kingdom.campaign.units.get(unit).map(|u| u.kind)
             == Some(l2_kingdom::UnitKind::Merchant)
@@ -1849,7 +1849,7 @@ impl MapScreen {
         self.centre_on_tile(x as usize, y as usize);
         self.cancel_move_selection();
         // `DAT_00553C64 = g_pickedTileUnit` — and this is the call that carries
-        // it, exactly as the paragraph above predicted it would have to.
+// it, exactly as the paragraph above predicted it would have to.
         Transition::Push(ScreenId::Merchant(unit))
     }
 
@@ -1865,7 +1865,7 @@ impl MapScreen {
     /// which is where [`l2_kingdom::movement::try_enter`] already puts it.
     ///
     /// The refusal is the whole rule: `Unit_OrderMove` writes **nothing at all**
-    /// when no path is extracted, so a refused order leaves the army exactly as
+/// when no path is extracted. A refused order leaves the army exactly as
     /// it was — not half-ordered, not stopped. `docs/armies.md` §2.3.
     /// **`g_screenId = 0` and then `Map_ConfirmMoveOrder`** — the left press
     /// in move-order mode, in the order `Screen_FrameInput` does it:
@@ -2037,7 +2037,7 @@ impl MapScreen {
 
     /// **Ours.** Select the player's next unit in ascending slot order and
     /// centre the map on it, so an army the viewport is nowhere near can still
-    /// be given an order. Ascending slot order rather than nearest-first,
+/// be given an order. Ascending slot order.
     /// because a selection that depends on where the viewport happens to be is
     /// a selection two peers could disagree about.
     fn cycle_unit(&mut self, ctx: &mut Ctx) {
@@ -2064,7 +2064,7 @@ impl MapScreen {
     ///
     /// `FUN_00476768` is the original's shape for the ending: dismissing the
     /// message that set `DAT_0053F0C4` calls `FUN_00497879` — which advances the
-    /// campaign counter on a win — and sets `g_screenId = 0x1C`. There is no
+/// campaign counter on a win — and sets `g_screenId = 0x1C`.
     /// message window here yet, so the turn's own end is the dismissal.
     ///
     /// [`turn::begin_turn`] is the interactive door and may come back holding a
@@ -2094,7 +2094,7 @@ impl MapScreen {
     }
 
     /// Pick a suspended turn back up **and wind it on by one tick**. Called
-    /// every tick; almost always a no-op, because almost always there is no
+/// every tick; almost always a no-op.
     /// turn in flight.
     ///
     /// This used to call [`turn::dismiss_report`], which ran the machine to the
@@ -2341,7 +2341,7 @@ impl Screen for MapScreen {
         // hotspot it offers writes to state the phase machine is in the middle
         // of reading, so a click that landed mid-turn would race it. Pointer
         // motion still gets through, because a frozen cursor reads as a hang
-        // rather than as a turn passing.
+// rather than as a turn passing.
         if (turn::turn_in_flight(ctx.game) || self.fading.is_some())
             && !matches!(event, Event::Pointer { .. } | Event::PointerLeft | Event::Release { .. })
         {
@@ -2377,7 +2377,7 @@ impl Screen for MapScreen {
             Event::KeyDown(Key::Right) => {
                 self.scroll(Dir::E);
             }
-            // **A shortcut, now that the real route works.** The original opens
+// **A shortcut, now that the real route works.** The original opens
             // the village by clicking the county's *town*: `Map_Click` tests
             // plane-0 bit `0x40`, checks the county is the local player's,
             // centres the map on it and sets `g_screenId = 2`. That arm is
@@ -2468,7 +2468,7 @@ impl Screen for MapScreen {
                     }
                 };
             }
-            // **On the map the right button opens rather than closes.**
+// **On the map the right button opens**, not closes.
             // `Screen_FrameInput`'s `g_screenId == 0` arm ends with
             // `if (onATile && rightReleased) { g_screenId = 4; FUN_0043CAF4(); }`
             // — screen `0x04`, the information panel, which
@@ -2487,7 +2487,7 @@ impl Screen for MapScreen {
             // **Guard 2 of the arm, and it is tested before anything else the
             // right button does** — including the information panel below.
             // `FUN_00439079` consumes the click only when an overlay is up, so
-            // with no overlay this falls through exactly as the original's
+// with no overlay this falls through exactly as the original's
             // `return 0` does.
             Event::RightClick { x, y } if self.clear_minimap_mode(x, y) => {}
             Event::RightClick { x, y } if self.map_clip().contains(x, y) => {
@@ -2504,7 +2504,7 @@ impl Screen for MapScreen {
                 // — leave move-order mode, redraw, and that is all. No
                 // information panel, no confirmation. Ours reached the panel
                 // instead because the arm was written for one screen and the
-                // mode it belongs to was never given its own.
+// mode it belongs to was never given its own.
                 //
                 // Note what is *not* here: a click on empty ground does **not**
                 // cancel. In the original that click is `Map_ConfirmMoveOrder`
@@ -2599,7 +2599,7 @@ impl Screen for MapScreen {
                 // village, no army ordered. A *question* survives, which is
                 // what stops a stray click from silently declining an alliance.
                 //
-                // It is here rather than in the message screen because it is
+// It is here because it is
                 // here in the original: the scroll's own arm returned zero and
                 // let the click through, and this is what the click found.
                 // arm: 0x00476710/map-click-dismiss left-release
@@ -2695,10 +2695,10 @@ impl Screen for MapScreen {
                     return Transition::Push(ScreenId::Job(ctx.game.selected, job));
                 } else if let Some(panel) = county::panel_at(x, y) {
                     // **The county strip is a 2 x 2 hotspot and it is the whole
-                    // navigation into the four county panels** — there is no
+// navigation into the four county panels** — there is no
                     // other way into any of them, in the original or here
                     // (`docs/screens-county.md` §2.3). It used not to be tested
-                    // on this screen at all, which is why a player could reach
+// on this screen at all. A player could reach
                     // tax and nothing else: our own COUNTY PANEL button opened
                     // the county screen on its own default.
                     // arm: 0x00438CEB/strip-population left-press
@@ -2724,8 +2724,8 @@ impl Screen for MapScreen {
                     // raster**, county or no county, so the surface closes even
                     // where the raster is blank. And it returns 0 outright while
                     // `g_screenId` is `0x05` or `0x06` — the village's two drag
-                    // screens — which is why the village keeps a peasant drag
-                    // rather than losing it to a stray click on the minimap.
+// screens — the village keeps a peasant drag
+// rather than losing it to a stray click on the minimap.
                     // arm: 0x0043253A/minimap-click left-press
                     self.ensure_minimap(ctx);
                     let county = self.minimap.as_ref().map_or(0, |m| m.county_at(x, y));
@@ -2751,7 +2751,7 @@ impl Screen for MapScreen {
                     // }
                     // ```
                     //
-                    // The arm **returns** rather than falling through, so
+// The arm **returns**, not falls through.
                     // `Map_Click` is unreachable at zoom 2 and every tile arm
                     // below — the village, the industry switch, the field
                     // brush, selecting a county — is dead there. Ours had no
@@ -2761,7 +2761,7 @@ impl Screen for MapScreen {
                     // It sits inside the `g_screenId == 0` arm, so it is *not*
                     // live in move-order mode (`0x10`), whose own four-line arm
                     // has no zoom test: `self.selected_unit` is that screen id
-                    // here, and it is why this is guarded rather than first.
+// here. It is guarded first.
                     //
                     // `Map_ZoomInAtTile` (`0x004350A1`) centres the near view on
                     // the picked tile with the same `col - 4`, `(row & ~1) - 12`
@@ -2788,7 +2788,7 @@ impl Screen for MapScreen {
                     // `Map_ConfirmMoveOrder`, and a right release that leaves.
                     //
                     // We had this as a flag consulted *after* the unit hit test,
-                    // which is why clicking a second army re-selected it. In the
+// which is why clicking a second army re-selected it. In the
                     // original that click is a destination: the second army is
                     // `g_hoverMergeUnit` and the order asks *"Combine armies?"*.
                     if let Some(unit) = self.selected_unit {
@@ -2954,7 +2954,7 @@ impl Screen for MapScreen {
                         // picks the tile half on `g_pickedTileUnit == 0`. So on
                         // your own field **the two buttons open one screen**, the
                         // player's own words: *"right click and left click on
-                        // fields does the same thing in the real game."* Ours
+// fields does the same thing in the real game."* Ours
                         // opened a popup of our own here instead
                         // (`ours/brush-popup-on-the-map`, removed); a left click
                         // on somebody else's field falls out of the bottom, as the
@@ -2976,7 +2976,7 @@ impl Screen for MapScreen {
                             }
                         }
                     }
-                    // **And that is the end of `Map_Click`. There is no arm
+// **And that is the end of `Map_Click`.
                     // below this one.**
                     //
                     // A click that reaches here — plain ground, sea, a county
@@ -3005,7 +3005,7 @@ impl Screen for MapScreen {
 
     /// One tick of edge scrolling, and nothing else.
     ///
-    /// It lives here rather than in `handle` because the gesture is *holding*
+/// It lives here because the gesture is *holding*
     /// the cursor against the edge: no further event arrives while it is held,
     /// so a scroller driven by events moves one step and stops. The step and
     /// the clamp are `Map_ScrollStep`'s and `Map_ClampScroll`'s; the rate is
@@ -3030,7 +3030,7 @@ impl Screen for MapScreen {
         // which only run while this screen is the one being driven.
         // `Map_DrawFrame`: `if (0x7F < tick) tick = 0; phase = tick >> 4;`
         // Only a change of phase is a repaint, so a still map with flags on it
-        // costs eight frames every 2.05 seconds rather than sixty a second.
+// costs eight frames every 2.05 seconds.
         self.flag_tick = (self.flag_tick + 1) & 0x7F;
         let phase = self.flag_tick >> 4;
         if phase != self.flag_phase {
@@ -3101,7 +3101,7 @@ impl Screen for MapScreen {
     /// [`MapScreen::resume_turn`] asks for screen `0x12` or `0x13` before it
     /// ticks anything, so a turn suspended on a battle prompt does not advance
     /// however many frames go by — which is the original's `g_turnPhaseStep`
-    /// waiting on an answer rather than a screen suppressing the call.
+/// waiting on an answer.
     fn wind_turn(&mut self, ctx: &mut Ctx) -> Transition {
         // The season has turned and the screen is dark or on its way there.
         // Nothing else may run: the fade *is* the frame.
@@ -3165,7 +3165,7 @@ impl Screen for MapScreen {
         // **The yellow outline used to be drawn here, and it is gone.** It was
         // the visual half of the county-selection arm this module's header
         // records removing, and it survived that removal by being in the
-        // painter rather than in the input ladder — `docs/agents.md`'s second
+// painter. `docs/agents.md`'s second
         // place behaviour hides. The original draws no selection on the map at
         // all: its borders are in the tile data (plane-0 bit `0x02`, the
         // `roads` bank's boundary frames) and its *selection* is which county
@@ -3225,13 +3225,13 @@ impl Screen for MapScreen {
         //
         // The box was here and the four draws were not: C173 gated our own
         // status line out of it and left the box **empty**, which is the hole
-        // that correction filed rather than closed. Group 101 is the sixty map
+// that correction filed. Group 101 is the sixty map
         // names and group 34 is *"Year"* and *"Click on the county you wish to
         // view."* — the game saying in its own words what the far zoom is for,
-        // which is why `Map_Click` does nothing at zoom 2. `docs/draws-map.md`
+// which is why `Map_Click` does nothing at zoom 2. `docs/draws-map.md`
         // §5.4, C89, C189.
         //
-        // **There is no season in this box.** C173's note and `docs/screens.md`
+// **There is no season in this box.**
         // §7 both say *"the map's name, the season and the year"*; the painter
         // draws three things and a season is not one of them. The season is on
         // the menu bar, out of group 29.
@@ -3336,7 +3336,7 @@ impl Screen for MapScreen {
         // earlier one. Ours draws every herd and then every flag, so the flag
         // wins instead. A tile is never both, so nothing is drawn twice; the
         // only visible difference is a 58 × 30 meadow overlapping the 32 × 24
-        // banner of the town up and to its left. Recorded rather than papered
+// banner of the town up and to its left. Recorded
         // over — merging the passes means the county loop and the tile loop
         // becoming one, which is a bigger change than the defect.
         draw_herds(self, canvas, ctx, clip);
@@ -3396,7 +3396,7 @@ fn unit_sprite(zoom: &Zoom, game: &crate::game::Game, id: usize, unit: &l2_kingd
 ///
 /// **What is still ours** is the *selection*: the original shows a selected
 /// army by flood-filling its reachable tiles. A garrisoned unit is drawn hollow
-/// because it is inside the castle rather than standing on the tile — the
+/// because it is inside the castle, not on the tile — the
 /// original draws it not at all and flies a flag over the castle instead (see
 /// [`draw_flags`], which also carries the besieger's mark).
 ///
@@ -3551,7 +3551,7 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
 fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let k = &ctx.game.kingdom;
     let phase = screen.flag_phase;
-    // A free function rather than a closure: the mercenary arm below needs the
+// A free function; the mercenary arm below needs the
     // canvas too, and a closure that captured it would hold the borrow for the
     // whole loop.
     fn flag(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip, tile: usize, frame: usize) {
@@ -3695,7 +3695,7 @@ fn draw_besieger_mark(
 /// and neither end guesses. An empty herd is terrain `0x13` and draws nothing.
 ///
 /// The phase is [`MapScreen::herd_phase`] and is **display state**: it never
-/// reaches [`l2_kingdom::Kingdom`], exactly as the flag's does not.
+/// reaches [`l2_kingdom::Kingdom`].
 fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let map = &ctx.game.kingdom.campaign.map;
     for tile in 0..map.terrain.len() {
@@ -3993,12 +3993,12 @@ pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
             // one — the person's own on the click, each AI's as it finishes —
             // and all of them come back when the next turn begins.
             // `turn::realm_turn_ended` is the second clause, and says why it
-            // is not a literal `ai_step < 999`.
+// is not a literal `ai_step < 999`.
             //
             // `slot` is `local_c`, which the original advances after every
             // `Pl8_DrawFrame` it calls — so the row closes up leftwards over a
             // realm that is out, and a frame that fails to load still holds
-            // its place rather than shifting its neighbours onto it.
+// its place. Neighbours shift off it.
             //
             // `if (g_battlePhase == 0)` wraps the whole loop, so a battle
             // takes every shield off the bar at once.
@@ -4043,7 +4043,7 @@ pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
         //
         // **`g_penAdvance` is a width and `Pen::year` returns an absolute x** —
         // the confusion `docs/decisions.md` C61 records four agents making seven
-        // times. The subtraction is written out rather than folded away so the
+// times. The subtraction is written out.
         // line reads the way the decompilation does.
         let advance = after_year - CLOCK_X;
         let season = season_text(ctx.assets, k.season);
@@ -4065,8 +4065,8 @@ pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
     // The turn number and the counties-held count were at x = 6 and x = 150,
     // which is where the original draws *File*, *Options* and *Help* — so two
     // lines of ours were sitting on the three words that are the way into every
-    // menu in the game, and neither was visible with the real fonts loaded.
-    // There is no room for them: the bar holds three measured titles, up to five
+// menu in the game. Neither was visible with the real fonts loaded.
+// There is no room for them: the bar holds three measured titles, up to five
     // 13 × 16 realm banners from x = 270, the clock at 360 and the treasury at
     // 500, and every one of those is `Screen_DrawMenuBar`'s.
     //
@@ -4144,7 +4144,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
             c.draw_minimap_badge(canvas, screen.minimap_mode);
         }
     } else {
-        // No `MAPnn.PL8`: say so rather than leaving an unexplained hole.
+// No `MAPnn.PL8`: state it.
         text::draw_centred(canvas, PANEL_X + PANEL_W / 2, 84, "NO MINIMAP", ink.dim);
     }
 
@@ -4158,7 +4158,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     //
     // This plate used to be left empty while a box of ours went over the jobs
     // plate below it. The player was looking at our text where the game's own
-    // numbers belong, and at four blank quadrants that are in fact the menu.
+// numbers belong, and at four blank quadrants that are in fact the menu.
     if game.selected != 0 {
         // The strip, and the split slider's thumb on the plate below it — both
         // `CountyStrip_Draw`'s, both shared with the county screen.
@@ -4226,7 +4226,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // ```
     //
     // The strip is opaque artwork and is blitted unconditionally, so drawing it
-    // *is* the erase; the label is simply not put back. **The button does not
+// *is* the erase; the label is simply not put back.
     // move, is not redrawn pressed, and is not removed by the sidebar's own
     // gate** — the other three explanations that fitted the report.
     //
@@ -4239,7 +4239,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // the click and the next turn beginning — the player's sentence, verbatim.
     //
     // `turn::turn_in_flight` is that interval here, and the mapping is exact
-    // rather than approximate: `game.turn` is `Some` from the click until the
+// rather than approximate: `game.turn` is `Some` from the click until the
     // turn completes, which is when `Turn_BeginPlayersTurn` would clear the
     // counter. **This is a draw that only became possible to reproduce when the
     // turn started being paced over frames** — before that there was no
@@ -4253,7 +4253,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // as one half of `DAT_0055403C < 1 || aiStep == 999`, which keeps the
     // timer up through the person's own turn *and* after he ends it. That one
     // is drawn by `Machine::draw`, not here, because the original calls it from
-    // the frame loop rather than from this screen's painter; see
+// the frame loop. See
     // `crate::turn_clock`. This paragraph used to say we had no turn timer, and
     // before that that we reproduced neither of the other two, and both times it
     // sat twenty lines from the draw it described as missing.
@@ -4277,7 +4277,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
 mod tests {
     use super::*;
 
-    /// The layout constants, checked against each other rather than restated.
+/// The layout constants, checked against each other.
     /// The panel starts where the map's clip ends and reaches the screen edge,
     /// and the two strips at the bottom of the panel meet exactly.
     #[test]
@@ -4337,7 +4337,7 @@ mod tests {
                 assert!(ra.x + ra.w <= rb.x || rb.x + rb.w <= ra.x, "{a:?} overlaps {b:?}");
             }
         }
-        // And every destination is a screen we can actually draw.
+// And every destination is a screen we can actually draw.
         //
         // **This check used to be *"either a shell or a graduated screen, and
         // not both"*, and the shell table is empty now**, so the first half is
@@ -4364,7 +4364,7 @@ mod tests {
 
     /// The minimap's four mode buttons, including the record whose `y1` is
     /// `0x42` where the pattern wants `0x3F`. That is the original's data and
-    /// the overlap is transcribed rather than tidied: `Hotspot_Test` returns on
+/// the overlap is transcribed: `Hotspot_Test` returns on
     /// the first match, so y 96 and 97 belong to band 2.
     #[test]
     fn the_minimap_mode_buttons_are_the_originals_including_its_off_by_three() {
@@ -4486,7 +4486,7 @@ mod tests {
 
     /// Holding the pointer at the edge scrolls the map, **at the original's
     /// rate and not at ours**, and reports that it did so the machine
-    /// repaints. That report is what makes the gesture continuous rather than
+/// repaints. That report makes the gesture continuous.
     /// one step per mouse move.
     ///
     /// This used to be called `..._scrolls_every_tick_...` and asserted exactly
@@ -4494,7 +4494,7 @@ mod tests {
     /// `Map_ScrollThrottle` gives 20 at the shipped default, so we were **three
     /// times too fast** — the defect a player reported as *"mouse scroll needs
     /// to be like… half that speed"*. The interval is now the original's
-    /// formula, and this asserts the pacing rather than assuming there is none.
+/// formula. This asserts the pacing.
     #[test]
     fn holding_the_pointer_at_the_edge_scrolls_at_the_originals_rate() {
         let mut game = crate::Game::new(1);
@@ -4562,7 +4562,7 @@ mod tests {
             }
             assert_eq!(s.scroll_interval_ticks(), ticks, "speed {speed}");
         }
-        // Out of range is clamped rather than wrapped, at both ends.
+// Out of range is clamped at both ends.
         s.set_scroll_speed(-40);
         assert_eq!(s.scroll_interval_ticks(), u32::MAX, "below zero is still 'never'");
         s.set_scroll_speed(4_000);
@@ -4596,7 +4596,7 @@ mod tests {
     /// while the pitch is 60: two pixels narrow.
     ///
     /// The seams are **sparse** and are not on the line between two tile
-    /// centres, which is why a coarser test than this one passes with the bug
+/// centres. A coarser test than this one passes with the bug
     /// still in. At the near zoom the first missing pixel is 28 across and 1
     /// down from a centre: with `hw = 29` its own tile scores
     /// `28×15 + 1×29 = 449 > 435` and the neighbour scores `436 > 435`, so it
@@ -4611,7 +4611,7 @@ mod tests {
             s.view = Viewport::new(60, 30).clamped(&zoom);
             // A tile whose neighbours are all comfortably on screen **and all
             // on the map**. The grid's own edge is a real hole and not a seam:
-            // there is no tile beyond it to pick.
+// there is no tile beyond it to pick.
             let (tx, ty) = (1..l2_kingdom::MAP_DIM - 1)
                 .flat_map(|y| (1..l2_kingdom::MAP_DIM - 1).map(move |x| (x, y)))
                 .find(|&(x, y)| {
@@ -4688,7 +4688,7 @@ mod tests {
         assert_eq!(s.zoom().id, FAR.id);
         // **The projection**: `g_mapZoom` is a global three arms outside this
         // screen read, and `Game::map_zoom_far` is where they read it. Asserted
-        // here rather than only in `tests/right_column.rs` because this is the
+// here because this is the
         // function that writes it.
         assert!(ctx.game.map_zoom_far, "the far zoom did not reach Game");
         assert_eq!(
