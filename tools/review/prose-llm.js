@@ -21,8 +21,29 @@ async function ask(listing) {
   const j = await r.json(); const t = j.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
   return { map: JSON.parse(t), tokens: j.usageMetadata?.totalTokenCount || 0 };
 }
+// --symbols: the comments in docs/symbols.json (functions and globals) that carry a
+// phrase, cut the same way in chunks of 50, then docs/symbols.md regenerated.
+async function symbols() {
+  const file = path.join(root, "docs/symbols.json"), s = JSON.parse(fs.readFileSync(file, "utf8"));
+  const phrases = cp.execSync("node tools/review/prose.js --phrases", { cwd: root }).toString().split(/\r?\n/).filter(Boolean);
+  const RX = new RegExp("\\b(" + phrases.map(p => p.replace(/ /g, "\\s+")).join("|") + ")\\b", "i");
+  const hits = [...s.functions, ...s.globals].filter(e => typeof e.comment === "string" && RX.test(e.comment));
+  let done = 0, tokens = 0;
+  for (let i = 0; i < hits.length; i += 50) {
+    const chunk = hits.slice(i, i + 50);
+    const listing = chunk.map((e, k) => `${k + 1}: ${e.comment.replace(/\s+/g, " ")}`).join("\n");
+    let res; try { res = await ask(listing); } catch (e) { console.error(`prose-llm: symbols chunk ${i}: ${e.message}`); continue; }
+    for (const [n, v] of Object.entries(res.map)) { const e = chunk[n - 1]; if (e && typeof v === "string" && v !== "") { e.comment = v.replace(/ +([.,;:)])/g, "$1").replace(/  +/g, " ").trim(); done++; } }
+    tokens += res.tokens;
+  }
+  fs.writeFileSync(file, JSON.stringify(s, null, 2) + "\n");
+  cp.execSync("node tools/symbols/symbols_md.js", { cwd: root, stdio: "inherit" });
+  console.log(`symbols: ${hits.length} comments listed, ${done} cut (${tokens} tokens); docs/symbols.md regenerated`);
+}
+
 (async () => {
   let args = process.argv.slice(2);
+  if (args[0] === "--symbols") return symbols();
   if (args[0] === "--top") args = cp.execSync("node tools/review/prose.js", { cwd: root }).toString().split(/\r?\n/)
     .filter(l => /^\s*\d+ /.test(l) && !/symbols\.md/.test(l)).slice(0, Number(args[1] || 10)).map(l => l.trim().split(/\s+/)[1]);
   for (const f of args) {
