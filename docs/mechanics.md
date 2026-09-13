@@ -1,7 +1,7 @@
 # Game mechanics — what is mapped, and what is not
 
 > **Looking for how the game works?**
-> That is [`rules.md`](rules.md) — the same mechanics in plain language with the real
+> That is [`rules.md`](rules.md) — the same mechanics in plain language
 > numbers. This document is the *inventory*: what has been looked at, and what has not.
 >
 > **A mechanic that looks wrong is often the original being wrong**, and we reproduce it on
@@ -107,7 +107,7 @@ Legend:
   deaths
 - ✅ **Ale.** Bought at the merchant, and the merchant screen exists now.
 
-  **[V] There is no brewing, and no ale to store.** `Merchant_Trade` hands `Ale_Apply`
+**[V]** `Merchant_Trade` hands `Ale_Apply`
   (`0x00428C42`) the **crowns spent** and the happiness lands immediately; ale has no county
   field and no production. The ladder is one point per tenth of the population's worth of
   crowns, capped at five, then capped again at `5 − aleHappinessGiven`. `Ale_PreviewGain`
@@ -133,7 +133,7 @@ are recorded. `docs/decisions.md` C53.
 
   > **[V] The shipped ration panel is group 87, and it has three foods.** `Panel_Ration`
   > (`0x00411B72`) draws dairy, grain and cattle out of county `+0x16C`, `+0x170` and
-  > `+0x174`. There is no county field for sheep, none for ale, and `Ration_Apply` has no
+> `+0x174`.
   > priority array in it — dairy is unconditional and the rest is one percentage. **That is
 > the evidence**, and it is about code and record layout.
   >
@@ -160,7 +160,7 @@ are recorded. `docs/decisions.md` C53.
     - **They are the only two goods priced zero** in the merchant table, and in this
 binary's idiom a zero is *"not offered"* — the same convention
       that stops the Baron building a royal castle.
-    - **No county can produce either**, and there is no shepherd among the nine peasant jobs.
+- There are nine peasant jobs.
     - Group 68 gives ale its own merchant tooltip and gives sheep none.
     - Two people who have played the game do not remember them.
     - **`Merchant_Trade` has no branch for good 3 or good 5, in either direction.** This is
@@ -186,11 +186,11 @@ cells**. Those two are the statement made by the *pictures*
     ration lines. At parity the game itself demonstrates you cannot buy them, which is a
     better answer than our deciding in advance that they do not exist — and it costs two
     rows in a table. **Do not prune content on a judgement that it looks dead.**
-  - ✅ *"Click on a food to swap its priority."* — **and it is not a shipped setting.** The
+- ✅ *"Click on a food to swap its priority."*
     string is group 62's, and nothing reads group 62. What ships is `Ration_Apply`: dairy is
     subtracted first and free, and the remainder is divided between slaughter and grain by
     **one percentage**, county `+0x15F`, which the player moves with `Ration_SetSplit`. A
-    dial, not a queue, and there is no third food in it to reorder.
+dial.
 
     So the earlier note here was wrong in both halves: the original does *not* let you
     reorder five foods, and our pass's *"dairy → grain → slaughter"* is not the shipped rule
@@ -219,7 +219,7 @@ cells**. Those two are the statement made by the *pictures*
   one. That one byte is the whole explanation of the save's labour split.
 
   **Importing all three is not the same as computing all three, and for a long time this
-  entry read as if it were.** The cattle floor (`+0xD4`) arrived from a save and was never
+The cattle floor (`+0xD4`) arrived from a save.
   recomputed by any pass, so it held zero in every game this engine played from a new start
   and in every loaded one after its first season — and it is the *only* thing that draws an
   understaffed herd red. Both words of `Herd_LabourEstimate` are computed now, `[V]` against
@@ -267,7 +267,7 @@ it**. So wiring the allocator was six tail calls, and the missing
 - 📖 **Unrest and revolt — traced to the end now.** The ladder was known; what it *does* was
   not. `County_RaiseRevolt` (`0x004AC185`) puts 30% of the population on a free road tile as
   a kind-2 mob at morale 50, all of them in `troops[0]` — unarmed peasants — takes them out
-  of the population, and hands the county to `County_MakeIndependent`. If there is no free
+of the population, and hands the county to `County_MakeIndependent`.
   tile it returns 0, the counter stays at 4, and the county never revolts. There is also a
   **dead branch**: the "happiness 0 revolts instantly" arm is guarded by a test identical to
   its own parent and can never run. `docs/kingdom.md` §6.
@@ -351,7 +351,7 @@ it is blank — every pixel palette index 0 — so the dark is black; at the far
   no army or merchant, no town banner, no mercenary band, no cattle, no garrison flag, and a
   mine there does not turn. **What it does not hide:** the minimap (no reader), the right-hand
   panel, the path balls of an order, and *clicks* — no input arm tests the bit, so a click on
-  a dark tile resolves exactly as on a lit one. **The AI lords see everything:** no AI step,
+a dark tile resolves exactly as on a lit one. **The AI lords see everything.**
   no rule and no simulation pass reads the option or the bit.
 
   **What lifts it, `[V]`.** A new game shows the start county with a one-tile border round
@@ -648,7 +648,7 @@ like optional content and it holds the button that creates the army. C61.
   should be audible from what already happened.
 
   **The number that keeps this row honest is 703 of 771.** 668 of them are measured
-  rather than typed — `crates/l2-game/tests/audio_wiring.rs` and `tests/audio_battle.rs`
+`crates/l2-game/tests/audio_wiring.rs` and `tests/audio_battle.rs`
 drive the real paths and read back what was opened — and the other **35 are
   the tip screens**, of which `crates/l2-game/tests/tips.rs` drives one tip's three clips
   end to end and the rest are counted from the take table and the install's listing, not
@@ -827,7 +827,7 @@ a continuous march. Twelve units crossing the map at once cost one
   factor of four, so it is a fade to **one quarter brightness and back**; the stepper at
   `0x004B0E03` moves each channel by at most 12 per ~20 ms over palette entries **10 … 245
   only**, which is 16 steps ≈ 320 ms each way and is why the interface chrome stays lit while
-  the map goes dark. There is no dither table and no 50 % blit on the path. `l2_view::fade`.
+the map goes dark. `l2_view::fade`.
 
   **[V→confirmed] What the dark window is for.** It was recorded as inferred cover for the
   seasonal art reload and the autosave, purely from where the two calls sit. A player who has

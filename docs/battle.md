@@ -4,7 +4,7 @@ The real-time tactical battle in `Lords2.exe`: the structures, where they live, 
 damage, movement and orders are computed.
 
 This is the first document about game *rules*, not a file format, and rules are
-much harder to validate — there is no end-offset invariant to close. Read the status
+much harder to validate — no end-offset invariant to close. Read the status
 legend as a real claim about evidence:
 
 * **[V] verified** — read directly out of the binary and cross-checked against a second,
@@ -41,7 +41,7 @@ Ghidra database.
 `Battlefield_BuildFromSkr` fills. Index 0 is never used in any of them; it is the "none"
 value, and a zero owner byte marks a free slot.
 
-There is no allocation and no dynamic sizing anywhere in the battle. **An army that needs
+No allocation and no dynamic sizing anywhere in the battle. **An army that needs
 more than the free slots is silently truncated** — `BattleMan_Create` returns 0 and the
 caller breaks out of its loop. §5.4 shows this happens in shipped data.
 
@@ -63,7 +63,7 @@ not "damage accumulator", and why `+0x18` is *dirc*.
 
 It also killed one plausible-but-wrong story. `routed` (`+0x166`) sits next to `on route`
 (`+0x164`), and "routed" in a battle game reads as *morale broken*. It is not: both fields
-are only ever touched by the mover, and `+0x166` is incremented every time the figure has
+are only touched by the mover, and `+0x166` is incremented every time the figure has
 to ask the pathfinder for a new **route**. See §8.3.
 
 ---
@@ -134,7 +134,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x34` | u8 | — | [D] | bit 0 "ready to leave this cell", bit 1 "was interrupted". |
 | `+0x35` | u8 | — | [D] | per-frame scratch, cleared at the top of every sweep. |
 | `+0x18A` | u8 | animSet | [D] | 0 … 4 by troop type; also picks the melee exchange length (§6.1). |
-| `+0x18B` | u8 | recovery | [V] | ticks between blows this figure can absorb. **This is the real melee defence.** §6.1. |
+| `+0x18B` | u8 | recovery | [V] | ticks between blows this figure can absorb. **This is the melee defence.** §6.1. |
 | `+0x189` | u8 | moveDelay | [V] | ticks per movement sub-step. §7. |
 | `+0x1A8` | i32 | — | [D] | age in frames. |
 
@@ -243,7 +243,7 @@ Three things the §3 table gets wrong as a result:
 
 `Battlefield_BuildCastle` uses the byte differently again: its first sweep writes `terrain`
 = 11 (water — the moat) where the source byte is `0xEE` and 1 (open) everywhere else, so on
-a castle battlefield `terrain` only ever holds those two values and the structure lives in
+a castle battlefield `terrain` only holds those two values and the structure lives in
 the other planes.
 
 ### 3.0.1 Byte `+4` is escape-encoded during a castle build  **[V]**
@@ -801,7 +801,7 @@ the whole crossing, which is what §13.6 draws.
 
 **Two consequences a player can see.** A man who has committed *cannot be interrupted*: the
 mid-crossing return is above `Melee_AdjacentEnemyDir`, above the direction choice and above
-`Cell_TryEnter`, so `dirc` is fixed for the crossing and there is no refusal half-way
+`Cell_TryEnter`, so `dirc` is fixed for the crossing and no refusal half-way
 through one. And `BattleMan_StateMelee` (`0x004831D8`) says the same from the other side —
 a figure locked into a duel mid-crossing runs `if ((stepFlags & 1) == 0 &&
 BattleMan_Step(1)) Anim_Walk();`, finishing the crossing before it strikes. **[V]**
@@ -920,7 +920,7 @@ pathfinder only runs when a figure is blocked, and then only if it has not alrea
 four times (`barred`) and its `hold it` timer has expired.
 
 `Path_Search` (`0x0047095E`) is a **weighted breadth-first flood fill** over the whole
-80 × 80 grid. It is not a Dijkstra, and not uniform-cost either — see the correction below.
+80 × 80 grid. It is not Dijkstra or uniform-cost — see the correction below.
 
 | structure | address | what |
 |---|---|---|
@@ -996,7 +996,7 @@ whether an army can press through a gap.
   cell is allowed and the mover settles it by swapping or waiting.
 * **It is two greedy walkers, not a line.** Both set out from the start. Each step takes the
   eight-way direction toward the target and, when that cell is taken, rotates — walker A clockwise,
-  walker B anticlockwise, up to eight tries — so the walk *slips around* obstacles rather than
+walker B anticlockwise, up to eight tries — so the walk *slips around* obstacles
   stopping at them. It runs 80 rounds of the pair and then gives up. On an open field it is a
   straight line; against a wall with a gap in it, it can round the wall.
 * **It leaves its cost field behind, and the caller uses it.** When `Path_Search` skips the flood
@@ -1230,7 +1230,7 @@ the same flag out of its copy `DAT_0057C96C`. The table's first six entries and
 | 4 | `t32_wod1.pl8` | 218000 | `0x0F` | `t2_wod1.pl8` | 5200 |
 | 5 | `t32_wod2.pl8` | 225000 | `0x10` | `t2_wod2.pl8` | 5200 |
 
-**Slot 0 is the castle and slot 1 is the ground it stands on.** That is not a
+**Slot 0 is the castle and slot 1 is the ground it stands on.**
 guess about the pictures; it is where the selector is written.
 `Battlefield_BuildCastle` copies each raster byte into `frame` with
 `flags2 &= 0xE3` — selector 0 — and only its three escape codes set it to 4:
@@ -1579,7 +1579,7 @@ pixels, so every man who passed an edge left his picture there: the *"ghosting"*
 and 1 of `g_preloadTable`, `0x004D9F48`); `Screen_DrawBattlefield`
 (`0x004233F7`) ends with `Palette_Set(0x568EE0)` for a field battle and
 `Palette_Set(0x5675A0)` for a siege. `Palette_Set` (`0x004B0AB5`) copies the
-triples ×4 and forces entry 0 black; there is no remap, shade or dither table
+triples ×4 and forces entry 0 black; no remap, shade or dither table
 on this path. `Battle_LoadAssets` reads no `.256` at all. Ours named
 `T32_bat1.256` and loaded it into no table the presenter reads, so a battle was
 shown through `base01.256`: a grass index 77 is `(64, 85, 12)` in the first and
@@ -1891,7 +1891,7 @@ side 4 and occupied for side 0**, and it raises `0x00553F3C` on the way
 past. A side-4 figure entering a **surface-7** cell — the bridge — calls
 `0x0048551D` first.
 
-### 14.3a `0x00553F3C` is a **third way to win a siege**, and it is not a counter
+### 14.3a `0x00553F3C` is a **third way to win a siege**
 
 The flag above is not bookkeeping. `Battle_CheckOutcome` (§7.3) tests it inside
 the siege arm and, when it is set, ends the battle with **army A — the besieger
@@ -2425,7 +2425,7 @@ cycles a mode nothing draws unless the debug flag is set.
 if (g_battleUnits[unit].field_0x9 == '\x01') { g_formationCols = 2; }
 ```
 
-So it is not a facing: it picks between the troop type's own figures-per-row and
+It picks between the troop type's own figures-per-row and
 a two-wide column. **Line and column**, which is what the two keys are.
 
 ### 15.10 The cursor, and the outcome banner
@@ -2534,7 +2534,7 @@ frame counter — which runs it at frame 5001, then `Battle_WriteBackCasualties`
 
 * **only a battle watched to its banner bills a repair.** Declining, retreating and the
   Autocalc button all leave for screen `0x13` without reaching that counter, so giving up
-  un-does the castle damage exactly as it un-does the casualties;
+un-does the castle damage as it un-does the casualties;
 * the county is billed **before** it can change hands, so a conqueror inherits the wreck and
   the bill;
 * `g_multiplayer` skips it entirely, which is not reproduced — see `docs/netcode.md`.

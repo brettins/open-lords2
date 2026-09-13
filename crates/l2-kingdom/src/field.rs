@@ -316,7 +316,7 @@ pub fn menu_for(terrain: u8) -> Option<&'static [FieldType]> {
 /// `crates/l2-kingdom/tests/labour_gap.rs`.
 ///
 /// The argument list is long because a brush stroke reaches six things and
-/// this crate takes its world as values rather than owning it —
+/// this crate takes its world as values —
 /// [`crate::Kingdom::paint_field`] is the call a caller should make.
 #[allow(clippy::too_many_arguments)]
 pub fn set_type(
@@ -350,7 +350,7 @@ pub fn set_type(
         crate::labour::FARM_GROUP_DIVISOR,
     );
     let owner = counties[county].owner;
-    // Realm 0 is not a realm; an unowned county's industry ceilings are all 0
+// an unowned county's industry ceilings are all 0
     // whatever is in this record, because `Industry_LabourEstimate` tests the
     // owner first.
     let neutral = crate::realm::Realm::new();
@@ -390,7 +390,7 @@ pub fn set_type(
 /// efficiency and divisor mapping [`crate::tables::COMMODITY`] already holds —
 /// which is a second, independent reading of that table.
 ///
-/// **It reads the owning realm**, which is why this takes one: the blacksmith's
+/// **It reads the owning realm**, so this takes one: the blacksmith's
 /// ceiling is a share of the realm's wood and iron
 /// ([`crate::industry::weapon_shares`]), and every industry's ceiling is 0 in a
 /// county nobody owns. That is the whole reason the shipped save's owned
@@ -435,9 +435,9 @@ pub fn refresh_estimates(
     // afterwards — the sowing, growth and harvest forecasts and the signed
     // change the sidebar's grain row draws. It runs unconditionally because the
     // original's `+0x22C = 0` is *outside* the `popBand` guard, so an empty
-    // county forecasts nothing rather than keeping last season's number.
+// county forecasts nothing.
     //
-    // It is called from here rather than from a season tick because this is
+// It is called from here
     // where the original computes it: `County_RefreshEstimates` runs **after**
     // `Labour_Allocate` in each of the round's two passes, and the tail reads
     // `labour[0].workers` — the allocator's answer, not the search's.
@@ -503,7 +503,7 @@ pub fn paint_tile(map: &mut CampaignMap, tile: usize, terrain: u8) {
 /// `FUN_00469D21(county, terrain, 0, first, last)` — **repaint every one of a
 /// county's field tiles whose terrain is in `first ..= last`.**
 ///
-/// The original sweeps all 4,096 tiles rather than the county's twenty slots,
+/// The original sweeps all 4,096 tiles,
 /// testing `tile.county == county && (tile.flags & 0x20)`; the two are the same
 /// set by construction ([`recount`] builds the slots from exactly that test)
 /// and the slots are what this crate has.
@@ -565,7 +565,7 @@ fn ai_brush_matches(kind: FieldType, terrain: u8) -> bool {
 }
 
 /// `FUN_0044C6C4` — order `want` of the county's fields put under
-/// reclamation. Returns how many wasteland tiles were actually started.
+/// reclamation. Returns how many wasteland tiles were started.
 ///
 /// **This is what the AI's "add a field" ladder really does**, and it is not
 /// what it looks like. `crate::tables::AI_FIELD_LADDER` reads as *"give the
@@ -820,7 +820,7 @@ mod tests {
     }
 
     /// The AI's brush: "make six of them grain" is idempotent, and shrinking
-    /// the number puts the difference back to fallow rather than to waste.
+/// the number puts the difference back to fallow.
     #[test]
     fn setting_a_count_converts_up_and_down_and_never_creates_waste() {
         let (c, mut map) = county_with(12);
@@ -837,13 +837,13 @@ mod tests {
         recount(&mut n, &map);
         assert_eq!((n.fields_grain, n.fields_fallow, n.fields_waste), (2, 10, 0));
 
-        // More than there are fields: the quota simply runs out.
+// More than there are fields: the quota runs out.
         assert_eq!(set_count(&c, &mut map, FieldType::Grain, 30), 18);
         recount(&mut n, &map);
         assert_eq!(n.fields_grain, 12);
     }
 
-    /// Clearing matches the whole crop range, not just the brush value: a
+/// Clearing matches the whole crop range: a
     /// field halfway through its growing season is still a grain field.
     #[test]
     fn clearing_a_type_matches_every_stage_of_it() {

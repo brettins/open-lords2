@@ -47,12 +47,12 @@ fn lineup() -> Battle {
 
 /// A battle wearing the `Simulation` trait.
 ///
-/// Kept in the test rather than in `l2-sim` so the simulation crate keeps no
+/// Kept in the test so the simulation crate keeps no
 /// dependency on the network crate. The real wiring belongs in the application,
 /// which is the only thing that legitimately knows about both.
 struct NetBattle {
     battle: Battle,
-    /// Stands in for the thing lockstep actually fears: one peer running
+/// Stands in for the thing lockstep fears: one peer running
     /// subtly different rules. See `a_peer_running_different_rules_is_caught`.
     perturb_at: Option<Tick>,
 }
@@ -122,8 +122,8 @@ struct Peer<S: Simulation> {
     issued_through: Option<Tick>,
 }
 
-/// One order per peer, a few ticks apart, so that commands genuinely cross the
-/// wire in both directions rather than the test proving only that two idle
+/// One order per peer, a few ticks apart, so that commands cross the
+/// wire in both directions
 /// simulations agree.
 fn schedule(slot: u8, at: Tick) -> Option<Vec<u8>> {
     match (slot, at.0) {
@@ -253,7 +253,7 @@ fn two_peers_simulate_the_same_battle_over_a_real_socket() {
         "the two peers diverged"
     );
 
-    // Not merely equal checksums - equal simulations.
+// Equal simulations.
     assert_eq!(
         peers[0].sim.battle, peers[1].sim.battle,
         "state differs despite matching checksums"
@@ -441,7 +441,7 @@ impl AiNetBattle {
     }
 
     /// Melee where two enemy figures share a cell. Enough that men die, so the
-    /// strength advantage genuinely moves over the run.
+/// strength advantage moves over the run.
     fn engage_touching(&mut self) {
         for a in 0..self.figures.len() {
             if !self.figures[a].is_alive() || self.figures[a].state == State::Melee {
@@ -502,7 +502,7 @@ impl Simulation for AiNetBattle {
     fn encode_state(&self, out: &mut Canonical) {
         out.section("ai");
         // The generator itself, so a divergence in the draw is caught on the
-        // tick it happens rather than whenever it next changes a decision.
+// tick it happens.
         let (state, increment) = self.ai.rng.parts();
         out.u64(state);
         out.u64(increment);
@@ -573,7 +573,7 @@ fn two_peers_running_the_battle_ai_stay_bit_identical() {
     }
 }
 
-/// A green determinism test proves nothing unless the AI was actually running,
+/// A green determinism test proves nothing unless the AI was running,
 /// so check that it drew, decided and moved somebody.
 #[test]
 fn the_ai_really_ran_and_the_jitter_really_moved() {
@@ -623,12 +623,12 @@ fn one_peer_whose_generator_slipped_is_caught() {
 }
 
 // ---------------------------------------------------------------------------
-// The battle a player would actually watch
+// The battle a player would watch
 // ---------------------------------------------------------------------------
 //
 // `NetBattle` synchronises the melee model and `AiNetBattle` synchronises the
 // order handlers, but both drive their own toy mover on a bare grid.
-// `docs/plan-review.md` hole 6 is precisely that: *"the netcode has never
+// `docs/plan-review.md` hole 6 is that: *"the netcode has never
 // synchronised the simulation a player would watch."* This is that simulation —
 // `l2_sim::runner::BattleRunner`, the whole of it: a `.skr`-shaped battlefield,
 // units raised into deployment slots, the seventeen order handlers on their
@@ -646,7 +646,7 @@ struct RunnerNetBattle {
     nudge_at: Option<Tick>,
 }
 
-/// Markers twenty cells apart rather than forty, so the whole opening of a
+/// Markers twenty cells apart, so the whole opening of a
 /// battle - deployment, the player order, the AI's first three thinks and the
 /// march that follows - fits inside seven hundred frames. Everything else is
 /// the blank template.
@@ -760,7 +760,7 @@ impl Simulation for RunnerNetBattle {
         // and the census below only walks `Missile` and `Fighter`, so the claim
         // could not fail. It is true now and the census walks `SiegeState` too.
         //
-        // The **battlefield itself** goes in with it, folded rather than
+// The **battlefield itself** goes in with it, folded
         // written out cell by cell because this runs once a tick over 6,400
         // cells. On a field battle nothing here ever changes and the fold is a
         // constant; in a siege the moat fills in, walls come down and the
@@ -929,7 +929,7 @@ fn both_the_players_order_and_the_ais_decision_reached_the_men() {
     // The AI thought on its own cadence and then wrote a destination. A human
     // unit never thinks, so its `orders` must still be zero — that asymmetry is
     // `Battle_UpdateAllUnits`'s human guard, and it is what makes this a check
-    // on the AI rather than on the order machinery.
+// on the AI.
     assert_eq!(sim.runner.units.get(ai_unit).orders, 3, "three thinks in 700 frames");
     assert_eq!(sim.runner.units.get(player_unit).orders, 0, "a player's unit never thinks");
     // Its third think is `BattleUnit_OrderToEnemyEnd`, so its destination is a
@@ -1026,7 +1026,7 @@ impl l2_net::canonical::Encode for Hashable<'_> {
     }
 }
 
-/// **The completeness check, derived rather than remembered.**
+/// **The completeness check, derived.**
 ///
 /// `docs/decisions.md` C39: *completeness must be derived, not remembered.* The
 /// encoder above is a hand-written list, and a hand-written list cannot fail for

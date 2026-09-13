@@ -3,11 +3,11 @@
 //!
 //! Everything else in this crate's tests checks a stage — the document parses,
 //! the merge resolves, the table loads. This checks that the stages are
-//! actually joined up, which is the claim that matters and the one easiest to
+//! joined up,
 //! believe without evidence.
 //!
-//! `docs/decisions.md` C11 is why it is worth a file of its own. These numbers
-//! live in `Lords2.exe` as instructions; there is no data file in the 1996
+//! `docs/decisions.md` C11, so it is worth a file of its own. These numbers
+//! live in `Lords2.exe` as instructions.
 //! game that reaches them. A test that starts at a text file and ends at a
 //! different casualty count is the demonstration that the situation has
 //! changed.
@@ -65,7 +65,7 @@ fn a_mod_file_changes_the_outcome_of_a_battle() {
         .build()
         .unwrap();
 
-    // The rule really did override rather than being added, so the mod is
+// The rule did override, so the mod is
     // speaking the engine's vocabulary and not inventing its own.
     let report = modded.report();
     assert_eq!(report.overrides.len(), 1, "{report}");
@@ -116,7 +116,7 @@ fn the_last_mod_in_the_load_order_is_the_one_the_simulation_runs_on() {
     assert_eq!(armour_of(&backward), 10);
 
     // And a figure built from that table carries the number, which is the seam
-    // that makes the simulation data-driven rather than merely configurable.
+// that makes the simulation data-driven.
     let mut battle = Battle::with_troops(forward.troop_table().unwrap());
     let i = battle.add(Troop::Archers, SIDE_A, 4).unwrap();
     assert_eq!(battle.figures[i].armour(), 55);
@@ -147,7 +147,7 @@ fn an_impossible_combat_constant_is_refused_with_the_line_that_wrote_it() {
 }
 
 /// Strength bands run best first. A rising row would mean a weakened figure
-/// hitting harder, which is not a rebalance.
+/// hitting harder.
 #[test]
 fn a_rising_strength_band_is_refused_rather_than_sorted() {
     let base = TempDir::new("sim-band-base");
@@ -335,7 +335,7 @@ fn a_mod_file_changes_what_a_county_harvests() {
         .build()
         .unwrap();
 
-    // It overrode a rule the engine already had, rather than inventing one.
+// It overrode a rule the engine already had.
     let report = modded.report();
     assert_eq!(report.overrides.len(), 1, "{report}");
     assert_eq!(report.overrides[0].path, "kingdom.grain.yield_per_sack");
@@ -349,7 +349,7 @@ fn a_mod_file_changes_what_a_county_harvests() {
         after < before,
         "halving the yield per sack should halve the harvest: {after} vs {before}"
     );
-    // Exactly half, and that is worth pinning rather than leaving as an
+// Exactly half, and that is worth pinning.
     // inequality: the yield multiplies the crop once at sowing and nothing
     // downstream of it is a threshold at these quantities.
     assert_eq!(after * 2, before, "{after} should be half of {before}");
@@ -401,7 +401,7 @@ fn the_last_kingdom_mod_in_the_load_order_is_the_one_the_economy_runs_on() {
 
 /// A rule with no arithmetic in it at all: the year random events start.
 /// Pushing it forward means a modded game draws no events where the stock one
-/// does, which is a behavioural difference rather than a numeric one.
+/// does, which is a behavioural difference.
 #[test]
 fn a_mod_can_postpone_the_first_year_random_events_are_drawn() {
     let base = TempDir::new("king-event-base");
@@ -571,7 +571,7 @@ fn what_raising_an_army_costs_a_county_is_a_rule_a_mod_sets() {
 }
 
 /// Three years of wood-cutting with *Advanced Farming* on, so the efficiency
-/// ramp actually runs. Returns the realm's timber and the county's final
+/// ramp runs. Returns the realm's timber and the county's final
 /// efficiency.
 fn three_years_of_timber(tables: Tables) -> (i32, i32) {
     let mut k = one_county(tables);
@@ -594,7 +594,7 @@ fn three_years_of_timber(tables: Tables) -> (i32, i32) {
     // straight into the record does not survive a full `advance_season` — the
     // allocator rebuilds all nine records from the population and the
     // ceilings. Running the one pass keeps the hundred cutters fixed, which is
-    // what makes the totals below exact arithmetic on the ramp rather than a
+// what makes the totals below exact arithmetic on the ramp
     // measurement of the allocator.
     let mut report = l2_kingdom::SeasonReport::new();
     for _ in 0..12 {
@@ -787,11 +787,11 @@ fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
     assert_eq!(mod_gold, stock_gold * 5, "five times the rate, five times the take");
 }
 
-/// The two ways one of these new rules can be impossible rather than merely
+/// The two ways one of these new rules can be impossible
 /// unbalanced, both refused at load with the file and line that wrote them.
 ///
 /// `ale_step_pct` divides the population, so zero is a division by zero in
-/// `buy_ale` rather than "ale is free"; a ninth rung is a ladder the
+/// `buy_ale`; a ninth rung is a ladder the
 /// simulation's array cannot hold. Neither is clamped, because a clamped rule
 /// is one a mod author cannot see failed.
 #[test]

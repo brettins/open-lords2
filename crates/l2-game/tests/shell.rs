@@ -55,7 +55,7 @@ fn the_front_end_is_the_setup_screens_first_page() {
     assert_eq!(m.ids(), vec![ScreenId::Setup(SetupPage::Title)]);
 
     // "Single player" opens "Your options"; that is one screen changing its
-    // own page, not a push, exactly as `g_setupPage` is one screen.
+// own page, as `g_setupPage` is one screen.
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     m.handle(click(setup_item(0)), &mut ctx);
     assert_eq!(m.ids(), vec![ScreenId::Setup(SetupPage::Options)]);
@@ -165,10 +165,10 @@ fn a_popup_is_drawn_over_what_was_underneath() {
     // table.** The merchant stood here, then the armoury, then castle
     // building, then the court - every whole-picture shell the table had -
     // and the note here said that when the last one graduated this should go
-    // red and be deleted deliberately rather than quietly pass over an empty
+// red and be deleted deliberately
     // set. It went red. This is that deliberate rewrite.
     //
-    // What it asserted was never really about shells. It is that **an overlay
+// **an overlay
     // does not clear what is underneath it** - the property
     // `docs/decisions.md` C22 was written about, and the reason
     // `Machine::draw` walks back to the last non-overlay screen. So it names
@@ -239,7 +239,7 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
     assert_eq!(e.get(11, 5), Some("Your options"));
     assert_eq!(e.get(11, 6), Some("Play Now!"));
 
-    // The conquest screen, which is what 0x1C actually is.
+// The conquest screen, which 0x1C is.
     assert_eq!(e.get(36, 0), Some("Congratulations!!"));
     assert_eq!(e.get(36, 1), Some("You have conquered"));
     assert_eq!(e.get(36, 4), Some("You have lost."));
@@ -257,9 +257,9 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
     // *a group and index this engine draws must be a group and index the
     // player's own `L2.eng` has* - is worth more than the table it walked, so
     // it now names the seven modules' own constants. Two of those constants
-    // are the finding rather than the check: group 70 index 1 (*"Arms"*) and
+// are the finding: group 70 index 1 (*"Arms"*) and
     // group 37 index 1 (*"Before"*) exist in the file and are drawn by
-    // **nothing in the binary**, which is why they are asserted present here
+// **nothing in the binary**, so they are asserted present here
     // and appear in no painter.
     use l2_game::screens::{about, court, diplomacy, ratings, supplies};
 
@@ -285,7 +285,7 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
     assert_eq!(e.get(court::GROUP, court::COURT_OF), Some("Court of"));
     assert_eq!(e.get(court::GROUP, court::ARMS), Some("Arms"), "and nothing draws it");
 
-    // **Every row the screen can draw, taken from the screen rather than from a
+// **Every row the screen can draw, taken from the screen
     // list beside it.** This used to name eight constants belonging to a stub;
     // the stub was replaced by the real screen in the same merge and its
     // constants went with it. Asking `Menu::rows()` means a menu that gains a
@@ -454,7 +454,7 @@ fn the_glyph_map_is_the_table_in_the_users_own_executable() {
     let exe = std::fs::read(dir.join("Lords2.exe")).expect("Lords2.exe");
     // The image base is 0x400000 and there is no ASLR, so a virtual address is
     // a section offset away from a file offset. `.data` is found by walking the
-    // section table rather than by hard-coding the delta.
+// section table.
     let pe = u32::from_le_bytes(exe[0x3C..0x40].try_into().unwrap()) as usize;
     let nsec = u16::from_le_bytes(exe[pe + 6..pe + 8].try_into().unwrap()) as usize;
     let opt = pe + 24;
@@ -590,10 +590,10 @@ fn the_measure_charges_the_blank_sign_column_nothing_and_the_draw_charges_four()
 /// `b d f h i k l t`, and the split was exactly frame record byte `0x0D`.
 /// `Font::draw` added that byte to `y` while the decoder had already reserved
 /// the same rows at the top of the canvas, so the offset was applied twice —
-/// but only for the frames whose rows were *stored*, which is why the two
+/// but only for the frames whose rows were *stored*, so the two
 /// halves of one alphabet disagreed.
 ///
-/// It draws through `Font::draw` rather than reading frame records, because the
+/// It draws through `Font::draw`, because the
 /// records were never wrong. The whole bug lived between the decoder and the
 /// blitter, and only an end-to-end render can see that seam.
 ///
@@ -691,8 +691,8 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
 ///    the digits sit on one baseline.
 ///
 /// Ablated, both run: pointing the test at `font::SMALL` turns claim 2 red on
-/// `'a'`, a frame 8 rows tall rather than 2; pointing it at `font::EIGHT` turns
-/// claim 1 red, 150 frames rather than 108. The *"Seasons"* ink bound was not
+/// `'a'`, a frame 8 rows tall; pointing it at `font::EIGHT` turns
+/// claim 1 red, 150 frames. The *"Seasons"* ink bound was not
 /// separately observed red — the stub check ahead of it fires first.
 #[test]
 fn font_10_is_a_numeral_face_read_through_the_shared_table() {
@@ -841,7 +841,7 @@ fn glyph_draw_raises_three_index_ranges_and_only_for_g_font_body() {
 /// asserted not to raise instead.
 ///
 /// **No string in the shipped English `L2.eng` contains a raised character**,
-/// which is why the pairs are built here rather than read. Measured below:
+/// so the pairs are built here. Measured below:
 /// every character above `0x7F` in the file is `0xB7`, nine of them, one at
 /// the head of each of 295/2 … 295/10, and `0xB7` is index `0x97`, a zero entry
 /// — a blank. The raise is reachable only through a translated `L2.eng`.

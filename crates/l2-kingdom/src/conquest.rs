@@ -16,7 +16,7 @@
 //! **By stepping onto its castle tile.** `Unit_StepOnce` returns 5 for a
 //! `plane0 & 0x40` tile, the move ends, and the mover then calls
 //! `Transport_Deliver` and `Army_AttackCounty` with the tile's county. So the
-//! castle site is not merely expensive terrain the pathfinder routes around —
+//! castle site is expensive terrain the pathfinder routes around —
 //! it is the objective, and `docs/armies.md` §2.2's castle row (*"5 →
 //! `Transport_Deliver`, move ends"*) is half the story. `[D]`
 //!
@@ -29,7 +29,7 @@
 //! ```
 //!
 //! A county with **both** a castle and a garrison in it cannot be walked into
-//! at all — that is what forces a siege, and it is one condition rather than a
+//! at all — that is what forces a siege, and it is one condition
 //! subsystem. Everything else falls through to a battle or an outright capture.
 //! `[D]`
 //!
@@ -38,7 +38,7 @@
 //! Sieges and the battle handoff are out of this crate's scope. What is here is
 //! the guard, the defence decision, and the capture; when the outcome is a
 //! battle this reports it and stops, exactly the way
-//! [`crate::movement::Offence`] reports a diplomatic hit rather than inventing
+//! [`crate::movement::Offence`] reports a diplomatic hit
 //! a diplomacy layer.
 
 use crate::county::{County, MAX_COUNTIES};
@@ -191,7 +191,7 @@ pub enum Refusal {
     /// It is already yours.
     AlreadyYours,
     /// A castle **and** a garrison, and the garrison is not yours. This is the
-    /// siege gate, and the only refusal that is a rule rather than a guard.
+/// siege gate, and the only refusal that is a rule.
     Garrisoned,
 }
 
@@ -240,7 +240,7 @@ pub const ATTACK_MOVE_COST: i32 = 8;
 /// here, read there: two sites, `[D]`.
 ///
 /// The **existing-defender search** is `County_FindDefendingArmy`
-/// (`FUN_0046D42C`), and it is not a scan of the county — it is a 4×4 block
+/// (`FUN_0046D42C`), and it is a 4×4 block
 /// around the county *town*, returning the largest army in it. See
 /// [`find_defender`], which has the function.
 #[allow(clippy::too_many_arguments)]
@@ -355,7 +355,7 @@ pub const UNMARKED: u8 = 0;
 /// Walk a unit for as long as it can walk, and resolve a castle it reaches.
 ///
 /// This is the composition the campaign layer exists to provide, and the one a
-/// turn actually calls: [`crate::movement::march`] takes the army as far as its
+/// turn calls: [`crate::movement::march`] takes the army as far as its
 /// moves allow, and if the last step brought it to a county's castle,
 /// [`attack_county`] decides whether that is a capture, a battle or a siege it
 /// cannot start.
@@ -496,9 +496,9 @@ pub fn find_defender(units: &Units, counties: &[County; MAX_COUNTIES], county: u
 /// events"* line** (`+0x17`, `L2.eng` group 85 index 9), not on the army line —
 /// so a county the player has just taken shows its resentment where a plague or
 /// a fire would show. And the same clamp shape as the levy: the panel is
-/// debited what was actually taken.
+/// debited what was taken.
 ///
-/// # The letter, and why it is reported rather than posted
+/// # The letter, and why it is reported
 ///
 /// Between the recount and the owner write the original posts one of thirteen
 /// letters, and **which one depends on `g_localPlayer`** — the taker is told
@@ -539,7 +539,7 @@ pub fn find_defender(units: &Units, counties: &[County; MAX_COUNTIES], county: u
 /// — it does **not** increment `countyCount`, does not call
 /// `Realm_RecountStrength` on the loser, does not take the happiness penalty,
 /// does not write the shield and does not raise the peak. The one thing it does
-/// is [`make_independent`], which is why this function needs a [`Restore`].
+/// is [`make_independent`], so this function needs a [`Restore`].
 ///
 /// [`Capture::governable`] carries the test out to the letter layer, which
 /// picks 129 for the taker and nothing for anyone else.
@@ -623,7 +623,7 @@ pub fn change_owner(
     // would read it from.
 
     // The castle, if any, is no longer garrisoned by the loser. The original
-    // clears `+0x1BC` on the battle path rather than here; doing it here as
+// clears `+0x1BC` on the battle path; doing it here as
     // well is the same state and keeps a walk-in capture from leaving a
     // garrison pointing at a county its owner no longer holds.
     let garrison = c.garrison_unit;
@@ -685,7 +685,7 @@ impl Capture {
 }
 
 /// Realm `+0x29` — how many counties each realm holds, and `+0x2A`, the most it
-/// has ever held. Rebuilt rather than incremented, because a capture moves a
+/// has ever held. Rebuilt, because a capture moves a
 /// county between two realms and incrementing one without decrementing the
 /// other is how a count drifts.
 pub fn recount_realm_counties(counties: &[County; MAX_COUNTIES], realms: &mut [Realm; MAX_REALMS]) {
@@ -783,11 +783,11 @@ pub const GARRISON_MOVE_COST: i32 = 5;
 ///
 /// **The move onto the castle tile is a teleport**, not a step: the army is
 /// standing on the tile *outside* when this runs and is placed on the castle
-/// block itself. That is why a garrison is drawn inside the castle rather than
+/// block itself. So a garrison is drawn inside the castle
 /// beside it, and why the campaign map draws a garrisoned unit hollow.
 ///
 /// Returns the garrison's slot, or `None` when the castle will not hold them —
-/// the one refusal that lives in the body rather than in the move-order
+/// the one refusal that lives in the body
 /// confirmation. **Nothing is charged and nothing moves on a refusal**; the
 /// army is left standing where it was.
 ///
@@ -811,7 +811,7 @@ pub fn garrison_apply(
     // a garrisoned army has no orders to give; it became reachable **here** the
     // moment diplomacy started aiming armies, and it arrived as a panic inside
     // `unit::combine` (`units.remove(from)` then `get_mut(into)` on the slot
-    // just emptied). Refused rather than reproduced: reproducing it means
+// just emptied). Refused: reproducing it means
     // reproducing a use-after-free.
     if sitting != 0 && sitting == army {
         return Some(army);
@@ -897,7 +897,7 @@ mod tests {
         // **Counties 1 and 2 are neighbours**, which is not decoration: without
         // an adjacency list `County_BordersRealm` says no and every capture in
         // this module takes `County_ChangeOwner`'s `else` branch instead —
-        // the county declares independence rather than changing hands. County
+// the county declares independence. County
         // 3 is deliberately left with none, and is what that branch is tested
         // with. `tests/military.rs` records the same trap from the secession
         // side.
@@ -1201,7 +1201,7 @@ mod tests {
     // --- changing hands ----------------------------------------------------
 
     /// The capture penalty, and the surprise in it: it is drawn on the
-    /// *"From events"* line rather than the army line.
+/// *"From events"* line.
     #[test]
     fn a_captured_county_loses_happiness_on_the_events_line() {
         let (mut counties, mut realms) = world();

@@ -5,9 +5,9 @@ array of 32,961-byte slots, `6 * (64*64) + (65*129)`, 80 slots in the Windows
 release, 44 of them used.
 
 **This document supersedes `maps.md` in four places**, and is the correct
-reading in each: plane 3 is `dx + W*dy` rather than "a 3-tile and a 5-tile
+reading in each: plane 3 is `dx + W*dy`
 object"; 31 maps support five players, not 36; bit `0x20` is farmland, not
-dwelling; and the tile→lattice mapping is settled rather than open. An earlier
+dwelling; and the tile→lattice mapping is settled. An earlier
 revision of this line claimed nothing here contradicts that document, which was
 the most misleading sentence in the knowledge base — it invited a reader to
 trust both everywhere. See `docs/audit.md`.
@@ -63,7 +63,7 @@ map tile sets, **eight layers × four seasons**:
 Entries 32–63 repeat the same eight-layer pattern with the zoom-2 sets
 (`base2a`, `mtns2a`, …). Entries 64+ move on to the battle-map sets
 (`t32_bat1`, `a2w_psnt`, …), so the table is the game's whole resource
-directory, not just the map's.
+directory.
 
 The renderer (`FUN_004063C1`, quoted in `maps.md`) switches on
 `plane1 & 0x1c` and selects one of five sprite tables. **The five banks are the
@@ -105,7 +105,7 @@ if (0 < g_season && g_season < 5) base += g_season * 8 - 8;
 
 and then loads eight consecutive entries into the five tile banks plus
 `sprite1a`, `sprite1b` and `flags1a` — which is this section's bank order,
-confirmed from the loader rather than from the frame counts. An earlier revision
+confirmed from the loader. An earlier revision
 here, and `maps.md`, read the low 2 bits of `g_scenarioIndex` as the season
 selector. That is wrong: those bits pick which of four map slots inside a
 `MAPnn.PL8` the **minimap** comes from. See `docs/screens.md` §2.1 and §3.1.
@@ -147,7 +147,7 @@ So frame *n* of a bank is the same cell of the same sheet in every season. Asser
 ```
 
 so `base + (season - 1) * 8` lands on the same five filenames whichever season it is. The far
-view does not change with the year, and that is shipped behaviour rather than an omission.
+view does not change with the year, and that is shipped behaviour.
 
 **And the dead files are not interchangeable with the live one.** `Town2a.pl8` has **61**
 frames; `Town2b/c/d.pl8` have **94**, and their frame records do not line up with it. A
@@ -157,7 +157,7 @@ sheet for three seasons in four. `Flags1b/c/d.pl8` are dead in the same way: ent
 and 31 all name `flags1a.pl8`.
 
 The lesson generalises: **the resource table is the authority on which file a bank loads, and
-the filename is not.** `l2_view::campaign::Zoom::banks` is that table rather than a suffix
+the filename is not.** `l2_view::campaign::Zoom::banks` is that table
 rule, and `the_far_zoom_names_one_season_four_times_and_the_unused_files_do_not_match` asserts
 both halves.
 
@@ -382,7 +382,7 @@ spread evenly over **6…21** — the 16 grass frames; where the file says `0x16
 they held **22…29** — the 8 water frames. It does the same to the map proper: of
 slot 0's `0x04` (no-county) tiles, 1,967 had their stored index permuted within
 22–29 at load. That is why a naive file-vs-runtime comparison of plane 2 only
-matches 46% and is not a decoding error.
+matches 46%.
 
 ### 4.2 The tail is authored, not derived  **[V] — a negative result**
 
@@ -469,7 +469,7 @@ the decompiled corpus uses:
 
 `RecordProbe` finds all 441 dereferences of this array in the binary are **one
 byte wide**, at all eight offsets — so the eight-plane reading has no exception
-anywhere in the code, not just in the one live dump.
+anywhere in the code.
 
 **Bit `0x40` of `bank` was missing from this table.** It is a run-time draw bit
 like `0x80`, and `Map_RenderIso`'s two half-row loops make its meaning exact:
@@ -480,7 +480,7 @@ carried was corrected in `docs/decisions.md` C49.
 ### 5.4 Byte +0, `content` — the tile's occupant  **[V]**
 
 Not one enumeration. The value is read under a mode chosen by the `flags` byte,
-which is why the ranges overlap:
+so the ranges overlap:
 
 | on a tile with | `content` means |
 |---|---|
@@ -496,7 +496,7 @@ castle.
 #### The castle rung, read from its writer  **[V]**
 
 `0x14 + castleType`, so `0x14` is the bare plot and `0x15 … 0x19` are the five castle
-types — and it is worth saying where that comes from, because it used to be
+types — because it used to be
 `docs/hypotheses.json` H6, which rested on two counties of one save. It is now
 **`Castle_StampTile` (`0x0046826C`)**, an `if`/`else if` ladder over the five levels writing
 `0x15, 0x16, 0x17, 0x18, 0x19` and nothing else, matched by `Unit_Step`'s
@@ -505,7 +505,7 @@ longer what it rests on.
 
 The same function is the reason **a castle is not in `L2_maps.dat` at all**. Unlike the
 mine, the quarry and the forest — which the file stores as real artwork that
-`County_PlaceResourceSites` merely flags — the castle plot is plain ground in the base bank,
+`County_PlaceResourceSites` flags — the castle plot is plain ground in the base bank,
 and every castle on the original's campaign map is stamped in at run time:
 
 ```c
@@ -627,7 +627,7 @@ otherwise, and `base` and `layer` come from a ladder on the new terrain:
   > not showing the different stages of wheat growth."* **[V]** against the decompilation at
   > all three call sites; `docs/decisions.md` C195.
   >
-  > `+0x206` is not a copy of `+0x202`. Both are written by the sowing arm, but
+> Both are written by the sowing arm, but
   > `County_DestroyField` (`0x00469E5B`) and `FUN_0046965A` step `+0x206` down whenever
   > `fieldsGrain <= +0x206`, and nothing steps `+0x202` down.
 
@@ -655,7 +655,7 @@ otherwise, and `base` and `layer` come from a ladder on the new terrain:
 the diamond and silent about the animals on top of it.
 
 **Why `& 3` is enough, stated as the invariant it is.** Every base above is a multiple of
-four *except* 130 and 134, and `oldBase` exists for precisely those two. So the low two bits
+four *except* 130 and 134, and `oldBase` exists for those two. So the low two bits
 of a farm tile's frame **never change for the life of the game**, whatever happens to the
 crop — which is what makes the picture a pure function of `(terrain, the frame the map file
 stored)` and lets a renderer recompute it without tracking the tile's history.
@@ -737,7 +737,7 @@ if (edge == 1) dx -= g_mapTileHalfStep;   /* the left half-tile of an offset row
 
 then it blits `g_flagsSheet` frame `frame` at `(g_drawX + dx, g_drawY + dy)` — the same
 `Flags1a.pl8` the flags and the path markers come out of, and the frame record's `cx`/`cy`
-are never read, exactly as §5.3's flag note says.
+are never read.
 
 **`content == 0x0F` and `content == 0x13` fall through the unsigned compare and draw
 nothing.** `0x13 - 0x14` is `0xFF` as a byte. `0x13` is the value an **empty herd** gets, so
@@ -799,7 +799,7 @@ have twenty-one fields in the way a county cannot have five dwelling plots (§8)
 this one has a defined outcome instead of a corrupted neighbour.
 
 No shipped map reaches the branch: the largest county on the 44 maps has twenty farm tiles or
-fewer, which is why it has never been visible. It is exercised on a synthetic slot in
+fewer, so it has never been visible. It is exercised on a synthetic slot in
 `crates/l2-scenario/tests/newgame.rs`, and it is one of only **two** places where the runtime
 flags plane differs from the file's — the other being `County_PlaceBlacksmith`, which *adds*
 bit `0x80` to a tile the file gave no flags at all, one per county. Over England, that pair is
@@ -829,7 +829,7 @@ filled slots 40–59 with the 20 new maps. **[I] Slots 60–79 are spare capacit
 the container with no UI entry at all** — they are byte-identical blank templates
 and there is nothing to name them with.
 
-This is a genuinely independent corroboration of the census: two unrelated files
+This is an independent corroboration of the census: two unrelated files
 agree on used = 0–23 and 40–59, empty = 24–39.
 
 **And a third, from a completely different direction.** `Minimap_Load` reads a
@@ -868,7 +868,7 @@ committed (CLAUDE.md rule 1).
 ### The live-process route
 
 `dump.ps1` reads `0x00522F90` (tile array) and `0x0055CEA0` (screen lattice) out
-of a running `Lords2.exe`. That is what settled §4, and it is worth the trouble
+of a running `Lords2.exe`. That is what settled §4,
 **once**. But driving the game from an agent is close to unusable:
 
 * the game runs fullscreen and takes over the user's display for as long as it is
@@ -907,7 +907,7 @@ with as few separate process spawns as possible, and take the memory dumps
   bit, and sets `flags` bit `0x10`; every plot beyond *n* is razed — `frame` restored from
   `savedFrame`, bank cleared back to base, `flags` bit `0x10` cleared, `content` zeroed.
   `Unit_BurnDwelling` is the inverse, driving one plot from `0x10` straight back to `0x13`.
-  **The count is not a rule, it is the storage:** the loop has no bound check and the four
+**The count is the storage:** the loop has no bound check and the four
   slots end exactly on `county.fieldProgress` at `+0x90`, so a fifth `0x10` tile in one
   county would overwrite a field's reclamation progress. §2.3's exactly-four-per-county
   invariant over all 434 counties is what keeps that from happening.

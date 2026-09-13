@@ -1012,7 +1012,7 @@ into the gitignored `out/` so it can be looked at.
   Renamed `Minimap_Load`.
 * **This document's own `+0x0B1` … `+0x0B3` were wrong** (§3.3): the minimap's three rating
   bytes are county `+0x01`, `+0x02` and `+0x03`. The old numbers are `0x0053F9B1`… read as
-  offsets rather than as addresses into `g_counties` at `0x0053F9B0`.
+offsets.
 * **`Minimap_ModeButton`'s comment in `symbols.md` said "pressing the active one again
   returns to mode 0".** It is *button 4* that returns to mode 0; pressing the active mode's
   own button does nothing.
@@ -1043,7 +1043,7 @@ are read by nothing.
 * `mapl2.exe` names them nowhere either.
 
 So the shipped `.cur` files are **source art left in the install directory**. What the game
-actually draws lives in the executable's own resource directory.
+draws lives in the executable's own resource directory.
 
 ### 9.2 What the game loads: seven cursors out of its own `.rsrc`  **[V]**
 
@@ -1053,7 +1053,7 @@ Every one is **32 × 32, 1 bpp**, black and white with an AND mask, drawn in the
 corner of the bitmap.
 
 `App_InitWindow` (`0x004B2258`) registers `WinLords2Class` with **`hCursor = NULL`** — which
-is what makes the pointer the application's problem rather than the window class's — and then
+is what makes the pointer the application's problem — and then
 loads eight `HCURSOR`s from those seven resources:
 
 | resource | global | picture | hotspot |
@@ -1156,7 +1156,7 @@ choosing where an army marches. The human figure on `0x06` is the peasants in yo
 
 **Screens `0x07` and `0x0E` are dead rows.** A scan of every `mov byte ptr [g_screenId], imm`
 in `.text` finds **50 distinct values** written and neither 7 nor 0x0E among them; 0x10 is
-written exactly once, inside `Map_BeginMoveSelection`. **[I]** rather than **[V]**, because
+written exactly once, inside `Map_BeginMoveSelection`. **[I]**, because
 the scan covers only the immediate-store form — but that form accounts for all 50 ids,
 including every one `docs/screens-county.md` §1 lists.
 
@@ -1214,7 +1214,7 @@ soldiers will attack."* That is the `g_battleHoverEnemy` branch, in the game's o
 which is what lifts the mapping above a story assembled from a decompiler listing. The word
 *red* does not describe these resources, which are 1-bit black and white with no colour at
 all; either it is a DOS-build recollection or *red* is loose for *changes*. **[I]**, and
-flagged rather than resolved.
+flagged.
 
 **`Battle_UpdateHover` runs after the cursor is chosen** — `Battle_Frame` calls it at
 `0x004BA1DB`, well past the ladder at `0x004B9F49` — so the battle pointer is **one frame

@@ -34,7 +34,7 @@
 //!
 //! `docs/netcode.md`. Every loop here is `for i in 1..MAX_REALMS` in ascending
 //! index order — a diplomatic matrix walked in any other order is a lockstep
-//! bug — and there is no floating point.
+//! bug — no floating point.
 //!
 //! **The dice are a separate stream, on purpose.** Three of the seven reply
 //! handlers roll `g_rand7B` (`randStateB & 0x7F`, so 0..=127), and the original
@@ -161,7 +161,7 @@ pub mod category {
     pub const SYSTEM: u8 = 0;
 }
 
-/// The offence amounts, so the four call sites read as the rule rather than as
+/// The offence amounts, so the four call sites read as the rule.
 /// a number. `docs/diplomacy.md` §5.
 pub mod offence {
     /// Destroying an enemy supply transport. Gated by [`super::action_allowed`].
@@ -291,7 +291,7 @@ impl Kind {
 /// **The diplomatic dice.** `g_rand7B` (`0x0058FD60`) is `randStateB & 0x7F`,
 /// so 0..=127, and three reply handlers compare against it.
 ///
-/// A `Pcg32` of its own rather than the kingdom's, for the reason in the module
+/// A `Pcg32` of its own, for the reason in the module
 /// documentation: the original's generator is stepped by every rule in the game
 /// and ours is not, so sharing one would make a person's letter change the
 /// weather.
@@ -376,7 +376,7 @@ fn move_standing(realms: &mut [Realm], me: u8, them: u8, delta: i8) {
 }
 
 /// `realm.voiceRotation` is advanced after **every** message a realm sends, so
-/// the lord's four recorded takes cycle rather than repeat. This is the
+/// the lord's four recorded takes cycle. This is the
 /// `Msg_Enqueue` + rotation pair the original repeats at fourteen sites.
 fn speak(realms: &mut [Realm], from: u8, to: u8, group: u16, cat: u8, county: u8) -> Letter {
     let realm = &mut realms[from as usize];
@@ -398,11 +398,11 @@ fn speak(realms: &mut [Realm], from: u8, to: u8, group: u16, cat: u8, county: u8
 /// `Diplo_Init` (`0x004A1C53`) — the new game.
 ///
 /// **The one place every field of the pair record is written**, which is what
-/// makes `docs/diplomacy.md` §1's field map a reading rather than a guess. An
+/// makes `docs/diplomacy.md` §1's field map a reading. An
 /// in-play AI realm's opening view of *everyone* is [`STANDING_START_AI`]; a
 /// human's and a dead realm's is 0.
 ///
-/// Three details worth having in the model rather than tidied away:
+/// Three details worth having in the model:
 ///
 /// * the inner loop runs `1..6` with **no `other != me` guard**, so a realm
 ///   ends up with an opinion of itself, at the same opening value;
@@ -451,7 +451,7 @@ pub fn default_target(realms: &[Realm], local_player: u8) -> u8 {
 /// card, and [`action_allowed`] returning false — which suppresses the offence
 /// hook and charges grudge instead.
 ///
-/// **Exclusivity is not a rule written anywhere; it is the width of the
+/// **Exclusivity is the width of the
 /// field.** `realm +0x81` is one byte.
 pub fn form_alliance(realms: &mut [Realm], a: u8, b: u8) {
     realms[a as usize].pair_mut(b).allied = true;
@@ -580,7 +580,7 @@ pub fn action_allowed(realms: &mut [Realm], actor: u8, target: u8) -> bool {
 ///
 /// 1. **The whole function is a no-op when the offended realm is human.**
 ///    `g_realms[offended].isHuman == 0` is in the entry guard, beside the range
-///    checks. A person's realm keeps no standing towards anybody, which is why
+///    checks. A person's realm keeps no standing towards anybody, so
 ///    `Diplo_Init` opens a human's row at 0 and why nothing ever moves it.
 ///    Everything that reads a standing reads an AI's.
 /// 2. **The Bishop's guard covers `warTarget` as well as `atWar`.**
@@ -672,7 +672,7 @@ pub fn offend_all(realms: &mut [Realm], realm: u8, amount: i8) {
 /// It fills the first free of five slots, bumps the recipient's
 /// `compliments_from` when the kind is a compliment, sets `has_mail`, and — if
 /// the gold is non-zero — **moves it immediately**, clamped to what the sender
-/// actually holds.
+/// holds.
 ///
 /// **A gift is spent when it is posted, not when it is answered.** The reply
 /// arrives a turn later and could be an insult; the money has gone either way.
@@ -921,7 +921,7 @@ pub fn reply_alliance_offer(
 /// diplomacy screen is silent.
 ///
 /// The *"Broken alliance."* text, group 182, is not this — it comes from
-/// [`offend`] when an *act* rather than a letter breaks one.
+/// [`offend`] when an *act* breaks one.
 ///
 /// Like kind 3 it has no `is_human` guard, so an AI's termination would also be
 /// honoured; and unlike kind 3 there is nothing to send either way.
@@ -1134,7 +1134,7 @@ pub fn pay_for_help(realms: &mut [Realm], ally: u8, payer: u8, county: u8, price
 /// if the realm is not ranked first, [`pick_ally_candidate`] chooses; a counter
 /// must then reach the lord's [`crate::tables::AI_PERSONALITY_OFFER_INTERVAL`]
 /// — Knight 12, Baron 10, Countess 8, Bishop **4** turns — before it acts.
-/// Against another AI it simply forms the alliance with no message; against a
+/// Against another AI it forms the alliance with no message; against a
 /// person it sets `offer_pending` and sends group 180 with the prompt layout.
 ///
 /// The timer only advances on a turn there **is** a candidate, and it is reset
@@ -1395,7 +1395,7 @@ mod tests {
     }
 
     /// A gift is spent when it is posted, not when it is answered — and it is
-    /// clamped to what the sender actually holds.
+/// clamped to what the sender holds.
     #[test]
     fn the_gold_moves_at_the_post_office() {
         let (mut realms, mut d) = world();
@@ -1631,7 +1631,7 @@ mod tests {
     }
 
     /// Every message advances the sender's voice rotation, so the lord's four
-    /// recorded takes cycle rather than repeat.
+/// recorded takes cycle.
     #[test]
     fn the_four_recorded_takes_cycle() {
         let (mut realms, _) = world();

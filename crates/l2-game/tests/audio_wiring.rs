@@ -1,4 +1,4 @@
-//! **Is anything actually driving the audio layer?**
+//! **Is anything driving the audio layer?**
 //!
 //! ```text
 //! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test audio_wiring
@@ -8,7 +8,7 @@
 //! that the *mixer* turns a file into samples. Both were green, both still are,
 //! and **no music has ever played**: `audio::scene` asked whether the screen at
 //! the bottom of the stack is a setup page, and the front end is *pushed
-//! under* the campaign rather than replaced by it, so it answered `FrontEnd`
+//! under* the campaign, so it answered `FrontEnd` 
 //! for every state a running game can be in. `docs/decisions.md` C116.
 //!
 //! The test that covered it did this:
@@ -39,7 +39,7 @@ use l2_game::Game;
 /// application starts from, every test below is testing a state nobody reaches
 /// — which is the whole defect this file exists for — so it is named once,
 /// here, and `the_root_is_the_one_the_application_starts_on` checks it against
-/// `main.rs` itself rather than against memory.
+/// `main.rs` itself.
 const APP_ROOT: ScreenId = ScreenId::Setup(SetupPage::Title);
 
 fn send(machine: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
@@ -141,7 +141,7 @@ fn every_in_game_screen_over_the_front_end_is_campaign_music() {
 
     // **The conquest interstitial is the exception and used to be in the list
     // above.** It is over a running game, so it is not silence — but
-    // `Screen_DrawConquest` (`0x0041E1DD`) plays its own bed rather than
+// `Screen_DrawConquest` (`0x0041E1DD`) plays its own bed
     // `Music_StartCampaign`'s, so asserting campaign music here was asserting
     // the thing the screen does not do. Which bed is
     // `the_conquest_interstitial_plays_its_own_bed`'s subject.
@@ -205,7 +205,7 @@ fn the_front_end_is_its_own_scene_on_all_thirteen_of_its_pages() {
 }
 
 /// **`g_battlePhase == 2` outlives the battlefield's three screen ids**, so the
-/// scene is read off the whole stack rather than its top: a panel over the
+/// scene is read off the whole stack: a panel over the
 /// field does not stop the battle music.
 #[test]
 fn the_battlefield_is_battle_music_under_whatever_is_over_it() {
@@ -320,7 +320,7 @@ fn pressing_start_on_the_title_screen_makes_a_noise() {
 /// He is right about the proportion — **646 of the install's 771 files are
 /// somebody talking**, 449 lord takes and 197 system clips.
 ///
-/// `Msg_DrawWindow` (`0x0047309E`) is not a painter: it dismisses, enqueues,
+/// `Msg_DrawWindow` (`0x0047309E`) dismisses, enqueues,
 /// sets its own timer and plays its own sound from inside the draw, so there is
 /// no call site to hang a voice on. The trigger is the message timer reaching a
 /// value, and this drives the **real queue through the real pump** — enqueue,
@@ -379,7 +379,7 @@ fn a_message_window_speaks_ten_ticks_after_it_opens() {
 /// **The Speech switch has to silence him, and only him.**
 ///
 /// `Sound_PlayFile(name, 1, 0)` — the `1` is what gates every voice line on
-/// `g_optSpeech` rather than on `g_optSoundEffects`, so the Sounds page's third
+/// `g_optSpeech`, so the Sounds page's third
 /// row is a separate switch from its second. A narrator that ignored it would
 /// be a poor first impression of the feature.
 #[test]
@@ -443,7 +443,7 @@ fn the_speech_switch_silences_the_narrator_and_leaves_the_music_alone() {
 /// Nothing is mixed, so the fanfare is still sounding when the lord is asked
 /// for — the case that tells the two verbs apart.
 ///
-/// Ablations: speak through `play_file` rather than `stop_and_play_file` and
+/// Ablations: speak through `play_file` and
 /// the lord is dropped; play the fanfare with `false` and Speech: Off no
 /// longer silences it.
 #[test]
@@ -541,7 +541,7 @@ fn the_industry_toggle_groups_all_have_a_voice_that_ships() {
     }
 }
 
-/// **How much of the game's audio the engine can actually play, measured.**
+/// **How much of the game's audio the engine can play, measured.**
 ///
 /// 771 files ship. The number that matters is how many of them any code path
 /// can reach, and it was **0** until the fix in `docs/decisions.md`
@@ -689,7 +689,7 @@ fn the_music_fanfares_screens_and_the_click_are_fifty_five_more() {
     // `healthBand` is `0 ..= 4`, entries 3 and 4 of the table are both
     // `S020_04.wav`, and so **`S020_05.wav` ships, is named in the binary, and
     // nothing in a running game can ask for it** — `battle5.wav`'s situation
-    // exactly, and found the same way: by counting distinct files rather than
+// exactly, and found the same way: by counting distinct files
     // table entries.
     for line in l2_game::audio::names::speech::MERCENARY_OFFER
         .iter()
@@ -817,7 +817,7 @@ fn turning_music_off_on_the_sounds_page_stops_the_music() {
     audio.mix(&mut buf);
     assert!(buf.iter().all(|s| *s == 0.0), "and the mixer is still producing samples");
 
-    // And back on, which the original re-derives rather than resuming.
+// And back on, which the original re-derives.
     game.prefs.music = true;
     listen!();
     assert_eq!(audio.music_name().as_deref(), Some("scroll1.wav"), "Music: On did not resume");
@@ -840,7 +840,7 @@ fn turning_music_off_on_the_sounds_page_stops_the_music() {
 ///
 /// **Ablations, run:** delete the `self.hear_the_click(..)` call in
 /// `Director::listen` and the loud assertion goes red; make `hear_the_click`
-/// play on `now != 0` rather than on a change and the held assertion does.
+/// play on `now != 0` and the held assertion does.
 #[test]
 fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -953,7 +953,7 @@ fn the_field_brush_sounds_what_it_paints() {
         let mut director = audio::Director::new();
         let mut game = world();
         // Twenty fields for county 1, which `world` gives the player. The flag
-        // is not enough: `field::set_type` refuses a tile that is in no slot.
+// `field::set_type` refuses a tile that is in no slot.
         let tile = {
             let map = &mut game.kingdom.campaign.map;
             let c = &mut game.kingdom.counties[1];
@@ -1271,7 +1271,7 @@ fn the_population_panel_speaks_the_countys_health_band() {
 ///
 /// **And it is silence in the original, not a gap of ours** — it was reported
 /// as one (*"picking a merchant says nothing, where a unit or a castle
-/// speaks"*) and there is a third reading that settles it rather than merely
+/// speaks"*) and there is a third reading that settles it
 /// failing to find an arm. `L2.eng` group 31 holds **five** unit descriptions;
 /// indices 13 … 16 are these four, in exactly the order `S031_01` … `04`, and
 /// index **12** is *"Merchants allow a county to buy needed supplies and raise

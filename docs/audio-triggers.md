@@ -41,7 +41,7 @@ It has one now, and it is the same shape as the arms audit's:
 The marker is `// sfx: <id>[,<id>…]` beside the call, and the id is
 `<caller>#<n>` — the function the site is in, and its ordinal within that
 function in source order. **A marker may claim several ids** and `arms.rs`'s may
-not, which is not a relaxation: `Msg_PlayVoice` is asked for at sixteen places
+`Msg_PlayVoice` is asked for at sixteen places
 guarded by sixteen values of one countdown, and `audio::voice_tick` is that
 whole ladder in one function. Fourteen markers on one line would be fourteen
 claims about one line. What the check forbids is an id claimed twice.
@@ -64,7 +64,7 @@ and every one of them is the front end:
 | `FUN_00497a34#1`, `FUN_00433155#1`, `Screen_FrameInput#1` / `#2` | `SETUP3.WAV` | the credits and the ending |
 
 `Music_StartCampaign` and `Music_StartBattle` are *themselves* ladders that end
-in `Music_Play`, which is why they read as leaves and are not.
+in `Music_Play`, so they read as leaves.
 
 **The cost of the omission was a player's report.** He said *"I don't hear
 music"*; `docs/decisions.md` C116 found the campaign half of that and fixed it;
@@ -123,7 +123,7 @@ Two of the sixteen are now built, and they are the two a player meets:
 | `Msg_Dismiss` (`0x00476768`) | `if (g_messageGroup != 0xc2) Sound_StopOneShot();` — closing a window cuts the narrator, **except** group 194, *"Foiled again."* | `Director::listen`, on the open record changing |
 | `Opt_ToggleMusic` (`0x004349A4`) | `if (g_optMusic == 0) { Music_Stop(0); Sound_StopOneShot(); }` — the Music row silences speech too | `Director::listen`, on the switch going off |
 
-They carry no `// sfx:` marker because there is no record for them to claim:
+They carry no `// sfx:` marker:
 `tools/oracle/sounds.js` scans for the nine *play* primitives. That is the right
 denominator for *"what does the game ask for"* and the wrong one for *"does our
 audio behave like the game's"*, and the gap is worth stating rather than
@@ -157,14 +157,14 @@ decision — it now pins them by name, so the fifth costs the same:
 assertion of emptiness is what kept it there: the inventory could not say what the
 bug list already knew.
 
-**The fourth was found by looking for a *caller* rather than for a mechanic.** All
+**The fourth was found by looking for a *caller*.** All
 eight of the sibling voice thunks were filed *blocked on finding the caller*, and
 seven of the callers were one `grep` of the corpus away. The eighth has none, which
 is a different answer to the same question, and no amount of building would have
 produced it.
 
 The unreachable audio on the *other* side of the question is unchanged: `Ff_win.wav`
-ships and **no call site names it** — a file with no trigger rather than a trigger
+ships and **no call site names it** — a file with no trigger
 with no path.
 
 ### What `blocked` is blocked on, in size order
@@ -172,8 +172,8 @@ with no path.
 | mechanic | sites | files it would add |
 |---|---:|---:|
 | ~~Smacker playback~~ **built** (`crates/l2-smk`, `crate::movie`): 5 of its 8 now sound. What still blocks the other 3: `County_ChangeOwner`'s capture letters, which nothing posts (`#15`, `#16`), and the CD's fast-media branch (`#19`) | 3 | 0 — a bed and a voice already reachable |
-| ~~the sibling voice tables' callers~~ **six of the eight are gone.** Four are built — the mercenary offer (`FUN_004B3714`, `Sidebar_Button` hotspot 1, 12 files), the population panel's health line (`FUN_004B3768`, `Panel_OpenPopulation`, 4), the information panel's picked unit or castle (`FUN_004B37BC`, both openers of screen `0x04`, 9) and **the standings page's category** (`FUN_004B3994`, `crates/l2-game/src/screens/nobles.rs`, 7 of its 8) — and one is **dead**, `FUN_004B39E8` above. What is left: `S010`'s confirm box (`Ui_OpenConfirm`, and we have one of its thirteen call sites, as a flag rather than a screen) and the lord sting's `S246` | 2 | ≈17 — `S010` 13, `S246` 4 |
-| `FUN_004B3940`, the castle chooser's five buttons speaking their own name — **the one site left here whose trigger is a click *inside* a screen** rather than the screen arriving, and the selection is `CastleScreen`'s own field rather than anything on the `Game`. `S035` above was the same shape and stopped being blocked when the selection was put where the original keeps it: `DAT_0055CE7C` is a global, so `Game::nobles_category` is the faithful placement *and* the one the director can see. `DAT_0056D898` is a global too | 1 | 0 — `S071_02`…`06` already sound from `FUN_004B37BC` |
+| ~~the sibling voice tables' callers~~ **six of the eight are gone.** Four are built — the mercenary offer (`FUN_004B3714`, `Sidebar_Button` hotspot 1, 12 files), the population panel's health line (`FUN_004B3768`, `Panel_OpenPopulation`, 4), the information panel's picked unit or castle (`FUN_004B37BC`, both openers of screen `0x04`, 9) and **the standings page's category** (`FUN_004B3994`, `crates/l2-game/src/screens/nobles.rs`, 7 of its 8) — and one is **dead**, `FUN_004B39E8` above. What is left: `S010`'s confirm box (`Ui_OpenConfirm`, and we have one of its thirteen call sites, as a flag) and the lord sting's `S246` | 2 | ≈17 — `S010` 13, `S246` 4 |
+| `FUN_004B3940`, the castle chooser's five buttons speaking their own name — **the one site left here whose trigger is a click *inside* a screen**, and the selection is `CastleScreen`'s own field. `S035` above was the same shape and stopped being blocked when the selection was put where the original keeps it: `DAT_0055CE7C` is a global, so `Game::nobles_category` is the faithful placement *and* the one the director can see. `DAT_0056D898` is a global too | 1 | 0 — `S071_02`…`06` already sound from `FUN_004B37BC` |
 | a channel from a click to the audio layer (the field brush) | 5 | 3 |
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
 | the two delegated message painters (categories `0x0C`, `0x14`) | 2 | 0 — both `ff_msg.wav` |
@@ -192,7 +192,7 @@ the tower half of `siege.rs`; `docs/battle.md` §17 is what was read to build th
 **The tip screens left this table**, and they were the row a player would have heard
 most of: two sites and forty files by name — 13 first lines and 27 chained takes, the
 largest files-per-site ratio in the inventory. They are fired now
-(`crates/l2-game/src/tip.rs`), and **35 of the 40 can actually sound**: tips 212, 214
+(`crates/l2-game/src/tip.rs`), and **35 of the 40 can sound**: tips 212, 214
 and 215 are guarded on `g_screenId == 0` during a battle, which no path was found to
 hold, so `S212_01`, `S212_02`, `S214_01`, `S214_02` and `S214_03` ship silent in the
 original as well as here. `[I]` on *"no path"*.
@@ -300,7 +300,7 @@ said.
    click them on the map."** Three things, three answers.
    * *Music* — fixed for the campaign (C116) and **now** for the front end, which
      is the ninth-primitive finding above.
-   * *The click* — **fired**, and it was two sites rather than four: see the end
+* *The click* — **fired**, and it was two sites: see the end
      of this file. `crates/l2-game/src/press.rs` is `Widget_Test`, and the rule a
      player can hear is that a spinner clicks on the press and **not** on its
      auto-repeat.
@@ -331,7 +331,7 @@ county has a standing herd, and opening the larder took neither a cow nor a
 sack. The game says it by **speaking**, on the frame the panel opens.
 
 Both are fired now. `[I]` that the words are the ones he remembered, and that is
-an oracle request rather than a claim — `docs/oracle-requests.md` §11: somebody
+an oracle request — `docs/oracle-requests.md` §11: somebody
 with the game needs to open a dairy-fed county's ration panel and listen.
 
 > **C133's search was for the right condition in the wrong medium**, and the
@@ -342,7 +342,7 @@ with the game needs to open a dairy-fed county's ration panel and listen.
 
 ## The voice: the draw is the behaviour, so the trigger is a countdown
 
-`Msg_DrawWindow` (`0x0047309E`) is 10,915 bytes and it is not a painter: it
+`Msg_DrawWindow` (`0x0047309E`) is 10,915 bytes: it
 dismisses, enqueues, sets its own timer and plays its own sound from inside the
 draw. There is no call site to put a voice beside. All sixteen `Msg_PlayVoice`
 calls are guarded by `g_messageTimer == <constant>`, and the timer counts
@@ -405,13 +405,13 @@ on against when the mixer last had the narrator sounding.
   `Sound_PlayFile` behind one table index; the work is finding the caller.
 * **Categories `0x0C` and `0x14`**, delegated to `Msg_DrawDiplomacy`
   (`0x00475E07`) and `Msg_DrawBeyondLetter` (`0x00476488`). **Unread**, and
-  recorded as unread rather than absent, because inventing a tick for them would
+recorded as unread, because inventing a tick for them would
   be worse than silence.
 
 ## The class nobody had wired: the sound is in the function that sets `g_screenId`
 
 Fourteen sites, and the reason one mechanism reaches all of them is structural
-rather than convenient. **The original's screen sounds are statements in the
+**The original's screen sounds are statements in the
 handler that changes the screen.** `Panel_OpenRation` is the clearest case —
 four statements, two of them sounds — and `Sidebar_Button`'s supplies arm,
 `Panel_SplitButton`, `Map_ZoomOut`, `Panel_JobDetail`, `TileInfo_Draw` and the
@@ -441,7 +441,7 @@ what says jobs 4 and 9 do not. `[V]`
 8, `stonecut.wav`. `[V]` twice; `[I]` that it is because the kingdom bank has no
 forge in it.
 
-## The clip-clop is the bank class, and it has a rate rather than a trigger
+## The clip-clop is the bank class, and it has a rate
 
 `Unit_MoveInFacing` (`0x00466D84`), whose **first statement after unlinking the
 unit from its tile** is a four-arm ladder on the unit's kind:
@@ -491,7 +491,7 @@ banks, so the battlefield's confirm box clicks like the county's tax arrows.
 
 `tests/click.rs` is mostly the silent cases, because a test that only checks that a
 click sounds cannot see a spinner that clicks thirty-three times a second. **One of
-its ablations stayed green**, and it is worth the paragraph: adding a click to
+its ablations stayed green**, adding a click to
 `Press::tick` went unnoticed, because `Machine::update` did not drain the outbox and
 the stray click waited in the `Press` for the next event. It now drains on both
 paths, and the held-arrow tests let go at the end so a click that is held back

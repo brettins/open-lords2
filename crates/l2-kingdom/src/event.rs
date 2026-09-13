@@ -20,7 +20,7 @@
 //!   the table the dispatch cannot handle and no handler the table cannot
 //!   reach;
 //! * **each id is its own `L2.eng` group number**, and every one of the 24
-//!   groups describes, in prose, precisely what the decompiled handler does.
+//!   groups describes, in prose, what the decompiled handler does.
 //!   That last one is the strong evidence: id `0x13B` = group 315 is *"Stop
 //!   thief!.  Highwaymen waylay your tax collectors. Lose all tax revenues this
 //!   season."*, and the handler's whole body sets county `+0x1A8`, which is the
@@ -47,7 +47,7 @@
 //!   one event per ten eligible county-seasons;
 //! * **only odd-numbered counties can ever draw an event at all.**
 //!
-//! That last one is not a reading, it is arithmetic. The seed is
+//! That last one is arithmetic. The seed is
 //! `g_seasonRandom * 2`, which is always **even**; the index the wrap resets to
 //! is 0, which is also even, so the parity survives the wrap; county `k`
 //! therefore always lands on a slot of parity `k`. And every dealt slot is at
@@ -56,7 +56,7 @@
 //! reveal it, because the counties that do draw look exactly as they should.
 //! The seed is `00448822 MOV EAX,[0x0058FD60] / ADD EAX,EAX` in the
 //! disassembly, so the doubling is not a decompiler artefact
-//! (`docs/decisions.md` C13). Reproduced rather than corrected, and asserted
+//! (`docs/decisions.md` C13). Reproduced, and asserted
 //! exhaustively over all 128 seeds by
 //! `only_odd_numbered_counties_can_ever_draw_an_event`.
 //!
@@ -97,7 +97,7 @@ use l2_net::{Pcg32, Quirk, Quirks};
 
 /// The `i8` sentinel `Herd_SeasonTick` tests for before it tests the sign:
 /// *"No bull"* writes 99 into the herd modifier and the herd pass reads it as
-/// **"no growth at all this season"** rather than as +99%. `[V]` —
+/// **"no growth at all this season"**. `[V]` —
 /// `FUN_0044D60D`'s first branch is `if (mod == 'c') { change = 0; births = 0; }`
 /// and `L2.eng` group 314 is *"Cattle will not reproduce this season due to the
 /// death of your prize bull. Deaths, however, occur normally."*
@@ -241,7 +241,7 @@ impl EventKind {
 /// `g_eventTable` (`0x004D6108`) — the 256-slot deck, as `(slot, id)` pairs for
 /// the 26 non-zero slots. Every other slot is "no event".
 ///
-/// Kept sparse rather than as a 256-entry array because the sparseness *is* the
+/// Kept sparse because the sparseness *is* the
 /// finding: 230 of 256 slots are empty and every filled one is at
 /// `index ≡ 7 (mod 8)`.
 pub const EVENT_DECK: [(usize, EventKind); 26] = [
@@ -296,7 +296,7 @@ pub fn deck_slot(slot: usize) -> Option<EventKind> {
 
 /// What one handler does to one county, once its guard has passed.
 ///
-/// Split out from [`fire`] so the effects can be read as a table rather than as
+/// Split out from [`fire`] so the effects can be read as a table
 /// a 24-arm `match` full of field writes, and so a test can assert the guard
 /// and the effect separately.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -335,12 +335,12 @@ pub enum Effect {
 /// The weapon type *"Weapons found"* and *"Corruption"* move.
 ///
 /// **This is a bug and it is reproduced.** `FUN_0044938C` indexes the realm's
-/// weapon array with `(countyId & 3) + 1` rather than with the county's chosen
+/// weapon array with `(countyId & 3) + 1`
 /// weapon type at `+0x290`, so which weapon a county finds depends on its
 /// *identity* and never on what its blacksmith makes — and type 0, the
 /// crossbow, can never be found or embezzled at all. `FUN_00449688`, the
 /// *"Corruption"* handler, computes the same index the same way, which is what
-/// makes it a shared idiom rather than a one-off typo.
+/// makes it a shared idiom.
 ///
 /// **Switchable** — [`Quirk::FoundWeaponFollowsCountyId`], `docs/bugs.md` B3.
 /// With the quirk fixed the county's own `weapon_type` (`+0x290`) is used, which
@@ -487,7 +487,7 @@ impl EventKind {
 /// The realm-side state an event may read or move. The realm record is not this
 /// module's, so the caller passes a copy and gets it back mutated.
 ///
-/// Kept as a small struct rather than a `&mut Realm` so a test can drive an
+/// Kept as a small struct so a test can drive an
 /// event without building a kingdom, and so `event` stays independent of
 /// `realm`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -528,7 +528,7 @@ pub fn guard_passes(
         // needs a grain field to ruin. **`[I]` on the mapping**: the original
         // walks the county's twenty map tiles and tests the tile's terrain
         // byte, and this crate models fields as the three counts at `+0x1FF`,
-        // `+0x200` and `+0x201` rather than as tiles. "A barren field" is taken
+// `+0x200` and `+0x201`. "A barren field" is taken
         // to be a free slot below `MAX_FIELDS`, and "a grain field" to be
         // `fields_grain > 0`. [`apply`] does the testing, so the guard passes
         // here and the effect reports the failure.
@@ -663,7 +663,7 @@ pub fn roll_all(
     // of two, so `Pcg32::below`'s rejection loop never turns, and the number of
     // values taken from the generator does not depend on the setting. That
     // property is not decoration: a quirk that changed how often the simulation
-    // drew would desync a peer at the *next* draw rather than at this one, and
+// drew would desync a peer at the *next* draw, and
     // the desync dump would name the wrong subsystem (`docs/netcode.md` §3).
     let mut index = if quirks.reproduces(Quirk::EventDeckParityLocksOutEvenCounties) {
         (rng.below(EVENT_SEED_BOUND) * 2) as usize
@@ -1085,7 +1085,7 @@ mod tests {
     }
 
     /// Adjacent counties can never both draw, because no two dealt slots are
-    /// adjacent. A property of the deck rather than of the code.
+/// adjacent. A property of the deck.
     #[test]
     fn no_two_neighbouring_counties_can_draw_in_the_same_season() {
         for pair in EVENT_DECK.windows(2) {
@@ -1100,7 +1100,7 @@ mod tests {
     /// parity `k`, so an even-numbered county cannot reach a dealt slot at any
     /// seed, in any season, for the whole game.
     ///
-    /// Checked exhaustively over every one of the 128 seeds rather than by
+/// Checked exhaustively over every one of the 128 seeds
     /// sampling, because "we never saw it happen" is not the same claim.
     #[test]
     fn only_odd_numbered_counties_can_ever_draw_an_event() {

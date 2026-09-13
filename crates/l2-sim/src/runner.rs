@@ -215,7 +215,7 @@ pub struct Muster<'a> {
     /// `(troop, men)` — real men, in any order; [`RAISE_ORDER`] is applied here.
     pub troops: &'a [(Troop, u32)],
     /// The realm this army belongs to. Zero is the free-slot marker and is
-    /// refused, exactly as in [`BattleRunner::deploy_armies`].
+/// refused, as in [`BattleRunner::deploy_armies`].
     pub owner: u8,
     pub human: bool,
 }
@@ -298,7 +298,7 @@ pub const ASSAULT_REPEAT_SCORE: i32 = 4;
 
 /// **The battle is over.** [`BattleRunner::conclusion`]'s answer.
 ///
-/// A conclusion is not a boolean and never has been: `FUN_00477DFC` reaches
+/// `FUN_00477DFC` reaches
 /// this point six ways and `FUN_00478419` turns the result into one of `L2.eng`
 /// group 82's seven heading/body pairs. Two of those ways are in scope here;
 /// the rest are sieges.
@@ -973,7 +973,7 @@ impl BattleRunner {
     /// This is the whole of "the battle hands its result back": the campaign
     /// wrote eleven counts in, the battle killed some of the men standing for
     /// them, and this reads what is left in the same eleven slots. It is exact
-    /// rather than proportional because [`Self::deploy_muster`] gives every
+/// because [`Self::deploy_muster`] gives every
     /// figure its real share of men.
     pub fn survivors(&self, side: Side) -> [u32; 11] {
         let mut out = [0u32; 11];
@@ -1138,7 +1138,7 @@ impl BattleRunner {
     ///   and the breach score are both zero.
     ///
     /// The other two — the approach and breach scores — are *accumulators*
-    /// rather than counts and are raised where the wall comes down.
+/// and are raised where the wall comes down.
     fn recount_siege(&mut self) {
         let mut on_wall = 0;
         let mut engines = 0;
@@ -1406,7 +1406,7 @@ impl BattleRunner {
     /// > **That distinction is the whole of why the moat had never once been
     /// > filled in.** This function used to read `cell.surface == 2` off the
     /// > slot it was sending the figure to, which reads like the same thing and
-    /// > is not: a slot is only ever chosen by `Formation_SlotIsUsable` or by
+/// > a slot is only ever chosen by `Formation_SlotIsUsable` or by
     /// > the formation rectangle, and **both of them reject an impassable empty
     /// > cell** — which every moat cell is. So the water branch could not be
     /// > reached from any order, by the player or by the AI, and
@@ -1589,7 +1589,7 @@ impl BattleRunner {
             return;
         }
 
-        // Not fighting: look for somebody adjacent, exactly as the original's
+// Not fighting: look for somebody adjacent, as the original's
         // melee search does — eight neighbours, first live enemy wins.
         if let Some(enemy) = self.adjacent_enemy(i) {
             let (ex, ey) = (self.fighters[enemy].x as i32, self.fighters[enemy].y as i32);
@@ -1658,7 +1658,7 @@ impl BattleRunner {
     }
 
     /// A figure in free pursuit or closing to shoot follows its own target
-    /// rather than its unit's destination — `docs/battle-ai.md` §3.3 and §4.1.
+/// — `docs/battle-ai.md` §3.3 and §4.1.
     fn retarget(&mut self, i: usize) {
         let sim = self.fighters[i].sim;
         match self.sim.figures[sim].state {
@@ -2509,7 +2509,7 @@ impl BattleRunner {
             // ```
             //
             // So a figure sent to fill the moat in latches onto **whatever
-            // stopped it**, water or not — there is no surface test here. The
+// stopped it**, water or not. The
             // handler's own first statement unlatches it again if the cell
 // turns out not to be water, so the original can afford
             // to be this blunt, and it is reproduced blunt.
@@ -3964,7 +3964,7 @@ mod tests {
             assert_eq!(f.facing, if f.y < 41 { 4 } else { 0 }, "at {:?}", (f.x, f.y));
         }
         // And nobody has been ordered anywhere yet: `BattleUnit_Recentre` seeds
-        // an un-ordered unit's destination from its own position, which is why
+// an un-ordered unit's destination from its own position, so
         // an army stands still until something tells it not to.
         for u in r.units.live() {
             let unit = r.units.get(u);
@@ -4555,7 +4555,7 @@ mod tests {
     /// This is the property `docs/netcode.md` D-3 needs from an event stream a
     /// listener reads — nothing it records may reach a decision — and it is
 /// checked on the running battle
-    /// uses. Ablation, by insertion because there is no reader to delete: make
+/// uses. Ablation, by insertion: make
     /// [`BattleRunner::step`] skip its missile sweep while
     /// `self.sim.cues.missile_hits(WeaponClass::Bow) > 0` and this goes red on
     /// the tick after the first hit.

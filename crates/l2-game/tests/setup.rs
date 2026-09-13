@@ -8,7 +8,7 @@
 //! The unit tests in `l2_game::setup` check the *tables* — that each is as long
 //! as its drop-down, that the defaults are the original's, that the commit
 //! arithmetic is `Setup_CommitOptions`'. This file checks the other half, which
-//! is the one that was actually broken: that clicking a value in a drop-down
+//! is the one that was broken: that clicking a value in a drop-down
 //! and then clicking *Start* changes the world.
 //!
 //! Everything is driven through [`Screen::handle`] with real pointer
@@ -209,7 +209,7 @@ fn difficulty_reaches_the_ai_armoury_and_not_the_persons() {
         }
     }
     assert!(ai > 0, "somebody has to be the AI or this proves nothing");
-    // And the option is genuinely "none" — the extra is the difficulty's, not
+// And the option is "none" — the extra is the difficulty's, not
     // the table's.
     assert_eq!(START_ARMOURY[0][slot], 0);
 }
@@ -231,7 +231,7 @@ fn fewer_lords_than_the_map_seats_leaves_the_rest_of_the_map_neutral() {
     let after = (1..MAX_REALMS).filter(|&i| game.kingdom.realms[i].in_play).count();
     assert_eq!(after, 2, "one person and one lord");
     assert!(game.kingdom.realms[game.player as usize].in_play, "the person is not dropped");
-    // A dropped realm's county goes back to nobody rather than to somebody else.
+// A dropped realm's county goes back to nobody.
     for id in game.kingdom.county_ids() {
         let owner = game.kingdom.counties[id].owner as usize;
         assert!(
@@ -334,7 +334,7 @@ fn nothing_is_started_by_looking_at_the_page() {
 ///
 /// So the shape is asserted, not the value: nine hex digits, an optional
 /// `-DIRTY`, and a date — or the literal `NO GIT` when the source is not a
-/// checkout, which is a fact rather than a fabrication. No gate; it needs
+/// checkout, which is a fact. No gate; it needs
 /// neither the game nor the fixtures.
 #[test]
 fn the_build_stamp_names_a_commit_rather_than_a_version() {
@@ -370,13 +370,13 @@ fn the_build_stamp_names_a_commit_rather_than_a_version() {
     assert_ne!(id, env!("CARGO_PKG_VERSION"), "a version is not an identity");
 }
 
-/// **The build stamp is actually painted, not merely computed.**
+/// **The build stamp is painted.**
 ///
 /// The test above asserts the shape of the string. This one asserts a player can
 /// see it, which is a different claim and the one that matters: the whole point
 /// is that somebody looking at a screenshot can say which binary it is.
 ///
-/// It is separate rather than folded in because the two fail for unrelated
+/// It is separate because the two fail for unrelated
 /// reasons — a wrong string and an unpainted one need different fixes — and
 /// because this one is the fragile half. `crate::build_id::draw` is one line at
 /// the end of the title page's painter, in a file three branches touched
@@ -392,7 +392,7 @@ fn the_build_stamp_names_a_commit_rather_than_a_version() {
 /// the two to be **identical**. Text is an opaque blit, so drawing it a second
 /// time over itself changes nothing — but only if it was there the first time.
 /// Deleting the line makes the second draw *add* the stamp, and the canvases
-/// differ. That is an exact test rather than a threshold, and it needs no
+/// differ. That is an exact test, and it needs no
 /// knowledge of what else is on the page.
 #[test]
 fn the_build_stamp_is_painted_on_the_title_page() {
@@ -446,7 +446,7 @@ fn the_build_stamp_is_painted_on_the_title_page() {
 /// > second is what anybody wanted.**
 ///
 /// **Why this cannot be written by reading pixels back.** A canvas clips: paint
-/// a glyph at y 476 and the rows past 479 are simply discarded, leaving nothing
+/// a glyph at y 476 and the rows past 479 are discarded, leaving nothing
 /// to observe. Every "is it on screen" test written against the canvas would
 /// therefore pass on exactly the bug it is meant to catch. So the assertion is
 /// made two ways that fail together — the geometry must fit, and the stamp must
@@ -487,7 +487,7 @@ fn every_pixel_of_the_build_stamp_is_inside_the_visible_canvas() {
     );
 
     // Half two: the observable consequence. Paint it on a blank canvas and
-    // count the rows it actually marks. If any of it fell off the bottom the
+// count the rows it marks. If any of it fell off the bottom the
     // canvas clipped those rows away and this count comes up short.
     let mut blank = Canvas::screen();
     let mut painted = Canvas::screen();
@@ -583,10 +583,10 @@ fn the_mst_clock_is_painted_on_the_title_page() {
     );
 }
 
-/// **With no reading there is no clock, rather than a wrong one.** Every test
+/// **With no reading there is no clock.** Every test
 /// and every headless driver leaves `Assets::wall_clock` at `None`, which is
-/// what makes *nothing below the shell may read a clock* enforceable rather than
-/// merely intended — and it is the ablation for the test above, which would also
+/// what makes *nothing below the shell may read a clock* enforceable
+/// — and it is the ablation for the test above, which would also
 /// pass if the clock were drawn from something this file cannot set.
 #[test]
 fn a_page_with_no_reading_draws_no_clock() {
@@ -613,12 +613,12 @@ fn a_page_with_no_reading_draws_no_clock() {
     );
 }
 
-/// **Where it landed, not just that it was painted.** The build stamp shipped
+/// **Where it landed.** The build stamp shipped
 /// hanging off the bottom of the screen because its test proved only the second;
 /// this asks both, and the two halves fail together.
 ///
 /// It also asks the question this corner cannot avoid: the line is
-/// **right-aligned**, so its failure mode is the right edge rather than the
+/// **right-aligned**, so its failure mode is the right edge
 /// bottom, and a face wider than the one the margin was chosen against pushes it
 /// off the side instead of down.
 #[test]
@@ -644,7 +644,7 @@ fn every_pixel_of_the_mst_clock_is_inside_the_visible_canvas() {
     assert!(top + height <= screen_h, "the clock runs to y {}, past {screen_h}", top + height);
 
     // The observable consequence. A canvas clips, so anything that fell off an
-    // edge simply never appears — which is why the geometry above is not enough
+// edge never appears — so the geometry above is not enough
     // on its own.
     let blank = Canvas::screen();
     let mut painted = Canvas::screen();

@@ -8,10 +8,10 @@
 //! digest, on every peer, identically.** Two timelines that have both lost a
 //! field agree perfectly. Measured, not argued: dropping `Industry::has_resource`
 //! from the encoder leaves `ten_seasons_from_a_reloaded_game_are_the_same_ten`
-//! passing after ten seasons of a genuinely different world.
+//! passing after ten seasons of a different world.
 //!
 //! The runtime check that *does* work is `assert_eq!(back, game)`, and the
-//! reason it works is worth copying rather than trusting: its `PartialEq` is
+//! reason it works is worth copying: its `PartialEq` is
 //! **derived from the field list** while the encoder is **hand written**. Two
 //! independently maintained lists that must agree. That is the shape of every
 //! check on this project that has ever caught anything — `symbols_md.js`,
@@ -31,18 +31,18 @@
 //! nothing else.
 //!
 //! **2. It does not cover the importer, which is where both live instances
-//! actually are.** `County::farm_style` (C62) and `Unit::mission` were not
+//! are.** `County::farm_style` (C62) and `Unit::mission` were not
 //! dropped by `l2-kingdom`'s encoder — they were dropped by `l2-scenario`
 //! building a `County` from a `.sav`, and that path never touches `encode`.
 //! This check would not have caught either. The fix there is a different one and
-//! it is not a lint: **the importer assigns field by field onto a default**
+//! **the importer assigns field by field onto a default**
 //! (`c.farm_style = s.farm_style;`), and a struct literal with no `..` would
 //! have made every one of those omissions a *compile error*. See the failing
 //! note in `docs/decisions.md` C65.
 //!
 //! So: **this narrows the half of the boundary it can see, and the half it cannot
-//! see is the half that has actually bitten us twice.** It does not close the
-//! hole. Stated here in the file rather than only in the correction, because a
+//! see is the half that has bitten us twice.** It does not close the
+//! hole. Stated here in the file, because a
 //! check whose limits are unstated gets trusted past them — and this is now the
 //! third artefact on the project people will reach for when asking *"is this
 //! field covered?"*, after a round trip that compares one fixture and a digest
@@ -50,12 +50,12 @@
 //!
 //! # The escape hatch is deliberate, explicit and countable
 //!
-//! A field genuinely outside the encoding carries `not-encoded:` and a reason in
+//! A field outside the encoding carries `not-encoded:` and a reason in
 //! its doc comment. A field that crosses the codec through a *constructor*
 //! rather than by name — `Quirks::from_bits` — carries `codec-via:`, because
 //! this check matches names and cannot see one. Both are excuses, both are
 //! counted, and neither is a silence. That is the same principle as an invention being a countable
-//! status rather than an absence: a decision nothing counts is a decision nobody
+//! status: a decision nothing counts is a decision nobody
 //! revisits.
 
 use std::collections::BTreeMap;
@@ -165,7 +165,7 @@ fn codec_bodies() -> BTreeMap<String, Codec> {
     out
 }
 
-/// **Codecs that are a pair of free functions rather than a trait impl**, named
+/// **Codecs that are a pair of free functions**, named
 /// one by one because there is no keyword to scan for.
 ///
 /// `Game` is the whole of the list today and it is the reason the list exists:
@@ -180,7 +180,7 @@ fn codec_bodies() -> BTreeMap<String, Codec> {
 /// the prefix.
 ///
 /// **This is the shape to copy if another such codec appears.** A free-function
-/// codec is not a worse design — the prefix genuinely is not a `Canonical`
+/// the prefix is not a `Canonical`
 /// value — it is just invisible to a scanner that looks for `impl Encode`, and
 /// the cost of that invisibility is `docs/decisions.md` C30's whole family.
 const FREE_FUNCTION_CODECS: &[(&str, &str, &[&str], &[&str])] = &[(
@@ -253,7 +253,7 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
                 let t = line.trim();
                 // Two markers, and they mean different things. `not-encoded:`
                 // is a field outside the codec. `codec-via:` is a field that
-                // crosses it through a constructor rather than by name —
+// crosses it through a constructor —
                 // `Quirks::from_bits` is the first — which this check cannot
                 // see, because it matches names. Both are excuses and both are
                 // counted; neither is a silence.
@@ -302,7 +302,7 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
 /// A codec body with its **comments removed**.
 ///
 /// [`mentions`] matches text, and until this existed the text it matched
-/// included the prose. That is not a nicety: the check was ablated by deleting
+/// included the prose. The check was ablated by deleting
 /// the loop that encodes `Game::player_names`, and it **stayed green**, because
 /// the comment above the deleted loop still said the words `player_names`. The
 /// better a field is documented at its encoder, the less this check was able to
@@ -343,17 +343,17 @@ fn is_word(b: u8) -> bool {
 }
 
 /// **Types with a codec that this check makes no claim about**, each read and
-/// classified rather than merely tolerated:
+/// classified:
 ///
 /// * `Fixed` — `pub struct Fixed(i32)`, a tuple struct. It has no named fields,
-///   so there is no list to compare; its single value is checked by
+///   so its single value is checked by
 ///   `l2-net`'s own round trip.
 /// * `Message`, `Mismatch` — enums. A variant list is a different contract from
 ///   a field list and needs a different check; the tag-and-payload round trip in
 ///   `l2-net/tests/canonical.rs` is what covers them today.
 /// * `Order` — an enum, and a fixture in `l2-net/tests/common`. Not shipped.
 ///
-/// **A growing list is a signal, which is why it is asserted rather than
+/// **A growing list is a signal, so it is asserted
 /// counted.** Every entry is a field list nothing is checking.
 const UNVERIFIABLE: &[&str] = &[
     "Fixed (l2-net)",

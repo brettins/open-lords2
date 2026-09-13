@@ -357,7 +357,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
 ///   armies as they walked on. Reproduced by dropping the runner on the floor
 ///   and answering [`Answer::Decline`], which is the same autocalc.
 ///
-/// # The discard is deliberate, it is single-player-only, and it is not a hole
+/// # The discard is deliberate, it is single-player-only.
 ///
 /// Re-read at the instruction level, because this is the
 /// line that reads like the seam being broken. `Battle_WriteBackCasualties`
@@ -685,7 +685,7 @@ struct Tail {
 /// yet delivered — and the only safe thing to do with it is finish it.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TurnProgress {
-    /// **This is not a turn.** A battle raised by [`tick_units_only`] on an
+/// A battle raised by [`tick_units_only`] on an
     /// ordinary frame suspends the campaign in exactly the same fields — a
     /// [`Question`] for screen `0x12`, an `unseen` report for `0x13` — because
     /// the two screens and their three doors are the same ones. What it must
@@ -1264,7 +1264,7 @@ fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
 /// > the turn (`docs/decisions.md` C35), so an army can reach a castle, take a
 /// > county or lose a battle *during phase 4*, after the step 0s have all run.
 /// >
-/// > What that costs is bounded and is not a divergence in the numbers: a realm
+/// > What that costs is bounded: a realm
 /// > eliminated by a battle inside phase 4 is recounted at the end of the turn
 /// > by [`Game::rank_realms`](crate::game::Game::rank_realms) rather than
 /// > mid-phase, so it is noticed one phase later than the original notices it.

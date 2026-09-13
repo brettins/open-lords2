@@ -37,7 +37,7 @@
 //! `docs/netcode.md`: an auto-repeat is a timer, and a timer that feeds the
 //! simulation is a lockstep surface. **This one does not feed it.** It sits
 //! entirely on the input side: it consumes ticks and produces *discrete fires*,
-//! and a fire becomes an ordinary command exactly as a click does. Two peers
+//! and a fire becomes an ordinary command. Two peers
 //! running at different frame rates therefore produce different *numbers* of
 //! commands, which is correct — a player who holds an arrow longer steps the
 //! number further — and never a different *result* from the same commands.
@@ -49,14 +49,14 @@ use crate::input::{Event, Rect};
 
 /// One fixed simulation tick, in milliseconds.
 ///
-/// Duplicated from `crate::battlefield` deliberately rather than shared: this
+/// Duplicated from `crate::battlefield` deliberately: this
 /// module must not depend on the battle, and the number is the machine's, not
 /// either module's. If they ever disagree the test below says so.
 pub const TICK_MS: u32 = 16;
 
 /// **The auto-repeat gate table at `0x004D2748`**, read out of `Lords2.exe`.
 ///
-/// `Widget_Test`'s repeat is not a rate and not a formula. It is a **48-byte
+/// `Widget_Test`'s repeat is a **48-byte
 /// hand-authored ramp**, indexed by how many 30 ms steps the button has been
 /// held for, and the button fires on a step whose entry is non-zero:
 ///
@@ -114,8 +114,8 @@ pub const DELAYED_FRAMES: u8 = 20;
 /// **320 ms**, `Hotspot_Test`'s kind-2 repeat, which is a flat pulse and not a
 /// ramp: `DAT_0057D3C8` is one of `Tick_Pulses`' eight dividers — every four of
 /// the 80 ms pulses. The two repeats are different mechanisms and conflating
-/// them is the obvious mistake, which is why [`Kind::Held`] is a separate
-/// branch of [`Press::tick`] rather than a parameter on the ramp.
+/// so [`Kind::Held`] is a separate
+/// branch of [`Press::tick`].
 pub const HELD_PULSE_MS: u32 = 320;
 
 /// **The kind byte at `+0x0F` of the original's 24-byte input record, as a
@@ -124,11 +124,11 @@ pub const HELD_PULSE_MS: u32 = 320;
 /// This is the whole of what decides press, release, hold or repeat, and until
 /// it existed here a screen answered a gesture by hand-rolling its own
 /// press/release bookkeeping — which is how `docs/arms.json` came to mark
-/// nineteen arms `reproduced` under a kind none of them actually had. A screen
+/// nineteen arms `reproduced` under a kind none of them had. A screen
 /// now **declares** the kind, in a [`Widget`] table, and [`Press::event`]
 /// decides when the handler runs.
 ///
-/// The five are the original's own and there is no sixth: `Widget_Test`
+/// The five are the original's own: `Widget_Test`
 /// (`0x0040DA1E`) tests `+0x0F` against 4 and 5 and ignores every other value,
 /// `Hotspot_Test` (`0x0040E3EE`) against 1, 3 and 2 in that order. **The
 /// numbers do not overlap between the two testers** — `Hotspot_Test`'s 3 is a
@@ -155,7 +155,7 @@ pub enum Kind {
     /// `Hotspot_Test` kind **3** — fires on `g_mouseLeftReleased`, the **up**
     /// edge.
     ///
-    /// It carries no memory of a press: the tester simply hit-tests the box and
+/// It carries no memory of a press: the tester hit-tests the box and
     /// reads the released flag, so a release inside a kind-3 box fires it
     /// whether or not the press that preceded it happened there.
     Release,
@@ -245,7 +245,7 @@ macro_rules! arm {
 ///
 /// **The hit box is a square in the original and a rectangle here.**
 /// `Widget_Test` reads `+0x06` as the side of a square — it uses `table[3]` for
-/// both axes, which is why every widget record's width equals its height — and
+/// both axes, so every widget record's width equals its height — and
 /// `Hotspot_Test` reads the same four shorts as `{x0, y0, x1, y1}`. A [`Rect`]
 /// expresses both.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -262,7 +262,7 @@ impl Widget {
 
 /// Does the button fire on this step of the hold?
 ///
-/// `step` is the counter at `+0x0E` **after** its increment, exactly as the
+/// `step` is the counter at `+0x0E` **after** its increment.
 /// original tests it.
 pub fn fires_on_step(step: u8) -> bool {
     if step >= REPEAT_CLAMP + 1 {
@@ -281,7 +281,7 @@ pub fn fires_on_step(step: u8) -> bool {
 ///
 /// The largest table a screen of ours hands to [`Press`] is the army-division
 /// screen's eighteen (`g_splitWidgets`). The bound is a bitmask's width
-/// ([`Fired`]), and it is asserted on every press rather than wrapped, so a
+/// ([`Fired`]), and it is asserted on every press, so a
 /// bigger table fails its first test instead of timing the wrong button.
 pub const MAX_WIDGETS: usize = 32;
 
@@ -325,7 +325,7 @@ impl Iterator for Fired {
 /// Ours in shape and the original's in behaviour. `Widget_Test` keeps this
 /// state *per record*, in the record; a screen module here keeps one of these,
 /// indexed by the same index as the table it hands to [`Press::event`],
-/// because our screens hit-test their own rectangles rather than walking a
+/// because our screens hit-test their own rectangles
 /// table.
 ///
 /// **One press timer per record, not one per table.** `+0x0D` is a byte of
@@ -352,7 +352,7 @@ pub struct Press {
     held_kind: Kind,
     /// `+0x0E`, the repeat counter, in 30 ms steps.
     step: u8,
-    /// Milliseconds accumulated toward the next step. Reset rather than
+/// Milliseconds accumulated toward the next step. Reset
     /// decremented, because `FUN_004B20ED` sets its timestamp to *now* on a
     /// step and leaves it alone otherwise.
     since_step: u32,
@@ -363,7 +363,7 @@ pub struct Press {
     /// and *"which button's timer is running"* the same question — as they are
     /// in the original, where the timer lives in the record. A kind-4 button
     /// stays down for three frames **after** the release, which is the whole
-    /// reason `rec[0x0D]` is set to 3 rather than to 1, so the held widget is
+/// reason `rec[0x0D]` is set to 3, so the held widget is
     /// not the answer to either.
     timers: [u8; MAX_WIDGETS],
     /// **Bit `i` set: record `i` is kind 5 and its countdown is running**, so
@@ -386,7 +386,7 @@ pub struct Press {
     /// happens to it can be read back by the thing that filled it.
     ///
     /// A `u8` and not a `u32` because it is emptied on every event; it saturates
-    /// rather than wraps so that "some clicks happened" can never round to
+/// so that "some clicks happened" can never round to
     /// "none".
     clicks: u8,
     /// **A tick changed what the table's screen shows**, drained by
@@ -485,7 +485,7 @@ impl Press {
     /// both are guarded by `g_mouseLeftPressed || g_mouseLeftDoubleClick` — the
     /// *initial press*. Neither the auto-repeat's later pulses nor kind 5's
     /// delayed fire go past this line, and `Hotspot_Test` has no such line at
-    /// all, which is why this is called from [`Press::press`] and
+/// all, so this is called from [`Press::press`] and
     /// [`Press::press_delayed`] and **not** from [`Press::press_held`] or
     /// [`Press::tick`].
     fn click(&mut self) {
@@ -569,7 +569,7 @@ impl Press {
                 (table[i].kind == Kind::Release).then_some(i)
             }
             // The original re-runs the hit test every frame, so a pointer that
-            // has walked off the button simply stops matching and the record's
+// has walked off the button stops matching and the record's
             // timer is never refreshed. Ours says it.
             Event::Pointer { x, y } => {
                 self.pointer(table.iter().position(|w| w.rect.contains(x, y)));
@@ -610,7 +610,7 @@ impl Press {
     /// **A kind-2 press.** Fires immediately and then every
     /// [`HELD_PULSE_MS`] while the button stays down on it.
     ///
-    /// **No pressed frame.** `Hotspot_Test` sets the record's `+0x0D` exactly as
+/// **No pressed frame.** `Hotspot_Test` sets the record's `+0x0D`.
     /// `Widget_Test` does, and nothing ever draws a hotspot record — the whole
     /// difference between the two testers is that one owns the visible buttons.
     /// So this leaves [`Press::is_pressed`] false for it, which is what
@@ -648,7 +648,7 @@ impl Press {
     /// The pointer moved. `over` is the widget under it, or `None`.
     ///
     /// The original does not track this: it re-runs the hit test every frame,
-    /// so a pointer that has walked off the button simply stops matching and
+/// so a pointer that has walked off the button stops matching and
     /// the record's timer is never refreshed. The effect is the same and this
     /// is how a screen that owns its own rectangles says it.
     pub fn pointer(&mut self, over: Option<usize>) {
@@ -672,7 +672,7 @@ impl Press {
     /// screen, because a table nobody walks any more fires nothing: the
     /// original's handler writes `g_screenId`, and the next frame's dispatcher
     /// no longer calls `Widget_Test` on that table. Its remaining timers are
-    /// not lost — ours freezes with the screen underneath, exactly as the
+/// not lost — ours freezes with the screen underneath.
     /// record's bytes sit untouched in `.data` until the screen comes back.
     pub fn tick(&mut self) -> Fired {
         let mut fired = Fired::default();
@@ -819,7 +819,7 @@ mod tests {
     }
 
     /// **The pointer leaving the button stops the repeat**, because the
-    /// original re-hit-tests every frame and simply stops matching.
+/// original re-hit-tests every frame and stops matching.
     #[test]
     fn sliding_off_the_button_stops_it_repeating() {
         let mut p = Press::new();

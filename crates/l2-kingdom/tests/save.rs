@@ -44,9 +44,9 @@
 //!
 //! The rest is unchanged: **determinism** (the same state, the same bytes, and
 //! a fixed and known body length so that a change to the layout has to be a
-//! deliberate one), **the version changelog** (checked, not merely written),
+//! deliberate one), **the version changelog** (checked),
 //! and **refusal** — an unknown version, a wrong ruleset, a flipped byte and a
-//! truncated file each produce their own error rather than a kingdom.
+//! truncated file each produce their own error.
 
 use l2_kingdom::county::{ChangeReason, MAX_COUNTIES};
 use l2_kingdom::realm::{Pair, MAX_REALMS};
@@ -63,7 +63,7 @@ use l2_kingdom::{Kingdom, Options};
 /// every field of every struct reachable from `Kingdom` to be furnished here.
 ///
 /// Saturation is what makes `a_furnished_kingdom_round_trips_field_for_field`
-/// a completeness check rather than a smoke test. Over a kingdom of zeros, a
+/// a completeness check. Over a kingdom of zeros, a
 /// field that the encoder drops round-trips perfectly — the decoder hands back
 /// the constructor's default and the default is what went in. Over this one it
 /// cannot: the default is the one value no field here holds.
@@ -471,7 +471,7 @@ fn furnish_campaign(k: &mut Kingdom) {
         u.mission = (n % 6 + 2) as u8;
         u.mission_county = n as u8 + 4;
         // The siege build records and the countdown, saturated the same
-        // way: every unit carries one rather than only the besieger, so
+// way: every unit carries one, so
         // the round trip covers them on every slot it walks.
         for (e, record) in u.engines.iter_mut().enumerate() {
             record.ordered = (n + e) as i16 % 5;
@@ -535,7 +535,7 @@ fn furnish_campaign(k: &mut Kingdom) {
         };
     }
     // And step the dice off their seed, so a reload that restarted them would
-    // be visible rather than accidentally right.
+// be visible.
     for _ in 0..5 {
         k.diplomacy.dice.rand7b();
     }
@@ -615,7 +615,7 @@ fn a_history_ring_that_has_wrapped_round_trips() {
 // --- determinism -----------------------------------------------------------
 
 /// Same state in, identical bytes out — a hundred times, and across two
-/// independently built kingdoms rather than one encoded twice.
+/// independently built kingdoms.
 #[test]
 fn the_same_state_encodes_to_identical_bytes() {
     let first = encode(&played(4));
@@ -646,7 +646,7 @@ fn the_trailer_is_the_state_checksum() {
 /// [`VERSION`] needs a thought — the same guard
 /// `the_fingerprint_covers_a_fixed_and_known_number_of_bytes` puts on the
 /// ruleset. Measured over `Kingdom::new`, not the fixture, so it is a fact
-/// about the schema rather than about what this file happens to furnish.
+/// about the schema.
 #[test]
 fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     let mut c = l2_net::Canonical::hashing();
@@ -661,7 +661,7 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // and four words a realm over 6 realm slots.
     //
     // The unit pair `Unit::mission`/`mission_county` adds nothing *here*, and
-    // that is a property of this measurement rather than of the encoding: a
+// that is a property of this measurement: a
     // `Kingdom::new` has no units in it, so the unit block is empty and this
     // number is blind to every field a unit has. The saturated fixture is what
     // covers those, and `every_field_of_the_state_is_furnished` is what makes
@@ -704,7 +704,7 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,
 /// every mercenary band and every merchant route is reached by the encoding,
-/// and the loops that check it are over the array lengths rather than over a
+/// and the loops that check it are over the array lengths
 /// list of slots.
 ///
 /// The other half of the same property the census covers. A field can go
@@ -814,7 +814,7 @@ fn no_record_slot_is_silenced() {
 
 /// Fields of the reachable state that the save body deliberately does not
 /// carry. **Inclusion is the default and exclusion is the statement**, so a
-/// field added tomorrow fails the census rather than slipping past it; a line
+/// field added tomorrow fails the census; a line
 /// here is a claim, with its reason, that the field is not simulation state.
 ///
 /// Reachability stops at these fields, so a whole subtree can be excused by its
@@ -851,7 +851,7 @@ const FURNISHED_BY_CALL: &[(&str, &str, &str)] = &[
 ];
 
 /// **Every field of the state is furnished, and the list of fields is read out
-/// of the source rather than remembered.**
+/// of the source.**
 ///
 /// This is the guard `docs/decisions.md` C30 said was missing and C39 wrote.
 /// The old one was an enumeration of mutations: it checked the fields somebody
@@ -921,7 +921,7 @@ fn every_field_of_the_state_is_furnished() {
         "County"
     );
 
-    // **A floor under the walk, not a target.** Everything above is a check
+// **A floor under the walk.** Everything above is a check
     // that each field *found* is furnished, and a walk that found nothing would
     // satisfy all of it. The bounds are deliberately far below the real numbers
     // so that adding a field never has to touch them, and far above what a
@@ -929,7 +929,7 @@ fn every_field_of_the_state_is_furnished() {
     assert!(reachable.len() >= 15, "only {} structs reached from Kingdom", reachable.len());
     assert!(fields >= 200, "only {fields} fields reached from Kingdom");
 
-    // The exact counts are printed rather than asserted: a number to argue
+// The exact counts are printed: a number to argue
     // with, in the spirit of `crates/l2-testkit/tests/census.rs`, without a
     // second place to update every time a field lands.
     println!(
@@ -956,9 +956,9 @@ fn every_field_of_the_state_is_furnished() {
 ///   exactly what a two-branch collision leaves behind;
 /// * `VERSION` equals the highest of them — so a merge that keeps one branch's
 ///   constant and both branches' entries goes red;
-/// * every entry actually says something, which is the reason the changelog
+/// * every entry says something, so the changelog
 ///   exists: an older save's *absence* of a field is a question, and the answer
-///   belongs here rather than in a commit message.
+///   belongs here.
 ///
 /// It cannot prevent two branches choosing the same number. It fails the moment
 /// they meet, which is the earliest a machine can know.
@@ -1155,7 +1155,7 @@ fn the_fingerprint_covers_a_fixed_and_known_number_of_bytes() {
 
 // --- corruption ------------------------------------------------------------
 
-/// A flipped byte anywhere in the body is caught by the trailer, rather than
+/// A flipped byte anywhere in the body is caught by the trailer.
 /// producing a kingdom with one wrong number in it.
 #[test]
 fn a_flipped_byte_is_caught_by_the_checksum() {
@@ -1209,18 +1209,18 @@ fn trailing_bytes_are_refused() {
 /// **`#[derive(PartialEq)]` is the only exhaustive reader of a struct we have,
 /// and it can only read a value somebody built.** This module supplies the
 /// other half: the *names* of the fields, taken from the source of
-/// `crates/l2-kingdom/src` rather than from anyone's memory.
+/// `crates/l2-kingdom/src`.
 ///
 /// It is a text scan, not a parser of Rust, and that is a deliberate choice.
 /// The alternative is a derive macro, which means `syn` — and `l2-kingdom` is
 /// dependency-free on purpose (`docs/netcode.md` D-3: every third-party crate
 /// is a place bit-identical behaviour can quietly break). Reading source in a
 /// test is already how `crates/l2-testkit/tests/census.rs` counts install-gated
-/// tests, so this is the house style rather than a new idea.
+/// tests, so this is the house style.
 ///
 /// The scan is deliberately fragile in the safe direction: it asserts the shape
 /// of what it found before it trusts it, so a scan that silently matched
-/// nothing fails rather than passing everything.
+/// nothing fails.
 mod census {
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::{Path, PathBuf};

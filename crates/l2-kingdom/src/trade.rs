@@ -25,9 +25,9 @@
 //! |---:|---|---|
 //! | 1 | Grain | `county.grain` |
 //! | 2 | Cattle | `county.herd` |
-//! | **3** | **Sheep** | **nowhere — there is no branch** |
+//! | **3** | **Sheep** | **nowhere** |
 //! | 4 | Ale | straight into [`crate::happiness::buy_ale`]; never stored |
-//! | **5** | **Wool** | **nowhere — there is no branch** |
+//! | **5** | **Wool** | **nowhere** |
 //! | 6, 7, 8 | Iron, Stone, Timber | `realm.iron` / `.stone` / `.wood` |
 //! | 9 … 14 | Pikes, Bows, Maces, Crossbows, Swords, Mail | `realm.weapons[3]`, `[4]`, `[1]`, `[0]`, `[2]`, `[5]` |
 //!
@@ -36,7 +36,7 @@
 //! still copies their rows into the live stall. `docs/mechanics.md` records the
 //! decision: reproduce them, let the game demonstrate its own dead end, rather
 //! than decide in advance that they do not exist. [`Good::tradeable`] is what
-//! says so, and it is derived from the absence of a branch rather than asserted.
+//! says so, and it is derived from the absence of a branch.
 //!
 //! # How the price is set, and what moves it
 //!
@@ -69,7 +69,7 @@
 //!
 //! The AI uses the identical markup through `Ai_BuyGood` (`0x004A4B12`) and
 //! `Ai_SellGood` (`0x004A4A3F`), reading the merchant off the county's own
-//! stall slot rather than off a click. So [`quote`] is the price for everybody.
+//! stall slot. So [`quote`] is the price for everybody.
 //!
 //! # The stall never changes
 //!
@@ -90,7 +90,7 @@
 //! # What this module does not reproduce, and where to find it
 //!
 //! `Merchant_Trade`'s tail runs seven more calls on the county. Five are here
-//! ([`Order::apply`]'s tail). Two are not, and both are named rather than
+//! ([`Order::apply`]'s tail). Two are not, and both are named
 //! quietly dropped:
 //!
 //! * `FUN_0046921D` — **buying cattle into a county with no pasture converts a
@@ -101,7 +101,7 @@
 //!   of the standing crop. It needs the tile map, a cursor field and a save
 //!   entry; it is a rule of its own and it is left whole for whoever takes it.
 //! * `FUN_00450CCD` — a degraded castle draws its owed wood and stone out of
-//!   the realm's stockpile, which is why it is called here: it is what makes
+//!   the realm's stockpile, so it is called here: it is what makes
 //!   stone bought at the merchant reach the castle. `Readme.txt` says the
 //!   opposite (*"don't expect to see it deducted right away"*), and settling
 //!   which is right needs `castleDegraded` set in a live game.
@@ -166,7 +166,7 @@ impl Good {
         ALL_GOODS.iter().copied().find(|g| g.id() == id)
     }
 
-    /// A fallback name. **`L2.eng` group 6 is the real one** and the view layer
+/// A fallback name. **`L2.eng` group 6** and the view layer
     /// reads it; this is what a headless test prints and what appears when the
     /// game's own text is not installed.
     pub fn name(self) -> &'static str {
@@ -217,7 +217,7 @@ impl Good {
         !matches!(self, Good::Sheep | Good::Wool)
     }
 
-    /// Whether the good is stored by the **county** rather than the realm.
+/// Whether the good is stored by the **county**.
     /// Grain and cattle; everything else that is stored at all is realm-wide.
     pub fn is_county_store(self) -> bool {
         matches!(self, Good::Grain | Good::Cattle)
@@ -246,7 +246,7 @@ impl Quote {
 /// `merchant_morale` is `g_units[DAT_00553C64].morale` — the morale of the
 /// merchant *being clicked*, which is 100 for every merchant the shipped game
 /// creates. The floor of one crown is applied **before** ale's exemption, which
-/// is the order that makes ale free of markup rather than one crown dearer.
+/// is the order that makes ale free of markup.
 pub fn quote(t: &Tables, good: Good, merchant_morale: i32) -> Quote {
     let sell = t.good[good.id()].sell_price;
     let mut markup = pct(sell, merchant_morale);
@@ -259,7 +259,7 @@ pub fn quote(t: &Tables, good: Good, merchant_morale: i32) -> Quote {
     Quote { sell, buy: sell + markup }
 }
 
-/// The arrows' upper clamp: `gold / buyPrice`, and **0 rather than a division
+/// The arrows' upper clamp: `gold / buyPrice`, and **0
 /// by zero** when the good is free.
 ///
 /// Ale is the case that reaches the guard in the shipped game only if a mod
@@ -321,7 +321,7 @@ pub struct Receipt {
     pub crowns: i32,
     /// Units moved, positive when bought and negative when sold. **Zero for
     /// sheep and wool even on a successful trade**, because no branch moves
-    /// them, and zero for ale, which is drunk rather than stored.
+/// them, and zero for ale, which is drunk.
     pub moved: i32,
     /// Happiness [`crate::happiness::buy_ale`] gave the county, 0 for
     /// everything else.
@@ -330,7 +330,7 @@ pub struct Receipt {
 
 /// One order, in the argument order `Merchant_Trade` takes them.
 ///
-/// `buy_price` and `sell_price` are carried rather than recomputed because the
+/// `buy_price` and `sell_price` are carried because the
 /// original carries them: the screen quotes a price, the player agrees to it,
 /// and the confirmed trade runs on the quoted number. In multiplayer they go
 /// on the wire (`Net_WriteField(&DAT_0055CD70, 4)`), which is the same
@@ -388,7 +388,7 @@ pub fn trade(kingdom: &mut Kingdom, order: Order) -> Result<Receipt, Refusal> {
     // **Switchable** - [`Quirk::UnownedCountyTradesUnchecked`], `docs/bugs.md`
     // B11a. Both of the original.s guards are inside `if (realm != 0)`; with the
     // quirk fixed they are asked of an unowned county too, against the two
-    // things such a county actually has - its own stores and its own purse.
+// things such a county has - its own stores and its own purse.
     let checked = owned || !kingdom.options.quirks.reproduces(Quirk::UnownedCountyTradesUnchecked);
     let mut receipt = Receipt::default();
 
@@ -444,7 +444,7 @@ pub fn trade(kingdom: &mut Kingdom, order: Order) -> Result<Receipt, Refusal> {
 }
 
 /// The store half of both arms, which is the same eleven-branch chain twice in
-/// the original. Returns what actually moved — 0 for a good with no branch.
+/// the original. Returns what moved — 0 for a good with no branch.
 fn move_stock(kingdom: &mut Kingdom, good: Good, qty: i32, realm: usize, county: usize) -> i32 {
     match good {
         Good::Grain => kingdom.counties[county].grain += qty,
@@ -492,7 +492,7 @@ fn settle(kingdom: &mut Kingdom, county: usize) {
 /// same commit.
 ///
 /// `season_next` is `g_seasonNext`, which is what `County_RefreshEstimates` is
-/// passed here rather than `g_season`.
+/// passed here.
 pub fn settle_county(
     t: &Tables,
     county: &mut County,
@@ -590,7 +590,7 @@ mod tests {
         }
     }
 
-    /// The floor bites before the exemption does, which is why ale needs the
+/// The floor bites before the exemption does, so ale needs the
     /// exemption at all: a base of 1 at any morale below 100 would still be
     /// marked up by the minimum crown.
     #[test]
@@ -660,7 +660,7 @@ mod tests {
     }
 
     /// Sheep and wool are carried, priced and quotable, and nothing moves them.
-    /// This is the dead end being demonstrated rather than asserted away.
+/// This is the dead end being demonstrated.
     #[test]
     fn sheep_and_wool_can_be_named_and_cannot_be_moved() {
         let mut k = kingdom();
@@ -694,7 +694,7 @@ mod tests {
         assert_eq!(k.realms[1].gold, 1000 - 300);
     }
 
-    /// Ale cannot be sold, and the limit is what says so rather than a branch.
+/// Ale cannot be sold, and the limit is what says so.
     #[test]
     fn ale_has_no_sale_limit_at_all() {
         let k = kingdom();
@@ -741,7 +741,7 @@ mod tests {
         // > that *"the tail's `Ration_Apply` then pulled it back to 0 — `sacks =
         // > min(wanted, grain)` is negative against a negative store, so
         // > subtracting it adds. The missing guard is therefore worth free
-        // > crowns rather than a visible negative number, which is why nothing
+// > crowns, so nothing
         // > has ever noticed it."* Every step of that was true **of our tree**
         // > and none of it is true of the original: `Ration_Apply`
         // > (`0x0044DF5F`) contains no store `-=` at all, so nothing in the

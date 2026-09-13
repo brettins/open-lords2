@@ -219,7 +219,7 @@ fn press(m: &mut Machine, g: &mut Game, a: &Assets, c: char) {
 /// **A turn takes frames.** Pressing End Turn only starts one — the phase
 /// machine is wound on a tick at a time so a unit that is walking is seen to
 /// walk (`l2_game::turn::TurnStep::Running`) — so anything that happens *during*
-/// a turn happens some ticks after the keystroke rather than inside it.
+/// a turn happens some ticks after the keystroke.
 fn run_until(
     m: &mut Machine,
     g: &mut Game,
@@ -304,7 +304,7 @@ fn adjacent_pair(first_x: impl Fn(u8) -> bool) -> ((u8, u8), (u8, u8)) {
 }
 
 /// Put an army on the map without going through the screen, for the tests that
-/// are about marching rather than about raising.
+/// are about marching.
 fn army_at(g: &mut Game, owner: u8, county: u8, men: i32, at: (u8, u8)) -> usize {
     let mut u = Unit::new(UnitKind::Army, owner, at.0, at.1);
     u.men = men;
@@ -347,7 +347,7 @@ fn set_levy(m: &mut Machine, g: &mut Game, a: &Assets, percent: i32) {
 /// its arrows**, and nothing else. A player: *"Slider bar in army recruitment
 /// cant be dragged."*
 ///
-/// Every coordinate is typed from the decompilation rather than read from
+/// Every coordinate is typed from the decompilation
 /// `army`'s constants: without a band on offer the hit band is
 /// `0x80 <= x < 0x176` by `0xB0 <= y < 0xE0`; `x < 0xC4` steps down on a press,
 /// `x < 0x129` sets `x - 0xC4` while `g_mouseLeftDown`, and the rest steps up
@@ -355,7 +355,7 @@ fn set_levy(m: &mut Machine, g: &mut Game, a: &Assets, percent: i32) {
 ///
 /// **Ablations, run:** delete the `Event::Pointer` arm of
 /// `RaiseArmyScreen::handle` and the drag stays at 10; make the track test
-/// `pressed` rather than `down` and so does it; delete `left_down = false` from
+/// `pressed` and so does it; delete `left_down = false` from
 /// the release and the pointer after it moves the knob to 60; skip the slider
 /// check on the right release and it leaves for the armoury mid-drag.
 #[test]
@@ -439,7 +439,7 @@ fn one_crossbowman(m: &mut Machine, g: &mut Game, a: &Assets) -> (i32, i32) {
 
 /// **Which pick sends a soldier**, and the answer to a player who could not
 /// remember: *"Seems like the people pick up their weapons after you click on
-/// another weapon type rather than after you add more weapons."*
+/// another weapon type."*
 ///
 /// He is right, and it is the binary's rule. `FUN_004AABD8` (`0x004AABD8`) has
 /// **one** call site, the first statement of `Armoury_ClickRack`
@@ -493,7 +493,7 @@ fn the_first_pick_sends_nobody_and_picking_the_weapon_again_sends_the_man_who_to
 ///
 /// **Ablation, run:** put back `Anim::tick`'s carry-the-remainder reading and
 /// he steps on ticks 2, 3, 4, 5, 7, 8 … — four steps in every five ticks — and
-/// takes his thirty-second on tick 40 rather than 64, twenty-four ticks sooner.
+/// takes his thirty-second on tick 40, twenty-four ticks sooner.
 #[test]
 fn the_crossbowman_reaches_his_weapon_in_the_ticks_tick_pulses_gives_him() {
     let (mut g, a, mut m) = on_the_map();
@@ -553,7 +553,7 @@ fn the_walk_from_the_map_through_the_armoury_puts_an_equipped_army_on_the_map() 
     set_levy(&mut m, &mut g, &a, 30);
     assert_eq!(g.levy.men, 300, "thirty per cent of a thousand people");
 
-    // Continue. The armoury *replaces* the levy screen rather than stacking on
+// Continue. The armoury *replaces* the levy screen
     // it, because the original has one `g_screenId` byte and no stack.
     press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
@@ -733,7 +733,7 @@ fn the_plus_and_minus_on_a_rack_move_exactly_one_man() {
 ///
 /// It is the one place [`Transition::Pass`] earns its keep in this file: the
 /// button belongs to the armoury, the rack declines the click, and the armoury
-/// underneath acts — **at its own depth**, so the rack goes with it rather than
+/// underneath acts — **at its own depth**, so the rack goes with it
 /// being left on a stack above a screen that has closed.
 #[test]
 fn create_reaches_through_an_open_rack_and_the_other_two_buttons_do_not() {
@@ -765,7 +765,7 @@ fn create_reaches_through_an_open_rack_and_the_other_two_buttons_do_not() {
 /// **A hit box that misses.** Every pixel of every rack hotspot opens that rack
 /// and no other, and no pixel of the three right-hand buttons opens any rack.
 /// `docs/decisions.md` C58: three wrong-screen bugs have reached this player
-/// through a near-miss, so the boxes are walked rather than sampled.
+/// through a near-miss, so the boxes are walked.
 #[test]
 fn no_pixel_of_the_armoury_opens_the_wrong_thing() {
     let (mut g, a, mut m) = on_the_map();
@@ -786,7 +786,7 @@ fn no_pixel_of_the_armoury_opens_the_wrong_thing() {
         }
     }
     // The three buttons are outside every rack, and Change is the one that goes
-    // back rather than forward.
+// back.
     click(&mut m, &mut g, &a, on(armoury::CHANGE_BOX));
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
 }
@@ -816,7 +816,7 @@ fn two_clicks_on_the_map_select_an_army_and_send_it_marching() {
 }
 
 /// **A second click on the selected army ends the selection and orders
-/// nothing — and it is not a cancel, it is a refused destination.**
+/// nothing — and it is a refused destination.**
 ///
 /// The distinction is the whole of what was wrong here. We had an explicit
 /// "clicking the same army again deselects it" branch in `click_unit`, which
@@ -829,7 +829,7 @@ fn two_clicks_on_the_map_select_an_army_and_send_it_marching() {
 /// and `Screen_FrameInput` had already put the screen back to `0`.
 ///
 /// Same outcome, different mechanism, and the mechanism is what generalises:
-/// **every** tile the fill did not reach behaves this way, not just this one.
+/// **every** tile the fill did not reach behaves this way.
 #[test]
 fn clicking_the_selected_army_again_ends_the_selection_and_orders_nothing() {
     let (mut g, a, mut m) = on_the_map();
@@ -885,7 +885,7 @@ fn the_right_button_deselects_an_army_and_does_not_open_the_information_panel() 
     );
 
     // And with nothing selected the same gesture reaches screen 0x04, which
-    // is what makes the arm above a *mode* test rather than a suppression.
+// is what makes the arm above a *mode* test.
     send(&mut m, &mut g, &a, Event::RightClick { x: hx, y: hy });
     assert!(
         matches!(m.top_id(), Some(ScreenId::Info(_))),
@@ -913,7 +913,7 @@ fn the_right_button_deselects_an_army_and_does_not_open_the_information_panel() 
 /// — which is every tile the fill never reached. So the empty-path order is
 /// real and is what the AI, the network command and the phase machine produce;
 /// **from the map it is unreachable, because a gate stands in front of it that
-/// we had not implemented.** The order is asserted where it actually happens,
+/// we had not implemented.** The order is asserted where it happens,
 /// in `l2-kingdom`, and the gate is asserted on the screen.
 #[test]
 fn an_unreachable_destination_is_ordered_with_an_empty_path_and_the_army_stands() {
@@ -971,7 +971,7 @@ fn an_unreachable_destination_is_ordered_with_an_empty_path_and_the_army_stands(
 
 /// **Clicking your own besieging army opens the siege screen instead of taking
 /// orders** — `Map_Click`'s own branch, and the reason a player now reaches
-/// `0x1D` from the map rather than from our index.
+/// `0x1D` from the map.
 #[test]
 fn clicking_a_besieging_army_opens_the_siege_screen() {
     let (mut g, a, mut m) = on_the_map();
@@ -1174,7 +1174,7 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
 }
 
 /// Both halves need fifty men on the plain path, and the refusal keeps the
-/// screen open rather than closing on a lie.
+/// screen open.
 #[test]
 fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
     let (mut g, a, mut m) = on_the_map();
@@ -1298,7 +1298,7 @@ fn the_move_button_on_the_information_panel_starts_a_move_order() {
     );
 }
 
-/// **The Split button pushes rather than replaces, so `0x11` goes back to
+/// **The Split button pushes, so `0x11` goes back to
 /// `0x04`** — every one of the division screen's three exits writes
 /// `g_screenId = 0x04`, not 0. `docs/arms.json`
 /// `0x0042FF10/back-one-rather-than-to-the-map`.
@@ -1420,7 +1420,7 @@ fn the_levy_window_lifts_off_the_armoury_and_leaves_the_room_behind() {
     assert!(inside > 500, "the levy window did not lift: {inside} pixels changed inside it");
     // Outside the window the two frames are the same room. Not *identical* —
     // the armoury draws its three labels bright where the levy screen dims them
-    // and adds a corner picture — so this is a fraction rather than a zero, and
+// and adds a corner picture — so this is a fraction, and
     // it is a small one: 3,700 pixels out of the 300,000 that are not the
     // window.
     let elsewhere = (640 * 480 - window.w * window.h) as usize;
@@ -1465,7 +1465,7 @@ fn a_siege_laid_on_the_map_is_carried_to_its_assault_by_ending_the_turn() {
 
     press(&mut m, &mut g, &a, 'e');
     // Phase 2 is a few ticks into the turn now that a turn takes frames, so the
-    // prompt arrives some frames after the keystroke rather than inside it.
+// prompt arrives some frames after the keystroke.
     run_until(&mut m, &mut g, &a, "the siege prompt", |m, _| {
         m.top_id() == Some(ScreenId::BattlePrompt)
     });
@@ -1536,9 +1536,9 @@ fn a_battle_is_about_to_happen() -> (Game, Assets, Machine, usize, usize) {
     let (mine, theirs) = adjacent_pair(|x| x as usize == BORDER_1_2 - 1);
     let attacker = army_at(&mut g, 1, 1, 400, mine);
     let defender = army_at(&mut g, 2, 2, 200, theirs);
-    // The order is given through `l2-kingdom` rather than through two clicks:
+// The order is given through `l2-kingdom`:
     // the map screen's second click on an *enemy* army is a selection, not an
-    // attack order, and what is under test here is the prompt rather than the
+// attack order, and what is under test here is the prompt
     // route into it.
     let map = g.kingdom.campaign.map.clone();
     l2_kingdom::movement::order_move(
@@ -1580,7 +1580,7 @@ fn ending_a_turn_into_a_battle_asks_the_player_before_anything_is_decided() {
 ///
 /// Taking the field raises the **battlefield** — `FUN_0043B593` with hotspot id
 /// 1 calls `Battle_Start`, not the autocalc — and declining runs the autocalc.
-/// The test that they are genuinely two paths is that the report says so.
+/// The test that they are two paths is that the report says so.
 #[test]
 fn the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled() {
     use l2_game::engagement::Resolution;
@@ -1690,7 +1690,7 @@ fn a_double_click_on_a_thumb_answers_the_prompt() {
 /// latch, and `FUN_004BBEA7`, which returns 0 outright when `g_multiplayer` is
 /// clear. So in a single-player game the arm does **nothing at all** and the
 /// prompt waits for ever, which `docs/symbols.json` records of `Battle_Decline`
-/// and which is correct rather than a hang.
+/// and which is correct.
 ///
 /// We had right-click-to-Decline, Escape-to-Decline and Enter-to-fight here.
 /// All three were ours; `docs/decisions.md` C67 counts them, and `docs/arms.json` is where they are
@@ -1808,7 +1808,7 @@ fn watching_a_battle_and_giving_the_same_order_reproduces_the_headless_verdict()
 ///
 /// The player's report: *"my men in battle started moving before I clicked"*,
 /// and *"units don't advance on their own"*. Both are right, and the second is
-/// the original's own arithmetic rather than testimony:
+/// the original's own arithmetic:
 ///
 /// * `Battle_Start` runs `Battlefield_Build*`, `Battle_InitArmies`,
 ///   `FUN_00480F8B`, `Battle_UpdateAllMen` and
@@ -1824,7 +1824,7 @@ fn watching_a_battle_and_giving_the_same_order_reproduces_the_headless_verdict()
 ///   comes inside its range. Standing is the behaviour; helplessness is not.
 ///
 /// `Battle_Start` also seeds `DAT_0053F238 = 0xFFFFFFFF`, so a battle starts
-/// paused — which is why a player sees the first frames and can tell that his
+/// paused — so a player sees the first frames and can tell that his
 /// men moved without him.
 #[test]
 fn a_raised_battle_gives_the_players_own_units_no_orders() {
@@ -1908,7 +1908,7 @@ fn the_battle_ai_thinks_for_the_enemys_units_and_not_the_players() {
 }
 
 /// **And an outnumbered AI holds its ground**, which is the other half of what
-/// the player saw: *"I actually didn't see the enemy's units moving."*
+/// the player saw: *"I didn't see the enemy's units moving."*
 ///
 /// He was right, and it is not a defect. 400 peasants against 200 leaves
 /// `Battle_UpdateStrengthAdvantage` (`0x0047FC01`) at roughly −50 against a
@@ -1954,7 +1954,7 @@ fn an_outnumbered_ai_holds_its_ground_and_does_not_advance() {
         );
     }
     // And the player's end of the field is a long way off, so "within six of the
-    // marker" is a real claim rather than a wide net over a small board.
+// marker" is a real claim.
     assert!(
         (i16::from(py) - i16::from(hy)).abs() > 30,
         "the two markers must be far enough apart for this to mean anything",
@@ -2314,7 +2314,7 @@ fn a_town_attacked_while_the_player_watches_asks_before_it_resolves() {
 }
 
 /// The same door, the other way in: two armies meeting on an ordinary frame —
-/// `Unit_EnterOccupiedTile` (`0x004658C1`) rather than `Army_AttackCounty`.
+/// `Unit_EnterOccupiedTile` (`0x004658C1`).
 #[test]
 fn an_army_walked_into_while_the_player_watches_asks_too() {
     let (mut g, a, mut m, attacker, defender) = a_battle_is_about_to_happen();
@@ -2331,7 +2331,7 @@ fn an_army_walked_into_while_the_player_watches_asks_too() {
 /// **And the answer settles it and hands the map back**, with no turn ever
 /// having been started. This is the half that would break if the suspension
 /// were done by faking a turn: declining runs the autocalc, `0x13` shows the
-/// result, and dismissing it must leave the campaign where it was rather than
+/// result, and dismissing it must leave the campaign where it was
 /// winding a season on.
 #[test]
 fn answering_a_watched_battle_settles_it_and_does_not_end_the_turn() {
@@ -2398,7 +2398,7 @@ fn two_ai_armies_meeting_while_the_player_watches_open_nothing() {
     // **No PROMPT, and nothing suspended.** This used to assert the campaign map
     // was on top, which was the same thing until the message window landed: a
     // battle between two other lords now raises a report, and a scroll over the
-    // map is the original's own behaviour rather than a screen of ours. The
+// map is the original's own behaviour. The
     // claim being made here has always been about the prompt and the turn
     // machine, so it is now made about those directly — the earlier form was a
     // stronger assertion than the test's own doc comment claims, and it went red
@@ -2511,7 +2511,7 @@ fn watching_the_map_does_not_give_an_army_extra_movement() {
 /// and `Map_Click`'s army branch `return`s, so the selecting click cannot fall
 /// through to `Map_ConfirmMoveOrder` in the same call. The guard is a
 /// consequence of a polled input model we do not have. This asserts the
-/// property the guard exists to protect, rather than porting a frame count that
+/// property the guard exists to protect,
 /// would mean nothing here.
 #[test]
 fn the_click_that_selects_an_army_never_also_orders_it() {

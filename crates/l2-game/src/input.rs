@@ -2,7 +2,7 @@
 //!
 //! The point of this module is that it names **no** windowing type. `winit`'s
 //! `KeyCode`, its modifiers and its device ids stop at `main.rs`, which
-//! translates them into the handful of things a screen can actually respond to.
+//! translates them into the handful of things a screen can respond to.
 //! Two things follow from that: a test can deliver a click without opening a
 //! window, and swapping the windowing library later is a change to one file.
 //!
@@ -21,8 +21,8 @@
 /// reported from, 1898 × 1562, the scale is 2 and the picture is 1280 × 960
 /// with 309 pixels of border on each side and 301 above and below.
 ///
-/// **The border is not a dead zone.** A position outside the picture is clamped
-/// to the nearest canvas pixel rather than discarded, and that is the whole of
+/// A position outside the picture is clamped
+/// to the nearest canvas pixel
 /// the fix for *"I can't scroll the map"*: the original edge-scrolls while the
 /// cursor sits on the outermost pixel of the screen, it ran full-screen so its
 /// screen edge was its window edge, and clamping restores that relationship at
@@ -42,7 +42,7 @@ pub mod window {
 
     /// Where the picture's top-left corner sits in the window. Negative when
     /// the window is smaller than one whole scale, which is the one case where
-    /// the picture is cropped rather than bordered.
+/// the picture is cropped.
     pub fn origin(window_w: u32, window_h: u32) -> (i32, i32) {
         let s = scale(window_w, window_h) as i32;
         (
@@ -85,7 +85,7 @@ pub enum Key {
     /// procedure dispatches straight into the text buffer** — see
     /// [`crate::text`], which reproduces all of them.
     ///
-    /// It is a variant of its own rather than a [`Key::Char`] because a text
+/// It is a variant of its own because a text
     /// field has to tell "the player typed a backspace" from "the player typed
     /// a character".
     ///
@@ -121,7 +121,7 @@ pub enum Key {
     Char(char),
     /// The same, with **Control** held.
     ///
-    /// A separate variant rather than a modifier field, because in the original
+/// A separate variant, because in the original
     /// it is a separate *dispatch*, not a qualifier: the window procedure
     /// (`0x004B29BE`) latches `VK_CONTROL` into `DAT_004DF3A8` on key-down and
     /// clears it on key-up, and its `0x31` … `0x39` arm is
@@ -158,7 +158,7 @@ pub enum Event {
     /// **A character was typed** — `WM_CHAR` (`0x102`), whose whole arm in the
     /// window procedure is `Edit_TypeChar(ch)`.
     ///
-    /// A second event rather than a field on [`Event::KeyDown`], because in the
+/// A second event, because in the
     /// original it is a **second message**, and the two carry different things:
     /// `WM_KEYDOWN` carries a *key* and `WM_CHAR` carries a *character*, with
     /// the shift state, the keyboard layout and the dead keys already applied.
@@ -190,8 +190,8 @@ pub enum Event {
     Click { x: i32, y: i32 },
     /// The **right** button came up at a canvas pixel.
     ///
-    /// A separate event rather than a button field on [`Event::Click`], because
-    /// in this game the two buttons do unrelated jobs rather than the same job
+/// A separate event, because
+/// in this game the two buttons do unrelated jobs
     /// with a modifier: the right button *dismisses* an overlay — the game says
     /// so itself, in `L2.eng` group 12 index 0, *"Click Right to Exit"* — and on
     /// the campaign map it *opens* one. A flag would invite every hit test to
@@ -220,27 +220,27 @@ pub enum Event {
     /// **two** readers, and the second is on the battlefield:
     /// `FUN_0043BF07` (`0x0043BF07`) tests
     /// `(g_mouseLeftReleased || g_mouseLeftDoubleClick) && g_screenId == 0x2A`,
-    /// so a double click **commits an open selection box** exactly as a release
-    /// would. That is not a second verb — it is the same verb reached a second
-    /// way, and it exists precisely because of the sentence below: without it,
+/// so a double click **commits an open selection box** exactly as a release
+/// would. It is the same verb reached a second
+/// way, and it exists because of the sentence below: without it,
     /// the second click of a fast double click would leave the drag open with no
     /// press to end it. `Hotspot_Test` (`0x0040E3EE`) also reads the flag for
     /// its kind-2 widgets, which is a third reader and not an arm.
     ///
     /// **Windows sends it instead of the second press**, not as well as it: the
-    /// second `WM_LBUTTONDOWN` never arrives, which is why the original's
+/// second `WM_LBUTTONDOWN` never arrives, so the original's
     /// button-down flag stays clear through a double click and why `main.rs`
     /// delivers this in place of the second [`Event::Click`]. The
     /// [`Event::Release`] that ends it still arrives, as `WM_LBUTTONUP` does.
     DoubleClick { x: i32, y: i32 },
     /// The left button came **up** at a canvas pixel.
     ///
-    /// Added for the village, and it is not a convenience. The original's
+/// Added for the village. The original's
     /// peasant drag is a three-state machine on `g_screenId` — 0x02 idle, 0x05
     /// while the band is being drawn, 0x06 while the selection is being carried
     /// — and the transition out of 0x05 is `FUN_00439541`, which fires **when
     /// the button is released**, not when it is next pressed. A screen that
-    /// only ever hears about presses cannot tell a drag from two clicks, and
+/// only ever hears about presses cannot tell a drag from two clicks, and
     /// would have had to invent a gesture the original does not have.
     Release { x: i32, y: i32 },
 }
@@ -271,7 +271,7 @@ pub enum Event {
 /// So **the `WM_LBUTTONUP` that ends a double click raises no release**: the
 /// bit was never set by `0x203`, clearing it changes nothing, and there is no
 /// edge. `[V]` `docs/input.md` §5 said so and said we still delivered one; this
-/// is the type that stops it, and it lives here rather than in `main.rs` so a
+/// is the type that stops it, and it lives here so a
 /// test can drive it without a window.
 ///
 /// Nothing here measures time. *Which* press is a double click is Windows'
@@ -429,7 +429,7 @@ mod tests {
     }
 
     /// **A double click's own button-up raises no release**, because the down
-    /// bit it would have cleared was never set. The whole sequence Windows
+/// bit it would have cleared was never set. The whole sequence Windows
     /// sends for a double click is asserted, in order.
     ///
     /// **Ablation, run:** make `released` return `Some` unconditionally — which

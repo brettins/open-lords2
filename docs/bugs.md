@@ -264,11 +264,11 @@ is a real behaviour."*
 
 | | the original's bug | evidence | our code |
 |---|---|---|---|
-| **B23** | **The AI turn's completion sentinel is stored as 1000, not 999.** The increment below the dispatch sits outside the `if` that writes 999. Every reader tests `< 999`, so nothing in the original breaks — but the stored field does not mean what it looks like. | [V] from the disassembly (`0049A985 INC dword ptr [aiStep]`) | `ai.rs:240`; `Realm::turn_done` tests `>= 999` because of it |
+| **B23** | **The AI turn's completion sentinel is stored as 1000.** The increment below the dispatch sits outside the `if` that writes 999. Every reader tests `< 999`. | [V] from the disassembly (`0049A985 INC dword ptr [aiStep]`) | `ai.rs:240`; `Realm::turn_done` tests `>= 999` because of it |
 | **B24** | **Later realms in the array get a longer turn.** The finish test is `15 + 2 × realmIndex <= aiStep`, so realm 5 gets ten more steps than realm 1. Steps above 14 dispatch nowhere, so what they buy is extra chances for the army-launch condition to come good. | [D] on calling it a mistake | `ai.rs:216` |
 | **B25** | **A zero gold threshold takes a castle type out of a lord's ladder** instead of meaning "free", so two of the four lords can never build the largest castle at any treasury (§5, D7). | [V] scoped to what realm `+0x4D` counts | `ai.rs:497` |
 | **B26** | **The castle concurrency count is not refreshed as builds are ordered.** The limit is tested inside the county loop against a count that still reads what the season started with, so a lord with a limit of 4 and five castle-less counties can start **five** builds in one pass if he began it with none. | — | `ai.rs:512` |
-| **B27** | **The AI's ration ladder punishes a county fed on cattle.** `Ai_SetRations` (`0x004A4782`) sizes the larder as `herd*5 + herd*10 + grain*6` — counting the herd twice — and puts two dairy rungs above two store rungs. The Double dairy rung can only ever lower the answer, so a cattle county is fed Double where a grain county holding the same food is fed Triple. Two of the four lords are graziers. | [V] on the arithmetic, [D] on calling it a bug | `ai_farm.rs:475` |
+| **B27** | **The AI's ration ladder punishes a county fed on cattle.** `Ai_SetRations` (`0x004A4782`) sizes the larder as `herd*5 + herd*10 + grain*6` — counting the herd twice — and puts two dairy rungs above two store rungs. The Double dairy rung lowers the answer, so a cattle county is fed Double where a grain county holding the same food is fed Triple. Two of the four lords are graziers. | [V] on the arithmetic, [D] on calling it a bug | `ai_farm.rs:475` |
 | **B28** | **The Winter grain quota underflows for a tiny county.** The subtraction is unsigned and passed to a signed parameter, so a small county gets a negative quota and **every grain field is returned to fallow**. | [V] | `ai_farm.rs:579`, reproduced exactly by `i32` |
 | **B29** | **"Add a field" does nothing while a field is already reclaiming.** `FUN_0044C6C4` paints a reclamation order onto a wasteland tile, and a tile already reclaiming spends a place in the quota without anything happening — so at four seasons a field, the AI's expansion is stalled most of the time. | [V] | `field.rs::order_reclamation`, `ai_farm.rs:71` |
 | **B30** | **Farm style 9 ends on allocate with no closing estimate**, so a style-9 county's panel forecast is permanently one allocation stale. | — | `ai_farm.rs:670` — *"reproduced, not an oversight"* |
@@ -276,16 +276,16 @@ is a real behaviour."*
 | **B32** | **Siege engines fall off the end of the strength-weight ladder and count 1** — a missing `else` in the original. | [D] | `l2-sim/src/ai.rs:114` |
 | **B33** | **A shooter on surface 1 will not take a target on surface 5.** An exclusion with no evident reason. | — | `l2-sim/src/ai.rs:686` |
 | **B34** | **A failed wall search leaves the destination changed but unordered.** `Order_ToWallBelowKeep` writes the offset destination *before* the search and only re-issues the order when the search succeeds. | — | `l2-sim/src/ai.rs:899` |
-| **B70** | **An eliminated realm below the leader's index switches off the gang-up rule for the rest of the game.** `FUN_004A01EA` picks the realm each AI treats as the threat, and its loop is `for i in 1..6 { if (realms[i].rank < 2) { … } }` with `return` inside, not `continue`. `crate::ai::rank_realms` leaves rank 0 on a realm that is out of play, and 0 is `< 2` — so the loop stops at the first eliminated realm and the searcher ends with no threat at all. On a map where realm 1 is knocked out early, nobody ever concentrates on the leader again. | [D], and the early `return`s are in the disassembly | `ai_army.rs::pick_threat` — the doc comment explains why it is not a transcription slip |
+| **B70** | **An eliminated realm below the leader's index switches off the gang-up rule for the rest of the game.** `FUN_004A01EA` picks the realm each AI treats as the threat, and its loop is `for i in 1..6 { if (realms[i].rank < 2) { … } }` with `return` inside. `crate::ai::rank_realms` leaves rank 0 on a realm that is out of play, and 0 is `< 2` — so the loop stops at the first eliminated realm and the searcher ends with no threat at all. On a map where realm 1 is knocked out early, nobody ever concentrates on the leader again. | [D], and the early `return`s are in the disassembly | `ai_army.rs::pick_threat` |
 | **B71** | **`FUN_004A6270` returns 1 after disbanding its own army.** Mission 4 disbands an army that can find no castle with room for it, and then returns the "re-path me" value — so `Ai_AdvanceArmies` flood-fills from and writes `moving = 1` into a record `Army_Destroy` has already cleared. | [D] | `ai_army.rs::mission_join_garrison` — the slot is empty here, which is the same observable outcome by a route that cannot read freed memory |
 | **B72** | **Mission 2's "attack where you stand" arm never updates `destCounty`.** `FUN_004A5B1F`'s last branch walks the army at the county it is standing in while unit `+0x151` still names the county the branch above it rejected. In the same arm, an *ally*-owned county with no alternative target aims the army at **county 0**, whose anchor is `g_counties[0]`'s. | [D] | `ai_army.rs::mission_seek_enemy` — both reproduced, both named |
 | **B73** | **A dead call with two identical arms.** `FUN_004A5B1F` calls `FUN_00467F2E(county)` — *"does this county border a foreign-owned one?"* — between two branches and **discards the result**; the two arms it was written to choose between are the same code. Not reproduced, because a call with no side effect and an unread result is nothing to reproduce. | [D] | `ai_army.rs::mission_seek_enemy`, stated in the doc comment |
-| **B74** | **`Diplo_ActionAllowed` is not a predicate, and the AI's own map search corrodes its alliances.** Every time it is asked about a county or a unit belonging to the asker's ally it increments the asker's own grudge against that ally. Both AI county choosers call it once per county, and the mission-3 and mission-6 enemy searches call it once per unit slot — so an AI hemmed in by its ally accumulates grudge purely by looking at the map, and the Knight's tolerance of 5 is reached in a handful of turns. | [D]; `symbols.json` already marks the function `[inferred]`, this is the per-turn volume | `ai_army.rs::action_allowed` — reproduced |
+| **B74** | **`Diplo_ActionAllowed` is not a predicate, and the AI's own map search corrodes its alliances.** Every time it is asked about a county or a unit belonging to the asker's ally it increments the asker's own grudge against that ally. Both AI county choosers call it once per county, and the mission-3 and mission-6 enemy searches call it once per unit slot — so an AI hemmed in by its ally accumulates grudge by looking at the map, and the Knight's tolerance of 5 is reached in a handful of turns. | [D]; `symbols.json` already marks the function `[inferred]`, this is the per-turn volume | `ai_army.rs::action_allowed` — reproduced |
 | **B75** | **Tile (0, 0) can never be a destination.** All three of the AI's destination finders keep their best candidate as a byte *offset* into the tile array and use **0** as the "nothing found" sentinel, so offset 0 is indistinguishable from failure and the county's fallback tile is used instead. Harmless on every shipped map. | [D], three functions with identical bodies | `ai_army.rs::aim_tile` — reproduced, because the alternative is a difference nobody would ever find |
 | **B35** | **Siege attack scripts stall the unit that is doing its job.** `UnitOrder_SiegeAttCatapult` and `UnitOrder_SiegeAttTower` `return` before the `orders` increment on their wall-found path, so a unit successfully doing its job stops advancing its script. | [D] | `battle-ai.md` §1.3 |
 | **B86** | **Two of the three envy tiers in `AI_Diplomacy` are unreachable.** The ally-is-winning rung reads `if (v < 0x15) { if (v < 0x22) { if (0x32 < v) grudge += 4; } else grudge += 2; } else grudge += 1;` over the ally's share of the map. `v < 0x15` implies `v < 0x22`, which makes `+= 2` dead, and implies `!(0x32 < v)`, which makes `+= 4` dead. **Only `v >= 21 → +1` can fire**, so envy of a runaway leader accumulates at the same rate whether the ally holds 21 % of the map or 90 %. | **[V]** — arithmetic over three constants, not a reading | `diplomacy.rs::ai_diplomacy` — reproduced by writing **only the rung that can fire**, which is what the code does |
 | **B87** | **An alliance with an eliminated realm survives reconciliation if the dead realm's index is higher.** `Diplo_ReconcileAlliances` drops a pairing whose partner it has already marked dead — but the "already marked" array is one the same ascending loop is filling, so at realm *n* it can only see realms below *n*. A realm allied to a higher-indexed dead realm falls into the `else`, where the partner still points back, and the function **writes the alliance back on both sides**. | [D] | `diplomacy.rs::reconcile_alliances` — reproduced, and the doc comment says which half of the test is the bug |
-| **B88** | **`Diplo_ReconcileAlliances` invents alliances instead of only dropping them.** A realm whose `ally` byte points at a partner that points at nobody is not a broken pairing to be cleared; the function writes `ally` back onto the partner and sets `allied` in both directions. So a one-sided write anywhere in the game becomes a real, mutual alliance at the next `Turn_Tick`. `docs/diplomacy.md` said the opposite for as long as the document existed. | [D] | `diplomacy.rs::reconcile_alliances` — reproduced |
+| **B88** | **`Diplo_ReconcileAlliances` invents alliances.** A realm whose `ally` byte points at a partner that points at nobody causes the function to write `ally` back onto the partner and set `allied` in both directions. So a one-sided write anywhere in the game becomes a real, mutual alliance at the next `Turn_Tick`. | [D] | `diplomacy.rs::reconcile_alliances` — reproduced |
 | **B89** | **Asking an ally to attack a county of your own is refused with the wrong sentence.** `Diplo_SendClicked`'s kind-6 ladder answers `owner == localPlayer` with `L2.eng` **244**, *"This county is part of our alliance, my Lord. We can only ask that those territories belonging to our enemies be attacked"* — which is what the *next* rung is for. Group **242**, *"does not belong to us"*, exists and is raised only by kind 5. | **[V]** — the two branches send the same group id and 242 is unreached from kind 6 | `screens/diplomacy.rs::refusal` — reproduced, and the test names the case |
 | **B90** | **Declining an AI's alliance offer does nothing at all — not even a refusal.** `FUN_00436872`, the *"Accept alliance ?"* prompt, guards its whole body with `(realms[offerer].isHuman != 0) || (hotspot != 0)`. In single player the offerer is an AI, so a **no** fails the guard and the function returns having stored the answer in a global nothing reads. The offer lapses silently when the offering realm clears `offerPending`. | [D] | not reproduced — the prompt is not built, because `Msg_DrawWindow`'s window layouts have never been read. `docs/arms.json` `0x00436872/accept-alliance-prompt`, status `missing` |
 
@@ -308,7 +308,7 @@ is a real behaviour."*
 | | the original's bug | evidence | our code |
 |---|---|---|---|
 | **B45** | **A figure's times-hit counter is a `u8` and wraps.** | — | `l2-sim/src/unit.rs:83` — *"reproduced, not widened"* |
-| **B46** | **The formation offset ladder caps at five rows.** `Formation_OffsetX`/`OffsetY` are five-way ladders, not divisions, so six rows or more behave as five — which changes the shape, not just the offset. | — | `formation.rs:88`, `:96` |
+| **B46** | **The formation offset ladder caps at five rows.** `Formation_OffsetX`/`OffsetY` are five-way ladders, so six rows or more behave as five — which changes the shape. | — | `formation.rs:88`, `:96` |
 | **B47** | **The formation rectangle clamps its two axes differently.** `y` is pulled back by `bottom − 79` with `bottom = origin + depth`, not `origin + depth − 1`, one cell more generous than `x`. And the width collapses to 1 for a single-figure unit even at footprint 3, so a lone catapult forms up on one cell. | [V] against the disassembly | `formation.rs:132` |
 | **B48** | **A battle that wipes both sides out on the same frame is won by B**, because the original tests A first. | — | `runner.rs:672` |
 | **B49** | **The terrain variant LFSR is stepped once per cell whether or not the result is used**, which is what keeps the sequence aligned. | — | `terrain.rs:56` |
@@ -363,7 +363,7 @@ switch would go. `armies.md` §7.1.
 
 | | the original's bug | evidence | our code |
 |---|---|---|---|
-| **B51** | **A game with nobody in play is won by the array slot.** Leader and trailer are both 0, `0 == 0` passes, and the original crowns `g_realms[0]` — which is not a realm. | — | `victory.rs:38`, test at `:614` |
+| **B51** | **A game with nobody in play is won by the array slot.** Leader and trailer are both 0, `0 == 0` passes, and the original crowns `g_realms[0]`. | — | `victory.rs:38`, test at `:614` |
 | **B52** | **The human can win a game in which the human is dead.** When the last realm standing is an AI, the first call sends group 195 and sets the one-shot guard `+0xED`; the *next* call takes the other branch and sends the human group 225 *"Victory!"*. | — | `victory.rs:41`, test at `:604` — *"Reproduced deliberately."* |
 | **B53** | **Dying at the same moment as the last opponent is scored a win**, because the opponents test is checked before the is-it-me test. | — | `victory.rs:670` — *"Strange, and reproduced."* |
 | **B54** | **`County_ChangeOwner` cannot eliminate anybody.** `Realm_RecountStrength` runs one statement *before* `g_counties[c].owner = newOwner`, so the county being lost is still counted and a realm losing its last county survives until its own step 0. | — | `victory.rs:199`; reproduced by our caller doing the same in the same order |
@@ -689,7 +689,7 @@ disagreeing with the stack. So it is one flag and a pass over 49 arms, not one f
 the save header (`docs/modding.md`), so a quirk added there changes the hash and invalidates
 every existing save. §6.3 has the general argument; this is the first entry that would use it.
 
-### B63a — The sidebar goes dead for exactly as long as a peasant is in the air
+### B63a — The sidebar goes dead for as long as a peasant is in the air
 
 **Not a divergence of ours — the original's own asymmetry, and worth the row because it looks
 like an inconsistency somebody would tidy.** **[V].**
@@ -842,7 +842,7 @@ the castle was.
 > banner's frame counter, which runs it at frame 5001 and then the write-back and then the
 > return. `Battle_Decline`, the Retreat button and the Autocalc button all leave for screen
 > `0x13` without passing that counter. So **a battle you gave up on un-does the castle
-damage exactly as it undoes the casualties.
+damage as it undoes the casualties.
 > somebody watched to its end. `crates/l2-game/tests/siege_battle.rs` asserts both halves —
 > the bill after the banner, and no bill after the Autocalc button — through played clicks.
 >
@@ -850,7 +850,7 @@ damage exactly as it undoes the casualties.
 > `DAT_0057A0D8` has three writers in the whole binary: `Battle_Start` zeroes it,
 > `Siege_RestoreCastleDamage` restores it from the county, and **`Moat_Fill` adds one**.
 It counts cells of ditch shovelled full.
-it only ever reaches the work line.
+it reaches the work line.
 > of wood.
 
 The three readers of `l2_kingdom::siege::CASTLE_DEGRADED_DAMAGED` are reachable from a
@@ -984,7 +984,7 @@ for it to live (§6.5).
 |---|---|---|
 | **N1** | **`dryness` is a signed byte that nothing clamps**, so a long run of Summers rolls it through +127 into −128 and turns a drought into a flood. [D]; `kingdom.md` §7.3. | `County::dryness` is an `i32` clamped to the `i8` range on every write, with the reasoning in a field comment. This is the clearest undeclared divergence in the tree. |
 | **N2** | **`local_modifier`'s Summer chain tests `== 4` twice**, leaving band 3 unhandled and the `−24` arm dead. **[V]** by instruction bytes (`83 f9 04` at both `0x449E06` and `0x449E2C`); `audit-method.md` F5. | `weather.rs::local_modifier` is stubbed to 0. When somebody traces it, the mistyped `case 3` must be reproduced or declined deliberately. |
-| **N3** | **`army_happiness_cost` is indexed without a bound**, so for any county under 50 people the read lands on the first entry of the merchant price table — 0. | Clamped (`tables.rs:1161`). This is the most player-visible bug in this table. |
+| **N3** | **`army_happiness_cost` is indexed without a bound**, so for any county under 50 people the read lands on the first entry of the merchant price table — 0. | Clamped (`tables.rs:1161`). |
 | **N4** | **The campaign flood fill has no bounds guard at all**: stepping east from `x = 63` wraps into the next row, and expanding in row 0 writes *before* the array — into the fill's own queue cursor. [D] on the absence, [I] that every shipped map's sea border always saves it. | Not reproduced, and correctly so: *"reproducing the wrap would let a path teleport across the map edge, and reproducing the underflow is not reproducible behaviour at all, it is memory corruption."* |
 | **N5** | **Player move orders can overrun `g_pathBuf`.** `Move_ExtractPath` has no length cap and `Unit_OrderMove` does not check one; the AI tests `g_pathLen < 0x96` and the player's path does not. | Clamped. |
 | **N6** | **`Diplo_Offend` indexes a five-realm table with 6**, because its only guard is `owner != 0` and an ownerless militia's owner byte is 6. | We refuse to reproduce an out-of-bounds write (`battle.rs:505`). |
@@ -1101,7 +1101,7 @@ yet: the code is right for every input it is given today, and wrong for an input
 caller could hand it.
 
 * **`movement::order_move` panics on an off-grid destination.** Unreachable from the
-interface: `pick_tile` only ever yields a tile that exists.
+interface: `pick_tile` yields a tile that exists.
   why it has never fired. Any caller that computes a destination instead of picking one
   (a script, an AI order, a replayed command) can reach it. It wants a `Result` or a clamp,
   and it wants deciding, not defaulting: an off-grid order is a caller's bug and
@@ -1256,7 +1256,7 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 
 > **Built, as of `docs/decisions.md` C62.** This section was written as material for a
 > decision and the decision has been taken; it is kept as the *argument*, because the
-> What actually matters is what a later reader needs to change the answer.
+> What matters is what a later reader needs to change the answer.
 > shipped, and where it differs from the recommendation below:
 >
 > | | recommended here | built |
@@ -1417,7 +1417,7 @@ three of them.**
 > it changes a rule: `FUN_004A6A30` auto-resolves a battle the local player is not in when
 > `g_optFightHumansOnly` (`0x0053F284`) is 0. **[V]** on both counts — the string count out of
 > `L2.eng` and the record count out of `.data`. `crates/l2-game/src/screens/options.rs` draws
-Nothing turned on the number; it was simply wrong.
+Nothing turned on the number; it was wrong.
 > been discussing that fourth option's *save* behaviour for weeks without either half noticing
 > the other.
 
@@ -1577,7 +1577,7 @@ anything. `court::ARMS` names it.
 ### B91 — one network command handler schedules against the *local* clock
 
 `NetCmd_Read_61` (`0x00446D4E`), the read half of network command `0x61`, unpacks the
-sender's due tick into `DAT_00542CC0` exactly as its ninety-six siblings do.
+sender's due tick into `DAT_00542CC0` as its ninety-six siblings do.
 passes `DAT_00553E70` to `NetJournal_Schedule` instead of it.
 
 ```c

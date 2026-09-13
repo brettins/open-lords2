@@ -1093,7 +1093,7 @@ int Grain_Harvest(county, labour, crop) {              /* 0x0044D1E5 */
 }
 ```
 
-Four rules fall out of ten lines, and every one of them changes results rather than
+Four rules fall out of ten lines, and every one of them changes results.
 structure. **[V]**
 
 * **The crop is capped at `labour * perWorker` every season.** A county that sows a full
@@ -1438,7 +1438,7 @@ allocator `FUN_0044F6E7` gates record 6 on the *wood* industry's enable flag, 4 
 byte at county `+0x297 + industry*0x18` — the byte the allocator above gates each mining job
 on — and is reached only from `Map_Click`'s plane-0 `0x80` branch, which picks the industry
 from a ladder on the tile graphic: 0–3 iron, 4–6 stone, 7–9 weapons, 10–12 wood, 13–20
-nothing, 21+ castle. **Nothing on any county panel does this**, which is why it went unfound
+nothing, 21+ castle. **Nothing on any county panel does this**, so it went unfound
 until the binary was read — and then a player described it unprompted:
 
 > *"you can click on the forest or mine on the main map to turn them off for that county.
@@ -2011,7 +2011,7 @@ county:
 the same addresses. An earlier revision of this section gave the goods grant as flat
 `d × 20 / d × 5 / d × 40`; those are the **smallest** realm's figures, and a realm with
 five counties gets no goods grant at all. Each county's share is still gated on the county
-already having some (`pop > 20`, `herd > 10`, `grain > 50`), so it compounds rather than
+already having some (`pop > 20`, `herd > 10`, `grain > 50`), so it compounds.
 rescues, and the people are booked as births as well as added to the population.
 
 Both grants therefore **reward a realm that is already ahead**: the small gold table is

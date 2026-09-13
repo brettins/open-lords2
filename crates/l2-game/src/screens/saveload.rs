@@ -3,7 +3,7 @@
 //! These were two rows of [`crate::screens::shells::SHELLS`] until now: the
 //! original's window, the original's heading, and a click that closed them
 //! again. They are screens now, and every coordinate below was read out of the
-//! painter rather than chosen.
+//! painter.
 //!
 //! # The painter, address by address
 //!
@@ -70,7 +70,7 @@
 //!   `0x35 → 2`, `0x1F → 2`, *anything else* `→ 3`.
 //!
 //! Both are right, because `Screen_Draw` is the only thing that sets either and
-//! it sets them together. It is worth writing down that they are not the same
+//! it sets them together. They are not the same
 //! source: the `else` arm means every screen id that is not `0x35` or `0x1F`
 //! gets *"Saving game."*, which is correct today only because `0x36` is the
 //! sole remaining caller. `SaveLoad_DrawStatus` is reached from three places —
@@ -118,7 +118,7 @@
 //! immediately right of the list, whose rectangle ends at x = 392. The
 //! deciding argument is that **the same table serves two screens whose boxes
 //! are at different origins**: `FUN_004148E4` draws the identical furniture for
-//! the front end's page 3 at `(0x60, 0x0A)` rather than `(0x10, 0x90)`, and one
+//! the front end's page 3 at `(0x60, 0x0A)`, and one
 //! absolute table cannot serve both. It is still an inference, and it is marked
 //! as one.
 //!
@@ -134,7 +134,7 @@
 //! The scroll clamp is **not** the original's, and that is deliberate.
 //! `SaveLoad_Scroll` clamps the top row at `count - 15` while thirty names are
 //! visible, so the original can scroll a short list into empty space. Ours
-//! clamps at `count - 30`, the number actually on screen. Reproducing an
+//! clamps at `count - 30`, the number on screen. Reproducing an
 //! off-by-fifteen in a list of our own files would be superstition, not
 //! fidelity.
 
@@ -299,7 +299,7 @@ pub const WORK_FRAMES: u8 = 0x96;
 
 /// What the status line is saying.
 ///
-/// **There is no `Done`,** and that is the original's behaviour rather than an
+/// **There is no `Done`,** and that is the original's behaviour.
 /// omission: group 40's status strings are *"Loading game. Please wait."*,
 /// *"Saving game. Please wait."* and *"File error. Operation canceled."* — two
 /// progress messages and a failure. Success is not a message, because on
@@ -347,7 +347,7 @@ pub struct SaveLoadScreen {
 ///
 /// * **kind 1**, the file-name kind: `A`–`Z` are lower-cased and `,` `.` `?`
 ///   `!` are refused outright. Reproduced. A name this field accepts is a name
-///   the file layer never has to sanitise, which is why the original has the
+///   the file layer never has to sanitise, so the original has the
 ///   kind at all.
 /// * **160 pixels**, on a 192-pixel plate. Reproduced: it is what stops a name
 ///   from drawing out of its recess, and that is as true of our plate as of
@@ -413,13 +413,13 @@ impl SaveLoadScreen {
     }
 
     /// Where row `i` of the visible page is drawn. The painter fills columns
-    /// **across** and then steps down, which is why this is `i % COLS` for the
+/// **across** and then steps down, so this is `i % COLS` for the
     /// column and `i / COLS` for the row and not the other way round.
     pub fn row_rect(i: usize) -> Rect {
         let (col, row) = (i % COLS, i / COLS);
         let x = LIST.0 + col as i32 * COL_W;
         // The third column is **narrower than the other two**, and that is the
-        // painter's geometry rather than a rounding choice: it steps x by 120
+// painter's geometry: it steps x by 120
         // three times inside an interior that is only 336 wide, so the columns
         // start at 48, 168 and 288 and the box ends at 382. A hit box of a
         // uniform 120 would put the third column's right-hand 18 pixels
@@ -432,7 +432,7 @@ impl SaveLoadScreen {
     fn max_top(&self) -> usize {
         let over = self.entries.len().saturating_sub(PAGE);
         // Round up to a whole scroll step so that the last press lands on a
-        // reachable value rather than one press short of the end.
+// reachable value.
         over.div_ceil(SCROLL_STEP) * SCROLL_STEP
     }
 
@@ -461,7 +461,7 @@ impl SaveLoadScreen {
     /// **`DAT_005CD41C = 100`**, which is the whole of the thumb up's handler
     /// and of Enter's: arm the latch, and let [`WORK_FRAMES`] run.
     ///
-    /// **And the line the box speaks**, which is `SaveLoad_Tick`'s rather than
+/// **And the line the box speaks**, which is `SaveLoad_Tick`'s.
     /// the handler's: the tick that takes the latch up plays `S040_02.wav` on
     /// `g_screenId == '6'` — the save box — and `S040_01.wav` on anything else,
     /// which here is the load box. `[V]`, two `if`s and not an `if`/`else`.
@@ -563,7 +563,7 @@ impl SaveLoadScreen {
                 // battle the player was fighting. It is refused instead, through
                 // `Status::Failed`, whose first line is the game's **own**
                 // sentence — `Eng_DrawString(40, ERROR_INDEX)` — so a player
-                // sees a refusal rather than a file that is wrong.
+// sees a refusal.
                 //
                 // arm: ours/save-refuses-mid-battle left-press
                 if ctx.game.battle.is_some() {
@@ -762,7 +762,7 @@ impl Screen for SaveLoadScreen {
             rect_outline(canvas, x, y, w, h, OUTLINE);
         }
 
-        // **The name field, with the original's caret rather than a trailing
+// **The name field, with the original's caret
         // underscore.**
         //
         // The underscore was a stand-in and it was wrong twice over: it was
@@ -771,7 +771,7 @@ impl Screen for SaveLoadScreen {
         // (`if (ch == 0x5F) ch = 0x20;`), so on an install with the real fonts
         // it drew **nothing at all** — a blank where the caret should be. The
         // caret is `Edit_DrawCaret` (`0x0040ACCE`) now: it blinks, it sits at
-        // the caret rather than at the end, and it changes shape with insert
+// the caret, and it changes shape with insert
         // mode.
         pen.body(canvas, NAME.0, NAME.1, &self.name.text(), font::TEXT);
         let caret_colour = if a.body.is_some() { font::TEXT } else { pen.ink.text };
@@ -789,7 +789,7 @@ impl Screen for SaveLoadScreen {
                 // `FUN_004B414A` writes `g_spriteWidth` iterations of four
                 // dwords per row — sixteen bytes each — so 6 is a **96-pixel**
                 // bar, not a six-pixel one, and it runs *behind* the name
-                // rather than sitting to its left. This module drew a
+// This module drew a
                 // six-pixel tick until the primitive was read. See
                 // [`HIGHLIGHT_CELL`].
                 canvas.fill_rect(r.x - 2, r.y - 1, HIGHLIGHT_W, ROW_H, ink.highlight);
@@ -889,7 +889,7 @@ fn directory_line(dir: &str) -> String {
 /// It is **not** `Ui_DrawInsetRect` (`0x00403DEB`), which takes four arguments
 /// and lights `0x10` / `0x1F` on opposite corners; `shell::inset_rect` is that
 /// one and three other screens use it. This module drew the save box's four
-/// rectangles through it until the painter's call was read rather than its
+/// rectangles through it until the painter's call was read
 /// name.
 pub fn rect_outline(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32, colour: u8) {
     canvas.fill_rect(x, y, w, 1, colour);

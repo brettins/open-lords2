@@ -128,7 +128,7 @@
 //! county-selection arm and the outline were one invention with two halves, the
 //! arm was removed and the paint was not, and a player reported the leftover
 //! four merges later — *"still a weird yellow outline around the county that is
-//! selected on the real map."* This was recorded in the input inventory.
+//! selected on the map."* This was recorded in the input inventory.
 //! **The removal was recorded in the input inventory, and the surviving half
 //! was in the painter, where the input inventory does not look.**
 //! `docs/decisions.md` C132.
@@ -2377,7 +2377,7 @@ impl Screen for MapScreen {
             Event::KeyDown(Key::Right) => {
                 self.scroll(Dir::E);
             }
-// **A shortcut, now that the real route works.** The original opens
+// **A shortcut, now that the route works.** The original opens
             // the village by clicking the county's *town*: `Map_Click` tests
             // plane-0 bit `0x40`, checks the county is the local player's,
             // centres the map on it and sets `g_screenId = 2`. That arm is
@@ -2954,7 +2954,7 @@ impl Screen for MapScreen {
                         // picks the tile half on `g_pickedTileUnit == 0`. So on
                         // your own field **the two buttons open one screen**, the
                         // player's own words: *"right click and left click on
-// fields does the same thing in the real game."* Ours
+// fields does the same thing in the game."* Ours
                         // opened a popup of our own here instead
                         // (`ours/brush-popup-on-the-map`, removed); a left click
                         // on somebody else's field falls out of the bottom, as the
@@ -4065,7 +4065,7 @@ pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
     // The turn number and the counties-held count were at x = 6 and x = 150,
     // which is where the original draws *File*, *Options* and *Help* — so two
     // lines of ours were sitting on the three words that are the way into every
-// menu in the game. Neither was visible with the real fonts loaded.
+// menu in the game. Neither was visible with the fonts loaded.
 // the bar holds three measured titles, up to five
     // 13 × 16 realm banners from x = 270, the clock at 360 and the treasury at
     // 500, and every one of those is `Screen_DrawMenuBar`'s.

@@ -2,7 +2,7 @@
 //! `Msg_HandleInput` (`0x0047685D`), the arm that runs before every other arm
 //! in the game.
 //!
-//! # It is not a screen in the original, and it is one here
+//! # It is a screen here
 //!
 //! `g_screenId` does not change when a message opens. The window is painted
 //! over whatever was up by `Msg_Pump`, which `Battle_Frame` calls once a frame,
@@ -110,7 +110,7 @@ pub struct MessageScreen {
     /// floating tip is placed at `g_mouseX`/`g_mouseY`, which the original reads
     /// straight out of the globals the window procedure writes.
     ///
-    /// Tracked here rather than on [`crate::Game`] because nothing else in this
+/// Tracked here because nothing else in this
     /// workspace wants it and a cursor position on the world is a cursor
     /// position in the save. It starts at the middle of the screen, which is
     /// where the tip's own clamp puts it anyway if the pointer has not moved.
@@ -120,7 +120,7 @@ pub struct MessageScreen {
     /// **All five prompt tables are `Widget_Test` kind 4**, read out of `+0x0F`
     /// of `0x004DDA90`, `0x004DDAC0`, `0x004DDAF0`, `0x004DDB20` and
     /// `0x004DDB50` — the same pair of mailed hands as the yes/no box and a
-    /// *different kind*, which is why the kind has to be read rather than
+/// *different kind*, so the kind has to be read
     /// inferred from the picture. The repeat is unreachable: every one of the
     /// five handlers calls `Msg_Dismiss` first, so the table is gone before a
     /// second fire could come. What kind 4 buys is the pressed picture.
@@ -205,7 +205,7 @@ impl Screen for MessageScreen {
     /// would guess from the function's shape:
     ///
     /// * the **right** release is tested before the widgets, so it closes an
-    ///   unanswered question rather than declining it;
+///   unanswered question;
     /// * the corner button's hit box is **48 × 48**, twice the picture, while
     ///   every other screen in the game uses `Ui_OkButtonClicked`'s 24 × 24;
     /// * anything else **falls through** to the screen underneath, which is how
@@ -228,7 +228,7 @@ impl Screen for MessageScreen {
                         return answer(ctx, prompt, i == 0);
                     }
                     // `Widget_Test` returning 0 falls on through to the corner
-                    // button below, which is why a prompt can still be closed
+// button below, so a prompt can still be closed
                     // without answering it.
                 }
                 let shape = record.shape();
@@ -256,7 +256,7 @@ impl Screen for MessageScreen {
             // **Ours.** `Msg_HandleInput` tests no key at all, and the window
             // procedure has no arm for one either. A demo that can be driven
             // from the keyboard is worth more than the omission is faithful,
-            // and this is counted rather than hidden.
+// and this is counted.
             // arm: ours/message-keyboard-dismiss key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => leave(ctx),
             // **A double click answers a prompt and does nothing else here.**
@@ -480,7 +480,7 @@ fn draw_notice(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: me
 /// FUN_0040328e(g_messageGroup, 1, x + 0x20, y + 0x40, w - 0x40, 400, 0, 0, body);
 /// ```
 ///
-/// The heading is the county **always** — there is no label or lord branch —
+/// The heading is the county **always**
 /// and the body is sixteen pixels higher than a notice's, under a window
 /// sixteen shorter. The string is index **1**, not `variant + 1`; every
 /// capture letter is posted with variant 0, so the two agree.
@@ -496,8 +496,8 @@ fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: m
 /// in the heading font, then the group's label, then the wrapped body.
 ///
 /// The pay prompt inserts `Ui_DrawCount(g_diploHelpPrice, 0, …)` immediately
-/// after the label, on the same line, which is why the price reads as part of
-/// the sentence rather than as a field.
+/// after the label, on the same line, so the price reads as part of
+/// the sentence.
 fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     draw_portrait(pen, ctx, canvas, record.from, f);
     let from = ctx.assets.shell.text(message::GROUP_FROM, 0).to_string();
@@ -517,7 +517,7 @@ fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: me
 }
 
 /// **Category `0x02`** — the portrait panel with `L2.eng` 109/1 over the county
-/// name, both centred in 0x140 rather than in the window's own width.
+/// name, both centred in 0x140.
 fn draw_county_portrait(
     pen: &Pen,
     ctx: &Ctx,
@@ -639,7 +639,7 @@ fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: 
 /// 77/`0x1E` *"extra births."* after it.
 ///
 /// The lead is `'@'` — the blank digit — and the suffix is one space:
-/// `DAT_004D7050` and `DAT_004D7054` are both `" "`, dumped rather than assumed.
+/// `DAT_004D7050` and `DAT_004D7054` are both `" "`, dumped.
 ///
 /// **The record is posted by [`message::post_event`]**, the port of
 /// `FUN_00448D7E`, which `Machine::update` runs once a frame for
@@ -658,7 +658,7 @@ fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: mes
 
     let Some(c) = ctx.game.kingdom.counties.get(record.county as usize) else { return };
     // `Ui_DrawCount(value, noun, …)` for six, `Ui_DrawNumber(value, '@', " ", …)`
-    // for the two that print people rather than sacks or animals.
+// for the two that print people.
     enum Line {
         Count(i32, usize),
         Number(i32),
@@ -747,13 +747,13 @@ fn draw_portrait(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, realm: u8, f: messag
 /// **Draw the scroll's two clickable pictures again, and nothing else.**
 ///
 /// This exists for a test and says so. `docs/agents.md`: *"where an operation is
-/// idempotent, assert idempotence rather than an effect"* — a sprite is an
+/// idempotent, assert idempotence"* — a sprite is an
 /// opaque blit, so drawing the corner button and the answer buttons a second
 /// time over themselves changes no pixel, **but only if they were there the
 /// first time**. Deleting either draw call above makes this one *add* them, and
 /// the two canvases stop being equal.
 ///
-/// It is the build stamp's assertion, and it is here rather than in the test
+/// It is the build stamp's assertion, and it is here
 /// because the test may not know the geometry — computing the probe from the
 /// same constants the code reads is what makes an ablation prove nothing.
 pub fn repaint_clickables(ctx: &Ctx, canvas: &mut Canvas, record: &Record) {
@@ -874,7 +874,7 @@ fn leave(ctx: &mut Ctx) -> Transition {
 /// a lord and three more besides.
 ///
 /// Every one of them calls `Msg_Dismiss` **first** and then acts on
-/// `g_uiHotspotId`, so the window is gone before the rule runs — which is why
+/// `g_uiHotspotId`, so the window is gone before the rule runs — so
 /// none of them has anything to say about a refusal.
 fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
     match prompt {
@@ -933,7 +933,7 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         //   g_screenId = 0; g_redrawRequest = 2;          /* BEFORE the test */
         //   if (hotspot != 0) { … seed the basket …; Msg_Dismiss(); g_screenId = 0x11; }
         //
-        // **No is not a dismissal.** The handler returns to the campaign map
+// The handler returns to the campaign map
         // without closing the window, so the prompt is still up and has to be
         // closed with the corner button or the right button. Reproduced;
         // `docs/bugs.md` B94.

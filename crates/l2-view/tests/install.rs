@@ -4,7 +4,7 @@
 //! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-view
 //! ```
 //!
-//! Skips (rather than fails) when unset, so the suite still runs on a machine
+//! Skips when unset, so the suite still runs on a machine
 //! without the game. **No window is opened and no process is started.** Every
 //! assertion here is on a `Vec<u8>` of palette indices, which is also the shape
 //! the eventual pixel diff against `Lords2.exe`'s framebuffer will take.
@@ -112,7 +112,7 @@ fn the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet() {
 /// it a tick. Nobody had decoded the frame; decoding it settled it
 /// (`docs/decisions.md` C46), and this is what stops the label drifting back.
 ///
-/// The claim is made as a **rank** rather than as a word, because a threshold
+/// The claim is made as a **rank**, because a threshold
 /// picked to pass is not evidence: of the sheet's 84 frames, `Ui_OkButton`'s
 /// two are the **4th and 5th darkest**, at 15.3% and 11.5% of their area in
 /// near-black ink against a median frame's 1.2%. The widgets that really are
@@ -506,7 +506,7 @@ fn load_assets(dir: &Path) -> BattleAssets {
 }
 
 /// The point of the whole exercise: a battle that can be *watched*. Deploy the
-/// armies `USER.SKR` map 0 actually ships, step the simulation, and check that
+/// armies `USER.SKR` map 0 ships, step the simulation, and check that
 /// the picture changes as it does.
 #[test]
 fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
@@ -583,7 +583,7 @@ fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
     );
 }
 
-/// Figures must actually be painted on top of the terrain — if the sprite blit
+/// Figures must be painted on top of the terrain — if the sprite blit
 /// silently did nothing, every other assertion here would still pass.
 #[test]
 fn figures_are_visible_against_the_terrain_behind_them() {
@@ -844,7 +844,7 @@ fn the_minimap_realm_ramp_matches_the_table_in_the_binary() {
 /// It sits eight bytes below the realm ramp, and the two are separate tables:
 /// `Minimap_DrawOverlay` indexes this one with a bare `[band]` and that one with
 /// `[colour * 8 + step]`. The two bytes between them are indexed by nothing, and
-/// this asserts they are there rather than quietly folding six entries into
+/// this asserts they are there
 /// eight.
 #[test]
 fn the_minimap_rating_ramp_matches_the_table_in_the_binary() {
@@ -870,7 +870,7 @@ fn the_minimap_rating_ramp_matches_the_table_in_the_binary() {
     eprintln!("minimap ramp: 6 rating colours match the binary");
 }
 
-/// **The rating ramp's direction, from the artwork rather than from the code.**
+/// **The rating ramp's direction, from the artwork.**
 ///
 /// `Misc_cty.pl8` frame 91 is the strip the original swaps in beside the minimap
 /// while an overlay is up, and it carries a six-swatch colour bar with a tick
@@ -918,7 +918,7 @@ fn the_rating_ramp_is_the_colour_bar_the_legend_strip_draws() {
 /// 128 x 128 frames where the formula says, and every *empty* slot must resolve
 /// to one of the four files the game does not ship.
 ///
-/// The second half is what makes this evidence rather than a smoke test: 11
+/// The second half is what makes this evidence: 11
 /// files x 4 slots = 44 is exactly the used-slot census in
 /// `docs/formats/maps-layers.md` §6, arrived at from a completely different
 /// direction.
@@ -954,7 +954,7 @@ fn every_used_map_slot_has_a_minimap_and_every_empty_one_does_not() {
 
 /// The right column's frames are 162 wide and their heights tile y 24..480
 /// exactly. `chrome`'s constants say where each one goes; this reads how tall
-/// each one actually is and checks the column closes.
+/// each one is and checks the column closes.
 #[test]
 fn the_right_panel_frames_in_the_file_tile_the_column_exactly() {
     let Some(dir) = asset_dir() else {
@@ -997,7 +997,7 @@ fn the_right_panel_frames_in_the_file_tile_the_column_exactly() {
     eprintln!("right panel: 7 frames tile y 24..480, 5 banners fit the bar");
 }
 
-/// `Panels.pl8`'s framed-box kit, checked against the file rather than against
+/// `Panels.pl8`'s framed-box kit, checked against the file
 /// `chrome`'s own constants: 52 border frames of 16 x 16, 144 texture frames of
 /// 16 x 16, then eight of 24 x 24, then a second border set.
 #[test]
@@ -1075,7 +1075,7 @@ fn the_icon_table_is_the_exes_own_and_surplus_is_the_idle_sprite() {
     );
 }
 
-/// Slot 8. Spelled out rather than depending on `l2-kingdom`, which this crate
+/// Slot 8. Spelled out, which this crate
 /// does not and should not know about.
 fn l2_kingdom_job_idle() -> usize {
     8
@@ -1143,7 +1143,7 @@ fn the_peasant_icons_account_for_every_frame_the_icon_table_names() {
 /// binary says where it is — `CountyStrip_Draw` swaps five icon frames on
 /// `labour[slot].useful < labour[slot].workers` and the slider's thumb on
 /// `labour[8].workers != 0` — and this says *what it is*, out of the shipped
-/// artwork rather than out of a description:
+/// artwork:
 ///
 /// * every ringed frame is **exactly four wider and four taller** than its
 ///   plain twin, which is what a two-pixel ring around an unchanged picture
@@ -1153,7 +1153,7 @@ fn the_peasant_icons_account_for_every_frame_the_icon_table_names() {
 ///   `65` = `rgb(157,202,234)`, `64` = `rgb(194,230,255)`.
 ///
 /// The second clause is the one that makes "blue" a measurement. A ring of any
-/// other colour would fail it, and so would a frame that merely happened to be
+/// other colour would fail it, and so would a frame that happened to be
 /// the right size.
 #[test]
 fn the_ringed_strip_icons_are_their_plain_twins_inside_a_blue_two_pixel_ring() {
@@ -1167,11 +1167,11 @@ fn the_ringed_strip_icons_are_their_plain_twins_inside_a_blue_two_pixel_ring() {
         .expect("Base01.256 parses");
 
     // The ring's three entries really are blue, in the palette the campaign
-    // screen runs under. Asserted rather than assumed, because the whole claim
+// screen runs under. Asserted, because the whole claim
     // rests on the word.
     // Blue channel highest, red lowest, and a clear gap between them: the ring
     // runs from `rgb(0,0,121)` to a near-white highlight at `rgb(194,230,255)`,
-    // so "blue" here is the *ordering* of the channels rather than a hue
+// so "blue" here is the *ordering* of the channels
     // distance, which the pale end would fail.
     for i in misc_cty::RING_COLOURS {
         let [r, g, b] = palette.rgb(i);
@@ -1246,8 +1246,8 @@ fn the_ringed_strip_icons_are_their_plain_twins_inside_a_blue_two_pixel_ring() {
 ///
 /// `FUN_00439EDB` loops `i < 10` over `g_jobClusterToSlot`, which has eight
 /// entries. The two past the end are the head of the table that follows, and
-/// they decide what a double click on the idle townsfolk actually balances — so
-/// they are read out of the user's own executable rather than believed.
+/// they decide what a double click on the idle townsfolk balances — so
+/// they are read out of the user's own executable.
 #[test]
 fn the_cluster_to_slot_table_and_the_two_words_the_balance_loop_overruns_into() {
     use l2_view::village as v;
@@ -1320,7 +1320,7 @@ fn the_village_files_are_the_size_the_drawing_code_indexes_them_at() {
 /// 2. **`0x38` is the only frame in the ramp with no colour in it at all**, so
 ///    the grey one is the out-of-range one and the inference is now a fact;
 /// 3. `0x4E` is the opposite extreme — not one grey pixel — which is the
-///    castle marker being a different picture rather than another ball.
+///    castle marker being a different picture.
 ///
 /// A player reported these as *"colored dot images for the army walking dots"*,
 /// and what selects the colour is the **cost**: not the realm, not the shield,
@@ -1401,7 +1401,7 @@ fn the_path_marker_ramp_is_one_ball_recoloured_and_only_the_first_is_grey() {
 /// where no sheet exists, `draw_unit` returns false and the fallback marker is
 /// drawn at the tile centre — the one configuration in which the old hit test
 /// and the picture agreed. So this test needs the install, and it compares the
-/// two directly: **the pixels the sprite actually paints, against the tile the
+/// two directly: **the pixels the sprite paints, against the tile the
 /// pick resolves them to.**
 ///
 /// The rule it holds to is the original's, which has no way to disagree with
@@ -1409,7 +1409,7 @@ fn the_path_marker_ramp_is_one_ball_recoloured_and_only_the_first_is_grey() {
 /// `Map_ResolvePick` just resolved"*, so the pick is a tile pick and the figure
 /// is drawn on that tile. What is asserted here is that a healthy majority of
 /// the drawn figure resolves to the tile it is standing on — not all of it,
-/// because a 40 x 32 sprite genuinely overhangs a 58 x 30 diamond and the
+/// because a 40 x 32 sprite overhangs a 58 x 30 diamond and the
 /// original overhangs it too.
 #[test]
 fn a_click_on_the_drawn_army_resolves_to_the_tile_it_stands_on() {
@@ -1491,7 +1491,7 @@ fn a_click_on_the_drawn_army_resolves_to_the_tile_it_stands_on() {
 /// 3. the three reachable groups carry **strictly more opaque pixels** as the
 ///    crowding rises. That is the claim *"a more crowded meadow has more
 ///    animals on it"* stated as something the file can contradict, and it is
-///    what makes the band → frame mapping the right way round rather than
+///    what makes the band → frame mapping the right way round
 ///    merely consistent;
 /// 4. `0x13`, the empty herd, and `0x0F` return **nothing at all** — bare grass
 ///    for a county that has lost every animal.
@@ -1615,7 +1615,7 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
 ///    mercenary marker `Sprite_TopIt` draws on the town's north-east quadrant.
 ///
 ///    **The frames are `16 × 42`, and the first draft of this test said `32 × 24`** — the
-///    size of the *realm* flags at the head of the sheet, assumed rather than read. The
+///    size of the *realm* flags at the head of the sheet, assumed. The
 ///    file said so on the first run. Recorded because it is the whole argument for
 ///    asserting a block you have not built yet: a tall narrow standard on a pole is a
 ///    different picture from a wide waving banner, and nothing but the sheet was ever
@@ -1648,7 +1648,7 @@ fn the_flags_sheet_damage_and_mob_banner_blocks_are_where_sprite_topit_says() {
 
     // The animation burns down: warm pixels fall away and grey rises. Palette-free, so it
     // cannot be fooled by a different Base01.256 - "warm" is the run of orange/brown entries
-    // 0xC0..0xD8 the flame is drawn from, read off the sheet rather than from a name.
+// 0xC0..0xD8 the flame is drawn from, read off the sheet.
     let warm = |i: usize| {
         let f = sheet.frame(i).expect("frame");
         f.indices
@@ -1717,14 +1717,14 @@ fn the_realm_pen_table_matches_the_bytes_in_the_binary() {
 /// this project keeps — including the ones that separate the two candidate
 /// keys.
 ///
-/// `l2_view::chrome::realm_pen` *derives* the pen from the shield rather than
+/// `l2_view::chrome::realm_pen` *derives* the pen from the shield
 /// reading realm `+0x08` out of the save, because both writers in the binary
 /// derive it the same way and nothing else touches the field
 /// (`Realms_AssignLords` at new game, `FUN_0042BA40` for a custom battle). This
 /// is that claim tested against data: for every realm of every fixture, the
 /// byte the game stored at `+0x08` must equal our table indexed by `+0x0A`.
 ///
-/// **The fixtures are what make this decisive rather than circular.** In
+/// **The fixtures are what make this decisive.** In
 /// `england-turn1.sav` realm *n* happens to fly shield *n*, so it cannot tell
 /// "keyed by the shield" from "keyed by the realm id" — and the realm id is
 /// exactly the wrong key our county strip was using. Six of the other fixtures
@@ -1744,7 +1744,7 @@ fn every_saved_realms_stored_pen_is_its_shields_pen() {
 
     let mut realms_checked = 0;
     let mut files_checked = 0;
-    // Did any fixture actually exercise a realm whose id differs from its
+// Did any fixture exercise a realm whose id differs from its
     // shield? Without one this test would pass on the wrong key too.
     let mut separating = 0;
     let mut names: Vec<String> = std::fs::read_dir(&dir)
@@ -1815,7 +1815,7 @@ fn every_saved_realms_stored_pen_is_its_shields_pen() {
 ///   alternate}`, and really is preference-then-fallback. It belongs to the
 ///   custom battle (`FUN_0042BA40`) and nothing else.
 ///
-/// `docs/rules.md` §7a has both halves and the table of what actually happens
+/// `docs/rules.md` §7a has both halves and the table of what happens
 /// when a person takes each of the five colours.
 #[test]
 fn the_lord_colour_tables_are_the_bytes_in_the_binary() {
@@ -1887,7 +1887,7 @@ fn the_lord_colour_tables_are_the_bytes_in_the_binary() {
     );
 }
 
-/// **What the campaign actually produces for each of the five colours a person
+/// **What the campaign produces for each of the five colours a person
 /// can take** — the rule, run against the tables the test above pinned.
 ///
 /// This is `Realms_AssignLords`' walk, and it is the thing no fixture can
@@ -1948,7 +1948,7 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
         "taking red gives the arrangement every default game shows"
     );
 
-    // **Take yellow and the Knight does not keep it, and does not simply shift
+// **Take yellow and the Knight does not keep it, and does not shift
     // one along.** He becomes the black lord; the Baron becomes the red one.
     assert_eq!(
         assign(2),
@@ -1983,7 +1983,7 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
 ///
 /// A player: *"The wheat fields don't show the wheat growing."*
 /// [`campaign::field_variant`] is the fix; this is the artwork that makes the
-/// direction a measurement rather than a story. `Grain_SeasonTick` writes the
+/// direction a measurement. `Grain_SeasonTick` writes the
 /// crop's density band — 2, 3, 7 or 11 — onto every grain tile and derives
 /// `Terrain_Set`'s variant from it, and **all four bands share base 88**, so
 /// the variant is the only thing in the picture that moves.
@@ -1996,18 +1996,18 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
 /// 2. the count of **ripe-gold** pixels rises strictly with the variant at every
 ///    one of the four `stored & 3` positions. That is *"a riper field has more
 ///    ripe wheat in it"* stated as something the file can contradict, and it is
-///    what makes the band → variant mapping the right way round rather than
+///    what makes the band → variant mapping the right way round
 ///    merely consistent;
 /// 3. the blocks on either side — fallow at 84 … 87 and pasture at 104 … 107 —
 ///    carry almost none of it, which bounds the run from outside.
 ///
-/// "Gold" is read off the shipped palette rather than named: `r > 140`,
+/// "Gold" is read off the shipped palette: `r > 140`,
 /// `g > 110`, `b < 110`, `r >= g` — and the *ramp* is what is asserted rather
 /// than any count, because our palette widens 6-bit VGA by 255/63 where the
 /// original multiplies by 4 and an absolute threshold would sit on that seam.
 /// Ablating the `+ field_variant(terrain) * 4`
 /// in [`campaign::field_frame`] does not fail this test — it is about the sheet,
-/// not about us — which is why `a_fields_picture_follows_its_crop_state` asserts
+/// not about us — so `a_fields_picture_follows_its_crop_state` asserts
 /// the arithmetic and this asserts what the arithmetic is *for*.
 #[test]
 fn the_four_wheat_variants_ripen_and_the_block_ends_where_the_next_base_begins() {

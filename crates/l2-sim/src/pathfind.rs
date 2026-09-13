@@ -20,7 +20,7 @@
 //! cost[nb] = stepCost[nb] + sVar3;
 //! ```
 //!
-//! **The cost field is not a metric.** A neighbour is considered only while
+//! A neighbour is considered only while
 //! `cost[neighbour] == 0`, so the first cost written to a cell stands even when a
 //! cheaper route reaches it later; there is no relaxation step. Reproduced
 //! deliberately — the original's paths are the specification, and "fixing" this
@@ -40,7 +40,7 @@ pub const CELLS: usize = DIM * DIM;
 /// A **friendly figure** stands here (`Path_BuildBlockedMap`, `0x3E6`).
 ///
 /// Not the same as impassable, and the difference is load-bearing: if the
-/// *destination* is merely occupied the original clears it to 0 and paths onto
+/// *destination* is occupied the original clears it to 0 and paths onto
 /// it anyway, leaving the mover to swap or wait.
 pub const OCCUPIED: u16 = 998;
 /// Terrain that can never be entered (`Path_BuildTerrainTemplate`): flags `0x10`
@@ -132,7 +132,7 @@ impl Grid {
         (b - a).abs() <= 1 || b == 5
     }
 
-    /// **`Path_LineIsClear` (`0x004710F2`) as the original actually writes it**
+/// **`Path_LineIsClear` (`0x004710F2`) as the original writes it**
     /// — and it is not a line, not a predicate, and not free of side effects.
     ///
     /// It is a **two-pronged greedy walk that leaves a cost field behind**, and
@@ -144,7 +144,7 @@ impl Grid {
     /// * two walkers set out from the start together, each step choosing the
     ///   eight-way direction toward the target and, when that cell is taken,
     ///   rotating — one clockwise, the other anticlockwise, up to eight tries.
-    ///   So the walk **slips around** a body in the way rather than stopping at
+///   So the walk **slips around** a body in the way
     ///   it. Eighty rounds of the pair, then it gives up;
     /// * and the cost field it writes is left in place for `Path_Extract`. When
     ///   `Path_Search` skips its flood fill *because this succeeded*, the
@@ -304,7 +304,7 @@ pub struct Search {
     pub cost: Vec<u16>,
 }
 
-/// How many of the 6,400 visit counters `Path_Search` actually clears.
+/// How many of the 6,400 visit counters `Path_Search` clears.
 ///
 /// **4,096, not 6,400 — and this is a bug in the original that we reproduce.**
 ///
@@ -314,7 +314,7 @@ pub struct Search {
 /// 6,400 `u8`, one per cell. Three things confirm the extent: the sibling call
 /// passes `0x3200` for `g_pathCost`, which is exactly 6,400 × `u16`;
 /// `docs/battle.md` records the counters as one byte per cell; and
-/// `0x004F6470 + 6400` lands precisely on the next global the same function
+/// `0x004F6470 + 6400` lands on the next global the same function
 /// uses.
 ///
 /// So cells 4,096 and above — **rows 51 to 79, the bottom 36% of the
@@ -327,7 +327,7 @@ pub struct Search {
 /// than fixed because the original's paths are the specification.
 ///
 /// **It also makes pathfinding order-dependent**, which is a determinism
-/// concern rather than a bug: the result of a search depends on which searches
+/// concern: the result of a search depends on which searches
 /// ran before it. Lockstep peers run the same searches in the same order, so
 /// they stay identical — but a caller that reorders searches changes the paths.
 pub const CLEARED_COUNTERS: usize = 0x1000;
@@ -411,7 +411,7 @@ pub fn search_with(scratch: &mut Scratch, grid: &Grid, start: Pos, dest: Pos) ->
     }
     cost[si] = 1;
 
-    // A circular buffer that wraps rather than growing, like the original.
+// A circular buffer that wraps, like the original.
     let mut queue = vec![0u16; QUEUE_CAP];
     let (mut head, mut tail) = (0usize, 0usize);
     queue[tail] = si as u16;
@@ -482,7 +482,7 @@ pub fn search_with(scratch: &mut Scratch, grid: &Grid, start: Pos, dest: Pos) ->
 /// Walk the cost field downhill from the destination back to the start.
 ///
 /// Returned in travel order, start-exclusive. Ties break toward the neighbour
-/// order above, which is why that order is specified rather than incidental.
+/// order above, so that order is specified.
 pub fn extract(grid: &Grid, s: &Search, start: Pos, dest: Pos) -> Vec<Pos> {
     if s.outcome != Outcome::Found {
         return Vec::new();
@@ -510,7 +510,7 @@ pub fn extract(grid: &Grid, s: &Search, start: Pos, dest: Pos) -> Vec<Pos> {
         }
         match best {
             Some(n) if cost_of(s, n) < cost_of(s, cur) => cur = n,
-            // No downhill neighbour: the field is malformed. Give up rather than
+// No downhill neighbour: the field is malformed. Give up
             // loop, which is what the failure counters exist to record.
             _ => return Vec::new(),
         }
@@ -557,7 +557,7 @@ mod tests {
     /// 36% of the battlefield carries counts from the previous search into the
     /// next one. Reproduced deliberately; this is the test that says so.
     ///
-    /// Driven through real searches rather than by poking the array, because
+/// Driven through real searches, because
     /// the claim is about what `Path_Search` does, not about what `begin` does.
     #[test]
     fn counters_above_the_cleared_region_survive_into_the_next_search() {
@@ -619,7 +619,7 @@ mod tests {
 
     /// A fresh `Scratch` is the *first* search of a battle and nothing else.
     /// Two searches on separate scratches must agree; that is what makes the
-    /// carry-over above observable rather than noise.
+/// carry-over above observable.
     #[test]
     fn a_fresh_scratch_gives_a_repeatable_search() {
         let g = wall_with_gap(20, 60);
@@ -677,7 +677,7 @@ mod tests {
         assert!(extract(&g, &s, Pos::new(5, 5), dest).is_empty());
     }
 
-    /// Expensive ground is re-queued rather than weighted, so it is expanded
+/// Expensive ground is re-queued, so it is expanded
     /// later than cheap ground — the behaviour that makes this not a Dijkstra.
     #[test]
     fn expensive_ground_is_still_walked_when_it_is_the_only_way_through() {
@@ -697,7 +697,7 @@ mod tests {
     /// The correction that cost this file a rewrite: the recorded cost really is
     /// weighted, `cost[cur] + 1 + step_cost[neighbour]`.
     ///
-    /// Measured as a difference rather than an absolute, because the absolute
+/// Measured as a difference, because the absolute
     /// depends on the route and the difference does not: the wall has exactly
     /// one gap, so every route crosses it, and a surcharge there is inherited by
     /// everything downstream of it.

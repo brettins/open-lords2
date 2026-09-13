@@ -23,7 +23,7 @@
 //! opened from two places:
 //! a click on a village cluster (`FUN_0043A123`) or a click on a job row in the
 //! campaign sidebar (`0x00438E3B`). It returns to whichever it was —
-//! `DAT_005533F4` remembers — which is why this is a screen the machine pushes
+//! `DAT_005533F4` remembers — so this is a screen the machine pushes
 //! rather than something the village owns.
 //!
 //! # What the original draws, and what is here
@@ -161,7 +161,7 @@
 //! every weapon 24 pixels high.
 //!
 //! It is dispatched from `Screen_HandleInput` and not from `Screen_FrameInput`,
-//! which is why an enumeration of the dispatcher alone scored this zero without
+//! so an enumeration of the dispatcher alone scored this zero without
 //! it ever appearing as a miss — `docs/decisions.md` C61's denominator note.
 //!
 //! And the page says so in words, from the player's own file:
@@ -179,7 +179,7 @@
 //! # The five bodies, and the words they are made of
 //!
 //! The five body painters below are the original's, call for call. Each draws
-//! **absolute** screen coordinates rather than box-relative ones, and each
+//! **absolute** screen coordinates, and each
 //! draws its words out of the player's own `L2.eng` — rule 6 — with our
 //! transcription only where the install has no file:
 //!
@@ -196,7 +196,7 @@
 //! popup's alone; what makes them its vocabulary is that the popup draws them
 //! and nothing of ours drew them before. **Group 75 is the exception and has
 //! exactly one**, [`blacksmith`], which makes it that page's specification
-//! rather than a lead. `docs/formats/eng.md` §5.
+//! `docs/formats/eng.md` §5.
 //!
 //! Every `Ui_DrawCount` here is `'@'` and `""` (C155), and the three suffixes
 //! that are not were read out of the shipped exe: `Panel_JobIndustry`'s
@@ -221,7 +221,7 @@
 //! # What is still not drawn here
 //!
 //! * **`Gfx_MarkAllDirty`**, `Panel_JobBlacksmith`'s last statement. Our canvas
-//!   is repainted whole, so there is no dirty box to raise.
+//!   is repainted whole.
 //! * **`Castle_DrawStatusBlock`'s other caller**, `TileInfo_DrawCastle`
 //!   (`0x0041DA2F`), which draws it at `(8, 0x30, row)` for a castle under
 //!   construction on the player's own tile. `screens/info.rs`'s layout ladder
@@ -251,7 +251,7 @@ const BOX_ROWS: [i32; JOB_COUNT] = [13, 13, 9, 11, 9, 9, 9, 9, 9];
 
 /// `FUN_00403CF4(0x40, 0x68, 0x32, 0x32, 0x3F)` — **a one-pixel outline, not a
 /// recess.** The function is four `FUN_00403A8F` line calls in colour `0x3F`
-/// round the given box, clipped to the screen; there is no fill and no
+/// round the given box, clipped to the screen.
 /// lighting. `Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)` puts the job's
 /// `iconvill.pl8` picture one pixel inside it.
 const ICON_BOX: Rect = Rect::new(64, 104, 50, 50);
@@ -329,8 +329,8 @@ const BLACKSMITH_OK: Rect = Rect::new(0x1C0, 0x1C0, system::OK_DIM, system::OK_D
 /// ```
 ///
 /// **This is the only control on any of the nine job popups**, and it is
-/// dispatched from `Screen_HandleInput` rather than from `Screen_FrameInput`,
-/// which is why an enumeration of the dispatcher scored it zero without it ever
+/// dispatched from `Screen_HandleInput`,
+/// so an enumeration of the dispatcher scored it zero without it ever
 /// appearing as a miss. `docs/decisions.md` C61's denominator note.
 ///
 /// Every record's kind byte at `+0x0F` is **1** — [`Kind::Press`], the down
@@ -359,7 +359,7 @@ pub const WEAPON_HOTSPOTS: [(i32, i32, i32, i32); l2_kingdom::tables::WEAPON_TYP
 pub const HOTSPOT_ORIGIN: (i32, i32) = (0, 0x18);
 
 /// The weapon under a point, or `None`. Table order, first match wins — the six
-/// rectangles do not overlap, so the order is the original's rather than a
+/// rectangles do not overlap, so the order is the original's
 /// tie-break.
 pub fn weapon_at(x: i32, y: i32) -> Option<usize> {
     let (dx, dy) = HOTSPOT_ORIGIN;
@@ -413,7 +413,7 @@ const FOOTER_COLS: i32 = 0x1E;
 const FOOTER_ROWS: i32 = 6;
 
 /// **`L2.eng` group 75, and `Panel_JobBlacksmith` is its only consumer in the
-/// whole binary** — so it is this page's vocabulary rather than a lead
+/// whole binary** — so it is this page's vocabulary
 /// (`CLAUDE.md` rule 6, `docs/formats/eng.md` §5).
 ///
 /// Index 0 is *"Click on a weapon to change production."*, drawn by
@@ -487,7 +487,7 @@ impl Forge {
 }
 
 /// The three colours `Panel_JobDetail` passes to `Ui_DrawCount`, as literal
-/// palette indices rather than as [`Ink`](l2_view::Ink) choices of ours.
+/// palette indices.
 const COUNT_RIGHT: u8 = 0x3F;
 const COUNT_SHORT: u8 = 0xF9;
 const COUNT_WASTED: u8 = 0xFC;
@@ -520,7 +520,7 @@ pub struct JobScreen {
     county: u8,
     job: usize,
     /// The blacksmith page's fire. Ticks on every job and is only drawn on
-    /// job 7, exactly as `DAT_004E59BC` is stepped by a draw arm that runs on
+/// job 7, exactly as `DAT_004E59BC` is stepped by a draw arm that runs on
     /// one `g_jobPanelJob`.
     forge: Forge,
     redraw: bool,
@@ -551,7 +551,7 @@ impl JobScreen {
     /// **The blacksmith's is somewhere else entirely**, because the blacksmith
     /// is a full-screen page: `Ui_OkButton(0x1C0, 0x1C0, 0)`. The painter has
     /// two `Ui_OkButton` call sites and they are the two arms of one `if`, so
-    /// only ever one of them runs.
+/// one of them runs.
     pub fn ok_button(job: usize) -> Rect {
         let job = job.min(JOB_COUNT - 1);
         if job == BLACKSMITH {
@@ -1492,7 +1492,7 @@ mod tests {
 
     /// **`g_jobPanelRows` (`0x004D29A0`), verbatim**, and the blacksmith's
     /// separate corner. The literals are pinned from the binary's own bytes —
-    /// `0, 13, 13, 9, 11, 9, 9, 9, 9, 9` for jobs 0…9, one-based — rather than
+/// `0, 13, 13, 9, 11, 9, 9, 9, 9, 9` for jobs 0…9, one-based.
     /// computed from [`BOX_ROWS`], so ablating the table turns this red.
     #[test]
     fn the_blacksmith_is_the_one_job_that_is_not_this_window() {

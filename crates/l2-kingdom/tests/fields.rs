@@ -60,7 +60,7 @@ fn the_terrain_ladder_reproduces_every_county_s_stored_field_counts() {
 ///
 /// A scenario value, not an invariant (`docs/decisions.md` C23): it is a fact
 /// about how this game opens, and it is asserted here so that a future position
-/// which *does* ship sown fields fails this and gets read rather than silently
+/// which *does* ship sown fields fails this and gets read
 /// changing what the rest of the file means.
 #[test]
 fn no_county_of_the_england_position_has_a_single_grain_field() {
@@ -106,7 +106,7 @@ fn every_field_tile_lies_in_its_own_county_and_belongs_to_nobody_else() {
 /// turns, and the grain pipeline runs: sown, grown, harvested.
 ///
 /// This is the first time this engine has driven its own economy from the
-/// player's side. It is deliberately built on the real position rather than on
+/// player's side. It is deliberately built on the real position
 /// a fabricated county, because `docs/decisions.md` C26 is what happens when
 /// the only fixture exercises one value of a rule's input.
 #[test]
@@ -116,7 +116,7 @@ fn a_player_can_paint_a_field_to_grain_and_harvest_it_four_seasons_later() {
     let mut k = scenario.kingdom(1);
 
     // The human's county. `g_localPlayer` is realm 1 and which counties it
-    // holds is rolled per game, so it is found rather than named (C23).
+// holds is rolled per game, so it is found (C23).
     let human = scenario.local_player;
     let mine = (1..=k.county_count)
         .find(|&id| k.counties[id].owner == human)
@@ -164,7 +164,7 @@ fn a_player_can_paint_a_field_to_grain_and_harvest_it_four_seasons_later() {
         k.counties[mine].grain
     );
     // **The crop words are not cleared by the harvest**, and this test used to
-    // say they were. `crop` is *seed, standing crop, harvest* rather than three
+// say they were. `crop` is *seed, standing crop, harvest*
     // growth stages: `Grain_SeasonTick` clears `crop[2]` at the top of every
     // season and fills it at the harvest, and `crop[0]` and `crop[1]` keep the
     // year's record until the next sowing overwrites them. See
@@ -227,7 +227,7 @@ fn paint_all_fallow_to_grain(k: &mut Kingdom, county: usize) -> i32 {
 /// `Herd_UpdateCrowding` (`0x0044D913`) writes one of `0x13 … 0x16` onto every
 /// pasture tile of a county, chosen by `herd / fieldsCattle` banded at 11 and
 /// 21, and `FUN_004071A0` draws a different number of animals for each. So the
-/// terrain byte on a pasture tile is not a graphic — it is the herd meter,
+/// terrain byte on a pasture tile is the herd meter,
 /// stored where the renderer can see it.
 ///
 /// This is the same shape as the ladder test above and earns the same `[V]`:
@@ -413,7 +413,7 @@ fn the_cattle_forecast_follows_the_labour_it_depends_on() {
 ///    completes before a field at 0 gets touched;
 /// 3. **a finished field hands its surplus on**, so a gang with enough labour
 ///    finishes two in a season — which is the only way the figure ever reads
-///    more than 1, and the reason it is a simulation rather than a division.
+///    more than 1, and the reason it is a simulation.
 #[test]
 fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
     let save = england!();
@@ -458,7 +458,7 @@ fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
         "two gangs' worth finishes two fields, which is why this is a count and not a flag",
     );
 
-    // And nothing being reclaimed forecasts nothing, rather than keeping the
+// And nothing being reclaimed forecasts nothing,
     // last answer — the original zeroes both before its guard.
     for &s in &[near, far] {
         let tile = k.counties[county].field_tile(s).expect("a tile");
@@ -479,9 +479,9 @@ fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
 /// **The repair landed and had no test.** Its two siblings each got one —
 /// [`the_cattle_forecast_follows_the_labour_it_depends_on`] and
 /// [`the_reclamation_forecast_counts_fields_finished_not_work_done`] — and the
-/// one the player actually reported did not, which is why this exists.
+/// one the player reported did not, so this exists.
 ///
-/// It is deliberately driven from the **brush and the season** rather than by
+/// It is deliberately driven from the **brush and the season**
 /// writing the county's fields: `docs/agents.md`'s *a field is only tested if
 /// something a test reads was written by something the game runs*. Every input
 /// here is something a player does.
@@ -498,9 +498,9 @@ fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
 ///    spends the store, so the forecast for the season about to begin is
 ///    negative. That is the player's sentence with the arithmetic under it.
 /// 2. **It is exactly `-sown - eaten`**, and `sown` is the tail's own
-///    `Grain_Sow(county, staff, grain)` rather than the search's
+///    `Grain_Sow(county, staff, grain)`
 ///    `Grain_Sow(county, workers, grain - grainEaten)` — a different third
-///    argument, which is why the number cannot be recovered from the ceiling.
+///    argument, so the number cannot be recovered from the ceiling.
 /// 3. **Facing Winter it is the harvest less the eating**, so the same row
 ///    turns positive once there is a crop to bring in. A test that only ever
 ///    looked at Spring would pass with the other two arms deleted.
@@ -592,10 +592,10 @@ fn the_grain_forecast_is_the_sowing_loss_the_player_reported() {
 ///
 /// * Relaxing the search's `best < net` to `best <= net` makes it take the
 ///   **last** argmax instead of the first. Claim 2 was expected to fail at six
-///   a head; what actually fails is **claim 1**, at `ceiling 9999` for a herd
+///   a head; what fails is **claim 1**, at `ceiling 9999` for a herd
 ///   of one — the last argmax is the end of the scan, not `6 * herd`. The
 ///   ablation found the right defect for a reason one step away from the one
-///   written down, which is why the note says what happened rather than what
+///   written down, so the note says what happened
 ///   was expected.
 /// * Disabling the `staffing >= 100` small-herd bonus fails **claim 2**
 ///   directly: the herd of five's ceiling drops from 15 to 7.
@@ -678,7 +678,7 @@ fn the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd() {
 /// the animal that crosses a boundary costs more births than it brings.
 ///
 /// **Reproduced on purpose**, and pinned here so that a ruleset which smooths
-/// the ladder has to say so rather than discovering it. The staffing is the one
+/// the ladder has to say so. The staffing is the one
 /// `Herd_LabourEstimate` would assign, not a number chosen to make the point.
 ///
 /// Ablation, run: flattening [`l2_kingdom::tables::HERD_SMALL_BONUS`] to three
@@ -703,7 +703,7 @@ fn a_smaller_herd_outbreeds_a_larger_one_at_each_bonus_step() {
         herd_growth(t, herd, fields, hands, c.herd_crowding, spring).births
     };
 
-    // The three boundaries, with the numbers rather than only the inequality —
+// The three boundaries, with the numbers —
     // an inequality alone would survive the whole ladder being scaled away.
     for &(small, big, fewer, more) in &[(4, 5, 7, 4), (9, 10, 10, 6), (24, 25, 16, 10)] {
         assert_eq!(calves(small), fewer, "a herd of {small} in spring");

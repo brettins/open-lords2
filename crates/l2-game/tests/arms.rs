@@ -66,7 +66,7 @@ fn repo_root() -> PathBuf {
 /// counting as one.
 ///
 /// **The gesture is the second word and it is not decoration.** Until it
-/// existed, an arm could be marked `reproduced`, be genuinely present, and be
+/// existed, an arm could be marked `reproduced`, be present, and be
 /// answered with the wrong *kind* of gesture in every case — a press where the
 /// original waits for the release, a single fire where it auto-repeats — and
 /// nothing anywhere could tell. See `docs/input.md`.
@@ -108,7 +108,7 @@ struct Site {
     how: How,
 }
 
-/// **Every `press::Kind` by its identifier**, read off the type rather than
+/// **Every `press::Kind` by its identifier**, read off the type
 /// listed here.
 ///
 /// `Kind::from_record` is how the original's kind bytes become kinds, and every
@@ -179,7 +179,7 @@ fn declarations_in(text: &str, file: &str, kinds: &BTreeMap<String, Kind>) -> Ve
 
 /// Every marker in the workspace's Rust, of both forms, with where it is.
 ///
-/// A hand-rolled walk rather than a crate: this test must not add a dependency
+/// A hand-rolled walk: this test must not add a dependency
 /// to build, and the tree is a few hundred files.
 fn sites(root: &Path) -> Vec<Site> {
     let kinds = kinds_by_name();
@@ -236,7 +236,7 @@ fn records(root: &Path) -> Vec<Record> {
     };
     let mut out: Vec<Record> = Vec::new();
     let mut id: Option<String> = None;
-    // **Addresses seen since the last `"status"` line**, held rather than
+// **Addresses seen since the last `"status"` line**, held
     // attached at once. A record is created on its `"status"` line, so its
     // `"id"` line arrives while the *previous* record is still `out.last_mut()`
     // — and attaching there silently gave `tax-and-ration-arrows` the supplies
@@ -246,7 +246,7 @@ fn records(root: &Path) -> Vec<Record> {
         // **Only the prose fields**, and the exclusions are each a case that
         // went wrong before the list existed:
         //
-        // * `id` — an id's address is sometimes a **table base** rather than a
+// * `id` — an id's address is sometimes a **table base**
         //   record. `0x004DD538/supplies-sheep-row` is `g_sendSuppliesWidgets`,
         //   whose record 0 is a kind-5 thumb and whose sixth and seventh
         //   records are the kind-4 pair the arm is about. Reading the id as a
@@ -298,7 +298,7 @@ fn records(root: &Path) -> Vec<Record> {
         // Everything after the `"status"` line belongs to the record it made.
         // Deliberately not restricted to `what` and `note`: a table named in a
         // `merged` field is still a table this record is about, and the region
-        // filter at the use site is what makes the net safe rather than the
+// filter at the use site is what makes the net safe
         // field name.
         // `id` is `Some` exactly between a record's `"id"` line and its
         // `"status"` line, which is the window in which the *previous* record
@@ -379,7 +379,7 @@ impl Record {
     /// marker?
     ///
     /// Not the same question as *"do we implement it"*, and the difference is
-    /// the whole reason this is a method rather than a set membership test. A
+/// the whole reason this is a method. A
     /// **removed** invention is something we implemented and took out: it stays
     /// in the file, because the count of inventions is half the 1:1
     /// measurement and deleting the record would delete the evidence, but there
@@ -422,7 +422,7 @@ const STATUSES: &[&str] = &["reproduced", "missing", "dead", "invention", "dead-
 /// | `left-press-repeat` | `Widget_Test` kind 4 | down edge, pressed frame, **accelerating** repeat |
 /// | `left-press-delayed` | `Widget_Test` kind 5 | down edge shows the pressed frame; the handler runs **20 frames later** |
 ///
-/// Adding a value here should cost a decision, which is why it is a list and
+/// Adding a value here should cost a decision, so it is a list and
 /// not a regex.
 const GESTURES: &[&str] = &[
     // The mouse, by kind.
@@ -444,7 +444,7 @@ const GESTURES: &[&str] = &[
     // Not gestures. These are here because the arm they name is real input
     // behaviour that lives outside the input ladder — `docs/arms.json`'s own
     // note on the five places behaviour hides — and leaving them out would
-    // make them unrecordable rather than making them not exist.
+// make them unrecordable.
     "draw",
     "frame",
     "timer",
@@ -454,7 +454,7 @@ const GESTURES: &[&str] = &[
 /// The gesture a `Widget_Test` / `Hotspot_Test` kind byte means.
 ///
 /// `widget` says which of the two testers walks the table: they use **the same
-/// 24-byte record and different kind numbers**, which is why the tester has to
+/// 24-byte record and different kind numbers**, so the tester has to
 /// be part of the question. `Hotspot_Test`'s 3 is a release; `Widget_Test` has
 /// no 3 that fires at all.
 fn gesture_of_kind(widget: bool, kind: u8) -> Option<&'static str> {
@@ -486,7 +486,7 @@ fn every_reproduced_arm_has_a_marker_and_every_marker_has_a_record() {
     let unrecorded: Vec<&Marker> = marked.difference(&claimed).collect();
 
     // The pair is the unit, so a marker whose *gesture* is wrong appears in
-    // both lists. Say so rather than making a reader notice: the whole reason
+// both lists. Say so: the whole reason
     // the gesture is on the marker is that answering an arm with the wrong kind
     // used to be invisible, and reporting it as two unrelated failures would
     // put it back.
@@ -687,7 +687,7 @@ fn every_group_an_arm_names_is_declared() {
 
     // The `groups` object's keys are the two-space-indented `"name": {` lines
     // inside it, and the `arms` array's are six-space-indented `"group": "x"`.
-    // A scan rather than a parser, for the reason `records` gives.
+// A scan, for the reason `records` gives.
     let mut declared: BTreeSet<String> = BTreeSet::new();
     let mut in_groups = false;
     for line in text.lines() {
@@ -772,7 +772,7 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
     // the save/load scroll pair. The tables are laid out contiguously at a
     // 24-byte stride from the first, which is what makes a scan possible at
     // all — and what makes the two spot checks below necessary, because a
-    // wrong base would decode plausible-looking rubbish rather than nothing.
+// wrong base would decode plausible-looking rubbish.
     const HOTSPOTS: (u32, u32) = (0x004D_C4D0, 0x004D_D310);
     const WIDGETS: (u32, u32) = (0x004D_D310, 0x004D_E400);
 
@@ -827,7 +827,7 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
 
     // **The prose half**, which is half the blind spot closed. See
     // `docs/input.md` §7a for why it is record bases only and why an ambiguity
-    // is reported rather than resolved.
+// is reported.
     let mut by_prose = 0usize;
     for r in records(&repo_root()) {
         let named: BTreeSet<&'static str> =
@@ -898,7 +898,7 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
 
     // **The coverage, asserted, because the interesting failure is outside the
     // set the check is exhaustive over.** If this number falls, the check went
-    // quiet rather than green, and a quiet check reads exactly like a passing
+// quiet, and a quiet check reads exactly like a passing
     // one.
     // 37 until the options panels' twelve rows and the orphaned table beside
     // them were recorded; two of those twelve are only classifiable at all

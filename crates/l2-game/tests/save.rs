@@ -136,7 +136,7 @@ fn digest(k: &Kingdom) -> u64 {
     l2_kingdom::save::checksum(k)
 }
 
-/// A game with `n` turns actually played through the phase machine.
+/// A game with `n` turns played through the phase machine.
 fn played(n: usize) -> Game {
     let mut game = furnished(0x51A_7E5);
     for i in 0..n {
@@ -168,7 +168,7 @@ fn a_game_with_turns_behind_it_round_trips_including_its_last_report() {
 /// **The test that can fail for a real reason.**
 ///
 /// Two timelines from the same save, ten seasons each, compared on the digest a
-/// lockstep peer would exchange rather than on a struct compared with itself.
+/// lockstep peer would exchange.
 #[test]
 fn ten_seasons_from_a_reloaded_game_are_the_same_ten() {
     let mut original = played(4);
@@ -194,7 +194,7 @@ fn ten_seasons_from_a_reloaded_game_are_the_same_ten() {
     }
 }
 
-/// The same shape, from the **England turn-one position** rather than from a
+/// The same shape, from the **England turn-one position**
 /// game this file made up. The digest is a different one every time the fixture
 /// is regenerated, so nothing here asserts its value — only that the two
 /// timelines agree.
@@ -279,7 +279,7 @@ fn the_originals_own_save_is_not_mistaken_for_ours() {
 /// all. So the lock is gone, not kept alongside — there is nothing left for it
 /// to guard.
 ///
-/// And forgetting this is loud rather than a race: see
+/// And forgetting this is loud: see
 /// [`an_unscoped_save_is_refused`].
 struct Saves {
     path: PathBuf,
@@ -381,7 +381,7 @@ fn a_save_written_by_another_test_is_in_neither_this_listing_nor_this_load_scree
             saves::write("aaa another test's save", &furnished(1)).expect("write");
             written_tx.send(()).expect("the listing thread is waiting");
             // Held until this thread has looked. A panic over there drops
-            // `release`, and this returns rather than hanging.
+// `release`, and this returns.
             let _ = release_rx.recv();
         });
         written.recv().expect("the other thread wrote its save");
@@ -460,7 +460,7 @@ fn bare() -> (Game, Assets) {
 }
 
 /// Deliver events to a screen through the machine, so that the transitions are
-/// the ones the application would actually apply.
+/// the ones the application would apply.
 fn drive(m: &mut Machine, game: &mut Game, assets: &Assets, events: &[Event]) {
     for e in events {
         let mut ctx = Ctx { game, assets };
@@ -568,7 +568,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     // does — `Key::Char` is folded to upper case for the hotkey matchers, so a
     // field fed from it could never produce a lower-case letter at all. This
     // test drove the old hand-rolled field through the hotkey message and is
-    // the reason that distinction is now enforced rather than assumed. The
+// the reason that distinction is now enforced. The
     // space in the middle is deliberate: a space is a character here, not a
     // confirm, and driving it proves the field takes it.
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
@@ -619,7 +619,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
 /// read; this is the property that kept the screen itself from ever doing so.
 ///
 /// Make the click arm re-read the directory and this loads the save that
-/// arrived rather than the one on screen.
+/// arrived.
 #[test]
 fn a_click_on_the_load_screen_means_the_row_it_drew_even_if_a_save_arrived_since() {
     let _own = Saves::new("arrived");
@@ -657,7 +657,7 @@ fn a_click_on_the_load_screen_means_the_row_it_drew_even_if_a_save_arrived_since
 }
 
 /// **The words on these two screens are the game's**, and this is what makes
-/// that claim checkable rather than asserted: `Mode::heading_index` returns the
+/// that claim checkable: `Mode::heading_index` returns the
 /// painter's own `saving` argument, and `Eng_DrawString(40, saving, …)` uses it
 /// as a string index, so index 0 and index 1 have to be those two sentences in
 /// the user's own `L2.eng`.
@@ -795,7 +795,7 @@ fn the_load_screen_refuses_a_file_it_cannot_read_and_stays_open() {
 /// ```
 ///
 /// So after three writes the three files hold three *different* games, newest
-/// first, and a fourth pushes the oldest off the end rather than growing the
+/// first, and a fourth pushes the oldest off the end
 /// series. Asserted on the kingdom digest and not on the file names, because
 /// names would pass with the same bytes written three times.
 ///
@@ -829,7 +829,7 @@ fn the_autosave_keeps_the_last_three_turns_newest_first() {
 }
 
 /// **The first autosave of a game has nothing to rotate**, and the original
-/// does not care: its `remove` and both `rename`s simply fail and it writes
+/// does not care: its `remove` and both `rename`s fail and it writes
 /// anyway. Ours must not turn that into a failure a player is told about.
 #[test]
 fn the_first_autosave_of_a_game_writes_one_file_and_reports_no_failure() {
@@ -859,7 +859,7 @@ fn the_autosave_lands_where_every_other_save_of_ours_lands() {
 /// **The whole chain, pumped through [`saves::run_pending`]** — the fade raises
 /// it, the machine drains it, and that one function is the only thing in the
 /// workspace that turns it into a file. `main.rs` is these lines and a line that
-/// prints a failure, which is why they are here and not there.
+/// prints a failure, so they are here and not there.
 ///
 /// **It must be raised in the dark, not on the button and not on the far side
 /// of the light.** `FUN_0049A3E6` runs on `g_screenId == 0x24`, after the fade

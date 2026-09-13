@@ -28,7 +28,7 @@
 //! [`build_tick`] spends the besieging army's whole strength on them once a
 //! season, so **an army of 400 building two towers is ready next season and the
 //! same army ordering three rams waits three**. The army does not move while it
-//! builds — not because anything pins it, but because *any* successful move
+//! builds — because *any* successful move
 //! order calls [`break_siege`]. `L2.eng` 10/13 *"Lift the siege?"* is a warning,
 //! not a veto. `[V]`
 //!
@@ -176,7 +176,7 @@ impl EngineBuild {
 /// Why [`begin_siege`] refused.
 ///
 /// `Army_BeginSiege` is a single four-clause `if` with no else, so a refusal is
-/// silent in the original — the map click simply does nothing. Naming the four
+/// silent in the original — the map click does nothing. Naming the four
 /// clauses is what lets the map layer print `L2.eng` 284 / 285 / 289 / 275,
 /// which `docs/armies.md` §9 pairs with exactly these conditions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -358,7 +358,7 @@ pub fn siege_doctrine(t: &Tables, lord: u8) -> Option<i32> {
 ///
 /// **An army with no men does nothing at all** — the whole body is inside
 /// `if (menTotal > 0)`, so `siegeSeasonsLeft` keeps whatever it held. That is
-/// reproduced rather than tidied: a besieger starved to nothing must not
+/// reproduced: a besieger starved to nothing must not
 /// silently report its engines ready.
 ///
 /// Returns the seasons written, or the field's existing value when there were
@@ -461,7 +461,7 @@ pub fn build_tick(units: &mut Units, army: usize) -> bool {
         }
     }
 
-    // 3 — the recount. The original repeats the body rather than calling
+// 3 — the recount. The original repeats the body
     // `Siege_RecomputeBuildTime`, and it differs in one way that matters: the
     // sweep skips records that were already complete when the tick began, so a
     // finished record's percentage is not rewritten. It is already 100.
@@ -631,7 +631,7 @@ pub const CASTLE_DEGRADED_BUILDING: u8 = 1;
 /// > county.percent         = 0;
 /// > ```
 /// >
-/// > — adding to the totals rather than replacing them when a build was
+/// > — adding to the totals when a build was
 /// > already under way, so **a wooden castle is repaired in wood and a stone
 /// > one in stone**, and a siege on a half-built castle makes the job bigger.
 /// >
@@ -639,7 +639,7 @@ pub const CASTLE_DEGRADED_BUILDING: u8 = 1;
 /// > here — *"not reproduced, because every number comes from two battle-side
 /// > accumulators `l2-sim` does not have"* — is out of date in the part that
 /// > matters and was right about the rest. `l2-sim` keeps both accumulators;
-/// > the autocalc really does produce nothing, and that is the rule rather than
+/// > the autocalc really does produce nothing, and that is the rule
 /// > a gap: `Battle_AutoResolve` never touches either global, so a siege the
 /// > player declines to watch leaves the castle unmarked and the three readers
 /// > below are reached only by a siege somebody **fought**.
@@ -650,7 +650,7 @@ pub const CASTLE_DEGRADED_DAMAGED: u8 = 2;
 /// (`0x004787A4`) reads back into the battle when the *next* assault opens on
 /// the same castle.
 ///
-/// That pairing is the whole reason these are stored rather than consumed. A
+/// That pairing is the whole reason these are stored. A
 /// besieger thrown off a half-wrecked castle comes back to a half-wrecked
 /// castle: the moat it filled is still filled, the walls it opened are still
 /// open, and the gate it broke is still broken. Without the round trip the six
@@ -788,8 +788,8 @@ pub fn scars_for_assault(county: &mut County) -> SiegeScars {
     }
 }
 
-/// **Which castle is actually fought** — `Siege_LaunchAssault`'s opening, and
-/// not simply `castleType`.
+/// **Which castle is fought** — `Siege_LaunchAssault`'s opening, and
+/// not `castleType`.
 ///
 /// ```c
 /// if (degraded == 1 && castleBuilding != 0) level = castleBuilding - 1;
@@ -804,7 +804,7 @@ pub fn scars_for_assault(county: &mut County) -> SiegeScars {
 ///
 /// `castleType == 0` — no castle at all — would give `-1`; the assault path
 /// cannot reach it because [`begin_siege`] requires a garrison and a garrison
-/// requires a castle, and it is clamped here rather than wrapped.
+/// requires a castle, and it is clamped here.
 pub fn assault_castle_level(county: &County) -> u8 {
     if county.castle_degraded == CASTLE_DEGRADED_BUILDING && county.castle_building != 0 {
         county.castle_building.saturating_sub(1)
@@ -841,7 +841,7 @@ pub enum Assault {
 /// either names the battle or lifts the siege. **It does not fight the
 /// battle**: `Battle_ChooseSettlement` decides how that happens and the caller
 /// owns it, exactly as [`crate::conquest::attack_county`] hands back
-/// [`crate::conquest::Attack::Battle`] rather than resolving one.
+/// [`crate::conquest::Attack::Battle`].
 pub fn assault(counties: &[County; MAX_COUNTIES], units: &mut Units, army: usize) -> Assault {
     let Some(county) = units.get(army).map(|u| u.besieging_county) else { return Assault::NoSiege };
     if county == 0 {
@@ -977,7 +977,7 @@ pub fn garrison_is_besieged(counties: &[County; MAX_COUNTIES], units: &Units, co
 /// [`break_siege`] on the *besieger*, not on the garrison, and no guard on
 /// `garrison_county` with a live `besieged_by` was located. So this is the
 /// game's own documentation implemented in the absence of the code that does
-/// it, and it is a function a caller must choose to call rather than a rule
+/// it, and it is a function a caller must choose to call
 /// wired into movement.
 pub fn sortie_target(units: &Units, garrison: usize) -> Option<usize> {
     let besieger = units.get(garrison)?.besieged_by;
@@ -1103,7 +1103,7 @@ mod tests {
     }
 
     /// The spill: a season's men that a finished record cannot absorb go to
-    /// the one that is still short, which is why a mixed order does not idle.
+/// the one that is still short, so a mixed order does not idle.
     #[test]
     fn work_spills_from_a_finished_engine_onto_an_unfinished_one() {
         let (counties, realms, mut units) = besieged_county();
@@ -1286,7 +1286,7 @@ mod tests {
         // `Siege_ValidateLink` clears `+0x199` and touches `+0x19A` not at all;
         // the county sweep that would clear it ran *before* the validation
         // pass in the same call. So the pair takes two turn-phase-2s to come
-        // fully apart, and this asserts the lag rather than tidying it away.
+// fully apart, and this asserts the lag.
         assert_eq!(units.get(garrison).unwrap().besieged_by, army as u8, "stale for one turn");
         start_phase(&counties, &mut units);
         assert_eq!(units.get(garrison).unwrap().besieged_by, 0, "and gone on the next");

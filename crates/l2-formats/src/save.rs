@@ -22,14 +22,14 @@
 //! exactly. For the shipped `lastturn.sav` that is
 //! `267,028 + 16 × 12,800 = 471,828` — and if a single length were misread the
 //! arithmetic would not close. [`Save::open`] checks it and refuses the file
-//! otherwise, so a wrong schema fails loudly rather than returning plausible
+//! otherwise, so a wrong schema fails loudly
 //! numbers from the wrong offsets.
 //!
 //! # What this is for
 //!
 //! The England turn-one scenario. `crates/l2-kingdom` reproduces the *rules* exactly, but
-//! its test built the *scenario* from a document rather than from the save —
-//! four counties owned by one realm, where the file actually holds five owned by
+//! its test built the *scenario* from a document —
+//! four counties owned by one realm, where the file holds five owned by
 //! five different realms. Reading the save turns that from a self-consistent
 //! test into a real one.
 
@@ -83,13 +83,13 @@ pub const PLAYER_STRIDE: usize = 0x2C;
 pub const PLAYER_RECORDS: usize = 6;
 /// `+0x04 …` — `FUN_00401136(src, dst, 0x1F)`'s width where a person's typed
 /// name is copied in. The AI half copies **sixteen**, `Eng_Seek(7, lord)` then
-/// `FUN_00401136(g_engCursor, …, 0x10)`, which is why an AI lord's record
+/// `FUN_00401136(g_engCursor, …, 0x10)`, so an AI lord's record
 /// carries the three or five bytes of `L2.eng` that follow its title.
 pub const PLAYER_NAME_LEN: usize = 0x1F;
 
 /// The neighbour ids live at county `+0x5C`, and the next identified field is
 /// `anchorX` at `+0x6C`. That is sixteen bytes, so sixteen slots is what the
-/// record affords — a layout fact rather than a count anyone has observed used.
+/// record affords — a layout fact.
 /// The largest count in the England turn-one fixture is seven.
 pub const NEIGHBOUR_SLOTS: usize = 16;
 
@@ -122,7 +122,7 @@ pub const MERCHANT_ROUTE_ROWS: usize = 6;
 pub const MERCHANT_ROUTE_LEN: usize = 16;
 
 /// `g_merchantStartCounty` — six bytes, the county each route's merchant is
-/// spawned in. A zero entry stops `Merchant_SpawnAll` dead rather than being
+/// spawned in. A zero entry stops `Merchant_SpawnAll` dead
 /// skipped. `docs/formats/plane4.md` §2.1.
 pub const MERCHANT_START_COUNTIES: u32 = 0x0056_9518;
 
@@ -155,7 +155,7 @@ mod globals {
     /// are the starting gold, castle, armoury, garrison or county-status
     /// globals, nor the twelve selections at `0x0053F288`.
     ///
-    /// Five of those are spent while the world is built and are genuinely not
+/// Five of those are spent while the world is built and are not
     /// needed afterwards. `g_optFightHumansOnly` is not: it decides every turn
     /// whether a battle the person is not in is fought or auto-resolved, and a
     /// reloaded game takes whatever value happens to be in memory. Asking for
@@ -242,7 +242,7 @@ impl<'a> Pe<'a> {
     }
 }
 
-/// Little-endian by construction rather than by host layout: a reader that
+/// Little-endian by construction: a reader that
 /// depends on the machine's endianness is a desync waiting for a different
 /// machine.
 fn read_u32(bytes: &[u8], at: usize) -> Option<u32> {
@@ -645,7 +645,7 @@ impl Save {
 
 /// One realm's view of one other realm — realm `+0x84 + other * 0x10`.
 ///
-/// **Read out of the file's own bytes rather than shaped to fit
+/// **Read out of the file's own bytes
 /// `l2_kingdom::realm::Pair`.** The stride and the five offsets come from the
 /// original's access pattern; the two structures agreeing is then evidence,
 /// where building one from the other would have proved only that we ported our
@@ -855,7 +855,7 @@ pub struct Unit {
 impl Unit {
     /// A slot that holds a unit. `Unit_Spawn` marks a free slot with owner 0,
     /// and the type byte is 0 there too; both are tested so a record that is
-    /// half-cleared reads as free rather than as a type-0 unit the dispatcher
+/// half-cleared reads as free
     /// would send to `Unit_TickNone`.
     pub fn is_live(&self) -> bool {
         self.index != 0 && self.owner != 0 && self.kind != 0
@@ -978,7 +978,7 @@ pub struct County {
     pub ration_achieved: i8,
     pub ration_wanted: i8,
     /// `+0x15F` — the percentage of the food requirement taken from livestock
-    /// rather than grain. **0 means all grain**, which is what puts county 1 on
+/// **0 means all grain**, which is what puts county 1 on
     /// Half rations.
     pub ration_split: i8,
     pub grain_eaten: i32,
@@ -1000,19 +1000,19 @@ pub struct County {
     pub herd: i32,
     /// `+0x5C …` — the adjacency ids, of which the first
     /// [`County::neighbour_count`] are live. Read as the full sixteen slots the
-    /// record affords so the trailing zeros are visible rather than assumed.
+/// record affords so the trailing zeros are visible.
     pub neighbours: [u8; NEIGHBOUR_SLOTS],
 }
 
 impl County {
-    /// The neighbour ids actually present, in stored order.
+/// The neighbour ids present, in stored order.
     pub fn neighbours(&self) -> &[u8] {
         &self.neighbours[..(self.neighbour_count as usize).min(NEIGHBOUR_SLOTS)]
     }
 }
 
 impl County {
-    /// Records 0, 15 and 16 are array slots rather than places: zero
+/// Records 0, 15 and 16 are array slots: zero
     /// population, zero everything.
     pub fn is_county(&self) -> bool {
         self.population > 0 || self.owner != 0

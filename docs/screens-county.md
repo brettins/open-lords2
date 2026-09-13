@@ -469,7 +469,7 @@ the hit box from the plate is what put a live pixel where the game has none.
 `crates/l2-game/tests/right_column.rs` reads both tables out of the player's own
 `Lords2.exe` and asserts our constants against them. `docs/decisions.md` C97.
 
-Screen `0x17` is the **raise-army** screen, not merely the mercenary offer: `L2.eng` group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads
+Screen `0x17` is the **raise-army** screen: `L2.eng` group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads
 group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads
 *"Raising an army in"*, and the mercenary band is a conditional sub-panel worth three extra
 window rows. `crates/l2-game/src/screens/shells.rs` calls it "Hire mercenaries", which names
@@ -556,14 +556,14 @@ orders — `Map_ConfirmMoveOrder` on `0x10`, the levy on `0x17` — loads `vill_
 `demo1.pl8`, clears the `WM_KEYDOWN` edge `DAT_004EABB4`, and carries a falling-edge
 "the map scrolled" latch (`DAT_0057CAC4` → `DAT_00565488`) across the frame boundary.
 
-**A second gesture is as common as the right button; it is not a gesture at all.**
+**A second gesture is as common as the right button.**
 Twenty-nine arms open with `if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))`
 → force-close, where `DAT_0055403C` is what `Turn_End` writes and `DAT_00553FC8` is the
 multiplayer sync-wait latch. **A third of this function's job is tearing every open panel
 down when the turn ends or the network blocks**, with no user input involved.
 
 **Where it sits in the frame matters.** Its one caller is `Battle_Frame` (`0x004B99C0`) —
-the whole-game per-frame function; not just the battle's — and it is the *last* thing in
+the whole-game per-frame function — and it is the *last* thing in
 the frame, after every draw pass and after the cursor is chosen. So the `g_redrawRequest`
 it sets is consumed at the top of the **next** frame, and the scroll latch at line 6555 of
 the next frame: **its effects are one frame late by construction.** Anything that tries to
@@ -627,7 +627,7 @@ and `docs/arms.json` `0x0042FF10/inset-runs-the-sidebar-guards` is the record.
 
 Two things follow that §2.3 does not say. **The guards are tested first**, and every one of
 them fires on a *left* click, so clicking the strip or the sidebar while a panel is open
-**switches** panel, opening a new choice without a trip via the map. The outer condition is not a keyboard test: `DAT_0055403C`
+**switches** panel, opening a new choice without a trip via the map. `DAT_0055403C`
 The outer condition is not a keyboard test; `DAT_0055403C`
 is what `Turn_End` writes, `DAT_00553FC8` is the multiplayer turn state and `DAT_00553018`
 is the F12 debug override, so its `else` **force-closes the panel when the turn ends under
@@ -707,7 +707,7 @@ pass runs before the input pass in the frame.
 had a *button* with the wrong *picture* — it called the corner "the tick" in five places, and
 §4.2 labelled frame `0x33` "the tick that closes a panel". The reading that replaced it
 inferred from `L2.eng` group 12 index 0, *"Click Right to Exit"*, that the corner must
-therefore be **signage**, not a target — a clean story that the artwork does not
+therefore be **signage** — a clean story that the artwork does not
 support. Each was a plausible account of one half built from evidence about the other, which
 is C3's shape at the scale of a single 24 × 24 frame, and the fix in both directions was to
 decode the frame and look at it. `docs/decisions.md` C46.
@@ -796,7 +796,7 @@ Four details worth carrying into any reimplementation:
   cattle, *"Serf"* for reclamation, then *"Builder"*, *"Miner"*, *"Quarrier"*,
   *"Forester"*, *"Blacksmith"* and *"Peasant"* — nine jobs, in order. **[V]**
 * **Every string is drawn three times**, at y−1 and y+1 in two shadow colours and then at y
-  in the real colour. Text on these panels is embossed, not flat.
+in the real colour. Text on these panels is embossed.
 
 ### 3.1 There are **two** ways to float something over the screen  **[V]**
 
@@ -1082,7 +1082,7 @@ county at the end of every season — and are then *restored* by a load like any
 the memory image. Our importer read neither, so a freshly loaded tax panel said *"People pay
 0 crowns"* at any rate and drew `( 0 ☺ )` where the original draws `( +5 ☺ )` at rate 0;
 `docs/decisions.md` C142, and `battle-during.sav` is the save that shows
-recomputing on load would be wrong, not merely redundant.
+recomputing on load would be wrong.
 
 **The two arrow buttons are the widget table `g_taxWidgets` (`0x004DD790`)** — two records,
 both 24 × 24, kind 4 (auto-repeating press):
@@ -1278,7 +1278,7 @@ from the file; they agree, and
 `l2-game/tests/screens.rs::the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in`
 asserts it including the frames either side of each run.
 
-**The clock is `Tick_Pulses` (`0x004BBC80`); it is not a frame counter.**
+**The clock is `Tick_Pulses` (`0x004BBC80`).**
 chain that sets eight booleans, each cleared at the top of every call and true only on the
 frame it fires: a **20 ms** gate on `timeGetTime`, `g_pulse80` every fourth of those, and
 `g_pulse160` every second `g_pulse80`, plus six slower ones at 320, 640, 1040, 1280, 1920 and
@@ -1299,7 +1299,7 @@ it leave the kingdom byte-identical (`docs/netcode.md` D-12).
 ### 6.4.1 The gesture is three screen ids **[V]**
 
 `Screen_HandleInput` gives the drag its own screens, and reading them settles what the
-gesture is rather than leaving it to be guessed:
+gesture is:
 
 | id | what | leaves when |
 |---|---|---|
@@ -1324,7 +1324,7 @@ workers the job wants and has not got.
 **The game never times the clicks.** The window procedure (`0x004B29BE`) handles message
 `0x203` — `WM_LBUTTONDBLCLK` — with `DAT_004EADA1 |= 1`, and the frame poll turns that into
 `DAT_004EABC5`. Windows decides, against the user's own `GetDoubleClickTime()`, and sends
-the double click **instead of** the second `WM_LBUTTONDOWN`, which is why the button-level
+the double click, so the button-level
 flag never rises for it. `DAT_004EABC5` is read in exactly one place in the whole binary,
 and this is it. (Its right-button twin, `DAT_004EA4B4`, is computed and never read.)
 
@@ -1738,7 +1738,7 @@ the screen or the message id they want, because the confirm box (`0x1E`), the va
 (`0x21`) and the message scroll are not built. `docs/arms.json` group `menu-bar`, and
 `docs/decisions.md` C76 on what one *"not reproduced"* table row was hiding.
 
-**One thing the geometry forces; it is worth stating here.** `Ui_DrawMenuTitles` writes
+**One thing the geometry forces.** `Ui_DrawMenuTitles` writes
 each caption's measured right edge *back into the table* at draw time, so the bar cannot be
 hit-tested until it has been painted — the hit boxes are an output of the draw pass. Any
 reimplementation that lays the titles out from constants will get the dead 32-pixel gaps
@@ -1845,11 +1845,11 @@ Five of these have a second, independent anchor; the block is **[V]**, not
 * **`g_optAnimations`**: `Screen_BattleOutcome`, four screens away, branches on the same flag
   to draw a taller box with an inset animation panel.
 * **`Opt_GameHelpContents`** calls `WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1)` — an
-import; it is not a matter of opinion.
+import.
 
 **The four advanced rules go over the network in a network game.** Each of their four
 handlers is `if (g_multiplayer == 0) { flip } else { Net_SendCommand(0x32, 0); g_screenId =
-g_menuPrevScreen; }`; **This said `tip 0x32`; it is not a tip**: `0x32` is a net opcode,
+g_menuPrevScreen; }`; `0x32` is a net opcode,
 whose writer `FUN_00444346` sends `g_uiHotspotId` — the row, 1 … 4, which each handler writes
 first — and whose handler `FUN_004443AA` passes it to `FUN_00447136(0x17, …)`. What that
 applies was not read (`node tools/oracle/netcmds.js 0x32`). `Opt_ToggleArmyForaging`
@@ -1862,7 +1862,7 @@ later. The two ways out are `g_mouseRightReleased` and `Ui_OkButtonClicked`, **t
 0x39 alone also has the sync latch. `docs/arms.json` group `options-panels`.
 
 `g_optFightHumansOnly` is **stored inverted**: the painter shows *"Yes"* when it is 0, and
-when it is 0 — the local player is not a participant — the battle resolver skips the
+when it is 0 — the battle resolver skips the
 prompt on screen 0x12 and jumps straight to the result on 0x13.
 
 ### 10.3 Two dialogs serve the whole game **[V]**
@@ -1960,7 +1960,7 @@ decompiler prints those cases as `g_screenId == '\b'`, `'\t'`, `'\n'`, `'\v'`, `
 39 arms read by hand, which now agree with the tool on all 43 ids.
 
 This is the failure mode a hypothesis generator is *most* dangerous in: the output was
-self-consistent, three columns joined across three dispatchers, and simply displaced. It cost
+self-consistent, three columns joined across three dispatchers, and displaced. It cost
 nothing here only because §1 of this document already had the right ids to disagree with.
 
 ### 10.7 `0x35` / `0x36` — the save and load box, whole **[V]**
@@ -2061,7 +2061,7 @@ Ui_DrawBox(8, 200, 8, 3) + 71/0xB + cap + 71/0xC         "Barracks for N troops.
 come out negative because upgrading to a stonier castle refunds wood. It is printed as it
 comes.
 
-`CastleBuild_Confirm` has exactly **two** guards; both close the screen rather than
+`CastleBuild_Confirm` has exactly **two** guards; both close the screen
 staying on it:
 
 | condition | message | `L2.eng` |

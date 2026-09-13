@@ -71,8 +71,8 @@ pub enum Shape {
     /// Diamond plus right-half chevron overhang: `height^2 + rows * height`.
     DiamondRight,
     /// Not artwork: a mouse hit-test region map at 1/8 resolution, one byte per
-    /// 8x8 screen block, holding region ids rather than palette indices. The
-    /// engine only ever reads these from region code, never from a blitter.
+/// 8x8 screen block, holding region ids. The
+/// engine only ever reads these from region code.
     ///
     /// Detected structurally, not by filename: the frame's declared byte span
     /// is exactly `(width/8) * (height/8)`.
@@ -135,14 +135,14 @@ pub struct DecodedFrame {
     pub height: u16,
     /// Palette indices, row-major, `width * height` entries.
     pub indices: Vec<u8>,
-    /// Per-pixel coverage, i.e. whether the game would actually paint this
+/// Per-pixel coverage, i.e. whether the game would paint this
     /// pixel. Two things make a pixel transparent: an RLE skip run, and a
     /// palette index of 0 - every blitter copies only non-zero bytes
     /// (verified in the original at 0x004B43B1).
     pub opaque: Vec<bool>,
 }
 
-/// A parsed PL8 file. Borrows the caller's bytes rather than copying them.
+/// A parsed PL8 file. Borrows the caller's bytes.
 pub struct Pl8<'a> {
     data: &'a [u8],
     pub storage: Storage,
@@ -184,7 +184,7 @@ impl<'a> Pl8<'a> {
         }
         // Reclassify hit-test region maps. Their shape byte says "rectangle",
         // but they hold one byte per 8x8 block, so a rectangle read runs off the
-        // end of the file. Decided on the byte span rather than the filename.
+// end of the file. Decided on the byte span.
         for i in 0..frames.len() {
             // RLE frames have variable-length data and no meaningful shape byte,
             // so a coincidental span must not reclassify one.
@@ -203,14 +203,14 @@ impl<'a> Pl8<'a> {
         }
 
         // A file that declares RLE but whose every frame spans exactly w*h is
-        // stored raw: the header byte is simply wrong. `Font_c2.pl8` is the same
+// stored raw: the header byte is wrong. `Font_c2.pl8` is the same
         // font as `Fntl2_9.pl8`, exported twice, and shares 103 of its 108 frame
         // records. Nothing in the engine reads the family byte, so a wrong one is
         // invisible to the game.
         //
         // Decided over the *whole file*. Deciding per frame would let a single
         // coincidental span reinterpret one frame of an otherwise valid RLE file
-        // - including a genuinely corrupt frame that should have raised an error.
+// - including a corrupt frame that should have raised an error.
         let storage = if storage == Storage::Rle
             && !frames.is_empty()
             && frames.iter().enumerate().all(|(i, f)| {
@@ -279,7 +279,7 @@ impl<'a> Pl8<'a> {
         // (0x00402A14) adds byte 0x0D to `y` before it clips, for every frame,
         // without looking at how many bytes the frame occupies.
         let reserves_overhang = info.shape == Shape::Rect && self.storage != Storage::Rle;
-        // Whether the rows are actually *stored* stays structural: does the
+// Whether the rows are *stored* stays structural: does the
         // bare rectangle land exactly on the next frame's offset?
         let stored_rect_overhang = reserves_overhang && rows > 0 && start + w * h != boundary;
 
@@ -323,7 +323,7 @@ impl<'a> Pl8<'a> {
         // reads bytes 0 or 1, so the engine cannot see them. Base2a and Base2b
         // differ in exactly one byte of their 2,248-byte header and frame table
         // - byte 0 - with identical frame records. So dispatch on the per-frame
-        // shape byte for every family, not just for isometric files.
+// shape byte for every family.
         let end = if self.storage == Storage::Rle {
             self.decode_rle(index, info, &mut indices, &mut opaque)?
         } else {
@@ -504,7 +504,7 @@ impl<'a> Pl8<'a> {
     /// pixels inside the diamond are stored; there are no control bytes.
     ///
     /// Each overhang record is a *chevron* tracing the diamond's own upper
-    /// silhouette rather than a horizontal row, and record `i` paints one
+/// silhouette, and record `i` paints one
     /// screen row higher than the last. That is how the engine extrudes
     /// mountains and cliffs upward without storing a bounding rectangle.
     fn decode_iso(
@@ -601,7 +601,7 @@ mod tests {
     use super::*;
 
     /// Assembles a PL8 in memory: header, frame table with offsets filled in to
-    /// match, then the payloads laid end to end. Synthesised rather than checked
+/// match, then the payloads laid end to end. Synthesised
     /// in as a fixture because no game data may live in this repository - and
     /// because the corpus test skips entirely without `LORDS2_DIR`, so these are
     /// the only PL8 tests that run on a bare checkout.
@@ -689,7 +689,7 @@ mod tests {
     fn frame_must_end_exactly_where_the_next_begins() {
         let f0: &[u8] = &[0x00, 0x01, 0x03, 0x0a, 0x0b, 0x0c, 0x02, 0x0d, 0x0e, 0x00, 0x02];
         let mut bytes = build(1, 0, &[(4, 2, f0), (2, 1, &[0x00, 0x02])]);
-        // Push frame 1 one byte later than frame 0 actually ends. This is the
+// Push frame 1 one byte later than frame 0 ends. This is the
         // invariant the whole corpus check rests on, so it must really bite.
         let rec = HEADER_LEN + FRAME_RECORD_LEN;
         let moved = u32::from_le_bytes([bytes[rec + 4], bytes[rec + 5], bytes[rec + 6], bytes[rec + 7]]) + 1;
@@ -758,7 +758,7 @@ mod tests {
                 0, 0, 15, 16, 0, 0,
             ]
         );
-        // Outside the diamond is not merely index 0 - it was never written.
+// Outside the diamond was never written.
         assert_eq!(&f.opaque[0..2], &[false, false]);
         assert_eq!(&f.opaque[6..12], &[true; 6]);
         pl8.validate().unwrap();

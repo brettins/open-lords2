@@ -3,7 +3,7 @@
 `docs/draws.md` is the pilot over seven screens. It ends by saying the campaign map *"was
 not enumerated here … any cost estimate that does not include it is an estimate of the easy
 part."* This is that enumeration, in the shape §5 of that document asks for: **the listing
-is the inventory, and the number beside it is derived by a script rather than typed.**
+is the inventory, and the number beside it is derived by a script.**
 
 ```bash
 node tools/draws/mapdraws.js           # the table below
@@ -67,7 +67,7 @@ Deliberately excluded, and each exclusion is a decision somebody could disagree 
 * **Screens that are drawn over the map but are their own screen.** `Msg_Pump`'s message
   scroll, `Tip_Update`'s tip page, `Screen_DrawWidgets`' widget layer and the battle
   overview. The drop-down menu **is** counted (`FUN_0040C725`), because it is drawn from
-  `Battle_Frame` on top of the live map rather than replacing it, and because the map's own
+`Battle_Frame` on top of the live map, and because the map's own
   module already owns the three titles under it.
 * **The palette.** `Palette_Set(Base01.256)` and `FUN_004B0CB4`'s sixteen-step fade change
   every pixel on the screen and are not a draw call in this sense.
@@ -191,7 +191,7 @@ tile at the wrong offset**, and this table has both numbers in it:
   arm 1's offset, and landed ten pixels right and ten up. `Zoom::mercenary_at` is arm 2's.
 
 **A third source settles the quadrant without reading `part` at all**, and it is the one
-that makes the reading `[V]` rather than an inference from a format document:
+that makes the reading `[V]`:
 `County_FindTownTile` (`0x00467FD1`) sweeps in index order and sets **bank bit `0x80` on
 the 0th and the 2nd** town tile it meets. `FUN_00405EB5` is
 `if (tile.bank & 0x80) Sprite_TopIt(…)`, so bank `0x80` is the only gate on this pass
@@ -271,7 +271,7 @@ max frame = 2 * 6 + 5 + 0x55 = 0x66
 ```
 
 `Flags1a.pl8` frames `0x55 … 0x66` are exactly eighteen frames. The ladder **saturates**
-rather than overflowing: a herd of 25 per field and a herd of 45 per field are the same
+a herd of 25 per field and a herd of 45 per field are the same
 picture. The mismatch is a loss of information in the graphic, not a fault.
 
 The dead half is equally safe: `0x10 … 0x12` maps to `0x67 … 0x78`, which exist (as 2 × 2
@@ -462,7 +462,7 @@ tail one function along (`Industry_LabourEstimate`, C136), and this section held
 blocked on a layout question that turned out to have been a wrong base, below.
 
 **And the repetition is what let the middle one ship untested.** Cattle and reclamation each
-got a test the same evening; grain — the row the player actually reported — got none at
+got a test the same evening; grain — the row the player reported — got none at
 either layer, and `land::grain_preview` had no caller in any test in the workspace. Two
 neighbours reading as covered is what covered reads like. It is now
 `the_grain_forecast_is_the_sowing_loss_the_player_reported` (the four seasonal arms) and
@@ -483,7 +483,7 @@ one until the first season ends.
 otherwise.** It said each row reads *"the record above the commodity its row is for, and the
 wood row's `0x2F0` is one whole record past the end of a four-record array"* — an off-by-one in
 the original or a wrong base in `docs/records.json`, unsettled. **It was the base, the row was
-stone's rather than wood's, and there is no off-by-one.** `docs/decisions.md` C153.
+stone's.** `docs/decisions.md` C153.
 
 The `Industry` array is based at county **`+0x294`**, not `+0x290`: stride `0x18`, four records
 closing exactly on `levySurcharge` at `+0x2F4`. `+0x290` is the standalone `weaponType` byte,
@@ -503,7 +503,7 @@ The operands are Ghidra's, under its `+0x290` base; the county column is the add
 painter side and the producer side agree with no residue. Three readings make it **[V]** rather
 than arithmetic: every raw county address the decompilation uses with a `*0x18` stride lies in
 `+0x294 … +0x2AB`, which is **exactly one stride**; `+0x294` ends the array on the next named
-field where `+0x290` leaves a four-byte hole that is precisely the stone row's word; and every
+field where `+0x290` leaves a four-byte hole that is the stone row's word; and every
 fixture save on this machine stores, at `+0x2A8 + c*0x18`, the forecast its own record `c`'s
 workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import.rs`).
 
@@ -574,9 +574,9 @@ mid-session and without having seen any of this:
 > *"Sidebar doesn't show grain being planted as a negative number."*
 
 That is `FUN_0041023A`'s fourth draw call, row 4 of the grain row's five, sitting in this
-document's missing column. Three things had to be told apart to say so rather than guess it.
+document's missing column. Three things had to be told apart to say so.
 
-**One — the row does draw a signed number, and the minus is not a separate mark.**
+**One — the row does draw a signed number.**
 `Ui_DrawDelta` (`0x00402E0C`):
 
 ```c
@@ -598,15 +598,15 @@ semantics, and the only place on this screen that does that dance.
 
 Two things beyond the sign are worth having: a positive delta gets an explicit **`'+'`**, and
 zero gets **`'@'`**, a blank glyph that holds the column. And all eight rows pass `mode = 0`,
-so **a zero delta draws nothing whatever** — which is why the absence has read as a quiet
-row rather than as an obvious hole.
+so **a zero delta draws nothing whatever** — so the absence has read as a quiet
+row.
 
 **Two — but the value never arrives, so the sign question never comes up.** The grain row
 reads county `+0x22C`. Its only writer is the **tail** of `Grain_LabourEstimate`
 (`0x0044D374`), after the search loop:
 
 ```c
-staff = county.labour[0].workers;                        /* the real staffing, not the search */
+staff = county.labour[0].workers;                        /* the real staffing */
 county.field_0x230 = Grain_Sow(county, staff, county.grain);          /* what sowing will cost */
 if (season == 4)                county.crop[2]      = Grain_Harvest(county, staff, county.crop[1]);
 if (season == 2 || season == 3) county.field_0x2FC   = Grain_Grow   (county, staff, county.crop[1]);
@@ -662,11 +662,11 @@ if (g_realms[g_localPlayer].aiStep < 999)
     Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall, 0x16);
 ```
 
-**The strip is opaque artwork, so blitting it is the erase, and the label is simply not put
+**The strip is opaque artwork, so blitting it is the erase, and the label is not put
 back.** One draw call, conditionally made — which is the one in §2's listing, and ours made it
 unconditionally.
 
-**The flag is `aiStep`, and it is a per-realm turn program counter rather than a boolean.**
+**The flag is `aiStep`, and it is a per-realm turn program counter.**
 `Turn_BeginPlayersTurn` sets every living realm's to 0 and a dead realm's to 999, counting the
 rest into `g_realmsActive`; `AI_RunTurnStep` walks it up and parks it at 999 when that realm is
 finished; **`Turn_End` (`0x0043AC23`) — this button's own handler — sets the local player's to
@@ -699,7 +699,7 @@ progress indicator across the top of the screen. A player remembered it before a
 read it: *"the shield icons at the top meant that players hadn't ended their turn."*
 
 **Correction: this paragraph used to end *"reproducing it needs a per-realm turn counter this
-workspace does not keep, so it is reported rather than built."*** The workspace has kept one
+workspace does not keep, so it is reported."*** The workspace has kept one
 the whole time — `l2_kingdom::Realm::ai_step`, written by `ai::begin_turn` and `ai::run_step`
 and read by `drive_ai` on every tick of phase 4. The sentence reported a gap in the *model*
 where the gap was in the *painter*, and it was the reason nobody built a twelve-character
@@ -752,7 +752,7 @@ Never `'\0'` — which the function treats as *terminate immediately*, because i
 the buffer was cleared to. `'@'` is a glyph with no picture and no advance beyond the space, so
 those 62 sites are asking for **an invisible sign column that still holds its place**, which is
 only meaningful if the column is there to be aligned on. `SPACE_ADVANCE`'s own doc comment in
-`crate::shell::font` had already worked that out one level down; the strip's call sites simply
+`crate::shell::font` had already worked that out one level down; the strip's call sites
 did not use it.
 
 **Scope.** 350 call sites across the four number routines — `Ui_DrawNumber` 190 (not 191, C163),
@@ -761,7 +761,7 @@ are the campaign sidebar's five; the rest of the tree is a sweep somebody should
 `strip_number` / `body_number_centred` as the shape. **C127.**
 
 *`Ui_DrawCount` was written 81 here and is 80*: 80 `CALL 0x0041AB67` in the shipped exe, 80 call
-lines in the decompilation. **Its share of the sweep is done**, as one change rather than 80:
+lines in the decompilation. **Its share of the sweep is done**, as one change:
 `Ui_DrawCount` has no lead argument — it always passes `'@'` and an empty suffix — so `Pen::count`
 stopped taking one, and all 22 of our reproductions draw the original's string. The menu bar's
 treasury moved from x 500 to 504. `Ui_DrawNumber`'s share is still open, and its **suffixes** are
@@ -826,7 +826,7 @@ Four causes fitted. The binary picked one, and the elimination is worth more tha
 28. Renamed `herdOverallChange` (303 record fields before, 303 after). That wrong name is what
 made *"the delta excludes slaughter"* the leading hypothesis — **a wrong name in a data file is
 repeated by everyone downstream and interrogated by nobody**, because a name does not look like
-a claim. Third time in two days a document acted as an input to reasoning rather than a record
+a claim. Third time in two days a document acted as an input to reasoning
 of it, after the dead variant and the "right-aligned" comment.
 
 **The real cause: the tail again.** `Herd_LabourEstimate` is a search loop plus a tail, and the
@@ -880,7 +880,7 @@ That leaves these arms enumerated but not observed, and I have not inferred past
   the game keeps — `+0x19A` on the *garrison* and `+0x19C` on the besieger — and asserts
   frame `0x82` and the centred count pixel for pixel. **No fixture is needed and none would
   have helped**: the bullet read as *wait for a save with a siege in it*, and what the arm
-  actually wants is two bytes, which is the same shape as the mercenary marker's one;
+wants is two bytes, which is the same shape as the mercenary marker's one;
 * **the far zoom's dead besieger call** — `Sprite_TopIt` calls `FUN_00407F82(…, 2, -0x28)`
   at `g_mapZoom == 2` and the callee's whole body is inside `if (g_mapZoom == 0)`, so it
   draws nothing. Not observable because there is nothing to observe; `docs/bugs.md`;
@@ -961,7 +961,7 @@ Both are already marked in the code as ours; what was missing was the original's
 produced more."* The campaign map cost about a day, as estimated, and the ratio held: **139
 draw calls against `docs/arms.json`'s 25 input arms for the same screen group**, and nine
 findings, of which
-**five are things we draw or claim wrongly** rather than things we fail to draw — the same
+**five are things we draw or claim wrongly** — the same
 direction the pilot's §2 reported.
 
 Two things the pilot could not settle, that this screen can:

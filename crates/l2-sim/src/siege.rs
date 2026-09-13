@@ -104,7 +104,7 @@ pub const FLAG_WALL: u8 = 0x20;
 /// (`FUN_00496B9F`, `0x00496B9F`) scans for one of these and does nothing at
 /// all if none exists.
 ///
-/// The shipped `Readme.txt` says which castles have one: *"Note that only the
+/// The shipped `Readme.txt` says which castles have one: *"only the
 /// Stone and Royal castles have drawbridges."* That is levels **3 and 4**, and
 /// it explains why the routine is written as a search that can fail. `[V]` —
 /// the errata and the code agree, from opposite ends.
@@ -234,10 +234,10 @@ pub const SURFACE_DRAWBRIDGE: u8 = 0x0B;
 /// > `docs/battle.md` §16.1 says the restore "overwrites the fresh
 /// > `g_siegeApproachScore = 500` that `Battle_Start` wrote a moment earlier".
 /// > All three halves of that are wrong: the 500 is the castle builder's, the
-/// > restore only fires on a repeat assault, and what actually overwrites it is
+/// > restore only fires on a repeat assault, and what overwrites it is
 /// > the moat.
 ///
-/// It is load-bearing rather than cosmetic. Four attacker handlers open with
+/// It is load-bearing. Four attacker handlers open with
 /// `approach_score < 3 || breach_score == 0`; start a **dry** castle at 0 and
 /// the besieger never leaves the approach ladder however long the battle runs,
 /// and start a **moated** one at 500 and nobody ever fills the ditch. `[V]`.
@@ -282,7 +282,7 @@ pub const WALL_ELEVATION: u8 = 1;
 /// down, writes `elevation = 0` over that cell.
 ///
 /// [`smash_walls`] deliberately does **not** do this — the original leaves the
-/// elevation alone there — which is why [`WALL_ELEVATION`] has to be 1.
+/// elevation alone there — so [`WALL_ELEVATION`] has to be 1.
 /// `[V]` — the literal in the collapse routine.
 pub const BREACH_ELEVATION: u8 = 0;
 
@@ -307,7 +307,7 @@ pub const GATE_BREACH_SCORE: i32 = 4;
 /// `g_moatFillSteps` — how many loads of earth one moat cell swallows before
 /// [`fill_moat_cell`] turns it into ground. `0x0F`, written once at
 /// `0x004975...`; the original keeps the running count in the cell's **terrain**
-/// byte, which is why [`fill_moat_cell`] zeroes it on the way past. `[V]` — the
+/// byte, so [`fill_moat_cell`] zeroes it on the way past. `[V]` — the
 /// literal in the binary.
 pub const MOAT_FILL_STEPS: u8 = 15;
 
@@ -317,7 +317,7 @@ pub const MOAT_FILL_STEPS: u8 = 15;
 /// original picks the threshold with `ownerIsHuman ? 100 : 0x50` and then tests
 /// `threshold < counter`, so a human's man is 101 frames a load and an AI's 81.
 /// That is a fifth ownerIsHuman asymmetry, on top of the four
-/// `docs/battle.md` §6.2 lists, and it is reproduced rather than levelled.
+/// `docs/battle.md` §6.2 lists, and it is reproduced.
 /// `[V]`.
 pub const MOAT_TICKS_PER_LOAD_HUMAN: u8 = 100;
 pub const MOAT_TICKS_PER_LOAD_AI: u8 = 0x50;
@@ -341,7 +341,7 @@ pub const DRAWBRIDGE_COLS: usize = 4;
 /// `DAT_004D9E18` — the 28 tile frames the drawbridge patch is drawn with,
 /// row-major, one per cell of the 7 × 4.
 ///
-/// **Read out of `Lords2.exe` rather than out of a listing** (`docs/decisions.md`
+/// **Read out of `Lords2.exe`** (`docs/decisions.md`
 /// C3, and the reading-comprehension failure recorded in `docs/battle.md`
 /// §8.2a): the original indexes it `(&DAT_004D9E18)[i * 4]`, so it is 28
 /// **`i32`s**, 112 bytes, at file offset `0xD8018`. Frame 197 is the filler —
@@ -395,7 +395,7 @@ pub struct SiegeState {
     /// > `Battle_Start` zeroes it, `FUN_004787A4` restores it from the county,
     /// > and **`FUN_0047DD86` — the moat fill — adds one**. Nothing about a
     /// > breach touches it. It counts cells of water that were shovelled full,
-    /// > which is why it costs the county **work and no materials**: five
+/// > so it costs the county **work and no materials**: five
     /// > man-seasons a cell to dig out again, and not a stick of wood.
     /// > `[V]` — an exhaustive search for writers.
     pub moat_filled: u16,
@@ -415,7 +415,7 @@ pub struct SiegeState {
 /// It exists so that `l2-kingdom` can bill the repair without depending on
 /// `l2-sim` — `docs/plan.md`'s one-way rule — and so that the autocalc path can
 /// hand over an honest **nothing**: `Battle_AutoResolve` never touches an
-/// accumulator, so a siege that was calculated rather than fought does no
+/// accumulator, so a siege that was calculated does no
 /// damage at all and `Siege_RecordCastleDamage` returns at its first `if`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CastleDamage {
@@ -532,9 +532,9 @@ pub fn strike_wall(state: &mut SiegeState, standing_on: u8, is_ram: bool) -> Wal
 ///   `movement::can_step_elevation` allows exactly that. It is
 ///   [`collapse_wall`], the catapult's routine, that flattens a cell.
 /// * **A wall and a drawbridge both become [`SURFACE_BAILEY`]**, so the hole
-///   joins the courtyard region rather than becoming a category of its own.
+///   joins the courtyard region.
 ///   That is what puts a besieger who is standing in it onto the *rampart*
-///   accumulator, and it is why a breach spreads at 5,000 hits rather than
+///   accumulator, so a breach spreads at 5,000 hits.
 ///   20,000.
 /// * **The wall's graphic bump lands one row south** — `frame[+0x280] += 0x10`
 ///   — while the drawbridge's lands on the cell itself. Reproduced, because
@@ -587,8 +587,8 @@ pub const SMASH_RADIUS: i32 = 4;
 /// ```
 ///
 /// It is **not** [`smash_walls`] and leaves a different mark: surface
-/// [`SURFACE_COLLAPSED`] rather than [`SURFACE_BAILEY`], the elevation
-/// flattened to [`BREACH_ELEVATION`], and `flags` set to 2 outright rather than
+/// [`SURFACE_COLLAPSED`], the elevation
+/// flattened to [`BREACH_ELEVATION`], and `flags` set to 2 outright.
 /// having a bit cleared — so a collapsed cell carries neither [`FLAG_WALL`] nor
 /// [`FLAG_DRAWBRIDGE`] and is passable.
 ///
@@ -638,12 +638,12 @@ pub fn collapse_wall(field: &mut Battlefield, state: &mut SiegeState, cell: usiz
 ///   guard is level 3 and up, and the shipped `Readme.txt` says *"only the
 ///   Stone and Royal castles have drawbridges."* Four sources, one verb.
 ///   `C79`.
-/// * **It is not a hole in the wall for the besieger.** It sets the *same*
+/// * It sets the *same*
 ///   two globals a twenty-thousandth ram hit sets — `_DAT_00569588` and both
 ///   scores by 4 — so as far as every AI order handler is concerned **the
 ///   garrison has opened its own gate**. That is the price of a sally, and it
 ///   is why the Readme says a drawbridge cannot be closed again.
-/// * **It does not fire when there is no drawbridge cell.** The latch is set
+/// * The latch is set
 ///   *inside* the `if`, so a level-3 castle whose layout happens to carry no
 ///   `0x40` cell leaves the button live. Reproduced.
 ///
@@ -651,7 +651,7 @@ pub fn collapse_wall(field: &mut Battlefield, state: &mut SiegeState, cell: usiz
 /// > leaves only the inner loop, and the outer one then re-tests the same cell
 /// > for every remaining row, breaking immediately each time. The *answer* is
 /// > unaffected — the offset stops at the first `0x40` cell either way — but
-/// > `g_foundTileX` / `g_foundTileY` are left at `(0, 0x50)` rather than at the
+/// > `g_foundTileX` / `g_foundTileY` are left at `(0, 0x50)`.
 /// > cell, which is a battlefield-wide scratch pair other routines read.
 /// > Nothing was found that reads them between here and their next write.
 /// > `docs/bugs.md` `B85`. `[V]` on the control flow, `[I]`
@@ -1292,7 +1292,7 @@ pub mod code {
 
 /// Every frame index the level's structure table files under `want`, in index
 /// order. The lists are short — four, usually — and this is how the tile a
-/// structure is drawn with is *derived* rather than typed.
+/// structure is drawn with is *derived*.
 pub fn frames_with_code(level: u8, want: u8) -> Vec<u8> {
     let table = if level > 1 { &STRUCTURE_STONE } else { &STRUCTURE_WOOD };
     (0..256u16).filter(|&f| table[f as usize * 2] == want).map(|f| f as u8).collect()
@@ -1407,7 +1407,7 @@ pub fn our_castle_ai_field(field: &Battlefield, level: u8) -> crate::AiField {
     // at all** when it finds none — so a unit parked further out than that from
     // the moat never shovels, never raises the approach score, never passes the
     // `approach_score < 3` gate, and never assaults. The ladder alternates
-    // staging with the ditch hunt precisely on the assumption that staging is
+// staging with the ditch hunt on the assumption that staging is
     // close enough, and ours was 21 cells beyond the water: measured, 848 men
     // sat in the field for 200,000 frames with a full ditch in front of them.
     // Six rings two cells apart, the outermost `h + 12` from the centre, keeps
@@ -1448,7 +1448,7 @@ mod tests {
     use super::*;
 
     /// The two accumulators, and that they are chosen by where the *attacker*
-    /// stands rather than by what it hits.
+/// stands.
     #[test]
     fn a_man_on_the_rampart_chews_the_wall_and_a_man_on_the_ground_chews_the_gate() {
         // Level 1: one of the three campaign levels that ship with no gap in

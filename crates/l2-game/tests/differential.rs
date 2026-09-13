@@ -29,7 +29,7 @@
 //!    own record layout at the offsets `docs/kingdom.md` names, not a
 //!    projection of ours. The two structures were written independently and
 //!    `l2-formats` knows nothing about a kingdom, which is what makes this
-//!    evidence rather than a round trip.
+//!    evidence.
 //! 4. Compare, field by field, and print every divergence with the field's
 //!    path, the original's value, ours, and the delta.
 //!
@@ -82,7 +82,7 @@
 //!
 //! * every comparison, and
 //! * only the comparisons where **the original's own value changed between the
-//!   two saves** — the fields the turn actually moved.
+//!   two saves** — the fields the turn moved.
 //!
 //! The second number is the one that means anything. Both are asserted, and the
 //! ablation below is what proves the difference between them is real rather
@@ -99,7 +99,7 @@
 //! an *action*, and no amount of simulation recovers it. There is no pair of
 //! consecutive saves that avoids this — a turn is where the player lives.
 //!
-//! That is why divergences are classified rather than summed. [`Kind`] has four
+//! That is why divergences are classified. [`Kind`] has four
 //! values and the report keeps them apart:
 //!
 //! * [`Kind::Simulated`] — we compute it, and a divergence is **ours to
@@ -121,7 +121,7 @@
 //! will"* — and this file is the first thing that puts a number on the second
 //! half of that sentence.
 //!
-//! **`g_units` is not compared**, and that is a scope decision rather than an
+//! **`g_units` is not compared**, and that is a scope decision.
 //! oversight: a unit's tile, path and orders are almost entirely the player's
 //! turn, so a unit diff over this pair would measure the missing input and
 //! nothing else. The county, realm and global records are where a season's
@@ -159,7 +159,7 @@
 //! # What the first run found
 //!
 //! Three leads, and none of them was known before this file existed. They are
-//! reported rather than fixed: this is an instrument, and tuning the simulation
+//! reported: this is an instrument, and tuning the simulation
 //! in the same change that builds the ruler is how a ruler stops measuring.
 //!
 //! 1. **The human realm's `score` and `rank` were never recomputed** — 50 in
@@ -260,8 +260,8 @@ struct FixturePair {
     after: &'static str,
 }
 
-/// **The four pairs that are actually one End Turn apart**, established by
-/// reading `g_turnCount` out of both files rather than by believing a filename.
+/// **The four pairs that are one End Turn apart**, established by
+/// reading `g_turnCount` out of both files.
 /// See [`the_pairs_are_one_end_turn_apart`].
 const PAIRS: &[FixturePair] = &[
     FixturePair { label: "battle 3->4", before: "safeturn.sav", after: "old_turn.sav" },
@@ -293,7 +293,7 @@ enum Kind {
     Simulated,
     /// A person or an AI lord set it during the turn between the two saves.
     /// The pair carries the *result* and not the *action*, so a divergence
-    /// here is a missing input rather than a wrong rule.
+/// here is a missing input.
     PlayerInput,
     /// Nothing in our tree writes it.
     Unsimulated,
@@ -347,9 +347,9 @@ struct GlobalField {
 /// Every county field `l2_formats::save::County` carries, except the two that
 /// are not scalars (`index`, `neighbours`).
 ///
-/// The list is the **save's** vocabulary rather than ours, on purpose:
+/// The list is the **save's** vocabulary, on purpose:
 /// `l2_kingdom::county::County` has 101 fields and some seventy of them are
-/// derived, computed later, or genuinely absent from the file, so a list over
+/// derived, computed later, or absent from the file, so a list over
 /// that struct would be mostly filler — and noise is where an omission hides
 /// (`docs/agents.md`, *choose the smaller list*).
 #[rustfmt::skip]
@@ -435,7 +435,7 @@ const REALM_FIELDS: &[RealmField] = &[
     // and the armoury's spend. The armoury spend is the person's, so they
     // carry a rule *and* a missing input; left `Simulated` because the
     // season's production is the larger term and the divergence is worth
-    // reading rather than excusing.
+// reading.
     RealmField { path: "realm.iron", kind: Kind::Simulated, ours: |r| r.iron as i64, theirs: |r| r.iron as i64 },
     RealmField { path: "realm.stone", kind: Kind::Simulated, ours: |r| r.stone as i64, theirs: |r| r.stone as i64 },
     RealmField { path: "realm.wood", kind: Kind::Simulated, ours: |r| r.wood as i64, theirs: |r| r.wood as i64 },
@@ -485,14 +485,14 @@ const GLOBAL_FIELDS: &[GlobalField] = &[
     GlobalField { path: "global.opt_armies_eat", kind: Kind::Simulated, ours: |g| g.kingdom.options.armies_eat as i64, theirs: |g| (g.opt_armies_eat != 0) as i64 },
     GlobalField { path: "global.opt_exploration", kind: Kind::Simulated, ours: |g| g.kingdom.options.exploration as i64, theirs: |g| (g.opt_exploration != 0) as i64 },
     GlobalField { path: "global.opt_time_limit", kind: Kind::Simulated, ours: |g| g.kingdom.options.time_limit as i64, theirs: |g| g.opt_time_limit as i64 },
-    // **The one genuinely un-simulated field this list can see.**
+// **The one un-simulated field this list can see.**
     // `g_optAiLords` (`0x0053F268`) is stored by `Save_Write` and read by
     // `l2_formats::save::Globals`; `l2_scenario::Scenario::from_save` does not
     // carry it into `Options` and nothing after a load reads it. `grep -rn
     // ai_lords crates/` finds it in the save reader, in `l2_game::setup` (which
     // *starts* a game) and nowhere on the load path. So a loaded game does not
     // know how many lords it was started with, and this row says so with a
-    // number rather than leaving it to prose.
+// number.
     GlobalField { path: "global.ai_lords", kind: Kind::Unsimulated, ours: |_| 0, theirs: |g| g.ai_lords as i64 },
     // `g_turnPhase` and its step counter are the state of `Turn_Tick`'s
     // machine at the moment `Save_RotateAndWrite` ran, which is *inside* phase

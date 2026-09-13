@@ -742,7 +742,7 @@ mod g86 {
 /// the **fallback** now: the panel draws the player's own file through [`eng`]
 /// and falls back to these only where the install has nothing.
 ///
-/// That is not a cosmetic difference, and the reason is countable rather than
+/// The reason is countable.
 /// stylistic: `Panel_Ration` (`0x00411B72`) is the **only consumer of group 87
 /// in the whole binary** — enumerated, not assumed — and it draws seven of the
 /// group's twelve strings. **A group with one consumer *is* that screen's
@@ -1036,7 +1036,7 @@ impl Screen for CountyScreen {
                 // release**: its first statement is
                 // `if (g_mouseLeftReleased == 0) return 0;`. Ours tested it on
                 // the press, which is one of four such arms and the reason
-                // `docs/arms.json` now records a gesture KIND rather than only
+// `docs/arms.json` now records a gesture KIND
                 // an arm's existence.
                 //
                 // **The BACK TO MAP button that used to be tested here is gone.**
@@ -1814,7 +1814,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 
     // `Pl8_DrawFrame(g_miscCtySheet, 0x3D, share / 2 + 0x214, 0x106)` — the
     // farm/industry split's thumb, on the 162 × 52 plate at (478, 250) that
-    // `CountyStrip_Draw` paints as its last act. It is drawn *here* rather than
+// `CountyStrip_Draw` paints as its last act. It is drawn *here*
     // by the map screen because the county panels repaint the whole sidebar
     // over the map, and a thumb only the map drew would vanish whenever a panel
     // was open.
@@ -1943,7 +1943,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 /// [`l2_kingdom::land::grain_labour_estimate`] reproduces:
 ///
 /// ```c
-/// staff = county.labour[0].workers;                    /* the real staffing */
+/// staff = county.labour[0].workers;                    /* the staffing */
 /// county.field_0x230 = Grain_Sow(county, staff, county.grain);
 /// if (season == 4) county.crop[2]      = Grain_Harvest(county, staff, county.crop[1]);
 /// if (season == 2 || season == 3) county.field_0x2FC = Grain_Grow(county, staff, county.crop[1]);
@@ -2048,7 +2048,7 @@ fn draw_produce_rows(
         // **The reclamation row's second figure**, and it is the only produce row
         // with one: `Ui_DrawNumber(county +0x214, ' ', " ", 0x20A, y + 0x143,
         // &g_font10, 0xFA)`, drawn **only when it is non-zero** — the original's
-        // own `if`, so a county reclaiming nothing shows a bare icon rather than
+// own `if`, so a county reclaiming nothing shows a bare icon
         // a zero. `Field_ReclaimEstimate`'s tail computes it as *seasons until
         // the nearest-to-finished field is done*, rounded up, from the full
         // reclamation staffing.
@@ -2700,7 +2700,7 @@ fn delta_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
 ///
 /// Three things it is easy to get wrong and all three are the original's:
 /// **a zero draws nothing at all** — mode 0 with `value == 0` returns before the
-/// first `Ui_DrawText` — the digits are **left-aligned from `x`** rather than
+/// first `Ui_DrawText` — the digits are **left-aligned from `x`**
 /// right-anchored to it, and the empty prefix still advances the pen by
 /// [`TRAILING`], so they start four pixels right of it.
 fn delta_value(pen: &Pen, canvas: &mut Canvas, y: i32, value: i32) {
@@ -2746,7 +2746,7 @@ fn happiness_delta(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32, value: i32) {
 ///
 /// **Nine mutations were checked against these and those**, each turning
 /// exactly one test red and no others. The last three are this audit's, and
-/// every literal in the assertion is pinned from the decompilation rather than
+/// every literal in the assertion is pinned from the decompilation
 /// computed from the constant it is about — which is the trap `docs/agents.md`
 /// records: *ablating a constant while computing your probe from that same
 /// constant tests nothing at all*.
@@ -2889,7 +2889,7 @@ mod tests {
     /// `Panel_RationSlider` draws the knob at `0xD8` and the caps at `0xDC`;
     /// `Ration_SliderClick` (`0x0043A379`) hit-tests `(200, 0xDC, 24, 24)`,
     /// `(0x145, 0xDC, 24, 24)` and `(0xE0, 0xDC, 0x66, 24)`. The literals here
-    /// are pinned from the decompilation rather than computed from the
+/// are pinned from the decompilation
     /// constants, which is the difference between a test and a restatement.
     #[test]
     fn the_split_sliders_controls_are_four_pixels_below_its_knob() {

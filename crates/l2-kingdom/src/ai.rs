@@ -27,7 +27,7 @@
 //! | 13 | `0x004A13A6` | **`AI_Taunt`** — gloat at the human when winning | [`taunt`] |
 //! | 14 | `0x0049D1E0` | **recompute the realm's totals** | [`update_realm_totals`] |
 //!
-//! Step 8 being empty is worth stating as a finding rather than an omission:
+//! Step 8 being empty is worth stating as a finding:
 //! one of the fourteen slots does nothing in the shipped binary.
 //!
 //! # The reason five of them were blocked had expired
@@ -65,7 +65,7 @@
 //! *"when it passes `15 + 2 * realmIndex` the realm is marked 999"*. Three
 //! details it does not have, all of which change the behaviour:
 //!
-//! 1. **Step 0 is not a handler.** It is a one-off initialisation — the `if
+//! 1. **Step 0 is a one-off initialisation** — the `if
 //!    (aiStep == 0)` branch above the dispatch — which recounts the realm's
 //!    strength, eliminates it if it has nothing left, ranks every realm and
 //!    then sets `aiStep = 1`. The dispatch covers 1..=14.
@@ -95,7 +95,7 @@
 //! [`crate::tables::AiTable::tax_ladders`]; its **resource grants** are tiered
 //! by the realm's county count, which the document does not mention. Both are
 //! implemented, and both are read out of the [`Tables`] the caller hands in
-//! rather than out of a constant — the ladders are `if`/`else if` chains in the
+//! — the ladders are `if`/`else if` chains in the
 //! original, so a ruleset is the first time they have been data at all.
 
 use crate::county::County;
@@ -211,7 +211,7 @@ impl AiStep {
         self == AiStep::Nothing
     }
 
-    /// True where this crate actually runs the step — **all fourteen**, and
+/// True where this crate runs the step — **all fourteen**, and
     /// the one that does nothing does nothing because the original's does.
     ///
     /// > This used to exempt the diplomacy pair, *"which needs an inbox and the
@@ -225,9 +225,9 @@ impl AiStep {
 /// A realm is finished once its step counter **reaches** `15 + 2 * realmIndex`
 /// — the original's test is `15 + 2*realm <= aiStep`, not `<`.
 ///
-/// The `2 * realmIndex` term is reproduced rather than tidied: it means the
+/// The `2 * realmIndex` term is reproduced: it means the
 /// later realms in the array get two extra idle steps each. Since steps above
-/// 14 dispatch nowhere, what those extra steps actually buy is extra chances
+/// 14 dispatch nowhere, what those extra steps buy is extra chances
 /// for the army-launch condition below to come good.
 pub fn done_threshold(realm_index: usize) -> i32 {
     15 + 2 * realm_index as i32
@@ -250,10 +250,10 @@ pub fn run_step(realm: &mut Realm, realm_index: usize, launched_army: bool) -> b
     if realm.ai_step >= done_threshold(realm_index) && !launched_army {
         realm.ai_step = AI_STEP_DONE;
         // **Reproduced bug.** The increment below the dispatch is outside the
-        // `if` that writes the sentinel, so the value that actually lands in
+// `if` that writes the sentinel, so the value that lands in
         // the record is 1000. Every later test is `< 999`, so nothing breaks —
         // but a reader comparing a save against `== 999` finds nothing, which
-        // is worth having in the model rather than tidying away.
+// is worth having in the model.
         realm.ai_step += 1;
         return true;
     }
@@ -380,10 +380,10 @@ pub fn begin_realm_turn(realm: &mut Realm, owned_counties: u8, armies: u8) {
 /// * **ladder 2** — the gentlest and the one three of the four lords use:
 ///   nothing at all below 60 happiness, and 10% only above 95.
 ///
-/// Note that a *neutral* county is taxed harder at low happiness than any AI
+/// A *neutral* county is taxed harder at low happiness than any AI
 /// taxes its own — 1% at 20 happiness where every lord's ladder charges
 /// nothing below 30. Nobody is collecting it, though: `Tax_CollectAll` banks an
-/// unowned county's take into the county itself rather than into a treasury.
+/// unowned county's take into the county itself.
 pub fn set_tax_rates(
     t: &Tables,
     counties: &mut [County],
@@ -396,7 +396,7 @@ pub fn set_tax_rates(
     } else {
         t.ai_tax_ladder(realm_lord)
     };
-    // A lord with no personality record sets no rates at all, rather than
+// A lord with no personality record sets no rates at all.
     // falling back to a ladder that was never established. See
     // `crate::tables::AI_PERSONALITY_COUNT`.
     let Some(ladder) = ladder else { return };
@@ -493,7 +493,7 @@ pub fn update_realm_totals(
 /// "the AI's advantages" suggests.
 ///
 /// Each county's share is still gated on the county already having some, so it
-/// compounds rather than rescues.
+/// compounds.
 ///
 /// The realm's `county_count` must be current: [`update_realm_totals`] is what
 /// sets it.
@@ -550,7 +550,7 @@ pub fn grant_resources(
 /// threshold the treasury clears.
 ///
 /// The ladder is walked from type 5 down, and a **zero threshold means the type
-/// is not offered to that lord at all** rather than meaning free. Read against
+/// is not offered to that lord at all**. Read against
 /// [`crate::tables::AI_PERSONALITY_CASTLE_GOLD`], the four lords are sharply
 /// different: two of them have a non-zero entry in the top slot and two do not,
 /// so **two of the four can never build the largest castle however rich they
@@ -558,7 +558,7 @@ pub fn grant_resources(
 ///
 /// The concurrency count is realm `+0x4D`, which `Castle_BuildTick`
 /// (`0x004508DE`) rebuilds every season as *the number of the realm's counties
-/// with a build in progress*. It is derived here rather than stored, for the
+/// with a build in progress*. It is derived here, for the
 /// same reason the original derives it: a stored copy would be a second source
 /// of truth for something one loop already answers. `[V]` on what `+0x4D`
 /// counts — `Castle_BuildTick` zeroes both `+0x4C` and `+0x4D` and increments
@@ -609,7 +609,7 @@ pub fn build_castles(
 /// The castle type an AI lord orders at `gold`, or `None`.
 ///
 /// Walked from the top down; a zero threshold takes the type out of the ladder
-/// entirely, so the search continues past it rather than treating it as free.
+/// entirely, so the search continues past it.
 pub fn largest_castle_affordable(ladder: &[i32; AI_CASTLE_LADDER_LEN], gold: i32) -> Option<u8> {
     for slot in (0..AI_CASTLE_LADDER_LEN).rev() {
         if ladder[slot] != 0 && gold >= ladder[slot] {
@@ -625,7 +625,7 @@ pub fn largest_castle_affordable(ladder: &[i32; AI_CASTLE_LADDER_LEN], gold: i32
 /// each county takes the weapon type at the realm's cursor and the cursor
 /// advances. Because the cursor is a *realm* field advanced inside a loop over
 /// counties, a realm of four counties makes four different weapons at once and
-/// the pattern rotates from wherever it stopped last turn — which is why
+/// the pattern rotates from wherever it stopped last turn — so
 /// [`Realm::weapon_rota`] has to be saved.
 ///
 /// The second loop is **the industry switchboard**, and it is the interesting
@@ -721,7 +721,7 @@ pub fn choose_industry(
 ///
 /// The old comment here recorded a departure — this crate had no owed-materials
 /// counters, so both tests were evaluated as constants. It has them now, so
-/// this is the original rather than a stand-in for it, and it is the third
+/// this is the original, and it is the third
 /// independent confirmation that `+0x1D4` is wood and `+0x1D0` stone: the two
 /// tests are keyed on industry slots 0 and 3, which `Industry_Produce` fixes as
 /// wood and stone. `[V]`
@@ -752,7 +752,7 @@ fn castle_allows(slot: usize, county: &County) -> bool {
 /// The two thresholds are `>` on 0x27 and 0x1B, and the timer test is `7 <
 /// timer`, so it is the **ninth** consecutive qualifying turn that sends. The
 /// timer only advances on a turn the share threshold is met, so a realm that
-/// slips below 39% pauses rather than restarting.
+/// slips below 39% pauses.
 ///
 /// `trailer` is the last-placed realm — `g_rankTrailer`, which the original
 /// keeps as a global and which is derived by the caller from
@@ -1166,7 +1166,7 @@ mod tests {
         assert_eq!(counties[1].tax_rate, 2);
     }
 
-    /// A lord with no personality record sets no rates at all, rather than
+/// A lord with no personality record sets no rates at all.
     /// falling back to a ladder nothing established.
     #[test]
     fn an_unestablished_lord_changes_nothing() {
@@ -1282,7 +1282,7 @@ mod tests {
         assert_eq!(realm.gold, 0);
     }
 
-    /// **The grant compounds rather than rescues**: it is gated on the county
+/// **The grant compounds**: it is gated on the county
     /// already having some of each.
     #[test]
     fn a_ruined_ai_county_gets_nothing() {

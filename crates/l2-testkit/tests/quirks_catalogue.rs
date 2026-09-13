@@ -14,10 +14,10 @@
 //! So this test **reads both files as text** and asserts they agree. It follows
 //! `crates/l2-testkit/tests/census.rs`, including the habit worth copying: when
 //! it fails it prints the corrected inventory, so accepting a deliberate change
-//! is a paste rather than an afternoon.
+//! is a paste.
 //!
-//! It reads the *source* rather than linking `l2-net`, deliberately. A textual
-//! join cannot be satisfied by code that merely compiles, and this crate's
+//! It reads the *source*, deliberately. A textual
+//! join cannot be satisfied by code that compiles, and this crate's
 //! dependency list stays as short as it is (`docs/environment.md`).
 //!
 //! # There are two switch lists, and that is why this is worth its length
@@ -33,7 +33,7 @@
 //! | presentation | `l2_game::game::PRESENTATION` | `Assets` | one `bool` |
 //!
 //! **The catalogue is the only artefact that spans both**, which is what makes
-//! generating from it the right answer rather than merely a tidy one: a check
+//! generating from it the right answer: a check
 //! driven by either enum would silently omit the other half.
 //!
 //! # The five rules
@@ -61,12 +61,12 @@
 //!
 //! # What this cannot catch
 //!
-//! Stated here rather than discovered later. It checks that a variant is
+//! Stated here. It checks that a variant is
 //! *named* in the simulation, not that the branch it guards is reachable or
 //! correct — `crates/l2-kingdom/tests/quirks.rs` is what flips each one and
-//! observes a different answer, and that is the check that actually pays.
+//! observes a different answer, and that is the check that pays.
 //! It also cannot tell a wrong disposition from a right one: calling a
-//! switchable bug `Unswitchable` silences it here, which is why the reason is
+//! switchable bug `Unswitchable` silences it here, so the reason is
 //! mandatory and is prose a reader can disagree with.
 
 use std::collections::BTreeMap;
@@ -89,7 +89,7 @@ enum Disposition {
     /// reason is mandatory and is prose a reader can disagree with.
     Unswitchable(&'static str),
     /// The entry was withdrawn. It stays in the catalogue because the
-    /// retraction is the record; it is not a bug and has no switch.
+/// retraction is the record; it has no switch.
     Retracted,
 }
 
@@ -122,7 +122,7 @@ enum Home {
     /// **Unused on `main` today**, because the first presentation quirk (the
     /// county name's parchment emboss, `docs/bugs.md` B64) is on another
     /// branch. The variant exists ahead of it deliberately: the check has to
-    /// be able to demand the row the day the entry lands, rather than being
+/// be able to demand the row the day the entry lands,
     /// taught about the second home after the first one has already drifted.
     #[allow(dead_code)]
     Presentation,
@@ -295,7 +295,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // Presentation — the first of its kind, and the reason `PRESENTATION` exists.
     ("B64", Switchable(Presentation)),
     // Nothing to switch: both counters are stepped every frame and read by
-    // NOTHING in the whole binary, so there is no behaviour to turn off. The
+// NOTHING in the whole binary. The
     // 21-state counter matching villani1.pl8 21 frames is recorded as a
     // coincidence and deliberately not built on.
     ("B65", Unswitchable("dead code: two counters no reader ever looks at")),
@@ -303,7 +303,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // Filed under bugs because it READS as one; it is the rule. A county
     // building a castle never puts a man on the walls while its mines run,
     // and AI_ChooseIndustry switching iron off is the only way anything
-    // finishes. Switching it would change the game rather than fix it.
+// finishes. Switching it would change the game.
     ("B68", Unswitchable("the rule, not a defect: see docs/rules.md")),
     ("B99", Unwired("crates/l2-game/src/turn_clock.rs")),
     ("B69", Unwired("l2_kingdom::siege, the repair bill material")),
@@ -322,12 +322,12 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // exists here: the network half of the split is a multiplayer behaviour and
     // docs/netcode.md is the one place the original is not the authority. Not
     // switchable -- turning it off would mean inventing the write-back the solo
-    // path does not do, which is a different game rather than a fixed bug.
+// path does not do, which is a different game.
     ("B76", Unswitchable("single-player arm reproduced; the other arm is multiplayer")),
     // The two text-entry defects, both reproduced in `l2_game::text` and both
     // behavioural in the sense that they change what a saved game is called --
     // but neither reaches the simulation or the digest, because a filename is
-    // not state the rules read. Unwired rather than presentation: a switch for
+// not state the rules read. Unwired: a switch for
     // either would change what the field CONTAINS, not which pixels show it.
     ("B79", Unwired("crates/l2-game/src/text.rs, the overwrite branch")),
     ("B101", Unswitchable("it changes which advice a player sees and when, never a number in the world")),
@@ -450,7 +450,7 @@ fn is_entry_id(s: &str) -> bool {
 
 /// `Quirk::Name => "Bn",` out of `Quirk::entry`, as `(variant, entry)`.
 ///
-/// Parsed from the source rather than linked, so that the two lists are joined
+/// Parsed from the source, so that the two lists are joined
 /// by *text* — code that compiles is not evidence that two documents agree.
 fn quirk_variants(root: &Path) -> Vec<(String, String)> {
     let src = read(root, "crates/l2-net/src/quirks.rs");
@@ -506,7 +506,7 @@ fn sources(root: &Path) -> Vec<(String, String)> {
 ///
 /// The presentation half of the switch list. Parsed from the source for the same
 /// reason the behavioural half is: a textual join cannot be satisfied by code
-/// that merely compiles.
+/// that compiles.
 fn presentation(root: &Path) -> (Vec<(String, String)>, Vec<String>) {
     let src = read(root, "crates/l2-game/src/game.rs");
 
@@ -828,7 +828,7 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     );
 }
 
-/// **What this run actually asserted**, printed every time, in the census's
+/// **What this run asserted**, printed every time, in the census's
 /// habit: a number that nobody looks at is a number that drifts.
 #[test]
 fn the_switchable_count_is_reported() {

@@ -16,7 +16,7 @@
 //! # Draw cannot mutate
 //!
 //! [`Ctx`] carries `&mut Game`, and `draw` is handed `&Ctx`
-//! `&mut Ctx`. That is not a stylistic preference: it is the compiler enforcing
+//! `&mut Ctx`. The compiler enforces it.
 //! that drawing a frame cannot change the world. A renderer that can nudge the
 //! simulation is a renderer that makes the simulation depend on how often it
 //! drew, and `docs/netcode.md` does not allow that.

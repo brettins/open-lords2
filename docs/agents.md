@@ -56,7 +56,7 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
 * **Agreement with git**, which needs the clone the work happens in: every branch a row
   names exists; no `in-flight` or `queued-merge` row names a branch already merged into
   `main`; no unmerged `worktree-agent-*` or `wip/*` branch with commits ahead of `main` goes
-  without a row; no `queued-merge` branch carries `HANDOFF.md`. A fresh clone or a CI runner
+no `queued-merge` branch carries `HANDOFF.md`. A fresh clone or a CI runner
   has no agent branches, so this half **prints `SKIP` with the reason and the number of rows
   it did not compare** instead of reporting every branch missing.
 
@@ -93,7 +93,7 @@ repository whose working tree disagrees with its `main` on every inventory.
   correctly. A **fast-forward** would read as "no commits yet", and a **squash or
   cherry-pick** as unmerged. If the integrator ever merges that way, the rule changes with it.
 * **An unmerged agent branch is flagged whether it is live or long dead.** The check cannot
-  tell a stopped agent from an abandoned one, and neither can anybody else without a row.
+tell a stopped agent from an abandoned one without a row.
   Deleting a dead branch is the fix, and it costs one command.
 * **The facts are this clone's.** A branch on another machine that was never fetched does not
   exist as far as `--status` knows.
@@ -416,7 +416,7 @@ asserting that the code agrees with itself, which it always will.
 > tests nothing at all.**
 
 This is the one entry that limits a practice the rest of this document recommends without
-qualification, so it is worth being exact about the cure: **pin the literal from the oracle.**
+qualification: **pin the literal from the oracle.**
 The probe position is now a number read out of the decompilation, and no expression in the test
 mentions the constant under test. Anyone who adopts the ablation habit will meet this case, and
 it is not visible from the inside — the test is four lines long, it reads correctly, and it
@@ -540,7 +540,7 @@ together make the sharper point: **a document is an input to the code, not only 
 it.** A wrong `[V]` does not fail to help; it actively produces the defect, and it does
 so through a careful person who checked the reference. The correction log knows this about
 itself (*"the correction log can be wrong, and it is believed harder than anything else"*);
-the format documents are believed exactly as hard and have no such warning on them.
+the format documents have no such warning on them.
 
 ## The correction log can be wrong, and it is believed harder than anything else
 
@@ -562,7 +562,7 @@ What happened, in order:
    it, and two tests were rewritten to assert it. All of it passed.
 4. It is the **prologue of the industry branch**, guarded by tile flag `0x80` *and* by the county
    being the local player's. `Map_Click` has no such arm; its three writes to `g_selectedCounty`
-   are in the village, industry and merchant branches, exactly as C58 said. C58 was correct.
+are in the village, industry and merchant branches, as C58 said.
 
 **Why this is worse than a wrong tool.** A tool's output is treated as a lead. A correction is
 treated as settled — the whole point of the log is that it outranks prose written earlier, and
@@ -655,7 +655,7 @@ appear.
 
 **It covers `docs/bugs.md`'s B-numbers in the same change, because they are the same race with
 less protection.** Three branches took overlapping B-numbers tonight — two claimed `B64` and two
-claimed `B65` — and unlike the C-numbers there is no lint on them at all. `BNEW-<slug>` and the
+claimed `B65` — there is no lint on them at all. `BNEW-<slug>` and the
 same `--assign` pass.
 
 **The detail that makes the case is that one collision merged silently.** Two branches both added
@@ -826,7 +826,7 @@ the file this project consults to decide what the binary is. It is the stolen do
 
 The correct resolution was not textual at all. `symbols.json` is a database keyed by address, so
 it was merged **by address**, three-way against the merge base: base 757 entries, ours 806,
-theirs 763, merged 812 — and **no address had been changed on both sides**. There was never a
+theirs 763, merged 812 — and **no address had been changed on both sides**.
 conflict. There were only two arrays in different orders.
 
 ### What saved it was `JSON.parse` failing, and that is a near-miss report
@@ -919,7 +919,7 @@ is the worst possible failure for a counting file**, because the thing it destro
 and a count has no local evidence of being wrong. The 1:1 percentage would have been
 computed from a smaller denominator, and nobody would have had any reason to look.
 
-**Three: the assumption was never checked.** A keyed merge silently assumes its key is unique.
+A keyed merge assumes its key is unique.
 Nothing anywhere asserted that. `merge-json.js --check` now refuses any array whose chosen key is
 not unique — which closes it for every file at once, including the ones nobody has written yet,
 and turns a silent deletion into a loud refusal that names the collisions.
@@ -933,14 +933,14 @@ Most of this document recommends duplication: a number in a document against a n
 from the tree, a citation against the heading it names, a marker in the code against a record in
 a file. It is the pattern that has caught nearly everything.
 
-It has a failure mode and it is worth naming beside it:
+It has a failure mode:
 
 > **Two artefacts that must agree is the pattern that catches things. Two artefacts that must
 > agree *and are maintained by the same person, at the same time, for the same reason* is the
 > pattern that lies.**
 
 Both copies get updated together, by someone holding one intention, and they agree because they
-were written to agree, not because the thing they describe is true. The check passes
+were written to agree. The check passes
 firmly and means nothing.
 
 So the test for the uniqueness rule **shells out to `merge-json.js --check`**
@@ -959,7 +959,7 @@ Almost everything in this file is the same remedy: **two artefacts, maintained b
 work, that must agree.** `symbols_md.js`, `figures.js`, the citation lockfile, the test census,
 the encode/decode scanner. It is a good pattern and it has caught real things.
 
-It is the second-best pattern, and it is worth saying so at the top of the list
+It is the second-best pattern.
 leaving it implied.
 
 The best one is a **construction in which the failure cannot be expressed**. The case that
@@ -1054,7 +1054,7 @@ encoder and count the tests that went red. Both of us — the agent running it a
 who asked for it — read the red tests as an answer. **They could not be one.**
 `Canonical::hash_of` *is* `value.encode(&mut c)`, so the digest is a projection *through* the
 encoder: a field absent from the encoder is absent from the digest on every peer identically, and
-removing it can only ever make round-trip assertions fail. The experiment measured whether the
+removing it makes round-trip assertions fail. The experiment measured whether the
 round trip works. It was structurally incapable of measuring the thing it was run to measure, and
 it returned a clean number either way.
 
@@ -1333,11 +1333,11 @@ Three statements, from three unrelated parts of the project:
   `let RealmState { … } = r;` destructure cannot forget a field. It said nothing about `pairs`,
   because `l2_formats::save::Realm` had no `pairs` field to forget — the hole was outside the
   thing being checked exhaustively.
-* **A check on existence is not a check on meaning.** `symbols_md.js` proves every symbol in the
+* `symbols_md.js` proves every symbol in the
   registry appears in the document. It has no opinion about whether the comment beside it is
   true, which is how `Wall_Collapse` carried *"surface 5 — rampart"* for weeks after the project
   had established that 5 is the bailey.
-* **And a citation that resolves is not a citation that is right.** `corrections.js` checked that
+* `corrections.js` checked that
   every `C`-number in the tree names an entry that exists. A `C61 -> C63` renumber left two files
   still saying `C61`, which by then was a different correction entirely, and the tool reported
   *"all citations resolve"* throughout — because they did. The lockfile now remembers **which
@@ -1369,7 +1369,7 @@ nobody can open scores 100%. The boundary there is the word *screen*.
 ## A document that promises "until X" keeps promising it long after X
 
 `crates/l2-view/src/text.rs` carried a header saying the interface draws its own letters *"until
-the real font is decoded."* The font had been decoded. Nobody struck the sentence, so every
+the real font is decoded."* The font had been decoded.
 screen written after that point read the header, believed it, and reached for the 5×7 debug font
 — and the draw-call audit later found **six modules drawing nothing at all through the game's own
 fonts or artwork**: castle, diplomacy, siege, job, menu, menubar. `menu.rs` drew the game's own
@@ -1383,7 +1383,7 @@ correct, it was filed, and it changed nothing, because flagging a document does 
 This is the fourth stale-document mechanism catalogued here, and the only one with a **tense** in
 it. The others go stale when the world changes around a statement of fact; this one is a promise
 about the future, and it expires *at a moment nobody is watching for* — the moment the promise is
-kept. Nothing about the sentence changes then. It reads exactly as well after as before.
+kept. Nothing about the sentence changes.
 
 > **A comment that defers work to a caller must name the caller. A comment that defers work to a
 > future must name the condition that ends it — and something has to check that condition.**
@@ -1406,7 +1406,7 @@ struct field by **name and offset**, and no instrument in the tree relates a fie
 it mirrors. The project held a good reading and a bad reading of the same address for weeks.
 
 What surfaced it was `symbols_md.js` refusing a promotion — *promotion is a move, not a copy* — a
-rule written for bookkeeping reasons that had nothing to do with this. That is the generalisable
+rule written for bookkeeping reasons.
 part:
 
 > **Two artefacts that must agree is the pattern that catches things. Two artefacts that
@@ -1501,7 +1501,7 @@ It did not stop this.
 `Readme.txt` says an army is destroyed when it has *"less than 50 men **after** retreating."*
 **This project has quoted that sentence twice** — in two different documents, both times as
 supporting evidence — while implementing the test on the total **before** the halving. The
-citation was accurate. The order of operations in it was never used, because nobody was reading
+citation was accurate. The order of operations in it was never used.
 the sentence for its order of operations; they were reading it for the number 50, which they
 already had.
 

@@ -23,7 +23,7 @@
 //! The two things a test may place are the two a scenario places: the map, and
 //! armies that already exist. One thing is placed that a scenario would not,
 //! and it is called out where it happens — the besieger here is **staged**
-//! rather than marched in, so nothing has run `Siege_Prepare` on it and its
+//! so nothing has run `Siege_Prepare` on it and its
 //! catapult has to be given through `siege::order_engine`, which is the same
 //! call the player's own siege screen makes.
 //!
@@ -204,7 +204,7 @@ fn plot(g: &mut Game, county: u8, at: (u8, u8)) {
 /// March a besieger onto a castle and **watch it walk there**, without ending
 /// the turn.
 ///
-/// `Units_Tick` runs on every tick the game is up rather than inside a phase —
+/// `Units_Tick` runs on every tick the game is up —
 /// `docs/decisions.md` C35, and the campaign screen's `update` is what calls it
 /// — so an ordered army walks while the player sits on the map. That matters
 /// here for a reason beyond fidelity: **ending a turn to move an army also runs
@@ -221,11 +221,11 @@ fn lay_siege(m: &mut Machine, g: &mut Game, a: &Assets, besieger: usize, keep: (
     });
 }
 
-/// March a unit one tile, through `l2-kingdom` rather than through two clicks.
+/// March a unit one tile, through `l2-kingdom`.
 ///
 /// `tests/military.rs` sets the precedent and gives the reason: the map's
-/// second click on an *enemy* army is a selection rather than an attack order,
-/// and what is under test here is the assault rather than the route into it.
+/// second click on an *enemy* army is a selection,
+/// and what is under test here is the assault.
 /// The player's own march in [`the_player_besieges_and_watches_the_assault`] is
 /// still two clicks, because there it *is* the route.
 fn march(g: &mut Game, unit: usize, to: (u8, u8)) {
@@ -258,10 +258,10 @@ fn castle_with_garrison(
     let owner = g.kingdom.counties[county as usize].owner;
     let garrison = army_at(g, owner, county, men, (keep.0 - 1, keep.1));
     march(g, garrison, keep);
-    // Walked in on plain frames rather than by ending a turn — see
+// Walked in on plain frames — see
     // [`lay_siege`]. **The men have to fit**: `CASTLE_GARRISON_CAP` is
     // `[150, 200, 200, 400, 600]` indexed by `castle_type - 1`, and over it
-    // `Army_GarrisonApply` does nothing at all — the army simply stops outside
+// `Army_GarrisonApply` does nothing at all — the army stops outside
     // and the castle stays empty, with no message a test would notice.
     run_until(m, g, a, "the garrison walking in", |_, g| {
         g.kingdom.counties[county as usize].garrison_unit == garrison
@@ -386,7 +386,7 @@ fn press_the_assault_home(m: &mut Machine, g: &mut Game, a: &Assets) {
 }
 
 /// The cell the way in stands on — flag `0x08`, which is the middle of the
-/// bailey in [`l2_sim::siege::our_castle`]. Read off the field rather than
+/// bailey in [`l2_sim::siege::our_castle`]. Read off the field
 /// written down, because the layout is ours and may change.
 fn keep_centre(g: &Game) -> (u8, u8) {
     let live = g.battle.as_ref().expect("a live battle");
@@ -489,7 +489,7 @@ fn a_human_besieged_by_an_ai_holds_the_choice_and_the_turn_can_end() {
     // `Msg_Dismiss` reads `DAT_0053F0C4` and enters screen `0x1C`.
     //
     // So the turn is abandoned on the conquest screen, and this loop has to say
-    // so rather than wait for a tick that will not come: our turn is stepped by
+// so our turn is stepped by
     // `MapScreen::update` and the original's by `App_IdleFrame`, which is a
     // difference that only shows when a game ends in the middle of one.
     run_until(&mut m, &mut g, &a, "the rest of the turn", |m, g| {
@@ -518,8 +518,8 @@ fn a_human_besieged_by_an_ai_holds_the_choice_and_the_turn_can_end() {
 /// and Royal castles have drawbridges"* and the button's third guard is
 /// `g_castleLevel < 3`.
 ///
-/// The battle is ended with the **autocalc button** rather than fought out, and
-/// that is a second assertion rather than a shortcut: `FUN_0043BE65` leaves for
+/// The battle is ended with the **autocalc button**, and
+/// that is a second assertion: `FUN_0043BE65` leaves for
 /// the report without passing through the outcome banner's frame counter, which
 /// is `Siege_RecordCastleDamage`'s only caller — so giving up on a battle
 /// un-does the damage exactly as it un-does the casualties.
@@ -668,7 +668,7 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
     }
 
     // Where the besieger men are, and where the nearest ditch cell is. Both
-    // read off the field the battle is on rather than assumed, because the
+// read off the field the battle is on, because the
     // castle layout is ours and may change.
     let (home, ditch) = {
         let live = g.battle.as_ref().expect("a live battle");
@@ -756,7 +756,7 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
     );
     assert_eq!(c.castle_wood_owed, 0, "and never in wood");
     // The scars are stored, so the next assault on the same castle picks them
-    // up — `FUN_004787A4`, which is what makes them state rather than a report.
+// up — `FUN_004787A4`, which is what makes them state.
     assert_eq!(c.siege_scars.moat_filled as i32, moat);
     assert_eq!(c.siege_scars.wall_damage as i32, wall);
 

@@ -13,7 +13,7 @@
 //! interface away once already — `screens/county.rs` opens by admitting it used
 //! to be a made-up full-screen page listing twenty-two fields, built because
 //! nobody had looked at what the original drew. Nothing in this module invents
-//! a layout. Where a coordinate is genuinely unknown it says so and places the
+//! a layout. Where a coordinate is unknown it says so and places the
 //! thing plainly, so that a reader can tell a gap from a guess.
 //!
 //! # Every screen has its own palette
@@ -24,7 +24,7 @@
 //! palette by the screen that wants them (`File_ReadChunk("gateway.256",
 //! 0x004EA8A0, 0x300)` then `Palette_Set`). A canvas of palette indices is
 //! meaningless without knowing which one, so [`Screen::palette`] names it and
-//! the presenter asks the top screen rather than assuming.
+//! the presenter asks the top screen.
 //!
 //! [`Screen::palette`]: crate::screen::Screen::palette
 
@@ -147,7 +147,7 @@ pub const SHEETS: &[&str] = &[
     "Icon_tmp.pl8",
     // 0x0F job 8 — the blacksmith page. `Panel_JobBlacksmith` (`0x00413155`)
     // `File_ReadChunk`s both into the same scratch buffer, one after the other,
-    // which is why the forge fire is drawn out of whatever the *second* read
+// so the forge fire is drawn out of whatever the *second* read
     // left there. `Smithy.pl8` is one frame of 480 x 400; `Hearth.pl8` is 17 —
     // eleven 69 x 52 fire frames and six hearths, one per weapon.
     "Smithy.pl8",
@@ -192,7 +192,7 @@ pub const PALETTES: &[&str] = &[
 /// Everything is optional: a partial install, or a machine with no copy of the
 /// game at all, still lays every screen out — with our own flat panels and
 /// blank labels, and looking it. `docs/plan.md`'s rule that a stub should be
-/// visibly ours rather than look finished applies here too.
+/// visibly ours applies here too.
 pub struct ShellAssets {
     pub eng: Option<Eng>,
     pub body: Option<Font>,
@@ -222,7 +222,7 @@ pub struct ShellAssets {
 /// header — and `FUN_004357A6` then indexes it as
 /// `grid[(x >> 3) + (y >> 3) * 0x50]`. It shares its buffer with the village's
 /// own drop grid (`vill_gd8.pl8`, 45 x 40, 1,824 bytes) and with the armoury's
-/// (`arm_grid.pl8`, also 4,824), which is why the buffer is named for the
+/// (`arm_grid.pl8`, also 4,824), so the buffer is named for the
 /// village and read by three unrelated screens.
 pub const MERCHANT_GRID_COLS: usize = 80;
 pub const MERCHANT_GRID_ROWS: usize = 60;
@@ -281,13 +281,13 @@ impl ShellAssets {
     /// when `body` or `heading` is `None`. That fallback is per-call and
     /// silent, so a checkout that cannot find its install renders the *entire*
     /// front end in a squat all-capitals font with every call site perfectly
-    /// correct. A player reported precisely that as *"the title screen is
+/// correct. A player reported that as *"the title screen is
     /// illegible, all caps of that font is ridiculous"*, and there was nothing
     /// anywhere — no log line, no screen, no exit code — to distinguish it from
     /// a font we had chosen.
     ///
     /// This is `docs/agents.md`'s *a tool that degrades silently is worse the
-    /// more people use it*, in the shipped program rather than in a script. The
+/// more people use it*, in the shipped program. The
     /// degradation is still the right behaviour: the game must run on a bare
     /// checkout. What was wrong is that it happened without a word.
     fn complain_about_what_is_missing(&self) {
@@ -371,13 +371,13 @@ impl ShellAssets {
     /// nowhere on the stall to click for either. That is the fourth independent
     /// statement that the two goods are not in the game, after the missing
     /// `Merchant_Trade` branch, the price of zero and the (0, 0) plaque
-    /// position — and it is the one made by the artwork rather than the code.
+/// position — and it is the one made by the artwork.
     pub fn merchant_grid(&self, x: i32, y: i32) -> Option<u8> {
         grid_cell(&self.merchant_grid, x, y)
     }
 
     /// Whether `mercgrid.pl8` was found, so a screen can say which hit test it
-    /// is using rather than leaving a player to wonder why a ware will not
+/// is using
     /// click.
     pub fn has_merchant_grid(&self) -> bool {
         self.merchant_grid.len() == MERCHANT_GRID_LEN
@@ -427,7 +427,7 @@ impl ShellAssets {
     }
 
     /// Whether this install supplied enough for a shell to look like the
-    /// original rather than like our placeholder. Screens report it so a
+/// original. Screens report it so a
     /// reader of a screenshot can tell which they are looking at.
     pub fn has_artwork(&self) -> bool {
         self.eng.is_some() && self.body.is_some() && !self.sheets.is_empty()
@@ -485,7 +485,7 @@ pub fn background(canvas: &mut Canvas, assets: &ShellAssets, name: &str) -> bool
 }
 
 /// `FUN_00409346(sheet, x, y, cols, rows)` — a framed box drawn from a
-/// caller-supplied sheet rather than from `Panels.pl8`.
+/// caller-supplied sheet.
 ///
 /// **[V]** `Panels2.pl8` has the same frame layout as `Panels.pl8`: four
 /// corners, four twelve-frame edges, then the 144-frame interior field at 0x34.
@@ -772,11 +772,11 @@ impl<'a> Pen<'a> {
     /// **[V]** the step: the function ends with
     /// `if (font == &g_fontHeading) y += 0x18; else y += 0x10;` — 24 pixels for
     /// the 22-pixel font and 16 for the 14-pixel one. It also strips a leading
-    /// space from every line but the first, which is why a wrapped paragraph in
+/// space from every line but the first, so a wrapped paragraph in
     /// the original has no ragged left edge.
     ///
     /// The custom game's twelve option labels go through this at a width of
-    /// 100, which is why *"Advanced Farming"* is two lines and not one long one
+/// 100, so *"Advanced Farming"* is two lines and not one long one
     /// running into its neighbour.
     pub fn body_wrapped(
         &self,
@@ -892,7 +892,7 @@ impl<'a> Pen<'a> {
 
     /// `Ui_DrawBoxInterior(x, y, cols, rows)` — **the parchment on its own,
     /// with no border round it.** The armoury's rack panel draws two of these
-    /// as wells inside a window it has already drawn, which is why the border
+/// as wells inside a window it has already drawn, so the border
     /// half would be wrong.
     ///
     /// `Ui_DrawBox` is `Ui_DrawBoxBorder(1, …)` followed by this inset one
@@ -948,7 +948,7 @@ impl<'a> Pen<'a> {
     /// one palette index**, which is four `FUN_00403A8F` line draws.
     ///
     /// It is a primitive of the original's and not a widget of ours, which is
-    /// the whole reason it lives here rather than staying [`crate::widget::frame`].
+/// the whole reason it lives here.
     /// The two functions are the same four `fill_rect`s; what differs is the
     /// **colour argument**, and that is what decides whether a call reproduces
     /// something or invents it. `FUN_00403CF4` takes a literal palette index out
@@ -1039,7 +1039,7 @@ impl<'a> Pen<'a> {
     ///
     /// Group 26 is *"BC"*, *"AD"*. All eight suffixes, `&DAT_004D41D4` …
     /// `&DAT_004D41F0`, are one space, read out of the image. The function
-    /// zeroes `g_penAdvance` first and the era is placed from it, which is why
+/// zeroes `g_penAdvance` first and the era is placed from it, so
     /// the number's own lead, digits, suffix and trailer all come before it.
     ///
     /// Returns where the next glyph goes, like every `Pen` method.
@@ -1269,7 +1269,7 @@ mod tests {
     /// siege arm went unloaded for as long as it was a comment, falling back
     /// to `base01.256` exactly as the field battle had.
     ///
-    /// The loop walks `Ground::ALL` rather than a pair written out here, so a
+/// The loop walks `Ground::ALL`, so a
     /// ground added later cannot bring a palette nobody loads: that is C201's
     /// form, kept over C200's two-name list.
     ///

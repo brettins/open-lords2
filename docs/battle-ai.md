@@ -4,7 +4,7 @@ What an *unordered* battle unit does. [`battle.md`](battle.md) §8.1 established
 `Battle_UpdateAllUnits` dispatches an order handler per unit unless the unit's owner is
 human, and listed those handlers as the largest undecompiled hole in the tactical layer.
 This document is that hole filled in: the dispatch table, the 17 handlers behind it, how a
-unit picks something to attack, and what `Path_Search` actually costs.
+unit picks something to attack, and what `Path_Search` costs.
 
 Same status legend as `battle.md`, and applied with the same strictness:
 
@@ -55,7 +55,7 @@ if (unit.+0x1C > 199 && unit.+0x0D == 0) {        /* +0x0D: some figure is in me
 }
 ```
 
-Counts re-derived from the seventeen decompiled bodies rather than carried across: the
+Counts re-derived from the seventeen decompiled bodies: the
 think timer is **200 frames in 15 of them and 100 in 2** (`UnitOrder_SiegeDefFoot`,
 `UnitOrder_SiegeDefMelee`); the `+0x0D` melee gate is present in **13** and absent in
 **4** (`SiegeAttCatapult`, `SiegeAttTower`, `SiegeAttRam`, `SiegeDefFoot`); and
@@ -133,7 +133,7 @@ Two things in that grid are load-bearing.
 
 **[V] The siege-defender stubs at categories 5, 6 and 7 line up exactly with
 `g_raiseOrderSiege`.** `battle.md` §5.2 establishes that the castle-defender raise order
-holds eight troop types with **no catapult, siege tower or ram**. Those are precisely the
+holds eight troop types with **no catapult, siege tower or ram**. Those are the
 three categories whose defender slots are the empty handler. Two unrelated structures — a
 raise order at `0x004D98A0` and a dispatch table at `0x004D91F8` — agree about which troops
 a garrison never has. The same holds on the other side: the attacker's category-8 (oil)
@@ -234,7 +234,7 @@ the separation on each axis, does nothing at all unless one axis is separated by
 cells or more, and then moves only the axes separated by six or more. Combined with
 `Order_StopShortOfTarget` inside `BattleUnit_Order` (`battle.md` §8.2, which pulls a
 missile unit's destination back to `range/8 − 3` cells), an AI archer unit converges on a
-standoff distance rather than closing.
+standoff distance.
 
 ### 2.3 `UnitOrder_FieldFoot` and `UnitOrder_FieldMelee` — categories 2, 3 and 4
 
@@ -345,7 +345,7 @@ already expired at three thinks out of four, and will fall through to the "nobod
 attacking me" branch. Anyone reimplementing this must not round 50 up to "until the next
 decision".
 
-This is the *only* mechanism by which a unit acquires a target it did not simply walk into
+This is the *only* mechanism by which a unit acquires a target it did not walk into
 or find by proximity. There is no threat assessment.
 
 ### 3.3 Figure picks a figure — `Melee_ChooseChaseTarget` (`0x004954DD`)
@@ -397,7 +397,7 @@ the weighted variants, and they use them to choose where to *stand*, not what to
 
 ---
 
-## 4. What a handler can actually do
+## 4. What a handler can do
 
 **[D]** Every handler's effect on the world goes through one of about twenty small action
 routines. All of them do the same two things — write `unit +0x22/+0x24` (targ x, targ y)
@@ -470,7 +470,7 @@ if (unit.+0x14 < 1) {
 `BattleUnit_Reform` (`0x0048970E`) **re-issues every figure of the unit a destination**: it
 builds the unit's formation rectangle around its target and assigns figures to slots. No
 enemy is chosen anywhere in it. So `re targ` is "re-target *my own men*" — a formation
-tidy-up — and it runs for **human-controlled units too**, which is why
+tidy-up — and it runs for **human-controlled units too**, so
 `BattleUnit_NeedsReform` carries a special exemption for a player's units of fewer than
 four figures.
 
@@ -689,7 +689,7 @@ The whole chain lives in `BattleMan_Step`, which is `Path_Search`'s **only calle
 ```
 
 **[D]** `barred` is reset to 0 the moment the figure manages any step, so step 2 is "four
-consecutive failures", not a permanent state — but a figure genuinely walled in never gets
+consecutive failures", not a permanent state — but a figure walled in never gets
 that step and so stands still for the rest of the battle.
 
 **[D]** `Path_Extract`'s return codes are three-valued, not two: **0** means the destination
@@ -709,7 +709,7 @@ but it is also a concrete behavioural difference between the two sides, and it i
 tunable.
 
 Two ready-made diagnostics, both zeroed by `Battle_Start`: `g_pathSearchCount`
-(`0x004F037C`) counts flood fills actually run, and `g_pathFailCount` (`0x00507248`) counts
+(`0x004F037C`) counts flood fills run, and `g_pathFailCount` (`0x00507248`) counts
 extractions that found nothing. Reading them out of a live process (`battle.md` §9) would
 measure how much the pathfinder is struggling without instrumenting anything.
 
@@ -740,7 +740,7 @@ dropped entirely. `Sync_Checksum` and `Turn_AllRealmsDone` read the same global,
 months and `[I]` on the grounds that nothing had found where it is written. It is written to
 1 in exactly one place — after a DirectPlay session opens — and to 0 on every teardown, so
 it is **the multiplayer flag**, and the cyclic selectors and the dropped jitter are what a
-networked game must do rather than a determinism mode the game offers. `docs/battle.md`
+networked game must do. `docs/battle.md`
 §14.9 has the evidence.
 
 Either way, and this is the part that does not change: **the battle AI is not deterministic
@@ -924,10 +924,10 @@ only way to find out whether it is true; these are the places it was not.
 * **`Siege_FindCellSurface5` measures its distance from the wrong point, and it
   is an original bug.** It saves the query cell into two locals, then overwrites
   the *parameters* with the clipped top-left corner of its search box, and then
-  calls `Dist_Manhattan` with the **parameters** rather than the saved locals.
+calls `Dist_Manhattan` with the **parameters**.
   Its sibling `Siege_FindCellSurface4` saves the query point and uses it, and
   does not have the fault. So `Order_ToSurface5Near` puts a defending unit on
-  the rampart cell nearest the corner of the search box rather than the one
+the rampart cell nearest the corner of the search box
   nearest the post it was reserving. Reproduced in `l2-sim` with a comment
   saying why: the original's choice of cell is the specification. The same
   overwrite pattern appears in `FUN_00496768`, where it is harmless, because
@@ -948,7 +948,7 @@ only way to find out whether it is true; these are the places it was not.
 
 * **What could not be checked.** Everything positional in §6 still rests on
   `Battlefield_BuildCastle`, which is still not decompiled, so `l2-sim` takes
-  those tables as data supplied by the caller rather than asserting their
+those tables as data supplied by the caller
   contents. And §9's first bullet stands unchanged: **nothing here has been
   observed running.**
 
@@ -961,7 +961,7 @@ them: `crates/l2-sim/src/runner.rs` now raises units, dispatches
 `Battle_UpdateAllUnits` every frame and reforms what it orders. Running a
 battle exercises the parts a unit test of a handler cannot.
 
-* **A unit is not a troop group; it is a slot.** `Battle_RaiseSide`
+* **A unit is a slot.** `Battle_RaiseSide`
   (`0x0047FEA7`) splits each troop type into units of at most
   `g_troopBattleStats[t].maxFigures` figures and gives each one the next of its
   side's twelve marker slots. **[V]** — the column reads
@@ -974,15 +974,15 @@ battle exercises the parts a unit test of a handler cannot.
   at `0x005531B0`. So **a side-0 army of more than twelve units deploys its
   thirteenth on the enemy's first slot**, which is reachable, because oil holds
   one figure per unit. Reproduced. Past the twenty-fourth entry the original
-  reads bytes we have not identified, and there `l2-sim` clamps rather than
+reads bytes we have not identified, and there `l2-sim` clamps
   inventing them.
 
 * **A figure's deployment facing comes from its row, not from its side.**
   `BattleMan_Create` (`0x0046E4C8`): `y < 0x29` faces 4, otherwise 0. On a
-  `.skr` map that agrees with the side, which is why reading it as the side
+`.skr` map that agrees with the side, so reading it as the side
   worked; on a map whose markers are not north and south it would not.
 
-* **The deployment placement search is not a spiral.** `FUN_0046E70E` scans the
+* `FUN_0046E70E` scans the
   whole `(2r+1)²` box clipped to the map, rows top to bottom and columns left
   to right, and returns the first free passable cell. Since radius `r − 1` has
   already been scanned and rejected, the answer is the topmost-then-leftmost
@@ -1010,7 +1010,7 @@ battle exercises the parts a unit test of a handler cannot.
   `PctOf` answers 0 when its divisor is 0 (§8), so an AI-versus-AI field battle
   reads a permanent **−100** and every handler that has a mood takes the timid
   half of it. Consistent with the strategic layer auto-calculating battles
-  between two computer lords rather than fighting them on the field, but it
+between two computer lords, but it
   means "both sides AI" is not a configuration the original ever runs, and a
   reimplementation that defaults to it will conclude the AI does nothing.
 

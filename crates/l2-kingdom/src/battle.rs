@@ -52,7 +52,7 @@ pub enum Settlement {
     Silently,
     /// A human is in it, but `Fight humans only?` is on and the *other* side is
     /// the AI's. The autocalc runs and the player is shown the result on screen
-    /// `0x13` — a battle they are told about rather than asked about.
+/// `0x13` — a battle they are told about.
     Reported,
     /// Screen `0x12`: *"A Battle is to be fought. Will you take the field?"*
     /// Taking the field is the real simulation; declining is
@@ -278,7 +278,7 @@ pub fn auto_resolve(
 }
 
 /// Keep `percent` of every count, then rebuild the total from what is left —
-/// the original recomputes `+0x168` by summing rather than scaling it, so the
+/// the original recomputes `+0x168` by summing it, so the
 /// total and the counts cannot drift apart however the rounding falls.
 fn apply_survival(unit: &mut Unit, percent: i32) {
     for t in 0..TROOP_TYPES {
@@ -389,7 +389,7 @@ pub struct Aftermath {
     /// Men [`withdraw_casualties`] took off the loser on its way out, or `None`
     /// when this battle was not ended by a withdrawal.
     ///
-    /// It is reported rather than merely done because it is charged **before**
+/// It is reported because it is charged **before**
     /// the loser is destroyed, so a caller diffing the unit array afterwards
     /// cannot tell a retreat's losses from the whole army's.
     pub withdrawal_casualties: Option<i32>,
@@ -398,8 +398,8 @@ pub struct Aftermath {
     /// both of `Battle_ReturnToCampaign`'s branches.
     ///
     /// That call is one of only four places a realm can be eliminated, and it
-    /// is the one that fires the instant a realm's last army dies rather than
-    /// waiting for its own turn to come round. It is reported here rather than
+/// is the one that fires the instant a realm's last army dies
+/// It is reported here
     /// made here because [`crate::victory::recount_strength`] needs the county
     /// count and the local player, and neither is a battle rule.
     pub loser_owner: u8,
@@ -449,7 +449,7 @@ pub const AI_DEFENDER_MOVE_COST: i32 = 7;
 /// neutral.
 ///
 /// > **Corrects `docs/armies.md` §7 and `docs/symbols.md` a third time.** Both
-/// > say the loser survives with its siege merely lifted when it has ≥ 50 men
+/// > say the loser survives with its siege lifted when it has ≥ 50 men
 /// > *"under autocalc"*. The gate is `DAT_0056D5C8`, which
 /// > [`auto_resolve`]'s first statement **clears**; it is raised in exactly one
 /// > place, `UnitOrder_SiegeAttKnight`, when an all-knight AI besieger gives up
@@ -478,7 +478,7 @@ pub const AI_DEFENDER_MOVE_COST: i32 = 7;
 /// > autocalc the loser's men are set to **zero**, so the outer test passes and
 /// > the inner one runs. In a **fought** siege the loser can walk off the field
 /// > with men, and then the outer `else` fires: **the besieging army survives
-/// > and its siege is merely lifted.** That is the rule a repulsed assault
+/// > and its siege is lifted.** That is the rule a repulsed assault
 /// > needs, it is reachable from `l2-sim` and from nowhere else, and both
 /// > `docs/armies.md` §7 and C31 are silent about it. See correction C38.
 ///
@@ -645,7 +645,7 @@ pub fn return_to_campaign(
 /// original halves it to 40 and destroys it.
 pub const WITHDRAWAL_SURVIVAL_MEN: i32 = 50;
 
-/// The count below which a troop line is wiped outright rather than halved —
+/// The count below which a troop line is wiped outright —
 /// `Army_WithdrawCasualties`' `if (n < 0xB) n = 0;`.
 ///
 /// Ten men do not retreat in good order; eleven lose five. It is the same shape
@@ -699,7 +699,7 @@ pub const WITHDRAWAL_WIPE_BELOW: i32 = 11;
 /// > one of them**: `FUN_0043BA29`'s confirm reaches `FUN_0043BE65`, which is
 /// > the autocalc and the return, so a player who "retreats" has auto-resolved
 /// > the battle and, if the ladder says he lost, watched his army destroyed
-/// > rather than withdrawn. See this module's `retreat` note.
+/// > See this module's `retreat` note.
 pub fn withdraw_casualties(
     t: &Tables,
     units: &mut Units,
@@ -1085,7 +1085,7 @@ mod tests {
     /// The rule C31 stopped one branch short of: a loser that is still linked
     /// as a besieger and still has men keeps its men and only loses the siege.
     /// It is unreachable under the autocalc — which zeroes the loser's men —
-    /// and reachable from a fought battle, which is why it never showed up.
+/// and reachable from a fought battle, so it never showed up.
     #[test]
     fn a_besieger_that_loses_with_men_left_keeps_them_and_only_loses_the_siege() {
         let (mut counties, mut realms) = world();

@@ -14,7 +14,7 @@
 //!
 //! # Which half is simulation and which is display
 //!
-//! **The ring is display.** That is not a modelling preference; it is forced by
+//! **The ring is display.** It is forced by
 //! the binary, and it is the answer `docs/netcode.md` needs:
 //!
 //! ```c
@@ -31,7 +31,7 @@
 //! where one peer's copy of them lands.
 //!
 //! **The one thing the window does write into the world is the outcome**, and
-//! that is the original's own arrangement rather than a leak: `Msg_DrawWindow`'s
+//! that is the original's own arrangement: `Msg_DrawWindow`'s
 //! category-`0x0E` arm is the only writer of `DAT_0053F0C4` during play. It is
 //! reproduced in [`show`], which is *the frame the window opens*, and
 //! `docs/plan.md`'s sentence about the win is exactly that split — **displayed**
@@ -94,7 +94,7 @@ pub const MULTIPLAYER_TIMEOUT: i32 = 0x641;
 /// hand.
 pub const TIP_TIMER: i32 = 100;
 
-/// The `L2.eng` groups a *rule* names, rather than a painter.
+/// The `L2.eng` groups a *rule* names.
 pub mod group {
     /// **`0xC2` — `L2.eng` 194, *"Foiled again."***, the AI's lament on losing
     /// ground, raised by `FUN_0049B42B`.
@@ -110,9 +110,9 @@ pub mod group {
 /// The message categories, `Msg_Enqueue`'s `+0x11` byte, as `Msg_DrawWindow`
 /// dispatches on them.
 ///
-/// Twenty arms. The numbering is not a table — `0x05 ..= 0x09` is a *range*
-/// whose value is the paragraph count — which is why this is constants and a
-/// [`Shape`] rather than an enum over the byte.
+/// Twenty arms. `0x05 ..= 0x09` is a *range*
+/// whose value is the paragraph count — so this is constants and a
+/// [`Shape`].
 pub mod category {
     /// A plain notice. The heading is the group's own label, or a county name
     /// when `+0x12` is set, or a lord's name when `+0x13` is.
@@ -242,7 +242,7 @@ impl Record {
     /// groups and `Msg_HandleInput` tests exactly those three, so
     /// [`Record::is_question`] is true for the whole category and this is false
     /// for eight of its groups. A right-click still closes those eight; there is
-    /// simply nothing to click.
+/// nothing to click.
     pub fn answer_widgets(&self) -> Option<Prompt> {
         match self.category {
             category::GARRISON_PROMPT => Some(Prompt::Garrison),
@@ -395,7 +395,7 @@ pub enum Prompt {
     /// `0x004DDA90` → `Diplo_PayHelpClicked` (`0x004367FF`).
     PayForHelp,
     /// `0x004DDAC0` → `FUN_00436872`. Reached from category `0x0B` *and* from
-    /// the diplomatic letter of group `0xF8`, which is why one table serves two
+/// the diplomatic letter of group `0xF8`, so one table serves two
     /// categories.
     AcceptAlliance,
     /// `0x004DDAF0` → `FUN_004368FD` — the ally's answer to *"help me"*.
@@ -495,7 +495,7 @@ pub fn frame_of(record: &Record) -> Option<Frame> {
         category::PAY_PROMPT | category::ALLIANCE_PROMPT => Frame::new(0x10, 0x80, 0x1C0, 0xF0),
         category::CAPTURE => Frame::new(0x20, 0xA0, 0x1A0, 0xC0),
         category::ENDING => Frame::new(0x10, 0x80, 0x1C0, 0xE0),
-        // **The one arm whose height is a rule rather than a constant**, and it
+// **The one arm whose height is a rule**, and it
         // was written down here and then not applied — every event drew in the
         // short box, so the sixteen high-numbered events lost 0x20 of window and
         // had their corner button, and its 48 × 48 hit box, 0x20 too high.
@@ -848,7 +848,7 @@ impl MessageQueue {
     ///
     /// Kept out of [`MessageQueue::pull`] deliberately — the original really
     /// does start every message at 2000 and shorten this one from the *draw*,
-    /// which is why a tip that is enqueued on a screen the pump does not run on
+/// so a tip that is enqueued on a screen the pump does not run on
     /// keeps its full 2000.
     pub fn clamp_tip_timer(&mut self) {
         if self.open.is_some_and(|r| r.category == category::TIP) && self.timer > 999 {
@@ -971,7 +971,7 @@ pub enum Dismissal {
 
 /// **`Msg_Dismiss` (`0x00476768`).**
 ///
-/// Free function rather than a method because the ending arm reads
+/// Free function because the ending arm reads
 /// [`crate::victory::Campaign`] and can enter the conquest screen, which is the
 /// whole `Game`'s business and not the ring's.
 ///
@@ -1016,7 +1016,7 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// **`Battle_Frame` is its only caller**, once a frame, as
 /// `FUN_00448d7e(g_selectedCounty)` at `0x004BA187` — between `Msg_Pump` and
 /// `Turn_Tick`, which is where [`crate::screen::Machine::update`] calls this.
-/// There is no screen test on it: the letter for the selected county pops over
+/// The letter for the selected county pops over
 /// the castle screen, the market or the map alike.
 ///
 /// # Three consequences, and none of them is guessable from `Event_RollAll`
@@ -1085,7 +1085,7 @@ pub fn post_event(game: &mut Game) -> bool {
     // `Msg_Enqueue(0, g_localPlayer, eventId, 0, 0x0F, county, 0, 0)` —
     // `Msg_Enqueue(from, to, …)`, so **from nobody, to this player**. The group
     // is the county's stored id and the painter re-reads the county's id for the
-    // number line, which is why the two are the same number.
+// number line, so the two are the same number.
     let group = c.event_id;
     let record = Record {
         to: player,
@@ -1140,11 +1140,11 @@ pub fn rearm_events(game: &mut Game, report: &l2_kingdom::report::SeasonReport) 
 /// * **`0x04`** clamps the timer; see [`MessageQueue::clamp_tip_timer`].
 ///
 /// Returns whether the window is still up. It is called from the message
-/// screen's `update` rather than its `draw`, because [`crate::screen::Screen`]
+/// screen's `update`, because [`crate::screen::Screen`]
 /// hands `draw` a `&Ctx` on purpose and this changes the world — see
 /// `crates/l2-game/src/screen.rs`, *Draw cannot mutate*. The original runs it in
 /// the draw; the effect is identical because the original's draw and input both
-/// run once per frame, and the difference is recorded here rather than hidden.
+/// run once per frame, and the difference is recorded here.
 pub fn show(game: &mut Game) -> bool {
     let Some(record) = game.messages.open().copied() else { return false };
     // arm: 0x0047309E/tip-timer-clamp draw
@@ -1252,7 +1252,7 @@ pub fn animate(game: &mut Game) -> Option<crate::movie::Film> {
 /// *name the branch* — and it cannot raise a screen, so a game driven through it
 /// still ends, and ends by the same ladder an interactive game does.
 ///
-/// **It is not a second implementation of the rules.** Every step goes through
+/// Every step goes through
 /// the same [`show`] and [`dismiss`] the message screen calls, which is the
 /// point: an ending settled headlessly and an ending settled by a person
 /// pressing the corner button cannot disagree, because there is one ladder.
@@ -1295,7 +1295,7 @@ pub fn drain(game: &mut Game) -> Outcome {
 /// village makes a message disappear.
 ///
 /// `0x27` is not built here and is not in `screens/shells.rs` either; the
-/// constant is kept so the list is the binary's rather than ours.
+/// constant is kept so the list is the binary's.
 pub const PUMP_SCREENS: [u8; 4] = [0x00, 0x27, 0x0F, 0x29];
 
 /// The job panel only pumps for job **8** — `g_jobPanelJob == 8`, the ninth

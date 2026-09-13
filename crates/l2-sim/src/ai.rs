@@ -113,7 +113,7 @@ pub const SIEGE_CHARGE_ADVANTAGE: i32 = 151;
 ///
 /// A knight counts four men and a peasant one. Siege engines fall off the end
 /// of the ladder and count 1, which is what the missing `else` in the original
-/// does — reproduced rather than "corrected" to 0.
+/// does — reproduced.
 pub const STRENGTH_WEIGHT: [i32; 11] = [1, 2, 3, 3, 2, 2, 4, 1, 1, 1, 1];
 
 /// Everything positional the handlers need, as plain data.
@@ -302,7 +302,7 @@ pub struct Ai {
     pub engagement_count: i32,
     /// `g_engagementBudget[battlefield]` (`0x00553080`), which
     /// `docs/battle-ai.md` §9 records as never traced to where it is filled.
-    /// Supplied here rather than invented.
+/// Supplied here.
     pub engagement_budget: i32,
     /// `g_aiRallyRequest`/`X`/`Y` — the only message any unit sends any other:
     /// "archers, onto this man".
@@ -383,7 +383,7 @@ pub struct Ai {
     /// the flag *before* either men counter, so a withdrawal outranks
     /// annihilation.
     ///
-    /// It lives on the AI state rather than on the runner because the AI is
+/// It lives on the AI state because the AI is
     /// what raises it. [`crate::runner::BattleRunner::step`] copies it into the
     /// runner's own flag each tick; [`crate::runner::BattleRunner::withdraw`]
     /// is the same lever pulled from outside, for a caller that has a retreat
@@ -499,7 +499,7 @@ impl Ai {
     /// **−10…+21** jitter. The asymmetric range is not a typo: the original is
     /// `(rand & 0x1F) - 10`, which is 0…31 shifted down by ten.
     ///
-    /// Reproduced rather than centred, and the reason is worth stating: the AI
+/// Reproduced, and the reason is worth stating: the AI
     /// is biased half a point *toward* attacking, and with the threshold at 5
     /// that bias is a real behaviour, not a rounding artefact.
     pub fn update_strength_advantage(&mut self, figures: &[Figure]) {
@@ -541,7 +541,7 @@ pub struct World<'a> {
     pub ai: &'a mut Ai,
 }
 
-// The `to_*` methods below take `&mut self` rather than `self`, which trips
+// The `to_*` methods below take `&mut self`, which trips
 // `wrong_self_convention`. They are named for the original's `Order_To*`
 // routines — `Order_ToCell`, `Order_ToWallSlot`, `Order_ToCastleObjective` —
 // and keeping that correspondence is worth more than the Rust naming idiom,
@@ -650,7 +650,7 @@ impl World<'_> {
 
     /// `Order_StepAwayFromUnit`: shift the **destination** two cells away.
     ///
-    /// Not the position — the destination, which is why repeated withdrawals
+/// The destination, so repeated withdrawals
     /// compound. Along the longer axis, and along both once an axis separation
     /// exceeds five. This is the whole of the AI's retreat behaviour.
     fn step_away_from_unit(&mut self, cur: usize, other: usize) {
@@ -1077,7 +1077,7 @@ impl World<'_> {
                 }
                 let (dx, dy) = ((cx - x).abs(), (cy - y).abs());
                 let d = if manhattan { dx + dy } else { dx.min(dy) };
-                // `<=` rather than `<`: the original keeps the *last* equally
+// `<=`: the original keeps the *last* equally
                 // close cell it finds, which fixes the tie-break to scan order.
                 if best.is_none_or(|(b, _, _)| d <= b) {
                     best = Some((d, cx, cy));
@@ -1217,7 +1217,7 @@ type Handler = fn(&mut World, usize);
 
 /// One dispatch slot.
 ///
-/// The name and address are carried rather than inferred so that a slot can be
+/// The name and address are carried so that a slot can be
 /// checked against `docs/battle-ai.md` §1.3 — and so a test can say "these
 /// seven slots are the empty handler" without comparing function pointers,
 /// which `docs/netcode.md` forbids anywhere a decision is made and which is a
@@ -2004,7 +2004,7 @@ pub fn handler_for(is_siege: bool, side: crate::Side, category: u8) -> Option<Sl
 /// The order of operations is the original's and it matters: the strength
 /// advantage is recomputed *before* any unit thinks, each unit is recentred on
 /// its figures *before* its handler runs, and the reform countdown runs
-/// **outside** the human-control guard — which is why a player's units reform
+/// **outside** the human-control guard — so a player's units reform
 /// too.
 ///
 /// Returns the units whose reform countdown reached zero and which
@@ -2210,7 +2210,7 @@ mod tests {
         assert!(fx.units.get(fx.ai_unit).orders > 0);
     }
 
-    /// The four exceptions, which is why "13 of 17" is worth pinning: the two
+/// The four exceptions, so "13 of 17" is worth pinning: the two
     /// siege engines and the ram keep thinking while engaged, and so does the
     /// siege defender's foot.
     #[test]
@@ -2291,7 +2291,7 @@ mod tests {
         assert_eq!(even.ai.strength_advantage, 0, "identical armies are even");
     }
 
-    /// An army with no living enemy reads −100 rather than dividing by zero.
+/// An army with no living enemy reads −100.
     #[test]
     fn an_unopposed_army_reads_minus_one_hundred() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
@@ -2304,7 +2304,7 @@ mod tests {
     }
 
     /// The jitter is **−10 to +21**, not ±10 and not ±16. Asymmetric because
-    /// the original is `(rand & 0x1F) - 10`, and reproduced rather than centred:
+/// the original is `(rand & 0x1F) - 10`, and reproduced:
     /// with the threshold at 5 the half-point bias toward attacking is a real
     /// behaviour.
     #[test]
@@ -2399,7 +2399,7 @@ mod tests {
     }
 
     /// Melee units march three thinks longer than foot units and are silent for
-    /// four rather than two. The two functions differ only in constants.
+/// four. The two functions differ only in constants.
     #[test]
     fn a_melee_unit_marches_thirteen_thinks_rather_than_ten() {
         let mut fx = Fixture::new(Troop::Knights, Troop::Peasants, 4);
@@ -2684,7 +2684,7 @@ mod tests {
     }
 
     /// The three defender stubs at categories 5, 6 and 7 are the catapult, the
-    /// siege tower and the ram — precisely the three troop types
+/// siege tower and the ram — the three troop types
     /// `g_raiseOrderSiege` says a garrison never has.
     #[test]
     fn a_garrison_has_no_handler_for_the_three_troops_it_never_raises() {
@@ -2894,7 +2894,7 @@ mod tests {
 
     /// `re targ` counts 500 down and then reforms the unit's **own figures**;
     /// it does not look for an enemy. And it runs for human-controlled units
-    /// too, which is why the exemption for small human units exists at all.
+/// too, so the exemption for small human units exists at all.
     #[test]
     fn the_five_hundred_frame_countdown_reforms_and_runs_for_human_units_too() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
@@ -2924,7 +2924,7 @@ mod tests {
         );
         assert!(who.contains(&fx.ai_unit), "the AI's unit of three is not");
 
-        // The charge exemption, checked on the flag the charge sets rather than
+// The charge exemption, checked on the flag the charge sets
         // by waiting fourteen thinks for one.
         let mut charged = *fx.units.get(fx.ai_unit);
         assert!(needs_reform(&charged));

@@ -5,7 +5,7 @@
 //! `crates/l2-kingdom/src/save.rs` already encodes a [`Kingdom`] through
 //! `l2_net::Canonical`, the deterministic encoder `docs/netcode.md` §5 demands
 //! for the per-tick checksum and the late-join snapshot. It refuses an unknown
-//! version, it fingerprints the ruleset rather than storing it, and it has no
+//! version, it fingerprints the ruleset, and it has no
 //! floats, no `usize` on the wire and no hash-ordered iteration.
 //!
 //! A saved *game* is that file with a short prefix: the ten plain fields
@@ -21,7 +21,7 @@
 //! mean a save whose bytes and a lockstep checksum whose bytes could disagree,
 //! which is exactly the failure `l2-net`'s `canonical.rs` exists to prevent.
 //!
-//! # Two versions, and both refuse rather than guess
+//! # Two versions, and both refuse
 //!
 //! The file has **two** version numbers and they are independent:
 //!
@@ -59,7 +59,7 @@ use crate::game::Game;
 use crate::screens::setup::MAP_COUNT;
 
 /// Eight bytes, so a file command can name the format and a truncated file
-/// fails on the magic rather than three fields later.
+/// fails on the magic.
 ///
 /// Deliberately one letter from `l2_kingdom::save::MAGIC` (`L2KSAVE\x01`): a
 /// kingdom save and a game save are different files and neither should ever be
@@ -181,7 +181,7 @@ impl From<l2_kingdom::save::LoadError> for LoadError {
 /// What the header says, without decoding anything behind it.
 ///
 /// The load screen reads this for every file it lists, so a save it cannot read
-/// can be *named* as unreadable in the list rather than only when somebody
+/// can be *named* as unreadable in the list
 /// clicks it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Header {
@@ -314,7 +314,7 @@ fn encode_prefix(game: &Game, out: &mut Canonical) {
     // **The ending messages are no longer here; the whole ring is, below.** They
     // used to be a `Vec<Ending>` of their own with the note that the queue is
     // empty at every point a person can save. That stopped being true the moment
-    // the messages were *shown* rather than settled headlessly: a person can now
+// the messages were *shown*: a person can now
     // save on the campaign map with three obituaries still queued behind the one
     // on screen, and a save that dropped them would be a save that can never be
     // won. `docs/decisions.md` C113.
@@ -337,7 +337,7 @@ fn encode_prefix(game: &Game, out: &mut Canonical) {
 /// **The message ring**, `g_messageQueue` and the window over it.
 ///
 /// Written as a flat list of the records still waiting plus the one on screen,
-/// rather than as fifty slots and two cursors: the cursors are an implementation
+/// the cursors are an implementation
 /// of a queue and the queue is what has to survive. Reloading rebuilds the ring
 /// from index 0, which is where `Msg_Reset` puts it.
 fn encode_messages(out: &mut Canonical, game: &Game) {
@@ -502,7 +502,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         //
         // Ours cannot: `crate::battlefield::LiveBattle` wraps an
         // `l2_sim::runner::BattleRunner` and none of it is encoded here. So the
-        // save screen **refuses** while a battle is live rather than writing a
+// save screen **refuses** while a battle is live
         // file that silently loses it — `crate::screens::saveload`, and
         // `docs/arms.json`'s `ours/save-refuses-mid-battle`.
         //
@@ -543,7 +543,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         last_report,
         turns_played,
         campaign,
-        // **Deliberately not in the file, and this is the note that says so.**
+// **Deliberately not in the file.**
         // `Prefs` is what this machine is like — sound, animations, scroll
         // speed — and the presentation quirks are what this reader wants to
         // look at. Neither is a property of the *game*: recording them in a
@@ -586,16 +586,16 @@ fn bad_count(input: &Reader<'_>, found: usize, expected: &'static str) -> LoadEr
 // This is the only part of the file that is a **tagged union**, and every tag
 // is decoded through a total function that can fail: an unknown pass index, an
 // unknown message tag, an event id the deck does not have and an unknown
-// bankruptcy action are four separate refusals rather than a default.
+// bankruptcy action are four separate refusals.
 //
-// The tags are written here rather than in `l2-kingdom` on purpose. A wire tag
+// The tags are written here on purpose. A wire tag
 // is a promise about a *file*, and `l2-kingdom` has no files; giving `Message`
 // a tag byte there would put a save-format constant in the crate that is
 // supposed to be able to change its enums freely. The cost is that adding a
 // variant breaks the two matches below at compile time, which is the behaviour
 // we want.
 
-/// `Pass` goes out as its position in `SEASON_PIPELINE` rather than as a tag of
+/// `Pass` goes out as its position in `SEASON_PIPELINE`
 /// its own: the pipeline is the ordering every test already compares against,
 /// and `Pass::Industry(Commodity)` is four of its entries, so this needs no
 /// second enum for the commodity.
@@ -609,7 +609,7 @@ fn decode_report(input: &mut Reader<'_>) -> Result<Result<SeasonReport, LoadErro
     // `Reader::seq` hands the element decoder a `CodecError` channel and
     // nothing wider, so the richer refusals — an unknown pass, an unknown
     // event — come back through the *value* as an inner `Result` and are
-    // unwrapped here rather than being flattened into a bare "malformed".
+// unwrapped here.
     let passes = input.seq(|r| {
         let index = r.u32()?;
         Ok(SEASON_PIPELINE.get(index as usize).copied().ok_or(LoadError::BadPass(index)))
@@ -721,7 +721,7 @@ fn decode_message(input: &mut Reader<'_>) -> Result<Result<Message, LoadError>, 
 }
 
 /// Exhaustive both ways, so adding a stage to the escalation is a compile
-/// error here rather than a save that reads back a different message.
+/// error here.
 fn bankruptcy_tag(action: BankruptcyAction) -> u8 {
     match action {
         BankruptcyAction::None => 0,

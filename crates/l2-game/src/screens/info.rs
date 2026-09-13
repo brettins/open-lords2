@@ -198,7 +198,7 @@ pub const COUNTY_GROUP: usize = 100;
 /// **The ten strings of group 31 that nothing in the binary draws**, with 21
 /// among them.
 ///
-/// Enumerated rather than asserted: group 31 has two consumers and their
+/// Enumerated: group 31 has two consumers and their
 /// reachable index sets were listed. 6 is the interesting one — it is *assigned*
 /// to the heading local for an army and then explicitly suppressed by
 /// `else if (local_20 != 6)`.
@@ -403,7 +403,7 @@ pub const CASTLE_ENEMY_BARRACKED: usize = 0x13;
 /// `local_18` is the county's industry record and the four ranges are the
 /// *same* ones [`l2_kingdom::industry::map_toggle_for_graphic`] uses to decide
 /// which industry a **left** click on the tile toggles, so the site this panel
-/// describes and the site that click switches agree by construction rather than
+/// describes and the site that click switches agree by construction
 /// by two transcriptions of one ladder. `[V]` — and
 /// [`crate::audio::names::resource_site_slot`] is the third reader of it.
 ///
@@ -450,7 +450,7 @@ pub const SITE_INFO: [(usize, usize, usize); 4] = [
 /// *sprite* in `Sprite_TopIt` (`0x004071A0`) — a painter that shares no code
 /// with this one, reading `industry[1]`, `[3]`, `[2]` and `[0]` over the same
 /// four graphic ranges. Two independent readers of one table is what makes the
-/// bucketing `[V]` rather than a transcription.
+/// bucketing `[V]`.
 pub const SITE_BAND_SMALL: usize = 0;
 pub const SITE_BAND_MEDIUM: usize = 1;
 pub const SITE_BAND_LARGE: usize = 2;
@@ -882,7 +882,7 @@ impl InfoScreen {
     /// `0x04`, `0x10`, `0x40`, `0x80`, with no `0x01` and no `0x08` — so a
     /// settlement tile that also carried road or rough would take the `0x80`
     /// *row* and the road's *words*. No such tile exists in the England
-    /// position; `tests/screens.rs` asserts that rather than assuming it.
+/// position; `tests/screens.rs` asserts that.
     ///
     /// [`flags::SETTLEMENT`]: l2_kingdom::map::flags::SETTLEMENT
     /// [`flags::CASTLE`]: l2_kingdom::map::flags::CASTLE
@@ -943,7 +943,7 @@ impl InfoScreen {
             }
             // The tile half's full ladder needs the plane-0 flags and the
             // county's castle state; what is reproduced here is the two arms a
-            // right click on the campaign map can actually reach today —
+// right click on the campaign map can reach today —
             // farmland of the player's own county, and everything else.
             Target::Tile(tile) => {
                 let map = &ctx.game.kingdom.campaign.map;
@@ -1134,8 +1134,8 @@ impl Screen for InfoScreen {
                 //
                 // `Map_EdgeScroll` (`0x00432221`) returns 0 **at the far zoom**
                 // — `if (g_battlePhase == 0 && g_mapZoom == 2) return 0;` — so
-                // the gesture does nothing there, which is why this reads
-                // [`crate::game::Game::map_zoom_far`] rather than closing on
+// the gesture does nothing there, so this reads
+// [`crate::game::Game::map_zoom_far`]
                 // any edge. Its other refusal, a message scroll being up, is
                 // vacuous here: we have no message scroll.
                 //
@@ -1219,7 +1219,7 @@ impl Screen for InfoScreen {
         // screen that changes what the panel is *about* without leaving it:
         // `FUN_00438ACC` writes the county's garrison into `g_pickedTileUnit`
         // and calls the painter again, so the tile half becomes the unit half
-        // in place. `g_screenId` never moves, which is why this is a mutation
+// in place. `g_screenId` never moves, so this is a mutation
         // of `self.target` and not a transition.
         //
         // `FUN_00438ACC` opens `if (g_mapZoom != 2)` and does nothing at the far
@@ -1251,7 +1251,7 @@ impl Screen for InfoScreen {
                     // **The besieging case is not reproduced**: the original
                     // asks `L2.eng` 10/13 *"Lift the siege?"* through
                     // `Ui_OpenConfirm` first, and we have no confirm box. It is
-                    // named in `docs/arms.json` rather than silently dropped.
+// named in `docs/arms.json`.
                     // arm: 0x00437002/info-move left-press
                     (0, false) => {
                         ctx.game.begin_move_order = Some(id);
@@ -1291,7 +1291,7 @@ impl Screen for InfoScreen {
                         }
                     },
                     // **`Panel_SplitButton` (`0x004378B3`)**, and it is a
-                    // `Push` rather than a `Replace` because `0x11` goes
+// `Push` because `0x11` goes
                     // **back to `0x04`**: every one of the division screen's
                     // three ways out — the turn-ended latch, the right release
                     // and the OK button — writes `g_screenId = 0x04` and not 0.
@@ -1415,7 +1415,7 @@ impl Screen for InfoScreen {
                     // origin to the right. Four sites here, one on the court,
                     // one inside `Pen::count` itself and one on the ratings
                     // sheet: **seven instances of one confusion**, and it is
-                    // structural rather than careless — every coordinate in the
+// structural — every coordinate in the
                     // decompilation except `g_penAdvance` is absolute, so
                     // transcribing a painter faithfully produces it.
                     // `docs/decisions.md` C110.
@@ -1841,7 +1841,7 @@ fn draw_castle(
 ///
 /// The four `Sound_RestartSlot` calls that sit among these literals were
 /// already built — `docs/audio.json` `TileInfo_Draw#1…#4`, fired on the panel
-/// *opening* by [`crate::audio`] rather than on every repaint.
+/// *opening* by [`crate::audio`].
 pub fn draw_resource_site(
     ctx: &Ctx,
     pen: &Pen,
@@ -1876,8 +1876,8 @@ pub fn draw_resource_site(
 /// `TileInfo_Draw`'s band arithmetic, whole — see [`SITE_BAND_EDGES`].
 ///
 /// [`l2_kingdom::county::Industry::output`] is the original's
-/// `total − totalSnapshot`: the same difference, held as a field rather than
-/// recomputed. `disabledSeasons` **bypasses** the buckets, which is why a
+/// `total − totalSnapshot`: the same difference, held as a field
+/// recomputed. `disabledSeasons` **bypasses** the buckets, so a
 /// destroyed site is never also large.
 pub fn site_band(site: &l2_kingdom::county::Industry) -> usize {
     if site.disabled_seasons != 0 {

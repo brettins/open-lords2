@@ -11,7 +11,7 @@
 //! armoury a player has. Filing it as optional content is what let the most
 //! gameplay-critical shell in the table sit there for weeks;
 //! `docs/decisions.md` C45 records it as the fifth correction of the form *a
-//! name is a claim*, and the first where the cost was priority rather than a
+//! name is a claim*, and the first where the cost was priority.
 //! wrong belief about a rule.
 //!
 //! # It is a window on the armoury, and that was the second finding
@@ -81,7 +81,7 @@
 //! ```
 //!
 //! Thirty-eight draw calls, and **every `Eng_DrawString` group was checked
-//! against the words** rather than against the index existing: 69 is the
+//! against the words**: 69 is the
 //! raise-army/armoury group, 16 the nationalities, 18 *"Yes"*/*"No"*/*"Cancel"*
 //! and 100 the county names. Group 16 is the trap this audit exists for — the
 //! armoury was filed under it and 16/6 *does* exist, so an existence check
@@ -102,7 +102,7 @@
 //!
 //! **`g_levyPercent + 0xC4` is the knob's x**, which closes with the slider
 //! handler's `g_levyPercent = mouseX - 0xC4` over a 101-pixel track: the two
-//! are exact inverses, which is what makes [`SLIDER_X`] `[V]` rather than a
+//! are exact inverses, so [`SLIDER_X`] `[V]`.
 //! measurement.
 //!
 //! **The six weapon icons come out of the armoury's own sheet.** They are
@@ -114,7 +114,7 @@
 //!
 //! **`realm + 0x138` is the realm's weapon total** and 69/14 is *"Total
 //! weapons"* — `Realm_RecountWeapons` (`0x004487A9`) keeps it as the sum of the
-//! six stocks, so we sum rather than store one.
+//! six stocks, so we sum.
 //!
 //! **`Eng_DrawString(69, 9)` is *"Continue"*, and it labels the one widget on
 //! this screen that goes anywhere.** See below.
@@ -183,7 +183,7 @@
 //! gone, and every one of them has a home now. Equipping is the armoury's
 //! `+`/`−`, raising is *Create*, and cancelling is the corner picture. The one
 //! thing with no counterpart was AUTO-EQUIP: `Levy_AutoEquip`'s round-robin is
-//! the **AI's** function and no button in the game runs it, which is why the
+//! the **AI's** function and no button in the game runs it, so the
 //! address this module printed for it (`0x004AAD5F`) named nothing — it falls
 //! inside `Battle_AutoResolve`. [`l2_kingdom::LevyBasket::auto_equip`] keeps
 //! the rule for the AI and this screen no longer offers it.
@@ -362,7 +362,7 @@ pub const SLIDER_RIGHT_ICON: usize = 0x52;
 /// **What the picture is has not been established.** It is the frame
 /// immediately after the slider's five and no other function in the
 /// decompiled corpus passes `0x53` to `Pl8_DrawFrame`, so there is no second
-/// call site to read it against. Named rather than described.
+/// call site to read it against. Named.
 pub const HAPPINESS_ICON: usize = 0x53;
 
 /// The three records of `DAT_004DD340`, in table order: **Continue** (frame 33,
@@ -849,7 +849,7 @@ impl Screen for RaiseArmyScreen {
         // 69/16 "Raising an army in", then the county's own name out of group
         // 100 at `scenarioIndex * 20 + county` — the painter chains them on
         // `g_penAdvance`, and so do we now that [`Pen::body`] returns where it
-        // stopped rather than how far it went.
+// stopped.
         let x = pen.eng(canvas, GROUP, RAISING_IN, RACK_X, b - 8, font::TEXT);
         pen.eng(canvas, COUNTY_NAMES, county_name_index(ctx, self.county), x, b - 8, font::TEXT);
 
@@ -914,7 +914,7 @@ impl Screen for RaiseArmyScreen {
             }
             // `Ui_DrawNumber(stock, ' ', &DAT_004D40B8, …)` — a **space** lead
             // here, not the '@' the rest of the screen uses, and the only
-            // suffix on this screen that is one space rather than a NUL. **[V]**
+// suffix on this screen that is one space. **[V]**
             let dx = x + RACK_NUMBER_DX;
             pen.number_in(shell::Face::Body, canvas, dx, y, stock, ' ', " ", font::TEXT);
         }
@@ -934,7 +934,7 @@ impl Screen for RaiseArmyScreen {
         // `Ui_DrawNumber(…, '@', &DAT_004D40C0 | &DAT_004D40BC, g_penAdvance +
         // 0x188, …)`, both NUL, then the face at `g_penAdvance + 0x188`. The old
         // no-lead-plus-space put the digits four left and the face exactly
-        // where it belongs, which is why nobody saw it. **[V]**
+// where it belongs, so nobody saw it. **[V]**
         let x = pen.number_in(shell::Face::Body, canvas, x, b + 0x30, value, '@', "", font::TEXT);
         pen.system_frame(canvas, HAPPINESS_ICON, x, b + 0x30);
 
@@ -991,7 +991,7 @@ impl Screen for RaiseArmyScreen {
                 // `'@'` lead and empty suffix. This line used to build the pair by
                 // hand from the old `Pen::number(…, true)`, which drew the digits
                 // four pixels left of the original's. It also takes the singular
-                // at **±1**, not just at 1.
+// at **±1**.
                 pen.count(canvas, x, b + 0x92, gold, CROWN_NOUN, font::TEXT);
 
                 pen.eng(canvas, GROUP, HIRE_QUESTION, 0x92, b + 0xA4, font::TEXT);
@@ -1106,7 +1106,7 @@ mod tests {
     }
 
     /// The Continue button is inside the original's window, is clear of the
-    /// slider's hit band, and moves with the table offset rather than with the
+/// slider's hit band, and moves with the table offset
     /// layout's base.
     #[test]
     fn the_continue_button_is_the_only_way_on_and_it_is_inside_the_window() {
@@ -1125,7 +1125,7 @@ mod tests {
     }
 
     /// **The sixteen-pixel widget offset is the distance the caption moved.**
-    /// Both sides are pinned from the decompilation rather than computed from
+/// Both sides are pinned from the decompilation
     /// the constants they check: `DAT_004DD340` record 0 sits at y 336, the
     /// caption row is `(rows - 2) * 0x10 + base + 4`, and the difference is the
     /// offset `Screen_DrawWidgets` passes.

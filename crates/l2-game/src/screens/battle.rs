@@ -74,7 +74,7 @@
 //! **The mercenary band is folded into its troop type before the row is drawn**
 //! — `if (unit.mercTroop == row) count += unit.mercMen` — in both modes, and it
 //! is the stashed value too, so a mercenary company shows up inside the
-//! swordsmen rather than beside them. **This listing described the fold from
+//! swordsmen. **This listing described the fold from
 //! the day it was written and neither screen did it**, and neither drew
 //! `menTotal` either — both are [`crate::engagement::roster_of`] and
 //! `draw_roster`'s `totals` now. C189.
@@ -227,7 +227,7 @@ pub const MEDALLION_SHEET: &str = "Icon_tmp.pl8";
 /// and another for a siege, inside the recess at (52, 68).
 ///
 /// **Unverified against the artwork**: nothing in this tree has looked at what
-/// frames 55 and 56 of `icon_tmp.pl8` actually are, only that the painter picks
+/// frames 55 and 56 of `icon_tmp.pl8` are, only that the painter picks
 /// between them on `g_battleIsSiege`.
 pub const MEDALLION_BATTLE: usize = 0x37;
 pub const MEDALLION_SIEGE: usize = 0x38;
@@ -271,7 +271,7 @@ const TOTAL_B_X: i32 = 282;
 ///
 /// Frames 29 and 31 are a mailed hand giving a thumb **up** and a thumb
 /// **down** — not a tick and a cross; `docs/screens-county.md` §4.2 decoded
-/// them. Every yes/no in the game draws this same pair, which is why
+/// them. Every yes/no in the game draws this same pair, so
 /// `screens/saveload.rs` has the identical two constants.
 pub const TAKE_THE_FIELD: (i32, i32, usize, i32) = (BOX_X + 300, BOX_Y + 68, 29, 32);
 pub const DECLINE: (i32, i32, usize, i32) = (BOX_X + 340, BOX_Y + 68, 31, 32);
@@ -395,7 +395,7 @@ fn draw_roster(
     for (row, troop) in ALL_TROOP_TYPES.iter().enumerate() {
         let y = ROSTER_Y + row as i32 * ROW_PITCH + 4;
         // `Pl8_DrawFrame(g_miscCtySheet, 0x2F + row, …)` twice a row, at the
-        // row's own y rather than the text's. Nothing drew these until the
+// row's own y. Nothing drew these until the
         // draw-call audit read `FUN_004224E7`.
         for x in [COL_A_ICON, COL_B_ICON] {
             p.misc_frame(canvas, TROOP_ICON_FRAME0 + row, x, y - 4);
@@ -465,10 +465,10 @@ pub struct BattlePromptScreen {
 ///
 /// Both are `Widget_Test` kind **4**, read out of `+0x0F` of `0x004DDBB0` and
 /// `0x004DDBC8`. `docs/arms.json` filed this pair as `left-release` — inferred
-/// from the shape of the buttons rather than read off the record — and the exe
+/// from the shape of the buttons — and the exe
 /// says the press. It is the same pair of pictures as the yes/no box and a
 /// *different kind*, which is exactly the case that makes the kind a fact to be
-/// read rather than a family resemblance to be assumed.
+/// read.
 ///
 /// The repeat that comes with kind 4 never runs: `Battle_PromptAnswered`
 /// (`0x0043B593`) leaves screen `0x12` on the first fire, and a table that is no
@@ -481,7 +481,7 @@ pub struct BattlePromptScreen {
 /// `DAT_004DDBB0[0]`, hotspot id 1, is `FUN_0043B593` → `Battle_Start`
 /// (`0x004778A0`); `DAT_004DDBB0[1]`, hotspot id 0, is `Battle_Decline`
 /// (`0x0043B622`). Both are hit-tested by `Screen_HandleInput`
-/// (`0x004BA9C8`), which is why the arms carry its address.
+/// (`0x004BA9C8`), so the arms carry its address.
 fn prompt_widgets() -> [Widget; 2] {
     [
         Widget::new(widget_rect(TAKE_THE_FIELD), crate::arm!("0x004BA9C8/prompt-fight", Repeat)),
@@ -554,7 +554,7 @@ impl Screen for BattlePromptScreen {
 
     /// **Two widgets and nothing else.**
     ///
-    /// This is what `Screen_FrameInput`'s `0x12` arm actually is, and it took
+/// This is what `Screen_FrameInput`'s `0x12` arm is, and it took
     /// the input audit to find out. The whole arm is:
     ///
     /// ```c
@@ -576,7 +576,7 @@ impl Screen for BattlePromptScreen {
     /// exactly two records — `g_sliderWidgets` begins at `0x004DDBE0`, 48 bytes
     /// on — so there is no third widget hiding behind the count.
     ///
-    /// Gone from here, and counted as inventions rather than bugs
+/// Gone from here, and counted as inventions
     /// (`docs/arms.json`): **right-click to Decline**, **Escape to Decline**,
     /// **Enter to take the field**, and answering on any click for a bystander.
     /// The prompt waits for ever in single player and that is correct — it is
@@ -615,7 +615,7 @@ impl Screen for BattlePromptScreen {
                     Transition::Replace(ScreenId::Battlefield)
                 } else {
                     // The armies could not be mustered — a slot is no longer a
-                    // unit. Settle it the way a headless turn would rather than
+// unit. Settle it the way a headless turn would
                     // leaving the prompt up with nothing behind it.
                     BattlePromptScreen::answer(ctx, Answer::TakeTheField)
                 }
@@ -643,7 +643,7 @@ impl Screen for BattlePromptScreen {
         draw_frame(ctx, canvas, q.county, q.attacker_owner, q.defender_owner, q.is_siege);
 
         // **The heading is one of two**, and the siege one is the game saying
-        // something different rather than the same thing about a siege: *"The
+// something different about a siege: *"The
         // Siege commences."*
         let heading = if q.is_siege { 7 } else { 0 };
         let s = ctx.assets.shell.text(GROUP_PROMPT, heading).to_string();
@@ -782,7 +782,7 @@ impl Screen for BattleResultScreen {
         // this battle, from the local player's point of view — printed here
         // rather than nowhere, because `0x2B` is not built and a player who is
         // told only *"The Battle is decided."* has not been told the outcome.
-        // Marked as ours by being under the original's heading rather than in
+// Marked as ours by being under the original's heading
         // place of it.
         let pair = r.outcome(ctx.game.player).pair();
         let banner = ctx.assets.shell.text(GROUP_BANNER, pair * 2).to_string();

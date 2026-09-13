@@ -1,7 +1,7 @@
 //! The original's interface artwork: `Panels.pl8`, `Misc_cty.pl8` and the
 //! minimap rasters in `MAPnn.PL8`.
 //!
-//! Everything here is decompiled — `docs/screens.md` §3 and §4 — rather than
+//! Everything here is decompiled — `docs/screens.md` §3 and §4 —
 //! designed. Where a rectangle is invented it says so at the point of use.
 //!
 //! # Three sheets, three jobs
@@ -19,7 +19,7 @@
 //!   file: a county id per pixel and a shading mask. The *colour* of the
 //!   minimap is not in the file at all — it comes from an 8-bytes-per-realm
 //!   ramp in `Lords2.exe` at `0x004D2900`, which is read out of the executable
-//!   here rather than invented.
+//!   here.
 
 use l2_formats::{DecodedFrame, Palette, Pl8};
 
@@ -132,7 +132,7 @@ pub mod misc_cty {
     /// `0x4E` at `(0x255, y + 0x129)` — six pixels left and three up, not the
     /// two-and-two every other pair uses, because `0x4E` is 32 × 34 against
     /// `0x40`'s 23 × 26. So the ringed castle is a **different, larger
-    /// picture** that also carries the ring, rather than the same one inside
+/// picture** that also carries the ring
     /// one. Its border is blue like all the others; its geometry is its own.
     pub const CASTLE_PLAIN: usize = 0x40;
     pub const CASTLE_RINGED: usize = 0x4E;
@@ -187,7 +187,7 @@ pub mod misc_cty {
     /// **The three palette entries the ring is made of**, in `Base01.256`:
     /// `rgb(194, 230, 255)`, `rgb(157, 202, 234)` and `rgb(0, 0, 121)`.
     ///
-    /// Named rather than described, because *"blue outline"* is a memory and
+/// Named, because *"blue outline"* is a memory and
     /// this is a measurement: of frame `0x55`'s 124 border pixels, 124 are one
     /// of these three. `crates/l2-view/tests/install.rs` asserts it against the
     /// player's own file.
@@ -499,10 +499,10 @@ pub const REALM_PEN_VA: u32 = 0x004D_C1D0;
 ///
 /// **This does not clamp, and [`realm_colour`] does.** The clamp there is
 /// `FUN_004171EE`'s, applied before using the byte as a *frame index*, where
-/// there is no such thing as "no frame". A pen has an honest answer for "we do
+/// A pen has an honest answer for "we do
 /// not know this realm's colour", and it is not red: a zero shield that clamped
 /// up to 1 would render as a plausible wrong colour and survive a canvas diff,
-/// which is precisely the failure that hid this bug. The caller falls back
+/// which is the failure that hid this bug. The caller falls back
 /// visibly instead.
 ///
 /// The original has no such case — it would index two bytes below the table and
@@ -590,7 +590,7 @@ impl Chrome {
     }
 
     /// One `Misc_cty` frame at a position. Returns false if the frame is
-    /// missing, so a caller can fall back rather than draw nothing silently.
+/// missing, so a caller can fall back.
     pub fn draw_misc(&self, canvas: &mut Canvas, frame: usize, x: i32, y: i32) -> bool {
         self.blit(canvas, &self.misc_cty, frame, x, y)
     }
@@ -670,7 +670,7 @@ impl Chrome {
     ///
     /// `screens::menubar` was asking for set 2 all along and saying so in its
     /// header — *"our `Pen::window` only models two of the original's three
-    /// border sets, so set 2 draws with set 1's artwork. Recorded rather than
+/// border sets, so set 2 draws with set 1's artwork. Recorded
     /// faked."* The record was accurate, it was in the file, and it did not
     /// cause the work to happen: `docs/agents.md`, *a correct explanation
     /// sitting directly above the omission it describes*.
@@ -739,7 +739,7 @@ impl Chrome {
 
     /// The campaign right column. `own` picks between the two middle layouts,
     /// which is the only thing `Panel_DrawCounty` varies about the frames
-    /// themselves. Returns how many of the frames were actually drawn.
+/// themselves. Returns how many of the frames were drawn.
     pub fn draw_right_panel(&self, canvas: &mut Canvas, own: bool) -> usize {
         use misc_cty::*;
         let x = crate::campaign::PANEL_X;
@@ -814,7 +814,7 @@ pub fn draw_minimap(canvas: &mut Canvas, minimap: &Minimap, selected: u8, tint: 
 ///
 /// **The send-supplies screen draws it somewhere else.** `FUN_00410A5D(county,
 /// 0x60, 0x68)` is the two opening statements of `Minimap_Draw` with a
-/// different origin — it blits at (94, 107) rather than the sidebar's (478, 28)
+/// different origin — it blits at (94, 107)
 /// — so the position is a parameter and [`draw_minimap`] is the sidebar's call
 /// with the sidebar's constants.
 pub fn draw_minimap_at(
@@ -932,7 +932,7 @@ mod tests {
         assert_eq!(MINIMAP_Y + MINIMAP_DIM, PANEL_MIDDLE_Y);
         assert_eq!(MINIMAP_X, crate::campaign::PANEL_X);
         // ...and the hit rectangle is offset from it, which is the original's
-        // own inconsistency rather than ours.
+// own inconsistency.
         assert_ne!((MINIMAP_X, MINIMAP_Y), (MINIMAP_HIT_X, MINIMAP_HIT_Y));
         assert_eq!(MINIMAP_HIT_X - MINIMAP_X, 2);
         assert_eq!(MINIMAP_Y - MINIMAP_HIT_Y, 3);
@@ -990,7 +990,7 @@ mod tests {
     /// shade**, and a band of 6 leaves the raster alone.
     ///
     /// The same synthetic raster as above, drawn three ways, with the pixels
-    /// counted rather than described.
+/// counted.
     #[test]
     fn a_rating_overlay_paints_one_ramp_colour_over_all_four_shades() {
         let n = (MINIMAP_DIM * MINIMAP_DIM) as usize;
@@ -1082,7 +1082,7 @@ mod tests {
         assert_eq!(MinimapMode::Happiness.badge_frame(), Some(0x5E));
     }
 
-    /// `FUN_004171EE`'s clamp, and the reason it lives here rather than on the
+/// `FUN_004171EE`'s clamp, and the reason it lives here
     /// load path: colour 0 would index `Misc_cty` frame 85, which is 13 x 37
     /// and does not fit the 24-pixel menu bar, while 1..=5 land on the five
     /// 13 x 16 frames that do.

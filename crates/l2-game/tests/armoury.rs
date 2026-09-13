@@ -84,7 +84,7 @@ fn grid_box(a: &Assets, weapon: u8) -> Option<Rect> {
 /// and an eleven-cell sliver at y 216 — and in the original every one of them
 /// is a live hotspot that indexes the eight-slot levy basket with 60-something.
 /// `docs/bugs.md` N13. We answer `None`, and this is where that is asserted
-/// against the file rather than against our own belief about it.
+/// against the file.
 #[test]
 fn the_hit_map_names_six_weapons_and_the_stray_cells_are_refused() {
     let (_g, assets) = world!();
@@ -104,7 +104,7 @@ fn the_hit_map_names_six_weapons_and_the_stray_cells_are_refused() {
     assert_eq!(seen, vec![1, 2, 3, 4, 5, 6], "one region per weapon type, and no seventh");
 
     // The two known stray patches, named by position so that a different file
-    // fails loudly rather than quietly agreeing.
+// fails loudly.
     assert_eq!(assets.shell.armoury_grid(0, 0), None, "the left-edge strip is not a rack");
     assert_eq!(assets.shell.armoury_grid(0, 112), None, "nor its last row");
     assert_eq!(assets.shell.armoury_grid(560, 216), None, "nor the sliver at y 216");
@@ -144,18 +144,18 @@ fn every_weapon_can_be_clicked_where_it_hangs() {
         }
 
         // And the hotspot rectangle — the fallback for a missing grid — covers
-        // the rack sprite at the bottom of the screen rather than the wall.
+// the rack sprite at the bottom of the screen.
         let h = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == weapon).expect("a hotspot");
         assert!(h.1 >= 396, "weapon {weapon}'s fallback rectangle is not on the bottom row");
     }
 }
 
 /// **The whole walk on the real fixture and the real artwork**: raise a levy in
-/// a county the fixture actually gave the player, equip it at the rack the
-/// player can actually see, and march out with an army.
+/// a county the fixture gave the player, equip it at the rack the
+/// player can see, and march out with an army.
 ///
 /// `docs/agents.md` C27 — *a rule with no way in is not a rule the game has* —
-/// with the placeholder taken away, so the clicks land on the grid rather than
+/// with the placeholder taken away, so the clicks land on the grid.
 /// on our rectangles.
 #[test]
 fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
@@ -168,7 +168,7 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
 
     // Whatever the fixture's realms were given. `docs/kingdom.md` says row 2 of
     // `g_startArmoury` — 50 swords, 50 pikes, 50 bows — but the row is a
-    // setup choice, so the weapon is found rather than assumed.
+// setup choice, so the weapon is found.
     let stocked = (0..WEAPON_TYPE_COUNT)
         .find(|&s| g.kingdom.realms[realm].weapons[s] > 0)
         .expect("the fixture's realms have an armoury");
@@ -349,7 +349,7 @@ fn all_five_armoury_sheets_carry_the_frames_both_screens_ask_for() {
 /// `g_armouryWallItems` (`0x004D2D88`) is where `Armoury_DrawWallItems` hangs
 /// the weapon. Neither table refers to the other and nothing in the binary
 /// derives one from the other — so their agreement is evidence, in the sense
-/// `CLAUDE.md` means it, rather than a restatement.
+/// `CLAUDE.md` means it.
 ///
 /// **The probe is the wall item's own rectangle out of the sheet**, not
 /// anything computed from the stop position, which is the trap
@@ -414,7 +414,7 @@ fn every_walker_sheet_holds_exactly_the_frames_the_walk_reaches() {
 
 /// **`Armtorch.pl8` is two torches and says so**: thirteen frames, then
 /// thirteen more, which is `Armoury_DrawTorches`' `+ 0x0D` measured off the
-/// file rather than transcribed. Each `Arm_<weapon>.pl8` is 24, which is
+/// file. Each `Arm_<weapon>.pl8` is 24, which is
 /// `DAT_005AEA48`'s wrap.
 #[test]
 fn the_two_animation_counters_wrap_where_their_sheets_end() {
@@ -633,7 +633,7 @@ fn nobody_walks_for_the_peasants_for_an_untouched_rack_or_over_another_walk() {
 /// The strip chosen for a given x is 240 pixels wide (160 for the last) and the
 /// soldier is 89 wide, so at the top of each band his right-hand columns stand
 /// **five pixels** outside the rectangle that gets restored. Measured off the
-/// sheet rather than assumed: the assertion is on the frames' own opaque
+/// sheet: the assertion is on the frames' own opaque
 /// bounding box, so it is about what is painted and not about the record's
 /// declared width.
 #[test]
@@ -653,7 +653,7 @@ fn the_erase_strip_is_the_original_s_four_and_the_soldier_overhangs_it() {
     assert_eq!(armoury::walker_strip(0x1E0).x, 0x1E0);
     assert_eq!(armoury::walker_strip(0x27F).x, 0x1E0);
 
-    // The widest opaque column any of his frames actually paints.
+// The widest opaque column any of his frames paints.
     let sheet = assets.shell.sheet(armoury::walker_sheet(1, 1)).expect("Trp_xb_r.pl8");
     let mut widest = 0;
     for f in 0..=armoury::CARRY_FIRST + armoury::WALK_PHASES as usize - 1 {
@@ -680,7 +680,7 @@ fn the_erase_strip_is_the_original_s_four_and_the_soldier_overhangs_it() {
 }
 
 /// **The soldier and the torches are on the screen**, matched against the
-/// sheets they come out of rather than counted.
+/// sheets they come out of.
 ///
 /// `docs/agents.md`: *"is it drawn" and "can it be seen" are different claims.*
 /// Every other test above this one is about the walker's *state*, and all of
@@ -709,7 +709,7 @@ fn the_soldier_and_the_torches_are_painted_where_the_animation_says() {
         .expect("the fixture's realm has an armoury");
 
     // Put him mid-stride, at a torch phase that is not zero so a counter stuck
-    // at its initial value is a failure rather than a coincidence.
+// at its initial value is a failure.
     g.levy.anim.walker.latch(slot, 0);
     assert!(g.levy.anim.walker.start(slot, 1));
     for _ in 0..200 {
