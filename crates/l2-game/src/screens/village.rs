@@ -99,7 +99,7 @@ use crate::widget;
 /// **The rubber band's colour, `FUN_00412795`'s literal fifth argument.**
 ///
 /// `FUN_00403cf4(x, y, w, h, 0x20)`, and `0x20` in `Base01.256` — the palette
-/// `Screen_DrawCampaign` sets and the village never replaces, because
+/// `Screen_DrawCampaign` sets and the village never replaces,
 /// `Village_Draw` paints over the campaign screen — is
 /// `rgb(255, 255, 255)`. Read out of the player's own install; the file is one
 /// 768-byte table of 6-bit VGA triples.
@@ -474,6 +474,19 @@ impl VillageScreen {
 impl Screen for VillageScreen {
     fn id(&self) -> ScreenId {
         ScreenId::Village(self.county)
+    }
+
+    /// **The village is three `g_screenId`s, not one** — `0x02` idle, `0x05`
+    /// the band, `0x06` the carried selection, the table at the top of this
+    /// file. The pointer is chosen from the byte (`g_cursorByScreen`,
+    /// `0x004E3098`), so the mode has to be askable: the question mark belongs
+    /// to `0x02` alone and `0x06` gets the peasant.
+    fn mode_screen_id(&self) -> Option<u8> {
+        Some(match self.phase {
+            Phase::Idle => 0x02,
+            Phase::Band => 0x05,
+            Phase::Carry => 0x06,
+        })
     }
 
     fn title(&self, _ctx: &Ctx) -> String {

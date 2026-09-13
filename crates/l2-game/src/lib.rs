@@ -58,6 +58,8 @@ pub mod castle;
 /// When a tick falls due — the event loop's clock, kept where a test can
 /// reach it. See [`clock::Ticker`].
 pub mod clock;
+/// Which mouse pointer the frame shows. See [`cursor::by_screen`].
+pub mod cursor;
 pub mod engagement;
 pub mod game;
 pub mod input;

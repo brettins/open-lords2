@@ -849,3 +849,57 @@ fn a_film_keeps_step_with_its_own_sound_track() {
         );
     }
 }
+
+/// **`Intro_DrawSubtitle` (`0x0041A166`) draws nothing for an English
+/// `L2.eng`**, and this install's is English.
+///
+/// The function's first act is a `strcmp` of group 300 index 0 against
+/// `"English"`; equal, it returns before it reaches group 301's eleven-line
+/// ladder. So the shipped intro carries no text and the narration is the sound
+/// track alone. `docs/formats/smk.md`.
+///
+/// Asserted where the player would see it: the canvas, over the first four
+/// hundred ticks of the film — every cue up to frame `0x117` — in the rows
+/// `Ui_DrawCentred(0x12D, n, 0, 400, …)` and its second line at `0x1A0` would
+/// paint, which are below the picture and therefore the black
+/// `FUN_004B1867` left.
+///
+/// **Ablation:** the tail of this test is a `Subtitles` cued the other way,
+/// which fires at frame `0x1D`. Take the `is_english` test out of
+/// `MovieScreen::open` and the rows fill.
+#[test]
+fn the_english_intro_carries_no_subtitles() {
+    let (_p, a) = install!();
+    assert!(
+        movie::is_english(a.shell.text(300, 0)),
+        "this install's L2.eng group 300/0 is the language tag FUN_0041A166 compares"
+    );
+
+    let mut g = realms();
+    let mut m = Machine::new(ScreenId::Movie(Film::Intro));
+    let mut canvas = l2_view::Canvas::screen();
+    // The film is 40 x 80 and its rows stop above 400, so the two subtitle
+    // rows are the cleared back buffer and nothing else.
+    for tick in 0..400 {
+        {
+            let mut ctx = Ctx { game: &mut g, assets: &a };
+            m.update(&mut ctx);
+        }
+        if m.top_id() != Some(ScreenId::Movie(Film::Intro)) {
+            break;
+        }
+        let ctx = Ctx { game: &mut g, assets: &a };
+        m.draw(&ctx, &mut canvas);
+        for y in 400..432usize {
+            for x in 0..640usize {
+                assert_eq!(canvas.at(x, y), 0, "tick {tick}: ink at ({x}, {y}) under the intro");
+            }
+        }
+    }
+
+    // The ablation, and the proof the ladder is alive: cued, frame `0x1D` puts
+    // group 301 index 0 — *"1268 AD"* — on the first line.
+    let mut cued = movie::Subtitles::new(true);
+    cued.cue(0x1D);
+    assert_eq!(cued.lines, [Some(0), None], "a translated L2.eng gets the first line");
+}

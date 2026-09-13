@@ -259,11 +259,11 @@ pub enum Transition {
     /// selects that county, centres the map on it **and drops the whole
     /// management surface**. Our stack says that as: the overlay passes the
     /// event down, the campaign map acts, and the campaign map asks for
-    /// everything above it to be thrown away — which is `g_screenId = 0` with a
+    /// everything above it to be thrown away —
     /// stack underneath.
     ///
     /// It is deliberately not `Replace(self.id())`: that rebuilds the screen,
-    /// and the campaign map's viewport is exactly what a re-centre is *about*.
+    /// and the campaign map's viewport is re-centre is *about*.
     Reveal,
     /// **Go to screen X, unwinding the stack** — `g_smkReturnScreen`.
     ///
@@ -683,6 +683,24 @@ impl Machine {
     pub fn top_screen_byte(&self, game: &Game) -> Option<u8> {
         let s = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message)?;
         s.mode_screen_id().or_else(|| crate::tip::screen_byte(s.id(), game))
+    }
+
+    /// **The pointer this frame** — `Battle_Frame`'s two-way choice
+    /// (`0x004B99C0`): the battlefield ids run the hover ladder, every other
+    /// screen is one lookup in `g_cursorByScreen` (`0x004E3098`). See
+    /// [`crate::cursor`].
+    ///
+    /// A screen whose byte [`crate::tip::screen_byte`] does not assert takes
+    /// the arrow, which is what the table gives every screen but five.
+    pub fn pointer(&self, game: &Game) -> crate::cursor::Pointer {
+        let byte = self.top_screen_byte(game).unwrap_or(0);
+        if (0x28..0x2B).contains(&byte) {
+            return match game.battle.as_ref() {
+                Some(b) => b.cursor().into(),
+                None => crate::cursor::Pointer::Arrow,
+            };
+        }
+        crate::cursor::by_screen(byte)
     }
 
     pub fn take_dirty(&mut self) -> bool {
@@ -1201,7 +1219,7 @@ impl Machine {
     /// up, after it.
     ///
     /// Not a painter's draw: `Battle_Frame` calls it once a frame near the end of
-/// its tail, after the widgets and the message window, so it is
+/// its tail, after the widgets and the message window,
     /// drawn here after the stack and not by the campaign map. Whether it is
     /// drawn at all is `DAT_004D2E80[g_screenId]`, the table in
     /// [`crate::turn_clock::SCREENS`].

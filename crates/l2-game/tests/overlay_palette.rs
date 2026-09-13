@@ -233,3 +233,89 @@ fn a_message_that_opens_over_the_battlefield_asks_for_the_battlefields_palette()
         "the scroll names no palette, so the page under it does"
     );
 }
+
+/// **A screen change between drawing and presenting would flash one frame**,
+/// and the shell's guard is the only thing that stops it.
+///
+/// `main.rs` draws when `Machine::take_dirty` says something changed, asks the
+/// window to redraw, and presents when `RedrawRequested` comes back. Anything
+/// `winit` delivers in between — a click, a key — reaches `Machine::handle` and
+/// can change the page; `Machine::present` then reads the palette off the
+/// **live** stack while the canvas still holds the page before it. That is this
+/// file's defect in reverse: the old page's indices under the new page's
+/// colours.
+///
+/// `present` cannot be made to remember instead. `Screen::fade` and a film's
+/// `live_palette` both change **with no redraw at all** — the end-of-turn fade
+/// is entirely a palette effect (`FUN_004B0CB4`) — so a presenter that used the
+/// palette of the last draw would freeze both. The order is the fix, and it
+/// belongs where the order is.
+///
+/// Two halves, because the shell is a binary:
+///
+/// * the flash is **measured** here, on `Machine::present`;
+/// * the guard is read out of `main.rs`, the one artefact the application and
+///   this test share — as `tests/movies.rs` reads the start-up call.
+///
+/// **Ablation:** delete the `take_dirty` guard from `App::present` and the
+/// second half goes red; make `Machine::present` ignore the live stack and the
+/// first half does.
+#[test]
+fn a_page_change_between_the_draw_and_the_present_would_flash() {
+    let a = assets!();
+    let campaign = a.palette.clone();
+    let armoury = a.shell.palette("Armoury.256").expect("armoury.256 is in the install").clone();
+    assert!(
+        (0..=255u8).any(|i| campaign.rgb(i) != armoury.rgb(i)),
+        "the two palettes differ, or nothing here means anything"
+    );
+
+    let mut g = Game::new(11);
+    g.kingdom.set_county_count(3);
+    g.kingdom.counties[1].owner = 1;
+    g.kingdom.counties[1].population = 1_000;
+    g.kingdom.counties[1].happiness = 90;
+    g.kingdom.realms[1].in_play = true;
+    g.kingdom.realms[1].is_human = true;
+    g.kingdom.realms[1].weapons = [20; 6];
+    g.player = 1;
+    g.selected = 1;
+
+    let mut m = Machine::new(ScreenId::Campaign);
+    // The frame the shell drew: the campaign map, in the campaign palette.
+    let mut canvas = Canvas::screen();
+    {
+        let ctx = Ctx { game: &mut g, assets: &a };
+        m.draw(&ctx, &mut canvas);
+    }
+    let mut drawn = vec![0u8; 640 * 480 * 4];
+    m.present(&a, &canvas, &mut drawn);
+
+    // R between `request_redraw` and `RedrawRequested`: the levy window, which
+    // reads `Armoury.256`.
+    send(&mut m, &mut g, &a, Event::KeyDown(Key::letter('r')));
+    assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)), "the page changed, the canvas did not");
+    assert!(m.take_dirty(), "and the change marked the machine dirty - what the guard keys on");
+
+    // Presenting the same canvas now is the flash.
+    let mut flashed = vec![0u8; 640 * 480 * 4];
+    m.present(&a, &canvas, &mut flashed);
+    let differing = PROBES.iter().filter(|&&p| shown(&drawn, p) != shown(&flashed, p)).count();
+    assert!(
+        differing > 0,
+        "the same plane of indices presented two ways is the same colour at all 8 probes, \
+         so this test cannot see a flash"
+    );
+
+    // And the guard is in the shell, where the order is.
+    let main_rs = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs"),
+    )
+    .expect("main.rs is beside this test");
+    let present = main_rs.split("fn present(&mut self)").nth(1).expect("App::present");
+    let body = &present[..present.find("fn redraw").unwrap_or(present.len())];
+    assert!(
+        body.contains("if self.machine.take_dirty()") && body.contains("self.redraw()"),
+        "App::present redraws what went dirty before it presents"
+    );
+}

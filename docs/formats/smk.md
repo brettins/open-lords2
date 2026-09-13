@@ -283,7 +283,7 @@ on **any `WM_KEYDOWN`**), `FUN_0043AD25` from `Turn_Tick`'s end-of-season phase,
 
 **The intro's frame cues**, `FUN_0041A166`, draw `L2.eng` group 301's eleven lines — *"1268
 AD"* onward — centred at y 400 in colour `0xF5`, **only when group 300's first seven
-characters are not `"English"`**. On this install they are, so the intro carries no text.
+characters are not `"English"`**. On this install they are, so the intro carries no text — asserted on the canvas by `crates/l2-game/tests/movies.rs`'s `the_english_intro_carries_no_subtitles`, which drives the film through the machine and finds the two subtitle rows black throughout.
 
 ## What ours does, and does not
 
