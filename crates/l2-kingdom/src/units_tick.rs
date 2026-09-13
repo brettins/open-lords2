@@ -883,6 +883,26 @@ pub fn refresh_allowances(units: &mut Units) {
 /// county changes hands first, and when a phase's wait comes true; two peers
 /// that disagreed about it would be playing different games
 /// (`docs/netcode.md` §5). It is in the save and therefore in the digest.
+///
+/// # A merchant is interpolated exactly like an army — **[V]**, and asked
+///
+/// *Does he glide, or did the original step him tile to tile?* He glides, in
+/// three places and none of them tests the kind byte:
+///
+/// * `Merchant_Tick` (`0x00465622`) and `Transport_Tick` (`0x00465761`) call
+///   `Unit_Step` on every tick they are `moving == 2`, the same statement
+///   `Army_Tick` (`0x0046521F`) ends on. `moveAllowance 10` is the turn's
+///   budget, not a frame delay.
+/// * `Unit_StepOnce` (`0x0046634D`) has no kind test at all: `+0x149` and the
+///   road-keyed divider above are every unit's.
+/// * `Map_DrawArmies` (`0x00408438`) reads its six `8 × 16` offset tables
+///   **before** the first `kind` comparison; the only kind-dependent parts are
+///   sheet B for a transport, the nudge and the mark-tile size.
+///
+/// His walk frames advance too, and faster than an army's: `Merchant_Tick`
+/// writes `+0x07 = ((facing + 1) & 7) * 6 + g_merchantWalkFrames[+0x1B]` — six
+/// frames against the army's three — off the counter bumped in the same branch
+/// as `+0x149`. So there is nothing to take off this type.
 fn cross_sub_tile(units: &mut Units, id: usize) -> bool {
     let Some(u) = units.get_mut(id) else { return false };
     // Already at the edge — the original leaves the latch set when a step is
