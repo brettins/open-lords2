@@ -11442,3 +11442,29 @@ whose first line is the game's own — `Eng_DrawString(40, ERROR_INDEX)` — so 
 player is told rather than silently robbed. `docs/arms.json`
 `ours/save-refuses-mid-battle`; the feature is `partial`, not `done`, and the gap
 names the reason.
+
+## CNEW-sounds — the battle prompt's spoken question, and the take that was "unread"
+
+`docs/audio.json` filed nine `S080` sites across `Battle_BeginFromCampaign`
+(`0x004A7158`), `FUN_004A6C68` and `Siege_LaunchAssault` (`0x004A8AAB`) as
+*"which of the three a given call plays is unread, and playing the first every
+time would be a guess rather than a reproduction."* It is read. All three sites
+carry the **same ladder on `g_battleChoiceOwner`**, immediately after
+`g_screenId = 0x12`: 1 → `S080_03.wav`, 2 → `S080_01.wav`, else → `S080_02.wav`.
+`[V]` at all three. That field is already ours as
+`crate::turn::Question::choice_owner`, so the wiring is one arm on the edge that
+was already firing `ff_batl.wav` — the battle prompt opening — and the three
+call sites are three routes onto one screen.
+
+**The mapping is not the group-80 one.** The prompt draws `L2.eng` group 80
+indices 1, 2, 3 for the same three cases, in that order; the takes are 3, 1, 2.
+A table generated from the string index would have been wrong in two cases of
+three and would have looked right.
+
+**The line is usually dropped, in the original and here.** `ff_batl.wav` is
+`Battle_ChooseSettlement`'s (`0x004A6A30`), on the branch that returns 1 — which
+is the branch every one of these three sites runs on — so the fanfare holds the
+one-shot buffer and bare `Sound_PlayFile` drops what follows. We reproduce that
+by making the two calls in the original's order through the same verb rather
+than by writing the rule down; the test asserts both halves, the take with the
+effects switch off and the drop with it on.

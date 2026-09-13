@@ -39,10 +39,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_03_wav_004de8a0,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_03.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Battle_BeginFromCampaign#2",
@@ -50,10 +50,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_01_wav_004de8ac,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_01.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Battle_BeginFromCampaign#3",
@@ -61,10 +61,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_02_wav_004de8b8,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_02.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Battle_ChooseSettlement#1",
@@ -611,10 +611,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_03_wav_004de87c,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_03.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "FUN_004a6c68#2",
@@ -622,10 +622,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_01_wav_004de888,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_01.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "FUN_004a6c68#3",
@@ -633,10 +633,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_02_wav_004de894,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_02.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "FUN_004ad9f0#1",
@@ -1370,10 +1370,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_03_wav_004de8c4,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_03.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Siege_LaunchAssault#2",
@@ -1381,10 +1381,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_01_wav_004de8d0,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_01.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Siege_LaunchAssault#3",
@@ -1392,10 +1392,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_02_wav_004de8dc,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_02.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Smk_OnFinished#1",

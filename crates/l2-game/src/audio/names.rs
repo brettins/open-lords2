@@ -380,6 +380,62 @@ pub mod speech {
     /// is silent and raises message `0x95` instead.
     pub const SPLIT_ARMY: &str = "S017_01.wav";
 
+    /// **The battle prompt's spoken question**, indexed by
+    /// `g_battleChoiceOwner` — *not* by the `L2.eng` group 80 index the same
+    /// three cases pick, and the two orders differ.
+    ///
+    /// Three call sites carry the identical ladder and all three are the
+    /// statement after `g_screenId = 0x12`: `Battle_BeginFromCampaign`
+    /// (`0x004A7158`), `FUN_004A6C68` and `Siege_LaunchAssault`
+    /// (`0x004A8AAB`). `[V]`, all three:
+    ///
+    /// ```c
+    /// if (g_battleChoiceOwner == 1)      Sound_PlayFile("S080_03.wav", 1, 0);
+    /// else if (g_battleChoiceOwner == 2) Sound_PlayFile("S080_01.wav", 1, 0);
+    /// else                               Sound_PlayFile("S080_02.wav", 1, 0);
+    /// ```
+    ///
+    /// **The take is decided and then usually dropped.** `ff_batl.wav` is
+    /// played by `Battle_ChooseSettlement` (`0x004A6A30`) on the branch that
+    /// returns 1, and all three of these sites run on that return — so the
+    /// fanfare is in the one-shot buffer when the line is asked for and bare
+    /// `Sound_PlayFile` drops it. Ours makes the same two calls in the same
+    /// order through the same verb, so the drop is the buffer's here too
+    /// rather than a rule written down. `docs/audio.json` recorded these nine
+    /// sites as *"which of the three a given call plays is unread"*; it is
+    /// read, and it is this.
+    pub const BATTLE_PROMPT: [&str; 3] = ["S080_02.wav", "S080_03.wav", "S080_01.wav"];
+
+    /// **`SaveLoad_Tick` (`0x004AD9F0`)** — the line the box speaks when the
+    /// thumb up's latch is taken up, on the frame the 0x96-frame wait starts.
+    /// `[V]`:
+    ///
+    /// ```c
+    /// if (g_screenId == '6') { … Sound_PlayFile("S040_02.wav", 1, 0); }
+    /// if (g_screenId != '6') { … Sound_PlayFile("S040_01.wav", 1, 0); }
+    /// ```
+    ///
+    /// `0x36` is the save box and `0x35` the load box, so the save speaks
+    /// `_02` and the load `_01`. Two `if`s rather than an `if`/`else`, and
+    /// the second's body also arms the failure latch when the file cannot be
+    /// opened — which is why it is written that way, and not why the sound is.
+    pub const SAVE_GAME: &str = "S040_02.wav";
+    /// `SaveLoad_Tick`'s other arm — every screen that is not `0x36`.
+    pub const LOAD_GAME: &str = "S040_01.wav";
+
+    /// **The trade spinner crossing into buying.** The merchant's four
+    /// quantity handlers each end in the same guard on the quantity before and
+    /// after the step — `if (0 < qty && oldQty < 1)` — so the line is said
+    /// once, on the move that turns a sale or a standstill into a purchase,
+    /// and never again while the player ramps the number up.
+    ///
+    /// `FUN_00435339` (the up arrow) and `FUN_004355DB` (the ceiling button)
+    /// say `S068_01.wav`; `FUN_0043543D` (down) and `FUN_00435541` (the floor
+    /// button) say `S068_02.wav`. `[V]` at each of the four.
+    pub const TRADE_BUYING_UP: &str = "S068_01.wav";
+    /// The down arrow's and the floor button's take of the same moment.
+    pub const TRADE_BUYING_DOWN: &str = "S068_02.wav";
+
     /// **The mercenary offer, read aloud** — `0x004DF8B8`, `char[16][16]`,
     /// indexed by `mercenaryOffer − 1`.
     ///
