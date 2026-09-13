@@ -16,8 +16,28 @@
 
 const fs = require('fs');
 const path = require('path');
+const cp = require('child_process');
 
-const DECOMP = path.join(__dirname, 'decomp');
+// **A git worktree has no corpus of its own.** `decomp/` is gitignored, so it
+// exists only in the main checkout and this gate was unrunnable from every
+// agent worktree — `tools/draws/screendraws.js` already solved it and this is
+// the same three clauses: an explicit path, ours, then the main checkout's.
+function corpus() {
+  const i = process.argv.indexOf('--decomp');
+  const explicit = i >= 0 ? process.argv[i + 1] : process.env.LORDS2_DECOMP;
+  if (explicit) return explicit;
+  const here = path.join(__dirname, 'decomp');
+  if (fs.existsSync(here)) return here;
+  try {
+    const common = cp.execFileSync('git', ['rev-parse', '--git-common-dir'],
+      { cwd: __dirname, encoding: 'utf8' }).trim();
+    const there = path.join(path.resolve(__dirname, common, '..'), 'tools', 'oracle', 'decomp');
+    if (fs.existsSync(there)) return there;
+  } catch { /* not a checkout; fall through so the error names a real path */ }
+  return here;
+}
+
+const DECOMP = corpus();
 
 /// The eight leaf functions every sound in the game goes through, and what
 /// each one *is*. `docs/symbols.md` names them all.

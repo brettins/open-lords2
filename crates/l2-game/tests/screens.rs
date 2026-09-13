@@ -3016,6 +3016,214 @@ fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
     let _ = &mut screen;
 }
 
+/// **The four resource sites say which site they are, how big it is and
+/// whether it is working** — `TileInfo_Draw`'s `flags & 0x80` arm below graphic
+/// `0x0D`. A player clicked a mine exactly as he clicks a field and got nothing
+/// back.
+///
+/// Every `y` is `row * 16 + k` with `row = 0x11` (`FUN_0041BEFE`'s
+/// `if (g_pickedTileGraphic < 0xd) DAT_00553d2c = 0x11`) and every `k` and `x`
+/// is a literal of `TileInfo_Draw` — `0x28`/`0x40` heading, `0x68`/`100` body,
+/// `0x68`/`0x74` the status line — not a constant of `screens/info.rs`. The
+/// words come out of the player's `L2.eng` and are asserted to be the ones the
+/// indices name, so an index off by one fails on the word.
+///
+/// **The band is size, not fertility**, which is the correction this arm
+/// carried: the boundaries are walked at 9/10, 24/25 and 49/50 on
+/// `industry.output` (the original's `total − totalSnapshot`), and
+/// `disabled_seasons` overrides all four.
+///
+/// **Ablations, run:** deleting the `draw_resource_site` call in
+/// `InfoScreen::draw` fails at *"Mine (iron)."*; dropping `+ site_band(site)`
+/// from the body fails at *"A medium mine."*; keying the status line on
+/// `disabled_seasons` instead of `enabled` fails at the operational-and-
+/// destroyed pair; swapping `SITE_INFO`'s iron and stone rows fails at the
+/// heading naming the commodity.
+///
+/// **One ablation that does *not* fail, and it is a finding**: adding
+/// `flags::BOUNDARY` to `settlement_tile`'s exclusion set changes nothing,
+/// because no resource site in the England position carries `0x02`. The bit is
+/// not in `TileInfo_Draw`'s ladder either, so the set is right for the reason
+/// the painter gives and not because the fixture would catch it.
+#[test]
+fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
+    use l2_game::screens::info::Target;
+    use l2_kingdom::map::flags;
+    use l2_kingdom::tables::Commodity;
+    let (mut game, assets) = world!();
+    let t = font::TEXT;
+    let y = |k: i32| 0x11 * 16 + k;
+
+    // The indices name these words in the player's file — the four headings,
+    // one full band ladder, and the two status lines.
+    for (index, word) in [
+        (9, "Mine (iron)."),
+        (10, "Quarry (stone)."),
+        (11, "Lumber mill (timber)."),
+        (82, "Blacksmith (armour)."),
+        (53, "A small mine."),
+        (54, "A medium mine."),
+        (55, "A large mine."),
+        (56, "A very large mine."),
+        (57, "A destroyed mine."),
+        (61, "A small quarry."),
+        (69, "A small lumber mill."),
+        (83, "A small blacksmiths."),
+        (77, "This industry is shut down."),
+        (78, "This industry is operational."),
+    ] {
+        assert_eq!(assets.shell.text(30, index), word, "L2.eng 30/{index}");
+    }
+
+    // **`TileInfo_Draw`'s ladder reaches `0x80` only after six other bits have
+    // failed.** `FUN_0041BEFE` tests a shorter one, so a settlement tile that
+    // also carried road or rough would take two different arms of two painters.
+    // Asserted rather than assumed.
+    let map = &game.kingdom.campaign.map;
+    let sites: Vec<usize> = (0..map.flags.len())
+        .filter(|&i| map.flags[i] & flags::SETTLEMENT != 0 && map.terrain[i] < 0x0D)
+        .collect();
+    assert!(!sites.is_empty(), "the England position places resource sites");
+    for &i in &sites {
+        let f = map.flags[i];
+        assert_eq!(
+            f & (flags::ROAD | flags::ROUGH | flags::NO_COUNTY | flags::PLOT | flags::FARMLAND | flags::CASTLE),
+            0,
+            "tile {i} is a settlement and nothing else the ladder tests first",
+        );
+    }
+
+    // One site of each commodity — **and not all four are in one county.**
+    // Every county in the England position carries a blacksmith (graphic 7), a
+    // lumber mill (10 or 11) and *either* a mine (1) *or* a quarry (4), never
+    // both; county 5 has neither. So the four are picked wherever they are, and
+    // the band walk below uses the player's own.
+    let four = {
+        let map = &game.kingdom.campaign.map;
+        let pick = |c: Commodity| {
+            sites
+                .iter()
+                .copied()
+                .map(|i| (i, map.county[i] as usize))
+                .find(|&(i, _)| {
+                    l2_kingdom::industry::map_toggle_for_graphic(map.terrain[i])
+                        == Some(l2_kingdom::industry::MapToggle::Industry(c))
+                })
+                .unwrap_or_else(|| panic!("the position places a {c:?} site somewhere"))
+        };
+        [
+            (Commodity::Iron, pick(Commodity::Iron), "Mine (iron).", "A small mine."),
+            (Commodity::Stone, pick(Commodity::Stone), "Quarry (stone).", "A small quarry."),
+            (
+                Commodity::Weapons,
+                pick(Commodity::Weapons),
+                "Blacksmith (armour).",
+                "A small blacksmiths.",
+            ),
+            (Commodity::Wood, pick(Commodity::Wood), "Lumber mill (timber).", "A small lumber mill."),
+        ]
+    };
+    // The player's own mine, for the band walk and the ownership contrast.
+    let (county, mine) = {
+        let map = &game.kingdom.campaign.map;
+        sites
+            .iter()
+            .copied()
+            .map(|i| (map.county[i] as usize, i))
+            .find(|&(c, i)| {
+                map.terrain[i] < 4 && game.kingdom.counties[c].owner == game.player
+            })
+            .expect("the player holds a county with a mine in it")
+    };
+
+    let panel = |game: &mut Game, tile: usize| {
+        let mut m = over_the_map(ScreenId::Info(Target::Tile(tile)));
+        draw_stack(&mut m, game, &assets)
+    };
+
+    // --- the four headings, each over its own body and status line ---------
+    for (c, (tile, at), heading, small) in four {
+        for i in 0..4 {
+            game.kingdom.counties[at].industry[i].output = 0;
+            game.kingdom.counties[at].industry[i].disabled_seasons = 0;
+            game.kingdom.counties[at].industry[i].enabled = true;
+        }
+        let canvas = panel(&mut game, tile);
+        assert_eq!(
+            find_heading(&canvas, &assets, heading, t),
+            Some((0x28, y(0x40))),
+            "{c:?}: the heading at (0x28, row*16 + 0x40)",
+        );
+        assert_eq!(
+            find_body(&canvas, &assets, small, t).map(|p| p.1),
+            Some(y(100)),
+            "{c:?}: the band at row*16 + 100",
+        );
+        assert_eq!(
+            find_body(&canvas, &assets, "This industry is operational.", t),
+            Some((0x68, y(0x74))),
+            "{c:?}: the status line at (0x68, row*16 + 0x74)",
+        );
+        assert!(find_text(&canvas, "TILE HALF", assets.ink.dim).is_none(), "{c:?}: no placeholder");
+    }
+
+    // --- the size band, walked across all three boundaries ----------------
+    for (output, word) in [
+        (0, "A small mine."),
+        (9, "A small mine."),
+        (10, "A medium mine."),
+        (24, "A medium mine."),
+        (25, "A large mine."),
+        (49, "A large mine."),
+        (50, "A very large mine."),
+        (999, "A very large mine."),
+    ] {
+        game.kingdom.counties[county].industry[Commodity::Iron.index()].output = output;
+        let canvas = panel(&mut game, mine);
+        assert_eq!(
+            find_body(&canvas, &assets, word, t).map(|p| p.1),
+            Some(y(100)),
+            "output {output} is {word:?}",
+        );
+    }
+
+    // --- destroyed bypasses the buckets, and is NOT the status line --------
+    // `disabledSeasons` picks the body; `enabled` picks the tail. Two bytes, so
+    // a trampled site that was never switched off reads operational **and**
+    // destroyed at once — the original's, reproduced.
+    game.kingdom.counties[county].industry[Commodity::Iron.index()].output = 999;
+    game.kingdom.counties[county].industry[Commodity::Iron.index()].disabled_seasons = 2;
+    game.kingdom.counties[county].industry[Commodity::Iron.index()].enabled = true;
+    let canvas = panel(&mut game, mine);
+    assert!(
+        find_body(&canvas, &assets, "A destroyed mine.", t).is_some(),
+        "disabled_seasons overrides the largest output",
+    );
+    assert!(find_body(&canvas, &assets, "A very large mine.", t).is_none());
+    assert_eq!(
+        find_body(&canvas, &assets, "This industry is operational.", t),
+        Some((0x68, y(0x74))),
+        "destroyed and operational at once",
+    );
+
+    // --- and the switch, which is the other byte --------------------------
+    game.kingdom.counties[county].industry[Commodity::Iron.index()].enabled = false;
+    let canvas = panel(&mut game, mine);
+    assert_eq!(
+        find_body(&canvas, &assets, "This industry is shut down.", t),
+        Some((0x68, y(0x74))),
+    );
+
+    // --- no ownership gate ------------------------------------------------
+    // Both sides of `g_localPlayer == g_pickedCountyOwner` are the identical
+    // call in this arm, so a rival's mine says exactly as much as yours.
+    let other = (1..game.kingdom.realms.len() as u8).find(|&r| r != game.player).expect("a rival");
+    game.kingdom.counties[county].owner = other;
+    let canvas = panel(&mut game, mine);
+    assert_eq!(find_heading(&canvas, &assets, "Mine (iron).", t), Some((0x28, y(0x40))));
+    assert!(find_body(&canvas, &assets, "A destroyed mine.", t).is_some(), "a rival's mine too");
+}
+
 /// **`DAT_004D2EC8`, against the image**, row for row. The transcription in
 /// `screens::info::FARM_TILE_INFO` is two artefacts one person maintains; the
 /// player's `Lords2.exe` is not. Ablation: changing any one number of the table

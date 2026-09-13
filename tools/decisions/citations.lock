@@ -80,6 +80,7 @@ crates/l2-game/src/screens/diplomacy.rs	C61	5aa0f88f789e	60611046b40d
 crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
 crates/l2-game/src/screens/info.rs	C110	610d3cd4e224	a4ab43902f60
 crates/l2-game/src/screens/info.rs	C199	05b94bdb92e3	f4bda256f5f1
+crates/l2-game/src/screens/info.rs	C25	66b49eac1b0f	5d466f0cb89c
 crates/l2-game/src/screens/info.rs	C25	81871fcedfac	5d466f0cb89c
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/job.rs	C61	640e90a8620c	60611046b40d

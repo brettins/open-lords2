@@ -388,6 +388,92 @@ pub const CASTLE_TROOPS: usize = 0x0C;
 pub const CASTLE_STATIONED: usize = 0x0D;
 pub const CASTLE_ENEMY_BARRACKED: usize = 0x13;
 
+/// **`TileInfo_Draw`'s `0x80` arm below `0x0D` — the four resource sites**, as
+/// `(heading, body base, `Icon_tmp.pl8` frame)` indexed by
+/// [`l2_kingdom::tables::Commodity::index`].
+///
+/// ```c
+/// else if (g_pickedTileGraphic < 0xd) {
+///   if      (g < 4)  { local_20 = 9;    local_18 = 1; local_1c = 0x35; local_8 = 0x1e; Sound_RestartSlot(10); }
+///   else if (g < 7)  { local_20 = 10;   local_18 = 3; local_1c = 0x3d; local_8 = 0x1f; Sound_RestartSlot(8);  }
+///   else if (g < 10) { local_20 = 0x52; local_18 = 2; local_1c = 0x53; local_8 = 0x12; Sound_RestartSlot(8);  }
+///   else             { local_20 = 0xb;  local_18 = 0; local_1c = 0x45; local_8 = 0x20; Sound_RestartSlot(9);  }
+/// ```
+///
+/// `local_18` is the county's industry record and the four ranges are the
+/// *same* ones [`l2_kingdom::industry::map_toggle_for_graphic`] uses to decide
+/// which industry a **left** click on the tile toggles, so the site this panel
+/// describes and the site that click switches agree by construction rather than
+/// by two transcriptions of one ladder. `[V]` — and
+/// [`crate::audio::names::resource_site_slot`] is the third reader of it.
+///
+/// `local_c == 0`, so the body takes the ladder's generic tail
+/// `FUN_0040328E(30, local_1c, 0x68, row*16 + 100, 0x130, …)` — [`BODY_X`],
+/// [`BODY_DY`], [`TILE_BODY_WRAP`] — with **both** sides of the
+/// `g_localPlayer == g_pickedCountyOwner` test being the identical call. There
+/// is no ownership gate on a resource site.
+pub const SITE_INFO: [(usize, usize, usize); 4] = [
+    // wood — "Lumber mill (timber)." graphic 10…12
+    (0x0B, 0x45, 0x20),
+    // iron — "Mine (iron)." graphic 0…3
+    (0x09, 0x35, 0x1E),
+    // weapons — "Blacksmith (armour)." graphic 7…9
+    (0x52, 0x53, 0x12),
+    // stone — "Quarry (stone)." graphic 4…6
+    (0x0A, 0x3D, 0x1F),
+];
+
+/// **The body is a SIZE band, not a fertility band.** The offset added to a
+/// site's [`SITE_INFO`] base:
+///
+/// ```c
+/// iVar2 = industry[c].total - industry[c].totalSnapshot;
+/// if (industry[c].disabledSeasons == 0) {
+///     if (9 < iVar2) {
+///         if      (iVar2 < 0x19) local_1c += 1;
+///         else if (iVar2 < 0x32) local_1c += 2;
+///         else                   local_1c += 3;
+///     }
+/// } else                         local_1c += 4;
+/// ```
+///
+/// `total − totalSnapshot` is last season's output, which is
+/// [`l2_kingdom::county::Industry::output`] here — the same difference, kept as
+/// a field. Group 22 is never touched: 53…57 read *"A small mine."*, *"A medium
+/// mine."*, *"A large mine."*, *"A very large mine."*, *"A destroyed mine."*,
+/// and the other three sites the same, which is what fixes the band as size and
+/// `+4` as destroyed. `[V]` against the player's `L2.eng`. The brief that
+/// opened this arm called it a fertility table; the correction is
+/// `docs/decisions.md` CNEW-resource-site-band.
+///
+/// The same three thresholds, on the same difference, pick the tile's own
+/// *sprite* in `Sprite_TopIt` (`0x004071A0`) — a painter that shares no code
+/// with this one, reading `industry[1]`, `[3]`, `[2]` and `[0]` over the same
+/// four graphic ranges. Two independent readers of one table is what makes the
+/// bucketing `[V]` rather than a transcription.
+pub const SITE_BAND_SMALL: usize = 0;
+pub const SITE_BAND_MEDIUM: usize = 1;
+pub const SITE_BAND_LARGE: usize = 2;
+pub const SITE_BAND_VERY_LARGE: usize = 3;
+pub const SITE_BAND_DESTROYED: usize = 4;
+/// `10`, `0x19`, `0x32` — the half-open edges of the three upper bands.
+pub const SITE_BAND_EDGES: [i32; 3] = [10, 0x19, 0x32];
+
+/// **The working-or-idle line, a separate block at the painter's tail** keyed
+/// on `industry[c].enabled` and **not** on `disabledSeasons`:
+///
+/// ```c
+/// if ((char)enabled < 1) Eng_DrawString(0x1e, 0x4d, 0x68, R*0x10 + 0x74, &g_fontBody, 0x3f);
+/// else                   Eng_DrawString(0x1e, 0x4e, 0x68, R*0x10 + 0x74, &g_fontBody, 0x3f);
+/// ```
+///
+/// 30/77 *"This industry is shut down."*, 30/78 *"This industry is
+/// operational."* **A site can read operational and destroyed in the same
+/// panel** — two different bytes, and that is the original's.
+pub const SITE_SHUT_DOWN: usize = 0x4D;
+pub const SITE_OPERATIONAL: usize = 0x4E;
+pub const SITE_STATUS_DY: i32 = 0x74;
+
 /// **The mercenary tail — the words the marker on the map does not carry.**
 ///
 /// `TileInfo_Draw`'s last block before the icon, and the *only* place in the
@@ -520,8 +606,11 @@ pub const REPORT_NEG: u8 = 0xF9;
 /// **Our transcription of the words this arm draws**, used only where the
 /// player's `L2.eng` has none — an install with no file, or a placeholder test
 /// asset. Group 30's are the eighteen indices the farmland arm can reach.
-const TILE_WORDS: [(usize, &str); 23] = [
+const TILE_WORDS: [(usize, &str); 49] = [
     (6, "Farmland"),
+    (9, "Mine (iron)."),
+    (10, "Quarry (stone)."),
+    (11, "Lumber mill (timber)."),
     (12, "Flooded Field."),
     (13, "Parched Field."),
     (17, "- Barren."),
@@ -541,9 +630,34 @@ const TILE_WORDS: [(usize, &str); 23] = [
     (42, "Partially restored, this field is on the way to returning to its former state."),
     (43, "Almost reclaimed, this field will very shortly be ready for use."),
     (52, "Click on an icon to alter field usage."),
+    // The four size bands and the destroyed one, per site — `SITE_INFO`'s base
+    // plus `SITE_BAND_*`.
+    (53, "A small mine."),
+    (54, "A medium mine."),
+    (55, "A large mine."),
+    (56, "A very large mine."),
+    (57, "A destroyed mine."),
     (58, "Traditionally, fields were left fallow for a season as part of a crop rotation system."),
+    (61, "A small quarry."),
+    (62, "A medium quarry."),
+    (63, "A large quarry."),
+    (64, "A very large quarry."),
+    (65, "A destroyed quarry."),
+    (69, "A small lumber mill."),
+    (70, "A medium lumber mill."),
+    (71, "A large lumber mill."),
+    (72, "A very large lumber mill."),
+    (73, "A destroyed lumber mill."),
+    (77, "This industry is shut down."),
+    (78, "This industry is operational."),
     (80, "This field was flooded in the recent deluge, and any crops held within it were drowned."),
     (81, "This field was baked dry in the recent drought, and any crops held within it withered and died."),
+    (82, "Blacksmith (armour)."),
+    (83, "A small blacksmiths."),
+    (84, "A medium blacksmiths."),
+    (85, "A large blacksmiths."),
+    (86, "A very large blacksmiths."),
+    (87, "A destroyed blacksmiths."),
 ];
 
 /// Group 77, indices 0 … 28.
@@ -727,17 +841,62 @@ impl InfoScreen {
     ///
     /// [`terrain::CASTLE_PLOT`]: l2_kingdom::map::terrain::CASTLE_PLOT
     pub fn castle_tile(&self, ctx: &Ctx) -> Option<usize> {
-        use l2_kingdom::map::flags;
-        let Target::Tile(tile) = self.target else { return None };
-        let map = &ctx.game.kingdom.campaign.map;
-        let f = map.flags[tile];
-        if f & (flags::FARMLAND | flags::NO_COUNTY | flags::PLOT | flags::CASTLE) != 0
-            || f & flags::SETTLEMENT == 0
-        {
+        let tile = self.settlement_tile(ctx)?;
+        let g = ctx.game.kingdom.campaign.map.terrain[tile];
+        (g > 0x0C && g < 0x1A).then_some(tile)
+    }
+
+    /// **The resource site this panel describes**, or `None` — the *other* half
+    /// of the `0x80` arm, `g_pickedTileGraphic < 0x0D`, and the commodity its
+    /// record belongs to.
+    ///
+    /// The industry index is `local_18`, read through
+    /// [`l2_kingdom::industry::map_toggle_for_graphic`] so the panel and the
+    /// left click that toggles the site cannot drift apart; `MapToggle::Castle`
+    /// is unreachable below `0x0D` and is the `None` here.
+    pub fn resource_site(&self, ctx: &Ctx) -> Option<(usize, l2_kingdom::tables::Commodity)> {
+        let tile = self.settlement_tile(ctx)?;
+        let g = ctx.game.kingdom.campaign.map.terrain[tile];
+        if g >= 0x0D {
             return None;
         }
-        let g = map.terrain[tile];
-        (g > 0x0C && g < 0x1A).then_some(tile)
+        match l2_kingdom::industry::map_toggle_for_graphic(g) {
+            Some(l2_kingdom::industry::MapToggle::Industry(c)) => Some((tile, c)),
+            _ => None,
+        }
+    }
+
+    /// **`TileInfo_Draw`'s `flags & 0x80` arm, the flag half of it**, shared by
+    /// [`InfoScreen::castle_tile`] and [`InfoScreen::resource_site`] because the
+    /// painter reaches both through one test and then splits on the terrain
+    /// byte alone.
+    ///
+    /// The bit is reached only after `0x01` (road), `0x04` (sea), `0x10` (a
+    /// dwelling plot), `0x08` (mountain or wood), `0x20` (farmland) and `0x40`
+    /// (the county town) have all failed, which is `TileInfo_Draw`'s order and
+    /// the exclusion set here. `docs/decisions.md` C25 is why
+    /// [`flags::SETTLEMENT`] and [`flags::CASTLE`] read backwards from their
+    /// names.
+    ///
+    /// **`FUN_0041BEFE` tests a shorter ladder than its callee** — `0x20`,
+    /// `0x04`, `0x10`, `0x40`, `0x80`, with no `0x01` and no `0x08` — so a
+    /// settlement tile that also carried road or rough would take the `0x80`
+    /// *row* and the road's *words*. No such tile exists in the England
+    /// position; `tests/screens.rs` asserts that rather than assuming it.
+    ///
+    /// [`flags::SETTLEMENT`]: l2_kingdom::map::flags::SETTLEMENT
+    /// [`flags::CASTLE`]: l2_kingdom::map::flags::CASTLE
+    fn settlement_tile(&self, ctx: &Ctx) -> Option<usize> {
+        use l2_kingdom::map::flags;
+        let Target::Tile(tile) = self.target else { return None };
+        let f = ctx.game.kingdom.campaign.map.flags[tile];
+        let before = flags::ROAD
+            | flags::NO_COUNTY
+            | flags::PLOT
+            | flags::ROUGH
+            | flags::FARMLAND
+            | flags::CASTLE;
+        (f & before == 0 && f & flags::SETTLEMENT != 0).then_some(tile)
     }
 
     /// **The farm tile this panel describes**, or `None` — `TileInfo_Draw`'s
@@ -1438,6 +1597,12 @@ impl Screen for InfoScreen {
                 if let Some(castle) = self.castle_tile(ctx) {
                     draw_castle(ctx, &pen, canvas, l, castle, self.press.is_pressed(0), ink);
                 }
+                // **The other half of the `0x80` arm.** A player clicked a mine
+                // exactly as he clicks a field and the panel said nothing. See
+                // [`draw_resource_site`].
+                if let Some((site, c)) = self.resource_site(ctx) {
+                    draw_resource_site(ctx, &pen, canvas, l, site, c);
+                }
                 // **The county-town arm, and the one line of English the
                 // mercenary has anywhere in the game.** The map's marker
                 // (`screens/map.rs`'s `draw_flags`) is a picture with no words
@@ -1485,11 +1650,11 @@ impl Screen for InfoScreen {
                     }
                 } else if self.farmland(ctx).is_none()
                     && self.castle_tile(ctx).is_none()
+                    && self.resource_site(ctx).is_none()
                     && ctx.game.prefs.debug_overlay
                 {
                     // Ours, debug overlay only: the rest of the ladder — road,
-                    // sea, village, mountain, wood and the resource sites — is
-                    // not drawn yet.
+                    // sea, village, mountain and wood — is not drawn yet.
                     l2_view::text::draw(
                         canvas,
                         4,
@@ -1651,6 +1816,82 @@ fn draw_castle(
     }
     if garrison.is_some() {
         widget(canvas, l.y(0x104));
+    }
+}
+
+/// **`TileInfo_Draw` (`0x0041C208`) for a `0x80` tile below graphic `0x0D` —
+/// the mine, the quarry, the blacksmith and the lumber mill.**
+///
+/// Three things, and the middle one is the whole finding:
+///
+/// 1. the heading, [`SITE_INFO`]`.0` in `&g_fontHeading` at [`HEADING_X`];
+/// 2. the body, [`SITE_INFO`]`.1` plus a **size** band — [`SITE_BAND_EDGES`] on
+///    last season's output, or [`SITE_BAND_DESTROYED`] when the record is
+///    knocked out. The brief that opened this arm called it a fertility band;
+///    group 22 is never touched here and 53…57 run *"A small mine."* to *"A
+///    destroyed mine."*
+/// 3. the working-or-idle line at [`SITE_STATUS_DY`], a **separate** tail block
+///    keyed on `industry.enabled` — so a site reads *operational* and
+///    *destroyed* at once whenever an army has just trampled it, which is the
+///    original's and not a bug of ours.
+///
+/// The icon is the ladder's shared `Sprite_WGenSprite(local_8, 0x28, R*0x10 +
+/// 0x60)`. No ownership gate anywhere in the arm: a rival's mine says its size
+/// and its state.
+///
+/// The four `Sound_RestartSlot` calls that sit among these literals were
+/// already built — `docs/audio.json` `TileInfo_Draw#1…#4`, fired on the panel
+/// *opening* by [`crate::audio`] rather than on every repaint.
+pub fn draw_resource_site(
+    ctx: &Ctx,
+    pen: &Pen,
+    canvas: &mut Canvas,
+    l: Layout,
+    tile: usize,
+    c: l2_kingdom::tables::Commodity,
+) {
+    let k = &ctx.game.kingdom;
+    let a = pen.assets;
+    let (heading, base, frame) = SITE_INFO[c.index()];
+    let Some(county) = k.counties.get(k.campaign.map.county[tile] as usize) else { return };
+    let site = &county.industry[c.index()];
+
+    pen.heading(canvas, HEADING_X, l.y(HEADING_DY), &words(a, TILE_GROUP, heading), font::TEXT);
+    let body = base + site_band(site);
+    pen.body_wrapped(
+        canvas,
+        BODY_X,
+        l.y(BODY_DY),
+        TILE_BODY_WRAP,
+        &words(a, TILE_GROUP, body),
+        font::TEXT,
+    );
+    let state = if site.enabled { SITE_OPERATIONAL } else { SITE_SHUT_DOWN };
+    pen.body(canvas, BODY_X, l.y(SITE_STATUS_DY), &words(a, TILE_GROUP, state), font::TEXT);
+    if let Some(f) = a.sheet(ICON_SHEET).and_then(|s| s.frame(frame)) {
+        canvas.blit(&f, ICON_AT.0, l.y(ICON_AT.1));
+    }
+}
+
+/// `TileInfo_Draw`'s band arithmetic, whole — see [`SITE_BAND_EDGES`].
+///
+/// [`l2_kingdom::county::Industry::output`] is the original's
+/// `total − totalSnapshot`: the same difference, held as a field rather than
+/// recomputed. `disabledSeasons` **bypasses** the buckets, which is why a
+/// destroyed site is never also large.
+pub fn site_band(site: &l2_kingdom::county::Industry) -> usize {
+    if site.disabled_seasons != 0 {
+        return SITE_BAND_DESTROYED;
+    }
+    let made = site.output;
+    if made < SITE_BAND_EDGES[0] {
+        SITE_BAND_SMALL
+    } else if made < SITE_BAND_EDGES[1] {
+        SITE_BAND_MEDIUM
+    } else if made < SITE_BAND_EDGES[2] {
+        SITE_BAND_LARGE
+    } else {
+        SITE_BAND_VERY_LARGE
     }
 }
 
