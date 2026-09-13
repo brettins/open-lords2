@@ -123,7 +123,7 @@ fn the_last_mod_in_the_load_order_is_the_one_the_simulation_runs_on() {
 }
 
 /// A rule outside the range the simulation can use is refused at load, naming
-/// the mod, the file and the line — not clamped, and not discovered later as a
+/// the mod, the file and the line — not clamped,
 /// figure that cannot be hit.
 #[test]
 fn an_impossible_combat_constant_is_refused_with_the_line_that_wrote_it() {
@@ -223,7 +223,7 @@ fn the_documented_example_mod_reaches_the_simulation() {
     assert_eq!(archers.melee_attack, [7, 5, 4, 2]);
     assert_eq!(archers.armour, 4);
     // Its battle and difficulty rules land on nothing here, because no game
-    // install has been seeded - which the report says plainly rather than
+    // install has been seeded - which the report says plainly
     // leaving the author to wonder.
     assert!(!p.report().added_rules.is_empty());
 }
@@ -586,6 +586,8 @@ fn three_years_of_timber(tables: Tables) -> (i32, i32) {
     // on the flat Advanced-Farming-off figure. Start it at zero so the twelve
     // seasons below are the whole ramp and nothing else.
     c.industry[wood].efficiency = 0;
+    // `FUN_0044F248` ramps from county `+0x29C`, which is this field.
+    c.industry[wood].last_efficiency = 0;
     c.labour = [0; JOB_COUNT];
     c.labour[job] = 100;
     k.realms[1].wood = 0;
@@ -750,7 +752,7 @@ fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
     //
     // The castle columns are the four lords as the binary has them, which is
     // where the Bishop's royal castle at 2,000 gold sits — against the Knight's
-    // 10,000, and the Baron and Countess who are never offered one at any
+    // 10,000,
     // treasury. `docs/diplomacy.md` §8.1.
     #[allow(clippy::too_many_arguments)]
     fn lord(

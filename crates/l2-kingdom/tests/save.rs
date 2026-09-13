@@ -1,4 +1,4 @@
-//! Our own save format: round-trip, determinism, and the refusals.
+//! Our own save format: round-trip, determinism
 //!
 //! Needs no game install — the format is ours, and nothing here reads a file.
 //!
@@ -27,7 +27,7 @@
 //!   the decoded kingdom against it with `#[derive(PartialEq)]` — the only
 //!   exhaustive reader of a struct this project has. Over a saturated fixture
 //!   that single `assert_eq!` *is* the completeness check: drop a field from
-//!   `Encode` and the decoded value comes back holding the default, which the
+//! `Encode` and the decoded value comes back holding the default, which the
 //!   fixture does not hold.
 //! * **[`every_field_of_the_state_is_furnished`] keeps it saturated.** It reads
 //!   the source of `crates/l2-kingdom/src`, derives the fields of every struct
@@ -159,7 +159,7 @@ fn furnished(seed: u64) -> Kingdom {
         r.peak_counties = (id + 12) as u8;
 
         // The war plan — `l2_kingdom::ai_army`, `VERSION` 14. Standing orders
-        // that persist between turns, so a save that dropped them would forget
+        // that persist between turns
         // which county a realm musters from and restart every lord's muster
         // and raid counter at zero.
         r.muster_county = (id + 7) as u8;
@@ -340,7 +340,7 @@ fn furnished(seed: u64) -> Kingdom {
         c.crop = [n + 1, n * 2 + 1, n * 3 + 1];
         c.fields_grain_sown = 5;
         // `+0x206`, VERSION 25: one below the sown count, as a trampled field
-        // leaves it, so a codec that wrote one into the other is caught.
+        // leaves it
         c.fields_grain_standing = 4;
         c.sow_shortfall = id % 2 == 1;
 
@@ -368,6 +368,7 @@ fn furnished(seed: u64) -> Kingdom {
             let s = slot as i32;
             c.industry[slot].output = 10 * (s + 1) + n;
             c.industry[slot].efficiency = 5 * (s + 1) + n;
+            c.industry[slot].last_efficiency = 4 * (s + 1) + n;
             c.industry[slot].capacity = 25 * (s + 1);
             c.industry[slot].has_resource = slot != 3;
             c.industry[slot].enabled = slot != 2;
@@ -435,7 +436,7 @@ fn furnish_campaign(k: &mut Kingdom) {
         u.on_road = n % 2 == 1;
         // The sub-tile counter — `Unit_StepOnce`'s `+0x149`, `+0x14A` and
         // `+0x14B` bit 0. `at_tile_edge` is furnished **false** on two of the
-        // four because `Unit::new` leaves it *set* (`Unit_Spawn`), so a `true`
+        // four because `Unit::new` leaves it *set* (`Unit_Spawn`)
         // here would be indistinguishable from the default and the round trip
         // could drop the byte unnoticed.
         u.sub_tile = (n as u8 + 1) * 2;
@@ -462,7 +463,7 @@ fn furnish_campaign(k: &mut Kingdom) {
         u.besieging_county = n as u8 + 5;
         u.besieged_by = n as u8 + 2;
         u.cargo_county = n as u8 + 6;
-        // `+0x167`, the county-defence mark — `docs/armies.md` §8.1, and the
+        // `+0x167`, the county-defence mark — `docs/armies.md` §8.1
         // second half of what `VERSION` 10 restored.
         u.defence_mark = (n % 2 + 1) as u8;
         // `+0x1A` and `+0x19B`, the AI mission byte and the county it is about
@@ -514,7 +515,7 @@ fn furnish_campaign(k: &mut Kingdom) {
         k.campaign.routes.set_row(route, row);
     }
     k.campaign.mob_cursor = 7;
-    // The seen plane: two realms' squares, overlapping, so a byte carrying two
+    // The seen plane: two realms' squares, overlapping
     // bits is in the file as well as bytes carrying one.
     k.campaign.explored.reveal_square(1, 12, 40, 6);
     k.campaign.explored.reveal_square(4, 16, 44, 3);
@@ -522,7 +523,7 @@ fn furnish_campaign(k: &mut Kingdom) {
     // The diplomatic state that is not inside a realm record — the five-slot
     // inbox, the outstanding pay-for-help price, and the dice. One letter of
     // every kind, spread across realms so the walk over the array is exercised
-    // rather than one row of it.
+    //
     k.diplomacy.help_price = 3400;
     k.diplomacy.help_county = 9;
     for (n, kind) in l2_kingdom::DiploKind::ALL.iter().enumerate() {
@@ -534,7 +535,7 @@ fn furnish_campaign(k: &mut Kingdom) {
             gold: 100 * n as i32 + 7,
         };
     }
-    // And step the dice off their seed, so a reload that restarted them would
+    // And step the dice off their seed
 // be visible.
     for _ in 0..5 {
         k.diplomacy.dice.rand7b();
@@ -583,7 +584,7 @@ fn a_kingdom_with_turns_behind_it_round_trips() {
 }
 
 /// And a resumed kingdom keeps playing the same game: the generator, the clock
-/// and the history ring all survive, so the next ten seasons are identical
+/// and the history ring all survive
 /// whether or not the game was saved in between.
 #[test]
 fn resuming_from_a_save_plays_out_identically() {
@@ -699,7 +700,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // capture letter and raises it.
     // +68 at version 25 for `County::fields_grain_standing` (`+0x206`), four
     // bytes over 17 county slots — the divisor of the wheat picture.
-    assert_eq!(c.finish().len, 63_032, "the state encoding changed - bump VERSION?");
+    // +272 at version 26 for `Industry::last_efficiency`, county `+0x29C`: four
+    // bytes a commodity over four commodities over 17 county slots. It is the
+    // ramp's own input, and `Industry_Produce` is the only writer.
+    assert_eq!(c.finish().len, 63_304, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,
@@ -810,14 +814,14 @@ fn no_record_slot_is_silenced() {
 //
 // The two tests below are the mechanism `docs/decisions.md` C30 asked for and
 // C39 delivered: the field list is *derived from the struct definitions*
-// instead of retyped, so it cannot quietly cover fewer fields than exist.
+// instead of retyped
 
 /// Fields of the reachable state that the save body deliberately does not
-/// carry. **Inclusion is the default and exclusion is the statement**, so a
+/// carry. **Inclusion is the default and exclusion is the statement**
 /// field added tomorrow fails the census; a line
 /// here is a claim, with its reason, that the field is not simulation state.
 ///
-/// Reachability stops at these fields, so a whole subtree can be excused by its
+/// Reachability stops at these fields
 /// root — which is what `Kingdom::tables` does for the ruleset.
 const NOT_IN_THE_BODY: &[(&str, &str, &str)] = &[(
     "Kingdom",
@@ -850,7 +854,7 @@ const FURNISHED_BY_CALL: &[(&str, &str, &str)] = &[
     ("Explored", "seen", "explored.reveal_square("),
 ];
 
-/// **Every field of the state is furnished, and the list of fields is read out
+/// **Every field of the state is furnished
 /// of the source.**
 ///
 /// This is the guard `docs/decisions.md` C30 said was missing and C39 wrote.
@@ -957,7 +961,7 @@ fn every_field_of_the_state_is_furnished() {
 /// * `VERSION` equals the highest of them — so a merge that keeps one branch's
 ///   constant and both branches' entries goes red;
 /// * every entry says something, so the changelog
-///   exists: an older save's *absence* of a field is a question, and the answer
+/// exists: an older save's *absence* of a field is a question, and the answer
 ///   belongs here.
 ///
 /// It cannot prevent two branches choosing the same number. It fails the moment
@@ -1191,7 +1195,7 @@ fn a_truncated_save_is_refused() {
 
 /// Trailing rubbish is an error too: it means the writer and the reader
 /// disagree about the schema, and that is worth catching at the first save
-/// rather than at the tenth.
+///
 #[test]
 fn trailing_bytes_are_refused() {
     let mut bytes = encode(&furnished(2));
@@ -1219,7 +1223,7 @@ fn trailing_bytes_are_refused() {
 /// tests, so this is the house style.
 ///
 /// The scan is deliberately fragile in the safe direction: it asserts the shape
-/// of what it found before it trusts it, so a scan that silently matched
+/// of what it found before it trusts it
 /// nothing fails.
 mod census {
     use std::collections::{BTreeMap, BTreeSet};
@@ -1267,7 +1271,7 @@ mod census {
                     fields.push(field);
                 }
             }
-            // A later definition never overwrites an earlier one: there is no
+            // A later definition never overwrites an earlier one:
             // duplicate struct name in this crate, and if one appears the
             // shape assertions in the test are what notice.
             out.entry(name).or_insert(fields);

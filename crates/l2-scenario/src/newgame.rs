@@ -38,7 +38,7 @@
 //! # What is deliberately *not* here
 //!
 //! * **The artwork.** Three of `Map_InitScenario`'s calls only permute frame
-//!   indices — the coast and sea variants, and the bank's draw bits. The tile
+//! indices — the coast and sea variants, and the bank's draw bits. The tile
 //!   record's `bank` and `frame` bytes *are* carried, because two rules read
 //!   them ([`place_resource_sites`] keys on the Town bank and on frames 0, 20
 //!   and 30, and [`collect_field_tiles`] writes frame 6 over a razed field),
@@ -53,9 +53,9 @@
 //!   needs the map and is done here, and it applies the twelve custom-game
 //!   options, which is `l2_game::setup::Settings::apply_to` and already exists.
 //!   The split is the same one the original makes between `County_Reset`'s
-//!   defaults and the option rows that overwrite them.
+//! defaults and the option rows that overwrite them.
 //! * **The starting garrison.** `Army_Create` at setup is
-//!   `Settings::unhonoured`'s, exactly as it is on the save path.
+//! `Settings::unhonoured`'s.
 
 use l2_formats::maps::{MapSlot, Plane, PLANE_DIM};
 use l2_kingdom::county::{MAX_COUNTIES, MAX_COUNTY_ID, MAX_FIELDS, MAX_NEIGHBOURS};
@@ -213,7 +213,7 @@ pub enum MapError {
     /// opposite of what [`crate::Scenario::from_save`] does with the realm
     /// colour byte it reads out of a file. That byte is somebody else's and a
     /// clamp there would hide a misread offset; this one is *ours*, chosen on a
-    /// screen that can only produce 1 … 5, so a value outside the range is a
+    /// screen that can only produce 1 … 5,
     /// carry we got wrong and quietly turning it into blue would hide exactly
     /// the class of defect this field exists to fix.
     Shield(u8),
@@ -271,7 +271,6 @@ pub struct NewGame {
     /// which is what `Realms_AssignLords` reads, and `g_realms[p].shieldIndex`,
     /// which is what everything that *draws* reads. `FUN_00432FAB`
     /// (`0x00432FAB`) writes both from the clicked shield and `FUN_004978AD`
-/// seeds both at 1, so a game nobody touches the page of is red.
     ///
     /// **It is the human's choice and it moves every AI**, because
     /// [`assign_lords`] hands the AIs the shields the humans left and then
@@ -657,7 +656,7 @@ fn find_town_tile(w: &mut MapWorld, county: usize) -> Option<(usize, (u8, u8))> 
 /// terrain frames saved so razing one can put the ground back.
 ///
 /// **Four is the storage, not a rule.** The original's counter has no bound and
-/// the four `i32` slots at county `+0x80` end exactly on `fieldProgress`, so a
+/// the four `i32` slots at county `+0x80` end exactly on `fieldProgress`,
 /// fifth plot in one county would corrupt a field's reclamation. All 434
 /// counties of the 44 shipped maps have exactly four
 /// (`docs/formats/maps-layers.md` §2.3); this one drops the fifth
@@ -687,7 +686,7 @@ fn find_dwelling_plots(w: &mut MapWorld, county: usize) -> [usize; 4] {
 /// fourth, weapons, is [`place_blacksmith`].
 ///
 /// **The stone test carries an `iron == 0` guard and it is not symmetric.** The
-/// scan is row-major and iron is tested first at every tile, so a county whose
+/// scan is row-major and iron is tested first at every tile,
 /// quarry comes *before* its mine gets both and one whose mine comes first gets
 /// only the mine. That is the original's arithmetic and it is why iron and
 /// stone are complementary in thirteen of England's fourteen counties rather
@@ -719,7 +718,7 @@ fn set_site(w: &mut MapWorld, county: usize, tile: usize, record: usize, terrain
 
 /// `FUN_0046C147` — the flag byte of one 4-neighbour, classified.
 ///
-/// The boundary bit is masked off first, so a field on a county
+/// The boundary bit is masked off first,
 /// border is still a field; then two corrections fold the mountain and the
 /// woodland into one bit and the reserved plot into nothing when the bank
 /// disagrees. Only bit `0x20` is read by the one caller here, and the mask is
@@ -947,7 +946,7 @@ fn collect_field_tiles(w: &mut MapWorld) {
 /// 2, 4, 6 … and, on running off the end of the row, cells 3, 5, 7 …; **cell 1
 /// is never tried**; and after five retries it stores whatever it has, taken or
 /// not. `Merchant_StartCountyTaken` returns 1 for county 0 as well, because
-/// unset entries are 0 — so a row that runs out of candidates stores 0, and
+/// unset entries are 0 —
 /// `Merchant_SpawnAll` stops dead at the first zero.
 fn pick_merchant_starts(w: &mut MapWorld) {
     let taken = |starts: &[u8; ROUTES], c: u8| starts.iter().any(|&s| s == c);
@@ -1031,7 +1030,7 @@ fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
         }
     }
     // The probe can leave an entry unplaced only if every slot was full, which
-// needs more sources than slots; there are exactly as many of each.
+// needs more sources than slots; there are
     debug_assert!(table[1..].iter().all(|&c| c != 0), "the deal placed every start");
     table[1..].to_vec()
 }
@@ -1042,7 +1041,7 @@ fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
 /// The original bubbles entries whose *slot number* is above the live realm
 /// count out of a six-entry table, repeatedly, until none is left. Every
 /// populated entry's slot number is its own index (`PlayerStart_Record` writes
-/// both), and the markers on every shipped map are contiguous from 1, so the
+/// both),
 /// result is the first `lords` entries of the table as
 /// [`shuffle_starts`] left it. Written that way, with
 /// the equivalence stated here and checked over all 44 shipped maps in
@@ -1179,7 +1178,7 @@ fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
 /// split, the weather, the dryness, the labour shares and the industry share —
 /// and `tax_rate`, which **nothing sets at all**: the county record was zeroed
 /// wholesale by `FUN_0046EA28` in `Game_NewGame`'s preamble and no new-game
-/// path writes a tax rate, so a fresh game opens at zero tax in every county.
+/// path writes a tax rate,
 /// `[D]`, and it is the answer to a question `docs/kingdom.md` does not ask.
 fn county_reset(id: usize) -> CountyState {
     CountyState {
@@ -1393,7 +1392,7 @@ impl Scenario {
     /// The clock is `Game_NewGame`'s: **Autumn 1267, with Winter next.**
     /// `Kingdom::start_new_game` then runs the one immediate `Season_Advance`
     /// that puts a new game in Winter 1268, so this is deliberately the
-/// position *before* it, exactly as [`Scenario::starting_kingdom`] is for a
+/// position *before* it,
     /// save.
     pub fn from_map(slot: &MapSlot<'_>, setup: &NewGame) -> Result<Scenario, MapError> {
         let world = build(slot, setup)?;
@@ -1517,7 +1516,7 @@ impl Scenario {
             map,
             // `Mercenary_Init` (`0x004AC904`), which `Game_NewGame` calls
             // straight after `Merchant_SpawnAll`. Nothing on the new-game path
-            // ran it, so a new campaign had no mercenaries either.
+            // ran it,
             mercenaries: MercenaryBands::init(w.county_count),
             explored,
             units,
@@ -1642,7 +1641,7 @@ mod tests {
             put(&mut buf, Plane::Flags, 40 + i, 40, bit::PLOT);
             put(&mut buf, Plane::GfxIndex, 40 + i, 40, 7 + i as u8);
         }
-        // Two farm fields, side by side, so a plain tile beside them can be a
+        // Two farm fields, side by side,
         // blacksmith.
         for i in 0..2 {
             put(&mut buf, Plane::Flags, 12 + i, 12, bit::FARM);
