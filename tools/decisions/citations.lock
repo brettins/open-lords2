@@ -380,6 +380,7 @@ crates/l2-sim/src/pathfind.rs	C103	62f78ee316b4	7f535dce1087
 crates/l2-sim/src/pathfind.rs	C103	82fc499e9bf3	7f535dce1087
 crates/l2-sim/src/runner.rs	C100	0b67e8835502	c490b4875689
 crates/l2-sim/src/runner.rs	C200	a0976d2da606	264da18555bd
+crates/l2-sim/src/runner.rs	C203	d54d449778b9	a885abd5494f
 crates/l2-sim/src/runner.rs	C81	195b94310c14	3f7941714d12
 crates/l2-sim/src/siege.rs	C3	0f9889cc0837	35bf3a86555f
 crates/l2-sim/src/siege.rs	C82	b41f2c73b018	0eb5947031fe
@@ -550,6 +551,7 @@ docs/battle.md	C12	c0753f7ef8f6	bb0dd488f9d2
 docs/battle.md	C181	06d66b320c10	19c538abe1e9
 docs/battle.md	C200	63cdeff510ca	264da18555bd
 docs/battle.md	C202	ab6ccac04ac3	1e1898bc86a5
+docs/battle.md	C203	3a0ac73a0a95	a885abd5494f
 docs/battle.md	C3	4a58ff6915b0	35bf3a86555f
 docs/battle.md	C3	d55c548092ec	35bf3a86555f
 docs/battle.md	C61	09767b006ebe	60611046b40d
@@ -1173,10 +1175,12 @@ docs/symbols.json	C92	861554397288	094ae5499676
 docs/symbols.json	C94	06be8a0af925	fc733548baf2
 docs/symbols.json	C94	fb393e25f46e	fc733548baf2
 docs/symbols.json	C97	910f68184eb2	f5f75acd2cda
+docs/symbols.json	C99	33e9712a1629	b890db1f6d4a
 docs/symbols.json	C99	3afecce4a5a4	b890db1f6d4a
 docs/symbols.json	C99	69f0ca244ffd	b890db1f6d4a
+docs/symbols.json	C99	7e4936b6fd02	b890db1f6d4a
+docs/symbols.json	C99	b91039107fc6	b890db1f6d4a
 docs/symbols.json	C99	b9e5a4d48221	b890db1f6d4a
-docs/symbols.json	C99	dcc6b219fe81	b890db1f6d4a
 docs/symbols.json	C99	df924408a0f7	b890db1f6d4a
 docs/symbols.json	C99	ed259f31a361	b890db1f6d4a
 docs/symbols.md	C100	3cede658071f	c490b4875689
@@ -1254,10 +1258,12 @@ docs/symbols.md	C92	bdb00cb1a706	094ae5499676
 docs/symbols.md	C94	1b58b44eb124	fc733548baf2
 docs/symbols.md	C94	ea26de68ce16	fc733548baf2
 docs/symbols.md	C97	1231fc13c889	f5f75acd2cda
+docs/symbols.md	C99	1c89163fc637	b890db1f6d4a
 docs/symbols.md	C99	2cad917d144f	b890db1f6d4a
 docs/symbols.md	C99	41bb3c4633b9	b890db1f6d4a
-docs/symbols.md	C99	6211861bb8d1	b890db1f6d4a
+docs/symbols.md	C99	723e30046346	b890db1f6d4a
 docs/symbols.md	C99	82dd842500a1	b890db1f6d4a
+docs/symbols.md	C99	92b9f0821e7b	b890db1f6d4a
 docs/symbols.md	C99	e60728affba9	b890db1f6d4a
 docs/symbols.md	C99	ebbc33755102	b890db1f6d4a
 docs/work.json	C159	6a91c77e5d87	e723705ade24

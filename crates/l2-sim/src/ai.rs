@@ -130,18 +130,27 @@ pub struct AiField {
     /// **opposing** side's deployment marker, `[side][slot]`. **[D]**
     pub enemy_end: [[(i16, i16); 4]; 2],
     /// `0x0055CD90`, `[index][lane]` — the castle approach points, chosen by
-    /// `g_battleApproachLane`. **[I]** (`Battlefield_BuildCastle` unread.)
+    /// `g_battleApproachLane`. **[V]** on the [`crate::castle::ai_field`] path,
+    /// where they are the structure layer's own markers
+    /// (`Battlefield_ReadStructureLayer`); **[I]** only on
+    /// [`crate::siege::our_castle_ai_field`]'s, which invents them.
     pub castle_approach: [[(i16, i16); 4]; 6],
     /// `0x0055CDD0` — the castle's reference cell, which several orders offset
-    /// from. **[I]**
+    /// from. `castle_approach[2][0]` in the original: the same memory.
+    /// **[V]** from the structure layer, **[I]** from the stand-in.
     pub castle_ref: (i16, i16),
-    /// `0x0055CDF0`, by lane — the secondary staging table. **[I]**
+    /// `0x0055CDF0`, by lane — the secondary staging table, which is
+    /// `castle_approach[3]` in the original: the same memory.
+    /// **[V]** from the structure layer, **[I]** from the stand-in.
     pub staging: [(i16, i16); 4],
     /// `0x00554180`, `[group][slot]`: **sixteen** slots per group, empties
     /// skipped by scanning forward and wrapping. `docs/battle-ai.md` describes
     /// nine/four/one *used*; the table itself is sixteen wide. **[D]**
     pub wall_slot: [[(i16, i16); 16]; 3],
-    /// `0x00553274` and `0x00553EE4`, as cell indices (`y * 80 + x`). **[I]**
+    /// `0x00553274` and `0x00553EE4`, as cell indices (`y * 80 + x`). The
+    /// builder's code ladder seeds them — the first code-6 cell one row north,
+    /// the first code-8 cell at `off − 0x278` — so **[V]** on the
+    /// [`crate::castle::ai_field`] path and **[I]** on the stand-in's.
     pub castle_objective: [usize; 2],
     /// `Siege_ClaimDefencePost`'s twenty candidate cells. A zero entry is
     /// empty and never claimed. **[D]** for the mechanism, **[I]** for the

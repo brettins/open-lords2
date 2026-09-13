@@ -51,6 +51,7 @@
 
 pub mod ai;
 pub mod battle;
+pub mod castle;
 pub mod cue;
 pub mod facing;
 pub mod figure;
@@ -69,6 +70,7 @@ pub mod unit;
 
 pub use ai::{Ai, AiField, Action, World};
 pub use battle::Battle;
+pub use castle::{CastleSheet, CastleSheets, CastleTables};
 pub use cue::Cues;
 pub use facing::{facing_from_delta, FACINGS, FACING_DELTA};
 pub use figure::{Figure, Motion, Role, Side, State, SIDE_A, SIDE_B};

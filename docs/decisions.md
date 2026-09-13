@@ -11207,3 +11207,74 @@ is how fast debris falls and not what it looks like.
 `painting_the_battlefield_with_its_artwork_does_not_change_the_battle` plays 1,500 ticks
 with and without painting and compares the saved bytes. The one piece of renderer state
 this could have introduced — the fire jitter counter — was kept out for that reason.
+
+---
+
+**C203 — the castle on the battlefield is the one the player built.
+`stnfield.pl8`'s two layers are read, and two of our stand-in's premises were
+wrong against the file.**
+
+`docs/battle.md` §13.2a had the file located, the directory arithmetic written
+down and the structure tables described, and ended *"the layers are not read"*.
+Every siege was therefore fought on `l2_sim::siege::our_castle`, a ring whose
+arrangement is ours, and the cost was not cosmetic: **boiling oil and siege-tower
+docking could not happen at all.** `Oil_FindPourTarget` refuses a target below
+elevation 2 and `DOCK_WALL_ELEVATION` is 2 exactly, and the stand-in has no cell
+at elevation 2 anywhere, at any level. Both halves of that are asserted rather
+than asserted-about.
+
+**The directory is an ordinary PL8 directory**, which is what makes
+`Battlefield_BuildCastle`'s (`0x0047C4BA`) `castle * 0x20` stride read: `0x20` is
+two 16-byte frame records, so castle *c* is frames `2c` and `2c + 1` and the
+builder's two 24-bit offsets at `+0x0C` and `+0x1C` are each record's own. The
+shipped file is 64,168 bytes = 8 + 160 + 10 × 6,400: ten uncompressed 80 × 80
+frames, five castles of two layers. `Battlefield_ReadStructureLayer`
+(`0x0047CEC1`) walks the second as 2 × 2 markers rather than tiles, and it zeroes
+each byte as it consumes it, so it has to be run on a copy.
+
+**The decode checks itself, which is why this is `[V]` and not a story.**
+`Deploy_SlotForUnitSiege` (`0x004816F9`) maps a troop type only to garrison slots
+**0, 1, 4 and 8** of the twelve, and every one of the five shipped layouts fills
+exactly those four and no others. Nothing in the decode arranges for that.
+
+**What the file says that we had wrong.** The moat is at levels **1, 3 and 4** —
+not "level 2 and up", which is what our ring built. And level 3 has **no** curtain
+cell at all: its opening is the drawbridge, so `wall > 0`, which our siege code
+took for a castle invariant, is false there. What does hold at every level is
+weaker and is now the assertion: there is *something* `smash_walls` can open, a
+curtain block or a drawbridge. `RAMPART_GAP_AT_BUILD = [1,0,0,1,0]` was unrelated
+to either and was already right.
+
+**Measured, five sieges on the real layouts** (`oil_pours_and_a_tower_docks_in_a_siege_of_a_real_castle`):
+
+| castle level | oil pours | towers docked |
+|---:|---:|---:|
+| 0 | 2 | 1 |
+| 1 | 3 | 0 |
+| 2 | 3 | 1 |
+| 3 | **0** | **0** |
+| 4 | 4 | 0 |
+
+against **zero and zero at every level** on the stand-in. Level 3 is left open and
+reported rather than explained: it is the level with no curtain block, so the
+besieger's route is the drawbridge, and whether the zero is the layout or our AI
+has not been established. That is a finding, not a fix.
+
+**The `OnceLock` is the original's shape, not a shortcut.** `l2_sim::castle` takes
+bytes and never a path — `l2-sim` reads no files — and `l2_game::castle` publishes
+the parsed sheets into a `OnceLock` that `begin_fight` reads. Threading the sheets
+through instead was started and backed out: `begin_fight` is reached through
+`resolve`, `resolve_fought`, `resolve_siege`, `run_siege_phase`, `fight` and
+`take_the_field`, about thirty call sites all carrying `&mut Kingdom` or
+`&mut Game`, and `Game` does not own `Assets`. The original does not thread it
+either — `Battlefield_BuildCastle` opens the file itself from a process-global
+working directory, with no parameter from its caller. With no install,
+`siege::our_castle` is still the fallback and its own tests still describe it
+truthfully, which they may, because it is still what a bare checkout fights on.
+
+**And the census hid a stale total.** `GATED_TOTAL` was one low before this work
+and nobody could see it: the census prints the correct `INVENTORY` when the *list*
+disagrees, but asserts the total in a separate statement, so a total that is wrong
+by a constant survives every run that does not change the list. It is measured at
+merge now — 541 — against the census's own count rather than against the last
+number anybody typed.

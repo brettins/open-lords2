@@ -54,6 +54,7 @@ pub mod arrival;
 pub mod audio;
 pub mod battlefield;
 pub mod build_id;
+pub mod castle;
 /// When a tick falls due — the event loop's clock, kept where a test can
 /// reach it. See [`clock::Ticker`].
 pub mod clock;

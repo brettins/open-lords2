@@ -6853,6 +6853,54 @@
       "comment": "The siege battlefield builder; the third writer of the cell array. Its LAST STATEMENT BUT ONE is Siege_RestoreCastleDamage (0x004787A4), which is why a rebuilt castle does not start a repeat assault from scratch: the six county fields overwrite the g_siegeApproachScore = 500 and g_siegeBreachScore = 0 that Battle_Start wrote a moment earlier."
     },
     {
+      "addr": "0x0047CEC1",
+      "name": "Battlefield_ReadStructureLayer",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_ReadStructureLayer(int castle)",
+      "comment": "The SECOND layer of stnfield.pl8, read from the same 32-byte directory entry as Battlefield_BuildCastle's raster but from offset +0x1C instead of +0x0C. It is markers, not tiles: a 2x2 block whose byte +0 is 0x04 (the garrison's side) or 0x0F (the besieger's), byte +1 the kind, and whose index is spelled underneath in the row below. Kind == the side byte is a DEPLOYMENT SLOT; the other kinds fill the wall slots, the castle approach lanes, the staging points and the gate position - i.e. every AiField table l2-sim had marked inferred. It zeroes each byte as it consumes it, so it must be run on a copy of the layer. docs/battle.md 13.2a."
+    },
+    {
+      "addr": "0x0047D474",
+      "name": "Marker_TakeKind",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "unsigned char Marker_TakeKind(int markerOffset)",
+      "comment": "Structure-layer helper: returns byte +1 of a 2x2 marker - its kind - and clears bytes +1 and +3 so the walker cannot read the same marker twice."
+    },
+    {
+      "addr": "0x0047D4B8",
+      "name": "Marker_Index2Bit",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Marker_Index2Bit(int markerOffset)",
+      "comment": "Structure-layer helper: the index written under a besieger-side (0x0F) marker, two bits - bytes +0x50 and +0x51 of the row below, each worth 2 and 1 when it holds 7. Clears all four bytes."
+    },
+    {
+      "addr": "0x0047D544",
+      "name": "Marker_Index3Bit",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Marker_Index3Bit(int markerOffset)",
+      "comment": "Structure-layer helper: the three-bit form, bytes +0x50..+0x52 worth 4, 2 and 1. NOBODY CALLS IT - the only three of the family that are reached are the 2-bit, the 4-bit and the deployment slot. Dead in this build."
+    },
+    {
+      "addr": "0x0047D5EC",
+      "name": "Marker_Index4Bit",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Marker_Index4Bit(int markerOffset)",
+      "comment": "Structure-layer helper: the index written under a garrison-side (0x04) marker, four bits - bytes +0x50..+0x53 of the row below, worth 8, 4, 2 and 1 when a byte holds 7. Clears all four bytes."
+    },
+    {
+      "addr": "0x0047D6B0",
+      "name": "Marker_DeploySlot",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Marker_DeploySlot(int markerOffset)",
+      "comment": "Structure-layer helper: a deployment marker's slot number, byte +2 less 0x40. The caller clamps it to 0..11; this does not. Clears bytes +0x50 and +0x51."
+    },
+    {
       "addr": "0x0047DCCE",
       "name": "Battlefield_PlaceMoatCell",
       "section": "battle",
@@ -6875,6 +6923,14 @@
       "confidence": "verified",
       "signature": "void Wall_Collapse(int cellOffset)",
       "comment": "A wall cell comes down under catapult fire. Reached only from Missile_Step, when a class-3 shot lands on a cell whose elevation is 1..3 and whose surface is 4, and only once that cell's terrain byte - counted up one per shot - passes 0x0F. Writes surface = 9, flags = 2, ELEVATION = 0 (a breach is rubble at ground level, not a step, which matters because a step of more than one level is refused), flags2 &= 0xE3 | 4. Then, for each of the four orthogonal neighbours still at surface 5 - the bailey, i.e. inside (C99) - it adds one to g_siegeBreachScore, calls FUN_0048EE46 on that neighbour, and adds one to DAT_0056D648. So a shot into the middle of a wall is worth twice one into its end, and the number the county is billed in wood or stone is exactly the number the besieger's AI is rewarded with."
+    },
+    {
+      "addr": "0x0047E230",
+      "name": "Battlefield_ClassifySurfaces",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_ClassifySurfaces(void)",
+      "comment": "Battlefield_BuildCastle's last act on the raster: the SIX flood passes in order - keep (6), bailey (5), rampart walk (4), outside ground (3), open field (1), then the leftovers - and Path_BuildTerrainTemplate. Each pass loops to a fixed point on its own. The surface numbers a siege runs on are entirely this function's output; nothing else writes them at build time. docs/decisions.md C99."
     },
     {
       "addr": "0x0047E263",
@@ -6915,6 +6971,14 @@
       "confidence": "verified",
       "signature": "void Battlefield_ClassifyField(void)",
       "comment": "Flood classifier: writes surface 1, the open field, flooded from the two map corners. docs/decisions.md C99."
+    },
+    {
+      "addr": "0x0047E926",
+      "name": "Battlefield_ClassifyLeftovers",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_ClassifyLeftovers(void)",
+      "comment": "The sixth and last flood pass, and the one that leaves no cell at surface 0: anything still unclassified becomes 3 if an orthogonal neighbour is the moat (2), or 6 if one is the keep. Runs to a fixed point like the other five. docs/decisions.md C99."
     },
     {
       "addr": "0x0047EBE8",

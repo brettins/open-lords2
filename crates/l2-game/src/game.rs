@@ -392,6 +392,12 @@ impl Assets {
         let minimap_files = (0..16)
             .map(|n| vfs.read(&Minimap::file_for_slot(n * 4)).ok())
             .collect();
+        // **`stnfield.pl8`, and it is not an asset this struct holds.** The
+        // castle's layout is simulation, not artwork: `Battlefield_BuildCastle`
+        // reads it in the middle of raising a battle, through no parameter at
+        // all. `crate::castle` is that global; this is the one place with a
+        // `Vfs` to fill it from.
+        crate::castle::publish_from(|name| vfs.read(name).ok());
         Ok(Assets {
             ink: Ink::for_palette(&palette),
             quirks: Quirks::default(),

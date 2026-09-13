@@ -280,18 +280,18 @@ that was inverted. Settling it needed an exhaustive search for **writers**, of w
 and they fall into three groups: `Battlefield_BuildCastle`'s structure codes (§3.0.1), a **flood
 classifier** that runs immediately afterwards, and the three routines a siege runs on a wall.
 
-**The classifier had not been read at all.** `FUN_0047E230` is the last thing but three that
-`Battlefield_BuildCastle` calls, and it is six flood fills in a fixed order, each looping until
-nothing changes:
+**The classifier had not been read at all.** `Battlefield_ClassifySurfaces` is the last thing
+but three that `Battlefield_BuildCastle` calls, and it is six flood fills in a fixed order,
+each looping until nothing changes:
 
 | # | function | fills | from |
 |---|---|---|---|
-| 1 | `FUN_0047E263` | **6** | a cell of surface `0x0E`, or surface 0 above elevation 3, next to a 6 |
-| 2 | `FUN_0047E387` | **5** | any remaining `0x0E`; and surface 0 below elevation 2 next to the keep's `0x08` door, the bridge, or another 5 |
-| 3 | `FUN_0047E52D` | **4** | surface 0 at non-zero elevation next to a 5 or a 4 |
-| 4 | `FUN_0047E668` | **3** | surface 0 at elevation 0 next to a 4 or a 3, eight-way |
-| 5 | `FUN_0047E7B2` | **1** | seeded at cells `(0,0)` and `(0,79)` and flooded outward |
-| 6 | `FUN_0047E926` | 3 or 6 | whatever is left, by its neighbour |
+| 1 | `Battlefield_ClassifyKeep` | **6** | a cell of surface `0x0E`, or surface 0 above elevation 3, next to a 6 |
+| 2 | `Battlefield_ClassifyBailey` | **5** | any remaining `0x0E`; and surface 0 below elevation 2 next to the keep's `0x08` door, the bridge, or another 5 |
+| 3 | `Battlefield_ClassifyRampartWalk` | **4** | surface 0 at non-zero elevation next to a 5 or a 4 |
+| 4 | `Battlefield_ClassifyOutsideGround` | **3** | surface 0 at elevation 0 next to a 4 or a 3, eight-way |
+| 5 | `Battlefield_ClassifyField` | **1** | seeded at cells `(0,0)` and `(0,79)` and flooded outward |
+| 6 | `Battlefield_ClassifyLeftovers` | 3 or 6 | whatever is left, by its neighbour |
 
 So the surfaces are **concentric zones**, numbered inward, and the table in §3 now reads:
 
@@ -1238,7 +1238,7 @@ guess about the pictures; it is where the selector is written.
 | raster byte | routine | what it writes |
 |---|---|---|
 | `0xEF` | `FUN_0047E1DC` | `frame = rand & 0x0F`, selector **4** — open ground, sixteen variants |
-| `0xEE` | `FUN_0047DCCE` | the 49-variant water auto-tile out of `0x004D7610`, selector **4**, `flags \|= 0x10`, `surface = 2` — the moat |
+| `0xEE` | `Battlefield_PlaceMoatCell` | the 49-variant water auto-tile out of `0x004D7610`, selector **4**, `flags \|= 0x10`, `surface = 2` — the moat |
 | `0xED` | `FUN_0047DC9C` | `frame = 0xED`, selector 0 |
 
 and two routines later in the battle do the same: `Wall_Collapse`
@@ -1275,7 +1275,7 @@ draw damage on one, the same `1 ..= 3` from two unrelated functions. **[V]** on
 the formula and the gate; **[I]** on the word *damage*. `0x8B` is unreachable,
 because at `cell[+0] == 0` the pass does not run.
 
-#### The raster itself is still unread — and it is `stnfield.pl8`
+#### The raster is `stnfield.pl8`, and it is read
 
 `Battlefield_BuildCastle` (`0x0047C4BA`) reads **two** 6400-byte layers per
 castle out of `stnfield.pl8` — `s_Q_Q_Qbatfield_pl8 + local_8 * 0x0E + 5`, a
@@ -1287,7 +1287,7 @@ a campaign castle and 3 for a skirmish one (`DAT_0057A0F0`) — through a
 * offset at `+0x0C`…`+0x0E` — the **frame** layer, which is `cell[+3]` directly,
   with `0xED`/`0xEE`/`0xEF` as the escapes above and `0xEE` also setting
   `terrain = 0x0B`;
-* offset at `+0x1C`…`+0x1E` — the **structure** layer, which `FUN_0047CEC1`
+* offset at `+0x1C`…`+0x1E` — the **structure** layer, which `Battlefield_ReadStructureLayer`
   walks for the wall slots, approach lanes, staging points and gate positions.
 
 Every frame byte is then read through a 256-entry two-byte table —
@@ -1301,9 +1301,60 @@ Royal castles have drawbridges"* from inside the art.
 
 Both tables are in-tree (`l2_sim::siege::STRUCTURE_STONE` / `_WOOD`) and
 `crates/l2-game/tests/siege_picture.rs` re-reads the player's own `Lords2.exe`
-at file offsets `0xD5D80` and `0xD5F80` to hold them there. **The layers are
-not read**: our siege battlefield is still `l2_sim::siege::our_castle`, whose
-arrangement is ours, and reading them is the `castle-battle-layout` work.
+at file offsets `0xD5D80` and `0xD5F80` to hold them there.
+
+**The "directory" is an ordinary PL8 directory**, and that is what makes the
+`castle * 0x20` stride read: `0x20` is two 16-byte PL8 frame records, so castle
+*c* is frames `2c` and `2c + 1`, and the builder's `+0x0C` and `+0x1C` are each
+record's own 24-bit offset field. The shipped `Stnfield.pl8` is **64,168
+bytes** = 8 header + 160 directory + 10 × 6,400 — ten uncompressed 80 × 80
+frames, five castles of two layers, `castle` being `g_castleLevel` 0…4. **[V]**,
+and `the_layout_file_holds_five_castles_of_two_layers_each` re-derives it from
+the player's own file rather than trusting this paragraph.
+
+**The structure layer is a grammar, not a raster.**
+`Battlefield_ReadStructureLayer` (`0x0047CEC1`) walks it for 2 × 2 marker
+blocks: byte `+0` is `0x04` for the garrison's side or `0x0F` for the
+besieger's, byte `+1` is the kind (`Marker_TakeKind`), and the index belongs to
+the row below — four bits for side 0 (`Marker_Index4Bit`), two for side 4
+(`Marker_Index2Bit`), and for a marker whose kind equals its side byte, a
+deployment slot numbered `byte[+2] − 0x40` (`Marker_DeploySlot`). Kinds `0x40`,
+`0x41`, `0x44` and `0x47` fill the four wall-slot groups on side 0 and the
+approach lanes on side 4 — `0x43` puts one point into all four lanes — so
+`AiField`'s `wall_slot`, `castle_approach`, `castle_ref` and `staging`, which
+were `[I]` for as long as this file was unread, are the layer's own bytes.
+**The walker zeroes each byte as it consumes it**, so it has to be run on a
+copy of the layer.
+
+**The decode checks itself.** `Deploy_SlotForUnitSiege` (`0x004816F9`) maps a
+troop type only to garrison slots **0, 1, 4 and 8** of the twelve, and every
+one of the five shipped layouts fills exactly those four and no others —
+nothing in the decode arranges for that.
+
+What the five actually contain, measured from the shipped file:
+
+| level | family | moat (`0xEE`) | keep (6) | curtain (8) | drawbridge (9) | cells at elevation 2 |
+|---:|---|---|---:|---:|---:|---:|
+| 0 | wood | **no** | 1 | 4 | 0 | 157 |
+| 1 | wood | yes | 1 | 8 | 0 | 358 |
+| 2 | stone | **no** | 1 | 8 | 0 | 134 |
+| 3 | stone | yes | 1 | **0** | 4 | 256 |
+| 4 | stone | yes | 1 | 4 | 4 | 278 |
+
+Two premises of the old stand-in ring are wrong against that: **the moat is at
+levels 1, 3 and 4**, not "level 2 and up", and level 3 has no curtain cell at
+all, so `wall > 0` is false there. What does hold at every level is that there
+is something the besieger can open — a curtain block or a drawbridge, asserted
+by `every_castle_offers_the_besieger_something_to_open`.
+
+`l2_sim::castle` is the reader — `parse`, `build` (`Battlefield_BuildCastle`),
+`classify` (`Battlefield_ClassifySurfaces`), `tables`
+(`Battlefield_ReadStructureLayer`), `ai_field` — and it takes bytes, never a
+path; `l2_game::castle` does the read, into a `OnceLock`, because the original
+reads the file from a process global too and `begin_fight` is reached through
+six `Kingdom`-only signatures. With no install, `l2_sim::siege::our_castle` is
+still the fallback and is still described truthfully where it is defined.
+`docs/decisions.md` C203.
 
 ### 13.3 The variants are an auto-tiler, not a random pick
 
@@ -2488,7 +2539,7 @@ its own progress. It restores the *numbers* and not the field.
 > by `if (g_counties[g_battleCounty].castleDegraded == 2)` — it fires only on a **repeat** assault,
 > and on a first one it zeroes the county's six fields and leaves the globals alone. And what does
 > overwrite the 500 is the **moat**: the raster's second pass hands terrain byte `0xEE` to
-> `FUN_0047DCCE`, whose first statement is `g_siegeApproachScore = 0`, so one ditch cell anywhere
+> `Battlefield_PlaceMoatCell`, whose first statement is `g_siegeApproachScore = 0`, so one ditch cell anywhere
 > on the field puts it back to zero.
 >
 > The pair is a design rather than an accident, and reads straight against

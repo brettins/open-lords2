@@ -72,13 +72,8 @@ pub const FIELD_CLIP: Clip = Clip::new(
     ORIGIN_Y + VIEW_ROWS as i32 * TILE,
 );
 
-/// The field-battle tileset and palette. [`Ground`] has the siege pair.
-///
-/// **The palette is not `Battle_LoadAssets`'.** `Res_LoadStatic` (`0x00499859`)
-/// preloads `t32_bat1.256` into `0x00568EE0` at start-up — record 2 of
-/// `g_preloadTable` (`0x004D9F48`) — and `Screen_DrawBattlefield`
-/// (`0x004233F7`) ends a field battle's repaint with `Palette_Set(0x568EE0)`,
-/// or `Palette_Set(0x5675A0)` (`t32_stn1.256`, record 1) for a siege. **[V]**
+/// The field-battle tileset. [`Ground`] carries the siege pair —
+/// `t32_stn1`/`t32_stn2` and `t32_wod1`/`t32_wod2`.
 pub const TILESET: &str = "T32_bat1.pl8";
 
 /// **The two battle palettes**, records 2 and 1 of `g_preloadTable`
