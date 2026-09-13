@@ -12104,3 +12104,31 @@ Palette flash: `Machine::present` read the palette off the live stack, so a clic
 `Unit_BurnDwelling` (`0x00468AE2`): the Entry::Plot arm had the +7 moves and +20 offence and stopped; the rest is content 0x10 to 0x13, frame 0x3c, `population -= (p + (p>>31 & 3)) >> 2`, C's truncating divide by 4, no float, no PRNG. Added `terrain::DWELLING_BURNT` and `Step::dwelling_burnt`. `Director::hear_the_wreck` diffs the 4,096-byte content plane and classifies by the value written: plot 0x13, settlement the ruin value, standing field 0; `l2_kingdom` has exactly those three writers. All six `Sound_RestartSlot(3)` sites reproduced: `Unit_BurnDwelling#1`, `Unit_TrampleTile#1..4`, `Unit_CrossField#1`; `sounds.js --check` and `tests/sfx.rs` green. Tests `burning_a_dwelling_burns_the_plot_and_takes_a_quarter_of_the_people`, `the_quarter_truncates_towards_zero_like_the_originals_shift`, `wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not`; ablation `nothing_is_burnt_by_a_merchant_by_its_owner_or_twice`.
 
 Voice: `CastleBuild_Select` (`FUN_004b3940#1`, `0x00436B22` calls `FUN_004B3940(hotspot)`, file S071_02 + `hotspot*0x10`) built through `Game::spoken`, one assignment in the click arm; test `picking_a_castle_picture_speaks_that_castles_name`, five pictures. The other three blockers are in `docs/audio.json`; the row's "screen 0x20" was wrong, 0x20 is the standings page (`FUN_004b3994#1`, reproduced), the front-end site is `FUN_00497a34#3`. Census 564 to 566 then recounted after the merge (ef71d05).
+
+---
+
+**C222 — AI lords trade for the county when they sell first; every battle re-farms every AI realm.**
+
+`Ai_TradeForCounty` (`0x0049E39B`) is `Market::trade_for_county` (default no-op, implemented by
+`CountyStall`), called from `ai_farm::lay_out` for `FarmStyle::sells_first`. Helpers
+`Ai_SellGood` (`0x004A4A3F`) and `Ai_BuyGoodDownTo` (`0x004A4C41`, halves the lot, gold read
+once); realm wants +0x70/+0x74/+0x7C pick direction. Personality +0x78/+0x7C/+0x84/+0x88/+0x8C
+read from `g_aiPersonality` (`0x004D8A58`, stride 0xF0): 1000/1500/2500/4000, 100/80/70/150,
+reserves 250/300/500/1000 `[V]`. Now `Tables` fields and ruleset keys; `kingdom.toml`
+regenerated, mods loader and fixtures updated. Differential 913–914 of 932, 270–271 of 279
+moved; realm 2's siege: 100 maces at 10 + Pct(10,100) = 20 each = 2,000; gold +2,005 → +5
+(wages -5), score +47 → -3; ablation restores 913/270. Tests `a_lord_sells_his_surplus_and_buys_the_countys_weapon`,
+`the_weapon_order_halves_until_the_treasury_covers_it`, `a_lord_with_no_stall_or_no_credit_trades_nothing`;
+`crates/l2-game/tests/differential.rs`.
+
+`FUN_0049DF48` is `Ai_ManageCountyFarms` for every realm with `isHuman == 0 && strength != 0`,
+`Ai_ManageFarmsAll`'s loop with the tests swapped. `Kingdom::ai_manage_farms_after_battle`
+called from engagement's battle path after the return and before `Defence_Disband`, as in
+`Battle_ReturnToCampaign` (`0x004AB383`). Every battle re-farms every AI realm, not the two
+that fought. Test `a_battle_re_manages_every_ai_realms_farms_and_nobody_elses` (seam.rs,
+battle-before.sav, probe county +0x1FE), ablation red; `crates/l2-game/tests/seam.rs`.
+
+Lost-rule-inputs blocker: +0x15A is the round-robin cursor of `FUN_0046958F` and `FUN_0046965A`
+under `County_EnsurePasture` (`0x0046921D`); +0x15B the same sweep in `FUN_00469A9C` twice from
+`Weather_UpdateAll` (`0x00449889`, weather 1 → 0x18 parched, 5 → 0x17 flooded, messages
+0x8F/0x90). The blocker is state; `County` carries neither field.
