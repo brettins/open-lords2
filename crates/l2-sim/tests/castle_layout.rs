@@ -16,7 +16,7 @@ use l2_sim::terrain::DIM;
 use l2_sim::{BattleRunner, Muster, Troop};
 
 /// The layouts in an install directory, or `None` — every test here skips on
-/// `None` rather than failing, because a checkout with no install is a
+/// `None`, because a checkout with no install is a
 /// supported checkout and the castle's shape lives only in the player's file.
 fn layouts(dir: Option<std::path::PathBuf>) -> Option<CastleSheets> {
     let path = l2_testkit::find(&dir?, CastleSheets::FILE)?;
@@ -39,7 +39,7 @@ macro_rules! sheets {
 /// **The file is exactly its own directory plus ten layers.** The shipped
 /// `Stnfield.pl8` is 64,168 bytes: 168 of PL8 header and directory, then
 /// 10 × 6,400. Five castles, two layers each, and the builder's `castle * 0x20`
-/// stride is two 16-byte PL8 records — which is why a directory written for a
+/// stride is two 16-byte PL8 records — a directory written for a
 /// sprite sheet answers a question about castles.
 #[test]
 fn the_layout_file_holds_five_castles_of_two_layers_each() {
@@ -137,7 +137,7 @@ fn only_the_two_largest_castles_carry_a_drawbridge() {
 }
 
 /// **One way in, and it is a way in whatever else the castle has.** Structure
-/// code 6 appears exactly once in every one of the five layers, and the keep
+/// code 6 appears in every one of the five layers, and the keep
 /// door's elevation is the one place the two castle families disagree: 4 for a
 /// stone keep and 1 for a wooden one.
 #[test]
@@ -245,7 +245,7 @@ fn the_structure_layer_fills_the_tables_the_ai_reads() {
 ///
 /// Boiling oil wants elevation 2 under the pot (`Oil_FindPourTarget`) and a
 /// tower wants elevation 2 in front of it (`FUN_00491492`). Both are counted by
-/// [`l2_sim::Cues`], so this runs the battle and reads the counters rather than
+/// [`l2_sim::Cues`], so this runs the battle and reads the counters
 /// asserting on geometry.
 ///
 /// Ablation, run: swap `deploy_siege_on_sheet` for `deploy_siege` with
@@ -300,4 +300,31 @@ fn oil_pours_and_a_tower_docks_in_a_siege_of_a_real_castle() {
     }
     assert!(poured > 0, "no pot of oil was ever poured in five real sieges");
     assert!(docked > 0, "no siege tower ever docked in five real sieges");
+}
+
+/// **Why level 3 docks nothing: the moat, not the elevation and not the AI.**
+///
+/// `Battlefield_PlaceMoatCell` zeroes `g_siegeApproachScore`
+/// ([`siege::approach_score_at_build`]), and `UnitOrder_SiegeAttTower`
+/// (`0x0048DDC7`) moves a tower at the castle only on
+/// `(orders > 0x3C && approach > 6) || approach > 10`. So a tower may only
+/// reach a wall on a **dry** castle, and the docks C203 measured — 1, 0, 1, 0,
+/// 0 — are exactly the dry levels. Elevation is not the reason: level 3 has
+/// **256** cells at [`DOCK_WALL_ELEVATION`], more than level 2's 134. `[V]`
+#[test]
+fn only_a_dry_castle_opens_the_approach_a_siege_tower_needs() {
+    let s = sheets!();
+    let mut wet = 0;
+    for level in 0..=4u8 {
+        let field = castle::build(level, s.get(level).unwrap());
+        let moat = field.cells.iter().any(|c| c.surface == SURFACE_WATER);
+        let score = siege::approach_score_at_build(&field);
+        assert_eq!(moat, score == 0, "level {level}");
+        // C203's moat levels, restated from the file.
+        assert_eq!(moat, matches!(level, 1 | 3 | 4), "level {level}");
+        wet += moat as i32;
+        let high = field.cells.iter().filter(|c| c.elevation == DOCK_WALL_ELEVATION).count();
+        assert!(high > 100, "level {level}: {high} cells a tower could dock against");
+    }
+    assert_eq!(wet, 3, "three of the five castles ship a ditch");
 }
