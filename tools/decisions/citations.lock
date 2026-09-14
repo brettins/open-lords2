@@ -23,7 +23,6 @@ crates/l2-formats/tests/save/main.rs	C1	6c739666ae44	6b7e8edb019e
 crates/l2-formats/tests/save_england_turn1/main.rs	C12	a7a77580a4a5	bb0dd488f9d2
 crates/l2-game/build.rs	C154	344919686118	4f820bfd08c8
 crates/l2-game/build.rs	C154	f9de42bc3129	4f820bfd08c8
-crates/l2-game/src/app.rs	C117	81e769c79475	b20f3a227f0f
 crates/l2-game/src/audio/director/engine/director.rs	C133	15d1b1c19eb7	91fcca97cc98
 crates/l2-game/src/audio/names/audio_tables.rs	C133	cdef544c10db	91fcca97cc98
 crates/l2-game/src/battlefield/logic/methods.rs	C60	3ab509e4145a	2f31848557d2
@@ -40,6 +39,7 @@ crates/l2-game/src/game/mod.rs	C27	89e1a09cb732	1db64332cb22
 crates/l2-game/src/game/mod.rs	C30	fdf7eaac6540	50fdf5e17ba0
 crates/l2-game/src/game/mod.rs	C62	1f489b238ce0	ebb6a7ec3711
 crates/l2-game/src/input.rs	C61	39c868ef7985	60611046b40d
+crates/l2-game/src/main.rs	C117	81e769c79475	b20f3a227f0f
 crates/l2-game/src/main.rs	C193	652aacd076bc	ded1409ebea0
 crates/l2-game/src/main.rs	C193	eff18505112b	ded1409ebea0
 crates/l2-game/src/message/queue/actions.rs	C210	5005fe758800	38024f0b559c
