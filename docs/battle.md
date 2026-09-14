@@ -153,7 +153,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x184` | i8 | exchange | [D] | ticks left holding the attacker role in a duel. |
 | `+0x185` | u8 | role | [D] | 1 = attacker this exchange, 2 = defender. |
 | `+0x18C` | u8 | blowUsed | [D] | set once the heavy-blow bonus has been spent. |
-| `+0x194` | u8 | isSiegeEngine | [V] | 1 for troop types 7, 8, 9 — **not 10**. `BattleUnit_Create` writes it as `6 < troopType && troopType < 10`, beside the call that stamps `0x80` on the engine's 3 × 3. So a pot of oil burns at a man's threshold, §17.4. |
+| `+0x194` | u8 | isSiegeEngine | [V] | 1 for troop types 7, 8, 9 — **not 10**. `BattleUnit_Create` writes it as `6 < troopType && troopType < 10`, beside the call that stamps `0x80` on the engine's 3 × 3.
 | `+0x197` | u8 | band | [V] | strength band 0 … 3 from the men left (§5.3). Scales melee attack and missile damage. |
 | `+0x198` | i16 | heavyBlow | [V] | extra hits landed **once per figure for the whole battle** (§6.1): maceman 300, knight 200, swordsman 100, everyone else 0. |
 | `+0x19A` | i16 | **hits** | [V] | accumulated damage. **100 hits kills one man** (160 for a siege engine). |
@@ -171,7 +171,7 @@ reaches zero the figure enters the dead state and is removed.
 
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
-| `+0x164` | u8 | **on route** | [V] | 1 while the figure is following a stored path instead of walking straight at its target. |
+| `+0x164` | u8 | **on route** | [V] | 1 while the figure is following a stored path instead of walking straight at its target.
 | `+0x165` | u8 | **hold it** | [V] | ticks to wait before asking the pathfinder again; set to 64 after each attempt. |
 | `+0x166` | i16 | **routed** | [V] | how many times this figure has been **re-routed**. Not morale — §8.3. |
 | `+0x168` | u8 | **polar dirc** | [V] | facing chosen when knocked back or thrown. |
@@ -782,6 +782,18 @@ Traced and absent, as far as this investigation went:
   a figure that loses no men never leaves band 0.
 * **No flanking or facing bonus.** Facing is set from the direction of travel or of the
   opponent and is read only by the renderer and the melee pairing.
+* **No prisoners and no ransom.** **[V]** `ransom`, `captive` and `hostage` appear zero
+  times in `Lords2.exe` and zero times in `L2.eng`; `prisoner` appears once, at `L2.eng`
+  offset 79178, inside the winner's ending speeches — *"Does the prisoner have anything to
+  say before the execution?"* — which is a taunt, not a mechanic. `Battle_CheckOutcome`
+  (`0x00477DFC`) names `g_battleLoser` and `g_battleWinnerOwner` from the two army slots
+  and then calls only `Battle_WriteBackCasualties`, `Battle_SelectOutcomeBanner`,
+  `Screen_BattleOutcome`, `Battle_ReturnToCampaign`, `Music_Stop`, `Smk_Play` and
+  `Net_SendCommand` — none of its 32 globals is a captive. A beaten lord is not taken: the
+  post-battle resolution calls `Realm_RecountStrength` (`0x0049B42B`), and a realm whose
+  count reaches zero is **eliminated** with `L2.eng` group 224 *"Defeat!"* (group 194 for
+  an AI). The `0x0D` capture letters, groups 114–126, are all **county** capture. So there
+  is nothing here for us to be missing.
 
 ---
 
@@ -981,7 +993,6 @@ four times (`barred`) and its `hold it` timer has expired.
       g_pathCost[nb] = g_pathStepCost[nb] + sVar3;
   ```
 
-  so a cell of cost *k* expands on its (*k*+1)-th pop
   accumulated cost, not hop count. See correction **C12** in `docs/decisions.md`;
 * **the cost field is never relaxed.** A neighbour is considered only while
   `g_pathCost[nb] == 0`, so the first cost written to a cell stands even when a cheaper
@@ -1021,7 +1032,7 @@ whether an army can press through a gap.
 
 * **It marks friendly figures.** It opens by copying the blocked template over `g_pathCost` and
   calling `Path_BuildBlockedMap` — the routine that writes **998** under every friendly figure — and
-  then tests that array as it walks. A comrade in the way blocks it exactly as terrain does. The
+  then tests that array as it walks. A comrade in the way blocks it
   destination is the one exception: a 998 there is cleared to 0 first, so walking *onto* an occupied
   cell is allowed and the mover settles it by swapping or waiting.
 * **It is two greedy walkers, not a line.** Both set out from the start. Each step takes the
@@ -1031,7 +1042,7 @@ walker B anticlockwise, up to eight tries — so the walk *slips around* obstacl
   straight line; against a wall with a gap in it, it can round the wall.
 * **It leaves its cost field behind** When `Path_Search` skips the flood
   fill because this succeeded, `BattleMan_Step` runs `Path_Extract` on `g_pathCost` **anyway** — so
-  the figure comes away with the walked route, comrade-avoiding detours and all. There is no branch
+  the figure comes away with the walked route, comrade-avoiding detours and all.
   in which a blocked figure is given nothing.
 
 That third property is the one with teeth, and `docs/decisions.md` `C103` records what
@@ -1178,7 +1189,6 @@ FUN_004bc020(tileset, tileset2, &g_battlefield, 0x50, 0x50, 8, 0, 0x18, 0xf, 0xe
 //                                               80    80   8  0    24   15   14    32
 ```
 
-so a **15 x 14 viewport of 32-pixel tiles at screen `(0, 24)`**, over the 80 x 80
 array of 8-byte cells. The consumer (`0x004BCBDC`) steps the destination by
 `0x20` in both axes: the battlefield is a **plain square grid seen from above**,
 not isometric like the campaign map. 15 x 32 = 480 wide leaves 160 pixels for the
@@ -1282,7 +1292,6 @@ both sheets. **[V]**
 (`0x004233F7`) ends on `Palette_Set(0x568EE0)` for a field battle and
 `Palette_Set(0x5675A0)` for *any* siege, and record 1 of `g_preloadTable` is
 `t32_stn1.256`.
-install — so a wooden castle is drawn in the stone castle's colours. **[V]**
 
 #### The second pass is **damage**, not terrain
 
@@ -1586,7 +1595,6 @@ codes and draws a **docked siege tower's stair** out of `Engine.pl8`. §13.11.
 
 Figures are collected if they lie within one cell of the viewport
 (`0x004BD938`), **bubble-sorted by map y ascending** (`0x004BDA92`) and drawn in
-that order, so a man lower on the field overlaps one behind him. A stable sort
 by y reproduces it. Both read `mapX`/`mapY`, the cell a walking man is entering.
 
 **Every sprite is clipped to the viewport.** **[V]** `FUN_004BC020` stores
@@ -1761,11 +1769,9 @@ sprite-width centring**, where every figure has one. `DAT_004E5D44` is
 
 A class-5 record also takes one of sixteen `(i32, i32)` offsets at
 `0x004E4470`, chosen by `DAT_004E5B1C`: a render-side global, pre-incremented
-once per fire *drawn* and never reset, so a burning cell shimmers.
 
 Cell byte `+6` is the head and missile `+0x04` the link; `Missile_LinkToCell`
 appends to the tail and `Missile_UpdateAll` relinks slots 1 … 100 ascending
-every tick, so a cell's list is in slot order. **Both ends give up after ten**
 so an eleventh missile on one cell is not drawn.
 
 #### The engine y nudges
@@ -1899,7 +1905,6 @@ interchangeable:
 
 A man on foot adds **1** per frame; a battering ram in state 14 adds **20**. So
 one ram opens a gate in a thousand frames where a lone swordsman needs twenty
-thousand. The gate counter never resets, so a siege gets exactly one of those
 breaches; the rampart counter does, so a wall can be chewed through repeatedly.
 Surface 4 is what `Siege_FindCellSurface4` then hunts for, which is how the
 order layer learns the wall is down.
@@ -2082,7 +2087,6 @@ it: `Missile_Step` reads cell byte `+5`, the figure, directly.
 #### The timing is one number wearing two hats
 
 **[V]**, and it is the elegant part. Four sub-steps a tick, one sub-step is
-1/32 of a cell, so a tick is exactly **⅛ of a cell** — eight ticks to cross one.
 `+0x36` (`ticksFlown`) counts up once per tick and is compared against `+0x38`,
 which is loaded with the raw `g_missileStats` range **in eighths of a cell**. So
 the same number is both the distance and the tick budget
@@ -2320,7 +2324,6 @@ own men is under it, and **0** otherwise. The three land differently:
 * **1** → `FUN_0043C247(player, 1, …)`: clear, box, `FUN_00478987`,
   `FUN_00478F0B`, `Battle_CountMenByType`;
 * **2** → the anchor is moved **−8, −8** and the pointer **+8, +8**
-  box is committed, so a click on a man selects a 16-pixel square;
 * **0** → **nothing at all**, and in particular the selection is *not* cleared.
   Clearing is the right button's job (§15.7).
 
@@ -2335,7 +2338,6 @@ and standing outside is not picked. **[V]**
 state.** `FUN_00478987` (`0x00478987`) asks whether the selection is exactly one
 whole unit; if it is not — the player boxed half a unit, or figures from two —
 it calls `BattleUnit_Alloc` and moves every selected figure into a **new unit**.
-So a box drawn round half a unit *splits* it, and every later order applies to
 the new one. Two details reproduced, not tidied: the new unit's category
 is written **inside** the move loop, so the **last** selected figure decides
 whether the whole unit is missile (1) or melee (3); and if `BattleUnit_Alloc`
@@ -2390,7 +2392,6 @@ established**.
 * **right release** — `FUN_0043C55C` → `FUN_00479A71`, **clear the whole
   selection**. Refused inside `x >= 0x1E1 && 0x18 <= y <= 0xB7`, which is the
   overview panel *minus its leftmost column* — the panel starts at `0x1E0` and
-  the guard tests `0x1E1`, so a right click on column 480 deselects.
 
 The three layouts, read out of `DAT_004D31F4` (28-byte records whose first four
 `i32`s are `x, y, w, h` for `FUN_004B1DEB`):
@@ -2467,7 +2468,6 @@ original's battle pointer is one frame stale.
 
 `0x2B`'s whole arm is one line: a right release sets `DAT_00568470 = 0x1389`.
 `Battle_CheckOutcome` counts that word up once a frame and gives way past 5000,
-so the right button **skips** the banner instead of dismissing it.
 
 ### 15.11 The count
 
@@ -2620,7 +2620,6 @@ a person does.
 
 `DAT_00553FE4` is the flag that puts a figure in state 9, and **it is the unit's ordered
 destination and not the figure's slot**. `Formation_RectIsClear` caches
-`(destination.surface == 2)` and then rejects the rectangle for the same reason, so a unit
 sent at the ditch has *every* figure enter state 9 while walking to a **dry** slot beside
 it. Reading it off the slot instead is what made the state unreachable here for as long as
 it existed: no slot is ever chosen on water, because both slot choosers reject an impassable
@@ -2679,7 +2678,6 @@ Two different routines, and they leave different marks:
 
 `FUN_0048EE46` appends a cell to the twenty-entry table at `DAT_00553C80` that
 `Siege_ClaimDefencePost` (`0x0048ED95`) reserves from. It is the table's **only** appender in the
-binary, and its only caller is `Wall_Collapse`. So a castle nobody has bombarded has no defence
 posts at all, `Siege_ClaimDefencePost` returns 0 for every unit
 their `cellOffset == 0` arm — the wall slots — for the whole of that siege. The posts are the holes,
 and they arrive when the holes do. `docs/decisions.md` `C105`.
@@ -2743,7 +2741,6 @@ only by that fire**: nothing in `Missile_Step` can hurt a man with class 7. Why 
 bias differs is not established.
 
 `[D]`, not reproduced: `BattleUnit_Order`'s loop tests a figure's owner, not its state, and a pot
-that has poured is a corpse with an owner for eighty frames — so a unit re-ordered downhill in that
 window pours again. `crates/l2-sim` now **has** the lifetime — `Fighter::corpse`, `+0x173`,
 `C209` — but the oil loop still tests the living, so the re-pour stays `[D]`.
 
@@ -2766,7 +2763,7 @@ longer than the last. `docs/audio.json` had it as *"that cell and its neighbours
 tick: 3, 6, 9, 12 hits by size class (0–1, 2, 3, 4+), 1, 3, 5, 7 for an engine, one or two more for
 a human's; thresholds **100** and **160** as literals
 reach them; one man a frame, remainder carried; the dying figure's side picks `0xB` or `0xC`.
-**An engine is `+0x194`, troop types 7–9**, so a pot of oil burns as a man.
+**An engine is `+0x194`, troop types 7–9**,
 
 ### 17.5 A wood goes up — fire arrows
 
@@ -2784,7 +2781,6 @@ nothing from catching to burning. The garrison burns out an army hidden in a woo
 **And this answers §15.12's *"why surface 15 specifically"*.** A human's `+0x44` is not 1: it is
 the unit's `targetCell`, copied by `BattleMan_StateCloseToAttack`, and `BattleUnit_Order` writes
 `targetCell` only under its fifth argument — `DAT_0053E874`, *the hovered cell is surface 15* — for
-a missile unit of side 0. So a player's order onto a wood with missile men is
 wood alight**. `[V]` on each write; `[I]` on how often a player's unit is in state 17 to shoot it,
 which is not built here.
 
@@ -2793,7 +2789,6 @@ which is not built here.
 `BattleMan_Step` (`0x0048F1DD`) calls it when a siege engine's step is refused. An engine tests a
 **leading edge**, not a cell — `Cell_TryEnterEngine` (`0x00490C59`) over the three cells of
 `g_engineEdgeOrtho` or the five of `g_engineEdgeDiag`, decoded from the executable as two cells
-ahead — so a tower's centre stops **two cells short** of a wall
 stops it**, friend or foe.
 
 For troop type 8 only: from its polar facing (`+0x168`, which `FUN_00488436` keeps on the nearest
