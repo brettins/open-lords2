@@ -503,9 +503,6 @@ impl BattleRunner {
                 // A figure whose chosen target is gone would stand in 17 for
                 // the rest of the battle. Returning it to idle lets its unit
                 // order it again.
-                let Some(shot) = WeaponClass::for_troop(self.fighters[i].troop) else {
-                    return;
-                };
                 let alive = self.sim.figures[sim]
                     .target
                     .is_some_and(|t| self.sim.figures[t].is_alive());
@@ -529,6 +526,9 @@ impl BattleRunner {
                         self.sim.figures[sim].target = None;
                         return;
                     }
+                    let Some(shot) = WeaponClass::for_troop(self.fighters[i].troop) else {
+                        return;
+                    };
                     match self.missile_target(i, shot.stats().range as i32) {
                         Some(t) => self.sim.figures[sim].target = Some(t),
                         None => return,
