@@ -31,6 +31,7 @@ use l2_game::Game;
 pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(4);
     g.kingdom.set_county_count(2);
+    l2_testkit::chain_neighbours!(g.kingdom);
     for id in 1..=2usize {
         let c = &mut g.kingdom.counties[id];
         c.owner = 1;

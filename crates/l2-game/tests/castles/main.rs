@@ -8,7 +8,7 @@
 //! here sets `castle_degraded`, `garrison_unit` or `besieging_county` by hand,
 //! and that is the whole point: those three fields were **read by rules and
 //! written by nothing a player could reach**
-//! build a castle, a castle could never be manned and a siege could only ever
+//! build a castle,
 //! be laid by a test that laid it itself.
 //!
 //! > *"A field is only tested if something a test reads was written by
@@ -46,7 +46,7 @@ use l2_view::campaign;
 
 /// The border between county 1 and county 2, chosen the same way
 /// `tests/military.rs` chooses it: inside the band the campaign screen opens
-/// on, so a test can click a tile without scrolling.
+/// on,
 const BORDER_1_2: usize = 32;
 
 fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
@@ -73,7 +73,7 @@ fn on(r: Rect) -> (i32, i32) {
 
 /// **Press one of `g_castleBuildWidgets`' two thumbs and let its twenty frames
 /// run.** Both are `Widget_Test` kind 5, so the screen must still be up on
-/// every tick before the twentieth, and the press clicks exactly once.
+/// every tick before the twentieth,
 ///
 /// Every castle order in this file goes through here, so all five are tests of
 /// the gesture. **Ablations, run:** declare the thumbs `Press` in their `arm!`s
@@ -186,13 +186,9 @@ pub(crate) fn world() -> (Game, Assets) {
     g.kingdom.counties[1].owner = 1;
     g.kingdom.counties[2].owner = 2;
     g.kingdom.counties[3].owner = 2;
-    for (id, neighbours) in [(1usize, vec![2u8]), (2, vec![1, 3]), (3, vec![2])] {
-        let c = &mut g.kingdom.counties[id];
-        c.neighbour_count = neighbours.len() as u8;
-        for (i, n) in neighbours.into_iter().enumerate() {
-            c.neighbours[i] = n;
-        }
-    }
+    // 1 — 2 — 3, a chain: county 2 borders realm 1, so taking it is a capture
+    // and not an independence declaration.
+    l2_testkit::chain_neighbours!(g.kingdom);
     for realm in 1..=2usize {
         g.kingdom.realms[realm].in_play = true;
         g.kingdom.realms[realm].strength = 5;
@@ -239,7 +235,7 @@ fn army_at(g: &mut Game, owner: u8, county: u8, men: i32, at: (u8, u8)) -> usize
 
 /// A tile whose whole 4×4 neighbourhood — from one west and one north to two
 /// east and two south — is inside the opening viewport **and** in the given
-/// county, so a 2×2 castle block placed on it has room around it for an army to
+/// county,
 /// stand and for a test to click.
 ///
 /// The campaign screen opens at `Map_InitMode`'s own scroll origin and these

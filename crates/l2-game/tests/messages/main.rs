@@ -53,6 +53,7 @@ pub(crate) fn world() -> (Game, Assets, Machine) {
     let mut g = Game::new(0xB0A7);
     g.player = 1;
     g.kingdom.set_county_count(6);
+    l2_testkit::chain_neighbours!(g.kingdom);
     for id in 1..=6usize {
         let c = &mut g.kingdom.counties[id];
         c.population = 500;

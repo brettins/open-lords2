@@ -47,6 +47,7 @@ pub(crate) fn world() -> Game {
     let mut g = Game::new(0x7195);
     g.player = 1;
     g.kingdom.set_county_count(6);
+    l2_testkit::chain_neighbours!(g.kingdom);
     g
 }
 

@@ -63,6 +63,7 @@ pub(crate) fn world() -> Game {
     // own narration is asserted in `tests/tips.rs`.
     g.prefs.tip_screens = false;
     g.kingdom.set_county_count(14);
+    l2_testkit::chain_neighbours!(g.kingdom);
     g.kingdom.realms[1].in_play = true;
     g.kingdom.counties[1].owner = 1;
     g.kingdom.realms[1].county_count = 1;

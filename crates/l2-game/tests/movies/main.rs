@@ -76,6 +76,7 @@ fn realms() -> Game {
     let mut g = Game::new(0xF11A);
     g.player = 1;
     g.kingdom.set_county_count(6);
+    l2_testkit::chain_neighbours!(g.kingdom);
     for realm in 1..=5usize {
         g.kingdom.realms[realm].in_play = true;
         g.kingdom.realms[realm].strength = 3;
@@ -104,6 +105,7 @@ fn film_on_top(m: &Machine) -> Option<Film> {
 fn castle_world() -> (Game, Machine) {
     let mut g = Game::new(11);
     g.kingdom.set_county_count(2);
+    l2_testkit::chain_neighbours!(g.kingdom);
     g.kingdom.counties[1].owner = 1;
     g.kingdom.realms[1].in_play = true;
     g.kingdom.realms[1].is_human = true;

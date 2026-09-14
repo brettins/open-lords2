@@ -63,6 +63,7 @@ use std::path::{Path, PathBuf};
 pub use l2_formats::save::{Save, SaveError};
 
 pub mod pe;
+pub mod worlds;
 
 /// Environment variable naming the game install.
 pub const INSTALL_VAR: &str = "LORDS2_DIR";
