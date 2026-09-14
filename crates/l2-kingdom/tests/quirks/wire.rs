@@ -115,7 +115,7 @@ fn mixed() -> Quirks {
 /// **Nothing here asserts on a field this function writes.** It sets the world
 /// up and the tests read what `advance_season` and the rule functions leave
 /// behind — `docs/agents.md`'s rule about fixtures that check themselves.
-fn furnished_kingdom(seed: u64) -> Kingdom {
+pub(crate) fn furnished_kingdom(seed: u64) -> Kingdom {
     let mut k = Kingdom::new(seed);
     k.county_count = 8;
     k.year = 1300;

@@ -23,7 +23,7 @@ fn at(id: &'static str, get: Get) -> (&'static str, Get) {
 /// the shape of a check that lies
 /// neither list is what it is compared against. Both are held to the bytes the
 /// original wrote.
-fn accessors() -> Vec<(&'static str, Get)> {
+pub(super) fn accessors() -> Vec<(&'static str, Get)> {
     vec![
         at("County+0x000", |k, i, _| k.counties[i].event_fired as i64),
         at("County+0x005", |k, i, _| k.counties[i].owner as i64),

@@ -110,7 +110,7 @@ fn painting_is_deterministic() {
 
 /// Paint every fallow field of one county to grain, the way the player does it:
 /// one tile, one brush stroke. Returns how many strokes landed.
-fn paint_all_fallow_to_grain(k: &mut Kingdom, county: usize) -> i32 {
+pub(super) fn paint_all_fallow_to_grain(k: &mut Kingdom, county: usize) -> i32 {
     let tiles: Vec<usize> = k
         .field_tiles(county)
         .into_iter()

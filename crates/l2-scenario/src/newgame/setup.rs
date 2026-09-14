@@ -23,7 +23,7 @@ use crate::{Clock, CountyState, IndustryState, RealmState, Scenario};
 /// build a realm whose colour and lord disagree — which is exactly the state
 /// `shield = realm` used to produce.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Assignment {
+pub(crate) struct Assignment {
     /// Realm `+0x0A`, `shieldIndex`, 1 … 5. **Zero means the walk gave this
     /// realm nothing** — it is above the lord count — and the caller falls back
 /// to `FUN_0049C995`'s seed.
