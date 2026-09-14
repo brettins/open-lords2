@@ -15,8 +15,10 @@ const KEY = process.env.GEMINI_API_KEY; if (!KEY) { console.error("split-llm: GE
 const file = process.argv[2]; if (!file) { console.error("split-llm: <file>"); process.exit(2); }
 const src = fs.readFileSync(path.join(root, file), "utf8").replace(/\r/g, "");
 const lines = src.split("\n"); const N = lines.length;
-const isModRs = /\/mod\.rs$/.test(file);
+// A mod.rs, lib.rs or main.rs is a module root already: it splits in place, siblings beside it.
+const isModRs = /\/(mod|lib|main)\.rs$/.test(file);
 const dir = isModRs ? path.dirname(file) : file.replace(/\.rs$/, "");
+const modPath = isModRs ? file : dir + "/mod.rs";
 const outline = lines.map((l, i) => [i + 1, l]).filter(([, l]) => /^(pub(\([a-z]+\))? |)(fn|impl|struct|enum|const|static|type|mod|trait|macro_rules!|use )|^#\[|^\/\/! |^}/.test(l)).map(([n, l]) => `${n}: ${l.slice(0, 110)}`).join("\n");
 const RULES = `Below is the outline of ${file} (${N} lines): the line number and text of every top-level item start, attribute, closing brace and module doc line. Plan a split of this file into a directory module ${dir}/ with a mod file and submodule files grouped by concern, each under 900 lines. Top-level items must not be cut in the middle: a range starts at an item's first line (its doc comment or attribute, if any) and ends at its closing brace. \`impl\` blocks may be split only at method boundaries if you also assign the impl header line to each part (the script re-opens the block).
 Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ...} where every line 1..${N} belongs to exactly one range and names are lowercase identifiers. "mod" holds the module doc, the \`use\` lines, the types, constants and any \`#[cfg(test)] mod\` declarations.`;
@@ -67,7 +69,9 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   // The parent's own `use` lines (multi-line ones too): a glob of `super` does not carry
   // imports, so each submodule repeats them.
   const uses = []; { let d = 0, inUse = false; for (const l of lines) { if (d === 0 && /^(pub )?use /.test(l)) inUse = true; if (inUse) uses.push(l.replace(/^pub /, "")); if (inUse && /;\s*$/.test(l)) inUse = false; const code = l.replace(/\/\/.*$/, ""); d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
-  const prelude = "#![allow(unused_imports)]\nuse super::*;\n" + uses.join("\n") + "\n\n";
+  // Each submodule sees the parent and every sibling: private items a sibling holds are
+  // not re-exported by the parent's `pub use`, so the globs go sideways too.
+  const prelude = n => "#![allow(unused_imports)]\nuse super::*;\n" + names.filter(s => s !== n).map(s => `use super::${s}::*;`).join("\n") + "\n" + uses.join("\n") + "\n\n";
   fs.mkdirSync(path.join(root, dir), { recursive: true });
   const modBody = files.mod.join("\n");
   const decl = names.map(n => `mod ${n};\npub use ${n}::*;`).join("\n") + "\n";
