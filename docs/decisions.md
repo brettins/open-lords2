@@ -5112,7 +5112,7 @@ broken the whole time.**
 A player: *"Rations slider moves but is inoperable, no information about feeding peasants is
 available."* Two sentences, one cause.
 
-`crates/l2-game/tests/screens_county.rs` has had
+`crates/l2-game/tests/screens_county/main.rs` has had
 `the_ration_split_slider_sets_the_field_the_original_sets` for weeks. It clicks the track,
 asserts `ration_split == 37`, steps the caps, and passes. It is about the right screen, the
 right gesture and the right field, and it is **useless**, because `Ration_SetSplit`
