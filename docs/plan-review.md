@@ -234,7 +234,7 @@ Plus a `NetBattle` wrapper in `crates/l2-sim/tests/lockstep.rs`, which is real â
 *"the netcode syncs"* is true of a toy and of the melee-only `Battle`; it has never
 synchronised the simulation a player would watch.
 
-Good news attached: `Canonical` (`crates/l2-net/src/canonical.rs`) is already a
+Good news attached: `Canonical` (`crates/l2-net/src/canonical/mod.rs`) is already a
 section-tagged deterministic encoder with `recording()` and `hashing()` modes, and
 `state_snapshot` already exists because lockstep needs a whole-world snapshot for late join.
 **Workstream C does not need a new save encoder.** Implementing `Simulation for Kingdom` is
