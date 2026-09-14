@@ -2507,7 +2507,7 @@ every screen's. Two enumerations reaching the same six by different routes is
 the cross-check this section could otherwise not have.
 
 `docs/arms.json` is the machine-readable form, and
-`crates/l2-game/tests/arms/main.rs` holds it to the code in both directions.
+`crates/l2-game/tests/arms.rs` holds it to the code in both directions.
 
 ### 15.12 What is still unknown here
 

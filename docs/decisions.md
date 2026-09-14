@@ -3295,7 +3295,7 @@ player being able to do one thing about it. This is that group built, and the en
 had to start from.
 
 `docs/battle.md` §15 is the enumeration; `docs/arms.json` is its machine-readable form and
-`crates/l2-game/tests/arms/main.rs` holds it to the code in both directions. Below is what
+`crates/l2-game/tests/arms.rs` holds it to the code in both directions. Below is what
 changed a document rather than a feature.
 
 **Screen `0x28` cannot be entered.** The audit named four battlefield screens. There are
@@ -3757,7 +3757,7 @@ the two characters it was meant to be.
 work onto `main` merged `docs/arms.json`'s `arms` array by `id` exactly as intended — *"114
 arms, no entry changed on both sides"*, and it was right — and then took the other side's
 `groups` object and `_note` wholesale, **discarding five group declarations and twenty-one
-lines of prose that existed on only one side**. Every test in `crates/l2-game/tests/arms/main.rs`
+lines of prose that existed on only one side**. Every test in `crates/l2-game/tests/arms.rs`
 stayed green, because every one of them reads the `arms` array and nothing else. That is the
 same shape as the `addr`-versus-`id` key defect the driver was hardened against an hour
 earlier, one level up: the *entries* are keyed and the *object they sit in* is not. It was
@@ -6755,7 +6755,7 @@ panel really did have a readout for exactly the condition he named.
 
 **C145 — the audio inventory was prose, and prose is what rots.**
 
-`docs/arms.json` has had `crates/l2-game/tests/arms/main.rs` behind it since C61: set equality in
+`docs/arms.json` has had `crates/l2-game/tests/arms.rs` behind it since C61: set equality in
 both directions between the inventory and the `// arm:` markers in `crates/`.
 `docs/audio-triggers.md` had the same job, the same purpose and **no check at all** — a
 hand-marked table saying *"we reproduce 24 of 134"*. Both numbers were wrong: the denominator
