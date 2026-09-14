@@ -8934,7 +8934,7 @@ same call `#24` got for the tip screens. The name of the gap is the letters, not
 
 ### Setup page 1's ids were never contradictory
 
-`crates/l2-game/src/screens/setup.rs` recorded as unresolved that `FUN_00432B05`'s hotspot 4
+`crates/l2-game/src/screens/setup/mod.rs` recorded as unresolved that `FUN_00432B05`'s hotspot 4
 plays `lom.smk` while the painter draws *"Lords of Magic?"* third. `node tools/oracle/widgets.js
 widgets 4dcb48 4` answers it: the table's records are in drawing order and carry ids 1, 2, **4**,
 3 — and the third is the page's only **kind 3** record, so the trailer fires on the release

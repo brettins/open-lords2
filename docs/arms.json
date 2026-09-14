@@ -1330,7 +1330,7 @@
       "what": "Setup page 1's third item, 'Lords of Magic?': the hotspot record at 0x004DCB78, third of the title page's four, carries hotspot id 4 and kind 3, so it fires on the RELEASE while its three neighbours are kind 1. FUN_00432B05's hotspot-4 arm is Music_Stop, g_mouseLeftReleased = 0, FUN_004B11CE and Smk_Play(\"lom.smk\", 0x46, 0x50, 0, g_screenId).",
       "note": "This settles what screens/setup.rs had filed as unresolved -- 'id 4 plays lom.smk while the painter draws Lords of Magic? third' -- the ids are not the drawing order, the records are. The item used to open page 10.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/setup.rs"
+      "ours": "crates/l2-game/src/screens/setup/mod.rs"
     },
     {
       "id": "0x00432B05/multiplayer-clears-campaign",
@@ -1341,7 +1341,7 @@
       "addr": "0x00432B05",
       "what": "FUN_00432B05 opens with DAT_0057D320 = 0 before any of its four hotspot arms, so reaching page 4 from the title menu is not a campaign whatever the previous visit set. FUN_00432CC8 clears it the same way on its hotspots 3, 4 and 5, and raises it on hotspot 2, the load box.",
       "note": "The clearing half of 0x00433461/choose-campaign. A flag that is set and never cleared makes every later Continue a campaign start, which is the same defect in the other direction.",
-      "ours": "crates/l2-game/src/screens/setup.rs",
+      "ours": "crates/l2-game/src/screens/setup/mod.rs",
       "evidence": "V"
     },
     {
@@ -1352,8 +1352,8 @@
       "gesture": "left-release",
       "addr": "0x00432B05",
       "what": "Arriving at page 4 SEEDS the field with the name you already have: EVERY arm that writes g_setupPage = 4 runs `Edit_Begin(&g_options, 0x10, 0xC0, 0); Edit_RecomputeLength();` immediately after -- FUN_00432B05's hotspot 2, FUN_00432CC8's hotspots 3 and 5, AND Setup_ChooseCampaign (0x00433461), which is page 5.",
-      "note": "CORRECTED, and the correction is an absence that was never looked for. This record used to end 'AND THE ASYMMETRY IS REAL: arriving at page 4 from page 5 or page 6 does NOT re-seed, because those arms set the page and nothing else', and crates/l2-game/src/screens/setup.rs repeated it in SetupScreen::go's doc comment. Setup_ChooseCampaign's THIRD STATEMENT is that very Edit_Begin call. There are four writers of page 4 and all four re-seed; the claimed asymmetry does not exist. The code was already right -- go() re-seeds on every arrival -- so nothing behaved differently and only the sentence was wrong, which is why it survived. docs/decisions.md C117.",
-      "ours": "crates/l2-game/src/screens/setup.rs",
+      "note": "CORRECTED, and the correction is an absence that was never looked for. This record used to end 'AND THE ASYMMETRY IS REAL: arriving at page 4 from page 5 or page 6 does NOT re-seed, because those arms set the page and nothing else', and crates/l2-game/src/screens/setup/mod.rs repeated it in SetupScreen::go's doc comment. Setup_ChooseCampaign's THIRD STATEMENT is that very Edit_Begin call. There are four writers of page 4 and all four re-seed; the claimed asymmetry does not exist. The code was already right -- go() re-seeds on every arrival -- so nothing behaved differently and only the sentence was wrong, which is why it survived. docs/decisions.md C117.",
+      "ours": "crates/l2-game/src/screens/setup/mod.rs",
       "evidence": "V"
     },
     {
@@ -1365,7 +1365,7 @@
       "addr": "0x00432EE6",
       "what": "PAGE 4, ONE OF THE FIVE SHIELDS -- FUN_00432EE6, which in single player is `FUN_00432FAB(g_uiHotspotId); Realms_AssignLords(); g_redrawRequest = 2;`. FUN_00432FAB (0x00432FAB) claims the colour: `if (claim[hotspot] == 0) { release every entry holding g_localPlayer; claim[hotspot] = g_localPlayer; g_playerNames[p].shield = DAT_004D5548[hotspot]; g_realms[p].shieldIndex = that; }`. DAT_004D5548 is the identity map 1..5, read at 0x004D5548. The Realms_AssignLords call is the point: the original re-deals every AI's colour AND LORD on every click, while page 4 is still up.",
       "note": "THE CHOICE NOW REACHES THE WORLD, and the arm existed without it: our page 4 stored the click in a field that nothing downstream read, because l2_scenario::newgame::assign_lords hard-coded `shield = realm` under a doc comment stating that default as the mechanism. A player: 'I picked a colour and it didn't get honoured once the game opened.' Two halves are NOT reproduced and neither is single-player-visible: the claim table DAT_0057CB40, which is what stops two people in a lobby both being blue -- with one person the only occupied entry is his own, so its one consequence is that re-clicking your own colour is a no-op, which an assignment to the value already there is exactly; and the per-click Realms_AssignLords, which we run once at world construction instead. assign_lords is a pure function of (slot, lord count, shield), so the moment does not change the world, and nothing on page 4 draws a lord. docs/decisions.md C130, docs/rules.md 7a.",
-      "ours": "crates/l2-game/src/screens/setup.rs",
+      "ours": "crates/l2-game/src/screens/setup/mod.rs",
       "evidence": "V"
     },
     {
@@ -1377,7 +1377,7 @@
       "addr": "0x00433155",
       "what": "PAGE 4, THE CONTINUE BUTTON -- FUN_00433155's hotspot 2, and it is a BRANCH rather than a Start. `if (DAT_0057D320 == 1) { Campaign_LoadEntry(); Setup_StartGame(); }` else it walks on to the page that chooses a game: 7 or 8 for a custom game, 0xB or 0xC for a skirmish, picked by DAT_0055302C. Hotspot 1 is Back to page 1. There is NO `humanPlayers <= g_playerStartCount` guard on this arm -- that guard is FUN_004335F0's, the custom page's Start.",
       "note": "Both limbs were wrong before. The campaign limb did not exist, and the else limb started a game. The else limb is asserted separately by tests/newgame.rs continue_without_a_campaign_opens_the_custom_page, so that ignoring the flag and starting a campaign unconditionally cannot pass the campaign tests.",
-      "ours": "crates/l2-game/src/screens/setup.rs",
+      "ours": "crates/l2-game/src/screens/setup/mod.rs",
       "evidence": "V"
     },
     {
@@ -1389,7 +1389,7 @@
       "addr": "0x00433461",
       "what": "PAGE 5, EITHER RECESS -- Setup_ChooseCampaign. Six writes: g_campaignTrack = the hotspot; g_campaignMap = 2 for hotspot 1 and 0 otherwise; DAT_0057D320 = 1, which is what makes Continue on page 4 a campaign start; DAT_0055302C = 1; g_setupPage = 4; and Edit_Begin on the name field.",
       "note": "THE DAT_0057D320 WRITE IS THE ONE THAT HAD NO COUNTERPART HERE, and without it page 4's Continue started the map list's slot -- which is 0, England, when nobody has touched the list. So the original campaign opened on its FIFTH map. docs/decisions.md C117.",
-      "ours": "crates/l2-game/src/screens/setup.rs",
+      "ours": "crates/l2-game/src/screens/setup/mod.rs",
       "evidence": "V"
     },
     {
@@ -2974,7 +2974,7 @@
       "addr": "0x0049BAE9",
       "what": "Player_SetHuman -- where a typed name stops being a keystroke: `g_realms[p].isHuman = 1; g_playerNames[p].occupied = 1; Str_Copy(0x53F1E0, &g_playerNames + p * 0x2C, 0x1F);`. THIRTY-ONE bytes out of the settings block into the name array, and the player index IS the realm index -- the same argument selects both.\n\nThe AI half of the same array is a different width and a different source: Eng_Seek(7, realm.lord) and SIXTEEN bytes copied. L2.eng group 7 is 'The Knight, The Baron, The Countess, The Bishop, No player', and the index is the LORD, not the realm and not the colour.",
       "note": "The six-slot player table g_playerNames is the +0x04 of is a save block of its own (g_saveBlocks[2] = {0x00553D50, 264} = 6 x 0x2C; +0x00 is the DirectPlay id, which is why the block base is four lower than the name), and l2_formats::save::Player now reads it on load. Ours is on Game beside realm_colour rather than on Kingdom: the lockstep digest is hash_of(kingdom) and a name cannot change a number.",
-      "ours": "crates/l2-game/src/screens/setup.rs",
+      "ours": "crates/l2-game/src/screens/setup/mod.rs",
       "evidence": "V"
     },
     {
@@ -3232,7 +3232,7 @@
       "addr": "0x004BA9C8",
       "what": "FIELD 1 OF 7 -- THE LORD'S NAME. Screen_HandleInput's g_setupPage == 4 arm: `g_editActive = 1; Edit_RecomputeLength(); Chat_Timeout(); if (g_messageGroup == 0 && DAT_0055CD78 == 0) Edit_Commit(&g_options, 0x1F);`. The commit runs EVERY FRAME the page is up rather than on a button, and the two guards are a message box and an open drop-down over the page.\n\nThe limits are Edit_Begin's: SIXTEEN characters, 192 pixels, kind 0. The destination is g_options + 0 (0x0053F1E0), the persisted settings block, whose name field is 31 bytes and defaults to 'Player1' -- so the commit width (31) and the edit width (16) are different numbers and the smaller one is what a person meets.",
       "note": "This is the field a player reported missing: 'I can't type my name in the start menu?'",
-      "ours": "crates/l2-game/src/screens/setup.rs",
+      "ours": "crates/l2-game/src/screens/setup/mod.rs",
       "evidence": "V"
     },
     {
@@ -3566,7 +3566,7 @@
       "gesture": "key",
       "what": "Enter or Space activates the highlighted item.",
       "why": "As above. NARROWED by the name field: on page 4 the field takes Space as a character, because that is what it is, so this arm no longer fires there. Enter still does, and in the original Enter on page 4 is Chat_Toggle and does nothing in single player.",
-      "ours": "crates/l2-game/src/screens/setup.rs"
+      "ours": "crates/l2-game/src/screens/setup/mod.rs"
     },
     {
       "id": "ours/setup-key-down",
@@ -3577,7 +3577,7 @@
       "gesture": "key",
       "what": "Down moves the highlight to the next item.",
       "why": "As above.",
-      "ours": "crates/l2-game/src/screens/setup.rs"
+      "ours": "crates/l2-game/src/screens/setup/mod.rs"
     },
     {
       "id": "ours/setup-key-escape",
@@ -3588,7 +3588,7 @@
       "gesture": "key",
       "what": "Escape is the page's Back button, or leaves the front end from the title page.",
       "why": "The window procedure's Escape arm is Menu_Quit when DAT_0052AF94 == 3 and `g_backOut = 1` otherwise; neither knows what page the front end is on.",
-      "ours": "crates/l2-game/src/screens/setup.rs"
+      "ours": "crates/l2-game/src/screens/setup/mod.rs"
     },
     {
       "id": "ours/setup-key-index",
@@ -3599,7 +3599,7 @@
       "gesture": "key",
       "what": "I opens crate::screens::index, our own list of every screen.",
       "why": "A development affordance, and index is marked as ours already. NARROWED by the name field: on page 4 the letter I is the letter I.",
-      "ours": "crates/l2-game/src/screens/setup.rs"
+      "ours": "crates/l2-game/src/screens/setup/mod.rs"
     },
     {
       "id": "ours/setup-key-up",
@@ -3610,7 +3610,7 @@
       "gesture": "key",
       "what": "Up moves the highlight to the previous item.",
       "why": "The original's front end has no keyboard at all -- see the group note. KEPT: a menu a person cannot drive from the keyboard is worse, not more faithful.",
-      "ours": "crates/l2-game/src/screens/setup.rs"
+      "ours": "crates/l2-game/src/screens/setup/mod.rs"
     },
     {
       "id": "ours/shell-any-click-closes",
