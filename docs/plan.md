@@ -364,7 +364,7 @@ then the twelve options through `Settings::apply_to`, then the one immediate
 `Season_Advance` that begins a game in Winter 1268. **Pick Ireland and you play Ireland**,
 from an empty `Game` and with no save in the path at all.
 
-All 44 shipped maps start and take a turn (`crates/l2-game/tests/newgame.rs`), and England
+All 44 shipped maps start and take a turn (`crates/l2-game/tests/newgame/main.rs`), and England
 built from `L2_maps.dat` is diffed field by field against England read from `lastturn.sav`
 — two files authored separately, agreeing on every fact the map decides.
 `docs/decisions.md` C62 has the four corrections that fell out of it.

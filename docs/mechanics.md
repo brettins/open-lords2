@@ -410,7 +410,7 @@ that is `l2_kingdom::levy`'s single path.
     carries the chosen shield, `l2_scenario::newgame::assign_lords` is
     `Realms_AssignLords`' real walk — mark every human's shield taken, then give each AI
     in realm order **the lowest shield nobody has taken**, then pick that realm's lord
-    *from its shield* — and `crates/l2-game/tests/newgame.rs` drives page 4 with real
+    *from its shield* — and `crates/l2-game/tests/newgame/main.rs` drives page 4 with real
     coordinates for all five colours. Take yellow and the Knight becomes the **black**
     lord while the **Baron** becomes the red one, which is `docs/rules.md` §7a's second
     row and the thing no fixture can check. The line that stood in the way read

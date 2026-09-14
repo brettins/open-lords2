@@ -66,7 +66,7 @@ struct Assignment {
 /// **black** lord and the **Baron** becomes the red one, because red's
 /// candidate list names the Baron first and the walk reaches red before black.
 /// `docs/rules.md` §7a has all five rows and
-/// `crates/l2-game/tests/newgame.rs` drives the setup screen to each of them.
+/// `crates/l2-game/tests/newgame/main.rs` drives the setup screen to each of them.
 ///
 /// **`[D]` on the group.** The original picks the deterministic group 0 when
 /// `DAT_0055302C == 1` and `(g_scenarioIndex & 3)` otherwise, and what
