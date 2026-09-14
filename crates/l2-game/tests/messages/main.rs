@@ -122,6 +122,8 @@ mod painting_and_layout;
 pub use painting_and_layout::*;
 mod battle_drain;
 pub use battle_drain::*;
+mod help_window;
+pub use help_window::*;
 
 fn painting(g: &mut Game, a: &Assets, m: &mut Machine) -> l2_view::Canvas {
     let mut canvas = l2_view::Canvas::screen();

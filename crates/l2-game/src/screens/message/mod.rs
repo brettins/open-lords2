@@ -62,6 +62,8 @@
 //!   [`crate::screens::movie`] draws the taller window and plays the film in
 //!   it. With animations off the ordinary window below is the whole of it.
 
+mod help;
+use help::draw_help;
 mod render;
 pub use render::*;
 
@@ -204,7 +206,7 @@ impl Screen for MessageScreen {
 
     /// **`Msg_HandleInput` (`0x0047685D`), in its own order.**
     ///
-    /// The three things worth noticing, because none of them is what a reader
+    /// The three things worth noticing
     /// would guess from the function's shape:
     ///
     /// * the **right** release is tested before the widgets, so it closes an
@@ -225,13 +227,13 @@ impl Screen for MessageScreen {
                 // The five `Widget_Test` calls, in the original's order:
                 // category 0x11, then 10, then 0x0B, then the three groups of
                 // category 0x0C. Each returns 1 whether or not the click was on
-                // a button, so a miss inside a prompt does NOT fall through.
+                // a button.
                 if let Some(prompt) = record.answer_widgets() {
                     if let Some(i) = self.press.event(&prompt_widgets(prompt), event) {
                         return answer(ctx, prompt, i == 0);
                     }
                     // `Widget_Test` returning 0 falls on through to the corner
-// button below, so a prompt can still be closed
+// button below
                     // without answering it.
                 }
                 let shape = record.shape();
@@ -256,7 +258,7 @@ impl Screen for MessageScreen {
                 // `Msg_DismissUnlessQuestion`.
                 Transition::Pass
             }
-            // **Ours.** `Msg_HandleInput` tests no key at all, and the window
+            // **Ours.** `Msg_HandleInput` tests no key at all
             // procedure has no arm for one either. A demo that can be driven
             // from the keyboard is worth more than the omission is faithful,
 // and this is counted.
@@ -266,7 +268,7 @@ impl Screen for MessageScreen {
             // The five `Widget_Test` tables are kind 4, whose guard is
             // `g_mouseLeftPressed || g_mouseLeftDoubleClick`, and a hit returns
             // 1 and swallows the frame. The 48 × 48 corner opens
-            // `if (g_mouseLeftPressed == 0) { uVar1 = 0; }`, so a double click
+            // `if (g_mouseLeftPressed == 0) { uVar1 = 0; }`
             // anywhere else returns 0 and `Screen_FrameInput` offers it to the
             // screen underneath. `[V]` This screen passed every double click
             // down, prompt or not.
@@ -348,9 +350,10 @@ impl Screen for MessageScreen {
             return;
         }
         let Some(frame) = message::frame_of(&record) else {
-            // A category with no constant geometry — the tip, the help window
-            // and the two letter categories — or one `Msg_DrawWindow` has no arm
-            // for. The tip is the only one of them anything enqueues today.
+            // A category with no geometry of its own — the tip, or one
+            // `Msg_DrawWindow` has no arm for. The tip is the only one of them
+            // anything enqueues; the help window's four numbers now come out of
+            // `g_helpWindowGeom` (`0x004D6EB8`) above.
             draw_tip(&pen, ctx, canvas, &record, self.pointer);
             return;
         };
@@ -363,6 +366,9 @@ impl Screen for MessageScreen {
             Shape::Garrison => draw_garrison(&pen, ctx, canvas, &record, frame),
             Shape::Event => draw_event(&pen, ctx, canvas, &record, frame),
             Shape::Capture => draw_capture(&pen, ctx, canvas, &record, frame),
+            // `Msg_DrawWindow`'s category-0x13 arm; `Menu_HelpHowDoI`
+            // (`0x0043480C`) and its four siblings post the records.
+            Shape::Help => draw_help(&pen, ctx, canvas, &record, frame),
             _ => draw_notice(&pen, ctx, canvas, &record, frame),
         }
 
@@ -379,7 +385,7 @@ impl Screen for MessageScreen {
 /// **`Msg_Dismiss` and what it asks for.**
 ///
 /// Its last three lines are the ending — `if (outcome == 10 || outcome == 11)
-/// { Campaign_EnterConquest(); g_screenId = 0x1C; }` — so a dismissal is
+/// { Campaign_EnterConquest(); g_screenId = 0x1C; }`
 /// sometimes a screen change and not a pop. Every arm that closes the window
 /// goes through here, which is what stops one of them from forgetting.
 fn leave(ctx: &mut Ctx) -> Transition {
