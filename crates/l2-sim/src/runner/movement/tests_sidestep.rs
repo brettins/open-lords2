@@ -250,3 +250,38 @@ fn a_comrade_of_the_same_unit_is_not_side_stepped_around() {
 
     assert_eq!((r.fighters[a].x, r.fighters[a].y), (10, 10), "he waits for his own man");
 }
+
+/// **A man swapped out of his cell stands for a frame or two.**
+/// `BattleMan_Step`'s `BattleMen_SwapPlaces` arm (`0x0049005F`) gives him
+/// `state = 1`, `delayState = 3` and `delay = (other & 1) + 1`, then returns 0.
+///
+/// **The ablation.** Drop the `delay` write in
+/// [`BattleRunner::swap_places`] and he takes his own step in the same tick he
+/// was pushed aside — two cells in one frame, which nothing in the original
+/// can do, and `l2-game`'s `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`
+/// catches it as a 32 px teleport.
+#[test]
+fn a_swapped_man_stands_and_does_not_step_in_the_same_tick() {
+    let mut r =
+        BattleRunner::deploy(blank_field(), &[(Troop::Swordsmen, 2)], &[(Troop::Pikemen, 1)]);
+    let two: Vec<usize> =
+        (0..r.fighters.len()).filter(|&i| r.fighters[i].troop == Troop::Swordsmen).collect();
+    let (a, b) = (two[0], two[1]);
+    place(&mut r, a, 10, 10);
+    place(&mut r, b, 10, 9);
+    // Same troop, same destination: `BattleMen_SwapPlaces` answers 2.
+    r.fighters[a].target = (10, 5);
+    r.fighters[b].target = (10, 5);
+
+    r.enter(a, Pos::new(10, 9));
+
+    assert_eq!((r.fighters[a].x, r.fighters[a].y), (10, 9), "they exchanged cells");
+    assert_eq!((r.fighters[b].x, r.fighters[b].y), (10, 10));
+    assert_eq!(r.fighters[b].delay, (b & 1) as u8 + 1, "`delay = (other & 1) + 1`");
+    assert_eq!(r.fighters[a].delay, 0, "only the man pushed aside waits");
+
+    let held = (r.fighters[b].x, r.fighters[b].y);
+    r.step_one(b);
+    assert_eq!((r.fighters[b].x, r.fighters[b].y), held, "he did not move on his own turn");
+    assert_eq!(r.fighters[b].anim, Motion::Idle, "state 1 stands");
+}

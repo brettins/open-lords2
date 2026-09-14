@@ -714,6 +714,13 @@ impl BattleRunner {
         self.fighters[b].path.clear();
         self.occupant[by as usize * DIM + bx as usize] = Some(a as u16);
         self.occupant[ay as usize * DIM + ax as usize] = Some(b as u16);
+        // **The man who was pushed aside stands for a frame or two** —
+        // `BattleMan_Step`'s swap arm, `other.state = 1; other.delayState = 3;
+        // other.delay = (other & 1) + 1`. See [`Fighter::delay`]: without it he
+        // takes his own step in the same tick and moves two cells.
+        self.fighters[b].delay = (b & 1) as u8 + 1;
+        self.fighters[a].barred = 0;
+        self.fighters[b].barred = 0;
     }
 
 }

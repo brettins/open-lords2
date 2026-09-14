@@ -57,6 +57,11 @@ impl BattleRunner {
             }
             self.fighters[i].facing = d;
             self.enter(i, Pos::new(nx as u8, ny as u8));
+            // **`onRoute = 0`.** The blocked arm clears it before it
+            // side-steps, and it has to: the man has just left his route, so a
+            // kept waypoint is two cells away and the mover would walk him
+            // straight to it in one tick.
+            self.fighters[i].path.clear();
             return true;
         }
         false
