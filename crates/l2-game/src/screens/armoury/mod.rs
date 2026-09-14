@@ -256,11 +256,6 @@
 //! grepping for the string. `docs/armies.md` rests a `[V]` on unit `+0x166`
 //! against that label, and nothing in this module resources it.
 
-mod wall;
-pub use wall::*;
-mod hotspots;
-pub use hotspots::*;
-
 mod walker;
 pub use walker::*;
 mod screen;
@@ -337,6 +332,8 @@ pub const WALL: [(usize, i32, i32); WEAPON_TYPE_COUNT] = [
     (3, 199, 130), // pike
     (4, 373, 232), // bow
     (5, 290, 182), // armour
+];
+
 /// One rack: `(frame, spriteX, spriteY, numberX, numberY)`, from
 /// `g_armouryRacks` (`0x004D2CE8`), eight records of twenty bytes, indexed by
 /// **basket slot** — 0 peasants, 1…6 the weapon types, 7 the total.
@@ -377,6 +374,8 @@ pub const RACK_HOTSPOTS: [(i32, i32, i32, i32, u8); WEAPON_TYPE_COUNT] = [
     (311, 396, 386, 480, 6),
     (387, 396, 461, 480, 5),
     (461, 396, 538, 480, 3),
+];
+
 /// The three buttons down the right-hand edge, records 6, 7 and 8 of the same
 /// table. Their labels are `L2.eng` 69/6, 69/7 and 69/8 — *"Create"*,
 /// *"Change"*, *"Cancel"* — drawn by `Ui_DrawCentred` at x `0x21E` in a
@@ -587,5 +586,4 @@ pub fn walker_strip(x: i32) -> Rect {
     };
     Rect::new(sx, WALKER_Y, w, STRIP_H)
 }
-
 
