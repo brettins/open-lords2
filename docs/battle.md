@@ -1631,7 +1631,7 @@ New, and not in section 2 or section 3:
 | figure `+0x0E` | [V] | **animation phase**. Counts up and wraps at a bound the state handler chooses: `0x27` walking, `0x17` attacking, `0x5F` dying |
 | figure `+0x10` | [V] | **sprite frame index**, what the renderer draws |
 | figure `+0x11` | [V] | horse frame index, knights only |
-| figure `+0x19` | [V] | a **second** facing byte. `+0x18` drives the sub-cell offset and the **walk** frame; `+0x19` drives the **strike** frame and is the column of the knight table. `+0x0D` is a copy of it, written at the end of every animation handler. **Corrected:** this row used to attach `+0x18` to the attack and `+0x19` to the walk, which is the same swap §14.5 corrects in the frame layout — `Anim_WalkA2` reads `dirc`, `Anim_StrikeA2` reads `dirc2` |
+| figure `+0x19` | [V] | a **second** facing byte. `+0x18` drives the sub-cell offset and the **walk** frame; `+0x19` drives the **strike** frame and is the column of the knight table. `+0x0D` is a copy of it, written at the end of every animation handler. **Corrected:** this row used to attach `+0x18` to the attack and `+0x19` to the walk, |
 | cell `+2` bit `0x01` | [V] | dirty; the renderer clears it after drawing |
 | cell `+2` bit `0x02` | [V] | set on the viewport border |
 | cell `+2` bits `0x1C` | [V] | tileset selector: 0 picks **slot 0** of the battle asset table and 4 picks **slot 1** — see §13.2a. A field battle's slot 1 is `t32_bat2.pl8` at size 0 and no cell ever asks for it; a siege's is `t32_stn2` / `t32_wod2` and most of the map does |
@@ -2273,7 +2273,7 @@ DAT_0053f238 = ~DAT_0053f238;
 if (DAT_0053f238 == 1) { _DAT_005533f0 = 1; Sound_PlayFile("s032_01.wav", 1, 0); }
 ```
 
-A word that only ever holds `0` or `-1` is never `1`
+A word that only ever holds `0` or `-1`
 plays**. `docs/bugs.md` D38.
 
 ### 15.4 The five buttons — `DAT_004DC710`, `Hotspot_Test(0x1E0, 0x1C0, …, 5)`
@@ -2630,7 +2630,7 @@ empty cell.
 Battlefield button 2, the garrison's own. `FUN_0043BBE7` guards it four ways — a siege, the
 local player owning **army B**, `g_castleLevel >= 3`
 refuses with `L2.eng` 110 *"Sieges only!"*, 111 *"No drawbridge!"* or 157 *"Drawbridge is
-down."*. In multiplayer it sends `Net_SendCommand(0x45, 0)` instead of calling the routine
+down."*. In multiplayer it sends `Net_SendCommand(0x45, 0)`
 which is the original agreeing that this is an **order that enters the simulation**.
 
 The routine scans row-major for the first `flags & 0x40` cell and writes a **7-row by
@@ -2683,7 +2683,7 @@ their `cellOffset == 0` arm — the wall slots — for the whole of that siege. 
 and they arrive when the holes do. `docs/decisions.md` `C105`.
 
 **A second caller, found with §17.6:** `FUN_00491492` files the wall cell a siege tower docks
-against. So the posts are the holes *and the ramps*. And the appender is not what the sentence
+against. So the posts are the holes *and the ramps*. And the appender is
 above implies about a full table: it scans nineteen slots, and when all nineteen are taken it
 **overwrites the twentieth**, every time, with no test for a cell already filed. `[V]`.
 
@@ -2709,7 +2709,7 @@ frame 0.
 **2** — except that a bridge becomes **surface 5 at elevation 0 with no flags** and a wood becomes
 **surface 0**. So what burns away is exactly a bridge and a wood; everything else comes back.
 
-**A fire never spreads by itself.** Three things spread fire and each is a different routine
+**A fire
 with a different rule: §17.2's stream, §17.3's bridge, §17.5's wood. And `FUN_00485675` **does
 not test `Missile_Spawn`'s result** — with the array full the cell burns for good. `docs/bugs.md`
 `B102`.
@@ -2828,7 +2828,13 @@ chapter and not changed by it: our castle has no frames, and its rampart walk is
   engine. Only the oil half of that is reproduced.
 * **Rams and catapults still step as one cell**; only towers test the leading edge. No engine stamps
   `0x80` over its 3 × 3, so men walk under ours.
-* The player's fire arrow (state 17), the engine side-step, and
+* ~~**The player's fire arrow (state 17).**~~ **Built.** `BattleUnit_Order` writes unit
+  `+0x30` under its fifth argument (`BattleUnit::target_cell`), `BattleMan_StateCloseToAttack`
+  (`0x00484BF9`) looses on `BattleMan_FireMissile`'s own cadence and stamps `+0x44` from it, and
+  `Missile_Step`'s first test lights that one cell and clears `targetCell` again — one ordered
+  volley, one cell. `Order_StopShortOfTarget` and `Dest_FindReachableNear`, the same arm's
+  destination pull-back, are still not built.
+* The engine side-step, and
   `g_battleSizeClass`'s `scale × siegeEngines` term — `size_class` is fed the two armies' total
   alone
 * ~~**A corpse's eighty frames now costs a picture too.**~~ **Built**, `C209`.

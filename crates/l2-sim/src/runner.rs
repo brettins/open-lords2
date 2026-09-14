@@ -464,7 +464,7 @@ impl BattleRunner {
     /// Three things change, and they are the three the original changes:
     /// `g_battleIsSiege`, the castle level `Battle_CheckOutcome` reads, and the
     /// two one-shot category latches that give a garrison's first two missile
-    /// units categories **9 and 10** instead of 1. Everything else — the size
+    /// units categories **9 and 10** instead of 1.
     /// ladder, the raise order, the deployment slots — is what a field battle
     /// does.
     ///
@@ -1135,7 +1135,7 @@ impl BattleRunner {
     /// * `g_siegeEngineCount` (`0x00553FF0`) — live figures of troop type 7, 8
     ///   or 9. Three attacker handlers will not move onto the castle objective
     ///   while it is zero, and `Battle_CheckOutcome` ends the battle when it
-    ///   and the breach score are both zero.
+    /// and the breach score are both zero.
     ///
     /// The other two — the approach and breach scores — are *accumulators*
 /// and are raised where the wall comes down.
@@ -1680,16 +1680,37 @@ impl BattleRunner {
                 }
             }
             State::Shooting => {
-                // Nothing fires yet,
-                // for the rest of the battle. Returning it to idle lets its
-                // unit order it again.
+                // A figure whose chosen target is gone would stand in 17 for
+                // the rest of the battle. Returning it to idle lets its unit
+                // order it again.
                 let alive = self.sim.figures[sim]
                     .target
                     .is_some_and(|t| self.sim.figures[t].is_alive());
                 if !alive {
                     self.sim.figures[sim].state = State::Idle;
                     self.sim.figures[sim].target = None;
+                    return;
                 }
+                // **`BattleMan_StateCloseToAttack` (`0x00484BF9`) looses.** Its
+                // cadence is `BattleMan_FireMissile`'s own pair — swingTimer
+                // `+0xE0` against reloadInterval `+0xCB`, `interval < timer`
+                // shoots and resets — with no ten-tick acquisition, because the
+                // target was chosen when the state was entered. It also sets
+                // unit `+0x0F` to 0x78 and the unit's destination to the
+                // shooter's own cell; neither is built.
+                let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else { return };
+                let counter = {
+                    let f = &mut self.sim.figures[sim];
+                    f.reload_counter = f.reload_counter.saturating_add(1);
+                    f.reload_counter
+                };
+                if counter <= class.stats().reload {
+                    return;
+                }
+                self.sim.figures[sim].reload_counter = 0;
+                let Some(t) = self.sim.figures[sim].target else { return };
+                let Some(t) = self.fighters.iter().position(|f| f.sim == t) else { return };
+                self.loose(i, class, (self.fighters[t].x, self.fighters[t].y));
             }
             _ => {}
         }
@@ -1795,13 +1816,22 @@ impl BattleRunner {
         // launch steps, so an arrow loosed from inside the wood lights its
         // own cell. The catapult fires from `BattleMan_StateEngineFire`, which
         // has no such write.
-        if class != WeaponClass::Catapult && self.humans_in_woods > fire::FIRE_ARROWS_ABOVE {
-            let unit = self.sim.figures[sim].unit as usize;
+        let unit = self.sim.figures[sim].unit as usize;
+        if self.sim.figures[sim].state == State::Shooting {
+            // **The player's fire arrow.** `BattleMan_StateCloseToAttack`
+            // (`0x00484BF9`) copies the unit's `targetCell` (`+0x30`) onto
+            // every arrow it looses, unconditionally — no woodland count and
+            // no side test, because `BattleUnit_Order` has already refused to
+            // write `targetCell` for anyone else.
+            if (1..=MAX_UNITS).contains(&unit) {
+                self.missiles.get_mut(slot).fire_arrow = self.units.get(unit).target_cell;
+            }
+        } else if class != WeaponClass::Catapult && self.humans_in_woods > fire::FIRE_ARROWS_ABOVE {
             if (1..=MAX_UNITS).contains(&unit)
                 && !self.units.get(unit).human
                 && self.units.get(unit).side == SIDE_A
             {
-                self.missiles.get_mut(slot).fire_arrow = true;
+                self.missiles.get_mut(slot).fire_arrow = 1;
             }
         }
         for _ in 0..missile::LAUNCH_STEPS {
@@ -1904,16 +1934,23 @@ impl BattleRunner {
         // **`Missile_Step`'s first test: a fire arrow over woodland.** Once a
         // frame, on the cell the arrow starts the frame in, before anything
         // else — `FUN_00485861` lights the wood, `DAT_0053E9D0 = 1` starts the
-        // spread, and the arrow is gone. For a human's arrow the cell would
-        // have to be the one its unit was ordered onto; no human's arrow is a
-        // fire arrow here (see [`crate::missile::Missile::fire_arrow`]).
+        // spread, the arrow is freed and the shooter's unit's `targetCell` is
+        // cleared, so **one ordered volley lights one cell**:
+        //
+        // ```c
+        // if (cell.surface == 0x0F && m.+0x44 != 0 &&
+        //     (shooter.ownerIsHuman == 0 || m.+0x1C == m.+0x44)) { … }
+        // ```
+        //
+        // An AI's arrow carries 1 and lights any wood; a human's carries the
+        // cell byte offset and lights only that cell.
         {
             let m = *self.missiles.get(slot);
             let cell = m.cell_y as usize * DIM + m.cell_x as usize;
-            let human =
-                self.sim.figures.get(m.shooter as usize).is_some_and(|f| f.owner_is_human);
-            if m.fire_arrow
-                && !human
+            let human = self.sim.figures.get(m.shooter as usize).is_some_and(|f| f.owner_is_human);
+            let here = fire::cell_byte_offset(m.cell_x as i32, m.cell_y as i32);
+            if m.fire_arrow != 0
+                && (!human || here == m.fire_arrow)
                 && self.field.cells[cell].surface == fire::SURFACE_WOODLAND
             {
                 let (x, y) = (m.cell_x as i32, m.cell_y as i32);
@@ -1922,6 +1959,10 @@ impl BattleRunner {
                 }
                 self.wood_fire = true;
                 self.missiles.free(slot);
+                let unit = self.sim.figures.get(m.shooter as usize).map_or(0, |f| f.unit as usize);
+                if (1..=MAX_UNITS).contains(&unit) {
+                    self.units.get_mut(unit).target_cell = 0;
+                }
                 return false;
             }
         }
@@ -2010,7 +2051,7 @@ impl BattleRunner {
         // this is the only thing it can hurt.
         // The original's gate is `elevation != 0 && surface == 4 && frame > 2`
         // — the rampart walk, drawn as wall — and ours is the wall flag, which
-        // is what our castle has instead of the frames. The elevation half is
+        // is what our castle has instead of the frames.
         // the original's and is kept.
         if self.missiles.get(slot).class == WeaponClass::Catapult.index()
             && self.field.cells[cell].flags & crate::siege::FLAG_WALL != 0
@@ -3423,7 +3464,7 @@ impl BattleRunner {
     ///   **last** selected figure decides whether the whole new unit is treated
     ///   as missile (1) or melee (3);
     /// * the base unit is the unit of the **lowest-numbered** selected figure,
-    ///   and the "is it exactly this unit" test is against that one alone.
+    /// and the "is it exactly this unit" test is against that one alone.
     ///
     /// Returns the unit the player's selection now is — the original's
     /// `DAT_0053E984` — or 0 when nothing is selected.
@@ -3630,7 +3671,22 @@ impl BattleRunner {
             u.target_x = hx;
             u.target_y = hy;
         }
-        let _ = woodland;
+        // **`targetCell`, `+0x30` — the player's fire arrow.**
+        // `BattleUnit_Order` (`0x00479E90`) clears it whenever `woodland` is
+        // clear, and writes it only when the hovered cell is woodland, the unit
+        // has a live missile figure, it is of side 0, no enemy is under the
+        // cursor, and `BattleUnit_Classify` leaves `+0x08 < 5`. `[V]`.
+        // `Order_StopShortOfTarget` and `Dest_FindReachableNear`, which the
+        // same arm applies to the destination, are not built.
+        let missiles_here = self
+            .members(unit)
+            .into_iter()
+            .any(|m| WEAPON_CLASS[self.fighters[m].troop.index()] != 0);
+        let u = self.units.get_mut(unit);
+        u.target_cell = 0;
+        if woodland && missiles_here && target.is_none() && u.side == SIDE_A && u.category < 5 {
+            u.target_cell = fire::cell_byte_offset(x as i32, y as i32);
+        }
         let (tx, ty) = (self.units.get(unit).target_x, self.units.get(unit).target_y);
         self.pour_on_order(unit, tx, ty);
         self.reform_unit(unit);

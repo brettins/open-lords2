@@ -548,3 +548,88 @@ fn a_siege_whose_cues_are_wiped_every_tick_is_the_same_siege() {
 fn two_runs_of_the_proving_ground_are_identical() {
     assert_eq!(proving::run(1_500), proving::run(1_500));
 }
+
+// ------------------------------------------------- the player's fire arrow
+
+/// One human archer of side 0 north of the wood, its own unit, and one enemy
+/// figure standing in the wood at `(40, 42)` — so an order onto that cell both
+/// writes `targetCell` and puts the archer into state 17.
+fn a_player_archer_and_a_man_in_the_wood() -> (BattleRunner, usize, usize) {
+    let mut field = blank_field();
+    for y in 40..=44 {
+        for x in 37..=43 {
+            field.cells[cell(x, y)].surface = SURFACE_WOODLAND;
+        }
+    }
+    let mut r = BattleRunner::empty(field, DEFAULT_SEED);
+    let archer = stand(&mut r, Troop::Archers, SIDE_A, 1, true, (40, 34));
+    let unit = r.units.create(1, true, SIDE_A, 1).unwrap();
+    let sim = r.fighters[archer].sim;
+    r.sim.figures[sim].unit = unit as u16;
+    stand(&mut r, Troop::Peasants, SIDE_B, 2, false, (40, 42));
+    r.settle();
+    (r, unit, archer)
+}
+
+/// **The player's fire arrow** — `BattleUnit_Order` (`0x00479E90`) writes
+/// `targetCell` under its fifth argument, `BattleMan_StateCloseToAttack`
+/// (`0x00484BF9`) copies it onto every arrow it looses, and `Missile_Step`'s
+/// first test lights **that one cell** and clears `targetCell` again.
+///
+/// The order is the click on a woodland cell: `DAT_0053E874` set, no enemy
+/// under the cursor. `targetCell` is the original's byte offset
+/// `(y * 80 + x) * 8`.
+///
+/// Ablation: pass `woodland = false` — carried inside — and `targetCell` is 0,
+/// the arrows carry `+0x44 = 0`, and no wood ever catches.
+#[test]
+fn an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns() {
+    let (mut r, unit, archer) = a_player_archer_and_a_man_in_the_wood();
+    r.order_full(unit, 40, 42, None, true, Formation::Keep);
+    assert_eq!(
+        r.units.get(unit).target_cell,
+        crate::fire::cell_byte_offset(40, 42),
+        "(42 * 80 + 40) * 8"
+    );
+
+    let mut caught = false;
+    for _ in 0..600 {
+        r.step();
+        if r.wood_fire {
+            caught = true;
+            break;
+        }
+    }
+    assert!(caught, "the ordered volley lit the wood");
+    assert_eq!(
+        r.sim.figures[r.fighters[archer].sim].state,
+        State::Shooting,
+        "state 17 is what looses a fire arrow"
+    );
+    // `FUN_004859E5` has already run this frame, so the cell the arrow lit is
+    // burning and its ring is catching — one cell was struck, not five.
+    let lit: Vec<usize> =
+        (0..DIM * DIM).filter(|&c| r.field.cells[c].surface == SURFACE_WOOD_BURNING).collect();
+    assert_eq!(lit, vec![cell(40, 42)], "only the cell the order named");
+    assert_eq!(r.units.get(unit).target_cell, 0, "Missile_Step clears it: one volley, one cell");
+
+    // The man standing in it burns — `BattleMan_BurnTick`, three hits a frame
+    // at size class 0 and no fourth because his owner is not a human.
+    let man = r.fighters.iter().position(|f| f.side == SIDE_B).unwrap();
+    let before = r.sim.figures[r.fighters[man].sim].hits;
+    for _ in 0..10 {
+        r.step();
+    }
+    let after = r.sim.figures[r.fighters[man].sim].hits;
+    assert!(after > before, "a figure on the burning cell takes hits: {before} -> {after}");
+
+    // Ablation: the same order without the woodland argument.
+    let (mut plain, unit, _) = a_player_archer_and_a_man_in_the_wood();
+    plain.order_full(unit, 40, 42, None, false, Formation::Keep);
+    assert_eq!(plain.units.get(unit).target_cell, 0);
+    for _ in 0..600 {
+        plain.step();
+    }
+    assert!(!plain.wood_fire, "no targetCell, no fire arrow");
+    assert!(plain.sim.cues.loosed(WeaponClass::Bow) > 0, "though the archer shot");
+}

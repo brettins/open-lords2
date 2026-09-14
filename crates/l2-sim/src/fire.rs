@@ -67,7 +67,7 @@ pub const SURFACE_BURNT_BRIDGE: u8 = 5;
 /// `FUN_00485675` writes `+0x3C = 0x280 - param_3`.
 pub const FIRE_LIFE: i16 = 0x280;
 /// The count at which a fire writes its surface back. `Missile_UpdateAll`'s
-/// class-5 arm tests `+0x3C == 2`, so a fire's last two frames are over ground
+/// class-5 arm tests `+0x3C == 2`
 /// that is no longer burning.
 pub const FIRE_RESTORE_AT: i16 = 2;
 /// A fire's range, which nothing reaches: its countdown ends it first.
@@ -147,8 +147,15 @@ pub fn fire_record(x: i32, y: i32, life: i16, saved_surface: u8) -> Missile {
         ttl: life,
         power: 0,
         saved_surface,
-        fire_arrow: false,
+        fire_arrow: 0,
     }
+}
+
+/// A battlefield cell as the original's **byte offset**, `(y * 80 + x) * 8` —
+/// the form unit `+0x30` (`targetCell`) and missile `+0x44` both carry.
+/// `BattleUnit_Order` (`0x00479E90`) writes `y * 0x280 + x * 8`.
+pub const fn cell_byte_offset(x: i32, y: i32) -> i32 {
+    (y * DIM as i32 + x) * 8
 }
 
 fn in_field(x: i32, y: i32) -> bool {
@@ -196,7 +203,7 @@ pub fn ignite(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: i32, 
 /// **Set one woodland cell catching** — `FUN_00485861` (`0x00485861`).
 ///
 /// Unlike [`ignite`] this one **does** check the slot, and does nothing at all
-/// without one. The life is `0x280 − 10 × ((x + y) & 0x1F)`, so a wood burns
+/// without one. The life is `0x280 − 10 × ((x + y) & 0x1F`)
 /// out in a diagonal stripe pattern over 330 to 640 frames
 /// once, and the remembered surface is always woodland.
 ///
@@ -275,7 +282,7 @@ pub fn neighbour_has_surface(field: &Battlefield, x: i32, y: i32, surface: u8) -
 /// is only scorched: `FUN_00485B47` masks its frame to the low nibble and
 /// touches no rule.
 ///
-/// The original walks the square with no bound at the field's edge, so a fire
+/// The original walks the square with no bound at the field's edge
 /// within five of it reads cells of the neighbouring row. That is not
 /// behaviour and is not reproduced. Returns every cell it wrote.
 pub fn bridge_fire(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: i32) -> Vec<usize> {
@@ -320,7 +327,7 @@ pub fn bridge_fire(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: 
 ///
 /// **One ring a frame, through the whole of a connected wood**, and it stops
 /// only when a frame turns nothing from catching to burning. The second pass
-/// lights cells beside `0x11` and writes `0x10`, so a cell lit in this pass
+/// lights cells beside `0x11` and writes `0x10`
 /// cannot light its own neighbour until the next frame — the ring is exact.
 /// `spreading` is `DAT_0053E9D0`. Returns every cell it wrote.
 pub fn spread_woodland(field: &mut Battlefield, missiles: &mut Missiles, spreading: &mut bool) -> Vec<usize> {
@@ -442,7 +449,7 @@ pub fn order_pours(pot_surface: u8, dest_surface: u8) -> bool {
 /// for troop types 7, 8 and 9 — **not 10**: a pot of oil burns as a man does,
 /// at a man's threshold, whatever its own table says.
 ///
-/// Both thresholds are literals in the body, so a ruleset's
+/// Both thresholds are literals in the body
 /// `hits_per_casualty` does not reach this — as it does not reach the
 /// original's. Returns `true` when the figure's last man died of it, which is
 /// when the original plays the dying figure's side's cry.
