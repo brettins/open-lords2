@@ -5,7 +5,7 @@
 //! on an environment variable, nothing needs a game install and nothing
 //! needs a second machine: both ends are on the loopback interface, in
 //! this process, driven by the test. That was the standing condition
-//! for writing a socket implementation at all — `src/transport.rs`
+//! for writing a socket implementation at all — `src/transport/mod.rs`
 //! spent a long time arguing that a transport whose tests are skipped
 //! by default is code that looks finished and has never worked — and it
 //! turns out to cost nothing.
