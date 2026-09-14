@@ -1249,7 +1249,7 @@ inside the pasture-and-beyond span come out as waste:
 **[V] against the England turn-one save, which stores both halves of the sum.** Applying
 this ladder to the tiles `g_countyFieldTiles` names reproduces all three stored counts for
 **all fourteen counties, 168 field tiles**, with nothing of ours in the loop — the file was
-written by the original. `crates/l2-kingdom/tests/fields.rs`.
+written by the original. `crates/l2-kingdom/tests/fields/main.rs`.
 
 Two rows are corroborated from their writers. `Field_ReclaimTick` writes `0x19`, `0x1A`,
 `0x1B`, `0x1C` at 200, 400, 600 and 800 units of progress and `1` when a field finishes, so

@@ -170,7 +170,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/wheat.rs", "england", 1),
     ("crates/l2-kingdom/tests/cattle.rs", "saves", 3),
     ("crates/l2-kingdom/tests/defence.rs", "fixture", 2),
-    ("crates/l2-kingdom/tests/fields.rs", "england", 11),
+    ("crates/l2-kingdom/tests/fields/main.rs", "england", 11),
     ("crates/l2-kingdom/tests/industry_forecast.rs", "england", 4),
     ("crates/l2-kingdom/tests/oracle.rs", "executable", 6),
     ("crates/l2-kingdom/tests/reproduction/main.rs", "england", 25),

@@ -80,7 +80,7 @@ pub fn herd_crowding(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
 /// So the map is a lossy view of the meter, deliberately, and a renderer that
 /// derived the tile from `county.herd_crowding` would show three counties out
 /// of the England position wrongly. **[V]** — the England turn-one save carries
-/// both halves and `crates/l2-kingdom/tests/fields.rs` diffs them on all
+/// both halves and `crates/l2-kingdom/tests/fields/main.rs` diffs them on all
 /// fourteen counties.
 pub fn herd_graphic(t: &Tables, herd: i32, fields_cattle: i32) -> u8 {
     if herd < 1 {

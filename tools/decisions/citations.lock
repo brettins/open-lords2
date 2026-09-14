@@ -300,11 +300,11 @@ crates/l2-kingdom/src/unrest.rs	C90	cd32726caf90	f1599ed23aee
 crates/l2-kingdom/tests/cattle.rs	C1	4cb1f0d38684	6b7e8edb019e
 crates/l2-kingdom/tests/cattle.rs	C187	5d82ed0dc8df	55fad83033cd
 crates/l2-kingdom/tests/defence.rs	C12	a16bf611d166	bb0dd488f9d2
-crates/l2-kingdom/tests/fields.rs	C123	ea6420ce0ff6	3a5cc2fec37d
-crates/l2-kingdom/tests/fields.rs	C23	00c611a35590	6ac2f322c3bd
-crates/l2-kingdom/tests/fields.rs	C24	55fea2f1d2e9	52e202e041ab
-crates/l2-kingdom/tests/fields.rs	C26	bd345436ed8e	e8179d1f76a8
-crates/l2-kingdom/tests/fields.rs	C3	fe6412b1ad06	35bf3a86555f
+crates/l2-kingdom/tests/fields/main.rs	C123	ea6420ce0ff6	3a5cc2fec37d
+crates/l2-kingdom/tests/fields/main.rs	C23	00c611a35590	6ac2f322c3bd
+crates/l2-kingdom/tests/fields/main.rs	C24	55fea2f1d2e9	52e202e041ab
+crates/l2-kingdom/tests/fields/main.rs	C26	bd345436ed8e	e8179d1f76a8
+crates/l2-kingdom/tests/fields/main.rs	C3	fe6412b1ad06	35bf3a86555f
 crates/l2-kingdom/tests/industry_forecast.rs	C30	ffe7f4b68b10	50fdf5e17ba0
 crates/l2-kingdom/tests/oracle.rs	C10	54a471daa1d9	68e4eb2d2a1f
 crates/l2-kingdom/tests/oracle.rs	C12	e241145b7370	bb0dd488f9d2

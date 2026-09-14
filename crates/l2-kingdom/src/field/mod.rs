@@ -33,7 +33,7 @@
 //! **`[V]`** against the England turn-one save: reading `g_countyFieldTiles`
 //! and `g_tiles` straight out of the file and applying this ladder reproduces
 //! all three stored counts for **all fourteen counties**, 168 field tiles — see
-//! `crates/l2-kingdom/tests/fields.rs`.
+//! `crates/l2-kingdom/tests/fields/main.rs`.
 //!
 //! Two of those rows were not guesses either. `Field_ReclaimTick`
 //! (`0x0044C093`) writes `0x19`, `0x1A`, `0x1B`, `0x1C` at 200, 400, 600 and

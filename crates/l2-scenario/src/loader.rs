@@ -1312,7 +1312,7 @@ impl Scenario {
             // stores them, `CountyState` carries what it stored, and the
             // kingdom gets what `County_RecountFields` makes of the twenty
             // field tiles — two independent readings that
-            // `crates/l2-kingdom/tests/fields.rs` diffs against each other on
+            // `crates/l2-kingdom/tests/fields/main.rs` diffs against each other on
             // all fourteen counties. Doing it the other way round would leave
             // the counts and the tiles free to disagree the first time a field
 // was repainted. Recounted here because

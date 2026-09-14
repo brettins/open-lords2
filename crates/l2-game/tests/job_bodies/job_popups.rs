@@ -75,7 +75,7 @@ fn the_grain_popup_draws_the_store_the_eating_and_the_overall_change() {
 ///
 /// No save on this machine has grain in the ground, so the fields are painted
 /// with the player's brush and the seasons advanced,
-/// `crates/l2-kingdom/tests/fields.rs` does. Each stage then has a non-zero
+/// `crates/l2-kingdom/tests/fields/main.rs` does. Each stage then has a non-zero
 /// figure in its own box:
 ///
 /// * facing Spring, `Ui_DrawCount(+0x230, 2, 0x40, 0xD8)` + 77/1 and

@@ -257,7 +257,7 @@ const INDUSTRY_NEXT_SEASON: u32 = 0x14;
 /// **`[V]`.** Save block 12 is 1,360 bytes = 17 × 80 exactly, and applying
 /// `County_RecountFields`' terrain ladder to the tiles this names reproduces
 /// all three stored field counts for all fourteen counties of the England
-/// turn-one fixture — see `crates/l2-kingdom/tests/fields.rs`.
+/// turn-one fixture — see `crates/l2-kingdom/tests/fields/main.rs`.
 const COUNTY_FIELD_TILES: u32 = 0x0053_EA00;
 const COUNTY_FIELD_STRIDE: u32 = 0x50;
 
