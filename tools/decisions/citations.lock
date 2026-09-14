@@ -204,7 +204,7 @@ crates/l2-game/tests/screens_map/view_tests/main.rs	C48	38f59896d07f	9e81512f4c0
 crates/l2-game/tests/screens_map/view_tests/main.rs	C48	a3f70d784d36	9e81512f4c0d
 crates/l2-game/tests/screens_shoot.rs	C21	1523306009a2	f7bf296341ff
 crates/l2-game/tests/screens_village/interaction/main.rs	C180	7ba053c3b72d	fea6f0ec7284
-crates/l2-game/tests/screens_village/render.rs	C22	1d39d618c245	0364b53a921d
+crates/l2-game/tests/screens_village/render/main.rs	C22	1d39d618c245	0364b53a921d
 crates/l2-game/tests/seam/realm.rs	C170	f927f45cf447	2bbb0887e7d4
 crates/l2-game/tests/shell/navigation.rs	C22	21e39e71ac79	0364b53a921d
 crates/l2-game/tests/siege_battle/main.rs	C35	b760daabde99	193a1920e229

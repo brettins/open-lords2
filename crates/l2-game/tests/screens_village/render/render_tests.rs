@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+
+use super::*;
 use super::interaction::*;
 use super::animation::*;
 use common::*;
@@ -303,4 +305,5 @@ fn the_machine_paints_the_campaign_map_under_the_village() {
     }
     assert_ne!(with_village, bare.at(mid, row), "the picture is over the map, not beside it");
 }
+
 
