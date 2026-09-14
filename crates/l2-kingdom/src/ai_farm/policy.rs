@@ -194,7 +194,13 @@ pub fn ration_wanted(t: &Tables, county: &County, armies_eat: bool) -> i32 {
 /// eaten while the AI is thinking. The original's `Ration_Apply` writes display
 /// fields on every one of the 101 calls and this does not; the surviving state
 /// is identical because the last call is repeated at the end either way.
-pub fn set_rations(t: &Tables, county: &mut County, search: SplitSearch, armies_eat: bool) {
+pub fn set_rations(
+    t: &Tables,
+    county: &mut County,
+    search: SplitSearch,
+    armies_eat: bool,
+    sowing: crate::ration::Sowing,
+) {
     county.ration_wanted = ration_wanted(t, county, armies_eat);
     let score = |county: &County, split: i32| -> i32 {
         let mut probe = county.clone();
@@ -229,7 +235,7 @@ pub fn set_rations(t: &Tables, county: &mut County, search: SplitSearch, armies_
         }
     };
     county.ration_split = chosen;
-    ration::preview(t, county, armies_eat);
+    ration::preview(t, county, armies_eat, sowing);
 }
 
 // ---------------------------------------------------------------------------

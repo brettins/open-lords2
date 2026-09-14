@@ -248,7 +248,15 @@ mod tests {
         counties[1] = c.clone();
         let counties: [County; crate::county::MAX_COUNTIES] =
             counties.try_into().expect("MAX_COUNTIES entries");
-        CountyStall::new(t, &counties, units, realms, Season::Spring, true)
+        CountyStall::new(
+            t,
+            &counties,
+            units,
+            realms,
+            Season::Spring,
+            true,
+            crate::ration::Sowing::new(Season::Spring, false),
+        )
     }
 
     /// `Ai_TradeForCounty` (`0x0049E39B`) — the surplus sale, then the weapon
@@ -452,7 +460,7 @@ mod tests {
         // `+0x18C`; `land::grain_season_tick` is what takes it out of the
         // granary.
         let mut control = c.clone();
-        crate::ration::apply(T, &mut control, true);
+        crate::ration::apply(T, &mut control, true, crate::ration::Sowing::NONE);
         assert!(
             control.grain_eaten_shadow > 0,
             "the fixture must actually eat grain for this to test anything"
@@ -736,9 +744,9 @@ mod tests {
         base.grain = 300;
 
         let mut low = base.clone();
-        set_rations(T, &mut low, SplitSearch::PreferGrain, false);
+        set_rations(T, &mut low, SplitSearch::PreferGrain, false, crate::ration::Sowing::NONE);
         let mut high = base.clone();
-        set_rations(T, &mut high, SplitSearch::PreferHerd, false);
+        set_rations(T, &mut high, SplitSearch::PreferHerd, false, crate::ration::Sowing::NONE);
 
         assert_eq!(low.ration_wanted, high.ration_wanted);
         assert!(low.ration_split < high.ration_split, "{} < {}", low.ration_split, high.ration_split);
@@ -751,7 +759,7 @@ mod tests {
         let mut c = County::new();
         c.population = 100;
         c.grain = 500;
-        set_rations(T, &mut c, SplitSearch::Fixed(37), false);
+        set_rations(T, &mut c, SplitSearch::Fixed(37), false, crate::ration::Sowing::NONE);
         assert_eq!(c.ration_split, 37);
     }
 

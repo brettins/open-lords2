@@ -170,7 +170,9 @@ fn the_ration_preview_reproduces_every_stored_food_field() {
     for id in s.county_ids() {
         let stored = &file.counties[id];
         let mut c = stored.clone();
-        l2_kingdom::ration::preview(t, &mut c, false);
+        // `Sowing::NONE`: the save is read season-less here, and the seed
+        // reservation only fires on the season-4 argument.
+        l2_kingdom::ration::preview(t, &mut c, false, l2_kingdom::ration::Sowing::NONE);
         assert_eq!(c.ration_achieved, stored.ration_achieved, "county {id}");
         assert_eq!(c.herd_eaten, stored.herd_eaten, "county {id}");
         assert_eq!(c.grain_eaten, stored.grain_eaten, "county {id}");

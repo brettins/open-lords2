@@ -81,6 +81,6 @@ impl Kingdom {
         crate::labour::allocate(&mut self.counties[county]);
         // `Ration_Apply` is [`crate::ration::preview`]: it records and does not
         // spend, for the reason [`Kingdom::set_ration_wanted`] gives.
-        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
     }
 }

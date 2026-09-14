@@ -32,7 +32,66 @@
 
 use crate::county::County;
 use crate::math::{div_ceil, pct};
-use crate::tables::{Tables, RATION_LEVEL_COUNT};
+use crate::tables::{Season, Tables, RATION_LEVEL_COUNT};
+
+/// `Ration_Apply`'s second argument, plus the one global `Grain_Sow` reads.
+///
+/// Every call in the binary passes `g_season` except `Ration_ApplyAll`
+/// (`0x0044BF04`), which passes `g_seasonPrev` — so the season here is the one
+/// *that call* was handed, not always the turn's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Sowing {
+    /// The `season` argument. `None` is a caller with no season to give, and
+    /// reserves nothing.
+    pub season: Option<Season>,
+    /// `g_optAdvancedFarming`, which moves `Grain_Sow`'s labour divisor and so
+    /// the seed.
+    pub advanced_farming: bool,
+}
+
+impl Sowing {
+    /// No season, no reservation — the whole store is offered as food.
+    pub const NONE: Sowing = Sowing { season: None, advanced_farming: false };
+
+    pub fn new(season: Season, advanced_farming: bool) -> Sowing {
+        Sowing { season: Some(season), advanced_farming }
+    }
+
+    /// From the raw season byte a [`crate::Kingdom`] carries. Season 0 (*No
+    /// Season*) reserves nothing.
+    pub fn from_index(season: u8, advanced_farming: bool) -> Sowing {
+        Sowing { season: Season::from_index(season), advanced_farming }
+    }
+}
+
+/// **The seed corn is not food.** `Ration_Apply` (`0x0044DF5F`) opens with
+///
+/// ```c
+/// local_24 = 0;
+/// if (season == 4) local_24 = Grain_Sow(county, county.labour[0].workers, county.grain);
+/// county.grainAvailable = county.grain - local_24;
+/// ```
+///
+/// Season 4 is Winter and the spending pass is handed `g_seasonPrev`, so the
+/// turn the gate fires on is the turn `Grain_SeasonTick` (`0x0044C8AE`) sows,
+/// which is Spring. Without it a Spring county is offered its own seed as a
+/// meal, eats it, and sows what the ration pass left.
+///
+/// `Grain_Sow` (`0x0044CFE1`) is called for its return value and is otherwise
+/// pure but for [`County::sow_shortfall`] (`+0x1A7`), which it writes here as
+/// from every other caller. Nothing reads that flag between this write and the
+/// sowing that overwrites it, so the write is faithful rather than load-bearing
+/// — the argument [`crate::land::grain::sow_seed`] records for the labour
+/// estimate. **`[V]`** on the reservation, **`[D]`** on the flag being
+/// unobservable.
+pub fn seed_reserved(t: &Tables, county: &mut County, sowing: Sowing) -> i32 {
+    if sowing.season != Some(Season::Winter) {
+        return 0;
+    }
+    let labour = crate::land::grain_labour(t, county);
+    let store = county.grain;
+    crate::land::sow_sacks(t, county, store, labour, sowing.advanced_farming)
+}
 
 /// What feeding a county at one ration level would take.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -201,11 +260,18 @@ pub fn food_available(t: &Tables, county: &County) -> i32 {
 /// Level 0 costs nothing and therefore always fits, so this always terminates
 /// with a plan.
 pub fn choose(t: &Tables, county: &County, armies_eat: bool) -> Plan {
+    choose_within(t, county, armies_eat, county.grain)
+}
+
+/// [`choose`] against a grain figure that is not the whole store: the original
+/// descends against `Food_Available`, which it reads *after* setting
+/// `grainAvailable` to `grain - seed`, so the reservation moves the level too.
+fn choose_within(t: &Tables, county: &County, armies_eat: bool, grain: i32) -> Plan {
     let people = people_to_feed(county, armies_eat);
     let mut level = clamp_level(county.ration_wanted);
     loop {
         let p = plan(t, people, level, county.herd, county.ration_split);
-        if level == 0 || p.fits(county.herd, county.grain) {
+        if level == 0 || p.fits(county.herd, grain) {
             return p;
         }
         level -= 1;
@@ -218,10 +284,10 @@ pub fn choose(t: &Tables, county: &County, armies_eat: bool) -> Plan {
 ///
 /// The two caps are the original's own: it sets `grainAvailable`/`herdAvailable`
 /// from the store and then stores `min(cost, available)` in each eaten field.
-fn record(t: &Tables, county: &mut County, p: Plan) {
+fn record(t: &Tables, county: &mut County, p: Plan, seed: i32) {
     county.ration_achieved = p.level;
     county.herd_available = county.herd;
-    county.grain_available = county.grain;
+    county.grain_available = county.grain - seed;
     county.herd_eaten = p.heads.min(county.herd_available);
     county.grain_eaten = p.sacks.min(county.grain_available);
     county.d_hap_ration = t.ration_happiness(p.level);
@@ -243,9 +309,10 @@ fn record(t: &Tables, county: &mut County, p: Plan) {
 /// `grainAvailable`/`herdAvailable`, which [`record`] has just set to the
 /// store. At the chosen level the plan already fits, so it only bites at level
 /// 0 with a negative store.
-pub fn apply(t: &Tables, county: &mut County, armies_eat: bool) -> Plan {
-    let p = choose(t, county, armies_eat);
-    record(t, county, p);
+pub fn apply(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) -> Plan {
+    let seed = seed_reserved(t, county, sowing);
+    let p = choose_within(t, county, armies_eat, county.grain - seed);
+    record(t, county, p, seed);
     county.grain_eaten_shadow = county.grain_eaten;
     county.herd_eaten_shadow = county.herd_eaten;
     p
@@ -253,9 +320,10 @@ pub fn apply(t: &Tables, county: &mut County, armies_eat: bool) -> Plan {
 
 /// The second call: next season's preview. Writes the same display fields and
 /// leaves the shadow — and so the store — alone.
-pub fn preview(t: &Tables, county: &mut County, armies_eat: bool) -> Plan {
-    let p = choose(t, county, armies_eat);
-    record(t, county, p);
+pub fn preview(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) -> Plan {
+    let seed = seed_reserved(t, county, sowing);
+    let p = choose_within(t, county, armies_eat, county.grain - seed);
+    record(t, county, p, seed);
     p
 }
 
@@ -287,7 +355,7 @@ mod tests {
         assert_eq!(p.heads, 13, "the stored +0x17C");
         assert_eq!(p.sacks, 0);
 
-        apply(T, &mut c, false);
+        apply(T, &mut c, false, Sowing::NONE);
         assert_eq!(c.herd_eaten, 13);
         assert_eq!(c.herd_eaten_shadow, 13, "shadowed for `Herd_SeasonTick` to spend");
         assert_eq!(c.herd, 67, "`Ration_Apply` debits nothing");
@@ -338,7 +406,7 @@ mod tests {
         c.herd = 0;
         c.grain = 0;
         c.ration_wanted = 3;
-        let p = apply(T, &mut c, false);
+        let p = apply(T, &mut c, false, Sowing::NONE);
         assert_eq!(p.level, 0);
         assert_eq!(c.d_hap_ration, -8);
         assert_eq!(c.herd_eaten, 0);
@@ -381,6 +449,48 @@ mod tests {
         assert_eq!(people_to_feed(&c, true), 550);
     }
 
+    /// **The seed corn is not on the menu.** `Ration_Apply` (`0x0044DF5F`)
+    /// subtracts `Grain_Sow` (`0x0044CFE1`)'s answer from `grainAvailable`
+    /// under its `season == 4` gate, and `Ration_ApplyAll` (`0x0044BF04`)
+    /// hands it `g_seasonPrev` — so the gate fires on the turn the county
+    /// sows. A county holding its seed plus four sacks feeds its people on the
+    /// four.
+    ///
+    /// *Ablation*: pass `Sowing::NONE` instead of the season and the county
+    /// eats ten sacks — six of them the seed it is about to put in the ground.
+    #[test]
+    fn a_sowing_county_eats_what_is_over_the_seed_and_not_the_seed() {
+        let mut c = County::new();
+        c.population = 60; // Normal wants 60 people fed, all of it from grain
+        c.ration_wanted = 3;
+        c.ration_split = 0;
+        c.fields_grain = 5;
+        c.labour[T.job.grain_farming] = 5_000; // labour never binds here
+        c.grain = 54;
+
+        let seed = crate::land::sow_sacks(T, &mut c.clone(), 54, 5_000, false);
+        assert_eq!(seed, 50, "5 fields at the full 10 sacks");
+
+        let spring = Sowing::new(crate::tables::Season::Winter, false);
+        let mut sowing = c.clone();
+        apply(T, &mut sowing, false, spring);
+        assert_eq!(sowing.grain_available, 4, "54 - 50");
+        assert!(sowing.grain_eaten <= 4, "the eaters get the little");
+        assert!(
+            c.grain - sowing.grain_eaten >= seed,
+            "and the seed survives the meal"
+        );
+
+        let mut whole = c.clone();
+        apply(T, &mut whole, false, Sowing::NONE);
+        assert_eq!(whole.grain_available, 54, "the ablation offers the store whole");
+        assert_eq!(whole.grain_eaten, 10, "Normal rations, seed and all");
+        assert!(
+            whole.ration_achieved > sowing.ration_achieved,
+            "the reservation costs the county a ration level"
+        );
+    }
+
     #[test]
     fn a_preview_writes_the_panel_but_spends_nothing() {
         let mut c = County::new();
@@ -389,7 +499,7 @@ mod tests {
         c.ration_wanted = 3;
         c.ration_split = 100;
 
-        preview(T, &mut c, false);
+        preview(T, &mut c, false, Sowing::NONE);
         assert_eq!(c.herd, 67, "a preview must not slaughter anything");
         assert_eq!(c.herd_eaten, 13, "but it does write the display field");
         assert_eq!(c.ration_achieved, 3);

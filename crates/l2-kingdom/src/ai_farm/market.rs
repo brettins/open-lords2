@@ -153,6 +153,9 @@ pub struct CountyStall<'a> {
     realms: &'a mut [Realm],
     /// `g_seasonNext`, for `County_RefreshEstimates` in the trade's tail.
     season_next: Season,
+    /// `g_season` and `g_optAdvancedFarming`, for the `Ration_Apply` in the
+    /// same tail: entering Spring the seed corn is not on the menu.
+    sowing: crate::ration::Sowing,
     /// `g_optArmiesEat`, for the `Ration_Apply` in the same tail.
     armies_eat: bool,
 /// How many lots moved, for the caller's report.
@@ -178,6 +181,7 @@ impl<'a> CountyStall<'a> {
         realms: &'a mut [Realm],
         season_next: Season,
         armies_eat: bool,
+        sowing: crate::ration::Sowing,
     ) -> CountyStall<'a> {
         let mut stall = [None; crate::county::MAX_COUNTIES];
         for (id, slot) in stall.iter_mut().enumerate() {
@@ -187,7 +191,7 @@ impl<'a> CountyStall<'a> {
             }
             *slot = units.get(county.merchant_unit as usize).map(|u| u.morale);
         }
-        CountyStall { t, stall, realms, season_next, armies_eat, bought: 0 }
+        CountyStall { t, stall, realms, season_next, armies_eat, sowing, bought: 0 }
     }
 
     /// `Ai_BuyGood`'s price: the stall's base plus the merchant's morale as a
@@ -251,6 +255,7 @@ impl<'a> CountyStall<'a> {
             map,
             self.armies_eat,
             self.season_next.index(),
+            self.sowing,
         );
     }
 
@@ -299,6 +304,7 @@ impl<'a> CountyStall<'a> {
                     map,
                     self.armies_eat,
                     self.season_next.index(),
+                    self.sowing,
                 );
                 return;
             }
@@ -392,6 +398,7 @@ impl Market for CountyStall<'_> {
             map,
             self.armies_eat,
             self.season_next.index(),
+            self.sowing,
         );
         self.bought += 1;
         true
