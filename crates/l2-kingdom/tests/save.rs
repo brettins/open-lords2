@@ -966,7 +966,7 @@ fn every_field_of_the_state_is_furnished() {
 /// failure `tools/decisions/corrections.js` was written to end for correction
 /// numbers.
 ///
-/// This is that check. It reads `src/save.rs`, pulls the `* N —` entries out of
+/// This is that check. It reads `src/save/mod.rs`, pulls the `* N —` entries out of
 /// `VERSION`'s doc comment.
 ///
 /// * the entries are `1 … n` with no gap and no duplicate — a duplicate is
@@ -981,7 +981,7 @@ fn every_field_of_the_state_is_furnished() {
 /// they meet, which is the earliest a machine can know.
 #[test]
 fn the_version_is_ahead_of_its_own_changelog() {
-    let source = include_str!("../src/save.rs");
+    let source = include_str!("../src/save/mod.rs");
     let head = source.split("pub const VERSION").next().expect("VERSION is declared");
     let mut entries: Vec<u32> = Vec::new();
     for line in head.lines() {

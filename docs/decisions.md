@@ -138,7 +138,7 @@ reproduction test where it belongs — next to the rules it is testing — witho
 gaining a dependency it must not have.
 
 **D10 — Our own save format writes through `l2-net`'s canonical encoder, not its own.**
-`crates/l2-kingdom/src/save.rs` is the format we write, as against the original's memory
+`crates/l2-kingdom/src/save/mod.rs` is the format we write, as against the original's memory
 dump that `l2-formats` reads. `docs/netcode.md` §5 and §6 already required a byte-exact
 encoding of simulation state — for the tick checksum, the late-join snapshot and the desync
 dump — so a second encoder here would mean a save whose bytes and a checksum whose bytes

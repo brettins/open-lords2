@@ -822,7 +822,7 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
         "l2_kingdom::kingdom::Options::quirks has moved. It is where the quirk set lives; \
          docs/decisions.md C62."
     );
-    let save = read(&root, "crates/l2-kingdom/src/save.rs");
+    let save = read(&root, "crates/l2-kingdom/src/save/mod.rs");
     assert!(
         save.contains("out.encode(&self.options.quirks)"),
         "the quirk set is not encoded into the save body any more. That body IS the per-tick \

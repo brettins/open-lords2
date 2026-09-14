@@ -843,7 +843,7 @@ and last on every one of them**, including revision 3, where the review moved pe
 | item | why it is cheap | why it keeps being deferred |
 |---|---|---|
 | **Victory and defeat** | elimination exists and is tested; the interstitial already draws all three outcomes | it unblocks nothing, so it never wins a priority argument |
-| **Save and load to a file** | `crates/l2-kingdom/src/save.rs` is a complete, versioned, ruleset-fingerprinted codec over `l2-net`'s canonical encoder, round-tripped by 17 tests, and deliberately contains **no `std::fs`**. Screens `0x35` and `0x36` already draw | the codec looks done, so the item looks done; what is missing is a file path and a menu |
+| **Save and load to a file** | `crates/l2-kingdom/src/save/mod.rs` is a complete, versioned, ruleset-fingerprinted codec over `l2-net`'s canonical encoder, round-tripped by 17 tests, and deliberately contains **no `std::fs`**. Screens `0x35` and `0x36` already draw | the codec looks done, so the item looks done; what is missing is a file path and a menu |
 | **`turn.rs`'s four unconditional waits** | the movement code exists and is tested | four lines that say `true` do not look like a subsystem |
 | **Renaming shell `0x17`** | one string | nobody re-reads a name — three corrections about exactly this |
 | **`promotion` on the merchant field hypotheses** | the criteria are already written in their `caveat`s and need moving to the field `docs/method.md` §7.6 says they belong in | see §5 |
