@@ -4,7 +4,7 @@
 //! `Assets::placeholder` supplies a grey palette and a blank map, which is
 //! enough for every assertion about *structure* — where a button is, what a
 //! click does, which screen ends up on top. Assertions about shipped artwork
-//! live in `tests/screens.rs`, which skips without an install.
+//! live in `tests/screens_*.rs`, which skips without an install.
 
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};

@@ -5112,7 +5112,7 @@ broken the whole time.**
 A player: *"Rations slider moves but is inoperable, no information about feeding peasants is
 available."* Two sentences, one cause.
 
-`crates/l2-game/tests/screens.rs` has had
+`crates/l2-game/tests/screens_county.rs` has had
 `the_ration_split_slider_sets_the_field_the_original_sets` for weeks. It clicks the track,
 asserts `ration_split == 37`, steps the caps, and passes. It is about the right screen, the
 right gesture and the right field, and it is **useless**, because `Ration_SetSplit`
@@ -11890,7 +11890,7 @@ takes it from the realm, with `REALM {n}` as the fallback for a realm with no
 name rather than a literal invented here.
 
 Checked: `the_ratings_blocks_name_the_two_lords` in
-`crates/l2-game/tests/screens.rs` sets two named realms and asserts both blocks.
+`crates/l2-game/tests/screens_*.rs` sets two named realms and asserts both blocks.
 Ablated by restoring the "PLAYER" literal, it fails on the first assert.
 
 **The second half: nothing came off the merchant.** The ledger row asked whether

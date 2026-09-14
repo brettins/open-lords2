@@ -339,7 +339,7 @@ fn the_map_empties_when_the_herd_does() {
         );
     }
     // The other half of that claim — that `0x13` draws nothing — belongs to
-    // `l2-view` and is asserted in `crates/l2-game/tests/screens.rs`, which is
+    // `l2-view` and is asserted in `crates/l2-game/tests/screens_*.rs`, which is
     // the lowest crate that can see both sides. This one must not reach for
     // `l2-view`: nothing in the simulation may depend on the renderer.
 }

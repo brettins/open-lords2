@@ -1713,7 +1713,7 @@ pub type Fog<'a> = Option<&'a dyn Fn(usize, usize) -> bool>;
 /// decompilation:
 ///
 /// **Frame 0 of the `base` bank is two different pictures**, measured over all
-/// four seasons of the player's own files (`crates/l2-game/tests/screens.rs`,
+/// four seasons of the player's own files (`crates/l2-game/tests/screens_map.rs`,
 /// `a_dark_tile_…`). At the near zoom it is blank — every pixel palette index
 /// 0, which every blitter skips — so both arms below paint nothing and the dark
 /// is the black ground the map is drawn on, *"blacked out"* literally. At the

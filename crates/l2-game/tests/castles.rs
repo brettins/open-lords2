@@ -358,7 +358,7 @@ fn the_ok_button_refuses_the_castle_you_have_and_anything_smaller() {
 /// toggle goes through `MapScreen::county_at`, which reads the *painted* county
 /// plane — and the plane comes from the map **file**, which `Assets::placeholder`
 /// supplies as 4,096 zero bytes. So no click on any tile of these synthetic
-/// worlds ever finds a county. `tests/screens.rs`'s
+/// worlds ever finds a county. `tests/screens_map.rs`'s
 /// `every_painted_pixel_of_a_mine_reaches_the_industry_toggle` drives that half
 /// against the real sheet and the real map.
 #[test]
