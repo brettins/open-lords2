@@ -47,6 +47,9 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   // where an item starts at a depth-0 line or a depth-1 method/const line in an impl.
   // A `mod x { ... }` block is one unit: its items must stay together, in one file.
   { let d = 0, cur = 1, inMod = false; for (let i = 1; i <= N; i++) { const l = lines[i - 1]; const code = l.replace(/\/\/.*$/, "").replace(/'(\\.|[^'\\])'/g, "''").replace(/"([^"\\]|\\.)*"/g, '""'); const top = d === 0 && /^\S/.test(l) && !/^[}\])]/.test(l); if (top) inMod = /^(pub(\([a-z]+\))? )?mod\b/.test(l); const starts = top || (d === 1 && !inMod && /^    (pub(\([a-z]+\))? )?(fn|const|type|static)\b/.test(l)); if (starts) cur = i; if (!(d === 0 && /^}/.test(l))) owner[i] = owner[cur]; d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
+  // A `mod x;` declaration (and its `pub use x::*;`) stays in the root file: the module
+  // it names lives beside the root, not beside a part.
+  for (let i = 1; i <= N; i++) if (/^(pub(\([a-z]+\))? )?mod \w+;$/.test(lines[i - 1]) || /^pub use \w+::\*;$/.test(lines[i - 1])) owner[i] = "mod";
   // A doc comment or attribute belongs to the item under it: a boundary that falls
   // between them moves up so they travel together.
   for (let i = N - 1; i >= 1; i--) if (owner[i] !== owner[i + 1] && /^\s*(\/\/\/|\/\/!|#\[)/.test(lines[i - 1])) owner[i] = owner[i + 1];
