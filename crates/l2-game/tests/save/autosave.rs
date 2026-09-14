@@ -116,6 +116,7 @@ fn ending_a_turn_asks_for_exactly_one_autosave_and_asks_in_the_dark() {
 
     let before = game.kingdom.turn_count;
     let mut asked = Vec::new();
+    let mut at_the_write = None;
     let mut came_round = None;
     for t in 0..l2_game::turn::MAX_TICKS {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
@@ -124,6 +125,12 @@ fn ending_a_turn_asks_for_exactly_one_autosave_and_asks_in_the_dark() {
         if let Some(r) = saves::run_pending(&mut m, &game) {
             r.expect("the autosave is written");
             asked.push(t);
+            // **The kingdom as the file was written**, not as it is several
+            // frames later: the map's own frames run `Turn_Tick`'s phase-4 arm
+            // and the AI realms take their steps on them
+            // (`l2_game::turn::tick_ai_frame`), so the live kingdom moves on
+            // from the autosave the moment the player gets control.
+            at_the_write = Some(digest(&game.kingdom));
         }
         if came_round.is_none() && game.kingdom.turn_count != before {
             came_round = Some(t);
@@ -141,6 +148,6 @@ fn ending_a_turn_asks_for_exactly_one_autosave_and_asks_in_the_dark() {
     // **The opening of the turn that just began**, not the end of the one that
     // finished: `Season_FinishFade` writes after `Season_Advance`.
     let back = saves::read("lastturn", Tables::DEFAULT).expect("readable");
-    assert_eq!(digest(&back.kingdom), digest(&game.kingdom));
+    assert_eq!(digest(&back.kingdom), at_the_write.expect("the autosave was asked for"));
     assert_ne!(back.kingdom.turn_count, before, "the turn on disk is the new one");
 }

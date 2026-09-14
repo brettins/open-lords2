@@ -75,18 +75,37 @@ pub use audio_part::*;
 fn realms() -> Game {
     let mut g = Game::new(0xF11A);
     g.player = 1;
-    g.kingdom.set_county_count(6);
+    g.kingdom.set_county_count(12);
     l2_testkit::chain_neighbours!(g.kingdom);
     for realm in 1..=5usize {
         g.kingdom.realms[realm].in_play = true;
         g.kingdom.realms[realm].strength = 3;
         g.kingdom.realms[realm].lord = realm as u8 - 1;
+        // **Counties 1..=6 are the tests' board and 8..=12 the seats.** The AI
+        // realms take their steps on the map's idle frames now
+        // (`l2_game::turn::tick_ai_frame`, `Turn_Tick`'s phase-4 arm), so a
+        // landless realm is recounted to zero on the first frame and its
+        // obituary lands in the ring under test — the human's own group 224
+        // *Defeat!* with it.
+        g.kingdom.counties[7 + realm].owner = realm as u8;
     }
     g.kingdom.realms[1].is_human = true;
     g.kingdom.realms[1].lord = 1;
     g.kingdom.year = movie::FIRST_YEAR + 1;
     assert!(g.prefs.animations, "animations default to on, as FUN_004AF35E sets them");
     g
+}
+
+/// Phase 4 open with every AI realm finished and the human's counter parked at
+/// 1 — the state `Turn_Tick`'s arm reaches while the player is still deciding
+/// and nothing of the AI's is left to run. The map's frames then take no step
+/// and rank no realm.
+fn ai_turns_over(g: &mut Game) {
+    g.kingdom.turn.players_turn_open = true;
+    for realm in g.kingdom.realms.iter_mut() {
+        realm.ai_step = l2_kingdom::AI_STEP_DONE;
+    }
+    g.kingdom.realms[1].ai_step = 1;
 }
 
 fn ending(from: u8, group: u16) -> Record {

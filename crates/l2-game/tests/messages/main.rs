@@ -48,18 +48,28 @@ fn on(at: (i32, i32)) -> Event {
     Event::Click { x: at.0 + Prompt::SIDE / 2, y: at.1 + Prompt::SIDE / 2 }
 }
 
-/// Five realms on a small map, realm 1 the human, nothing owned yet.
+/// Five realms on a small map, realm 1 the human, each with a seat of its own.
+///
+/// **Counties 1..=6 are the tests' board and 8..=12 the seats.** Since the AI
+/// realms take their turn steps on the map's own idle frames
+/// ([`l2_game::turn::tick_ai_frame`], `Turn_Tick`'s phase-4 arm), a realm
+/// holding nothing is recounted to zero strength on the first frame of every
+/// one of these tests and `recount_strength` posts its obituary into the ring
+/// the test is reading — the human's own group 224 *Defeat!* included. Land
+/// nobody takes away keeps every realm alive; the letters under test are then
+/// the only letters.
 pub(crate) fn world() -> (Game, Assets, Machine) {
     let mut g = Game::new(0xB0A7);
     g.player = 1;
-    g.kingdom.set_county_count(6);
+    g.kingdom.set_county_count(12);
     l2_testkit::chain_neighbours!(g.kingdom);
-    for id in 1..=6usize {
+    for id in 1..=12usize {
         let c = &mut g.kingdom.counties[id];
         c.population = 500;
         c.happiness = 70;
     }
     for realm in 1..=5usize {
+        g.kingdom.counties[7 + realm].owner = realm as u8;
         g.kingdom.realms[realm].in_play = true;
         g.kingdom.realms[realm].strength = 3;
         g.kingdom.realms[realm].gold = 2_000;
@@ -73,6 +83,28 @@ pub(crate) fn world() -> (Game, Assets, Machine) {
     // `tests/movies.rs`'s.
     g.prefs.animations = false;
     (g, Assets::placeholder(), Machine::new(ScreenId::Campaign))
+}
+
+/// Phase 4 open with every AI realm finished, the human's counter parked at 1:
+/// the state `Turn_Tick`'s arm reaches once the AI has taken all its steps and
+/// is waiting on `Turn_End`. The map's frames then move nothing.
+pub(crate) fn ai_turns_over(g: &mut Game) {
+    g.kingdom.turn.players_turn_open = true;
+    for realm in g.kingdom.realms.iter_mut() {
+        realm.ai_step = l2_kingdom::AI_STEP_DONE;
+    }
+    g.kingdom.realms[1].ai_step = 1;
+}
+
+/// Take every acre a realm holds — its `world()` seat included — and hand it to
+/// `to`. The only way to count a realm out now that everybody starts with land.
+pub(crate) fn dispossess(g: &mut Game, realm: u8, to: u8) {
+    for id in 1..=g.kingdom.county_count {
+        if g.kingdom.counties[id].owner == realm {
+            g.kingdom.counties[id].owner = to;
+        }
+    }
+    l2_kingdom::conquest::recount_realm_counties(&g.kingdom.counties, &mut g.kingdom.realms);
 }
 
 /// One `Msg_Enqueue`. The `to` is the local player or 0, because that is the

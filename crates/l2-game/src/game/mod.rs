@@ -427,6 +427,10 @@ pub struct Game {
     /// **The AI's one grant of the turn has been made**, for the phase-4 arm
     /// the interactive frames run. [`crate::turn::open_players_turn`] clears it;
     /// `TurnProgress::granted` is the same latch for a wind-on.
+    ///
+    /// not-encoded: turn-local, like `TurnMachine::players_turn_open` beside it.
+    /// A loaded game is parked at phase 1, and the first map frame re-opens
+    /// phase 4 and clears this latch on its way in.
     pub ai_granted: bool,
     /// **Whether this game is over, and where it sits in its campaign.**
     ///
