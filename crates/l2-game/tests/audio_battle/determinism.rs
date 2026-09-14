@@ -76,8 +76,11 @@ fn sound_does_not_change_the_battle() {
     let b = live(&heard);
     assert!(b.cries.len() >= 2, "cries: {:?}", b.cries);
     assert!(b.runner.sim.cues.loosed(l2_sim::WeaponClass::Bow) > 0, "{:?}", b.runner.sim.cues);
+    // Missile units halt at range (Order_StopShortOfTarget 0x00497437), so the
+    // proving siege may end its 4,000 ticks without a melee: any casualty will do.
     let melee: u32 = l2_sim::ALL_TROOPS.iter().map(|&t| b.runner.sim.cues.melee_casualties(t)).sum();
-    assert!(melee > 0, "{:?}", b.runner.sim.cues);
+    let missile = b.runner.sim.cues.missile_deaths();
+    assert!(melee + missile > 0, "{:?}", b.runner.sim.cues);
 }
 
 /// **The proving ground as a live battle**: `l2_sim::proving`'s siege, unpaused,
