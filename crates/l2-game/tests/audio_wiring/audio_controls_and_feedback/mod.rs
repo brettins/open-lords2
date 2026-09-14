@@ -6,6 +6,8 @@ mod map_and_castle_feedback;
 pub use map_and_castle_feedback::*;
 mod speech_and_panels;
 pub use speech_and_panels::*;
+mod mercenary_offer_voice;
+pub use mercenary_offer_voice::*;
 
 use super::*;
 use super::routing::*;
