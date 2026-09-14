@@ -2440,7 +2440,7 @@ Each of those is now written out in the section it belongs to.
 percentage of it, and every merchant in the shipped game has morale 100, so the
   guides' prices are double the table's. The second 15-entry table at `0x004D8950` is
   **read by nothing**: a merchant's stock is infinite. `crates/l2-kingdom/src/trade.rs` and
-  `crates/l2-game/src/screens/merchant.rs`.
+  `crates/l2-game/src/screens/merchant/mod.rs`.
 * **Fertility's effect.** `+0x208` runs −100 … +100 and `L2.eng` group 22 names seven
   levels, but where the crop yield reads it was not found. The yield multipliers in
   `Grain_Grow` and `Grain_Harvest` were not decompiled beyond their weather branches.

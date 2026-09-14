@@ -929,7 +929,7 @@ Implemented, in `crates/l2-view/src/campaign/mod.rs`, `crates/l2-view/src/chrome
 * **`Map_Click`'s merchant arm**, guarded on the *county's* owner as the original guards it,
   centring on that county's town and opening screen `0x08` — **which trades now**, carrying
   the clicked unit with it because `DAT_00553C64` is what the price is computed from. See
-  `crates/l2-game/src/screens/merchant.rs`; the stall's hit test is `mercgrid.pl8` read as
+  `crates/l2-game/src/screens/merchant/mod.rs`; the stall's hit test is `mercgrid.pl8` read as
   an 80 × 60 map of good ids, and the mouseover is the price plaque of
   `Merchant_HoverPlaque` — **ours has no generic tooltip
   mechanism**, and `0x00553ECC`, the only candidate on file, turned out to be a
