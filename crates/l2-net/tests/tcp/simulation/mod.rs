@@ -43,7 +43,7 @@ struct NetPeer {
 }
 
 impl NetPeer {
-    fn new(slot: PlayerSlot, slots: &[PlayerSlot], seed: u64, net: TcpTransport) -> NetPeer {
+    pub(super) fn new(slot: PlayerSlot, slots: &[PlayerSlot], seed: u64, net: TcpTransport) -> NetPeer {
         let sim = ToySim::new(seed, 6);
         let session = Session::new(Config::battle(), slot, slots, seed, &sim);
         NetPeer {

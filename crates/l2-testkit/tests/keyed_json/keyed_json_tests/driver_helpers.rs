@@ -8,7 +8,7 @@ use std::process::Command;
 
 /// A one-row-per-line file as (the lines before the first row, the rows without
 /// their trailing commas, the lines after the last row).
-fn split_rows(text: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
+pub(super) fn split_rows(text: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
     let lines: Vec<&str> = text.lines().collect();
     let is_row = |l: &str| l.trim_start().starts_with("{\"id\": ");
     let first = lines.iter().position(|l| is_row(l)).expect("a one-line row");
@@ -18,13 +18,13 @@ fn split_rows(text: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
     (own(&lines[..first]), rows, own(&lines[last + 1..]))
 }
 
-fn join_rows(head: &[String], rows: &[String], tail: &[String]) -> String {
+pub(super) fn join_rows(head: &[String], rows: &[String], tail: &[String]) -> String {
     format!("{}\n{}\n{}\n", head.join("\n"), rows.join(",\n"), tail.join("\n"))
 }
 
 /// Runs the driver on three texts under a registered path, returning whether it
 /// reported success, what it left in the `ours` file, and what it said.
-fn drive(label: &str, base: &str, ours: &str, theirs: &str) -> Option<(bool, String, String)> {
+pub(super) fn drive(label: &str, base: &str, ours: &str, theirs: &str) -> Option<(bool, String, String)> {
     let dir = std::env::temp_dir().join(format!(
         "l2-drive-{}-{}",
         std::process::id(),

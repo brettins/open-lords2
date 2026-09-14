@@ -48,7 +48,7 @@ struct Saves {
 }
 
 impl Saves {
-    fn new(tag: &str) -> Saves {
+    pub(super) fn new(tag: &str) -> Saves {
         use std::sync::atomic::{AtomicU32, Ordering};
         static N: AtomicU32 = AtomicU32::new(0);
         an_unscoped_save_is_refused();

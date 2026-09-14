@@ -30,7 +30,7 @@ pub(super) struct Connection {
 }
 
 impl Connection {
-    fn new(id: PeerId, stream: TcpStream) -> Result<Connection, TransportError> {
+    pub(super) fn new(id: PeerId, stream: TcpStream) -> Result<Connection, TransportError> {
         // §7, and the single most expensive detail to get wrong: Nagle
         // buffers small writes waiting for an ACK, which is exactly
         // wrong for one small packet every 100 ms. It presents as "the

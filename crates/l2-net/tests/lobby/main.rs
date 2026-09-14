@@ -51,7 +51,7 @@ struct Table {
 }
 
 impl Table {
-    fn new(host_name: &str) -> Table {
+    pub(super) fn new(host_name: &str) -> Table {
         Table { host: Lobby::host(hello(0), host_name).unwrap(), clients: Vec::new() }
     }
 
