@@ -45,6 +45,22 @@ impl Settings {
     pub fn apply_to(&self, game: &mut Game) {
         game.kingdom.options = self.kingdom_options();
 
+        // **`County_Reset` (`0x00451150`)'s tail, and it has to be first.**
+        // `Game_NewGame` runs the whole of `County_Reset` before `FUN_0049BD99`,
+        // so its `Labour_Allocate` deals at *its own* opening numbers — 150
+        // people, 40 head — which the county-status loop below then overwrites
+        // without reallocating. `Scenario::from_map` reproduced the numbers and
+        // not the six calls that close the loop; this is them.
+        // [`Kingdom::reset_county_for_new_game`] carries the reading.
+        //
+        // It is the only allocation an *unowned* county gets before the opening
+        // season — `settle_start_county` below is the start counties' — so
+        // without it the neutral half of the map went into `Herd_SeasonTick`
+        // with no milkmaids: 0 cattle labour against `england-turn1.sav`'s 323.
+        for id in game.kingdom.county_ids() {
+            game.kingdom.reset_county_for_new_game(id);
+        }
+
         // Which realms are in the game at all. `Realms_AssignLords`
         // (`0x0049C6C1`) hands a lord to at most `ai_lords` non-human realms
         // and writes `strength = 0` into the rest; `FUN_0049BD99` then skips
