@@ -235,7 +235,7 @@ pub mod speech {
     /// `FUN_004351C4`, the court's *Greatest nobles* button, and
     /// `FUN_0043524E`, one of the page's seven tabs. So this is the spoken
     /// half of `L2.eng` group 35, file named after group and index, and
-    /// `crates/l2-game/src/screens/nobles.rs` is the screen.
+    /// `crates/l2-game/src/screens/nobles/mod.rs` is the screen.
     ///
     /// **Two entries past the end of what can be reached, and they are not the
     /// same mistake.** There are seven categories, so `S035_08.wav` — the

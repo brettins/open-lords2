@@ -112,7 +112,7 @@ The cases, named from the `L2.eng` groups each painter draws.
 | 0x1D | `0x00421F14` | siege preparations | group 83; `sgeplans.pl8` |
 | 0x1F | `0x0041E7E1` | **the front end**, and game setup: thirteen sub-pages on `g_setupPage` (`0x005530F0`) — §1.2 | groups 11, 39, 40, 101, 102, 103 |
 | 0x1E | `Screen_ConfirmBox` `0x0040CCFA` | **the yes/no box** — one dialog for fifteen questions — §10.3 | group 10 |
-| 0x20 | `Screen_GreatestNoble` `0x0041593B` | **the standings** — five flagpoles, not a table: one banner per realm raised to its percentage of the leader's score in one of seven categories, with the seven as an invisible tab row (`g_nobleTabs`, `0x004DC890`) along the bottom. Reached from the court's one button, which recounts first. `crates/l2-game/src/screens/nobles.rs` | group 35; `grtnoble.256` + `grtnoble.pl8`, `flags.pl8` |
+| 0x20 | `Screen_GreatestNoble` `0x0041593B` | **the standings** — five flagpoles, not a table: one banner per realm raised to its percentage of the leader's score in one of seven categories, with the seven as an invisible tab row (`g_nobleTabs`, `0x004DC890`) along the bottom. Reached from the court's one button, which recounts first. `crates/l2-game/src/screens/nobles/mod.rs` | group 35; `grtnoble.256` + `grtnoble.pl8`, `flags.pl8` |
 | 0x21 | `Screen_SliderBox` `0x0040CD58` | **the value spinner** — game speed, scroll speed, volumes — §10.3 | group 12 |
 | 0x25 | `Screen_About` `0x0041543F` | about | group 59 |
 | 0x28 / 0x29 / 0x2A | `Screen_DrawBattlefield` `0x004233F7` | the battlefield; the main loop treats 0x28 … 0x2A as one range | `g_battleIsSiege` picks the palette |

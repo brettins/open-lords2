@@ -2057,7 +2057,7 @@ seven tabs and only the seventh — *Greatest noble* — reads `+0x2B`, the rank
 writes; the other six are single raw fields against the leader's, through
 `GreatestNoble_Value` (`0x00415E42`), not through the weighted sum above. A reader
 who takes *Most troops* for a score component in the ratio the bars show is reading a
-different mechanic. `crates/l2-game/src/screens/nobles.rs` and `docs/rules.md` §6.
+different mechanic. `crates/l2-game/src/screens/nobles/mod.rs` and `docs/rules.md` §6.
 
 **One UI path calls both this and `Realm_UpdateTotals`, and it is the only one outside the
 AI turn.** `Court_OpenGreatestNoble` (`0x004351C4`), the court's single button, runs

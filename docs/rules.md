@@ -600,7 +600,7 @@ is under **1270**, so it reads *"Greatest noble, undecided."* for the first two 
 every game whatever anyone has done — the categories beside it work from turn one. And a
 category where every lord is level does not pick a winner either: it draws all five banners
 at exactly half height and says *undecided*, which is what a turn-one game looks like on
-every tab. `crates/l2-game/src/screens/nobles.rs`.
+every tab. `crates/l2-game/src/screens/nobles/mod.rs`.
 
 ---
 

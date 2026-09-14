@@ -106,7 +106,7 @@ crates/l2-game/src/screens/message/mod.rs	C189	83743da87d1f	a640e552a733
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28	37ab8ac1a2fc
-crates/l2-game/src/screens/nobles.rs	C190	915c36f4ef8e	036491ce2ede
+crates/l2-game/src/screens/nobles/mod.rs	C190	915c36f4ef8e	036491ce2ede
 crates/l2-game/src/screens/options/mod.rs	C62	1fbae8c54322	ebb6a7ec3711
 crates/l2-game/src/screens/ratings/mod.rs	C140	86ed189821f1	e3a1ede42a95
 crates/l2-game/src/screens/ratings/mod.rs	C61	ca0d887d21ae	60611046b40d

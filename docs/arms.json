@@ -1055,7 +1055,7 @@
       "addr": "0x0042FF10",
       "what": "A press in the minimap raster with this screen open drops it and selects the county.",
       "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12. The standings is a full 640 x 480 page, so nothing of the minimap is visible under it - and the epilogue runs on the screen id all the same, which is why the arm is here rather than assumed away.",
-      "ours": "crates/l2-game/src/screens/nobles.rs",
+      "ours": "crates/l2-game/src/screens/nobles/mod.rs",
       "evidence": "V"
     },
     {
@@ -1181,7 +1181,7 @@
       "addr": "0x0042FF10",
       "what": "Ui_OkButtonClicked() in the 24 x 24 box at (612, 452) - Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1), mode 1, so System.pl8 frame 0x10 - sets g_screenId = 0 and g_redrawRequest = 1.",
       "note": "THE ORIGINAL GOES TO THE MAP, NOT BACK TO THE COURT, because g_screenId is one byte and it has nowhere to keep what the page was opened over. Ours pops, which lands on the court. Recorded rather than reproduced with Transition::Goto(Campaign): the court is where the button was, and docs/decisions.md C190 exists for the cases where the original names a destination it MEANS rather than one it can afford.",
-      "ours": "crates/l2-game/src/screens/nobles.rs",
+      "ours": "crates/l2-game/src/screens/nobles/mod.rs",
       "evidence": "V"
     },
     {
@@ -1192,7 +1192,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "g_mouseRightReleased anywhere on the page sets g_screenId = 0. Tested before the OK box, exactly as on the county panels.",
-      "ours": "crates/l2-game/src/screens/nobles.rs",
+      "ours": "crates/l2-game/src/screens/nobles/mod.rs",
       "evidence": "V"
     },
     {
@@ -1648,7 +1648,7 @@
       "addr": "0x0043524E",
       "what": "Hotspot_Test(0, 0, &g_nobleTabs, 7) - seven 38 x 35 boxes along y 428..463, x 46, 84, 122, 160, 198, 236, 274 - all one handler, FUN_0043524E, which is three statements: DAT_0055CE7C = g_uiHotspotId; g_redrawRequest = 2; FUN_004B3994(g_uiHotspotId). So a tab picks the category, repaints, and speaks the category's own name out of S035_01..07.",
       "note": "ONE RECORD AND ONE FUNCTION, per this file's counted-per-implementation rule: the seven records differ only in x and in the id at +0x10. Screen_DrawWidgets has no 0x20 arm, so nothing draws them - the tabs are part of grtnoble.pl8 and the marker over the selected one is flags.pl8 frame 5, at g_nobleTabX[category], which is the category's x and not the leader's. The category is kept on the Game and not on the screen so that the spoken name can be reproduced at all; see docs/audio.json FUN_004b3994#1.",
-      "ours": "crates/l2-game/src/screens/nobles.rs",
+      "ours": "crates/l2-game/src/screens/nobles/mod.rs",
       "evidence": "V"
     },
     {
@@ -3631,7 +3631,7 @@
       "gesture": "key",
       "what": "Escape and Enter close the page.",
       "why": "The 0x20 arm has no keyboard test at all. Same reason as ours/about-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/nobles.rs"
+      "ours": "crates/l2-game/src/screens/nobles/mod.rs"
     },
     {
       "id": "ours/supplies-keyboard-close",
