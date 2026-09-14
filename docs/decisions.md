@@ -11927,7 +11927,7 @@ changing, which is the diff the `Director` can see — the handler ends in
 screen-local state left to read.
 
 Checked: `the_field_brush_sounds_what_it_paints` in
-`crates/l2-game/tests/audio_wiring.rs` paints all three terrains and the waste
+`crates/l2-game/tests/audio_wiring/main.rs` paints all three terrains and the waste
 arm; ablated, all four arms fail.
 
 **The second half: which bed `setup3.wav` is.** `FUN_00433155` plays it on

@@ -128,7 +128,7 @@ They carry no `// sfx:` marker:
 denominator for *"what does the game ask for"* and the wrong one for *"does our
 audio behave like the game's"*
 closing — adding stops to the census would put sixteen rows in it that no file
-depends on. `crates/l2-game/tests/audio_wiring.rs` is where the two are
+depends on. `crates/l2-game/tests/audio_wiring/main.rs` is where the two are
 asserted.
 
 ## The three verdicts, and the count of each

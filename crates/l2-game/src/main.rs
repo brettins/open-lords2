@@ -101,7 +101,7 @@ struct App {
     /// **What decides what is audible**
     /// notice that something has *become* true. It lives in the library so that
     /// a test runs this code —
-    /// `crates/l2-game/tests/audio_wiring.rs`.
+    /// `crates/l2-game/tests/audio_wiring/main.rs`.
     director: l2_game::audio::Director,
     /// `DAT_004DF3A8` — whether Control is held. The window procedure keeps the
     /// same latch and its digit arm dispatches on it: with Control, store a

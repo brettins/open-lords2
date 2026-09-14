@@ -648,7 +648,7 @@ like optional content and it holds the button that creates the army. C61.
   should be audible from what already happened.
 
   **The number that keeps this row honest is 703 of 771.** 668 of them are measured
-`crates/l2-game/tests/audio_wiring.rs` and `tests/audio_battle.rs`
+`crates/l2-game/tests/audio_wiring/main.rs` and `tests/audio_battle.rs`
 drive the real paths and read back what was opened — and the other
   the tip screens**, of which `crates/l2-game/tests/tips.rs` drives one tip's three clips
   end to end and the rest are counted from the take table and the install's listing, not
