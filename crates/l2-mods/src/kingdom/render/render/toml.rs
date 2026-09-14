@@ -2,6 +2,7 @@
 use super::*;
 
 use super::*;
+use super::*;
 use super::tables::*;
 use crate::ruleset::{RuleError, Ruleset};
 use l2_kingdom::tables::{
@@ -595,19 +596,4 @@ pub fn render_toml(t: &Tables) -> String {
 
     out
 }
-
-fn join_i32(values: &[i32]) -> String {
-    values.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ")
-}
-
-/// A long integer array, wrapped at `per_line` values and indented,
-/// hundred-entry table is readable.
-fn wrap_i32(values: &[i32], per_line: usize) -> String {
-    values
-        .chunks(per_line)
-        .map(|chunk| format!("  {},", join_i32(chunk)))
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
 

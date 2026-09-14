@@ -331,8 +331,8 @@ crates/l2-mods/rulesets/core/rules/kingdom.toml	C10	0b6d21a76fea	68e4eb2d2a1f
 crates/l2-mods/rulesets/core/rules/kingdom.toml	C11	f607cac3e195	07dfad15821c
 crates/l2-mods/rulesets/core/rules/units.toml	C11	aa6ae9f23e5b	07dfad15821c
 crates/l2-mods/src/kingdom/mod.rs	C11	c5c8ea428ed2	07dfad15821c
-crates/l2-mods/src/kingdom/render/render.rs	C10	4eca0cb3e865	68e4eb2d2a1f
-crates/l2-mods/src/kingdom/render/render.rs	C11	5269ee40f876	07dfad15821c
+crates/l2-mods/src/kingdom/render/render/mod.rs	C10	4eca0cb3e865	68e4eb2d2a1f
+crates/l2-mods/src/kingdom/render/render/mod.rs	C11	5269ee40f876	07dfad15821c
 crates/l2-mods/src/units.rs	C11	1f34a41c4bbb	07dfad15821c
 crates/l2-mods/src/units.rs	C11	82a3e3450631	07dfad15821c
 crates/l2-mods/tests/simulation/economy.rs	C12	e215c3572884	bb0dd488f9d2
