@@ -748,6 +748,13 @@ impl Simulation for RunnerNetBattle {
             // different bodies. Added at merge — C209's branch left it out and
             // this check named it.
             out.u16(f.corpse);
+            // **The frames a swapped man stands still** — `+0x172`, written by
+            // `BattleMan_Step`'s `BattleMen_SwapPlaces` arm (`0x0049005F`) as
+            // `(other & 1) + 1`. Two peers that disagreed would have one man
+            // standing and the other stepping on the same tick, so they would
+            // disagree about his cell a frame later — and about who was in the
+            // way of the man behind him.
+            out.u8(f.delay);
         }
         out.end_section();
 

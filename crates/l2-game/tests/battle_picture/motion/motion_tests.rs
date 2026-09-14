@@ -40,6 +40,7 @@ fn no_drawn_man_ever_jumps_half_a_cell_in_one_tick() {
     let mut r = march();
     let cam = l2_view::scene::Camera { x: 24, y: 28 };
     let mut was: Vec<Option<(i32, i32)>> = vec![None; r.fighters.len()];
+    let mut cell_was: Vec<Option<(u8, u8)>> = vec![None; r.fighters.len()];
     let (mut jumps, mut walking_ticks) = (0usize, 0usize);
     let mut worst = (0, String::new());
     for tick in 0..1_200 {
@@ -47,6 +48,7 @@ fn no_drawn_man_ever_jumps_half_a_cell_in_one_tick() {
             let f = &r.fighters[i];
             if !r.is_alive(i) {
                 was[i] = None;
+                cell_was[i] = None;
                 continue;
             }
             let now = l2_view::scene::figure_origin(f, cam);
@@ -55,7 +57,30 @@ fn no_drawn_man_ever_jumps_half_a_cell_in_one_tick() {
             }
             if let Some(before) = was[i] {
                 let d = (now.0 - before.0).abs().max((now.1 - before.1).abs());
-                if d >= 16 {
+                // **One exception, and it is the original's.**
+                // `BattleMen_SwapPlaces` (`0x0049005F`) exchanges the two men's
+                // `mapX`, `mapY` and `cellOffset` outright and touches neither
+                // `walking` nor `dirc`; its caller `BattleMan_Step`
+                // (`0x0048F1DD`) delays the other man and returns 0. So both
+                // men change cell in one frame with no walk offset and **the
+                // original draws the jump too.** Its signature is exactly that:
+                // one cell moved, with somebody else standing in the cell just
+                // left. Anything else still fails.
+                let swapped = cell_was[i].is_some_and(|(cx, cy)| {
+                    let step =
+                        (f.x as i32 - cx as i32).abs().max((f.y as i32 - cy as i32).abs());
+                    // Either half of the pair: the man now standing in the cell
+                    // just left, or — for the man swapped *out* of his cell —
+                    // the delay that arm gave him, which nothing else writes.
+                    step == 1
+                        && (f.delay > 0
+                            || (0..r.fighters.len()).any(|j| {
+                                j != i
+                                    && r.is_alive(j)
+                                    && (r.fighters[j].x, r.fighters[j].y) == (cx, cy)
+                            }))
+                });
+                if d >= 16 && !swapped {
                     jumps += 1;
                     if d > worst.0 {
                         worst = (d, format!("figure {i} at tick {tick}: {before:?} -> {now:?}"));
@@ -63,6 +88,7 @@ fn no_drawn_man_ever_jumps_half_a_cell_in_one_tick() {
                 }
             }
             was[i] = Some(now);
+            cell_was[i] = Some((f.x, f.y));
         }
         r.step();
     }
