@@ -1426,7 +1426,7 @@ So the town is a **village whose size is its population**, redrawn as the county
 the frames the file holds are never on screen in the original at all.
 
 **What we do now, and what it costs.** `l2-view` gains a sparse
-[`campaign::Overrides`](../crates/l2-view/src/campaign.rs) plane — `None` everywhere means
+[`campaign::Overrides`](../crates/l2-view/src/campaign/mod.rs) plane — `None` everywhere means
 "draw the file" — and the map screen fills in the towns from the counties' populations.
 That is one of the rewrites `Counties_PlaceSites` performs; the others (the castle into
 bank `0x10`, the four resource sites) are not reproduced, and any of them may turn out to be
@@ -7119,7 +7119,7 @@ were two and one, and the mercenary was painted on the one tile of the town the
 original's overlay pass never visits.**
 
 A player: *"I haven't seen any mercenary icons on the town square yet."* The
-feature was **not missing.** `crates/l2-view/src/campaign.rs` had
+feature was **not missing.** `crates/l2-view/src/campaign/mod.rs` had
 `MERCENARY_MARKER_FRAME = 0x81` and `screens/map/mod.rs`'s `draw_flags` blitted it,
 gated on `county.mercenary_offer`, with a comment that named the right quadrant:
 
@@ -12282,7 +12282,7 @@ Three remaining lost inputs already carried: County +0x206 stored-fields row Cou
 
 **C230 — The map never rotates, no castle designer exists, prisoners and ransom are not in the original.**
 
-Map rotation: Map_BuildLattice `0x004298C1` builds all four orientations, but Map_RotateCW `0x00429F12`'s only caller is Map_RotateCCW `0x0042A01B`, which has 0 callers in the 2,452 decompiled functions and 0 widget-table references; g_mapRotation `0x00522F7C`'s only other writer is Map_LoadPlanes `0x00467770`, which zeroes it per map load, so its 4 readers always take the rotation-0 branch; Lords2.exe holds no "rotat" string and L2.eng's one is "crop rotation"; ours (tile_to_cell, crates/l2-view/src/campaign.rs:415) builds rotation 0 only [V]; docs/screens.md §1.6 carries it.
+Map rotation: Map_BuildLattice `0x004298C1` builds all four orientations, but Map_RotateCW `0x00429F12`'s only caller is Map_RotateCCW `0x0042A01B`, which has 0 callers in the 2,452 decompiled functions and 0 widget-table references; g_mapRotation `0x00522F7C`'s only other writer is Map_LoadPlanes `0x00467770`, which zeroes it per map load, so its 4 readers always take the rotation-0 branch; Lords2.exe holds no "rotat" string and L2.eng's one is "crop rotation"; ours (tile_to_cell, crates/l2-view/src/campaign/mod.rs:415) builds rotation 0 only [V]; docs/screens.md §1.6 carries it.
 
 Castle designer: Screen_CastleBuild `0x00419789`, Screen_CastleBuildPanel `0x004198AA`, CastleBuild_Select `0x00436B22` and CastleBuild_Confirm `0x00436B59` are a picture-and-stats browser over one integer 0..4; "design" occurs twice in L2.eng and never in Lords2.exe, both in help text; ours (crates/l2-game/src/screens/castle.rs, 25 tests in crates/l2-game/tests/castles.rs) reproduces all five buttons, both refusal guards (messages 0x93 and 0x122), the net materials and the CastleN.smk.
 

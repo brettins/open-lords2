@@ -23,6 +23,7 @@ crates/l2-formats/tests/save.rs	C1	93f2edca7e60	6b7e8edb019e
 crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609	bb0dd488f9d2
 crates/l2-game/build.rs	C154	344919686118	4f820bfd08c8
 crates/l2-game/build.rs	C154	f9de42bc3129	4f820bfd08c8
+crates/l2-game/src/audio/director.rs	C133	15d1b1c19eb7	91fcca97cc98
 crates/l2-game/src/audio/mod.rs	C133	15d1b1c19eb7	91fcca97cc98
 crates/l2-game/src/audio/names.rs	C133	cdef544c10db	91fcca97cc98
 crates/l2-game/src/battlefield.rs	C60	3ab509e4145a	2f31848557d2
@@ -433,12 +434,12 @@ crates/l2-testkit/tests/quirks_catalogue.rs	C62	158971b86058	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	6e16796702fc	ebb6a7ec3711
 crates/l2-testkit/tests/work_ledger.rs	C1	3f8c8bf0f873	6b7e8edb019e
 crates/l2-testkit/tests/work_ledger.rs	C1	d0ededac0b63	6b7e8edb019e
-crates/l2-view/src/campaign.rs	C134	86e184016770	d12cd2f96f79
-crates/l2-view/src/campaign.rs	C195	682a2572c563	f0bf50bfaad1
-crates/l2-view/src/campaign.rs	C49	38f05e43397f	4ce32e6c42e0
-crates/l2-view/src/campaign.rs	C57	cc211f4ea532	3b42b65157bf
-crates/l2-view/src/campaign.rs	C58	f81f70509bd8	2a1ff4d5966d
-crates/l2-view/src/campaign.rs	C63	3a082e1b8c33	34cab2e30849
+crates/l2-view/src/campaign/mod.rs	C63	3a082e1b8c33	34cab2e30849
+crates/l2-view/src/campaign/render.rs	C134	86e184016770	d12cd2f96f79
+crates/l2-view/src/campaign/render.rs	C49	38f05e43397f	4ce32e6c42e0
+crates/l2-view/src/campaign/render.rs	C57	cc211f4ea532	3b42b65157bf
+crates/l2-view/src/campaign/render.rs	C58	f81f70509bd8	2a1ff4d5966d
+crates/l2-view/src/campaign/terrain.rs	C195	682a2572c563	f0bf50bfaad1
 crates/l2-view/src/chrome.rs	C135	1638dc1c9112	39859e3b9368
 crates/l2-view/src/chrome.rs	C50	d9471b57f9d8	85416be0b69b
 crates/l2-view/src/engines.rs	C202	7ffd413ea28d	1e1898bc86a5
