@@ -346,7 +346,7 @@ step 2 as a grudge counter and step 13 as *"offer an alliance, or break one"*. S
 both of those; step 13 does neither and is a taunt timer. The rows are corrected above.
 
 **And step 10 was one digit wrong for as long as this table has existed.** It read *"create a
-**type-7 unit** and send it out"*, which `crates/l2-kingdom/src/ai.rs` then copied on as
+**type-7 unit** and send it out"*, which `crates/l2-kingdom/src/ai/mod.rs` then copied on as
 350: *"needs the unit mission byte"*
 kind 7 — [`armies.md`](armies.md) §1 has four and `g_unitTickTable` has four handlers — and
 `FUN_004A0015` reaches `Army_Create`, which spawns a **type-1 army**. The 7 goes into unit
@@ -2419,7 +2419,7 @@ Each of those is now written out in the section it belongs to.
   and 14 are read and implemented. Of the rest, **steps 1, 2 and 11 are blocked on a
   subsystem that does not exist** — the diplomatic inbox and its seven reply handlers, and
   the six unit-*mission* handlers behind `FUN_004A57AC` — and steps 4, 7, 9 and 10 are read
-  and want only fields. `crates/l2-kingdom/src/ai.rs`'s table says which is which.
+  and want only fields. `crates/l2-kingdom/src/ai/mod.rs`'s table says which is which.
 * ~~**The three AI farming styles.**~~ **Corrected: there are five, and they are
   implemented.** See §8.6 and `docs/decisions.md` C36. This is no longer why
   `kingdom.ai.personality.*.farm_style` changes nothing — it changes a game now.

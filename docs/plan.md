@@ -504,7 +504,7 @@ count, how retreat and surrender are commanded, and how the seven outcomes are c
 > type-7 unit"* was copied into `ai.rs` as *"needs the unit mission byte"* and neither reader
 > noticed they were the same wrong claim.
 
-`crates/l2-kingdom/src/ai.rs` names all fourteen handlers with addresses — real progress;
+`crates/l2-kingdom/src/ai/mod.rs` names all fourteen handlers with addresses — real progress;
 `docs/kingdom.md` §12 used to call them *"the single largest remaining piece of the kingdom
 layer"*. **Four are implemented.** The AI sets tax rates, takes its resource grants, adds
 fallow fields and recomputes its own totals. It raises no armies, moves nothing, builds no

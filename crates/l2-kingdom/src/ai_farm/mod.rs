@@ -3,7 +3,7 @@
 //!
 //! # The correction this module exists to carry
 //!
-//! `crates/l2-kingdom/src/ai.rs` used to say that AI turn step 5 is
+//! `crates/l2-kingdom/src/ai/mod.rs` used to say that AI turn step 5 is
 //! `AI_ManageFields` at `0x0049DD01`, dispatching into *"one of three labour
 //! allocators"*. **Two names for two different functions had been collapsed into
 //! one.** `[V]`, from the corpus:

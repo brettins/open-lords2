@@ -217,7 +217,7 @@ crates/l2-game/tests/turn.rs	C134	f5c6ceb24b23	d12cd2f96f79
 crates/l2-game/tests/turn.rs	C19	2b27ff0ebcc9	ce538fe9a9e8
 crates/l2-game/tests/turn.rs	C195	180d825dddf5	f0bf50bfaad1
 crates/l2-game/tests/wheat.rs	C195	94f02be180b9	f0bf50bfaad1
-crates/l2-kingdom/src/ai.rs	C13	b6951068455b	006e7d0b71a7
+crates/l2-kingdom/src/ai/mod.rs	C13	b6951068455b	006e7d0b71a7
 crates/l2-kingdom/src/ai_farm/market.rs	C149	0a8478ac5c2d	138117948441
 crates/l2-kingdom/src/ai_farm/market.rs	C149	ab2aebf82e2c	138117948441
 crates/l2-kingdom/src/ai_farm/policy.rs	C3	5a9c96365a5c	35bf3a86555f
@@ -797,12 +797,12 @@ docs/decisions.md	C27	6c197dcf7e68	1db64332cb22
 docs/decisions.md	C27	882e89b25671	1db64332cb22
 docs/decisions.md	C27	95bf59280ccd	1db64332cb22
 docs/decisions.md	C27	d8fd9b6745ad	1db64332cb22
+docs/decisions.md	C28	00019dccea9a	df5936ad8492
 docs/decisions.md	C28	86890c8b2fbc	df5936ad8492
 docs/decisions.md	C28	8a45d173ac29	df5936ad8492
 docs/decisions.md	C28	a1984c5fe2fb	df5936ad8492
 docs/decisions.md	C28	aa16a345c654	df5936ad8492
 docs/decisions.md	C28	d54a0560329e	df5936ad8492
-docs/decisions.md	C28	dae0adb9b022	df5936ad8492
 docs/decisions.md	C29	3a43aa0e9083	405b63debb8e
 docs/decisions.md	C29	6ba0c8d5c8ee	405b63debb8e
 docs/decisions.md	C29	ac62d93dca68	405b63debb8e

@@ -1154,7 +1154,7 @@ one hid two of the five farming styles and left the AI's field expansion doing n
 all.**
 
 C28's shape again, and this time the collapsed name reached the code rather than a document.
-`crates/l2-kingdom/src/ai.rs` gave AI turn step 5 as *"`AI_ManageFields` (`0x0049DD01`)"*,
+`crates/l2-kingdom/src/ai/mod.rs` gave AI turn step 5 as *"`AI_ManageFields` (`0x0049DD01`)"*,
 dispatching into *"one of three labour allocators"* that *"were not traced"*. Every clause is
 wrong in a different way:
 

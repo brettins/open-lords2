@@ -186,9 +186,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ),
     // 2.3 — the AI
     ("B23", Unswitchable("invisible: every reader tests `< 999`, so the stored 1000 changes nothing")),
-    ("B24", Unwired("crates/l2-kingdom/src/ai.rs")),
-    ("B25", Unwired("crates/l2-kingdom/src/ai.rs")),
-    ("B26", Unwired("crates/l2-kingdom/src/ai.rs")),
+    ("B24", Unwired("crates/l2-kingdom/src/ai/mod.rs")),
+    ("B25", Unwired("crates/l2-kingdom/src/ai/mod.rs")),
+    ("B26", Unwired("crates/l2-kingdom/src/ai/mod.rs")),
     ("B27", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
     ("B28", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
     ("B29", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
