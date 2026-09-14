@@ -208,6 +208,8 @@ pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
         S::Options(page) => page.screen_id(),
         // The message scroll is not a screen id in the original, and the
         // caller looks through it; the demo index is ours.
+        // `Ui_OpenConfirm` parks `g_screenId` at `0x1E`.
+        S::Confirm(_) => Some(0x1E),
         S::Message | S::Index => None,
     }
 }

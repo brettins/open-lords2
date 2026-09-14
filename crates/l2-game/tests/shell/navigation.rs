@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId};
+use l2_game::screens::confirm;
 use l2_game::screens::county::Panel;
 use l2_game::screens::conquest::ConquestScreen;
 use l2_game::screens::setup::{self, SetupPage};
@@ -94,6 +95,15 @@ fn every_screen_the_index_lists_opens_over_it_draws_and_closes_again() {
             }
         }
         assert!(canvas.count(0) < 640 * 480, "{id:?} drew nothing at all");
+        // **The campaign map no longer backs out on Escape.** In a game the key
+        // is `Menu_Quit` (`App_WndProc` `0x004B29BE`), so it raises the yes/no
+        // box (`0x1E`) and the box's answer decides — `tests/confirm_box.rs`.
+        // The index still reached it, drew it, and got a screen back.
+        if id == ScreenId::Campaign {
+            assert_eq!(m.top_id(), Some(ScreenId::Confirm(confirm::Ask::Quit)));
+            assert!(!m.should_quit());
+            continue;
+        }
         assert_eq!(m.top_id(), Some(ScreenId::Index), "{id:?} would not close");
         assert!(!m.should_quit());
     }
@@ -139,10 +149,10 @@ fn a_popup_is_drawn_over_what_was_underneath() {
     //
 // **an overlay
     // does not clear what is underneath it** - the property
-    // `docs/decisions.md` C22 was written about, and the reason
+    // `docs/decisions.md` C22 was written about
     // `Machine::draw` walks back to the last non-overlay screen. So it names
     // two graduated screens instead: the court, which paints over the map,
-    // and the Battle Master ratings, which load their own 640 x 480 page.
+    // and the Battle Master ratings
     // The claim outlives its examples, which is what a claim is for.
     assert!(CourtScreen::new().is_overlay(), "the court paints over what opened it");
     assert!(!RatingsScreen::new().is_overlay(), "the ratings screen is a page of its own");

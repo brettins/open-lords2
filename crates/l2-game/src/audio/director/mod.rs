@@ -244,6 +244,9 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
     use crate::screen::ScreenId as S;
     match id {
         S::Setup(_) | S::Menu | S::Index => true,
+        // The yes/no box (`0x1E`) is only raised by a running game — `Menu_Quit`
+        // and `Menu_NewGame` are menu-bar items, and the bar is the campaign's.
+        S::Confirm(_) => false,
         // The intro, the logo, the credits and the trailer play before any game
         // exists; the other four are raised by one. `scene` answers `Film`
         // for all eight before it asks this, so the arm is here to be answered

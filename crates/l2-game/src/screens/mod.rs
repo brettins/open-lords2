@@ -1,8 +1,8 @@
 //! The screens: the slice's five, the front end and its thirteen setup pages,
-//! the conquest interstitial, and the shells for everything else.
+//! the conquest interstitial
 //!
 //! [`shells`] is a table per screen: each entry names the
-//! `g_screenId`, the painter, the `.pl8` it loads and the `L2.eng` group it
+//! `g_screenId`
 //! draws, and one painter walks the table. A screen graduates out of it when
 //! there is state behind it to draw.
 //!
@@ -10,10 +10,10 @@
 //! the game logic cannot yet open can still be reached.
 //!
 //! None of these modules refers to another, with two exceptions that are worth
-//! naming: the county panel calls `map::season_name` to print a season, and the
+//! naming: the county panel calls `map::season_name` to print a season
 //! raise-army screen calls `armoury::page` to paint the room it stands in.
 //! Both are painting helpers, not transitions — no screen here constructs, owns
-//! or pushes another, and the only way from one to another is a [`Transition`]
+//! or pushes another
 //! value handed back to the machine.
 //!
 //! The second one is the binary's own arrangement:
@@ -22,7 +22,7 @@
 //! over the armoury. Sharing the painter here is sharing the painter there.
 //!
 //! **[`Transition::Pass`] extends that rule and does not break it.** A screen
-//! may decline an event, and the machine then offers it to the screen
+//! may decline an event
 //! underneath — so an event can reach a screen that did not receive it, while
 //! the *routing* stays the machine's. Two things follow for anyone adding a
 //! screen. Your `handle` may be called for a click that landed on something
@@ -38,9 +38,9 @@
 //! but all three share a painter and a county, so they are one screen and a
 //! phase here. The job popup is genuinely separate — the original reaches it
 //! from the village *and* from the campaign sidebar and returns to whichever —
-//! so it is its own [`ScreenId`] and the machine owns the stack.
+//! so it is its own [`ScreenId`]
 //!
-//! # Most of them are insets, and the machine composites them
+//! # Most of them are insets
 //!
 //! **The original has no screen clear anywhere.** `Screen_Draw` picks a painter
 //! and the painter fills a rectangle; whatever is outside it is still there
@@ -112,6 +112,7 @@ pub mod army;
 pub mod battle;
 pub mod battlefield;
 pub mod castle;
+pub mod confirm;
 pub mod conquest;
 pub mod county;
 pub mod court;
