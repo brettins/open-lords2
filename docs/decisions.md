@@ -12289,3 +12289,53 @@ Castle designer: Screen_CastleBuild `0x00419789`, Screen_CastleBuildPanel `0x004
 Prisoners and ransom: "ransom", "captive", "hostage" have 0 hits in Lords2.exe and L2.eng; "prisoner" has 1, in the winner's ending speech at L2.eng offset 79178; Battle_CheckOutcome `0x00477DFC` names only g_battleLoser and g_battleWinnerOwner; a beaten lord is eliminated by Realm_RecountStrength `0x0049B42B` with group 224 "Defeat!" (194 for an AI); Msg_DrawWindow `0x0047309E`'s 0x0D capture letters, groups 114 to 126, are county capture; docs/battle.md §6.4.
 
 Four docs/battle.md table rows got their closing pipe back after the prose hook cut it; prose-llm.js now keeps it (be4987c).
+
+---
+
+**C231 — Letters, film skips, fire arrows, realm 3 AI, and battle banners.**
+
+Letters: Screen_HandleInput 0x004DDA30 at screen 0x1A tests Widget_Test first, only setting
+g_editActive = 1 and Edit_Commit on decline; g_diploLetterDraft (200 bytes, 199 typable)
+reseed on each Diplo_OpenCompliment 0x0043618B via Edit_Begin; four opening drafts from
+L2.eng group 226 indices 0..3, copied by Options_SetDefaults 0x004AE310 cut at first
+byte under 0x20; AI never reads text [V], all readers are drawers (Msg_DrawDiplomacy
+0x00475E07, Msg_DrawBeyondLetter 0x00476488) or net fields; seven Diplo_Reply handlers
+switch on kind and counters alone; ours per-screen and reseed on each open [I].
+Tests a_letter_opens_on_its_default_and_the_first_key_types_over_it,
+the_four_letter_kinds_open_on_four_different_drafts,
+the_field_holds_two_hundred_characters_and_the_send_keeps_one_less,
+the_gift_and_the_two_county_requests_have_no_draft,
+a_letter_open_does_not_stop_the_cancel_button in crates/l2-game/tests/diplomacy.rs;
+ablation 3 red.
+
+Help: Opt_GameHelpContents 0x00434942 is WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1),
+the only WinHelp call; L2help.hlp ships at 2,980,023 bytes (Oct 1996), out of scope;
+Menu_HelpHowDoI 0x0043480C and four siblings enqueue category 0x13 message ids 0x123..0x127;
+ours now enqueue test the_five_help_topics_put_their_message_on_the_ring; g_helpWindowGeom
+0x004D6EB8 unbuilt, row game-help.
+
+Film skips: Smk_Skip 0x0042DF30 only early exit with three callers all reproduced
+(0x0042FF10 any key via DAT_004EABB4, left and right releases); missing film-skip-sync-latch
+DAT_00553FC8 and film-skip-leave-game Net_LeaveGame 0x004B743B need multiplayer,
+film-skip-season-end FUN_0043AD25 unreachable since only top screen stepped; screen 0x44's
+two arms dead; census 580 to 581.
+
+Fire arrow: BattleUnit_Order 0x00479E90 clears unit +0x30 on every order, writes
+(y*80+x)*8 to targetCell under fifth argument (DAT_0053E874, hovered woodland) for
+side-0 unit with missile figure, no enemy under cursor, +0x08 < 5; BattleMan_StateCloseToAttack
+0x00484BF9 copies that onto every arrow's +0x44; Missile_Step's first test lights that cell;
+state 17 looses on BattleMan_FireMissile's cadence; Missile::fire_arrow became +0x44;
+test an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns; ablation inside.
+
+Realm 3: Ai_ManageCountyFarms 0x0049DD01 dispatches on lord's style byte [1,1,0,9],
+lords 1 and 2 go to Ai_FarmStyleGrazing 0x004A42E3 clearing grain every season, realm 3's
+lord is 2; ours matched; test two_of_the_four_lords_graze_so_their_realms_never_sow;
+differential 932/914, 271 of 279.
+
+Banner: Screen_BattleOutcome 0x00423241 has three arms (g_battleChoiceOwner == 0 short box pair
+12/13; g_optAnimations == 0 short box outcome pair; else dim tall box, Ui_DrawInsetRect(0x27,0x48,
+0x192,0xC2)), all reproduced; nothing animates, recess is a well for Smacker film
+Battle_CheckOutcome 0x00477DFC plays timed by Smk_OnFinished's 5001st frame; gap is ordering
+(push film before banner paints), a fix reverted because gating push on draw flag lets picture
+decide battle (painting_the_battlefield_with_its_artwork_does_not_change_the_battle red at 620).
+
