@@ -340,7 +340,7 @@ crates/l2-mods/tests/simulation/main.rs	C11	865f0a2676e0	07dfad15821c
 crates/l2-net/src/quirks/mod.rs	C26	3666e846a6ab	e8179d1f76a8
 crates/l2-net/src/quirks/mod.rs	C26	e75f82770f0b	e8179d1f76a8
 crates/l2-net/src/quirks/mod.rs	C62	e187f3a3e544	ebb6a7ec3711
-crates/l2-net/tests/lobby/lobby_tests.rs	C62	e3882440edf8	ebb6a7ec3711
+crates/l2-net/tests/lobby/lobby_tests/main.rs	C62	e3882440edf8	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C142	e86d29076348	d13324698105
 crates/l2-scenario/src/lib.rs	C149	a0cfa584b507	138117948441
 crates/l2-scenario/src/lib.rs	C153	cb538723cd5a	c724d7afe0dd
