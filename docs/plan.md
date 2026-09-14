@@ -431,7 +431,7 @@ restatement of a known gap.
 
 ### 2.1 Nothing moves during a turn
 
-`crates/l2-game/src/turn.rs` answers the phase 2, 3, 5 and 6 waits `true` the moment they
+`crates/l2-game/src/turn/mod.rs` answers the phase 2, 3, 5 and 6 waits `true` the moment they
 start — *"None of those exist yet"*. Those phases are army movement, peasant mobs, supply
 transports and merchants. The campaign unit layer landed **today**, in `l2-kingdom`, and is
 exercised only by `tests/campaign.rs`. **Armies are done as a library and absent from the game
