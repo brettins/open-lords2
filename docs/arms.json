@@ -593,7 +593,7 @@
       "gesture": "left-release",
       "addr": "0x0040E7E4",
       "what": "Ui_OkButton(0x180, g_villageTopY + 0x118, 1) -- mode 1, the bevelled corner picture -- and Ui_OkButtonClicked's 24x24 box on it.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -662,7 +662,7 @@
       "addr": "0x0042FF10",
       "what": "While CARRYING peasants, a right release is `g_screenId = 0x02; g_villageDragCluster = 0; FUN_004120E0(); FUN_00432893(1);` -- it puts the selection back and STAYS IN THE VILLAGE. 0x05, the rubber band, has no right-button arm at all: the band ends on the release of the left button and nothing else.",
       "note": "A WRONG ARM, not a missing one, and the second one this file has found. Ours popped the screen from every phase, so a player who picked peasants up and changed his mind lost the village as well as the selection -- and nothing looked broken, because leaving on a right click is what the idle village really does.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -1226,7 +1226,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "On the idle village a right release sets g_screenId = 0 and takes the village with it. One of three ways out, the others being the corner picture and the sidebar's own destinations.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -2169,7 +2169,7 @@
       "gesture": "left-press",
       "addr": "0x004393EB",
       "what": "Village_BandStart arms the band on a press inside x 0..0x1FF, y top..top+0x178 and returns 1 -- taking the interface to 0x05 -- once the pointer is NINE OR MORE pixels from where the button went down. Below nine it is still a click.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -2180,7 +2180,7 @@
       "gesture": "left-release",
       "addr": "0x00439541",
       "what": "Village_BandRelease: on the button being released, 2 (to 0x06, carrying) when the band caught somebody and 1 (back to 0x02) when it did not.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -2191,7 +2191,7 @@
       "gesture": "drag",
       "addr": "0x0043958A",
       "what": "Village_BoxSelect marks every icon inside the rubber band, every frame. Two rules that are not obvious from outside: a band reaching into a SECOND cluster abandons the whole selection, and shortfall icons -- value 1, the figures that stand for workers the job wants and has not got -- are skipped explicitly and cannot be picked up.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -2202,7 +2202,7 @@
       "gesture": "left-press",
       "addr": "0x004399B0",
       "what": "Village_Drop sees the NEXT press and drops there. Where a drop lands is not a rectangle: Village_GridAt reads vill_gd8.pl8 at ((x - 0x40) >> 3) + ((y - top) >> 3) * 0x2D, and the shipped file is 1,824 bytes = 24 + 45 x 40 exactly.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -2213,7 +2213,7 @@
       "gesture": "double-click",
       "addr": "0x00439DF0",
       "what": "Village_DoubleClick, between Village_BandStart and Village_ClickJob in the ladder: a job below its floor fills from the idle pool and a job above its ceiling empties into it, and a double click on the idle cluster itself sheds every job and only then fills every job. Windows decides what a double click is -- WM_LBUTTONDBLCLK arrives INSTEAD OF the second WM_LBUTTONDOWN.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -2224,7 +2224,7 @@
       "gesture": "left-release",
       "addr": "0x0043A123",
       "what": "A press that never travelled nine pixels is a click, and a click opens screen 0x0F for whatever cluster it landed on -- but not for 300 MILLISECONDS. Village_ClickJob is gated on DAT_004EABF0, which the frame poll sets only when a pending click has stood that long, and a double click clears the pending click in the poll itself. The popup opening a fraction late is deliberate.",
-      "ours": "crates/l2-game/src/screens/village.rs",
+      "ours": "crates/l2-game/src/screens/village/mod.rs",
       "evidence": "V"
     },
     {
@@ -3653,7 +3653,7 @@
       "gesture": "key",
       "what": "Escape leaves the idle village and cancels a drag in progress; Enter leaves.",
       "why": "No key reaches any of the village's three screen ids in the original.",
-      "ours": "crates/l2-game/src/screens/village.rs"
+      "ours": "crates/l2-game/src/screens/village/mod.rs"
     }
   ]
 }
