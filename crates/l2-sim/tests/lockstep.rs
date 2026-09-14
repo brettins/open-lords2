@@ -48,7 +48,7 @@ fn lineup() -> Battle {
 /// A battle wearing the `Simulation` trait.
 ///
 /// Kept in the test so the simulation crate keeps no
-/// dependency on the network crate. The real wiring belongs in the application,
+/// dependency on the network crate. The real wiring belongs in the application
 /// which is the only thing that legitimately knows about both.
 struct NetBattle {
     battle: Battle,
@@ -64,7 +64,7 @@ impl NetBattle {
 }
 
 /// An order is an opcode and two figure indices to pair into a duel.
-/// Deliberately tiny: what is under test is the transport and the determinism,
+/// Deliberately tiny: what is under test is the transport and the determinism
 /// not a command language.
 const OP_ENGAGE: u8 = 1;
 
@@ -355,7 +355,7 @@ fn a_peer_running_different_rules_is_caught() {
 // two peers if it is ever taken from a system source, and exactly the kind of
 // thing a checksum over positions alone would notice only long after the fact.
 //
-// Everything below runs the real dispatch - `ai::update_all_units`, the three
+// Everything below runs the real dispatch - `ai::update_all_units`
 // tables, the seventeen handlers - on both peers over the same socket the tests
 // above use.
 
@@ -367,7 +367,7 @@ use l2_sim::{Figure, State};
 ///
 /// The mover is deliberately crude - one cell per nine ticks, straight at the
 /// unit's destination - because what is under test is the AI's decisions and
-/// the determinism of its draw, not the mover. `l2_sim::runner` owns the real
+/// the determinism of its draw
 /// one, and `two_peers_running_a_whole_battle_stay_bit_identical` below runs it.
 struct AiNetBattle {
     units: Units,
@@ -501,7 +501,7 @@ impl Simulation for AiNetBattle {
 
     fn encode_state(&self, out: &mut Canonical) {
         out.section("ai");
-        // The generator itself, so a divergence in the draw is caught on the
+        // The generator itself
 // tick it happens.
         let (state, increment) = self.ai.rng.parts();
         out.u64(state);
@@ -645,13 +645,13 @@ const OP_ORDER: u8 = 2;
 
 struct RunnerNetBattle {
     runner: BattleRunner,
-    /// Set on one peer only, to prove the seam still goes red on the real
+    /// Set on one peer only
     /// simulation and not only on the toys.
     nudge_at: Option<Tick>,
 }
 
 /// Markers twenty cells apart, so the whole opening of a
-/// battle - deployment, the player order, the AI's first three thinks and the
+/// battle - deployment
 /// march that follows - fits inside seven hundred frames. Everything else is
 /// the blank template.
 fn close_field() -> l2_sim::Battlefield {
@@ -752,7 +752,7 @@ impl Simulation for RunnerNetBattle {
         out.end_section();
 
         // **Fire.** Whether a wood is spreading decides which cells catch next
-        // frame, and the size class decides how fast a man in it dies.
+        // frame
         out.section("fire");
         out.bool(self.runner.wood_fire);
         out.u8(self.runner.battle_size_class());
@@ -761,13 +761,13 @@ impl Simulation for RunnerNetBattle {
         // **The castle.** `SiegeState`'s doc comment has claimed since it was
         // written that it "is part of the lockstep checksum for the same reason
         // everything else there is". It was not — nothing here mentioned it,
-        // and the census below only walks `Missile` and `Fighter`, so the claim
+        // and the census below only walks `Missile` and `Fighter`
         // could not fail. It is true now and the census walks `SiegeState` too.
         //
 // The **battlefield itself** goes in with it, folded
         // written out cell by cell because this runs once a tick over 6,400
         // cells. On a field battle nothing here ever changes and the fold is a
-        // constant; in a siege the moat fills in, walls come down and the
+// constant; in a siege the moat fills in
         // drawbridge drops, and every one of those changes what the pathfinder
         // can reach for both armies.
         out.section("siege");
@@ -921,7 +921,7 @@ fn two_peers_running_a_whole_battle_stay_bit_identical() {
 
 /// A green determinism test proves nothing unless something happened. Both
 /// halves must be visible: the player's order arrived over the socket and moved
-/// his pikemen, and the AI decided for itself and moved its peasants.
+/// his pikemen
 #[test]
 fn both_the_players_order_and_the_ais_decision_reached_the_men() {
     let mut peers = connected_pair(0x0B47_0002, &RunnerNetBattle::new);
@@ -1062,6 +1062,13 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
         ("Fighter", "sim", "the index of the figure this Fighter is, and both walks are by index"),
         ("Fighter", "troop", "fixed at deployment and never written again"),
         ("Fighter", "side", "fixed at deployment and never written again"),
+        // **The pose machine is presentation** — `docs/netcode.md`. Nothing in
+        // this crate reads any of the three to decide anything; the renderer
+        // reads them to pick a frame and a drawn facing. `facing` itself is
+        // hashed, and it is the one the mover uses.
+        ("Fighter", "facing_drawn", "drawn facing (+0x0D); presentation, read only by the renderer"),
+        ("Fighter", "fidget", "Anim_StandA2's shuffle counter (+0x0B); presentation"),
+        ("Fighter", "fidget_period", "seeded from index and x (+0x0C); presentation"),
     ];
 
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -1126,7 +1133,7 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
 ///
 /// Deliberately literal: a struct header ending in `struct Name {`, and fields
 /// at exactly one level of indentation. Anything cleverer would be a parser
-/// that can be wrong quietly, and the shape assertion above is what catches it
+/// that can be wrong quietly
 /// being wrong loudly.
 fn fields_of(src: &str, want: &str) -> Vec<String> {
     let header = format!("struct {want} {{");
