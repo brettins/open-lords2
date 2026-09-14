@@ -57,11 +57,9 @@ impl Screen for MapScreen {
             // 3) Menu_Quit(); else g_quitRequest = 1;` — inside a game the key
             // *is* File > Quit, which is `Ui_OpenConfirm(0, …)`, and not a way
             // out on its own. Ours used to pop straight off the map.
-            // **No `// arm:` marker yet**: `docs/arms.json` still files
-            // `0x004B29BE/escape-quits-outside-the-game` as *missing*, and
-            // `tests/arms.rs` rejects a marker for a record that says so. The
-            // half built here is the `g_appPhase == 3` branch; the record is
-            // the lead's to flip.
+            // The half built here is the `g_appPhase == 3` branch; the front end's
+            // `g_quitRequest = 1` is not.
+            // arm: 0x004B29BE/escape-quits-outside-the-game key
             Event::KeyDown(Key::Escape) => {
                 return Transition::Push(ScreenId::Confirm(confirm::Ask::Quit))
             }
