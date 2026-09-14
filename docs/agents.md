@@ -128,6 +128,25 @@ which diffs against `main`, maps the touched files to crates and runs `cargo tes
 each. The **integrator** runs the full workspace suite, once, per merge — not every agent
 on every edit.
 
+## The oracle check: a second agent reads the delivery against the binary
+
+A green suite proves the code does what its tests say, not what the original does. The
+AI turn ran inside End Turn from the first playable build (c026a579, 2026-09-07: *"one
+step per realm per tick"*, a driver invented to make the spine turn over) until the
+player noticed on 2026-09-14; `Turn_Tick`'s phase-4 arm had always said every frame.
+Nothing between those dates re-read the arm, because every later agent took the
+existing order as established.
+
+So every delivery that touches behaviour gets a **read-only oracle check** before it
+merges: a fresh Opus agent, 25-call budget, given the branch diff and nothing else.
+For each behaviour in the diff it: names the function and address the code cites (rule
+5), reads that function in `tools/oracle/decomp/` (dossier.js first), and answers three
+questions: *same order of operations, same guards, same constants?* A behaviour with no
+address cited is itself a finding. The report is a list of mismatches with the line of
+decompilation beside the line of Rust, and *nothing else*; "matches" lines are not
+written. The lead fixes or files each mismatch as a ledger row before the merge. Doc
+chores, test fixtures and pure moves skip the check.
+
 ## The prose pass
 
 The player's rule, 2026-09-13: the plainest listing of facts, and losing a clause is the
