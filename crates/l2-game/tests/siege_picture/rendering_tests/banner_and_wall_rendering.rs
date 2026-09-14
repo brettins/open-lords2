@@ -1,5 +1,8 @@
 #![allow(unused_imports)]
 use super::*;
+use super::picture_comparison::*;
+use super::cell_selection::*;
+use super::*;
 use super::tables_and_sheets::*;
 use l2_game::battlefield::LiveBattle;
 use l2_game::game::Assets;
@@ -11,140 +14,6 @@ use l2_sim::terrain::{tileset, DIM};
 use l2_sim::Troop;
 use l2_view::scene::{self, Ground};
 use l2_view::Canvas;
-
-/// **The install's own sheets, drawn.** A level-4 siege and a field battle of
-/// the same shape are painted through the whole screen stack; the two pictures
-/// must differ over most of the viewport, and the siege's must have no holes.
-///
-/// The probe is the viewport `FUN_004BC020` stores — `x 0…480`, `y 24…472` —
-/// written out
-///
-/// Ablation, run: `Ground::for_battle` answering `Field` always — red, 212,253
-/// of 215,040 viewport pixels never painted.
-#[test]
-fn a_siege_and_a_field_battle_of_the_same_shape_are_different_pictures() {
-    let dir = l2_testkit::install!();
-    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
-    let a = Assets::load(&platform.vfs).expect("assets load");
-    let art = a.battle.as_ref().expect("the install has the battle art");
-    assert!(art.has_ground(Ground::Stone), "the install ships T32_stn1.pl8 and T32_stn2.pl8");
-    assert!(art.has_ground(Ground::Wood), "the install ships T32_wod1.pl8 and T32_wod2.pl8");
-    assert_eq!(art.ground(Ground::Stone).tiles.frame_count(), 256, "T32_stn1.pl8");
-    assert_eq!(
-        art.ground(Ground::Stone).tiles2.as_ref().expect("slot 1").frame_count(),
-        247,
-        "T32_stn2.pl8"
-    );
-
-    let (mut gs, mut ms) = staged(Some(4));
-    let siege = paint(&mut ms, &mut gs, &a);
-    let (mut gf, mut mf) = staged(None);
-    let plain = paint(&mut mf, &mut gf, &a);
-
-    let (x0, y0, x1, y1) = (0usize, 24usize, 480usize, 472usize);
-    let mut differ = 0;
-    let mut holes = 0;
-    for y in y0..y1 {
-        for x in x0..x1 {
-            if siege.at(x, y) != plain.at(x, y) {
-                differ += 1;
-            }
-            if siege.at(x, y) == 0 {
-                holes += 1;
-            }
-        }
-    }
-    let total = (x1 - x0) * (y1 - y0);
-    assert_eq!(holes, 0, "{holes} of {total} viewport pixels were never painted");
-    assert!(
-        differ * 2 > total,
-        "only {differ} of {total} viewport pixels differ between a siege and a field battle"
-    );
-    eprintln!("siege picture: {differ} of {total} viewport pixels differ from the field's");
-}
-
-/// **A cell's selector decides which sheet its pixels come from**, at the
-/// pixel. One cell is switched to slot 1 and back with everything else held
-/// still, and the tile under it must change.
-///
-/// Ablation, run: `let sheet = Some(tiles)` in `draw_terrain` — red here, and
-/// red on the picture test with 16,145 unpainted pixels.
-#[test]
-fn the_cell_selector_moves_a_tile_between_the_two_sheets() {
-    let dir = l2_testkit::install!();
-    let read = |n: &str| {
-        std::fs::read(dir.join(n)).map_err(|e| format!("{n}: {e}"))
-    };
-    let one = l2_view::sheet::Sheet::new(read("T32_stn1.pl8").expect("stn1")).expect("stn1");
-    let two = l2_view::sheet::Sheet::new(read("T32_stn2.pl8").expect("stn2")).expect("stn2");
-
-    let mut field = l2_sim::siege::our_castle(4);
-    let cam = scene::Camera { x: 30, y: 20 };
-    let cell = (cam.y + 5) * DIM + (cam.x + 5);
-    let (px, py) = (scene::ORIGIN_X + 5 * scene::TILE, scene::ORIGIN_Y + 5 * scene::TILE);
-
-    // Frame 4 of each sheet, which the two files do not agree on.
-    field.cells[cell].gfx = 4;
-    field.cells[cell].elevation = 0;
-    field.cells[cell].terrain = 0;
-
-    field.cells[cell].flags2 = 0;
-    let mut a = Canvas::screen();
-    scene::draw_terrain(&mut a, &field, &one, Some(&two), cam);
-
-    field.cells[cell].flags2 = tileset::SECOND;
-    let mut b = Canvas::screen();
-    scene::draw_terrain(&mut b, &field, &one, Some(&two), cam);
-
-    let mut moved = 0;
-    for y in 0..scene::TILE {
-        for x in 0..scene::TILE {
-            let (x, y) = ((px + x) as usize, (py + y) as usize);
-            if a.at(x, y) != b.at(x, y) {
-                moved += 1;
-            }
-        }
-    }
-    assert!(moved > 100, "only {moved} of 1024 pixels moved with the selector");
-    assert_eq!(a.diff_count(&b), moved, "nothing outside that one cell changed");
-}
-
-/// **The raised-ground overlay** — `Battlefield_Draw32`'s second pass, frame
-/// `terrain + 0x8B` out of slot 1, over any cell at elevation 1, 2 or 3.
-///
-/// Ablation, run: gate the overlay block on `false` — red, *"the overlay
-/// painted nothing"*.
-#[test]
-fn a_raised_cell_takes_a_second_blit_from_the_second_sheet() {
-    let dir = l2_testkit::install!();
-    let read = |n: &str| std::fs::read(dir.join(n)).expect("a sheet");
-    let one = l2_view::sheet::Sheet::new(read("T32_stn1.pl8")).expect("stn1");
-    let two = l2_view::sheet::Sheet::new(read("T32_stn2.pl8")).expect("stn2");
-
-    let mut field = l2_sim::siege::our_castle(4);
-    let cam = scene::Camera { x: 30, y: 20 };
-    let cell = (cam.y + 6) * DIM + (cam.x + 6);
-    field.cells[cell].flags2 = 0;
-    field.cells[cell].gfx = 0xAC;
-    field.cells[cell].terrain = 1;
-
-    let mut flat = Canvas::screen();
-    field.cells[cell].elevation = 0;
-    scene::draw_terrain(&mut flat, &field, &one, Some(&two), cam);
-
-    let mut raised = Canvas::screen();
-    field.cells[cell].elevation = 2;
-    scene::draw_terrain(&mut raised, &field, &one, Some(&two), cam);
-
-    let moved = flat.diff_count(&raised);
-    assert!(moved > 0, "the overlay painted nothing");
-    // Terrain 1 → frame 0x8C, and it is drawn over the cell and nowhere else.
-    assert!(
-        moved <= (scene::TILE * scene::TILE) as usize,
-        "{moved} pixels moved for a one-cell overlay"
-    );
-    assert!(two.frame(0x8C).is_some(), "T32_stn2.pl8 carries the overlay frame");
-}
 
 /// **The keep flies the garrison's banner** — `BattleBanner_Draw`
 /// (`FUN_004BD574`, `0x004BD574`), reached from the overlap pass
@@ -330,4 +199,5 @@ fn a_wall_under_the_catapult_breaks_up_in_the_picture() {
     );
     eprintln!("wall damage: byte +0 {seed} -> {damaged}, {moved} pixels");
 }
+
 
