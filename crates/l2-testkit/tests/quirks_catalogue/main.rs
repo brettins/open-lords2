@@ -224,7 +224,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         Unswitchable("not reproduced: the campaign hover is traced and the UI arm does not exist yet"),
     ),
     // 2.5 — the battle
-    ("B45", Unwired("crates/l2-sim/src/unit.rs — l2-sim takes no Quirks value yet")),
+    ("B45", Unwired("crates/l2-sim/src/unit/mod.rs — l2-sim takes no Quirks value yet")),
     ("B46", Unwired("crates/l2-sim/src/formation.rs")),
     ("B47", Unwired("crates/l2-sim/src/formation.rs")),
     ("B48", Unwired("crates/l2-sim/src/runner/mod.rs")),
