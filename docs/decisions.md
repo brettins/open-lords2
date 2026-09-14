@@ -6768,7 +6768,7 @@ It now has the same treatment, in two halves that meet in the middle:
   from the decompilation by `sounds.js --rebuild`, and `status` / `ours` / `note` ours.
 * `node tools/oracle/sounds.js --check` — the file against the corpus, both directions, plus
   the four generated fields per row. Runs where the corpus does.
-* `crates/l2-game/tests/sfx.rs` — the file against the `// sfx:` markers, both directions.
+* `crates/l2-game/tests/sfx/main.rs` — the file against the `// sfx:` markers, both directions.
   Runs everywhere.
 
 **One deliberate difference from `arms.rs`, and it is not a relaxation.** A `// sfx:` marker

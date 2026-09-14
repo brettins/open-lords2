@@ -2,7 +2,7 @@
   "_note": [
     "Every place Lords2.exe asks for a sound, and what we do about each one.",
     "docs/audio-triggers.md is the prose; this is the counted form of it, and",
-    "crates/l2-game/tests/sfx.rs is what stops it rotting.",
+    "crates/l2-game/tests/sfx/main.rs is what stops it rotting.",
     "",
     "The `sites` array is GENERATED from the decompilation --- the id, addr,",
     "prim, class and arg columns all come out of `node tools/oracle/sounds.js",

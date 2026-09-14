@@ -694,7 +694,7 @@ turned out to be counted because their names resolved
   **And the count that says what to do next is 80 of 143**, in `docs/audio.json` — the
   audio equivalent of the input-arm audit, and it now has the same two checks behind it
   that `docs/arms.json` has: `node tools/oracle/sounds.js --check` compares it with the
-  decompilation, and `crates/l2-game/tests/sfx.rs` compares it with the `// sfx:` markers
+  decompilation, and `crates/l2-game/tests/sfx/main.rs` compares it with the `// sfx:` markers
   in `crates/`. Every site is `reproduced` (80), `blocked` (29), `missing` (31) or `dead` (3), and a
   `blocked` record is required by the test to **name the mechanic** it is waiting for.
 

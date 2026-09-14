@@ -35,7 +35,7 @@ It has one now, and it is the same shape as the arms audit's:
 | artefact | compares | runs where |
 |---|---|---|
 | `sounds.js --check` | `docs/audio.json` against the **decompilation** | wherever the corpus is |
-| `crates/l2-game/tests/sfx.rs` | `docs/audio.json` against the **`// sfx:` markers** | everywhere |
+| `crates/l2-game/tests/sfx/main.rs` | `docs/audio.json` against the **`// sfx:` markers** | everywhere |
 | a person | the marker against what the code does | nowhere mechanical |
 
 The marker is `// sfx: <id>[,<id>…]` beside the call, and the id is

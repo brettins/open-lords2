@@ -105,7 +105,7 @@ At `4ea2669` plus this branch: **2,168 tests**, C1..C136 and three `CNEW` placeh
 105: **And the standing gap those numbers do not show.** Three of our inventories are *checked*
 106: against the tree and the rest are prose. `crates/l2-game/tests/arms.rs` asserts set equality in
 107: both directions between `docs/arms.json`'s `reproduced` records and the `// arm:` markers in
-`crates/`; `crates/l2-game/tests/sfx.rs` does the same for `docs/audio.json` and `// sfx:`, with
+`crates/`; `crates/l2-game/tests/sfx/main.rs` does the same for `docs/audio.json` and `// sfx:`, with
 `node tools/oracle/sounds.js --check` holding the *other* end of that file against the
 decompilation; `crates/l2-sim/tests/oracle.rs` opens `Lords2.exe` at its fixed `0x400000` base and
 compares three battle tables byte for byte against our constants. **`docs/draws.md` and
