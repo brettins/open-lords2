@@ -368,9 +368,9 @@ impl Tiles {
         t
     }
 
-    /// The three planes the simulation reads.
+    /// The four planes the simulation reads.
     pub fn campaign_map(&self) -> CampaignMap {
-        CampaignMap::from_planes(&self.content, &self.flags, &self.county)
+        CampaignMap::from_planes(&self.content, &self.flags, &self.bank, &self.county)
             .expect("Tiles holds MAP_TILES of each")
     }
 

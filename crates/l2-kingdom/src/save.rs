@@ -589,7 +589,21 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 27 with `VERSION` at 26 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
-pub const VERSION: u32 = 27;
+///
+/// * 28 — **the map's bank plane**, [`crate::map::CampaignMap::bank`] (tile
+///   record `+2`): one byte a tile over 4,096 tiles, **+4,096**.
+///
+///   `Map_ResolvePick` (`0x0046D5FE`) sets `DAT_005651BC` on
+///   `(tile.bank & 0x1C) == 4`, and that global is the *whole* of
+///   `TileInfo_Draw`'s (`0x0041C208`) mountain-or-woodland test on a `0x08`
+///   rough tile. Nothing else in the record answers it.
+///
+///   **Refusal**, under entry 16's rule: a defaulted load feeds a rule. A zero
+///   bank calls every mountain in the kingdom a wood.
+///
+///   *Written as 28 with `VERSION` at 27 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 28;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -895,6 +909,8 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     out.u32(crate::map::MAP_TILES as u32);
     out.raw(&campaign.map.terrain);
     out.raw(&campaign.map.flags);
+    // Version 28 — tile `+2`, the bank plane. `crate::map::CampaignMap::bank`.
+    out.raw(&campaign.map.bank);
     out.raw(&campaign.map.county);
 
     out.section("mercenaries");
@@ -941,11 +957,12 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, L
     if tiles != crate::map::MAP_TILES {
         return Err(LoadError::MapSize(tiles as u32));
     }
-    for plane in [0usize, 1, 2] {
+    for plane in [0usize, 1, 2, 3] {
         let bytes = input.raw(crate::map::MAP_TILES)?;
         let target = match plane {
             0 => &mut campaign.map.terrain,
             1 => &mut campaign.map.flags,
+            2 => &mut campaign.map.bank,
             _ => &mut campaign.map.county,
         };
         target.copy_from_slice(bytes);

@@ -419,6 +419,9 @@ fn furnish_campaign(k: &mut Kingdom) {
     for i in 0..l2_kingdom::MAP_TILES {
         k.campaign.map.terrain[i] = (i % 24) as u8 + 1;
         k.campaign.map.flags[i] = (i % 7) as u8 + 1;
+        // Tile `+2`, VERSION 28 — the bank plane, whose `0x1C` bits say
+        // mountain from wood.
+        k.campaign.map.bank[i] = (i % 31) as u8 + 1;
         k.campaign.map.county[i] = (i % 14) as u8 + 1;
     }
 
@@ -709,7 +712,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // ramp's own input, and `Industry_Produce` is the only writer.
     // +34 at version 27 for the two round-robin field cursors, county `+0x15A`
     // and `+0x15B`: one byte each over 17 county slots.
-    assert_eq!(c.finish().len, 63_338, "the state encoding changed - bump VERSION?");
+    // +4,096 at version 28 for the map's bank plane, tile `+2` — one byte a
+    // tile. `Map_ResolvePick` reads `bank & 0x1C` and nothing else answers
+    // mountain from wood.
+    assert_eq!(c.finish().len, 67_434, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,
@@ -781,13 +787,14 @@ fn no_record_slot_is_silenced() {
             k.campaign.routes.set_row(route, row);
         });
     }
-    for (plane, name) in ["terrain", "flags", "county"].into_iter().enumerate() {
+    for (plane, name) in ["terrain", "flags", "bank", "county"].into_iter().enumerate() {
         for tile in [0usize, 1, l2_kingdom::MAP_TILES / 2, l2_kingdom::MAP_TILES - 1] {
             check(format!("map {name} tile {tile}"), &move |k: &mut Kingdom| {
                 let m = &mut k.campaign.map;
                 let target = match plane {
                     0 => &mut m.terrain,
                     1 => &mut m.flags,
+                    2 => &mut m.bank,
                     _ => &mut m.county,
                 };
                 target[tile] = target[tile].wrapping_add(1);

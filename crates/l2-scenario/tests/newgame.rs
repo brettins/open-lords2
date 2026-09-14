@@ -349,6 +349,22 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     // it, so this one is exact over all 4,096 tiles.
     assert_eq!(a.map.county, b.map.county, "the county plane");
 
+    // **The bank plane, on the one question a rule asks it.**
+    // `Map_ResolvePick` (`0x0046D5FE`) reads `(tile.bank & 0x1C) == 4` and
+    // `TileInfo_Draw` (`0x0041C208`) has nothing else to tell a mountain from a
+    // wood. Both paths agree tile for tile, and every mountain is rough.
+    let mountains_save: Vec<usize> = (0..MAP_TILES).filter(|&t| a.map.is_mountain(t)).collect();
+    let mountains_map: Vec<usize> = (0..MAP_TILES).filter(|&t| b.map.is_mountain(t)).collect();
+    assert_eq!(mountains_save, mountains_map, "the Mtns bank");
+    assert!(!mountains_save.is_empty(), "England has mountains");
+    for &t in &mountains_save {
+        assert_eq!(
+            a.map.flags[t] & l2_kingdom::map::flags::ROUGH,
+            l2_kingdom::map::flags::ROUGH,
+            "tile {t}: the Mtns bank on a tile the flags do not call rough"
+        );
+    }
+
     // The flags plane differs on exactly the dwelling plots. Both paths leave
     // bit `0x10` set at load; `County_UpdateDwellings` clears it on every plot
     // beyond what the population supports, and England's turn-one population of
