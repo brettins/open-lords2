@@ -76,7 +76,8 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   const modBody = files.mod.join("\n");
   const decl = names.map(n => `mod ${n};\npub use ${n}::*;`).join("\n") + "\n";
   // The mod declarations go after the module doc (`//!` lines) and before the first item.
-  const docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && l.trim() !== "");
+  if (!names.length) { console.error("split-llm: the plan put every line in mod; nothing to split"); process.exit(1); }
+  const docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && !/^#!\[/.test(l) && l.trim() !== "");
   const modLines = files.mod.slice(); modLines.splice(docEnd < 0 ? 0 : docEnd, 0, "", decl);
   fs.writeFileSync(path.join(root, modPath), modLines.join("\n").replace(/\n{3,}/g, "\n\n") + "\n");
   for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), prelude(n) + files[n].join("\n") + "\n");
