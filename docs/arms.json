@@ -582,7 +582,7 @@
       "addr": "0x0040E7E4",
       "what": "Ui_OkButtonClicked -- a left release inside the 24x24 box at (DAT_0055CE78, DAT_0057C8A0), which is wherever the last Ui_OkButton call drew the corner picture. Ui_OkButton is the only writer of those two globals and stashes only its LAST call, so on a screen that draws two corner pictures only the second is clickable.",
       "note": "The picture is a cursor arrow going into a black hole, not a tick: of System.pl8's 84 frames, 0x33 and 0x10 are the 4th and 5th darkest at 15.3% and 11.5% near-black against a median 1.2%. docs/screens-county.md 2.7.",
-      "ours": "crates/l2-game/src/screens/county.rs",
+      "ours": "crates/l2-game/src/screens/county/mod.rs",
       "evidence": "V"
     },
     {
@@ -1123,7 +1123,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "After the six guards, a right release sets g_screenId = 0. It closes from ANYWHERE, the strip included: every guard in the chain tests a left press or a left release, so none of them consumes a right one.",
-      "ours": "crates/l2-game/src/screens/county.rs",
+      "ours": "crates/l2-game/src/screens/county/mod.rs",
       "evidence": "V"
     },
     {
@@ -2133,7 +2133,7 @@
       "gesture": "left-press",
       "addr": "0x00438E3B",
       "what": "CountyStrip_JobClick: the 162x128 plate at y = 302, farm jobs left of x = 0x230 and industry right of it, row = (y - 0x12E) / pitch, and the row's stored value IS the labour slot. It sets g_jobPanelJob = slot + 1, dismisses any message, sets DAT_005533F4 = 1 (meaning 'opened from the map, so close to the map') and opens screen 0x0F. Gated on ownership; a row index past the end of its column's list returns 0 rather than falling through to the other column.",
-      "note": "The two lists and the two pitches are FUN_0040FEC1 and CountyStrip_Draw: the farm column is cattle, grain, reclamation with pitch 0x3C or 0x2D, and the industry column is wood, iron, stone, weapons, castle -- gated on industry[n].enabled, the byte Industry_ToggleFromMap XORs -- with pitch 0x3C, 0x2D or 0x1E. crates/l2-game/src/screens/county.rs holds both and draw_produce_rows now reads the same list it hit-tests.",
+      "note": "The two lists and the two pitches are FUN_0040FEC1 and CountyStrip_Draw: the farm column is cattle, grain, reclamation with pitch 0x3C or 0x2D, and the industry column is wood, iron, stone, weapons, castle -- gated on industry[n].enabled, the byte Industry_ToggleFromMap XORs -- with pitch 0x3C, 0x2D or 0x1E. crates/l2-game/src/screens/county/mod.rs holds both and draw_produce_rows now reads the same list it hit-tests.",
       "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
@@ -2235,7 +2235,7 @@
       "gesture": "left-press",
       "addr": "0x0043A379",
       "what": "Ration_SliderClick, and it is 0x19's ONE difference from the other three panels: it is inserted as an extra guard after Sidebar_ButtonClicked, so dragging the ration split does not dismiss the panel. Caps at 200 and 325 step by one, the track 224..323 jumps to mouseX - 224.",
-      "ours": "crates/l2-game/src/screens/county.rs",
+      "ours": "crates/l2-game/src/screens/county/mod.rs",
       "evidence": "V"
     },
     {
@@ -3244,7 +3244,7 @@
       "addr": "0x004BA9C8",
       "what": "Screen_HandleInput's widget tables rather than Screen_FrameInput's arms: g_taxWidgets (0x004DD790) and g_rationWidgets (0x004DD7C0), two 24-byte records each, up then down, with the UP arrow to the LEFT of the pair. ALL FOUR RECORDS ARE KIND 4, so all four auto-repeat on the ramp at 0x004D2748.",
       "note": "GESTURE CORRECTED, and this is the one a player reported: 'holding on a button doesn't seem to make it go up faster. I recall you could click an up arrow and after a few seconds the number would go up fast.' The record named both tables and nobody read their kind byte -- which is exactly the hole the gesture field was added to close, in the record that was already carrying the address that would have answered it. Screen_HandleInput is the LEFT BUTTON ONLY -- it names no right-button global anywhere in 3,832 bytes -- which is why every right-button behaviour in the game is copy-pasted forty times into Screen_FrameInput instead. docs/decisions.md C148.",
-      "ours": "crates/l2-game/src/screens/county.rs",
+      "ours": "crates/l2-game/src/screens/county/mod.rs",
       "evidence": "V"
     },
     {
@@ -3300,7 +3300,7 @@
       "gesture": "key",
       "what": "Escape and Enter close a panel; Up and Down cycle the four panels; Left and Right move the open panel's own value.",
       "why": "The original has no keyboard route out of a panel, none between them, and none into them: the four are four screen ids with no ordering at all, and the only VK_ESCAPE handler in the binary quits the game. Kept because a keyboard player has nothing else; recorded so the count of 'things we do that the original does not' can be taken.",
-      "ours": "crates/l2-game/src/screens/county.rs"
+      "ours": "crates/l2-game/src/screens/county/mod.rs"
     },
     {
       "id": "ours/court-keyboard-close",
