@@ -1024,6 +1024,12 @@ Three further facts, each of which could have gone the other way:
 
 * **`grep -n "esign" tools/oracle/decomp/*.c` returns nothing** across all 2,452 decompiled
   1026: functions, and the install holds two executables: `Lords2.exe` and the *map* editor.
+* **The game's own help text calls the chooser the design.** **[V]** `design` occurs twice
+  in `L2.eng` and zero times in `Lords2.exe`: *"Start with a simple castle design, then
+  upgrade as your materials and builders increase"* and *"The castle screen displays five
+  castle types. As you click on each castle, the display in the upper right tells you the
+  materials required for that design…"*. Rule 6 — that is the screen's specification, and
+  it describes a five-way pick, not an editor.
 * **`castles.dat` is a siege-damage cache, not a design file** — 16 blocks of `0x3200` bytes,
   which is 6,400 battlefield cells × `{frame, flags}`. Its only writer is the end-of-siege
   bookkeeper and its only reader fires when `castleDegraded == 2`, so that re-besieging a
