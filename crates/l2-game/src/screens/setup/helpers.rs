@@ -11,7 +11,7 @@ use crate::text::{self, TextField};
 
 /// `Edit_Begin(&g_options, 0x10, 0xC0, 0)` — the name field's own three
 /// arguments, in one place because three call sites open it.
-fn begin_name(seed: &str) -> TextField {
+pub(super) fn begin_name(seed: &str) -> TextField {
     TextField::begin(seed, text::NAME_MAX_TYPED, text::NAME_MAX_PIXELS, text::Kind::Text)
 }
 
@@ -23,7 +23,7 @@ fn begin_name(seed: &str) -> TextField {
 /// `0x35`/`0x28`). Three different rectangles that all look like a border, and
 /// this module drew the wrong one of the three on pages 3 and 13 until the
 /// painters were read side by side.
-fn outline_rect(canvas: &mut Canvas, r: Rect, colour: u8) {
+pub(super) fn outline_rect(canvas: &mut Canvas, r: Rect, colour: u8) {
     canvas.fill_rect(r.x, r.y, r.w, 1, colour);
     canvas.fill_rect(r.x, r.y + r.h - 1, r.w, 1, colour);
     canvas.fill_rect(r.x, r.y, 1, r.h, colour);
@@ -32,7 +32,7 @@ fn outline_rect(canvas: &mut Canvas, r: Rect, colour: u8) {
 
 /// What a rectangle on one of these pages does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Action {
+pub(super) enum Action {
     /// The n'th menu item or button of this page.
     Item(usize),
     /// Open custom-game option n's drop-down.

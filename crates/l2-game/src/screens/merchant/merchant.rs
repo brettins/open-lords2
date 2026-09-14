@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 use super::*;
-use super::trade::*;
+use super::trade_part::*;
 use l2_kingdom::trade::{self, Good, Order, Quote, Refusal};
 use l2_view::{text, Canvas};
 use crate::input::{Event, Key, Rect};

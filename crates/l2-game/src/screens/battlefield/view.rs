@@ -20,11 +20,11 @@ use crate::turn::{self, TurnStep};
 /// [`crate::screens::armoury::Anim`]'s — a pulse is 20 ms rounded **up** to
 /// whole frames, and every fourth is `g_pulse80`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-struct Banner {
+pub(super) struct Banner {
     acc_ms: u32,
     div: u8,
     /// `DAT_004E5B18`, 0 … 7.
-    phase: u8,
+    pub(super) phase: u8,
 }
 
 impl Banner {
@@ -78,17 +78,17 @@ impl Banner {
 /// return from an outcome film. The raster survives the push, so ours does not
 /// need to — it is up to twenty frames behind for that one moment instead of
 /// none.
-struct Overview {
-    raster: Canvas,
+pub(super) struct Overview {
+    pub(super) raster: Canvas,
     /// `DAT_004E5D74`.
-    row: usize,
+    pub(super) row: usize,
     /// `g_mapRedraw`, as this panel sees it: the next visit paints all eighty
     /// rows. Set on entry, cleared by the visit itself.
-    full: bool,
+    pub(super) full: bool,
 }
 
 impl Overview {
-    fn new() -> Overview {
+    pub(super) fn new() -> Overview {
         Overview {
             raster: Canvas::new(l2_view::scene::OVERVIEW_SIDE, l2_view::scene::OVERVIEW_SIDE),
             row: 0,
@@ -653,7 +653,7 @@ fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view:
 /// moves with `mapX`/`mapY`, and `FUN_00491B1F` moves those at the *start* of a
 /// crossing. A man walking east is on the minimap's next cell for the whole of
 /// it, as he is in the viewport. **[V]**
-fn overview_occupants(game: &crate::Game, live: &LiveBattle) -> Vec<u8> {
+pub(super) fn overview_occupants(game: &crate::Game, live: &LiveBattle) -> Vec<u8> {
     let mut occupants = vec![0u8; l2_sim::terrain::CELLS];
     for i in 0..live.runner.fighters.len() {
         if !live.runner.is_alive(i) {

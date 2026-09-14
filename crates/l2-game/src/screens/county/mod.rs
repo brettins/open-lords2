@@ -445,12 +445,6 @@ pub struct CountyScreen {
     press: Press,
 }
 
-impl CountyScreen {
-}
-impl Screen for CountyScreen {
-}
-impl CountyScreen {
-}
 /// Geometry tests. The canvas tests that read numbers back off the pixels live
 /// in `tests/screens_county.rs`, because they need the shipped install.
 ///

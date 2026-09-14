@@ -73,8 +73,8 @@ mod types;
 pub use types::*;
 mod battle;
 pub use battle::*;
-mod ai;
-pub use ai::*;
+mod ai_part;
+pub use ai_part::*;
 mod tests;
 pub use tests::*;
 

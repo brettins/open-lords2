@@ -22,7 +22,7 @@ use crate::shell::{self, font, Pen};
 ///
 /// Each `arm!` is the marker and the kind. The two scroll arrows are one
 /// handler, `SaveLoad_Scroll`, told apart by the hotspot id, so they share one.
-fn widgets() -> [Widget; 4] {
+pub(super) fn widgets() -> [Widget; 4] {
     const SCROLL: crate::press::Kind = crate::arm!("0x00434346/saveload-scroll", Repeat);
     [
         Widget::new(widget_rect(CONFIRM), crate::arm!("0x004342F3/saveload-confirm", Repeat)),
@@ -33,11 +33,11 @@ fn widgets() -> [Widget; 4] {
 }
 
 /// Where the save directory is written: inside the box's bottom edge.
-const DIR_LINE: (i32, i32) = (BOX_X + 4, BOX_Y + BOX_ROWS * 16 - 12);
+pub(super) const DIR_LINE: (i32, i32) = (BOX_X + 4, BOX_Y + BOX_ROWS * 16 - 12);
 
 /// Everything we put on this screen that the original does not say is prefixed,
 ///
-fn ours(detail: &str) -> String {
+pub(super) fn ours(detail: &str) -> String {
     format!("OURS: {detail}")
 }
 
@@ -50,7 +50,7 @@ fn ours(detail: &str) -> String {
 /// the only test of the box's edges ran with a short temporary directory, and
 /// it went red the day that directory got longer. The left is what goes
 /// because the right is the part that says which directory this is.
-fn directory_line(dir: &str) -> String {
+pub(super) fn directory_line(dir: &str) -> String {
     let room = BOX_X + BOX_COLS * 16 - 4 - DIR_LINE.0;
     let whole = ours(dir);
     if text::width(&whole) <= room {

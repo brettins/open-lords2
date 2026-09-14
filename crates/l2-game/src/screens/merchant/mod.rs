@@ -208,8 +208,8 @@
 
 mod merchant;
 pub use merchant::*;
-mod trade;
-pub use trade::*;
+mod trade_part;
+pub use trade_part::*;
 
 use l2_kingdom::trade::{self, Good, Order, Quote, Refusal};
 use l2_view::{text, Canvas};

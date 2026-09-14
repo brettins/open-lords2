@@ -265,7 +265,7 @@ pub const CANCEL: (i32, i32, usize, i32) = (BOX_X + 352, BOX_Y + 64, 31, 32);
 pub const SCROLL_UP: (i32, i32, usize, i32) = (BOX_X + 384, BOX_Y + 144, 35, 24);
 pub const SCROLL_DOWN: (i32, i32, usize, i32) = (BOX_X + 384, BOX_Y + 176, 37, 24);
 
-fn widget_rect(w: (i32, i32, usize, i32)) -> Rect {
+pub(super) fn widget_rect(w: (i32, i32, usize, i32)) -> Rect {
     Rect::new(w.0, w.1, w.3, w.3)
 }
 

@@ -72,7 +72,7 @@ const WIDGETS: [(i32, i32, i32); 6] = [
     (312, 168, 32), // frame 31, cross   -> FUN_004352F2
 ];
 
-fn widget_rect(i: usize) -> Rect {
+pub(super) fn widget_rect(i: usize) -> Rect {
     let (x, y, s) = WIDGETS[i];
     Rect::new(WIDGET_ORIGIN.0 + x, WIDGET_ORIGIN.1 + y, s, s)
 }

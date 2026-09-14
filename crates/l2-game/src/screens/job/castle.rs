@@ -2,7 +2,7 @@
 use super::*;
 use super::screen::*;
 use super::common::*;
-use super::blacksmith::*;
+use super::blacksmith_part::*;
 use super::bodies::*;
 use l2_kingdom::county::County;
 use l2_kingdom::tables::{

@@ -45,7 +45,7 @@ impl Panel {
     /// panel's shape: `Panel_Ration` opens
     /// `rows = g_optArmiesEat == 1 ? 2 : 0; Ui_DrawBox(0x80, 0x60, 0x12, rows + 0xF)`,
     /// making room for the foraging line at y = 336. Everything else ignores it.
-    fn box_cells_for(self, armies_eat: bool) -> (i32, i32, i32, i32) {
+    pub(super) fn box_cells_for(self, armies_eat: bool) -> (i32, i32, i32, i32) {
         match self {
             Panel::Population => POPULATION_BOX,
             Panel::Happiness => HAPPINESS_BOX,
@@ -924,11 +924,11 @@ impl CountyScreen {
 /// — with nothing left to contradict it. `[V]` records that somebody read it,
 /// not that somebody read it correctly. Twenty call sites in the original
 /// inherit it and **eighteen beyond this panel are unaudited.**
-fn line_text(ctx: &Ctx, l: Line) -> String {
+pub(super) fn line_text(ctx: &Ctx, l: Line) -> String {
     eng(ctx, l.group, l.index, l.ours)
 }
 
-fn ration_name(level: i32) -> &'static str {
+pub(super) fn ration_name(level: i32) -> &'static str {
     RATION_NAMES
         .get(level.clamp(0, RATION_LEVEL_COUNT as i32 - 1) as usize)
         .copied()

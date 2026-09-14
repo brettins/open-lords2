@@ -2,7 +2,7 @@
 use super::*;
 use super::engine::*;
 use super::battle::*;
-use super::ai::*;
+use super::ai_part::*;
 use super::tests::*;
 use l2_kingdom::ai::{self, AiStep};
 use l2_kingdom::conquest::Attack;
@@ -231,7 +231,7 @@ pub fn realm_turn_ended(game: &Game, realm: usize) -> bool {
 /// the two are different: the first consumes a report and the second would hand
 /// the same report back for ever.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Resume {
+pub(super) enum Resume {
     /// Start a turn, or carry one on with nothing to contribute.
     Start,
     /// The answer to *"will you take the field?"*.
@@ -248,7 +248,7 @@ enum Resume {
 /// resumed at the wrong one would run `begin_phase` twice or lose a season
 /// report, so the stage is stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-enum Stage {
+pub(super) enum Stage {
     /// Start a tick: count it, and run the phase's first-call work.
     #[default]
     Begin,
@@ -261,11 +261,11 @@ enum Stage {
 
 /// What the second half of an interrupted tick still has to do.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Tail {
-    contacts: Vec<Contact>,
-    report: Option<SeasonReport>,
+pub(super) struct Tail {
+    pub(super) contacts: Vec<Contact>,
+    pub(super) report: Option<SeasonReport>,
     /// The battle the sweep raised, still unresolved.
-    battle: Option<Encounter>,
+    pub(super) battle: Option<Encounter>,
 }
 
 /// **A turn, mid-flight.** Everything [`end_turn`]'s loop used to hold in
@@ -287,29 +287,29 @@ pub struct TurnProgress {
     ///
     /// So [`advance`] drops the progress
     /// and there is nothing left to show. See [`tick_units_only`].
-    idle: bool,
-    ticks: u32,
-    steps: usize,
-    contacts: Vec<Contact>,
-    pending_battles: Vec<Encounter>,
+    pub(super) idle: bool,
+    pub(super) ticks: u32,
+    pub(super) steps: usize,
+    pub(super) contacts: Vec<Contact>,
+    pub(super) pending_battles: Vec<Encounter>,
     /// The AI's resource grant runs once a turn. See `run_handler`.
-    granted: bool,
-    stage: Stage,
+    pub(super) granted: bool,
+    pub(super) stage: Stage,
     /// Phase 2's assault pump while it is loaded.
-    siege: Option<SiegePhase>,
+    pub(super) siege: Option<SiegePhase>,
     /// The question on the table, if the turn is suspended.
-    question: Option<Question>,
+    pub(super) question: Option<Question>,
     /// The assault the question is about, already launched and not yet settled.
     /// `None` when the question is about a field battle.
-    pending_assault: Option<l2_kingdom::siege::Assault>,
-    tail: Option<Tail>,
+    pub(super) pending_assault: Option<l2_kingdom::siege::Assault>,
+    pub(super) tail: Option<Tail>,
     /// Battles settled this turn, oldest first — what [`TurnOutcome::battles`]
     /// is built from.
-    reports: Vec<BattleReport>,
+    pub(super) reports: Vec<BattleReport>,
     /// The one the player has not been shown yet. Held separately because a
     /// screen has to see it *before* the turn ends, and because dropping it on
     /// the floor would be the difference between a battle happening and a
     /// battle being noticed.
-    unseen: Option<BattleReport>,
+    pub(super) unseen: Option<BattleReport>,
 }
 

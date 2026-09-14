@@ -2,7 +2,7 @@
 use super::*;
 use super::engine::*;
 use super::types::*;
-use super::ai::*;
+use super::ai_part::*;
 use super::tests::*;
 use l2_kingdom::ai::{self, AiStep};
 use l2_kingdom::conquest::Attack;
@@ -67,7 +67,7 @@ pub fn resolve_battle(game: &mut Game, encounter: Encounter) -> Option<Encounter
 /// Splitmix64's finaliser over a mix of the turn counter, the two slots and the
 /// county. Any deterministic mix would do; what matters is that no term is a
 /// clock, an address or an iteration order.
-fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
+pub(super) fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
     let mut z = (kingdom.turn_count as u64)
         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
         ^ (e.mover as u64) << 32
@@ -118,7 +118,7 @@ fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
 /// > Nothing between the two reads the elimination. Interleaving the step 0s
 /// > properly is the fix, and it belongs with whoever next touches the AI
 /// > dispatcher.
-fn begin_phase(game: &mut Game, phase: Phase) {
+pub(super) fn begin_phase(game: &mut Game, phase: Phase) {
     game.kingdom.begin_unit_phase(phase);
     match phase {
         // **Phase 2 is sieges, and this is where they run.** The variant keeps

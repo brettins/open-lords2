@@ -11,24 +11,46 @@ const root = path.resolve(__dirname, "..", "..");
 // Every .rs under <dir>, recursively: <dir> may be one split module or a whole crate's src.
 const files = () => { const out = []; const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (e.name.endsWith(".rs")) out.push(p); } }; walk(path.join(root, dir)); return out; };
 for (let round = 0; round < 8; round++) {
-  const out = cp.spawnSync("cargo", ["check", "-p", crate, "--tests"], { cwd: root, encoding: "utf8" });
+  const out = cp.spawnSync("cargo", ["check", "-p", crate, "--tests", "--message-format=short"], { cwd: root, encoding: "utf8", maxBuffer: 64 << 20 });
   const text = (out.stdout || "") + (out.stderr || "");
   const names = new Set();
   for (const m of text.matchAll(/error\[E0624\]: (?:method|associated function) `(\w+)` is private/g)) names.add(["fn", m[1]]);
   for (const m of text.matchAll(/error\[E0603\]: (?:function|struct|enum|constant|type alias|module|static) `(\w+)` is private/g)) names.add(["item", m[1]]);
-  for (const m of text.matchAll(/error\[E0616\]: field `(\w+)` of struct `(\w+)` is private/g)) names.add(["field", m[1]]);
+  for (const m of text.matchAll(/error\[E0616\]: field `(\w+)` of struct `([\w:]+)` is private/g)) names.add(["field", m[2].split("::").pop() + "." + m[1]]);
+  // A submodule that kept the parent's `use` lines and got them again from the prelude:
+  // the second copy goes (E0252 names the line).
+  for (const m of text.matchAll(/^(crates[^:\n]+\.rs):(\d+):(\d+): error\[E0252\]: the name `(\w+)` is defined multiple times/gm)) names.add(["dupuse", m[1].replace(/\\/g, "/") + ":" + m[2] + ":" + m[3] + ":" + m[4]]);
   // A private item of a sibling is "not found" rather than "private" through a glob.
-  for (const m of text.matchAll(/error\[E0425\]: cannot find (?:value|function) `(\w+)` in this scope/g)) names.add(["item", m[1]]);
-  for (const m of text.matchAll(/error\[E0412\]: cannot find type `(\w+)` in this scope/g)) names.add(["item", m[1]]);
-  for (const m of text.matchAll(/error\[E0433\]: failed to resolve: (?:could not find|cannot find) `(\w+)` in `super`/g)) names.add(["item", m[1]]);
-  const errors = (text.match(/^error/gm) || []).length;
+  for (const m of text.matchAll(/error\[E04(?:22|25)\]: cannot find (?:value|function|type|struct, variant or union type) `(\w+)` in this scope/g)) names.add(["item", m[1]]);
+  for (const m of text.matchAll(/error\[E04(?:12|33)\]: cannot find type `(\w+)` in this scope/g)) names.add(["item", m[1]]);
+  // `super::x` from a file that moved one level deeper: the path gains a `super::`.
+  for (const m of text.matchAll(/^(crates[^:\n]+\.rs):(\d+):(\d+): error\[E0433\]: (?:failed to resolve: )?(?:could not find|cannot find) `(\w+)` in `super`/gm)) names.add(["deeper", m[1].replace(/\\/g, "/") + ":" + m[2] + ":" + m[3] + ":" + m[4]]);
+  const errors = (text.match(/^(crates[^:\n]+:\d+:\d+: )?error/gm) || []).length;
   if (!names.size) { console.log(`widen: round ${round}, ${errors} error(s) left, none about visibility`); process.exit(errors ? 1 : 0); }
   let changed = 0;
+  // Only the token at the reported column leaves the `use` line: one element of a braced
+  // list, or the whole line for a bare path.
+  const dups = {}; for (const [kind, name] of names) if (kind === "dupuse") { const [f, l, c] = name.split(":"); (dups[f] = dups[f] || {})[l] = (dups[f][l] || []).concat(Number(c)); }
+  for (const f of Object.keys(dups)) {
+    const p = path.resolve(root, f); if (!fs.existsSync(p)) continue; const ls = fs.readFileSync(p, "utf8").split("\n"); let n = 0;
+    for (const l of Object.keys(dups[f])) { const s = ls[l - 1]; if (!/^\s*(pub(\([a-z]+\))? )?use .*;\s*$/.test(s || "")) continue;
+      const br = s.match(/\{([^}]*)\}/);
+      if (br) { let at = s.indexOf("{") + 1; const parts = []; for (const raw of br[1].split(",")) { const tok = raw.trim(); const col = at + raw.indexOf(tok) + 1; at += raw.length + 1; if (tok && !dups[f][l].includes(col)) parts.push(tok); }
+        ls[l - 1] = parts.length ? s.replace(/\{[^}]*\}/, parts.length === 1 ? parts[0] : `{${parts.join(", ")}}`) : null; }
+      else ls[l - 1] = null;
+      n++; }
+    if (n) { fs.writeFileSync(p, ls.filter(x => x !== null).join("\n")); changed++; } }
+  for (const [kind, name] of names) if (kind === "deeper") {
+    const [f, l, c, id] = name.split(":"); const p = path.resolve(root, f); if (!fs.existsSync(p)) continue;
+    const ls = fs.readFileSync(p, "utf8").split("\n"); const s = ls[l - 1] || ""; const at = Number(c) - 1;
+    if (s.slice(at, at + id.length) === id && s.slice(at - 7, at) === "super::") { ls[l - 1] = s.slice(0, at) + "super::" + s.slice(at); fs.writeFileSync(p, ls.join("\n")); changed++; }
+  }
   for (const [kind, name] of names) for (const f of files()) {
+    if (kind === "dupuse" || kind === "deeper") continue;
     let s = fs.readFileSync(f, "utf8"), t = s;
     if (kind === "fn") t = s.replace(new RegExp(`^(\\s*)fn ${name}\\b`, "m"), `$1pub(super) fn ${name}`);
     else if (kind === "item") t = s.replace(new RegExp(`^(\\s*)(fn|struct|enum|const|type|static|mod|trait) ${name}\\b`, "m"), `$1pub(super) $2 ${name}`);
-    else t = s.replace(new RegExp(`^(\\s{4})${name}:`, "m"), `$1pub(super) ${name}:`);
+    else { const [st, fld] = name.split("."); const i = s.search(new RegExp(`^(pub(\\([a-z]+\\))? )?struct ${st}\\b[^;{]*\\{`, "m")); if (i >= 0) { const end = s.indexOf("\n}", i); const body = s.slice(i, end).replace(new RegExp(`^(\\s{4})${fld}:`, "m"), `$1pub(super) ${fld}:`); t = s.slice(0, i) + body + s.slice(end); } }
     if (t !== s) { fs.writeFileSync(f, t); changed++; }
   }
   console.log(`widen: round ${round}, ${names.size} private name(s), ${changed} widened`);

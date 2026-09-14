@@ -55,7 +55,7 @@ use crate::game::Game;
 /// [`l2_kingdom::ai::begin_realm_turn`] is this prologue's `l2-kingdom` half and
 /// has never had a production caller; it is left as the crate's own statement of
 /// the rule, and this is the call site.
-fn step_zero(game: &mut Game, realm: u8) {
+pub(super) fn step_zero(game: &mut Game, realm: u8) {
 // The original reads the guard before the recount,
     // recount *eliminates* still gets its totals rebuilt and its offer cleared.
     if game.kingdom.realms[realm as usize].strength == 0 {

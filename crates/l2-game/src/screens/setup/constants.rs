@@ -21,7 +21,7 @@ pub const ITEM_X: i32 = 0xE0;
 pub const ITEM_Y: i32 = 0x5B;
 pub const ITEM_STEP: i32 = 0x24;
 /// The label sits five pixels into the recess.
-const ITEM_TEXT: i32 = 5;
+pub(super) const ITEM_TEXT: i32 = 5;
 
 pub fn item_rect(index: usize) -> Rect {
     Rect::new(ITEM_X, ITEM_Y + index as i32 * ITEM_STEP, ITEM_W, ITEM_H)
@@ -129,10 +129,10 @@ pub const SHIELD_OF_HOTSPOT: [u8; 6] = [1, 1, 2, 3, 4, 5];
 /// the same 164 × 24 again at `x = 0x16E`, with the label centred in 160
 /// pixels from two inside each recess.
 pub const PAIR_X: [i32; 2] = [0x6E, 0x16E];
-const PAIR_TEXT_X: [i32; 2] = [0x70, 0x170];
+pub(super) const PAIR_TEXT_X: [i32; 2] = [0x70, 0x170];
 pub const PAIR_Y: i32 = 0x74;
 pub const PAIR_W: i32 = 0xA4;
-const PAIR_TEXT_W: i32 = 0xA0;
+pub(super) const PAIR_TEXT_W: i32 = 0xA0;
 
 // ------------------------------------------------- the custom game's tables
 
@@ -180,26 +180,26 @@ pub const OPTION_LIST: [(i32, i32, i32); 12] = [
 pub const OPTION_COUNT: [usize; 12] = [2, 2, 4, 2, 4, 4, 6, 4, 5, 3, 7, 2];
 
 /// The value box is six cells wide and three tall.
-const OPTION_BOX_W: i32 = 6 * 16;
-const OPTION_BOX_H: i32 = 3 * 16;
+pub(super) const OPTION_BOX_W: i32 = 6 * 16;
+pub(super) const OPTION_BOX_H: i32 = 3 * 16;
 /// And the label above it wraps at a hundred pixels.
-const OPTION_LABEL_W: i32 = 100;
+pub(super) const OPTION_LABEL_W: i32 = 100;
 
 /// Page 7's three buttons — *"Cancel"*, *"Start"*, *"Defaults"* — centred in
 /// 76 pixels at `y = 0xC6`. Page 8 adds *"Load"* at `x = 399`.
 pub const CUSTOM_BUTTONS: [(i32, usize); 4] = [(0xA5, 12), (0xF3, 13), (0x141, 14), (399, 15)];
 pub const CUSTOM_BUTTON_Y: i32 = 0xC6;
-const CUSTOM_BUTTON_W: i32 = 0x4C;
+pub(super) const CUSTOM_BUTTON_W: i32 = 0x4C;
 
 /// The map list on the custom-game pages: `misc_sel.pl8` frame 0x10 at
 /// `(0x1F0, 9)`, five rows of 16 pixels of group 101 from `(0x1F2, 0x8E)`, the
 /// selected row filled 105 × 16 from `(0x1F0, 0x8D)`.
 pub const MAP_LIST_X: i32 = 0x1F0;
-const MAP_LIST_TEXT_X: i32 = 0x1F2;
+pub(super) const MAP_LIST_TEXT_X: i32 = 0x1F2;
 pub const MAP_LIST_Y: i32 = 0x8D;
 pub const MAP_LIST_ROW: i32 = 0x10;
 pub const MAP_LIST_ROWS: usize = 5;
-const MAP_LIST_W: i32 = 0x69;
+pub(super) const MAP_LIST_W: i32 = 0x69;
 /// Group 101 has sixty entries, one per map slot.
 pub const MAP_COUNT: usize = 60;
 

@@ -657,7 +657,7 @@ pub struct MapScreen {
 /// palette arithmetic
 #[derive(Debug, Clone)]
 struct Fading {
-    phase: u8,
+    pub(super) phase: u8,
 /// Held
     /// written immediately because the numbers it names change *during* the
     /// dark, and announcing them early is the abruptness the fade hides.

@@ -177,7 +177,7 @@ impl Walker {
     /// tidied: the frame that *overflows* the pickup run is `0x0D`, which is
     /// also the first carrying-walk frame, so the reset happens under a picture
     /// that is already correct and the join is invisible.
-    fn pulse(&mut self, pulse80: bool) {
+    pub(super) fn pulse(&mut self, pulse80: bool) {
         if !self.active {
             return;
         }

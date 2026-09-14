@@ -419,7 +419,7 @@ const HUMAN_PLAYERS: usize = 1;
 /// same frame layout as `Panels.pl8` (`docs/screens-county.md` §4.1).
 const BOX_SHEET: &str = "Panels2.pl8";
 /// `misc_sel.pl8` — `g_miscCtySheet` while the setup screen is up.
-const ICON_SHEET: &str = "Misc_sel.pl8";
+pub(super) const ICON_SHEET: &str = "Misc_sel.pl8";
 
 // --------------------------------------------------------------- the screen
 

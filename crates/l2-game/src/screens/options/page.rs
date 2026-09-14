@@ -142,7 +142,7 @@ impl Row {
 }
 
 /// `Ui_OkButton`'s corner picture, and every options widget, is 24 × 24.
-const WIDGET: i32 = 24;
+pub(super) const WIDGET: i32 = 24;
 
 /// **`System.pl8` frame 25**, the `+0x04` base frame of all twelve widget
 /// records (`node tools/oracle/kinds.js`: `f25` on every `Opt_*` row), and

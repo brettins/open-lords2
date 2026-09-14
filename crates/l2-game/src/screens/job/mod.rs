@@ -228,12 +228,13 @@
 //!   has no castle arm to call it from — it returns row `0x0A` for nothing.
 //!   **Not this module's** — it is `info.rs`'s, and it is left alone here.
 
+use crate::screen::{Ctx, Screen, ScreenId, Transition};
 mod screen;
 pub use screen::*;
 mod common;
 pub use common::*;
-mod blacksmith;
-pub use blacksmith::*;
+mod blacksmith_part;
+pub use blacksmith_part::*;
 mod bodies;
 pub use bodies::*;
 mod castle;
@@ -347,7 +348,7 @@ pub struct JobScreen {
 /// One `L2.eng` string, from the install if it has one and from our own
 /// transcription if it does not — the same shape
 /// [`screens::county`](crate::screens::county) uses.
-fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
+pub(super) fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
     let s = ctx.assets.shell.text(group, index);
     if s.is_empty() {
         fallback.to_uppercase()

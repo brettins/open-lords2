@@ -298,7 +298,7 @@ impl ComposeScreen {
     /// Each `arm!` is the marker and the kind in one token. The gift stepper's
     /// two records share one handler and one arm, so they share one
     /// declaration.
-    fn widgets(&self) -> Vec<Widget> {
+    pub(super) fn widgets(&self) -> Vec<Widget> {
         const GIFT_STEP: crate::press::Kind = crate::arm!("0x00436372/diplo-gift-step", Repeat);
         let (send, cancel) = self.buttons();
         let mut out = vec![
@@ -645,7 +645,7 @@ impl Screen for ComposeScreen {
                     pen.eng(canvas, GROUP, REQUEST_PROMPT + k, 0x50, 0x140, font::TEXT);
                 } else {
                     let w = pen.eng(canvas, GROUP, REQUEST_PICKED + k, 0x50, 0x140, font::TEXT);
-                    let index = super::army::county_name_index(ctx, self.county);
+                    let index = super::super::army::county_name_index(ctx, self.county);
                     pen.eng(canvas, COUNTY_NAME_GROUP, index, w, 0x140, font::TEXT);
                 }
                 pen.eng(canvas, GROUP, DISPATCH, 0x140, 0xE0, font::TEXT);

@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
 use super::screen::*;
-use super::blacksmith::*;
+use super::blacksmith_part::*;
 use super::bodies::*;
 use super::castle::*;
 use l2_kingdom::county::County;
@@ -20,21 +20,21 @@ use crate::shell::{count_noun, font, Face, Pen};
 /// round the given box, clipped to the screen.
 /// lighting. `Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)` puts the job's
 /// `iconvill.pl8` picture one pixel inside it.
-const ICON_BOX: Rect = Rect::new(64, 104, 50, 50);
+pub(super) const ICON_BOX: Rect = Rect::new(64, 104, 50, 50);
 /// The outline's colour, which is the painter's own fifth argument.
-const ICON_BOX_INK: u8 = 0x3F;
+pub(super) const ICON_BOX_INK: u8 = 0x3F;
 
 /// `Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)` — the job's picture, one
 /// pixel inside [`ICON_BOX`]. `Iconvill.pl8` is 17 frames of 48 × 48 and this
 /// panel is its only consumer.
-const ICON_SHEET: &str = "Iconvill.pl8";
-const ICON_AT: (i32, i32) = (0x41, 0x69);
+pub(super) const ICON_SHEET: &str = "Iconvill.pl8";
+pub(super) const ICON_AT: (i32, i32) = (0x41, 0x69);
 
 /// `DAT_004D2974`, the frame per job, **1-based in the original** and shifted
 /// here. The last entry is the painter's own override: the table says 10 for
 /// job 9 and `if (g_jobPanelJob == 9) local_c = 0x10;` says 16. Read out of the
 /// shipped exe; the sheet's 17 frames are the check on the 16.
-const JOB_ICON: [usize; JOB_COUNT] = [0, 2, 3, 5, 6, 7, 8, 9, 16];
+pub(super) const JOB_ICON: [usize; JOB_COUNT] = [0, 2, 3, 5, 6, 7, 8, 9, 16];
 
 // ------------------------------------------------------------ the five bodies
 
@@ -64,7 +64,7 @@ pub const NOUN_BUILDER: usize = 0x26;
 pub const NOUN_SEASON: usize = 0x42;
 
 /// The ink of every line of every body: the painters' literal `0x3F`.
-const BODY_INK: u8 = font::TEXT;
+pub(super) const BODY_INK: u8 = font::TEXT;
 /// `Ui_DrawDelta`'s `colourNeg` at all six body call sites.
 const DELTA_NEG: u8 = 0xF9;
 
@@ -207,14 +207,14 @@ pub(crate) fn ours(group: usize, index: usize) -> &'static str {
 /// `Eng_DrawString(group, index, x, y, &g_fontBody, 0x3F)`. Returns the x the
 /// next piece of the sentence starts at.
 #[allow(clippy::too_many_arguments)]
-fn say(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, group: usize, index: usize, x: i32, y: i32) -> i32 {
+pub(super) fn say(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, group: usize, index: usize, x: i32, y: i32) -> i32 {
     let s = eng(ctx, group, index, ours(group, index));
     pen.body(canvas, x, y, &s, BODY_INK)
 }
 
 /// `Ui_DrawCount(value, noun, x, y, &g_fontBody, 0x3F)`.
 #[allow(clippy::too_many_arguments)]
-fn count(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, value: i32, noun: usize, x: i32, y: i32) -> i32 {
+pub(super) fn count(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, value: i32, noun: usize, x: i32, y: i32) -> i32 {
     let index = count_noun(value, noun);
     let s = eng(ctx, COUNT_NOUN_GROUP, index, ours(COUNT_NOUN_GROUP, index));
     pen.count_with_noun(Face::Body, canvas, x, y, value, &s, BODY_INK)
@@ -223,7 +223,7 @@ fn count(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, value: i32, noun: usize, x: 
 /// `Ui_DrawNumber(0, '@', " ", x, y, &g_fontBody, 0x3F)` — the zero every
 /// `Ui_DrawDelta` row draws instead when its value is zero, because mode 0
 /// would draw nothing at all.
-fn zero(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32) {
+pub(super) fn zero(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32) {
     pen.number_in(Face::Body, canvas, x, y, 0, '@', " ", BODY_INK);
 }
 
@@ -233,7 +233,7 @@ fn zero(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32) {
 /// pixels right instead (`0x130` against `0x128`), which is exactly where this
 /// one's digits land: the prefix is four pixels of space and four of
 /// `Ui_DrawText`'s trailer.
-fn delta(pen: &Pen, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
+pub(super) fn delta(pen: &Pen, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
     if value == 0 {
         return;
     }

@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
 use super::common::*;
-use super::blacksmith::*;
+use super::blacksmith_part::*;
 use super::bodies::*;
 use super::castle::*;
 use l2_kingdom::county::County;
@@ -15,9 +15,6 @@ use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{count_noun, font, Face, Pen};
 
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{count_noun, font, Face, Pen};
 
 impl JobScreen {
     pub fn new(county: u8, job: usize) -> JobScreen {

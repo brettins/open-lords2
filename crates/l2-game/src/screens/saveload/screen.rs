@@ -11,9 +11,9 @@ use crate::shell::{self, font, Pen};
 
 pub struct SaveLoadScreen {
     mode: Mode,
-    entries: Vec<Entry>,
+    pub(super) entries: Vec<Entry>,
     /// `g_fileListTop` (`0x004EA1A0`) — the index the visible page starts at.
-    top: usize,
+    pub(super) top: usize,
     /// The highlighted row, as an index into [`SaveLoadScreen::entries`].
     selected: Option<usize>,
     /// **The edit buffer the name field shows — `DAT_004EA130`.**
@@ -49,7 +49,7 @@ pub struct SaveLoadScreen {
 /// limit since 1995 would be superstition, which is the
 ///   line this module's header already draws about the scroll clamp. **In
 ///   practice the pixel limit bites first** and a name never gets near 64.
-fn begin_name(seed: &str) -> crate::text::TextField {
+pub(super) fn begin_name(seed: &str) -> crate::text::TextField {
     crate::text::TextField::begin(seed, saves::MAX_NAME, 0xA0, crate::text::Kind::Filename)
 }
 
@@ -118,14 +118,14 @@ impl SaveLoadScreen {
     }
 
     /// The highest `top` that still shows a full page, in steps of three.
-    fn max_top(&self) -> usize {
+    pub(super) fn max_top(&self) -> usize {
         let over = self.entries.len().saturating_sub(PAGE);
         // Round up to a whole scroll step so that the last press lands on a
 // reachable value.
         over.div_ceil(SCROLL_STEP) * SCROLL_STEP
     }
 
-    fn scroll(&mut self, by: i32) {
+    pub(super) fn scroll(&mut self, by: i32) {
         let max = self.max_top() as i32;
         self.top = (self.top as i32 + by).clamp(0, max) as usize;
     }

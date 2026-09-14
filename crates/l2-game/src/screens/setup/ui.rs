@@ -218,7 +218,7 @@ impl SetupScreen {
             .map(|(i, (_, a))| (i, a))
     }
 
-    fn count(&self) -> usize {
+    pub(super) fn count(&self) -> usize {
         self.hotspots().len()
     }
 

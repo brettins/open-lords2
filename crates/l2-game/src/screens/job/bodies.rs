@@ -2,7 +2,7 @@
 use super::*;
 use super::screen::*;
 use super::common::*;
-use super::blacksmith::*;
+use super::blacksmith_part::*;
 use super::castle::*;
 use l2_kingdom::county::County;
 use l2_kingdom::tables::{
@@ -60,7 +60,7 @@ fn weather_line(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, v: i32, noun: usize) 
 ///                                           : Ui_DrawDelta(-grainEaten, 0, " ", " ", 0x128)
 /// 77/0x1C at (0x40, 0x118); +0x22C == 0 ? the same zero : Ui_DrawDelta(+0x22C, …)
 /// ```
-fn grain(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
+pub(super) fn grain(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
     let k = &ctx.game.kingdom;
     let advanced = k.options.advanced_farming;
     count(pen, ctx, canvas, c.grain, NOUN_SACK, 0x130, 0x88);
@@ -143,7 +143,7 @@ fn grain(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
 /// 77/0x1B at (0x40, 0x108), herdEaten == 0 ? zero : Ui_DrawDelta(-herdEaten, …)
 /// 77/0x1C at (0x40, 0x118), +0x258 == 0 ? zero : Ui_DrawDelta(+0x258, …)
 /// ```
-fn cattle(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
+pub(super) fn cattle(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
     let advanced = ctx.game.kingdom.options.advanced_farming;
     count(pen, ctx, canvas, c.herd, NOUN_ANIMAL, 0x130, 0x88);
     let band = match c.herd_crowding {
@@ -210,7 +210,7 @@ fn cattle(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
 /// +0x214 == 0 ? 77/0xF at (0x40, 200)
 ///             : 77/0xE at (0x40, 200) + Ui_DrawCount(+0x214, 0x42, pen + 0x40, 200)
 /// ```
-fn reclamation(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
+pub(super) fn reclamation(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
     // `(uint)(byte)field_0x204` — the byte, whatever our wider field holds.
     let fields = i32::from(c.fields_reclaiming as u8);
     let at = pen.number_in(Face::Body, canvas, 0x40, 0xB8, fields, '@', "", BODY_INK);
@@ -241,7 +241,7 @@ fn reclamation(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
 /// wood and iron, and the castle's wood and stone still owed. The painter's
 /// `g_jobPanelJob == 8` arm, which looks up a weapon's noun, is unreachable —
 /// `Panel_JobDetail` calls this for 5, 6 and 7 only.
-fn industry(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County, job: usize) {
+pub(super) fn industry(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County, job: usize) {
     let k = &ctx.game.kingdom;
     let (record, noun) = match job {
         JOB_IRON_MINING => (Commodity::Iron, NOUN_IRON),

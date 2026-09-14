@@ -388,7 +388,7 @@ pub fn county_name(ctx: &Ctx, id: u8) -> String {
 ///
 /// No case handling here: [`l2_view::text::glyph`] upper-cases, so a lower-case
 /// string out of `L2.eng` draws the same as our shouted fallback.
-fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
+pub(super) fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
     let s = ctx.assets.shell.text(group, index);
     if s.is_empty() {
         fallback.to_string()
@@ -399,7 +399,7 @@ fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
 
 /// The ration level's name — `L2.eng` group 21, which is what `CountyStrip_Draw`
 /// indexes with county `+0x15D`.
-fn ration_label(ctx: &Ctx, level: i32) -> String {
+pub(super) fn ration_label(ctx: &Ctx, level: i32) -> String {
     let level = level.clamp(0, RATION_LEVEL_COUNT as i32 - 1);
     eng(ctx, GROUP_RATION_LEVELS, level as usize, ration_name(level))
 }
@@ -532,7 +532,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // prompt and the three diplomacy screens: `g_playerNames` and then
         // `L2.eng` group 7 by the realm's **lord**, which is the pair
         // `Game_NewGame` itself uses.
-        let owner = super::message::lord_name(ctx, c.owner);
+        let owner = super::super::message::lord_name(ctx, c.owner);
         // **The pen is keyed by the realm's shield, not by its id**, and that
         // was the bug a player reported as *"the sovereign land text has the
         // wrong colours … the counties seem to have the right colours … but the

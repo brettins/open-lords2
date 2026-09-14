@@ -161,7 +161,7 @@ impl VillageScreen {
 
     /// `Village_BoxSelect` (`0x0043958A`).
     // arm: 0x0043958A/box-select drag
-    fn box_select(&mut self, ctx: &Ctx) {
+    pub(super) fn box_select(&mut self, ctx: &Ctx) {
         self.selected = [false; ICONS_PER_CLUSTER];
         self.drag_cluster = 0;
         self.drag_count = 0;

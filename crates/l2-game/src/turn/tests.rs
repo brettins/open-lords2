@@ -3,7 +3,7 @@ use super::*;
 use super::engine::*;
 use super::types::*;
 use super::battle::*;
-use super::ai::*;
+use super::ai_part::*;
 use l2_kingdom::ai::{self, AiStep};
 use l2_kingdom::conquest::Attack;
 use l2_kingdom::phase::{Phase, PhaseWait};

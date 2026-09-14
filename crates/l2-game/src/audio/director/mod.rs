@@ -194,7 +194,7 @@ pub struct Director {
     message: Option<crate::message::Record>,
     /// Ticks this director has listened to — the clock `FUN_004B3ACD`'s
     /// `timeGetTime()` becomes. See [`Director::chain_takes`].
-    ticks: u64,
+    pub(super) ticks: u64,
     /// **`DAT_0052F004`, the chained takes' cursor**, and
     /// [`crate::tip::Tips::shows`] when it was last zeroed.
     take_cursor: usize,

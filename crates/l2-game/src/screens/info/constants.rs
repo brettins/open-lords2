@@ -517,7 +517,7 @@ pub fn words(a: &crate::shell::ShellAssets, group: usize, index: usize) -> Strin
         FERTILITY_GROUP => FERTILITY_WORDS.get(index).copied(),
         // `TileInfo_DrawCastle` and `Castle_DrawStatusBlock` draw the same
         // group on two screens; the transcription lives with the other one.
-        CASTLE_GROUP => Some(super::job::ours(group, index)),
+        CASTLE_GROUP => Some(super::super::job::ours(group, index)),
         _ => None,
     };
     ours.unwrap_or("").to_string()

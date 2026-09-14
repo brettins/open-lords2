@@ -64,7 +64,7 @@ use crate::shell::{font, Face, Pen};
 /// [`super::job::castle_word`]'s run, one word low at type 0 — `docs/bugs.md`'s
 /// *"Barracks for 2500 troops."* on a county with no castle is reproduced here
 /// too, because it is the same two table reads.
-fn draw_castle(
+pub(super) fn draw_castle(
     ctx: &Ctx,
     pen: &Pen,
     canvas: &mut Canvas,
@@ -119,10 +119,10 @@ fn draw_castle(
         let t = &k.tables;
         let type_index = usize::from(c.castle_type);
         let at = say(canvas, CASTLE_GROUP, CASTLE_TAX_BONUS, BODY_X, l.y(0x88));
-        let bonus = super::job::castle_word(t, super::job::CASTLE_TAX_BONUS_BASE + type_index);
+        let bonus = super::super::job::castle_word(t, super::super::job::CASTLE_TAX_BONUS_BASE + type_index);
         pen.number_in(Face::Body, canvas, at, l.y(0x88), bonus, ' ', " %", font::TEXT);
         let at = say(canvas, CASTLE_GROUP, CASTLE_BARRACKS, BODY_X, l.y(0x98));
-        let cap = super::job::castle_word(t, super::job::CASTLE_BARRACKS_BASE + type_index);
+        let cap = super::super::job::castle_word(t, super::super::job::CASTLE_BARRACKS_BASE + type_index);
         let at = pen.number_in(Face::Body, canvas, at, l.y(0x98), cap, ' ', " ", font::TEXT);
         say(canvas, CASTLE_GROUP, CASTLE_TROOPS, at, l.y(0x98));
         if let Some(u) = garrison {
@@ -148,7 +148,7 @@ fn draw_castle(
             0x26,
             font::TEXT,
         );
-        super::job::castle_status_block(pen, ctx, canvas, c, 8, 0x30, l.row);
+        super::super::job::castle_status_block(pen, ctx, canvas, c, 8, 0x30, l.row);
     }
     if garrison.is_some() {
         widget(canvas, l.y(0x104));

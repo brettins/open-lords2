@@ -114,7 +114,7 @@ pub fn menu_widget(slot: usize) -> Rect {
 }
 
 /// `g_diploWidgets` holds six records; the allied layout uses all six.
-const MENU_SLOTS: usize = 6;
+pub(super) const MENU_SLOTS: usize = 6;
 
 /// **`g_diploWidgets` as a table** — one record per row the layout draws,
 /// every one **kind 5**, read out of `+0x0F` of `0x004DD940` … `0x004DD9B8`.
@@ -415,7 +415,7 @@ impl DiplomacyScreen {
         // `Sprite_WGenSprite(lord*3 - 3, 0x31, slot*100 + 0x32)`, frame 12 for
         // a human rival, out of the `faces.pl8` the painter has just read.
         // [`super::message::face_frame`] is that rule, already ported.
-        let frame = super::message::face_frame(rr.lord, rr.is_human, realm);
+        let frame = super::super::message::face_frame(rr.lord, rr.is_human, realm);
         let drew = pen
             .assets
             .sheet(FACES)

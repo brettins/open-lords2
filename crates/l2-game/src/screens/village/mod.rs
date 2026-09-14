@@ -125,7 +125,7 @@ pub type ClusterIcons = [u8; ICONS_PER_CLUSTER];
 
 pub struct VillageScreen {
     county: u8,
-    phase: Phase,
+    pub(super) phase: Phase,
     /// Where the button went down, while it is still only a press.
     anchor: Option<(i32, i32)>,
     /// The live pointer, which is the band's other corner.

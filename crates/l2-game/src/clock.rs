@@ -80,7 +80,7 @@ pub struct Ticker {
     /// until the first reading, which is what starts the clock — so the first
     /// call always owes exactly one tick and the game begins at once.
     next: Option<u64>,
-    ticks: u64,
+    pub(super) ticks: u64,
     dropped: u64,
 }
 

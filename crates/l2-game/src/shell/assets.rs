@@ -244,7 +244,7 @@ fn grid_cell(grid: &[u8], x: i32, y: i32) -> Option<u8> {
 /// The VFS is case-insensitive; this map is ours, so it has to be too. The
 /// install spells the same file three ways (`SCORE1.PL8`, `Misc_sel.pl8`,
 /// `Fntl2_14.pl8`) and the painters ask for a fourth.
-fn key(name: &str) -> String {
+pub(super) fn key(name: &str) -> String {
     name.to_ascii_lowercase()
 }
 

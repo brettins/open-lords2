@@ -17,7 +17,7 @@ use crate::shell::{count_noun, font, Face, Pen};
 
 /// Our transcription of those nine pairs, for a machine with no `L2.eng`.
 /// Upper case because the fallback font has no lower case.
-const WORKER_NOUN: [(&str, &str); JOB_COUNT] = [
+pub(super) const WORKER_NOUN: [(&str, &str); JOB_COUNT] = [
     ("FARMER", "FARMERS"),
     ("DAIRY MAID", "DAIRY MAIDS"),
     ("SERF", "SERFS"),
@@ -37,7 +37,7 @@ pub const BLACKSMITH: usize = 7;
 
 /// `Ui_OkButton(0x1C0, 0x1C0, 0)` — the blacksmith page's corner, which is not
 /// where the other eight put theirs.
-const BLACKSMITH_OK: Rect = Rect::new(0x1C0, 0x1C0, system::OK_DIM, system::OK_DIM);
+pub(super) const BLACKSMITH_OK: Rect = Rect::new(0x1C0, 0x1C0, system::OK_DIM, system::OK_DIM);
 
 // ------------------------------------------------------ the weapon choice
 
@@ -207,7 +207,7 @@ const WEAPON_NOUN: [usize; l2_kingdom::tables::WEAPON_TYPE_COUNT] = [24, 22, 26,
 ///
 /// `forge` is [`Forge::frame`], drawn last because `Screen_DrawWidgets`'s `0x0F`
 /// arm runs after the painter.
-fn blacksmith(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County, forge: usize) {
+pub(super) fn blacksmith(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County, forge: usize) {
     let a = &ctx.assets.shell;
     let face = crate::shell::Face::Body;
     let weapon = c.weapon_type.min(l2_kingdom::tables::WEAPON_TYPE_COUNT - 1);

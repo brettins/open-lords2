@@ -213,8 +213,8 @@
 //! [`crate::game::LevyOrder`] here, because the armoury reads and writes all
 //! five and this screen is *replaced* on the way there.
 
-mod impl;
-pub use impl::*;
+mod raise;
+pub use raise::*;
 
 use l2_kingdom::mercenary::ROSTER;
 use l2_kingdom::unit::TroopType;
@@ -427,7 +427,7 @@ pub fn hire_no(offer: bool) -> Rect {
 /// answered raw clicks, so all three acted at once with no picture and no
 /// click. Index 0 is Continue, 1 the tick, 2 the cross. Each `arm!` is the
 /// marker and the kind.
-fn widgets(offer: bool, affordable: bool) -> Vec<Widget> {
+pub(super) fn widgets(offer: bool, affordable: bool) -> Vec<Widget> {
     let mut out = vec![Widget::new(
         continue_button(offer),
         crate::arm!("0x00435CBF/raise-army-continue", Delayed),

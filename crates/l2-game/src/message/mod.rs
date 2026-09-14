@@ -360,7 +360,7 @@ pub struct MessageQueue {
     /// `g_messageQueueHead` — where the next enqueue lands.
     head: usize,
     /// `g_messageQueueTail` — where the next pull comes from.
-    tail: usize,
+    pub(super) tail: usize,
     /// `g_messagePending`. Set by an enqueue and **never cleared by anything**
     /// in the binary except `Msg_Reset`; carried so the field is not silently
     /// dropped, and read by nothing here for the same reason.
