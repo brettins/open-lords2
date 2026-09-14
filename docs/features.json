@@ -102,7 +102,7 @@
     {"id": "click-feel", "area": "screens", "name": "Clicks and double-clicks", "status": "done", "evidence": ["C131","C148","C182","C207","crates/l2-game/tests/gestures/main.rs","crates/l2-game/src/input.rs","C212","crates/l2-game/tests/audio_screens/main.rs"], "gap": "", "rows": []},
     {"id": "text-entry", "area": "screens", "name": "Typing save names", "status": "done", "evidence": ["C74","crates/l2-game/tests/text.rs"], "gap": "", "rows": []},
     {"id": "fonts", "area": "screens", "name": "The original's lettering", "status": "done", "evidence": ["C157","C163","C174","C175"], "gap": "", "rows": []},
-    {"id": "tooltips", "area": "screens", "name": "Tool tips", "status": "done", "evidence": ["C167","crates/l2-game/tests/tooltips.rs"], "gap": "", "rows": ["tooltip-names-and-quirk"]},
+    {"id": "tooltips", "area": "screens", "name": "Tool tips", "status": "done", "evidence": ["C167","crates/l2-game/tests/tooltips/main.rs"], "gap": "", "rows": ["tooltip-names-and-quirk"]},
     {"id": "tips", "area": "screens", "name": "Advisor tips", "status": "partial", "evidence": ["C160","C178","C207","crates/l2-game/tests/tips/main.rs"], "gap": "a right press under a tip", "rows": []},
     {"id": "pointer", "area": "screens", "name": "Mouse pointer changing shape", "status": "partial", "evidence": ["C219","crates/l2-game/tests/cursor.rs"], "gap": "the exe's own cursor pictures", "rows": []},
     {"id": "standings", "area": "screens", "name": "Standings: the greatest nobles", "status": "done", "evidence": ["arms:standings","audio:FUN_004b3994#1","crates/l2-game/tests/standings/main.rs"], "gap": "", "rows": []},

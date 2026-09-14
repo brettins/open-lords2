@@ -8668,7 +8668,7 @@ resolver reads a widget record: the id is a pointer ladder's own answer, and the
 reads live state — the minimap mode, whether the selected county is the player's, and
 `FUN_0040FEC1`'s two produce-row lists.
 
-**Not on file.** `[V]`, each asserted in `crates/l2-game/tests/tooltips.rs`:
+**Not on file.** `[V]`, each asserted in `crates/l2-game/tests/tooltips/main.rs`:
 
 * **The lookup is a table of screens, not of controls.** `DAT_004D6FB8[g_screenId]`
   gives the sidebar's ladder to **thirty-five** screen ids and the battlefield's
