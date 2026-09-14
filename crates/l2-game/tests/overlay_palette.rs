@@ -309,7 +309,7 @@ fn a_page_change_between_the_draw_and_the_present_would_flash() {
 
     // And the guard is in the shell, where the order is.
     let main_rs = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main/mod.rs"),
     )
     .expect("main.rs is beside this test");
     let present = main_rs.split("fn present(&mut self)").nth(1).expect("App::present");

@@ -6,7 +6,7 @@
 //! end to reproduce. There is one now. **The original's front end is
 //! `g_screenId` `0x1F` page 1** (`FUN_0041E7E1`), and
 //! [`crate::screens::setup`] draws it out of `L2.eng` group 11 and
-//! `Gateway.pl8`. `crates/l2-game/src/main.rs` boots straight to
+//! `Gateway.pl8`. `crates/l2-game/src/mod.rs` boots straight to
 //! `ScreenId::Setup(SetupPage::Title)`; `ScreenId::Menu` is constructed in
 //! exactly one place, `screen.rs`'s factory, and **nothing outside
 //! `crates/l2-game/tests/` ever pushes it.** Verified by grep, both ways.

@@ -4835,7 +4835,7 @@ thing to land mid-flight. It is the right next move and it is small.
 **C111 — `screens/menu.rs` is a whole screen of ours that the shipped binary cannot
 reach, and it was inflating the audit's placeholder count.**
 
-`crates/l2-game/src/main.rs` boots to `ScreenId::Setup(SetupPage::Title)` — the *real* front
+`crates/l2-game/src/mod.rs` boots to `ScreenId::Setup(SetupPage::Title)` — the *real* front
 end, which `setup.rs` reproduces with 41 draws through the game's own artwork and is the
 healthiest module in the whole draw audit. Nothing outside `crates/l2-game/tests/machine.rs`
 ever pushes `ScreenId::Menu`. So `menu.rs` — a two-item main menu of ours, drawn entirely in

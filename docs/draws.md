@@ -285,7 +285,7 @@ in **both** directions:
 * **In the original** — a painter no `mov byte ptr [g_screenId], imm8` can select is
   drawing nobody sees. The 212-site scan that settled `0x28` settles these too.
 * **In ours** — `screens/menu.rs` is a two-item main menu of ours, drawn entirely in the
-  5 × 7 font, that **the shipped binary cannot reach**: `crates/l2-game/src/main.rs` boots
+  5 × 7 font, that **the shipped binary cannot reach**: `crates/l2-game/src/mod.rs` boots
 to `ScreenId::Setup(SetupPage::Title)`, the front end, which `setup.rs` reproduces
   with 41 real draws. `menu.rs` is kept alive only by `tests/machine.rs`. It is an
   invention *and* dead, and it inflates the placeholder count with marks no player will

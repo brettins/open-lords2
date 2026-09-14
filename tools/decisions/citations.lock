@@ -39,9 +39,9 @@ crates/l2-game/src/game/mod.rs	C30	fdf7eaac6540	50fdf5e17ba0
 crates/l2-game/src/game/mod.rs	C61	243e22401be3	60611046b40d
 crates/l2-game/src/game/mod.rs	C62	1f489b238ce0	ebb6a7ec3711
 crates/l2-game/src/input.rs	C61	39c868ef7985	60611046b40d
-crates/l2-game/src/main.rs	C117	81e769c79475	b20f3a227f0f
-crates/l2-game/src/main.rs	C193	eff18505112b	ded1409ebea0
-crates/l2-game/src/main.rs	C193	fa55c65b9590	ded1409ebea0
+crates/l2-game/src/mod.rs	C117	81e769c79475	b20f3a227f0f
+crates/l2-game/src/mod.rs	C193	eff18505112b	ded1409ebea0
+crates/l2-game/src/mod.rs	C193	fa55c65b9590	ded1409ebea0
 crates/l2-game/src/message/queue.rs	C210	5005fe758800	38024f0b559c
 crates/l2-game/src/movie.rs	C193	921629355a9c	ded1409ebea0
 crates/l2-game/src/save/mod.rs	C113	292ef2506465	6fbe8ffeb1fb
