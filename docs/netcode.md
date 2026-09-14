@@ -574,7 +574,7 @@ session. But only at the first tick a quirk *touches* — for the
   It cannot change a turn, so putting it in the agreed configuration would make
   two peers who compute identical states refuse to play — which is D-12's own
   failure mode inverted. Presentation quirks live on `Assets`, above every crate
-  that computes anything, and `crates/l2-testkit/tests/quirks_catalogue.rs`
+  that computes anything, and `crates/l2-testkit/tests/quirks_catalogue/main.rs`
   fails if one is filed in the other home.
 
 ### Enforcing this

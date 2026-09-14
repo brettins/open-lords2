@@ -13,7 +13,7 @@
 //! only that they differ would pass for a switch that broke the rule in some
 //! third way.
 //!
-//! `crates/l2-testkit/tests/quirks_catalogue.rs` is the other half: it checks
+//! `crates/l2-testkit/tests/quirks_catalogue/main.rs` is the other half: it checks
 //! that the switch list and `docs/bugs.md` are the same list. It can tell that a
 //! variant is *named* by the simulation; only this file can tell that flipping
 //! it changes an answer.

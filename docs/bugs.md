@@ -1289,7 +1289,7 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 > | scope | *"roughly a dozen worth exposing"* | fourteen wired |
 >
 > **The switch list is generated from this document**, not written beside it:
-> `crates/l2-testkit/tests/quirks_catalogue.rs` reads §2 and both switch lists as text and
+> `crates/l2-testkit/tests/quirks_catalogue/main.rs` reads §2 and both switch lists as text and
 > fails if they disagree — including if a quirk is filed in the wrong home, which §6.3a's
 > price asymmetry makes the likely drift. §2 is now load-bearing: **adding an entry here
 > turns the suite red until somebody says what its switch is.**

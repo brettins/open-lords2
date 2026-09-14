@@ -3215,7 +3215,7 @@ So there are two homes at very different prices — a behavioural quirk costs a 
 bump, a handshake field and a replay stamp; a presentation quirk costs one `bool` — and **the
 asymmetry is the hazard the split creates**. A rule variation filed on `Assets` because it is
 cheaper there would be invisible until a multiplayer desync.
-`crates/l2-testkit/tests/quirks_catalogue.rs` therefore asserts the home, both ways, and fails
+`crates/l2-testkit/tests/quirks_catalogue/main.rs` therefore asserts the home, both ways, and fails
 outright on a quirk implemented in both. That assertion is worth more than any of the switches
 it guards.
 

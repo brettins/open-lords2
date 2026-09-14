@@ -427,10 +427,10 @@ crates/l2-testkit/tests/encoding.rs	C65	7f6b5f13b884	6a3e10c23ada
 crates/l2-testkit/tests/encoding.rs	C65	8f3915e3cbfa	6a3e10c23ada
 crates/l2-testkit/tests/encoding.rs	C65	d4a0d532e933	6a3e10c23ada
 crates/l2-testkit/tests/mojibake.rs	C146	ffa8f44828ac	97ed604f7efd
-crates/l2-testkit/tests/quirks_catalogue.rs	C62	0139b3d61739	ebb6a7ec3711
-crates/l2-testkit/tests/quirks_catalogue.rs	C62	0b7844c1b356	ebb6a7ec3711
-crates/l2-testkit/tests/quirks_catalogue.rs	C62	43b8c59061c1	ebb6a7ec3711
-crates/l2-testkit/tests/quirks_catalogue.rs	C62	6e16796702fc	ebb6a7ec3711
+crates/l2-testkit/tests/quirks_catalogue/main.rs	C62	0139b3d61739	ebb6a7ec3711
+crates/l2-testkit/tests/quirks_catalogue/main.rs	C62	0b7844c1b356	ebb6a7ec3711
+crates/l2-testkit/tests/quirks_catalogue/main.rs	C62	43b8c59061c1	ebb6a7ec3711
+crates/l2-testkit/tests/quirks_catalogue/main.rs	C62	6e16796702fc	ebb6a7ec3711
 crates/l2-testkit/tests/work_ledger.rs	C1	3f8c8bf0f873	6b7e8edb019e
 crates/l2-testkit/tests/work_ledger.rs	C1	d0ededac0b63	6b7e8edb019e
 crates/l2-view/src/campaign/mod.rs	C63	3a082e1b8c33	34cab2e30849

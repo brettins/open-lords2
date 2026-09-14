@@ -61,7 +61,7 @@
 //! **A quirk that nothing reads is worse than no quirk**, because a checkbox
 //! claims a behaviour is configurable. Every variant of [`Quirk`] is read by
 //! the simulation and has a test that flips it and observes a different answer:
-//! `crates/l2-testkit/tests/quirks_catalogue.rs` reads this file and
+//! `crates/l2-testkit/tests/quirks_catalogue/main.rs` reads this file and
 //! `docs/bugs.md` as text and fails on a variant nothing calls `reproduces(` on,
 //! and `crates/l2-kingdom/tests/quirks/main.rs` flips each one and watches the
 //! simulation give a different answer.

@@ -259,7 +259,7 @@ impl Prefs {
 /// and [`Quirks::get`] / [`Quirks::set`] go through it. Rust cannot enumerate a
 /// struct's fields, and the quirks page must be able to walk *both* sets to show
 /// one tri-state parent — a parent that spoke for only half of them would be a
-/// parent a player could not trust. `crates/l2-testkit/tests/quirks_catalogue.rs`
+/// parent a player could not trust. `crates/l2-testkit/tests/quirks_catalogue/main.rs`
 /// asserts the table names every field and no others.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Quirks {
