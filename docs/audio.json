@@ -84,7 +84,7 @@
       "class": "cry",
       "arg": "0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][0][take], 66 files",
       "note": "The box commit, guarded on something being held. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -95,7 +95,7 @@
       "class": "cry",
       "arg": "0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][0][take], 66 files",
       "note": "The pick commit, unguarded. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -106,7 +106,7 @@
       "class": "cry",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][1][take], 66 files",
       "note": "H or V, paused or not, and before our no-unit check - the original cries unconditionally. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -117,7 +117,7 @@
       "class": "cry",
       "arg": "3",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][3][take], 66 files",
       "note": "An order with g_battleHoverSurface == 2, the moat. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -128,7 +128,7 @@
       "class": "cry",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][1][take], 66 files",
       "note": "An order onto anything else. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -139,7 +139,7 @@
       "class": "cry",
       "arg": "2",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][2][take], 66 files",
       "note": "An order with an enemy under the pointer. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },

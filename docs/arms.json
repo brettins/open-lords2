@@ -1169,7 +1169,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "A right release sets DAT_00568470 = 0x1389 -- 5001, one past the limit Battle_CheckOutcome counts it up to -- so it SKIPS the outcome banner rather than dismissing it. The whole of 0x2B's arm.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -1237,7 +1237,7 @@
       "gesture": "hover-at-edge",
       "addr": "0x00432221",
       "what": "The pointer on the outermost pixel of the screen scrolls the battle camera ONE cell, against the campaign map's two rows and one column. Map_ScrollStep's g_battlePhase == 2 half.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -1271,7 +1271,7 @@
       "gesture": "left-press",
       "addr": "0x00432443",
       "what": "BattleMap_Click: the 160x160 panel at (480, 24), two pixels a cell over the whole 80x80 field. Left button with a selection, no oil selected and unpaused ORDERS to that cell; anything else, the right button included, puts the camera there. Reached from Screen_FrameInput's EPILOGUE, so it is live on 0x29, 0x2A and 0x2B alike.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2438,7 +2438,7 @@
       "gesture": "left-press",
       "addr": "0x0043B9A1",
       "what": "PAUSE. Toggles DAT_0053F238 with a bitwise NOT, so it flips between 0 and -1. Battle_Start seeds it to 0xFFFFFFFF, so A BATTLE STARTS PAUSED and the first thing a player does is press this.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2449,7 +2449,7 @@
       "gesture": "left-press",
       "addr": "0x0043BA29",
       "what": "RETREAT -- Ui_OpenConfirm(12) 'Retreat from field?', or Ui_OpenConfirm(11) 'Surrender castle?' when this is a siege and the local player owns army B. Both callbacks reach FUN_0043BE65, which is Battle_AutoResolve and the return to the campaign. Guarded on g_battleChoiceOwner == 1.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2461,7 +2461,7 @@
       "addr": "0x0043BBE7",
       "what": "LOWER THE DRAWBRIDGE. Siege only, garrison only (localPlayer == units[armyB].owner), castle level 3 or more, once per battle. Refuses with L2.eng 110 'Sieges only!', 111 'No drawbridge!' or 157 'Drawbridge is down.'; otherwise calls FUN_00496B9F, or Net_SendCommand(0x45) in multiplayer.",
       "note": "The three refusal strings are what name the verb, and they rule out the reading this record used to carry -- that FUN_00496B9F was siege-engine placement. It is not. The routine itself is now built: see 0x00496B9F/lower-drawbridge.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2473,7 +2473,7 @@
       "addr": "0x0043BD02",
       "what": "CHARGE -- FUN_0047A76D puts every one of the local player's figures of troop type under 7 into free pursuit and halts its unit, which switches the every-500-frame reform off. Guarded by DAT_0055322C, so it fires ONCE in a battle.",
       "note": "Not Order_ChargeNearest (0x0048C8AF), which is the AI's and also clears the withdraw flag and the figures' targets.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2484,7 +2484,7 @@
       "gesture": "left-press",
       "addr": "0x0043BD67",
       "what": "Ui_OpenConfirm(9) 'Autocalc battle?'. Yes runs FUN_0043BE65 -- Battle_AutoResolve, which reads the CAMPAIGN records and never Battle_WriteBackCasualties, so every man killed so far is unkilled and the result is computed from the armies as they walked on.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2495,7 +2495,7 @@
       "gesture": "left-press",
       "addr": "0x0043BF07",
       "what": "A left press inside the viewport records the anchor cell and the anchor pixel and takes the screen to 0x2A. Gated on DAT_00568964 == 1 (input armed by Battle_Start) and g_battleHoverOnField.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2506,7 +2506,7 @@
       "gesture": "left-release",
       "addr": "0x0043BF07",
       "what": "The release, classified by FUN_00479CF7 into three: moved 25 pixels or more on either axis is a BOX and commits with FUN_0043C247(player, 1, ...); barely moved over one of your own men NUDGES THE BOX OUT BY EIGHT PIXELS each way and commits that, so a click picks a 16-pixel square; barely moved over nothing DOES NOTHING AT ALL and in particular does not clear the selection. The commit runs FUN_00478987, which allocates a new unit when the selection is not exactly one whole unit -- so a box drawn round half a unit SPLITS it.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2518,7 +2518,7 @@
       "addr": "0x0043BF07",
       "what": "The release test is `(g_mouseLeftReleased || g_mouseLeftDoubleClick) && g_screenId == 0x2A`, so a double click commits an open box exactly as a release would. Not a verb of its own: Windows sends WM_LBUTTONDBLCLK INSTEAD OF the second WM_LBUTTONDOWN, so without this the second click of a fast double click would leave the drag open with no press to end it.",
       "note": "This is the second reader of g_mouseLeftDoubleClick that C61 predicted and crates/l2-game/src/input.rs denied. Hotspot_Test's kind-2 widgets are a third reader and are not an arm.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2529,7 +2529,7 @@
       "gesture": "drag",
       "addr": "0x0043BF07",
       "what": "While the button is down and the pointer has moved, FUN_0043C247(player, 0, ...) clears and re-boxes the selection LIVE. The 0 is what stops it regrouping units on every pointer motion.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2540,7 +2540,7 @@
       "gesture": "left-press",
       "addr": "0x0043C2A9",
       "what": "A left press on one of the banners in the right column DROPS that figure from the selection (FUN_0043C4C6) -- it does not select it. The layout is one of three from DAT_004D31F4 by how many you hold, and only the first FIFTY are clickable whichever layout is up.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2552,7 +2552,7 @@
       "addr": "0x0043C2A9",
       "what": "A right release CLEARS THE WHOLE SELECTION (FUN_0043C55C). Refused inside the overview panel -- x >= 0x1E1 && 0x18 <= y <= 0xB7 -- and note the off-by-one: the panel starts at 0x1E0, so its leftmost column deselects.",
       "note": "This is the arm the project's 'right click exits' habit would have replaced with a way out of the battle. C61's second pattern.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2563,7 +2563,7 @@
       "gesture": "left-release",
       "addr": "0x0043C57D",
       "what": "A left release on ground that holds none of your own men, with something selected and the battle unpaused, is an order: FUN_0043C634 plays a troop cry and calls BattleUnit_Order(currentUnit, cell, hoverEnemy, hoverWoodland, 0).",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2585,7 +2585,7 @@
       "addr": "0x0043C77A",
       "what": "H and V re-issue the player's current unit an order AT ITS OWN POSITION with BattleUnit_Order's sixth argument set to 1 or 2, which stores 0 or 1 in unit +0x09. Formation_ComputeRect (0x0048A1C9) reads that byte in one line -- `if (field_0x9 == 1) g_formationCols = 2` -- so the two keys are LINE and COLUMN and nothing else touches the byte.",
       "note": "Settles docs/battle.md section 1's 'unnamed and untraced' for unit +0x09. IT ACTS WHILE PAUSED: its two guards are the window procedure's WM_CHAR arm (g_battlePhase == 2 && DAT_0057A0CC == 0) and its own (DAT_00553C6C == 0 && g_appPhase == 3), and neither is the pause word DAT_0053F238 that Battle_OrderClicked and BattleMap_Click test. Ours refused while paused, a guard copied from the click; it no longer does.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2596,7 +2596,7 @@
       "gesture": "key",
       "addr": "0x0043C885",
       "what": "Ctrl and 1..9 store the current selection into DAT_00553400 + (key - '1') * 0x18. The window procedure latches VK_CONTROL into DAT_004DF3A8 and its digit arm calls a DIFFERENT FUNCTION depending on it.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2607,7 +2607,7 @@
       "gesture": "key",
       "addr": "0x0043C910",
       "what": "Keys 1..9 recall a stored selection and PUT THE CAMERA ON IT -- the function ends by scanning for the first selected figure and setting the viewport corner seven cells above and left of it. Nine slots (VK 0x31..0x39); Battle_Start clears ten.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2926,7 +2926,7 @@
       "gesture": "timer",
       "addr": "0x00477DFC",
       "what": "Battle_CheckOutcome and FUN_004782C5 both count DAT_00568470 up once a frame; past 5000 the banner gives way to Battle_WriteBackCasualties and Battle_ReturnToCampaign(1). Not an input arm; recorded because the skip above is one and is meaningless without it.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2938,7 +2938,7 @@
       "addr": "0x0047ED9B",
       "what": "Battle_UpdateHover recomputes the five hover globals every frame: on-field, the cell, its surface, whether it is woodland, and whether the occupant is a friend, a picked friend or an enemy. Two of the three order arms read nothing else.",
       "note": "One clause is reproduced CORRECTED rather than as found -- see docs/bugs.md B100, the stale figure index.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -3104,7 +3104,7 @@
       "gesture": "hover",
       "addr": "0x004B99C0",
       "what": "Battle_Frame's cursor ladder for 0x28..0x2A: seven leaves over four cursor kinds -- 0 arrow, 4 move, 5 attack, 6 select. An enemy under the pointer beats everything; 0x2A is always the arrow; with a selection in hand a pointer OUTSIDE the field still shows the move cursor as long as it is above y 184, which is the overview panel, where a click really does order.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "evidence": "V"
     },
     {
