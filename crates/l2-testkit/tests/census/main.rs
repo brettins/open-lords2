@@ -37,6 +37,8 @@
 
 mod scanner;
 pub use scanner::*;
+mod assertions;
+pub use assertions::*;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -100,106 +102,103 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/battle_fixtures.rs", "fixture", 3),
     ("crates/l2-formats/tests/corpus.rs", "install", 5),
     ("crates/l2-formats/tests/maps.rs", "install", 6),
-    ("crates/l2-formats/tests/save/main.rs", "executable", 1),
-    ("crates/l2-formats/tests/save/main.rs", "saves", 19),
-    ("crates/l2-formats/tests/save_england_turn1/main.rs", "england", 13),
+    ("crates/l2-formats/tests/save.rs", "executable", 1),
+    ("crates/l2-formats/tests/save.rs", "saves", 19),
+    ("crates/l2-formats/tests/save_england_turn1.rs", "england", 13),
     ("crates/l2-game/src/audio/mod.rs", "install", 1),
-    ("crates/l2-game/src/screens/menubar/mod.rs", "install", 2),
-    ("crates/l2-game/tests/ai_war/main.rs", "england", 2),
-    ("crates/l2-game/tests/armoury/main.rs", "england", 13),
-    ("crates/l2-game/tests/arms/main.rs", "executable", 1),
-    ("crates/l2-game/tests/arrival/main.rs", "install", 1),
-    ("crates/l2-game/tests/audio_battle/main.rs", "executable", 1),
-    ("crates/l2-game/tests/audio_battle/main.rs", "install", 5),
-    ("crates/l2-game/tests/audio_install/main.rs", "england", 1),
-    ("crates/l2-game/tests/audio_install/main.rs", "executable", 1),
-    ("crates/l2-game/tests/audio_install/main.rs", "install", 8),
-    ("crates/l2-game/tests/audio_screens/main.rs", "install", 9),
-    ("crates/l2-game/tests/audio_wiring/main.rs", "install", 17),
-    ("crates/l2-game/tests/battle_picture/main.rs", "install", 16),
+    ("crates/l2-game/src/screens/menubar.rs", "install", 2),
+    ("crates/l2-game/tests/ai_war.rs", "england", 2),
+    ("crates/l2-game/tests/armoury.rs", "england", 13),
+    ("crates/l2-game/tests/arms.rs", "executable", 1),
+    ("crates/l2-game/tests/arrival.rs", "install", 1),
+    ("crates/l2-game/tests/audio_battle.rs", "executable", 1),
+    ("crates/l2-game/tests/audio_battle.rs", "install", 5),
+    ("crates/l2-game/tests/audio_install.rs", "england", 1),
+    ("crates/l2-game/tests/audio_install.rs", "executable", 1),
+    ("crates/l2-game/tests/audio_install.rs", "install", 8),
+    ("crates/l2-game/tests/audio_screens.rs", "install", 9),
+    ("crates/l2-game/tests/audio_wiring.rs", "install", 17),
+    ("crates/l2-game/tests/battle_picture.rs", "install", 16),
     ("crates/l2-game/tests/cattle_shortage.rs", "england", 2),
-    ("crates/l2-game/tests/chrome_text/main.rs", "england", 17),
+    ("crates/l2-game/tests/chrome_text.rs", "england", 17),
     ("crates/l2-game/tests/cursor.rs", "england", 3),
     ("crates/l2-game/tests/differential.rs", "fixture", 3),
-    ("crates/l2-game/tests/ground/main.rs", "install", 7),
-    ("crates/l2-game/tests/industry/main.rs", "england", 5),
-    ("crates/l2-game/tests/job_bodies/main.rs", "england", 10),
-    ("crates/l2-game/tests/job_bodies/main.rs", "executable", 1),
-    ("crates/l2-game/tests/job_bodies/main.rs", "fixture", 5),
-    ("crates/l2-game/tests/labour_move/main.rs", "england", 5),
-    ("crates/l2-game/tests/labour_move/main.rs", "fixture", 1),
-    ("crates/l2-game/tests/long_game/main.rs", "england", 4),
-    ("crates/l2-game/tests/long_game/main.rs", "install", 1),
-    ("crates/l2-game/tests/long_game/main.rs", "other", 1),
-    ("crates/l2-game/tests/merchant/main.rs", "england", 7),
-    ("crates/l2-game/tests/messages/main.rs", "install", 5),
-    ("crates/l2-game/tests/military/main.rs", "fixture", 1),
-    ("crates/l2-game/tests/minimap/main.rs", "england", 6),
-    ("crates/l2-game/tests/movies/main.rs", "install", 11),
-    ("crates/l2-game/tests/newgame/main.rs", "install", 3),
-    ("crates/l2-game/tests/newgame/main.rs", "other", 11),
-    ("crates/l2-game/tests/overlay_palette/main.rs", "install", 2),
-    ("crates/l2-game/tests/pacing/main.rs", "england", 5),
+    ("crates/l2-game/tests/ground.rs", "install", 7),
+    ("crates/l2-game/tests/industry.rs", "england", 5),
+    ("crates/l2-game/tests/job_bodies.rs", "england", 10),
+    ("crates/l2-game/tests/job_bodies.rs", "executable", 1),
+    ("crates/l2-game/tests/job_bodies.rs", "fixture", 5),
+    ("crates/l2-game/tests/labour_move.rs", "england", 5),
+    ("crates/l2-game/tests/labour_move.rs", "fixture", 1),
+    ("crates/l2-game/tests/long_game.rs", "england", 4),
+    ("crates/l2-game/tests/long_game.rs", "install", 1),
+    ("crates/l2-game/tests/long_game.rs", "other", 1),
+    ("crates/l2-game/tests/merchant.rs", "england", 7),
+    ("crates/l2-game/tests/messages.rs", "install", 5),
+    ("crates/l2-game/tests/military.rs", "fixture", 1),
+    ("crates/l2-game/tests/minimap.rs", "england", 6),
+    ("crates/l2-game/tests/movies.rs", "install", 11),
+    ("crates/l2-game/tests/newgame.rs", "install", 3),
+    ("crates/l2-game/tests/newgame.rs", "other", 11),
+    ("crates/l2-game/tests/overlay_palette.rs", "install", 2),
+    ("crates/l2-game/tests/pacing.rs", "england", 5),
     ("crates/l2-game/tests/press.rs", "executable", 1),
-    ("crates/l2-game/tests/right_column/main.rs", "executable", 1),
-    ("crates/l2-game/tests/save/main.rs", "england", 1),
-    ("crates/l2-game/tests/save/main.rs", "install", 1),
-    ("crates/l2-game/tests/scenario/main.rs", "england", 13),
-    ("crates/l2-game/tests/scenario/main.rs", "fixture", 1),
+    ("crates/l2-game/tests/right_column.rs", "executable", 1),
+    ("crates/l2-game/tests/save.rs", "england", 1),
+    ("crates/l2-game/tests/save.rs", "install", 1),
+    ("crates/l2-game/tests/scenario.rs", "england", 13),
+    ("crates/l2-game/tests/scenario.rs", "fixture", 1),
     ("crates/l2-game/tests/screens_battle.rs", "england", 2),
-    ("crates/l2-game/tests/screens_county/main.rs", "england", 37),
+    ("crates/l2-game/tests/screens_county.rs", "england", 37),
     ("crates/l2-game/tests/screens_diplomacy.rs", "england", 1),
-    ("crates/l2-game/tests/screens_info/main.rs", "england", 12),
-    ("crates/l2-game/tests/screens_info/main.rs", "executable", 1),
-    ("crates/l2-game/tests/screens_map/main.rs", "england", 30),
-    ("crates/l2-game/tests/screens_menubar/main.rs", "england", 7),
-    ("crates/l2-game/tests/screens_menubar/main.rs", "executable", 1),
+    ("crates/l2-game/tests/screens_info.rs", "england", 12),
+    ("crates/l2-game/tests/screens_info.rs", "executable", 1),
+    ("crates/l2-game/tests/screens_map.rs", "england", 30),
+    ("crates/l2-game/tests/screens_menubar.rs", "england", 7),
+    ("crates/l2-game/tests/screens_menubar.rs", "executable", 1),
     ("crates/l2-game/tests/screens_shoot.rs", "england", 1),
-    ("crates/l2-game/tests/screens_village/main.rs", "england", 13),
-    ("crates/l2-game/tests/screens_village/main.rs", "install", 2),
-    ("crates/l2-game/tests/seam/main.rs", "fixture", 4),
-    ("crates/l2-game/tests/setup/main.rs", "england", 15),
-    ("crates/l2-game/tests/setup/main.rs", "install", 1),
-    ("crates/l2-game/tests/shell/main.rs", "executable", 1),
-    ("crates/l2-game/tests/shell/main.rs", "install", 7),
-    ("crates/l2-game/tests/siege_picture/main.rs", "executable", 1),
-    ("crates/l2-game/tests/siege_picture/main.rs", "install", 5),
-    ("crates/l2-game/tests/standings/main.rs", "executable", 1),
-    ("crates/l2-game/tests/standings/main.rs", "install", 2),
-    ("crates/l2-game/tests/text/main.rs", "install", 3),
-    ("crates/l2-game/tests/tips/main.rs", "install", 4),
-    ("crates/l2-game/tests/tooltips/main.rs", "executable", 1),
-    ("crates/l2-game/tests/tooltips/main.rs", "install", 1),
-    ("crates/l2-game/tests/wheat/main.rs", "england", 1),
+    ("crates/l2-game/tests/screens_village.rs", "england", 13),
+    ("crates/l2-game/tests/screens_village.rs", "install", 2),
+    ("crates/l2-game/tests/seam.rs", "fixture", 4),
+    ("crates/l2-game/tests/setup.rs", "england", 15),
+    ("crates/l2-game/tests/setup.rs", "install", 1),
+    ("crates/l2-game/tests/shell.rs", "executable", 1),
+    ("crates/l2-game/tests/shell.rs", "install", 7),
+    ("crates/l2-game/tests/siege_picture.rs", "executable", 1),
+    ("crates/l2-game/tests/siege_picture.rs", "install", 5),
+    ("crates/l2-game/tests/standings.rs", "executable", 1),
+    ("crates/l2-game/tests/standings.rs", "install", 2),
+    ("crates/l2-game/tests/text.rs", "install", 3),
+    ("crates/l2-game/tests/tips.rs", "install", 4),
+    ("crates/l2-game/tests/tooltips.rs", "executable", 1),
+    ("crates/l2-game/tests/tooltips.rs", "install", 1),
+    ("crates/l2-game/tests/wheat.rs", "england", 1),
     ("crates/l2-kingdom/tests/cattle.rs", "saves", 3),
     ("crates/l2-kingdom/tests/defence.rs", "fixture", 2),
-    ("crates/l2-kingdom/tests/fields/main.rs", "england", 11),
-    ("crates/l2-kingdom/tests/industry_forecast/main.rs", "england", 4),
+    ("crates/l2-kingdom/tests/fields.rs", "england", 11),
+    ("crates/l2-kingdom/tests/industry_forecast.rs", "england", 4),
     ("crates/l2-kingdom/tests/oracle.rs", "executable", 6),
-    ("crates/l2-kingdom/tests/reproduction/main.rs", "england", 25),
-    ("crates/l2-kingdom/tests/siege/main.rs", "fixture", 5),
+    ("crates/l2-kingdom/tests/reproduction.rs", "england", 25),
+    ("crates/l2-kingdom/tests/siege.rs", "fixture", 5),
     ("crates/l2-kingdom/tests/weapon_choice.rs", "fixture", 1),
-    ("crates/l2-mods/tests/corpus/main.rs", "install", 6),
+    ("crates/l2-mods/tests/corpus.rs", "install", 6),
     ("crates/l2-scenario/tests/explored.rs", "england", 2),
     ("crates/l2-scenario/tests/explored.rs", "fixture", 1),
     ("crates/l2-scenario/tests/explored.rs", "install", 1),
-    ("crates/l2-scenario/tests/import/main.rs", "england", 10),
-    ("crates/l2-scenario/tests/import/main.rs", "fixture", 1),
-    ("crates/l2-scenario/tests/import/main.rs", "saves", 28),
-    ("crates/l2-scenario/tests/newgame/main.rs", "england", 2),
-    ("crates/l2-scenario/tests/newgame/main.rs", "install", 4),
-    ("crates/l2-scenario/tests/stored_fields/main.rs", "other", 1),
-    ("crates/l2-scenario/tests/stored_fields/main.rs", "saves", 1),
-    ("crates/l2-sim/tests/castle_layout/main.rs", "install", 12),
+    ("crates/l2-scenario/tests/import.rs", "england", 10),
+    ("crates/l2-scenario/tests/import.rs", "fixture", 1),
+    ("crates/l2-scenario/tests/import.rs", "saves", 28),
+    ("crates/l2-scenario/tests/newgame.rs", "england", 2),
+    ("crates/l2-scenario/tests/newgame.rs", "install", 4),
+    ("crates/l2-scenario/tests/stored_fields.rs", "other", 1),
+    ("crates/l2-scenario/tests/stored_fields.rs", "saves", 1),
+    ("crates/l2-sim/tests/castle_layout.rs", "install", 12),
     ("crates/l2-sim/tests/oracle.rs", "executable", 4),
-    ("crates/l2-smk/tests/corpus/main.rs", "install", 5),
-    ("crates/l2-view/tests/install/main.rs", "executable", 3),
-    ("crates/l2-view/tests/install/main.rs", "fixture", 1),
-    ("crates/l2-view/tests/install/main.rs", "install", 29),
-/// The total the inventory adds up to, stated separately so that a change
-/// which moves a test between two files still has to be acknowledged as a
-/// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 581;
+    ("crates/l2-smk/tests/corpus.rs", "install", 5),
+    ("crates/l2-view/tests/install.rs", "executable", 3),
+    ("crates/l2-view/tests/install.rs", "fixture", 1),
+    ("crates/l2-view/tests/install.rs", "install", 29),
+];
 
 /// The needles that name a gate, strongest first. A body containing several is
 /// counted against the first that matches.
@@ -235,7 +234,7 @@ fn the_install_gated_tests_are_the_ones_we_have_written_down() {
             "the gate census has moved.\n\n\
              A gated test does not run on CI, and nothing else in the suite says so - which is \
              why this number is written down. If the change is intended, replace INVENTORY in \
-             crates/l2-testkit/tests/census/main.rs with:\n\n\
+             crates/l2-testkit/tests/census.rs with:\n\n\
              const INVENTORY: &[(&str, &str, usize)] = &[\n{lines}];\n\n\
              expected {} entries, found {}",
             expected.len(),
@@ -248,145 +247,5 @@ fn the_install_gated_tests_are_the_ones_we_have_written_down() {
         "{GATED_TOTAL} test functions in this workspace do not exist without a copy of the game"
     );
     eprintln!("gate census: {GATED_TOTAL} install-gated tests across {} files", INVENTORY.len());
-}
-
-/// **What this run **
-/// ends.
-///
-/// Run it with `--nocapture` to see the breakdown. The two ends are the ones
-/// worth pinning: with nothing configured every gated test skips, and with
-/// everything configured none of the decidable ones does.
-#[test]
-fn the_number_of_tests_this_environment_will_skip_is_reported_and_bounded() {
-    let found = scan();
-    let total: usize = found.values().sum();
-
-    let mut running = 0usize;
-    let mut skipping = 0usize;
-    let mut undecidable = 0usize;
-    let mut by_gate: BTreeMap<&str, (usize, Option<bool>)> = BTreeMap::new();
-    for ((_, gate), n) in &found {
-        let g = [Gate::England, Gate::Fixture, Gate::Saves, Gate::Executable, Gate::Install, Gate::Other]
-            .into_iter()
-            .find(|g| g.name() == *gate)
-            .expect("a gate name the scanner produced");
-        let entry = by_gate.entry(gate).or_insert((0, g.satisfied()));
-        entry.0 += n;
-        match g.satisfied() {
-            Some(true) => running += n,
-            Some(false) => skipping += n,
-            None => undecidable += n,
-        }
-    }
-
-    eprintln!("\ninstall-gated tests: {total}");
-    for (gate, (n, satisfied)) in &by_gate {
-        let state = match satisfied {
-            Some(true) => "available",
-            Some(false) => "MISSING - these tests will skip",
-            None => "decided inside the test",
-        };
-        eprintln!("  {n:>3}  {gate:<11} {state}");
-    }
-    eprintln!(
-        "  ->  {running} will run, {skipping} will skip, {undecidable} decide for themselves\n"
-    );
-
-    assert_eq!(running + skipping + undecidable, total);
-
-    // The two ends, pinned. Anything between them is a partly configured
-    // machine and is nobody's business but its own.
-    let nothing_configured = l2_testkit::install_dir().is_none()
-        && l2_testkit::fixtures_dir().is_none();
-    if nothing_configured {
-        assert_eq!(
-            running, 0,
-            "nothing is configured, so no gated test can be running"
-        );
-        assert_eq!(skipping + undecidable, total);
-    }
-    if matches!(l2_testkit::england_turn1(), l2_testkit::FixtureState::Ready(_))
-        && l2_testkit::install_dir().is_some()
-    {
-        assert_eq!(
-            skipping, 0,
-            "everything is configured, so no decidable gate should be skipping"
-        );
-    }
-}
-
-/// **One hard-coded install path in the workspace, and it is in `l2-testkit`.**
-///
-/// Forty-two test functions used to carry their own copy of
-/// `F:\games\Lords of the Realm II`, so the suite behaved differently on the
-/// author's machine from everywhere else and no single place could be changed
-/// to fix it. Re-introducing one fails here.
-#[test]
-fn no_test_carries_its_own_copy_of_a_game_directory() {
-    let root = repo_root();
-    let mut offenders = Vec::new();
-    for path in source_files(&root) {
-        let Ok(src) = std::fs::read_to_string(&path) else { continue };
-        for (n, line) in src.lines().enumerate() {
-            let lower = line.to_ascii_lowercase();
-            let is_path = lower.contains("games\\lords")
-                || lower.contains("games/lords")
-                || lower.contains("games\\lords2")
-                || lower.contains("games/lords2");
-            // A path inside a doc comment is documentation, not a fall back.
-            let is_doc = line.trim_start().starts_with("//") || line.trim_start().starts_with("#");
-            if is_path && !is_doc {
-                offenders.push(format!("{}:{}: {}", relative(&root, &path), n + 1, line.trim()));
-            }
-        }
-    }
-    assert!(
-        offenders.is_empty(),
-        "a game directory is hard-coded outside l2-testkit:\n  {}\n\n\
-         Use l2_testkit::install_dir() / fixtures_dir(); the defaults live in one place so that \
-         one place can be changed.",
-        offenders.join("\n  ")
-    );
-}
-
-/// **No game asset has crept into the repository.** `.gitignore` refuses them
-/// and `CLAUDE.md` rule 1 forbids them, but a `git add -f` would defeat both
-/// silently — and the fixture work of this task moved five `.sav` files around
-/// on disk, which is exactly when such a thing happens.
-#[test]
-fn no_game_data_is_checked_in() {
-    let root = repo_root();
-    let mut offenders = Vec::new();
-    fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
-        for e in entries.filter_map(|e| e.ok()) {
-            let p = e.path();
-            let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
-            if p.is_dir() {
-                // `.claude/worktrees` holds other agents' checkouts of this same
-                // repository; walking into them would report their files as ours.
-                if name == "target" || name == "node_modules" || name.starts_with('.') {
-                    continue;
-                }
-                walk(&p, out);
-            } else if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
-                let ext = ext.to_ascii_lowercase();
-                // `l2sav` is **ours**, not the publisher's, so it is not here
-                // for rule 1's reason. It is here for the other one: a saved
-                // game belongs in `%APPDATA%\open-lords2\saves`, and one that
-                // has appeared in the working tree is a test writing where it
-                // should not. `docs/decisions.md` D11.
-                if ["sav", "l2sav", "pl8", "256", "smk", "wav", "saf"].contains(&ext.as_str()) {
-                    out.push(p);
-                }
-            }
-        }
-    }
-    walk(&root, &mut offenders);
-    assert!(
-        offenders.is_empty(),
-        "game data is in the working tree: {:?}\nCLAUDE.md rule 1: never commit game assets.",
-        offenders
-    );
 }
 

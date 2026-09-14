@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 use super::*;
-use super::codec_extractor::*;
+use super::free_function_codecs_part::*;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 

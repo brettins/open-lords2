@@ -58,10 +58,10 @@
 //! status: a decision nothing counts is a decision nobody
 //! revisits.
 
-mod codec_extractor;
-pub use codec_extractor::*;
-mod ast_inspector;
-pub use ast_inspector::*;
+mod free_function_codecs_part;
+pub use free_function_codecs_part::*;
+mod struct_analysis;
+pub use struct_analysis::*;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -112,26 +112,61 @@ fn rust_files() -> Vec<PathBuf> {
     out
 }
 
-/// **Codecs that are a pair of free functions**, named
-/// one by one.
-///
-/// `Game` is the whole of the list today and it is the reason the list exists:
-/// `l2_game::save` writes a saved game with `encode`/`encode_prefix` and reads
-/// it with `decode`/`decode_prefix`, and **`impl Encode for Game` does not
-/// exist**, so until now the type at the top of every saved file was the one
-/// type this check made no claim about at all. It was found by adding a field
-/// to `Game` and watching the check stay green.
-///
-/// Both halves of each pair are concatenated, because the field list is split
-/// across them: `kingdom` is named in the outer function and everything else in
-/// the prefix.
-///
-/// **This is the shape to copy if another such codec appears.** A free-function
-/// the prefix is not a `Canonical`
-/// value — it is just invisible to a scanner that looks for `impl Encode`, and
-/// the cost of that invisibility is `docs/decisions.md` C30's whole family.
-const FREE_FUNCTION_CODECS: &[(&str, &str, &[&str], &[&str])] = &[(
-    "Game",
-    "l2-game",
-    &["fn encode(game: &Game)", "fn encode_prefix("],
-    &["fn decode(", "fn decode_prefix("],
+/// The body of the block that opens on the line matching `head`, by counting
+/// braces. Crude, and adequate: this source has no braces inside string
+/// literals in the shapes we scan.
+fn block_after(src: &str, head_at: usize) -> Option<&str> {
+    let open = src[head_at..].find('{')? + head_at;
+    let mut depth = 0usize;
+    for (i, ch) in src[open..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&src[open + 1..open + i]);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Every `impl Encode for T` / `impl Decode for T` in the workspace, as
+/// `T -> (encode body, decode body)`. `T` is reduced to its last path segment,
+/// because `crate::unit::Unit` and `Unit` are the same type seen from two files.
+fn codec_bodies() -> BTreeMap<String, Codec> {
+    let mut out: BTreeMap<String, Codec> = BTreeMap::new();
+    for path in rust_files() {
+        let Ok(src) = std::fs::read_to_string(&path) else { continue };
+        for (trait_name, slot) in [("Encode", 0usize), ("Decode", 1usize)] {
+            let needle = format!("impl {trait_name} for ");
+            let mut from = 0;
+            while let Some(rel) = src[from..].find(&needle) {
+                let at = from + rel;
+                from = at + needle.len();
+                let rest = &src[from..];
+                let end = rest.find(" {").unwrap_or(0);
+                let ty = rest[..end].trim();
+                // Skip generic impls and anything that is not a plain path.
+                if ty.is_empty() || ty.contains('<') || ty.contains('&') {
+                    continue;
+                }
+                let short = ty.rsplit("::").next().unwrap_or(ty).to_string();
+                let Some(body) = block_after(&src, at) else { continue };
+                // The impl block holds one fn; take the whole block, which also
+                // picks up any helper the impl defines beside it.
+                let e = out.entry(short).or_default();
+                e.krate = crate_of(&path);
+                let target = if slot == 0 { &mut e.encode } else { &mut e.decode };
+                let mut s = target.take().unwrap_or_default();
+                s.push('\n');
+                s.push_str(body);
+                *target = Some(s);
+            }
+        }
+    }
+    out
+}
+
