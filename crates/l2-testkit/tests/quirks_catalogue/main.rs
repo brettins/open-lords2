@@ -218,7 +218,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B40", Unwired("crates/l2-kingdom/src/movement/mod.rs")),
     ("B41", Unwired("crates/l2-kingdom/src/units_tick/mod.rs")),
     ("B42", Switchable(Behavioural)),
-    ("B43", Unwired("the merchant route script and crates/l2-kingdom/src/merchant.rs")),
+    ("B43", Unwired("the merchant route script and crates/l2-kingdom/src/merchant/mod.rs")),
     (
         "B44",
         Unswitchable("not reproduced: the campaign hover is traced and the UI arm does not exist yet"),
