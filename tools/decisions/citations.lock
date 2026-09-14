@@ -246,7 +246,7 @@ crates/l2-kingdom/src/field.rs	C136	377dc6668bdb	724c11b1e475
 crates/l2-kingdom/src/field.rs	C187	8983863e59e2	55fad83033cd
 crates/l2-kingdom/src/kingdom.rs	C121	20fc32a64f66	865148ccac2a
 crates/l2-kingdom/src/kingdom.rs	C177	645e765f0fa7	01cec2bb5b43
-crates/l2-kingdom/src/kingdom.rs	C26	35bee0aeadc5	e8179d1f76a8
+crates/l2-kingdom/src/kingdom.rs	C26	cba26066ea79	e8179d1f76a8
 crates/l2-kingdom/src/kingdom.rs	C62	1eee1b832aad	ebb6a7ec3711
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992	68e4eb2d2a1f
 crates/l2-kingdom/src/land.rs	C123	1ee3f35bfdd6	3a5cc2fec37d
