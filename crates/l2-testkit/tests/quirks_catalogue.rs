@@ -816,7 +816,7 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     }
     // And the other direction: `Options` really is the home,
     // cannot pass by the field having quietly gone away.
-    let kingdom = read(&root, "crates/l2-kingdom/src/kingdom.rs");
+    let kingdom = read(&root, "crates/l2-kingdom/src/kingdom/mod.rs");
     assert!(
         kingdom.contains("pub quirks: l2_net::Quirks"),
         "l2_kingdom::kingdom::Options::quirks has moved. It is where the quirk set lives; \

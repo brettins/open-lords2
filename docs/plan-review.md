@@ -38,7 +38,7 @@ walking the slice list against the repo, three of the five steps cross code nobo
 
 * Step 1, *start on the campaign map of a shipped scenario*, needs new-game county
   initialisation. `Kingdom::start_new_game` sets the clock and nothing else
-  (`crates/l2-kingdom/src/kingdom.rs:247`). The original's `Game_NewGame` (`0x00497CED`)
+  (`crates/l2-kingdom/src/kingdom/mod.rs:247`). The original's `Game_NewGame` (`0x00497CED`)
   calls twenty functions and all but four are still `FUN_`.
 * Step 4, *move an army into a neighbouring county*, needs the campaign unit layer. No
   crate has one. `Unit_EnterOccupiedTile` — the function that decides that two units
@@ -315,7 +315,7 @@ Walking "move an army into a neighbouring county, fight the battle, get the resu
 * **The turn seam** — exists and is the right shape. `Phase::ArmyMovement = 2` is documented
   as *"Army movement, including battle resolution"*, and `PhaseWait::Units(UnitKind)` is
   answered by the caller because *"phases 2, 3, 5 and 6 move units, which are not this
-crate's"* (`crates/l2-kingdom/src/kingdom.rs:291`). Good design; credit where
+crate's"* (`crates/l2-kingdom/src/kingdom/mod.rs:291`). Good design; credit where
   due.
 * **The army itself** — does not exist anywhere. `County` carries `army: i32`,
   `friendly_troops: i32`, `enemy_troops: i32` and nothing else; no type has troop
