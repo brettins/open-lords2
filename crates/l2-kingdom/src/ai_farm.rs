@@ -14,7 +14,7 @@
 //! | `0x0049DFC6` | `AI_ManageFields(realm)` | **one** caller: `AI_ManageFields(0)`, turn phase 1 step 2 — the **unowned** counties | county `+0x1FE`, styles **0, 1** | `0x004A3C67`, `0x004A3ED3` |
 //!
 //! So there are **five** allocators, not three; `FUN_004A3C67` is the *neutral*
-//! counties' grain style; and the two
+//! counties' grain style;
 //! outer functions differ in more than their name — `AI_ManageFields` also
 //! zeroes county `+0x1B0` on the way in, which `Ai_ManageCountyFarms` does not.
 //!
@@ -41,7 +41,7 @@
 //! Read as behaviour: **style 0 is an arable lord**, style 1 is a **grazier**,
 //! and style 9 splits the county in three and is the only one that farms both.
 //! `AI_PERSONALITY_FARM_STYLE` is `[1, 1, 0, 9]`, so two of the four lords
-//! graze, one ploughs and one mixes — and the mixed lord is also the one with
+//! graze, one ploughs and one mixes —
 //! the most aggressive shopping list.
 //!
 //! # Five findings that fall out of reading them
@@ -85,7 +85,7 @@
 //! **named seams**:
 //!
 //! * **The merchant.** Every style opens by buying food (`FUN_004A4B12` →
-//! `Merchant_Trade`), and the buys are *interleaved* with the tests that
+//! `Merchant_Trade`),
 //!   trigger them — `if (grain < 100) buy 400; if (grain < 100) buy 200;` — so
 //!   whether a lot arrives changes whether the next one is even attempted. That
 //!   cannot be a list of requests returned at the end; it has to be a callback,
@@ -111,7 +111,7 @@ use crate::tables::{Season, Tables};
 
 /// A good the AI's farming pass can buy, by `Merchant_Trade`'s good id.
 ///
-/// The ids are `L2.eng` group 6 and the two the styles use are the two that
+/// The ids are `L2.eng` group 6
 /// live in the county. See `docs/symbols.md` on `0x004284CE` for the full list
 /// — 3 *Sheep* and 5 *Wool* have no branch in either direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -145,7 +145,7 @@ pub trait Market {
     ///
     /// `id` is the county index, which is what `Ai_BuyGood` is passed and what
     /// it reads the stall out of; the record comes with it because the caller
-    /// already holds the borrow and the cascade re-reads the stock between
+    /// already holds the borrow
     /// lines.
     ///
     /// The map is here because `Merchant_Trade`'s tail is — `Herd_UpdateCrowding`
@@ -161,7 +161,7 @@ pub trait Market {
         good: Good,
     ) -> bool;
 
-    /// `Ai_TradeForCounty` (`0x0049E39B`) — the surplus sale and the weapon
+    /// `Ai_TradeForCounty` (`0x0049E39B`) — the surplus sale
     /// purchase the three **realm** styles run before they shop for food, at
     /// this county's stall and on the owning realm's account.
     ///
@@ -173,13 +173,13 @@ pub trait Market {
 
 /// A market that refuses every trade.
 ///
-/// and the reason is worth
+///
 /// keeping at the type. Its comment used to read *"there is
-/// no stall yet, so every style's opening shopping cascade is refused and the
+/// no stall yet, so every style's opening shopping cascade is refused
 /// county farms what it already has"*, and that stated reason was checked and
 /// was **false**: `Ai_BuyGood`'s stall gate is county `+0x1A4`, which the six
 /// one-turn-apart fixtures carry non-zero on every county holding a merchant,
-/// and the money is county `+0x1F4`, which they carry at 186 … 436. The stall
+///
 /// was there, the money was there, and refusing the cascade cost the unowned
 /// counties **50 sacks of grain a season each**. `docs/decisions.md`
 /// C149; [`CountyStall`] is what phase 1 passes now.
@@ -240,7 +240,7 @@ impl Market for NoMarket {
 /// had; the 50-sack lot costs **200**, and that is the one that moves. So the
 /// fifty sacks an unowned county gains in a season are not a constant anybody
 /// adds — they are `min(lot : 4 * lot <= purse)` over `{400, 200, 100, 50}`,
-/// and the identical arithmetic buys **nothing** one turn earlier at purses of
+///
 /// 186 and 195. `docs/decisions.md` C149.
 ///
 /// `morale` is looked up per county because
@@ -255,7 +255,7 @@ pub struct CountyStall<'a> {
     /// inside the simulation (`docs/netcode.md` D-4).
     stall: [Option<i32>; crate::county::MAX_COUNTIES],
     /// **The realms, mutably** — the treasury an owned county's bill is tested
-    /// against and paid out of, and the two spending accumulators
+    /// against and paid out of,
     /// `Merchant_Trade` books it in. The farming pass itself is handed a
     /// *copy* of the realm array for its estimates; see
     /// [`crate::Kingdom::run_ai_farms_at_the_stall`] for why the copy is exact.
@@ -269,7 +269,7 @@ pub struct CountyStall<'a> {
 }
 
 impl<'a> CountyStall<'a> {
-    /// Build the stall from the counties' own `+0x1A4` / `+0x1A5` and the unit
+    /// Build the stall from the counties' own `+0x1A4` / `+0x1A5`
     /// array — exactly the two reads `Ai_BuyGood` makes.
     ///
     /// A county whose `merchant_unit` names a slot that is empty gets **no
@@ -322,7 +322,7 @@ impl<'a> CountyStall<'a> {
     /// Merchant_Trade(1,-qty,good,markup + base,base,owner,county);
     /// ```
     ///
-    /// Only the three realm stores reach this, so the stock and the money are
+    /// Only the three realm stores reach this, so the stock
     /// both the realm's. `Merchant_Trade`'s own `stock < want` guard is
     /// reproduced even though the one caller subtracts the reserve from the
     /// stock and so cannot trip it.
@@ -371,8 +371,8 @@ impl<'a> CountyStall<'a> {
     ///      qty = qty / 2; } while (0 < qty);
     /// ```
     ///
-    /// The gold is read **once**, before the loop, and the goods land in the
-    /// realm — the three resources and the six weapons are the only ids this
+    /// The gold is read **once**, before the loop,
+    /// realm — the three resources
     /// caller passes.
     fn buy_good_down_to(
         &mut self,
@@ -460,7 +460,7 @@ impl Market for CountyStall<'_> {
         //
         // > The owned arm used to be refused outright here,
         // > `manage_county_farms` still passed `NoMarket` and so the arm had no
-        // > caller. That made the note true and the AI wrong: every AI lord's
+        // > caller. That made the note true
         // > counties farmed without ever shopping. Both callers pass the stall
         // > now — AI step 5 and `Ai_ManageFarmsAll` at the head of the season.
         let owner = county.owner as usize;
@@ -520,7 +520,7 @@ impl Market for CountyStall<'_> {
     /// ```
     ///
     /// The three resources pair a **realm** want (`+0x70`, `+0x74`, `+0x7C`)
-    /// with a **personality** reserve, and the two records are easy to confuse
+    /// with a **personality** reserve,
     /// at these offsets — `docs/diplomacy.md` §8.4. A non-zero want buys that
     /// much; a zero want sells everything above the reserve.
     ///
@@ -528,7 +528,7 @@ impl Market for CountyStall<'_> {
     /// several counties re-tests the floor against a treasury the last order
     /// already emptied.
     fn trade_for_county(&mut self, id: usize, county: &mut County, map: &mut CampaignMap) {
-        // The stall and the bankruptcy, in that order: no merchant, no trade.
+        // The stall
         let Some(morale) = self.stall.get(id).copied().flatten() else {
             return;
         };
@@ -657,7 +657,7 @@ impl FarmStyle {
         }
     }
 
-    /// Whether this style runs `FUN_0049E39B` — the surplus sale and the weapon
+    /// Whether this style runs `FUN_0049E39B` — the surplus sale
     /// purchase — before it farms. The three realm styles do; the two neutral
     /// ones do not, because an unowned county has no realm to sell for.
     ///
@@ -735,11 +735,11 @@ const BUYS_NEUTRAL_GRAZING: [BuyLine; 5] =
 const BUYS_REALM_ARABLE: [BuyLine; 5] =
     [grain(600, 400), grain(600, 200), grain(600, 100), grain(100, 50), grain(100, 25)];
 
-/// `0x004A42E3`'s cascade — the shortest of the five, and the only one that
+/// `0x004A42E3`'s cascade — the shortest of the five,
 /// tops its herd up to **41**.
 const BUYS_REALM_GRAZING: [BuyLine; 2] = [cattle(41, 10), grain(100, 400)];
 
-/// `0x004A440F`'s cascade — the longest, and the only one that offers a lot of
+/// `0x004A440F`'s cascade — the longest,
 /// 800.
 const BUYS_REALM_MIXED: [BuyLine; 7] = [
     cattle(11, 10),
@@ -772,8 +772,8 @@ impl FarmStyle {
 /// it has something to spend. Only [`FarmStyle::NeutralArable`] does it, which
 /// is odd company for the one style whose lord does not exist.
 ///
-/// **`[V]`**, and the order is the rule: the top-up is `Ai_FarmStyleNeutralArable`'s
-/// *first* statement and the four `if (grain < 100) Ai_BuyGood(...)` lines
+/// **`[V]`**,
+/// *first* statement
 /// follow it, so the hundred crowns are available to the cascade that spends
 /// them in the same pass.
 ///
@@ -824,7 +824,7 @@ pub fn run_buys(
 // FUN_004A4782 — the AI's ration setter
 // ---------------------------------------------------------------------------
 
-/// `FUN_0044E6A3` — **not** `Food_Available`, and the difference is the whole
+/// `FUN_0044E6A3` — **not** `Food_Available`,
 /// point of `crate::ration::food_available`'s warning.
 ///
 /// ```c
@@ -947,7 +947,7 @@ pub fn ration_wanted(t: &Tables, county: &County, armies_eat: bool) -> i32 {
 ///
 /// **A transcription note.** In the downward limb the original writes the
 /// running best back into `rationSplit` *inside* the loop.
-/// It makes no difference — the next iteration overwrites it, and the last
+/// It makes no difference — the next iteration overwrites it,
 /// iteration's write is the one that survives — so this is written the
 /// straightforward way. `[D]`, and
 /// the reason it is safe to tidy is that `Ration_Apply` reads `rationSplit`
@@ -1010,7 +1010,7 @@ pub fn set_rations(t: &Tables, county: &mut County, search: SplitSearch, armies_
 ///
 /// Finding 1 in the module documentation. `base` is `total / 2` for the two
 /// arable styles and `total / 3` for the mixed one. The subtraction is done in
-/// `unsigned` in the original and the result is passed to a signed parameter,
+/// `unsigned` in the original
 ///
 /// returned to fallow — which `i32` here reproduces exactly.
 pub fn winter_grain_quota(fertility: i32, base: i32) -> i32 {
@@ -1103,7 +1103,7 @@ pub fn fit_cattle_fields(t: &Tables, county: &mut County, map: &mut CampaignMap,
 /// `County_RefreshEstimates` computes the **blacksmith's ceiling**, which is a
 /// share of the realm's wood and iron split across *every staffed smithy the
 /// realm owns* ([`crate::industry::weapon_shares`]) — so the estimate needs the
-/// sibling counties, and it needs the owning realm's stockpile. And the share
+/// sibling counties, and it needs the owning realm's stockpile.
 /// moves **between** the two passes of step 6, because the allocation in the
 /// middle is what staffs the smiths.
 ///
@@ -1203,7 +1203,7 @@ pub fn lay_out(
 }
 
 /// One `County_RefreshEstimates` call, with the two things it reads that are
-/// not the county: the **owning realm** and the realm's **weapon share**.
+/// not the county: the **owning realm**
 ///
 /// Both are recomputed at every call site, because the
 /// share depends on which smiths are staffed and [`lay_out`] re-allocates
@@ -1247,7 +1247,7 @@ fn refresh(
 /// `crate::tables::AI_FIELD_LADDER`, then [`field::order_reclamation`].
 ///
 /// The ladder is an `if`/`else if` chain, so the **first** row whose *both*
-/// conditions hold wins and the rest are skipped —
+/// conditions hold wins
 /// county of 150 people falls through every row and gains nothing.
 ///
 /// Returns how many wasteland tiles were started, which is **not** the
@@ -1399,6 +1399,39 @@ mod tests {
         (c, map)
     }
 
+    /// **An AI realm that never plants is the original's rule, not a gap in
+    /// ours** — `Ai_FarmStyleGrazing` (`0x004A42E3`), whose first act is to
+    /// clear every grain field, in every season.
+    ///
+    /// `Ai_ManageCountyFarms` (`0x0049DD01`) copies the lord's style byte into
+    /// county `+0x1FE` and dispatches on it,
+    /// `[1, 1, 0, 9]` — **two of the four graze**, so an AI realm behind either
+    /// sows nothing all game.
+    ///
+    /// `a_grazing_lord_clears_grain_in_every_season` already pins the clearing.
+    /// This pins **which lords it happens to**, which is the half that makes an
+    /// AI realm look broken: ablation, carried inside — lord 3's style is 0 and
+    /// the same county sows.
+    #[test]
+    fn two_of_the_four_lords_graze_so_their_realms_never_sow() {
+        assert_eq!(crate::tables::AI_PERSONALITY_FARM_STYLE, [1, 1, 0, 9]);
+        for lord in [1u8, 2] {
+            assert_eq!(T.ai_farm_style(lord), Some(1), "lord {lord}");
+            assert_eq!(FarmStyle::for_realm(1), Some(FarmStyle::RealmGrazing));
+        }
+        assert_eq!(T.ai_farm_style(3), Some(0));
+        assert_eq!(T.ai_farm_style(4), Some(9));
+
+        let sown = |style| {
+            let (mut c, mut map) = county_with(8);
+            let e = FarmEnv::new(Season::Winter, Season::Spring);
+            lay(style, &mut c, &mut map, &e);
+            counts(&c, &map).0
+        };
+        assert_eq!(sown(FarmStyle::RealmGrazing), 0, "lords 1 and 2");
+        assert!(sown(FarmStyle::RealmArable) > 0, "lord 3 sows the same county");
+    }
+
     fn counts(county: &County, map: &CampaignMap) -> (i32, i32, i32) {
         let mut probe = county.clone();
         crate::field::recount(&mut probe, map);
@@ -1439,7 +1472,7 @@ mod tests {
     // --- the five, and that they really are five ---------------------------
 
     /// **The correction this module was written for.** Five allocators, two
-    /// outer passes, and the neutral pass reaches neither the realm styles nor
+    /// outer passes,
     /// style 9.
     #[test]
     fn there_are_five_allocators_and_the_two_passes_reach_different_ones() {
@@ -1521,7 +1554,7 @@ mod tests {
         );
     }
 
-    // --- the stall, and the fifty sacks -------------------------------------
+    // --- the stall,
 
     /// Build a county with a stall and a purse, the way the battle fixture's
     /// unowned counties are: grazing style, a merchant standing in it, and its
@@ -1572,7 +1605,7 @@ mod tests {
     /// sells 50, 100 iron sells nothing and 250 stone — exactly the reserve —
     /// sells nothing either. Timber banks the *base* price (1), maces cost the
     /// marked-up one (`10 + Pct(10, 100)` = 20), which is the two halves of
-    /// `Merchant_Trade` and the reason both accumulators are asserted.
+    /// `Merchant_Trade`
     ///
     /// *Ablation*: return `trade_for_county` to the trait's empty default and
     /// every assertion below goes red at once.
@@ -1596,7 +1629,7 @@ mod tests {
         assert_eq!((rs[1].trade_spent_a, rs[1].trade_spent_b), (2_000, 2_000));
     }
 
-    /// The gold floor is strict and the lot halves — personality `+0x78` and
+    /// The gold floor is strict
     /// `Ai_BuyGoodDownTo` (`0x004A4C41`)'s `qty = qty / 2` loop.
     ///
     /// A treasury of exactly the floor buys nothing; one crown over it cannot
@@ -1653,7 +1686,7 @@ mod tests {
     ///
     /// *Ablation*: put the owned arm back to `county.owner != 0 → false` and
     /// the first case goes red (nothing bought); test the purse for an owned
-    /// county instead of the gold and the second goes red (the purse pays).
+    /// county instead of the gold
     #[test]
     fn an_ai_lords_county_pays_for_its_grain_out_of_the_treasury() {
         for (gold, bought) in [(1_600, 400), (1_599, 0)] {
@@ -1690,7 +1723,7 @@ mod tests {
         let (c, _, units) = neutral_with_purse(0);
         let s = stall(T, &c, &units);
         assert_eq!(s.price(Good::Grain, 100), 4, "base 2 doubled by a morale of 100");
-// And the price really does follow the merchant.
+//
         assert_eq!(s.price(Good::Grain, 0), 3, "the one-crown markup floor");
         assert_eq!(s.price(Good::Grain, 200), 6);
     }
@@ -2035,7 +2068,7 @@ mod tests {
         assert_eq!(want(801), 5, "4806 > 4800");
     }
 
-    /// **The two search directions differ only on ties**, and the tie is the
+    /// **The two search directions differ only on ties**,
     /// normal case: many splits reach the same level.
     #[test]
     fn the_two_split_searches_take_the_opposite_end_of_a_tie() {
@@ -2110,7 +2143,7 @@ mod tests {
         assert_eq!(c.labour_share[JOB_CASTLE_BUILDING..=JOB_BLACKSMITH].iter().sum::<i32>(), 100);
     }
 
-    /// The industry share is the styles' loudest difference, and the arable
+    /// The industry share is the styles' loudest difference,
     /// lord — not the grazier — is the one who industrialises.
     #[test]
     fn the_arable_realm_style_puts_half_the_county_into_industry() {
@@ -2310,7 +2343,7 @@ mod tests {
 
     // --- FUN_004A4694 -------------------------------------------------------
 
-    /// The nudge is **one field at a time in both directions**, and the shrink
+    /// The nudge is **one field at a time in both directions**,
     /// needs three conditions where the growth needs two.
     #[test]
     fn the_cattle_nudge_moves_one_field_and_only_under_its_own_conditions() {
