@@ -875,7 +875,7 @@ That leaves these arms enumerated but not observed, and I have not inferred past
   one commodity, read as a statement about the map — `docs/agents.md`, *name the branch*;
 * ~~**the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
   campaign map, which the battle triple does not carry;~~ **Exercised, by staging one.**
-  `crates/l2-game/tests/screens.rs`
+  `crates/l2-game/tests/screens_map.rs`
   `a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left` writes the two fields
   the game keeps — `+0x19A` on the *garrison* and `+0x19C` on the besieger — and asserts
   881: frame `0x82` and the centred count pixel for pixel. **No fixture is needed and none would
@@ -914,7 +914,7 @@ panel's focus outline; the drop-down's recess and its status line (2); `NO MINIM
 > with the debug overlay on** (Ctrl+D, `Prefs::debug_overlay`, `docs/arms.json`
 > `ours/debug-overlay-toggle`). Two players reported them as *"debug squares still on the
 > town square"* and *"debug outlines and text for the 4 icons at the bottom right"*.
-> `crates/l2-game/tests/screens.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
+> `crates/l2-game/tests/screens_info.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
 > asserts each absence at a pixel the overlay really draws. The sites are still counted,
 > because the audit counts source call sites and they are still in the source.
 >

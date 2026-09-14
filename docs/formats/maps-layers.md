@@ -675,7 +675,7 @@ chosen by difficulty. Two functions, one table.
 `campaign::Overrides` plane C41 added, from `l2_view::campaign::field_graphic`, which is this
 function. Until it existed the field brush painted markers of our own and every field on the
 map looked like the bare frame 80 the file stores. Tests:
-`l2-game/tests/screens.rs::a_fields_picture_follows_its_crop_state` walks the ladder and
+`l2-game/tests/screens_info.rs::a_fields_picture_follows_its_crop_state` walks the ladder and
 requires four crop states to be four different pictures at the tile.
 
 What is still open is whether the *season* moves a field's `content` on its own — that is the

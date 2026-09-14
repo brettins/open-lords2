@@ -37,7 +37,7 @@
 //! court, the battle prompt, the county strip, the diplomacy screen and its
 //! compose dialogs. The three that were not on it drew a `REALM n` of their
 //! own; the county strip's and the diplomacy screen's are asserted in
-//! `tests/screens.rs`, where the install can supply the `L2.eng` group 7 that
+//! `tests/screens_*.rs`, where the install can supply the `L2.eng` group 7 that
 //! stands behind the array.
 
 use l2_game::game::{Assets, Game};

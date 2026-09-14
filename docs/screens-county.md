@@ -1274,7 +1274,7 @@ which is exactly the table above, start index and length, five times over. What 
 frames 40, 41 and 43, the three static buildings, and a 2 × 2 stub at 42. Nothing over,
 nothing short.
 from the file; they agree, and
-`l2-game/tests/screens.rs::the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in`
+`l2-game/tests/screens_village.rs::the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in`
 asserts it including the frames either side of each run.
 
 **The clock is `Tick_Pulses` (`0x004BBC80`).**

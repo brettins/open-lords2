@@ -143,9 +143,17 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/save.rs", "install", 1),
     ("crates/l2-game/tests/scenario.rs", "england", 13),
     ("crates/l2-game/tests/scenario.rs", "fixture", 1),
-    ("crates/l2-game/tests/screens.rs", "england", 102),
-    ("crates/l2-game/tests/screens.rs", "executable", 2),
-    ("crates/l2-game/tests/screens.rs", "install", 2),
+    ("crates/l2-game/tests/screens_battle.rs", "england", 2),
+    ("crates/l2-game/tests/screens_county.rs", "england", 37),
+    ("crates/l2-game/tests/screens_diplomacy.rs", "england", 1),
+    ("crates/l2-game/tests/screens_info.rs", "england", 12),
+    ("crates/l2-game/tests/screens_info.rs", "executable", 1),
+    ("crates/l2-game/tests/screens_map.rs", "england", 30),
+    ("crates/l2-game/tests/screens_menubar.rs", "england", 6),
+    ("crates/l2-game/tests/screens_menubar.rs", "executable", 1),
+    ("crates/l2-game/tests/screens_shoot.rs", "england", 1),
+    ("crates/l2-game/tests/screens_village.rs", "england", 13),
+    ("crates/l2-game/tests/screens_village.rs", "install", 2),
     ("crates/l2-game/tests/seam.rs", "fixture", 4),
     ("crates/l2-game/tests/setup.rs", "england", 15),
     ("crates/l2-game/tests/setup.rs", "install", 1),
@@ -262,7 +270,9 @@ fn test_bodies(src: &str) -> Vec<&str> {
 /// own text names; a test naming such an item inherits it.
 fn local_items(preamble: &str) -> Vec<(String, Gate)> {
     let mut marks: Vec<(usize, String)> = Vec::new();
-    for (pat, skip) in [("macro_rules! ", 14usize), ("\nfn ", 4), ("\n    fn ", 8)] {
+    for (pat, skip) in
+        [("macro_rules! ", 14usize), ("\nfn ", 4), ("\npub fn ", 8), ("\n    fn ", 8)]
+    {
         let mut from = 0usize;
         while let Some(rel) = preamble[from..].find(pat) {
             let at = from + rel;
@@ -305,11 +315,30 @@ fn scan() -> BTreeMap<(String, &'static str), usize> {
     let mut found: BTreeMap<(String, &'static str), usize> = BTreeMap::new();
     for path in source_files(&root) {
         let Ok(src) = std::fs::read_to_string(&path) else { continue };
-        if !src.contains("l2_testkit") {
+        let mut preamble = src.split("#[test]").next().unwrap_or("").to_string();
+        // **A test file's helpers can live in a sibling module.** `mod common;`
+        // in a `tests/` directory pulls in `common/mod.rs`, which is where
+        // `tests/screens_*.rs` keep the `world!()` that carries their gate. Read
+        // it into the preamble, or the census loses every test behind it.
+        let mods: Vec<String> = preamble
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix("mod ")?.strip_suffix(';').map(str::to_string))
+            .collect();
+        for name in mods {
+            let dir = path.parent().unwrap_or(&root);
+            for cand in [dir.join(&name).join("mod.rs"), dir.join(format!("{name}.rs"))] {
+                if let Ok(extra) = std::fs::read_to_string(&cand) {
+                    preamble.push('\n');
+                    preamble.push_str(&extra);
+                }
+            }
+        }
+        // The gate can now sit entirely in the sibling module, so the cheap
+        // "does this file mention the testkit at all" filter runs on both.
+        if !src.contains("l2_testkit") && !preamble.contains("l2_testkit") {
             continue;
         }
-        let preamble = src.split("#[test]").next().unwrap_or("");
-        let items = local_items(preamble);
+        let items = local_items(&preamble);
         for body in test_bodies(&src) {
             if let Some(gate) = gate_of(body, &items) {
                 *found.entry((relative(&root, &path), gate.name())).or_insert(0) += 1;

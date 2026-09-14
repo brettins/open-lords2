@@ -1965,7 +1965,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 /// allocator last decided"; these are those forecasts.
 ///
 /// [`l2_kingdom::land::grain_preview`] is that tail, and
-/// `crates/l2-game/tests/screens.rs`'s
+/// `crates/l2-game/tests/screens_county.rs`'s
 /// `the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel` drives
 /// it from the map brush to the glyph. **C123.**
 ///
@@ -2742,7 +2742,7 @@ fn happiness_delta(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32, value: i32) {
 }
 
 /// Geometry tests. The canvas tests that read numbers back off the pixels live
-/// in `tests/screens.rs`, because they need the shipped install.
+/// in `tests/screens_county.rs`, because they need the shipped install.
 ///
 /// **Nine mutations were checked against these and those**, each turning
 /// exactly one test red and no others. The last three are this audit's, and

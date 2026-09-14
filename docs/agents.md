@@ -233,7 +233,7 @@ these things are always found, by the person whose mouse jumped.
 
 **everything our engine does is reachable as a
 value**. `Event::Click { x, y }`, `Event::Pointer`, `Event::KeyDown`, handed to
-`Machine::handle` with a `Ctx`; `crates/l2-game/tests/screens.rs` and `tests/machine.rs`
+`Machine::handle` with a `Ctx`; `crates/l2-game/tests/screens_*.rs` and `tests/machine.rs`
 are both written that way already. For a visual result, render into a `Canvas` and inspect
 the pixels — there is an ignored test that dumps PNGs on demand. No window, no focus, no
 cursor.

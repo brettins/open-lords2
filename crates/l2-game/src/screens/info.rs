@@ -144,7 +144,7 @@
 //!   `Eng_DrawString(30, heading)` then `Eng_DrawString(30, mode)` after it, both
 //!   in `&g_fontHeading`: *"Farmland - Wheat."* [`FARM_TILE_INFO`] is the
 //!   table, checked against the player's `Lords2.exe` by
-//!   `tests/screens.rs`;
+//!   `tests/screens_info.rs`;
 //! * **a body, or a report, by mode** — `0x13` *Wheat* runs
 //!   `TileInfo_DrawGrain` (`0x0041CB3A`) and `0x15` *Cattle* runs
 //!   `TileInfo_DrawHerd` (`0x0041D299`), and **neither draws the table's
@@ -569,7 +569,7 @@ pub const BRUSH_WASTE_ID: [u8; 2] = [0x19, 0];
 /// reads as `local_20`, `local_1c`, `local_8` and `local_c`.
 ///
 /// Transcribed from the player's `Lords2.exe` and asserted against it,
-/// row for row, by `tests/screens.rs`
+/// row for row, by `tests/screens_info.rs`
 /// `the_farmland_table_is_the_images_own`. Row `0x1D` onward is other data —
 /// the image carries no bound, and `Terrain_Set` writes nothing above `0x1C`
 pub const FARM_TILE_INFO: [[usize; 4]; 0x1D] = [
@@ -997,7 +997,7 @@ impl InfoScreen {
     /// `0x04`, `0x10`, `0x40`, `0x80`, with no `0x01` and no `0x08` —
     /// settlement tile that also carried road or rough would take the `0x80`
     /// *row* and the road's *words*. No such tile exists in the England
-/// position; `tests/screens.rs` asserts that.
+/// position; `tests/screens_info.rs` asserts that.
     ///
     /// [`flags::SETTLEMENT`]: l2_kingdom::map::flags::SETTLEMENT
     /// [`flags::CASTLE`]: l2_kingdom::map::flags::CASTLE

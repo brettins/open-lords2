@@ -323,7 +323,7 @@ Two consequences worth writing down.
   `maps-layers.md` §1.1a has the numbers and
   `l2-view/tests/install.rs::the_four_seasons_of_a_bank_are_the_same_frame_table` asserts
   them. So the season is a lookup table, and towns do not revert to quarries in spring —
-  `l2-game/tests/screens.rs::a_towns_overridden_graphic_survives_every_season` checks that
+  `l2-game/tests/screens_map.rs::a_towns_overridden_graphic_survives_every_season` checks that
   at the pixel in all four.
 
 **One correction to the paragraph above, and it matters to anyone implementing this.** The
