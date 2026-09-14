@@ -45,7 +45,8 @@ $failed = @()
 foreach ($c in $crates) {
   Write-Host ""
   Write-Host "cargo test -p $c"
-  & cargo test -p $c @CargoArgs
+  # -q: one dot per test, names only for failures; the passing list never reaches a context window.
+  & cargo test -q -p $c @CargoArgs
   if ($LASTEXITCODE -ne 0) { $failed += $c }
 }
 
