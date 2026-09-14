@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+
+use super::*;
 use super::battle_part::*;
 use super::raising::*;
 use super::marching::*;
@@ -13,10 +15,6 @@ use l2_kingdom::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_kingdom::MercenaryBands;
 use l2_view::campaign;
-
-// ---------------------------------------------------------------------------
-// 3. Divide
-// ---------------------------------------------------------------------------
 
 #[test]
 fn a_selected_army_opens_the_division_screen_and_an_unselected_one_does_not() {
@@ -322,4 +320,5 @@ fn the_levy_window_lifts_off_the_armoury_and_leaves_the_room_behind() {
          the two screens are not standing on the same picture",
     );
 }
+
 
