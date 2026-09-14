@@ -2653,7 +2653,7 @@
       "gesture": "left-release",
       "addr": "0x0043CE1A",
       "what": "A picked unit of kind 3 in a county whose OWNER is g_localPlayer: DAT_00553C64 = unit, and then only if the county has a town -- g_selectedCounty = county, Map_CentreOnTile(townTile), g_screenId = 8. The guard is the COUNTY's owner and the merchant's own owner byte is never read in the whole 1,263-byte function, which is why \"your merchant\" is not a thing that exists: every merchant carries owner 6. C50.",
-      "note": "This is one half of the player report that produced C58 -- \"if I click a merchant while the map has a different county selected it will open up the tax window\". The selection was innocent; the hit test was a nine-pixel marker box under a 40 x 32 figure, so most clicks missed this arm and fell through to a county-selection arm of ours that no longer exists. crates/l2-game/tests/screens_map.rs a_merchant_is_clickable_over_its_whole_tile_whichever_county_is_selected.",
+      "note": "This is one half of the player report that produced C58 -- \"if I click a merchant while the map has a different county selected it will open up the tax window\". The selection was innocent; the hit test was a nine-pixel marker box under a 40 x 32 figure, so most clicks missed this arm and fell through to a county-selection arm of ours that no longer exists. crates/l2-game/tests/screens_map/main.rs a_merchant_is_clickable_over_its_whole_tile_whichever_county_is_selected.",
       "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },

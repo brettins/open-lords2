@@ -875,7 +875,7 @@ That leaves these arms enumerated but not observed, and I have not inferred past
   one commodity, read as a statement about the map — `docs/agents.md`, *name the branch*;
 * ~~**the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
   campaign map, which the battle triple does not carry;~~ **Exercised, by staging one.**
-  `crates/l2-game/tests/screens_map.rs`
+  `crates/l2-game/tests/screens_map/main.rs`
   `a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left` writes the two fields
   the game keeps — `+0x19A` on the *garrison* and `+0x19C` on the besieger — and asserts
   881: frame `0x82` and the centred count pixel for pixel. **No fixture is needed and none would
