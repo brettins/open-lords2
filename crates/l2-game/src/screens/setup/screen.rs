@@ -95,7 +95,7 @@ pub struct SetupScreen {
     /// to **0**. [`SetupScreen::continue_pressed`] is what reads it.
     ///
     /// Without it, our page 4 started the map list's slot whichever way the
-    /// person had arrived —
+    /// person had arrived — so *Play Now!* built England instead of
     /// Quaintville. `docs/decisions.md` C117.
     pub(crate) campaign: bool,
     /// **A `Save_RotateAndWrite` is owed** — `Game_NewGame`'s own call to it
@@ -130,6 +130,8 @@ pub struct SetupScreen {
     /// The `.skr` files page 13 lists — `DAT_004E8790`, 0x41 bytes a name,
     /// counted by `DAT_004EB25C`. Nothing scans a directory for them yet.
     pub(crate) skirmish_files: Vec<String>,
+    /// `g_fileListTop` (`0x004EA1A0`) — the index page 13's ten rows start at.
+    pub(crate) skirmish_file_top: usize,
     /// Whether the minute turned since the last paint.
     pub(crate) clock_redraw: bool,
 }

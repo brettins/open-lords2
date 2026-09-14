@@ -152,7 +152,7 @@ impl LiveBattle {
 
     /// `Battle_UpdateHover` (`0x0047ED9B`), once a frame.
     ///
-    /// One clause is reproduced *corrected*
+    /// One clause is reproduced *corrected* rather than faithfully, and it is
     /// flagged here because it is the only place in this file that departs from
     /// the binary. The original's count of selected non-siege figures indexes
     /// the figure array by `g_curBattleMan` — a **different global**, left over
@@ -492,7 +492,7 @@ impl LiveBattle {
     ///   boxes, **regroups the units** and narrows;
     /// * a click on one of your own men nudges the box out by eight pixels in
     ///   each direction and commits *that* — the original literally rewrites the
-    /// anchor and the pointer, and
+    /// anchor and the pointer, so a click selects a 16-pixel square and
     ///   therefore usually one man;
     /// * a click on nothing does **nothing**. It does not clear the selection.
     ///   Clearing is the right button's job and this is why.
@@ -549,9 +549,9 @@ impl LiveBattle {
     /// `g_mouseLeftDoubleClick` was false.
     ///
     /// The test is `(g_mouseLeftReleased || g_mouseLeftDoubleClick) &&
-    /// g_screenId == 0x2A`,commits an open drag
-    /// a release would**. It exists because Windows
-    /// sends `WM_LBUTTONDBLCLK` instead of the second `WM_LBUTTONDOWN`,
+    /// g_screenId == 0x2A`, so a double click **commits an open drag exactly
+    /// as a release would**. It exists because Windows
+    /// sends `WM_LBUTTONDBLCLK` instead of the second `WM_LBUTTONDOWN`, so
     /// without this clause the second click of a fast double click would leave
     /// the drag open for ever.
     ///
@@ -730,7 +730,7 @@ impl LiveBattle {
     /// the window procedure's `WM_CHAR` arm asks `g_battlePhase == 2 &&
     /// DAT_0057A0CC == 0`, and `FUN_0043C77A` itself asks `DAT_00553C6C == 0 &&
     /// g_appPhase == 3`. Neither is the pause word, `DAT_0053F238`, which
-    /// `Battle_OrderClicked` and `BattleMap_Click` do test —, cannot
+    /// `Battle_OrderClicked` and `BattleMap_Click` do test — so a click cannot
     /// order a paused battle and `H` can, and a player can set a line or a
     /// column before the fighting starts. This used to refuse while paused, a
     /// guard of ours copied from the click.

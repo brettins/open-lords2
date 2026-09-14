@@ -38,6 +38,7 @@ impl SetupScreen {
             skirmish: Default::default(),
             troops: Default::default(),
             skirmish_files: Vec::new(),
+            skirmish_file_top: 0,
             clock_minute: None,
             clock_redraw: false,
         }
@@ -192,8 +193,11 @@ impl SetupScreen {
             SetupPage::SkirmishFile => {
                 // **`FUN_00434174`** tests the pointer itself, not a widget
                 // record: `0x80 ≤ x ≤ 0x1DF` and `0xB0 ≤ y ≤ 0x14F`, ten rows
-                // of sixteen. Everything outside it is the *OK* button, which
-                // is the page's one way back.
+                // of sixteen. The row is `DAT_004EA1A0 + (y - 0xB0) / 16`
+                // (`00430000.c:1358`) — the scroll base, not the slot.
+                // Everything outside the ten rows is `SaveLoad_Cancel`
+                // (`0x00434308`), the *OK* cross, which is the page's one way
+                // back.
                 for r in 0..10 {
                     v.push((
                         Rect::new(0x80, 0xB0 + r as i32 * 0x10, 0x160, 0x10),
@@ -351,14 +355,25 @@ impl SetupScreen {
             SkirmishArm::Kind(k) => self.skirmish.choose_kind(k),
             SkirmishArm::Sides => self.skirmish.swap_sides(),
             SkirmishArm::Handicap(h) => self.skirmish.handicap(h),
-            SkirmishArm::OpenFiles => return self.go(SetupPage::SkirmishFile),
+            // `FUN_0043DDF4` opens page 13 only on `0 < DAT_005653E8`
+            // (`00430000.c:8140`) — the count of `.skr` files found. With
+            // none, the field is not a button.
+            SkirmishArm::OpenFiles => {
+                if self.skirmish_files.is_empty() {
+                    return Transition::Stay;
+                }
+                return self.go(SetupPage::SkirmishFile);
+            }
             SkirmishArm::File(r) => {
-                // `FUN_00434174` ignores a row past the end of the list and a
-                // row that is the name already chosen.
-                let name = self.skirmish_files.get(r).cloned();
+                // `FUN_00434174` ignores a row past the end of the list, and
+                // the row that is the name already chosen **returns 0 and
+                // stays on page 13** (`00430000.c:1364-1367`) — only a new
+                // name writes `g_setupPage`.
+                let name = self.skirmish_files.get(self.skirmish_file_top + r).cloned();
                 if let Some(name) = name {
-                    self.skirmish.choose_file(&name);
-                    return self.go(SetupPage::Skirmish);
+                    if self.skirmish.choose_file(&name) {
+                        return self.go(SetupPage::Skirmish);
+                    }
                 }
             }
         }

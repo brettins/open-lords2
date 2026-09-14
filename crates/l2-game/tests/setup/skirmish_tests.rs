@@ -102,12 +102,16 @@ fn swapping_sides_swaps_which_half_of_the_table_is_ours() {
     let (mut game, assets) = world!();
     let mut s = page12(&mut game, &assets);
     assert!(s.skirmish().local_attacks, "DAT_0053EF5C = 1 and realm 1 is the player");
+    assert_eq!(s.skirmish().slots(), (2, 1), "attacking, the player is record 2");
     let before = s.skirmish().fill_armies(&table()).0;
     click(&mut s, &mut game, &assets, 90, 280);
     assert!(!s.skirmish().local_attacks);
     let after = s.skirmish().fill_armies(&table()).0;
     assert_eq!(before.counts[0] - after.counts[0], 10, "the attacker's half is side 1");
-    assert_eq!(s.skirmish().slots(), (2, 1), "FUN_0042BA40: the defender is army B");
+    // `00420000.c:4665-4673`: `DAT_0053EF5C == g_localPlayer` gives the local
+    // player record 2 and the opponent record 1; the other branch is the
+    // other way round.
+    assert_eq!(s.skirmish().slots(), (1, 2), "defending, the player is record 1");
 }
 
 #[test]
@@ -140,7 +144,8 @@ fn go_raises_the_battlefield_with_the_two_armies_the_page_is_showing() {
     assert_eq!(t, Transition::Push(ScreenId::Battlefield), "FUN_0043D5B7 calls Battle_Start");
     let b = game.battle.as_ref().expect("the skirmish raised a battle");
     assert!(b.skirmish, "DAT_0057A0F0");
-    assert_eq!((b.attacker, b.defender), (1, 2), "g_battleArmyA and g_battleArmyB");
+    assert_eq!((b.attacker, b.defender), (2, 1), "the attacker is the player's record 2");
+    assert!(b.castle_level.is_none(), "FUN_0042B9C4: category 0 is Battlefield_BuildRandom");
     // Ablation: the fill is what raises it. With no troops table there are no
     // armies, and the button says nothing rather than deploying nobody.
     let mut empty = SetupScreen::new(SetupPage::Skirmish);
@@ -169,4 +174,96 @@ fn the_strength_weights_are_eleven_wide() {
     let a = SkirmishArmy::from_counts_for_test(c);
     assert_eq!(a.strength, 150, "the eleventh weight");
     assert_eq!(a.men, 0, "and an engine is not a man");
+}
+
+#[test]
+fn a_page_13_pick_leaves_the_scroll_and_the_row_count_where_they_were() {
+    // `FUN_00434174` (`00430000.c:1371-1376`) writes the name and the
+    // category and **nothing else**: `DAT_0053F64C`, `DAT_0053E9A8`,
+    // `DAT_0056D590` and `DAT_0053F0D4` keep the previous category's values,
+    // because only `FUN_0043DC1D` writes those.
+    let (mut game, assets) = world!();
+    let mut s = page12(&mut game, &assets);
+    s.set_skirmish_files(vec!["AGINCOURT.SKR".into(), "HASTINGS.SKR".into()]);
+    click(&mut s, &mut game, &assets, 470, 299 + 7); // category 2, fifteen rows
+    click(&mut s, &mut game, &assets, 500, 185 + 3 * 16 + 7);
+    let was =
+        (s.skirmish().top, s.skirmish().slot, s.skirmish().row, s.skirmish().rows);
+    assert_eq!((was.1, was.3), (3, 15), "category 2 offers fifteen rows");
+
+    click(&mut s, &mut game, &assets, 560, 399);
+    click(&mut s, &mut game, &assets, 200, 0xB0 + 16 + 8);
+    assert_eq!(s.skirmish().kind, 3, "the category is the one thing it writes");
+    assert_eq!(
+        (s.skirmish().top, s.skirmish().slot, s.skirmish().row, s.skirmish().rows),
+        was,
+        "and the scroll, the slot, the row and the count are untouched",
+    );
+    // Ablation: `FUN_0043DC1D` is what moves them, and it still does.
+    click(&mut s, &mut game, &assets, 470, 384 + 7);
+    assert_eq!((s.skirmish().slot, s.skirmish().rows), (0, 20), "twenty rows from a .skr");
+}
+
+#[test]
+fn the_name_already_chosen_stays_on_page_13() {
+    // `00430000.c:1364-1367`: the `strcmp` against `DAT_0053F5FC` matches and
+    // `FUN_00434174` returns 0 — `g_setupPage` is never written.
+    let (mut game, assets) = world!();
+    let mut s = page12(&mut game, &assets);
+    s.set_skirmish_files(vec!["AGINCOURT.SKR".into(), "HASTINGS.SKR".into()]);
+    click(&mut s, &mut game, &assets, 560, 399);
+    click(&mut s, &mut game, &assets, 200, 0xB0 + 8);
+    assert_eq!(s.page(), SetupPage::Skirmish, "a new name returns");
+    click(&mut s, &mut game, &assets, 560, 399);
+    click(&mut s, &mut game, &assets, 200, 0xB0 + 8);
+    assert_eq!(s.page(), SetupPage::SkirmishFile, "the same name does not");
+}
+
+#[test]
+fn the_file_field_is_not_a_button_with_no_files() {
+    // `FUN_0043DDF4` (`00430000.c:8140`) opens page 13 only on
+    // `0 < DAT_005653E8`.
+    let (mut game, assets) = world!();
+    let mut s = page12(&mut game, &assets);
+    click(&mut s, &mut game, &assets, 560, 399);
+    assert_eq!(s.page(), SetupPage::Skirmish, "no .skr files, no page 13");
+    s.set_skirmish_files(vec!["AGINCOURT.SKR".into()]);
+    click(&mut s, &mut game, &assets, 560, 399);
+    assert_eq!(s.page(), SetupPage::SkirmishFile, "and one file is enough");
+}
+
+#[test]
+fn the_castle_category_raises_a_siege_of_the_chosen_row() {
+    // `FUN_0042B9C4` (`00420000.c:4608-4619`): category 2 is
+    // `Battlefield_BuildCastle(DAT_0056D590)`, and `g_battleIsSiege = 1`
+    // goes with it (`00430000.c:8090`).
+    let (mut game, assets) = world!();
+    let mut s = page12(&mut game, &assets);
+    click(&mut s, &mut game, &assets, 470, 299 + 7);
+    click(&mut s, &mut game, &assets, 500, 185 + 2 * 16 + 7);
+    assert_eq!((s.skirmish().kind, s.skirmish().row), (2, 2));
+    let t = click(&mut s, &mut game, &assets, 600, 440);
+    assert_eq!(t, Transition::Push(ScreenId::Battlefield));
+    let b = game.battle.as_ref().expect("the skirmish raised a battle");
+    assert_eq!(b.castle_level, Some(2), "the row is the castle level");
+}
+
+#[test]
+fn page_13_reads_its_rows_through_the_scroll_base() {
+    // `00430000.c:1358`: `row = DAT_004EA1A0 + (y - 0xB0) / 16`, and
+    // `SaveLoad_Scroll` under list 2 (`0x00434346`) moves the base.
+    let (mut game, assets) = world!();
+    let mut s = page12(&mut game, &assets);
+    s.set_skirmish_files((0..12).map(|i| format!("B{i}.SKR")).collect());
+    s.scroll_skirmish_files(1);
+    click(&mut s, &mut game, &assets, 560, 399);
+    click(&mut s, &mut game, &assets, 200, 0xB0 + 8);
+    assert_eq!(s.skirmish().file.as_deref(), Some("B1.SKR"), "row 0 is the base");
+    // Ablation: under ten names the base is pinned at 0.
+    let mut s = page12(&mut game, &assets);
+    s.set_skirmish_files(vec!["A.SKR".into(), "B.SKR".into()]);
+    s.scroll_skirmish_files(1);
+    click(&mut s, &mut game, &assets, 560, 399);
+    click(&mut s, &mut game, &assets, 200, 0xB0 + 8);
+    assert_eq!(s.skirmish().file.as_deref(), Some("A.SKR"), "DAT_004EB25C < 10");
 }

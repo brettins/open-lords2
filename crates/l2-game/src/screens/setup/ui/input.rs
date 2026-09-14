@@ -389,7 +389,7 @@ impl SetupScreen {
     /// **What this build cannot honour, said on the page.**
     ///
     /// `docs/decisions.md` C21: a switch wired to nothing must not look
-    /// finished. Two things go here — an option, and the map, which the list can select and the world
+    /// finished. Two things go here — an option whose behaviour does not exist
     /// (*Exploration*), and the map, which the list can select and the world
     /// builder cannot yet build.
     ///

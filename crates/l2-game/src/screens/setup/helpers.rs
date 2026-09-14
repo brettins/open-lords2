@@ -63,7 +63,11 @@ pub(super) enum SkirmishArm {
     Handicap(usize),
     /// `FUN_0043DDF4` — the `.skr` field, which opens page 13.
     OpenFiles,
-    /// `FUN_00434174`, the n'th row of page 13's list.
+    /// `FUN_00434174`, the n'th of page 13's ten visible rows. Page 13's own
+    /// scroll arrows are `SaveLoad_Scroll` (`0x00434346`) under list 2, and
+    /// their widget record is not one we have read — see
+    /// [`SetupScreen::scroll_skirmish_files`], which nothing on the page
+    /// reaches yet.
     File(usize),
 }
 

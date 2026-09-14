@@ -39,7 +39,11 @@ pub const STRENGTH_WEIGHT: [i32; 11] = [2, 16, 8, 13, 9, 13, 22, 100, 100, 100, 
 /// How many of the list's rows are on screen at once — `FUN_00421005`'s loop.
 pub const ROWS_SHOWN: usize = 6;
 
-/// How many battles a category offers. `FUN_0043DC1D` writes `DAT_0053F0D4`.
+/// How many battles a category offers — the value `FUN_0043DC1D`
+/// (`0x0043DC1D`, `00430000.c:8081-8089`) writes into `DAT_0053F0D4`. That
+/// global is the *only* reader afterwards, and nothing else writes it, so a
+/// page-13 pick that sets the category to 3 leaves the old count standing:
+/// [`Skirmish::rows`] stores it rather than deriving it.
 pub fn rows_in(kind: usize) -> usize {
     match kind {
         3 => 20,
@@ -53,10 +57,11 @@ pub fn rows_in(kind: usize) -> usize {
 /// the same function recomputes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SkirmishArmy {
-    /// Army record `+0x04` … — eleven `short`s, seven of men and four of
-    /// engines.
+    /// Eleven `short`s from `0x0052F21C` — seven of men and four of engines.
     pub counts: [i16; 11],
-    /// Army record `+0x00` (`DAT_0052F218`): the sum of the **first seven**.
+    /// The army record's `menTotal` at `+0x168` (`0x0052F218`, the word before
+    /// the counts): the sum of the **first seven**. `Skirmish_FillArmies`
+    /// (`0x0042BF46`) recomputes it. **[V]** from the record's header.
     pub men: i32,
     /// `DAT_0051FBBC` for the local army and `DAT_0051FAD0` for the other —
     /// the autocalc strength the page prints under each name.
@@ -109,6 +114,10 @@ impl TroopsTable {
 pub struct Skirmish {
     /// `DAT_0053E91C` — 0 and 1 field battles, 2 castles, 3 a `.skr` file.
     pub kind: usize,
+    /// `DAT_0053F0D4`, how many rows the list has. Only `FUN_0043DC1D` writes
+    /// it (`00430000.c:8081-8089`), so it is stored and not derived: after
+    /// page 13 sets the category to 3 the previous category's count stands.
+    pub rows: usize,
     /// `DAT_0053F64C`, the first row drawn.
     pub top: usize,
     /// `DAT_0053E9A8`, which of the six drawn rows is lit.
@@ -139,6 +148,7 @@ impl Default for Skirmish {
     fn default() -> Self {
         Skirmish {
             kind: 0,
+            rows: 10,
             top: 0,
             slot: 0,
             row: 0,
@@ -169,7 +179,7 @@ impl Skirmish {
     /// the lit row and the row that will be fought disagree until the next
     /// click. Kept, because it is what the game does.
     pub fn scroll(&mut self, delta: i32) {
-        let last = rows_in(self.kind).saturating_sub(ROWS_SHOWN) as i32;
+        let last = self.rows.saturating_sub(ROWS_SHOWN) as i32;
         let top = self.top as i32 + delta;
         if top > last {
             self.top = last.max(0) as usize;
@@ -183,17 +193,24 @@ impl Skirmish {
 
     /// **One of the four categories** — `FUN_0043DC1D`, where the hotspot id
     /// *is* the category. Hotspot 3 with no `.skr` loaded falls back to 0.
-    /// The row, the slot and the scroll all go back to zero.
+    /// The row count, the row, the slot and the scroll all follow.
     pub fn choose_kind(&mut self, kind: usize) {
         self.kind = if kind == 3 && self.file.is_none() { 0 } else { kind };
+        self.rows = rows_in(self.kind);
         self.top = 0;
         self.slot = 0;
         self.row = 0;
     }
 
-    /// **Swap attacker and defender** — `FUN_0043DD83`. It reloads the troops
-    /// table, because which side the local player is on picks the *file*:
-    /// `TROOPS2.ENG` attacking, `TROOPS3.ENG` defending (`Troops_Load`).
+    /// **Swap attacker and defender** — `FUN_0043DD83`, which moves
+    /// `DAT_0053EF5C` between `g_localPlayer` and `DAT_0056D5CC`
+    /// (`00430000.c:8120-8126`).
+    ///
+    /// **[D]** the original then calls `Troops_Load` (`0x0042AC0C`), because
+    /// which side the local player is on picks the *file*: `TROOPS2.ENG`
+    /// attacking, `TROOPS3.ENG` defending. The parse is not built and the
+    /// table is handed in, so ours cannot reload; the sides swap and the
+    /// counts stay whichever file the caller supplied.
     pub fn swap_sides(&mut self) {
         self.local_attacks = !self.local_attacks;
     }
@@ -220,17 +237,32 @@ impl Skirmish {
         self.difficulty = [2, 2];
     }
 
-    /// **A row of page 13's file list** — `FUN_00434174`. Taking a name sets
-    /// the category to 3, loads the file and returns to page 12.
-    pub fn choose_file(&mut self, name: &str) {
+    /// **A row of page 13's file list** — `FUN_00434174`
+    /// (`00430000.c:1371-1376`). Taking a name writes `DAT_0053F5FC` and the
+    /// category, loads the file and returns to page 12. It writes **nothing
+    /// else**: `DAT_0053F64C`, `DAT_0053E9A8`, `DAT_0056D590` and
+    /// `DAT_0053F0D4` all keep the previous category's values, so the list is
+    /// still scrolled where it was and still as long as it was.
+    ///
+    /// Returns whether the page changed — choosing the name already chosen
+    /// returns 0 and stays on page 13 (`00430000.c:1364-1367`).
+    pub fn choose_file(&mut self, name: &str) -> bool {
         if self.file.as_deref() == Some(name) {
-            return;
+            return false;
         }
         self.file = Some(name.to_string());
         self.kind = 3;
-        self.top = 0;
-        self.slot = 0;
-        self.row = 0;
+        true
+    }
+
+    /// `DAT_0053EF5C == 1`, the test `FUN_004209C1` (`00420000.c:246`) puts
+    /// the role captions on — realm 1 attacking, not the local player
+    /// attacking. `FUN_0042B919` starts `DAT_0053EF5C` at 1 and `FUN_0043DD83`
+    /// moves it between `g_localPlayer` and `DAT_0056D5CC`, so on this page,
+    /// where the local player is realm 1 and the opponent is not, the two
+    /// tests coincide. **Inferred** — nothing here reads a realm number.
+    pub fn realm1_attacks(&self) -> bool {
+        self.local_attacks
     }
 
     /// Which half of the table each army is drawn from — `local_c` in
@@ -252,15 +284,22 @@ impl Skirmish {
         (SkirmishArmy::from_counts(mine), SkirmishArmy::from_counts(theirs))
     }
 
-    /// `FUN_0042BA40`'s two army slots for `(local, other)`: the attacker is
-    /// `g_battleArmyA` = 1 and the defender `g_battleArmyB` = 2.
+    /// `FUN_0042BA40`'s two army records for `(local, other)` —
+    /// `DAT_00553EFC` and `DAT_00553F34`, `00420000.c:4665-4673`. When
+    /// `DAT_0053EF5C == g_localPlayer` the local player takes record **2**
+    /// (`g_battleArmyB`) and the opponent record 1 (`g_battleArmyA`); the
+    /// other branch is the other way round. So `g_battleArmyA` always holds
+    /// the side the local player is *not* on when he attacks.
     pub fn slots(&self) -> (usize, usize) {
-        if self.local_attacks { (1, 2) } else { (2, 1) }
+        if self.local_attacks { (2, 1) } else { (1, 2) }
     }
 
-    /// A seed that is a pure function of the page — no clock and no counter,
-    /// `docs/netcode.md`. The original takes the field from a walking playlist
-    /// cursor instead; [`crate::batfield::field`] is the other end of this.
+    /// **[D]** a seed that is a pure function of the page — no clock and no
+    /// counter, `docs/netcode.md`. The original has no seed here: the field's
+    /// identity comes from the category and the row through `FUN_0042B9C4`
+    /// (`0x0042B9C4`, `00420000.c:4608-4619`), which picks the builder, and
+    /// `Battlefield_BuildRandom` draws on the global PRNG.
+    /// [`crate::batfield::field`] is the other end of this.
     pub fn seed(&self) -> u64 {
         let d = self.difficulty;
         let n = (self.kind as u64) << 32
