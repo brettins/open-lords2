@@ -78,9 +78,9 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   // The mod declarations go after the module doc (`//!` lines) and before the first item.
   const docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && l.trim() !== "");
   const modLines = files.mod.slice(); modLines.splice(docEnd < 0 ? 0 : docEnd, 0, "", decl);
-  fs.writeFileSync(path.join(root, dir, "mod.rs"), modLines.join("\n").replace(/\n{3,}/g, "\n\n") + "\n");
-  for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), prelude + files[n].join("\n") + "\n");
+  fs.writeFileSync(path.join(root, modPath), modLines.join("\n").replace(/\n{3,}/g, "\n\n") + "\n");
+  for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), prelude(n) + files[n].join("\n") + "\n");
   if (!isModRs) fs.unlinkSync(path.join(root, file));
-  console.log(`${String(files.mod.length + 2).padStart(6)} ${dir}/mod.rs`); for (const n of names) console.log(`${String(files[n].length + 2).padStart(6)} ${dir}/${n}.rs`);
+  console.log(`${String(files.mod.length + 2).padStart(6)} ${modPath}`); for (const n of names) console.log(`${String(files[n].length + 2).padStart(6)} ${dir}/${n}.rs`);
   console.log(`split-llm: ${names.length + 1} files from ${N} lines, every line kept (${j.usageMetadata?.totalTokenCount} tokens)`);
 })();

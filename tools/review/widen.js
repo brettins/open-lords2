@@ -16,13 +16,17 @@ for (let round = 0; round < 8; round++) {
   for (const m of text.matchAll(/error\[E0624\]: (?:method|associated function) `(\w+)` is private/g)) names.add(["fn", m[1]]);
   for (const m of text.matchAll(/error\[E0603\]: (?:function|struct|enum|constant|type alias|module|static) `(\w+)` is private/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E0616\]: field `(\w+)` of struct `(\w+)` is private/g)) names.add(["field", m[1]]);
+  // A private item of a sibling is "not found" rather than "private" through a glob.
+  for (const m of text.matchAll(/error\[E0425\]: cannot find (?:value|function) `(\w+)` in this scope/g)) names.add(["item", m[1]]);
+  for (const m of text.matchAll(/error\[E0412\]: cannot find type `(\w+)` in this scope/g)) names.add(["item", m[1]]);
+  for (const m of text.matchAll(/error\[E0433\]: failed to resolve: (?:could not find|cannot find) `(\w+)` in `super`/g)) names.add(["item", m[1]]);
   const errors = (text.match(/^error/gm) || []).length;
   if (!names.size) { console.log(`widen: round ${round}, ${errors} error(s) left, none about visibility`); process.exit(errors ? 1 : 0); }
   let changed = 0;
   for (const [kind, name] of names) for (const f of files()) {
     let s = fs.readFileSync(f, "utf8"), t = s;
     if (kind === "fn") t = s.replace(new RegExp(`^(\\s*)fn ${name}\\b`, "m"), `$1pub(super) fn ${name}`);
-    else if (kind === "item") t = s.replace(new RegExp(`^(\\s*)(fn|struct|enum|const|type|static|mod) ${name}\\b`, "m"), `$1pub(super) $2 ${name}`);
+    else if (kind === "item") t = s.replace(new RegExp(`^(\\s*)(fn|struct|enum|const|type|static|mod|trait) ${name}\\b`, "m"), `$1pub(super) $2 ${name}`);
     else t = s.replace(new RegExp(`^(\\s{4})${name}:`, "m"), `$1pub(super) ${name}:`);
     if (t !== s) { fs.writeFileSync(f, t); changed++; }
   }
