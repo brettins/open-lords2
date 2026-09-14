@@ -260,9 +260,9 @@ crates/l2-kingdom/src/lib.rs	C90	3fc5a8b2b598	f1599ed23aee
 crates/l2-kingdom/src/map.rs	C25	28b0c4932b46	5d466f0cb89c
 crates/l2-kingdom/src/map.rs	C30	3aa93ddc8f5a	50fdf5e17ba0
 crates/l2-kingdom/src/mercenary.rs	C3	5b48246a4be4	35bf3a86555f
-crates/l2-kingdom/src/movement.rs	C195	6e16669add92	f0bf50bfaad1
-crates/l2-kingdom/src/movement.rs	C25	e22bd009c03f	5d466f0cb89c
-crates/l2-kingdom/src/movement.rs	C40	87816e7f9e43	d344563abef8
+crates/l2-kingdom/src/movement/mod.rs	C195	6e16669add92	f0bf50bfaad1
+crates/l2-kingdom/src/movement/mod.rs	C25	e22bd009c03f	5d466f0cb89c
+crates/l2-kingdom/src/movement/mod.rs	C40	87816e7f9e43	d344563abef8
 crates/l2-kingdom/src/phase.rs	C134	3232abf25d99	d12cd2f96f79
 crates/l2-kingdom/src/phase.rs	C35	234e7ea17154	193a1920e229
 crates/l2-kingdom/src/population.rs	C20	11223ff82fe2	0ec8eeb4f874
