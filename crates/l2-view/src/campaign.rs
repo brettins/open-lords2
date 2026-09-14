@@ -416,9 +416,15 @@ impl Viewport {
 /// `Map_BuildLattice`'s loop, which writes `row = 1 + y + x`,
 /// `col = (64 - y + x) / 2`.
 ///
-/// **Rotations 2, 4 and 6 are not implemented.** `Map_BuildLattice` builds all
-/// four and `Map_RotateCW` / `Map_RotateCCW` step between them; we only ever
-/// build rotation 0 and
+/// **Rotations 2, 4 and 6 are not implemented, and the original never reaches
+/// them either.** [V] `Map_BuildLattice` (`0x004298C1`) builds all four, and
+/// `Map_RotateCW` (`0x00429F12`) / `Map_RotateCCW` (`0x0042A01B`) step between
+/// them — but `Map_RotateCW`'s only caller is `Map_RotateCCW`, `Map_RotateCCW`
+/// has none, and neither address appears in a widget table. `g_mapRotation`
+/// (`0x00522F7C`) is written nowhere else except `Map_LoadPlanes`
+/// (`0x00467770`), which zeroes it per map load. So the shipped game runs at
+/// rotation 0, its four readers all take the rotation-0 branch, and building
+/// rotation 0 only is a match, not a gap.
 pub fn tile_to_cell(x: usize, y: usize) -> (i32, i32) {
     let (x, y) = (x as i32, y as i32);
     (x + y + 1, (x - y + PLANE_DIM as i32) >> 1)
@@ -756,7 +762,7 @@ pub struct UnitSprite {
 ///   whole step; indices 15 and 0 are zero in all of them.
 /// * **A walking unit is only ever drawn at the odd indices.** The commit writes
 ///   1 and each admitted tick adds 2, and on reaching 16 the same tick commits
-///   the next tile. So a crossing is drawn at 1, 3 … 15 — eight positions, one
+/// the next tile. So a crossing is drawn at 1, 3 … 15 — eight positions, one
 ///   per admission, in a straight line — and only a unit that has stopped is
 ///   ever at 0.
 /// * **The whole step is short of the tile it left.** Index 1 is `(−28, +14)`
@@ -831,7 +837,7 @@ const WALK_FAR_Y: [[i8; 16]; 8] = [
 mod walk_tests {
     use super::*;
 
-    /// **The bytes and the projection agree about every step**, which is what
+    /// **The bytes and the projection agree about every step**,
 /// makes the tables `[V]`.
     ///
     /// Two sources that share nothing: the tables out of `Map_DrawArmies`, and
@@ -947,7 +953,7 @@ pub fn draw_mercenary_marker(
 ///   of that frame's record (`docs/formats/pl8.md`), which is also what fixes
 ///   the frame index at `0x82` from a second direction. The count sits under
 ///   the middle of the mark whatever the artwork is; in the shipped
-///   `Flags1a.pl8` that frame is **24 × 28 and the last of 131**.
+/// `Flags1a.pl8` that frame is **24 × 28 and the last of 131**.
 /// * **The suffix is one space.** `DAT_004D2094` is `20 00 00 00`, read out of
 ///   `.data` at file offset `0xD0294`, and `FUN_004025D7` measures it — the
 ///   trailing space is inside the centring, not after it.
@@ -1408,7 +1414,7 @@ impl Overrides {
 // -------------------------------------------------------------- field crops
 
 /// **`Terrain_Set` (`0x0046D7F4`) — the single writer of a tile's `content`
-/// byte, and the terrain → picture map the renderer needs.** **[V]**
+/// byte, and the terrain → picture map the renderer needs.[V]**
 ///
 /// Every state change on the campaign map goes through it: the field brush
 /// (`Field_SetType`), the seasonal crop pass, `Field_ReclaimTick`,
@@ -1724,7 +1730,7 @@ pub type Fog<'a> = Option<&'a dyn Fn(usize, usize) -> bool>;
 ///   `Map_DrawTile` (`0x004063C1`):
 ///   `if (g_optExploration == 1 && (bank & 0x20) == 0) { bank = 0; frame = 0; }`,
 ///   and `Map_DrawTileApex` (`0x00406673`) draws its overhang only under the
-///   opposite test — so a mountain, a town or a castle in the dark is flat.
+/// opposite test — so a mountain, a town or a castle in the dark is flat.
 ///   The county id still reaches `tags`: `Map_DrawTile` loads the tile's county
 ///   byte before the test, and a click still resolves the county under it.
 /// * **The whole off-map surround is frame 0 while the option is on**, seen or
