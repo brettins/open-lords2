@@ -112,10 +112,10 @@ crates/l2-game/src/screens/ratings/render.rs	C140	86ed189821f1	e3a1ede42a95
 crates/l2-game/src/screens/ratings/render.rs	C61	ca0d887d21ae	60611046b40d
 crates/l2-game/src/screens/saveload/mod.rs	C21	57f507db2bc2	f7bf296341ff
 crates/l2-game/src/screens/setup/mod.rs	C117	f18a15ba8c91	b20f3a227f0f
-crates/l2-game/src/screens/setup/screen.rs	C117	badd609f2144	b20f3a227f0f
-crates/l2-game/src/screens/setup/screen.rs	C21	8b9ebc1ffbf5	f7bf296341ff
+crates/l2-game/src/screens/setup/screen.rs	C117	18e1cd5e4479	b20f3a227f0f
+crates/l2-game/src/screens/setup/screen.rs	C21	dd6ccdac49de	f7bf296341ff
 crates/l2-game/src/screens/setup/ui/input.rs	C21	ff32bca9654c	f7bf296341ff
-crates/l2-game/src/screens/setup/ui/render/render.rs	C117	831195fc9117	b20f3a227f0f
+crates/l2-game/src/screens/setup/ui/render/render.rs	C117	a5a4742f90cb	b20f3a227f0f
 crates/l2-game/src/screens/setup/ui/render/render.rs	C21	46c435842bf6	f7bf296341ff
 crates/l2-game/src/screens/shells.rs	C45	0557ea4ec5f9	4d770bef92bd
 crates/l2-game/src/screens/siege/mod.rs	C61	c5060d93d70d	60611046b40d
