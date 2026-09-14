@@ -843,7 +843,7 @@ the castle was.
 > return. `Battle_Decline`, the Retreat button and the Autocalc button all leave for screen
 > `0x13` without passing that counter. So **a battle you gave up on un-does the castle
 damage as it undoes the casualties.
-> somebody watched to its end. `crates/l2-game/tests/siege_battle.rs` asserts both halves —
+> somebody watched to its end. `crates/l2-game/tests/siege_battle/main.rs` asserts both halves —
 > the bill after the banner, and no bill after the Autocalc button — through played clicks.
 >
 > **`docs/symbols.md` called the first accumulator `breachDamage` and that is a misnomer.**

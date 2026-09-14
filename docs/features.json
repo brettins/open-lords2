@@ -70,7 +70,7 @@
     {"id": "skirmish", "area": "battles", "name": "Skirmish battles and ratings", "status": "missing", "evidence": ["crates/l2-game/src/screens/ratings/mod.rs","C213","crates/l2-game/tests/screens_battle.rs"], "gap": "", "rows": ["skirmish-battles"]},
     {"id": "castle-building", "area": "sieges", "name": "Building castles", "status": "done", "evidence": ["C64","C216","crates/l2-game/tests/castles/main.rs"], "gap": "", "rows": []},
     {"id": "laying-siege", "area": "sieges", "name": "Laying siege and building engines", "status": "done", "evidence": ["C79","C106","crates/l2-kingdom/tests/siege/main.rs"], "gap": "", "rows": []},
-    {"id": "storming", "area": "sieges", "name": "Storming the gate, walls and keep", "status": "done", "evidence": ["C99","C100","C101","crates/l2-game/tests/siege_battle.rs"], "gap": "", "rows": []},
+    {"id": "storming", "area": "sieges", "name": "Storming the gate, walls and keep", "status": "done", "evidence": ["C99","C100","C101","crates/l2-game/tests/siege_battle/main.rs"], "gap": "", "rows": []},
     {"id": "moat", "area": "sieges", "name": "Filling the moat", "status": "done", "evidence": ["C81","C101"], "gap": "", "rows": []},
     {"id": "oil-towers", "area": "sieges", "name": "Boiling oil and siege towers", "status": "done", "evidence": ["C181","C203","C216","crates/l2-sim/tests/siege/main.rs","crates/l2-sim/tests/castle_layout/main.rs","C231"], "gap": "stop-short and reachable-near orders", "rows": ["siege-leftovers"]},
     {"id": "castle-layout", "area": "sieges", "name": "The castle's shape in battle", "status": "done", "evidence": ["C203","crates/l2-sim/tests/castle_layout/main.rs","crates/l2-game/tests/siege_picture/main.rs"], "gap": "", "rows": []},
