@@ -7,10 +7,6 @@
 //! a siege falls back to [`l2_sim::siege::our_castle`] — the ring whose wall
 //! stands one high, which is what made two built mechanics unreachable.
 
-mod layout_tests;
-pub use layout_tests::*;
-mod siege_tests;
-pub use siege_tests::*;
 
 use l2_sim::castle::{self, CastleSheets};
 use l2_sim::siege::{
@@ -40,4 +36,9 @@ macro_rules! sheets {
         }
     };
 }
+
+mod layout_tests;
+pub use layout_tests::*;
+mod siege_tests;
+pub use siege_tests::*;
 

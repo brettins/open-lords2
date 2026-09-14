@@ -367,6 +367,6 @@ pub enum Formation {
 }
 
 #[cfg(test)]
-#[path = "../runner_fire_tests.rs"]
+#[path = "../runner_fire_tests/mod.rs"]
 mod fire_tests;
 
