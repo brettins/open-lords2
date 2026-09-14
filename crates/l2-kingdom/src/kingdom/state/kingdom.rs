@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+
+use super::*;
 use crate::ai;
 use crate::county::{County, MAX_COUNTIES, MAX_COUNTY_ID};
 use crate::event;
@@ -605,4 +607,5 @@ impl Kingdom {
         ai::taunt(realm, realm_id, &snapshot, trailer)
     }
 }
+
 
