@@ -27,7 +27,7 @@ use l2_sim::{BattleRunner, End, Muster, Troop, SIDE_A, SIDE_B};
 /// With no missile troop at all the only ways to win are the three
 /// `Battle_CheckOutcome`
 /// requires getting through the wall.
-const STORMING_PARTY: &[(Troop, u32)] = &[
+pub(super) const STORMING_PARTY: &[(Troop, u32)] = &[
     (Troop::Peasants, 448),
     (Troop::Swordsmen, 300),
     (Troop::Knights, 100),
@@ -35,7 +35,7 @@ const STORMING_PARTY: &[(Troop, u32)] = &[
     (Troop::BatteringRams, 2),
 ];
 
-fn storming_party(level: u8) -> BattleRunner {
+pub(super) fn storming_party(level: u8) -> BattleRunner {
     BattleRunner::deploy_siege(
         siege::our_castle(level),
         99,

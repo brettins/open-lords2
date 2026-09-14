@@ -11,7 +11,7 @@ use crate::unit::{chebyshev, pct_of, Units, MAX_UNITS, REFORM_INTERVAL};
 use l2_net::Pcg32;
 
 /// `UnitOrder_SiegeAttMissile` (`0x0048D16E`) — siege attacker, category 1.
-pub(super) fn siege_att_missile(w: &mut World, cur: usize) {
+pub(crate) fn siege_att_missile(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -65,7 +65,7 @@ pub(super) fn siege_att_missile(w: &mut World, cur: usize) {
 /// The ladder is 8, 18, 25, 31, 40, 51, 60, 71, alternating two staging
 /// positions, with a jump that sets `orders` to **100** outright when the
 /// castle layout flag is set — skipping the rest of the approach script.
-pub(super) fn siege_att_foot(w: &mut World, cur: usize) {
+pub(crate) fn siege_att_foot(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -115,7 +115,7 @@ pub(super) fn siege_att_foot(w: &mut World, cur: usize) {
 
 /// `UnitOrder_SiegeAttMelee` (`0x0048D6FC`) — the same ladder at 15, 25, 30,
 /// 41, 50, 61, 70, 81, gated on `orders > 5`, plus a six-phase rotation.
-pub(super) fn siege_att_melee(w: &mut World, cur: usize) {
+pub(crate) fn siege_att_melee(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -187,7 +187,7 @@ pub(super) fn siege_att_melee(w: &mut World, cur: usize) {
 /// played game, the whole withdrawal half of the campaign seam was unreachable,
 /// and the campaign's own missing `Army_WithdrawCasualties` could not be
 /// noticed. `docs/decisions.md` C71.
-pub(super) fn siege_att_knight(w: &mut World, cur: usize) {
+pub(crate) fn siege_att_knight(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -223,7 +223,7 @@ pub(super) fn siege_att_knight(w: &mut World, cur: usize) {
 // Two ladder rungs issue the same order from different conditions, as the
 // original does. Collapsing them would lose the correspondence.
 #[allow(clippy::if_same_then_else)]
-pub(super) fn siege_att_catapult(w: &mut World, cur: usize) {
+pub(crate) fn siege_att_catapult(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, false) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -264,7 +264,7 @@ pub(super) fn siege_att_catapult(w: &mut World, cur: usize) {
 /// widens a search from radius **10 to 30** for a surface-4 cell. `L2.eng`
 /// 214/2 is the other half of the catapult's sentence: *"Battering rams and
 /// siege towers must be moved right up to the castle wall to work."* **[V]**
-pub(super) fn siege_att_tower(w: &mut World, cur: usize) {
+pub(crate) fn siege_att_tower(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, false) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -299,7 +299,7 @@ pub(super) fn siege_att_tower(w: &mut World, cur: usize) {
 /// `UnitOrder_SiegeAttRam` (`0x0048DFBB`) — ignores `orders` entirely and picks
 /// between its stored second destination and a castle approach point from three
 /// flags. No in-melee gate.
-pub(super) fn siege_att_ram(w: &mut World, cur: usize) {
+pub(crate) fn siege_att_ram(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, false) {
         w.ai.record(cur, Action::NoThink);
         return;

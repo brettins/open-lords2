@@ -7,7 +7,7 @@ impl BattleRunner {
     /// The next cell to try: the stored path if the figure is on one, else
     /// straight at the target. Figures normally walk straight and never search
     /// at all — the pathfinder is what happens when that fails.
-    pub(super) fn next_step(&self, i: usize) -> Option<Pos> {
+    pub(crate) fn next_step(&self, i: usize) -> Option<Pos> {
         let f = &self.fighters[i];
         if let Some(&wp) = f.path.last() {
             return Some(wp);
@@ -27,7 +27,7 @@ impl BattleRunner {
     /// Ask [`crate::pathfind`] for a route, subject to the original's two
     /// throttles: a cooldown after each attempt, and a hard stop after four
     /// consecutive failures.
-    pub(super) fn request_path(&mut self, i: usize) {
+    pub(crate) fn request_path(&mut self, i: usize) {
         {
             let f = &self.fighters[i];
             if f.hold > 0 || f.barred >= 4 {
@@ -121,7 +121,7 @@ impl BattleRunner {
     /// after a fire, a pour or a dock has written it. The original's order
     /// handlers read the live array, so ours have to see a burning cell the
     /// frame it burns.
-    pub(super) fn sync_cell(&mut self, c: usize) {
+    pub(crate) fn sync_cell(&mut self, c: usize) {
         let cell = self.field.cells[c];
         self.blocked[c] = cell.impassable();
         self.ai_field.surface[c] = cell.surface;
@@ -140,7 +140,7 @@ impl BattleRunner {
     /// The original counts every figure with an owner, a corpse on its eighty
     /// frames included; ours has no corpse lifetime and counts the living.
     /// `[D]`.
-    pub(super) fn update_man(&mut self, i: usize) {
+    pub(crate) fn update_man(&mut self, i: usize) {
         let (sim, troop, side, cell) = {
             let f = &self.fighters[i];
             (f.sim, f.troop, f.side, f.y as usize * DIM + f.x as usize)
@@ -162,7 +162,7 @@ impl BattleRunner {
 
     /// `Missile_UpdateAll`'s class-7 arm — the cross a stream of oil burns
     /// under itself. See [`fire::OIL_CROSS`].
-    pub(super) fn oil_cross(&mut self, slot: usize) {
+    pub(crate) fn oil_cross(&mut self, slot: usize) {
         let m = *self.missiles.get(slot);
         let (x, y) = (m.cell_x as i32, m.cell_y as i32);
         let base = m.ticks_flown.wrapping_sub(1).wrapping_mul(0x20);
@@ -201,7 +201,7 @@ impl BattleRunner {
     /// so a pot that poured less than eighty frames ago — still a corpse with
     /// an owner — would pour **again** if its unit were re-ordered downhill.
     /// This crate has no corpse lifetime and only the living pour. `[D]`.
-    pub(super) fn pour_oil(&mut self, pot: usize, to: (u8, u8)) {
+    pub(crate) fn pour_oil(&mut self, pot: usize, to: (u8, u8)) {
         let sim = self.fighters[pot].sim;
         let from = (self.fighters[pot].x, self.fighters[pot].y);
         let owner = self.sim.figures[sim].owner;
@@ -226,7 +226,7 @@ impl BattleRunner {
 
     /// **`BattleUnit_Order`'s oil loop** — every living pot of `unit` pours at
     /// `(x, y)` when [`fire::order_pours`] says the order is downhill.
-    pub(super) fn pour_on_order(&mut self, unit: usize, x: i16, y: i16) {
+    pub(crate) fn pour_on_order(&mut self, unit: usize, x: i16, y: i16) {
         if unit == 0 || unit > MAX_UNITS || !self.units.get(unit).is_live() {
             return;
         }
@@ -252,7 +252,7 @@ impl BattleRunner {
     /// [`Self::step_one`] asks of it: **is the first enemy it would step at a
     /// pot of oil?** Eight neighbours in facing order, an enemy by owner, at
     /// the figure's own height, and not within a cell of the field's edge.
-    pub(super) fn adjacent_oil(&self, i: usize) -> Option<usize> {
+    pub(crate) fn adjacent_oil(&self, i: usize) -> Option<usize> {
         let f = &self.fighters[i];
         let (x, y) = (f.x as i32, f.y as i32);
         if x < 1 || y < 1 || x >= DIM as i32 - 1 || y >= DIM as i32 - 1 {
@@ -286,7 +286,7 @@ impl BattleRunner {
     /// and gives up on its destination within three cells of it, else waits a
     /// hundred frames. The side-step is not built; the tower gives up within
     /// three cells and otherwise stands.
-    pub(super) fn tower_step(&mut self, i: usize, next: Pos) -> bool {
+    pub(crate) fn tower_step(&mut self, i: usize, next: Pos) -> bool {
         let (x, y) = (self.fighters[i].x, self.fighters[i].y);
         let Some(dir) = facing_from_delta(next.x as i32 - x as i32, next.y as i32 - y as i32) else {
             return false;
@@ -436,7 +436,7 @@ impl BattleRunner {
 
     /// [`fire::bridge_fire`], with the cells it wrote re-derived and the call
     /// heard — `FUN_0048551D` opens with `Sound_PlayFile("dest_ind.wav")`.
-    pub(super) fn bridge_fire_at(&mut self, x: i32, y: i32) {
+    pub(crate) fn bridge_fire_at(&mut self, x: i32, y: i32) {
         let touched = fire::bridge_fire(&mut self.field, &mut self.missiles, x, y);
         for c in touched {
             self.sync_cell(c);
@@ -444,7 +444,7 @@ impl BattleRunner {
         self.sim.cues.bridge_fire();
     }
 
-    pub(super) fn opponent_of(&self, i: usize) -> Option<usize> {
+    pub(crate) fn opponent_of(&self, i: usize) -> Option<usize> {
         let op = self.sim.figures[self.fighters[i].sim].opponent?;
         self.fighters.iter().position(|f| f.sim == op)
     }
@@ -452,7 +452,7 @@ impl BattleRunner {
     /// The eight neighbours in `Melee_FindAdjacentEnemy`'s order: N, NW, NE, W,
     /// E, SW, SE, S. The order decides which enemy a figure picks, so it is
 /// part of the behaviour.
-    pub(super) fn adjacent_enemy(&self, i: usize) -> Option<usize> {
+    pub(crate) fn adjacent_enemy(&self, i: usize) -> Option<usize> {
         const ORDER: [(i32, i32); 8] = [
             (0, -1),
             (-1, -1),

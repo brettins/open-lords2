@@ -17,7 +17,7 @@ use l2_net::Pcg32;
 /// whole document: the siege **defender**'s catapult, tower and ram slots are
 /// empty, and `g_raiseOrderSiege` independently says a garrison never holds
 /// those three troop types. Two unrelated structures agreeing. **[V]**
-pub(super) fn order_none(w: &mut World, cur: usize) {
+pub(crate) fn order_none(w: &mut World, cur: usize) {
     // Not even the think timer. The body is `return`.
     w.ai.record(cur, Action::NoThink);
 }
@@ -29,7 +29,7 @@ pub(super) fn order_none(w: &mut World, cur: usize) {
 /// The last branch is a **second, independent decision** taken after the first,
 /// and it exists only on the cautious side: an AI archer unit that thinks it is
 /// winning never backs away.
-pub(super) fn field_missile(w: &mut World, cur: usize) {
+pub(crate) fn field_missile(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -164,7 +164,7 @@ fn field_foot_or_melee(
 }
 
 /// `UnitOrder_FieldFoot` — category 2, peasants and pikemen.
-pub(super) fn field_foot(w: &mut World, cur: usize) {
+pub(crate) fn field_foot(w: &mut World, cur: usize) {
     field_foot_or_melee(w, cur, 2, 10, 8, 5, 2, 1);
 }
 
@@ -173,7 +173,7 @@ pub(super) fn field_foot(w: &mut World, cur: usize) {
 ///
 /// Note the rally waypoint: `FieldFoot` uses waypoint 2 and `FieldMelee`
 /// waypoint 1. `docs/battle-ai.md` §2.3's pseudocode gives both as 2.
-pub(super) fn field_melee(w: &mut World, cur: usize) {
+pub(crate) fn field_melee(w: &mut World, cur: usize) {
     field_foot_or_melee(w, cur, 4, 13, 9, 8, 1, 2);
 }
 

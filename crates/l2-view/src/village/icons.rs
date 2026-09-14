@@ -63,7 +63,7 @@ pub fn cluster_icons(cluster: usize, value: u8, main: i32, other: i32) -> [u8; I
 }
 
 /// `FUN_004519CA`: one state, scattered over all twenty-five slots.
-fn fill_one(icons: &mut [u8; ICONS_PER_CLUSTER], cluster: usize, value: u8, count: i32) {
+pub(crate) fn fill_one(icons: &mut [u8; ICONS_PER_CLUSTER], cluster: usize, value: u8, count: i32) {
     let value = if cluster == IDLE_CLUSTER { ICON_SURPLUS } else { value };
     for (i, &threshold) in FILL_ORDER.iter().enumerate() {
         if i32::from(threshold) <= count {
@@ -73,7 +73,7 @@ fn fill_one(icons: &mut [u8; ICONS_PER_CLUSTER], cluster: usize, value: u8, coun
 }
 
 /// `FUN_00451A5D`: two states at once.
-fn fill_two(
+pub(super) fn fill_two(
     icons: &mut [u8; ICONS_PER_CLUSTER],
     cluster: usize,
     main_value: u8,

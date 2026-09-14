@@ -11,12 +11,12 @@ use l2_net::Pcg32;
 
 #[allow(clippy::wrong_self_convention)]
 impl World<'_> {
-    pub(super) fn unit_pos(&self, u: usize) -> (i16, i16) {
+    pub(crate) fn unit_pos(&self, u: usize) -> (i16, i16) {
         let u = self.units.get(u);
         (u.x, u.y)
     }
 
-    pub(super) fn set_target(&mut self, cur: usize, x: i16, y: i16) {
+    pub(crate) fn set_target(&mut self, cur: usize, x: i16, y: i16) {
         let u = self.units.get_mut(cur);
         u.target_x = x;
         u.target_y = y;
@@ -69,7 +69,7 @@ impl World<'_> {
     // is *go here*, *shoot that unit* and *everybody charge*."
 
     /// `Order_HoldPosition`: destination = own position.
-    pub(super) fn hold_position(&mut self, cur: usize) {
+    pub(crate) fn hold_position(&mut self, cur: usize) {
         self.clear_withdrawing(cur);
         let (x, y) = self.unit_pos(cur);
         self.set_target(cur, x, y);
@@ -77,7 +77,7 @@ impl World<'_> {
     }
 
     /// `Order_OntoUnit`: walk straight at another unit.
-    pub(super) fn onto_unit(&mut self, cur: usize, other: usize) {
+    pub(crate) fn onto_unit(&mut self, cur: usize, other: usize) {
         self.clear_withdrawing(cur);
         let (x, y) = self.unit_pos(other);
         self.set_target(cur, x, y);
@@ -91,7 +91,7 @@ impl World<'_> {
     /// plus `Order_StopShortOfTarget` pulling a missile unit's destination back
     /// to `range/8 − 3`, is why AI archers converge on a standoff distance
     ///
-    pub(super) fn halfway_to_unit(&mut self, cur: usize, other: usize) {
+    pub(crate) fn halfway_to_unit(&mut self, cur: usize, other: usize) {
         self.clear_withdrawing(cur);
         let (sx, sy) = self.unit_pos(cur);
         let (ox, oy) = self.unit_pos(other);
@@ -116,7 +116,7 @@ impl World<'_> {
 /// The destination, so repeated withdrawals
     /// compound. Along the longer axis, and along both once an axis separation
     /// exceeds five. This is the whole of the AI's retreat behaviour.
-    pub(super) fn step_away_from_unit(&mut self, cur: usize, other: usize) {
+    pub(crate) fn step_away_from_unit(&mut self, cur: usize, other: usize) {
         let (ox, oy) = self.unit_pos(other);
         let (sx, sy) = self.unit_pos(cur);
         let (adx, ady) = (
@@ -148,7 +148,7 @@ impl World<'_> {
     /// `Order_StepTowardRallyPoint`: the mirror of the above, toward
     /// `rally_x/y`, **and it clears the request** — so the first missile unit
     /// to think answers the call and the rest do not.
-    pub(super) fn step_toward_rally_point(&mut self, cur: usize) {
+    pub(crate) fn step_toward_rally_point(&mut self, cur: usize) {
         let (rx, ry) = (self.ai.rally_x, self.ai.rally_y);
         self.ai.rally_request = false;
         let (sx, sy) = self.unit_pos(cur);
@@ -175,7 +175,7 @@ impl World<'_> {
 
     /// `Order_ToRallyWaypoint`: one of three waypoints for this side, in the
     /// group `Battle_Start` picked.
-    pub(super) fn to_rally_waypoint(&mut self, cur: usize, index: usize) {
+    pub(crate) fn to_rally_waypoint(&mut self, cur: usize, index: usize) {
         let side = self.side_index(cur);
         let (x, y) = self.field.rally[side][self.ai.rally_group][index];
         self.set_target(cur, x, y);
@@ -184,7 +184,7 @@ impl World<'_> {
 
     /// `BattleUnit_OrderToEnemyEnd`: a slot of the *opposing* side's
     /// deployment marker.
-    pub(super) fn to_enemy_end(&mut self, cur: usize, slot: usize) {
+    pub(crate) fn to_enemy_end(&mut self, cur: usize, slot: usize) {
         self.clear_withdrawing(cur);
         let side = self.side_index(cur);
         let (x, y) = self.field.enemy_end[side][slot & 3];
@@ -198,7 +198,7 @@ impl World<'_> {
     /// reform off, and puts **every** figure of the unit into free pursuit.
     /// From then on each figure picks its own victim and ignores the unit's
     /// destination: *a charged unit stops being a formation*.
-    pub(super) fn charge_nearest(&mut self, cur: usize) {
+    pub(crate) fn charge_nearest(&mut self, cur: usize) {
         self.clear_withdrawing(cur);
         self.units.get_mut(cur).halted = true;
         for f in self.figures.iter_mut() {
@@ -218,7 +218,7 @@ impl World<'_> {
     /// handler reads as "that unit is out of reach". Note the odd exclusion the
     /// original carries and this reproduces: a shooter standing on surface 1
     /// will not take a target standing on surface 5.
-    pub(super) fn shoot_at_unit(&mut self, cur: usize, unit: usize) -> bool {
+    pub(crate) fn shoot_at_unit(&mut self, cur: usize, unit: usize) -> bool {
         let mut all_found = true;
         for f in 0..self.figures.len() {
             if !self.figures[f].is_alive() || self.figures[f].unit as usize != cur {
@@ -284,7 +284,7 @@ impl World<'_> {
     // --- the siege position vocabulary -------------------------------------
 
     /// `Order_ToCell`: a cell index straight into the destination.
-    pub(super) fn to_cell(&mut self, cur: usize, cell: usize) {
+    pub(crate) fn to_cell(&mut self, cur: usize, cell: usize) {
         let (x, y) = ((cell % DIM) as i16, (cell / DIM) as i16);
         self.set_target(cur, x, y);
         self.ai.record(cur, Action::ToCell);
@@ -292,7 +292,7 @@ impl World<'_> {
 
     /// `Order_ToFieldCorner`: `(6, 74)` or `(74, 74)` by castle layout, and a
     /// castle approach point when the layout is neither 1 nor 2.
-    pub(super) fn to_field_corner(&mut self, cur: usize, index: usize) {
+    pub(crate) fn to_field_corner(&mut self, cur: usize, index: usize) {
         self.clear_withdrawing(cur);
         match self.field.layout {
             1 => {
@@ -310,7 +310,7 @@ impl World<'_> {
     /// `Order_ToCastleApproach`: one of four approach points per index, by
     /// lane. Rams (category 7) always use the primary table; everyone else
     /// switches on the castle orientation flag.
-    pub(super) fn to_castle_approach(&mut self, cur: usize, index: usize) {
+    pub(crate) fn to_castle_approach(&mut self, cur: usize, index: usize) {
         self.clear_withdrawing(cur);
         let category = self.units.get(cur).category;
         let lane = self.ai.approach_lane & 3;
@@ -328,7 +328,7 @@ impl World<'_> {
     /// `Order_ToSiegeStaging`: the primary approach table below approach score
     /// 16 or above 399, the secondary five cells further in between, or a fixed
     /// offset from the castle when the orientation flag is set.
-    pub(super) fn to_siege_staging(&mut self, cur: usize) {
+    pub(crate) fn to_siege_staging(&mut self, cur: usize) {
         self.clear_withdrawing(cur);
         let lane = self.ai.approach_lane & 3;
         let (x, y) = if self.field.orientation == 0 {
@@ -354,7 +354,7 @@ impl World<'_> {
     /// searches for is surface **2**, which `docs/battle.md` §7 and the
     /// state-9 moat handler both give as water — so the early phase of a siege
     /// is an order to go and fill the moat in.
-    pub(super) fn to_breach_or_staging(&mut self, cur: usize) {
+    pub(crate) fn to_breach_or_staging(&mut self, cur: usize) {
         if self.ai.approach_score >= 401 {
             self.ai.record(cur, Action::DoNothing);
             return;
@@ -378,7 +378,7 @@ impl World<'_> {
 
     /// `Order_ToCastleObjective`: one of the two cells the castle builder
     /// recorded.
-    pub(super) fn to_castle_objective(&mut self, cur: usize, mode: usize) {
+    pub(crate) fn to_castle_objective(&mut self, cur: usize, mode: usize) {
         let cell = if mode == 1 || self.ai.ramparts_breached >= 1 || self.field.castle_index == 13 {
             self.field.castle_objective[0]
         } else {
@@ -391,7 +391,7 @@ impl World<'_> {
     /// `Order_ToWallSlot`: one of sixteen positions in a group, **skipping
     /// empty entries and wrapping**, offset one cell west and two north of the
     /// recorded position.
-    pub(super) fn to_wall_slot(&mut self, cur: usize, group: usize, slot: usize) {
+    pub(crate) fn to_wall_slot(&mut self, cur: usize, group: usize, slot: usize) {
         self.clear_withdrawing(cur);
         let mut slot = slot % 16;
         let mut guard = 17;
@@ -409,7 +409,7 @@ impl World<'_> {
     }
 
     /// `Order_ToNearestWallCell`: the nearest surface-4 cell within forty.
-    pub(super) fn to_nearest_wall_cell(&mut self, cur: usize) {
+    pub(crate) fn to_nearest_wall_cell(&mut self, cur: usize) {
         let (sx, sy) = self.unit_pos(cur);
         if let Some((x, y)) = self.nearest_surface(sx as i32, sy as i32, 40, 4, true) {
             self.set_target(cur, x as i16, y as i16);
@@ -421,7 +421,7 @@ impl World<'_> {
 
     /// `Order_ToWallBelowKeep`: the primary castle cell, four cells south, then
     /// the nearest surface-4 cell within five of *that*.
-    pub(super) fn to_wall_below_keep(&mut self, cur: usize) {
+    pub(crate) fn to_wall_below_keep(&mut self, cur: usize) {
         let cell = self.field.castle_objective[0];
         let (x, y) = ((cell % DIM) as i32, (cell / DIM) as i32 + 4);
         if let Some((wx, wy)) = self.nearest_surface(x, y, 5, 4, true) {
@@ -445,7 +445,7 @@ impl World<'_> {
     /// sibling `Siege_FindCellSurface4` saves the query point first and does
     /// not have the fault. Left as written: the original's choice of cell is
     /// the specification, and "fixing" it moves defenders somewhere else.
-    pub(super) fn to_surface5_near(&mut self, cur: usize, cell: usize) {
+    pub(crate) fn to_surface5_near(&mut self, cur: usize, cell: usize) {
         let (x, y) = ((cell % DIM) as i32, (cell / DIM) as i32);
         if let Some((wx, wy)) = self.nearest_surface_from_box_corner(x, y, 5, 5) {
             self.set_target(cur, wx as i16, wy as i16);
@@ -459,7 +459,7 @@ impl World<'_> {
     /// second destination pair, so this holds the destination it already has —
     /// which is what copying `+0x26/+0x28` onto `+0x22/+0x24` does on a unit
     /// that has never been given one.
-    pub(super) fn to_second_target(&mut self, cur: usize) {
+    pub(crate) fn to_second_target(&mut self, cur: usize) {
         self.clear_withdrawing(cur);
         self.ai.record(cur, Action::ToSecondTarget);
     }
@@ -472,7 +472,7 @@ impl World<'_> {
     /// wall cell becomes the destination. **[I]** on the wall step — the
     /// weighting is read from the binary, the "then stand beside him" is how
     /// the callers use the result.
-    pub(super) fn to_wall_near_target(&mut self, cur: usize, prefer_shooters: bool) {
+    pub(crate) fn to_wall_near_target(&mut self, cur: usize, prefer_shooters: bool) {
         let (sx, sy) = self.unit_pos(cur);
         let mine = self.units.get(cur).owner;
         let mut best: Option<(i32, usize)> = None;
@@ -521,7 +521,7 @@ impl World<'_> {
     ///
     /// `manhattan` picks the metric — the original uses Manhattan distance when
     /// its `maxElevation` argument is 4 and `min(|dx|, |dy|)` otherwise.
-    pub(super) fn nearest_surface(
+    pub(crate) fn nearest_surface(
         &self,
         x: i32,
         y: i32,
@@ -581,7 +581,7 @@ impl World<'_> {
     /// table that stops two defending units posting to the same place. Returns
     /// the cell already reserved for this unit, or reserves the first free
     /// non-empty entry. `0` when the table is full.
-    pub(super) fn claim_defence_post(&mut self, cur: usize) -> usize {
+    pub(crate) fn claim_defence_post(&mut self, cur: usize) -> usize {
         for i in 0..20 {
             if self.ai.defence_post_owner[i] as usize == cur && cur != 0 {
                 return self.field.defence_posts[i];
@@ -597,7 +597,7 @@ impl World<'_> {
     }
 
     /// `Oil_IsOnHighWall`: elevation 2 or more on a cell of surface 6 or above.
-    pub(super) fn oil_is_on_high_wall(&self, cur: usize) -> bool {
+    pub(crate) fn oil_is_on_high_wall(&self, cur: usize) -> bool {
         let (x, y) = self.unit_pos(cur);
         self.field.elevation_at(x as i32, y as i32) >= 2
             && self.field.surface_at(x as i32, y as i32).unwrap_or(0) >= 6
@@ -607,7 +607,7 @@ impl World<'_> {
     /// otherwise the densest enemy cluster within six cells needing three
     /// enemies, or within four needing two once the unit is on the rampart
     /// proper. A genuine "wait until they bunch up under you" rule.
-    pub(super) fn oil_find_pour_target(&self, cur: usize) -> Option<(i16, i16)> {
+    pub(crate) fn oil_find_pour_target(&self, cur: usize) -> Option<(i16, i16)> {
         let (ux, uy) = self.unit_pos(cur);
         if self.field.elevation_at(ux as i32, uy as i32) < 2 {
             return None;
@@ -641,7 +641,7 @@ impl World<'_> {
     /// The skeleton every handler opens with: count the think timer up, and run
     /// only when it passes its interval and (in 13 of the 17) no figure of the
     /// unit is in melee.
-    pub(super) fn may_think(&mut self, cur: usize, interval: i16, melee_gates: bool) -> bool {
+    pub(crate) fn may_think(&mut self, cur: usize, interval: i16, melee_gates: bool) -> bool {
         let u = self.units.get_mut(cur);
         u.think = u.think.saturating_add(1);
         if u.think < interval || (melee_gates && u.in_melee) {
@@ -652,14 +652,14 @@ impl World<'_> {
     }
 
     /// The tail: `orders += 1`. Two handlers return before reaching it.
-    pub(super) fn advance_script(&mut self, cur: usize) {
+    pub(crate) fn advance_script(&mut self, cur: usize) {
         let u = self.units.get_mut(cur);
         u.orders = u.orders.wrapping_add(1);
     }
 
     /// The liveness test every handler makes on its remembered attacker:
     /// the grudge must be live *and* the attacker must still exist.
-    pub(super) fn live_attacker(&self, cur: usize) -> Option<usize> {
+    pub(crate) fn live_attacker(&self, cur: usize) -> Option<usize> {
         let u = self.units.get(cur);
         if u.hit_memory == 0 {
             return None;

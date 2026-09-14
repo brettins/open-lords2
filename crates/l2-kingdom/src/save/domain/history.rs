@@ -38,7 +38,7 @@ impl Encode for History {
     }
 }
 
-pub(super) fn decode_history(input: &mut Reader<'_>) -> Result<History, LoadError> {
+pub(crate) fn decode_history(input: &mut Reader<'_>) -> Result<History, LoadError> {
     let head = input.u32()? as usize;
     let tail = input.u32()? as usize;
     let len = input.u32()? as usize;

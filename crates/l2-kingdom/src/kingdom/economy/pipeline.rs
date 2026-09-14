@@ -29,7 +29,7 @@ impl Kingdom {
 /// men cost nothing. Reproduced, because the
     /// order matters if the realm is short of bows: the top-up happens first,
     /// so it never is.
-    pub(super) fn raise_free_garrison(&mut self, county: u8, archers: i32) {
+    pub(crate) fn raise_free_garrison(&mut self, county: u8, archers: i32) {
         let owner = self.counties[county as usize].owner;
         let Some(realm) = self.realms.get_mut(owner as usize) else { return };
         let bow = crate::unit::TroopType::Archer.weapon_slot().unwrap_or(4);
@@ -68,11 +68,11 @@ impl Kingdom {
         );
     }
 
-    pub(super) fn migration_update(&mut self) {
+    pub(crate) fn migration_update(&mut self) {
         population::migrate_all(&mut self.counties, self.county_count, self.options.quirks);
     }
 
-    pub(super) fn population_update(&mut self) {
+    pub(crate) fn population_update(&mut self) {
         let Some(season) = self.season() else { return };
         population::update_all(
             &self.tables,
@@ -84,7 +84,7 @@ impl Kingdom {
     }
 
     /// The history ring — `FUN_004AE7DD`. See [`History`].
-    pub(super) fn history(&mut self) {
+    pub(crate) fn history(&mut self) {
         self.history.record(&self.counties);
     }
 

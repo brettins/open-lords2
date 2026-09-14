@@ -39,7 +39,7 @@ fn sortie(w: &mut World, _cur: usize) -> bool {
 /// are zero and it returns without writing anything. It reads as a missing
 /// assignment. Reproduced, because "fixing" it would change observable
 /// behaviour — and it is unreachable in practice anyway, behind a 260 % gate.
-pub(super) fn siege_def_missile(w: &mut World, cur: usize) {
+pub(crate) fn siege_def_missile(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -70,7 +70,7 @@ pub(super) fn siege_def_missile(w: &mut World, cur: usize) {
 /// It does **nothing but count `orders` up**, so that unit holds whatever wall
 /// slot it was deployed on for the entire battle. Not a stub: the original body
 /// is the think gate and the increment, and nothing else.
-pub(super) fn siege_def_wall_missile_a(w: &mut World, cur: usize) {
+pub(crate) fn siege_def_wall_missile_a(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -80,7 +80,7 @@ pub(super) fn siege_def_wall_missile_a(w: &mut World, cur: usize) {
 }
 
 /// `UnitOrder_SiegeDefWallMissileB` (`0x0048E2C8`) — category 10, the second.
-pub(super) fn siege_def_wall_missile_b(w: &mut World, cur: usize) {
+pub(crate) fn siege_def_wall_missile_b(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -103,7 +103,7 @@ pub(super) fn siege_def_wall_missile_b(w: &mut World, cur: usize) {
 ///
 /// Its `Enemy_NearestUnit(unit, 10, 0)` result is discarded, the same missing
 /// assignment as in `SiegeDefMissile`. Reproduced for the same reason.
-pub(super) fn siege_def_foot(w: &mut World, cur: usize) {
+pub(crate) fn siege_def_foot(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL_FAST, false) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -125,7 +125,7 @@ pub(super) fn siege_def_foot(w: &mut World, cur: usize) {
 /// Reserves a defence post, moves onto an attacking unit that has reached the
 /// wall, and otherwise rotates four inner slots every fifteenth think —
 /// abandoning all of it for the castle objective once four attackers are up.
-pub(super) fn siege_def_melee(w: &mut World, cur: usize) {
+pub(crate) fn siege_def_melee(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL_FAST, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -174,7 +174,7 @@ pub(super) fn siege_def_melee(w: &mut World, cur: usize) {
 /// `UnitOrder_SiegeDefKnight` (`0x0048E774`) — the most passive of the
 /// defenders: wall-slot group 2 every twentieth think until a single attacker
 /// reaches the wall.
-pub(super) fn siege_def_knight(w: &mut World, cur: usize) {
+pub(crate) fn siege_def_knight(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
@@ -202,7 +202,7 @@ pub(super) fn siege_def_knight(w: &mut World, cur: usize) {
 /// two, on the rampart proper).
 // Three of the fall-back branches end in the same order, as the original does.
 #[allow(clippy::if_same_then_else)]
-pub(super) fn siege_def_oil(w: &mut World, cur: usize) {
+pub(crate) fn siege_def_oil(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
