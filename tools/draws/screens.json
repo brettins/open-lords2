@@ -121,9 +121,7 @@
     "invented": [],
     "notes": "Two painters and eleven layouts: UnitPanel_Draw (0x0041B19D) for a unit, FUN_0041BEFE for a tile. Settled here: L2.eng 31/21 \"Morale\" is drawn by nothing — seven literal group-31 draws, none of them index 21, and the one variable index is pinned to {0,2,5} by a four-arm kind ladder — so docs/armies.md's [V] on unit +0x166 is demoted. UnitPanel_Draw also assigns local_14 five times (0x23..0x27) and reads it nowhere; what those five values index is unestablished and deliberately not guessed. docs/draws.md §12.",
     "original": 174,
-    "literals_ours": [
-      "TILE HALF: THE GROUP 30 LADDER IS NOT ALL DRAWN YET — ours, and honest: a diagnostic saying which of the eleven layouts is unbuilt, not a caption standing in for an L2.eng string. Only found once the caption scanner learned to read a rustfmt-split call."
-    ],
+    "literals_ours": [],
     "reachable": true
   },
   {

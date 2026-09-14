@@ -376,6 +376,41 @@ pub const COUNTY_TOWN_HEADING: usize = 7;
 pub const COUNTY_TOWN_BODY: usize = 0x1B;
 pub const COUNTY_TOWN_ICON: usize = 0x1B;
 
+/// **The rest of `TileInfo_Draw`'s ladder: heading, body and `Icon_tmp.pl8`
+/// frame, one row per [`TileKind`] the flags reach.**
+///
+/// Every row is three literals off one arm of `TileInfo_Draw` (`0x0041C208`),
+/// which is `local_20`, `local_1c` and `local_8` in the decompilation and
+/// `local_c` (the second heading) zero in all six:
+///
+/// ```c
+/// if      (flags & 0x01) { local_20 = 1; local_1c = 0x17; local_8 = 0x18; }  /* road */
+/// else if (flags & 0x04) { local_20 = 3; local_1c = 0x18; local_8 = 0x1d; }  /* sea  */
+/// else if (flags & 0x10) { graphic == 0x10 ? (0x30, 0x31) : (0x32, 0x33); local_8 = 0x1b; }
+/// else if (flags & 0x08) { DAT_005651bc ? (4, 0x19, 0x19) : (5, 0x1a, 0x1a); }
+/// ...
+/// else                   { local_20 = 0; local_1c = 0x16; local_8 = 0x17; }  /* scrub */
+/// ```
+///
+/// `DAT_005651BC` is `Map_ResolvePick`'s (`0x0046D5FE`) mountain bit — see
+/// [`l2_kingdom::map::CampaignMap::is_mountain`].
+pub const TILE_LADDER: [(TileKind, usize, usize, usize); 6] = [
+    (TileKind::Road, 1, 0x17, 0x18),
+    (TileKind::Sea, 3, 0x18, 0x1D),
+    (TileKind::Village, 0x30, 0x31, 0x1B),
+    (TileKind::RuinedVillage, 0x32, 0x33, 0x1B),
+    (TileKind::Mountain, 4, 0x19, 0x19),
+    (TileKind::Woodland, 5, 0x1A, 0x1A),
+];
+
+/// The fall-through at the bottom of `TileInfo_Draw`'s flag ladder: heading
+/// 30/0, body 30/22, icon `0x17`. No bit of the plane-0 byte is set.
+pub const SCRUBLAND_INFO: (usize, usize, usize) = (0, 0x16, 0x17);
+
+/// `Map_ResolvePick`'s `g_pickedTileGraphic == 0x10` — the terrain byte of an
+/// *occupied* dwelling plot. Anything else on a `0x10` tile is the ruin.
+pub const VILLAGE_GRAPHIC: u8 = 0x10;
+
 /// **The castle arm's three headings and its icon.** `TileInfo_Draw`'s `0x80`
 /// branch at `0x0C < graphic < 0x1A`: 30/8 *"Castle."*, or 30/14 and 30/15
 /// while `castleDegraded` is 1 or 2, and `Icon_tmp.pl8` frame `0x1C`. The body
@@ -445,7 +480,6 @@ pub const SITE_INFO: [(usize, usize, usize); 4] = [
 /// [`l2_kingdom::county::Industry::output`] here — the same difference, kept as
 /// a field. Group 22 is never touched: 53…57 read *"A small mine."*, *"A medium
 /// mine."*, *"A large mine."*, *"A very large mine."*, *"A destroyed mine."*,
-/// and the other three sites the same
 /// `+4` as destroyed. `[V]` against the player's `L2.eng`. The brief that
 /// opened this arm called it a fertility table; the correction is
 /// `docs/decisions.md` C204.
@@ -571,7 +605,7 @@ pub const FARM_TILE_INFO: [[usize; 4]; 0x1D] = [
 ];
 
 /// `local_c`, the table's fourth column: the `L2.eng` 30 index drawn after the
-/// heading, and the switch on what the panel says below it.
+/// heading
 pub mod mode {
     /// *"- Barren."*
     pub const BARREN: usize = 0x11;
@@ -733,6 +767,10 @@ pub enum TileKind {
     Road,
     Sea,
     Village,
+    /// The `0x10` arm's other half — a dwelling plot whose terrain byte is not
+    /// [`VILLAGE_GRAPHIC`]. `Map_ResolvePick` blanks the flags when it is
+    /// *zero*, so this is a plot that once held something.
+    RuinedVillage,
     Mountain,
     Woodland,
     Farmland,
@@ -803,6 +841,80 @@ impl InfoScreen {
         (unit != 0).then_some(unit)
     }
 
+    /// **`Map_ResolvePick` (`0x0046D5FE`)'s `_g_pickedTileFlags`** — the plane-0
+    /// byte every predicate below tests, with the two tiles the pick *blanks*:
+    ///
+    /// ```c
+    /// if ((flags & 0x80) != 0 && g_pickedTileGraphic == 0x14) _g_pickedTileFlags = 0;
+    /// if ((flags & 0x10) != 0 && g_pickedTileGraphic == 0)    _g_pickedTileFlags = 0;
+    /// ```
+    ///
+    /// A **bare castle plot** and an **empty dwelling plot** therefore reach
+    /// `TileInfo_Draw` with no bits at all and take its scrubland
+    /// fall-through — not the castle arm and not the village arm. The panel
+    /// used to draw the castle arm on a bare plot; every county that starts
+    /// castleless showed *"Castle."* over open ground.
+    ///
+    /// **Not reproduced:** the same function's anchor walk for a 2×2 block
+    /// (`local_8`, from `part & 0x0F`), which re-reads the flags from the
+    /// block's north-west tile. Every tile of a town or castle block carries
+    /// the same flags and graphic, so it changes no word on this panel.
+    pub fn picked_flags(&self, ctx: &Ctx) -> u8 {
+        use l2_kingdom::map::{flags, terrain};
+        let Target::Tile(tile) = self.target else { return 0 };
+        let map = &ctx.game.kingdom.campaign.map;
+        let (f, g) = (map.flags[tile], map.terrain[tile]);
+        if f & flags::SETTLEMENT != 0 && g == terrain::CASTLE_PLOT {
+            return 0;
+        }
+        if f & flags::PLOT != 0 && g == 0 {
+            return 0;
+        }
+        f
+    }
+
+    /// **`TileInfo_Draw` (`0x0041C208`)'s flag ladder**, in its order:
+    /// `0x01`, `0x04`, `0x10`, `0x08`, `0x20`, `0x40`, `0x80`, then the
+    /// scrubland fall-through. The five arms this returns that no other method
+    /// covers are [`TILE_LADDER`]'s; the last four defer to the predicates that
+    /// already carry the same exclusion sets.
+    pub fn tile_kind(&self, ctx: &Ctx) -> Option<TileKind> {
+        use l2_kingdom::map::flags;
+        let Target::Tile(tile) = self.target else { return None };
+        let map = &ctx.game.kingdom.campaign.map;
+        let f = self.picked_flags(ctx);
+        Some(if f & flags::ROAD != 0 {
+            TileKind::Road
+        } else if f & flags::NO_COUNTY != 0 {
+            TileKind::Sea
+        } else if f & flags::PLOT != 0 {
+            if map.terrain[tile] == VILLAGE_GRAPHIC {
+                TileKind::Village
+            } else {
+                TileKind::RuinedVillage
+            }
+        } else if f & flags::ROUGH != 0 {
+            // `DAT_005651BC`
+            if map.is_mountain(tile) {
+                TileKind::Mountain
+            } else {
+                TileKind::Woodland
+            }
+        } else if f & flags::FARMLAND != 0 {
+            TileKind::Farmland
+        } else if f & flags::CASTLE != 0 {
+            TileKind::CountyTown
+        } else if f & flags::SETTLEMENT != 0 {
+            if map.terrain[tile] < 0x0D {
+                TileKind::Industry
+            } else {
+                TileKind::Castle
+            }
+        } else {
+            TileKind::Scrubland
+        })
+    }
+
     /// **The county whose town this tile is**, or `None`.
     ///
     /// Plane-0 bit `0x40` is the county town — `docs/decisions.md` C25 is why
@@ -815,7 +927,7 @@ impl InfoScreen {
         use l2_kingdom::map::flags;
         let Target::Tile(tile) = self.target else { return None };
         let map = &ctx.game.kingdom.campaign.map;
-        let f = map.flags[tile];
+        let f = self.picked_flags(ctx);
         if f & (flags::FARMLAND | flags::NO_COUNTY | 0x10) != 0 || f & flags::CASTLE == 0 {
             return None;
         }
@@ -892,7 +1004,7 @@ impl InfoScreen {
     fn settlement_tile(&self, ctx: &Ctx) -> Option<usize> {
         use l2_kingdom::map::flags;
         let Target::Tile(tile) = self.target else { return None };
-        let f = ctx.game.kingdom.campaign.map.flags[tile];
+        let f = self.picked_flags(ctx);
         let before = flags::ROAD
             | flags::NO_COUNTY
             | flags::PLOT
@@ -907,7 +1019,7 @@ impl InfoScreen {
     /// dwelling), `0x08` (mountain or wood) are all tested before `0x20`.
     pub fn farmland(&self, ctx: &Ctx) -> Option<usize> {
         let Target::Tile(tile) = self.target else { return None };
-        let f = ctx.game.kingdom.campaign.map.flags[tile];
+        let f = self.picked_flags(ctx);
         (f & (0x01 | 0x04 | 0x10 | 0x08) == 0 && f & l2_kingdom::map::flags::FARMLAND != 0)
             .then_some(tile)
     }
@@ -1014,8 +1126,22 @@ impl InfoScreen {
                 // `FUN_0041BEFE`'s `0x20` arm tests the blighted pair **before**
                 // the owner: a flooded or parched field is row `0x11` on anybody's
                 // county, because it offers no brush.
+                // **`FUN_0041BEFE`'s `0x04` and `0x10` arms**, the two layouts
+                // that grant no head-room: sea is `0x11` with none and a
+                // dwelling plot is `0x10` with none. Both are tested after
+                // `0x20` there, which is the guard here.
+                let picked = self.picked_flags(ctx);
+                let f = picked;
+                if f & l2_kingdom::map::flags::FARMLAND == 0 {
+                    if f & l2_kingdom::map::flags::NO_COUNTY != 0 {
+                        return Layout { row: 0x11, headroom: 0 };
+                    }
+                    if f & l2_kingdom::map::flags::PLOT != 0 {
+                        return Layout { row: 0x10, headroom: 0 };
+                    }
+                }
                 let t = map.terrain[tile];
-                if map.flags[tile] & l2_kingdom::map::flags::FARMLAND != 0
+                if picked & l2_kingdom::map::flags::FARMLAND != 0
                     && mine
                     && t != 0x17
                     && t != 0x18
@@ -1308,7 +1434,7 @@ impl Screen for InfoScreen {
 // `Push` because `0x11` goes
                     // **back to `0x04`**: every one of the division screen's
                     // three ways out — the turn-ended latch, the right release
-                    // and the OK button — writes `g_screenId = 0x04` and not 0.
+                    //
                     // That is `docs/arms.json`
                     // `0x0042FF10/back-one-rather-than-to-the-map`, whose note
                     // said ours reached the campaign map "because we have no
@@ -1417,7 +1543,6 @@ impl Screen for InfoScreen {
                 }
                 if u.kind == UnitKind::Army {
                     // **Outside the ownership gate**: the name, "An army from"
-                    // and the county. This is the correction the module docs
                     // record.
                     // **`w`, not `HEADING_X + w`.** The original writes
                     // `g_penAdvance = 0; Eng_DrawString(31, 9, 0x28, …);
@@ -1703,20 +1828,13 @@ impl Screen for InfoScreen {
                             font::TEXT,
                         );
                     }
-                } else if self.farmland(ctx).is_none()
-                    && self.castle_tile(ctx).is_none()
-                    && self.resource_site(ctx).is_none()
-                    && ctx.game.prefs.debug_overlay
-                {
-                    // Ours, debug overlay only: the rest of the ladder — road,
-                    // sea, village, mountain and wood — is not drawn yet.
-                    l2_view::text::draw(
-                        canvas,
-                        4,
-                        470,
-                        "TILE HALF: THE GROUP 30 LADDER IS NOT ALL DRAWN YET",
-                        ink.dim,
-                    );
+                }
+                // **The rest of `TileInfo_Draw`'s ladder** — road, sea, the two
+                // villages, mountain, wood
+                // heading, one wrapped body, one icon, all three off
+                // [`TILE_LADDER`]. See [`draw_plain_tile`].
+                if let Some(kind) = self.tile_kind(ctx) {
+                    draw_plain_tile(&pen, canvas, l, kind);
                 }
             }
         }
@@ -1871,6 +1989,44 @@ fn draw_castle(
     }
     if garrison.is_some() {
         widget(canvas, l.y(0x104));
+    }
+}
+
+/// **`TileInfo_Draw` (`0x0041C208`)'s six wordless arms** — road, sea, the
+/// occupied and the ruined dwelling plot, mountain, woodland, and the
+/// scrubland fall-through under all of them.
+///
+/// Each is three literals and nothing else: the heading through
+/// `Eng_DrawString(0x1E, local_20, 0x28, row * 0x10 + 0x40, &g_fontHeading)`,
+/// the body through `FUN_0040328E(0x1E, local_1c, 0x68, row * 0x10 + 100,
+/// 0x130, …)` — the owner test above it picks between two *identical* calls —
+/// and the icon through `Sprite_WGenSprite(local_8, 0x28, row * 0x10 + 0x60)`.
+/// `local_c` is zero in all six.
+///
+/// Rule 6: every word comes out of the player's `L2.eng` group 30.
+/// [`TILE_LADDER`]'s row for a kind, with [`SCRUBLAND_INFO`] as the ladder's
+/// own fall-through. `None` for the four kinds that have their own painter.
+pub fn tile_ladder_row(kind: TileKind) -> Option<(usize, usize, usize)> {
+    if kind == TileKind::Scrubland {
+        return Some(SCRUBLAND_INFO);
+    }
+    TILE_LADDER.iter().find(|row| row.0 == kind).map(|&(_, h, b, f)| (h, b, f))
+}
+
+pub fn draw_plain_tile(pen: &Pen, canvas: &mut Canvas, l: Layout, kind: TileKind) {
+    let Some((heading, body, frame)) = tile_ladder_row(kind) else { return };
+    let a = pen.assets;
+    pen.heading(canvas, HEADING_X, l.y(HEADING_DY), &words(a, TILE_GROUP, heading), font::TEXT);
+    pen.body_wrapped(
+        canvas,
+        BODY_X,
+        l.y(BODY_DY),
+        TILE_BODY_WRAP,
+        &words(a, TILE_GROUP, body),
+        font::TEXT,
+    );
+    if let Some(f) = a.sheet(ICON_SHEET).and_then(|s| s.frame(frame)) {
+        canvas.blit(&f, ICON_AT.0, l.y(ICON_AT.1));
     }
 }
 

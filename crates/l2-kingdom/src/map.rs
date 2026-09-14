@@ -22,6 +22,7 @@
 //! |---|---|---|
 //! | `+0` | [`CampaignMap::terrain`] | the cost map, field-crossing, trampling |
 //! | `+1` | [`CampaignMap::flags`] | the cost map, the stepper |
+//! | `+2` | [`CampaignMap::bank`] | `Map_ResolvePick`'s mountain-or-wood test |
 //! | `+7` | [`CampaignMap::county`] | the cost map, border crossings, trampling |
 //!
 //! The other five are graphics (`+2`, `+3`, `+6`), a plane the renderer uses
@@ -415,9 +416,20 @@ pub struct CampaignMap {
     pub terrain: Vec<u8>,
     /// Byte `+1` — [`flags`].
     pub flags: Vec<u8>,
+    /// Byte `+2` — the tile-set selector in bits `0x1C`, plus run-time draw
+    /// bits. **One rule reads it**: `Map_ResolvePick` (`0x0046D5FE`) sets
+    /// `DAT_005651BC` on `(bank & 0x1C) == 4`, which is what tells
+    /// `TileInfo_Draw`'s rough arm a mountain from a wood. `docs/formats/maps-layers.md` §1.
+    pub bank: Vec<u8>,
     /// Byte `+7` — the county id, 1…16, or 0 for none.
     pub county: Vec<u8>,
 }
+
+/// `(bank & 0x1C) == 4` — the `Mtns` tile-set, and the whole of
+/// `Map_ResolvePick`'s mountain test.
+pub const BANK_SELECTOR: u8 = 0x1C;
+/// The `Mtns` bank's selector value.
+pub const BANK_MOUNTAIN: u8 = 0x04;
 
 impl Default for CampaignMap {
     fn default() -> Self {
@@ -433,19 +445,31 @@ impl CampaignMap {
         CampaignMap {
             terrain: vec![0; MAP_TILES],
             flags: vec![0; MAP_TILES],
+            bank: vec![0; MAP_TILES],
             county: vec![0; MAP_TILES],
         }
     }
 
-    /// Build from three 4,096-byte planes. `None` if any is the wrong length —
+    /// Build from four 4,096-byte planes, in tile-record order `+0`, `+1`,
+    /// `+2`, `+7`. `None` if any is the wrong length —
     /// `l2-scenario` already applies to a save.
-    pub fn from_planes(terrain: &[u8], flags: &[u8], county: &[u8]) -> Option<CampaignMap> {
-        if terrain.len() != MAP_TILES || flags.len() != MAP_TILES || county.len() != MAP_TILES {
+    pub fn from_planes(
+        terrain: &[u8],
+        flags: &[u8],
+        bank: &[u8],
+        county: &[u8],
+    ) -> Option<CampaignMap> {
+        if terrain.len() != MAP_TILES
+            || flags.len() != MAP_TILES
+            || bank.len() != MAP_TILES
+            || county.len() != MAP_TILES
+        {
             return None;
         }
         Some(CampaignMap {
             terrain: terrain.to_vec(),
             flags: flags.to_vec(),
+            bank: bank.to_vec(),
             county: county.to_vec(),
         })
     }
@@ -456,6 +480,17 @@ impl CampaignMap {
 
     pub fn flags_at(&self, x: u8, y: u8) -> u8 {
         self.flags[index(x, y)]
+    }
+
+    pub fn bank_at(&self, x: u8, y: u8) -> u8 {
+        self.bank[index(x, y)]
+    }
+
+    /// `Map_ResolvePick` (`0x0046D5FE`): `(tile.bank & 0x1C) == 4` — the tile
+    /// is drawn from the `Mtns` set, so its `0x08` rough bit is a mountain and
+    /// not a wood.
+    pub fn is_mountain(&self, tile: usize) -> bool {
+        self.bank[tile] & BANK_SELECTOR == BANK_MOUNTAIN
     }
 
     pub fn county_at(&self, x: u8, y: u8) -> u8 {
@@ -679,7 +714,9 @@ mod tests {
 
     #[test]
     fn a_map_built_from_planes_of_the_wrong_size_is_refused() {
-        assert!(CampaignMap::from_planes(&[0; MAP_TILES], &[0; MAP_TILES], &[0; MAP_TILES]).is_some());
-        assert!(CampaignMap::from_planes(&[0; 10], &[0; MAP_TILES], &[0; MAP_TILES]).is_none());
+        let p = [0u8; MAP_TILES];
+        assert!(CampaignMap::from_planes(&p, &p, &p, &p).is_some());
+        assert!(CampaignMap::from_planes(&[0; 10], &p, &p, &p).is_none());
+        assert!(CampaignMap::from_planes(&p, &p, &[0; 10], &p).is_none());
     }
 }

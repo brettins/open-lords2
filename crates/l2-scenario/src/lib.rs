@@ -296,15 +296,17 @@ fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_FIELDS], Sav
 fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
     let mut terrain = vec![0u8; MAP_TILES];
     let mut flags = vec![0u8; MAP_TILES];
+    let mut bank = vec![0u8; MAP_TILES];
     let mut county = vec![0u8; MAP_TILES];
     for tile in 0..MAP_TILES {
         let base = TILES + tile as u32 * TILE_STRIDE;
         terrain[tile] = save.u8_at(base)?;
         flags[tile] = save.u8_at(base + 1)?;
+        bank[tile] = save.u8_at(base + TILE_BANK)?;
         county[tile] = save.u8_at(base + 7)?;
     }
-    Ok(CampaignMap::from_planes(&terrain, &flags, &county)
-        .expect("three planes of MAP_TILES bytes each"))
+    Ok(CampaignMap::from_planes(&terrain, &flags, &bank, &county)
+        .expect("four planes of MAP_TILES bytes each"))
 }
 
 /// `g_tiles[t].bank` (record `+2`) bit `0x20` — **the fog of war's seen bit**,
