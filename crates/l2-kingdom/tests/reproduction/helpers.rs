@@ -31,7 +31,7 @@ use l2_scenario::{Scenario, STARTING_HEALTH_METER};
 /// > which starts from the post-season herd — cannot feed it. Two saves agreeing
 /// > on realm 5 is two saves; why that realm's herd falls furthest is `[I]`.
 /// > See the module documentation's correction.
-fn hungry_county(s: &Scenario) -> usize {
+pub(crate) fn hungry_county(s: &Scenario) -> usize {
     s.county_ids()
         .find(|&id| s.counties[id].as_ref().is_some_and(|c| c.owner == 5))
         .expect("realm 5 holds a county in an England turn-one save")
@@ -68,7 +68,7 @@ fn hungry_county(s: &Scenario) -> usize {
 /// no inversion anywhere. Modelling the labour allocator would bring these two
 /// back; that is a separate piece of work, and it is named here so it is not
 /// lost.
-fn comparison(ours: &County, file: &County) -> Vec<(&'static str, i32, i32)> {
+pub(crate) fn comparison(ours: &County, file: &County) -> Vec<(&'static str, i32, i32)> {
     vec![
         ("owner", ours.owner as i32, file.owner as i32),
         ("happiness", ours.happiness, file.happiness),
@@ -105,7 +105,7 @@ fn comparison(ours: &County, file: &County) -> Vec<(&'static str, i32, i32)> {
 /// Inverting a rule to recover its input is an oracle's business, so it lives
 /// here and not in `l2-scenario`: an importer that solved the rules to build its
 /// own starting position would be handing this test the answer.
-fn solve_opening(stored: &County, t: &Tables) -> (i32, i32) {
+pub(crate) fn solve_opening(stored: &County, t: &Tables) -> (i32, i32) {
     let level = (stored.shown_ration + 8) / 3;
     let mut probe = County::new();
     probe.population = stored.pop_last;
@@ -131,7 +131,7 @@ fn solve_opening(stored: &County, t: &Tables) -> (i32, i32) {
 
 /// The starting position with the food the season ate put back — the openings
 /// [`the_food_the_season_ate_is_recoverable_and_unique`] proves unique.
-fn kingdom_after_the_first_season(s: &Scenario) -> l2_kingdom::Kingdom {
+pub(crate) fn kingdom_after_the_first_season(s: &Scenario) -> l2_kingdom::Kingdom {
     let file = s.kingdom(SEED);
     let t = &Tables::DEFAULT;
     let mut k = s.starting_kingdom(SEED);
