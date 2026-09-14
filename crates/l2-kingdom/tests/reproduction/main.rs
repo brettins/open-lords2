@@ -156,6 +156,7 @@ pub use population_and_labour::*;
 mod simulation;
 pub use simulation::*;
 
+
 /// County 1 borders one county and nothing else. That **is** a property of the
 /// England map and is stable across every save of it.
 const MAP_DEAD_END: usize = 1;

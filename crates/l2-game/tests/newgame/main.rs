@@ -19,14 +19,6 @@
 //! `tests/setup.rs` gives: a test that calls a method the interface does not
 //! reach proves nothing about the interface.
 
-mod start_game;
-pub use start_game::*;
-mod campaign;
-pub use campaign::*;
-mod heraldry;
-pub use heraldry::*;
-mod army_size;
-pub use army_size::*;
 
 use std::path::PathBuf;
 
@@ -63,6 +55,15 @@ macro_rules! assets {
         Assets::load(&platform.vfs).expect("assets load")
     }};
 }
+
+mod start_game;
+pub use start_game::*;
+mod campaign;
+pub use campaign::*;
+mod heraldry;
+pub use heraldry::*;
+mod army_size;
+pub use army_size::*;
 
 pub(crate) fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
     let mut ctx = Ctx { game, assets };

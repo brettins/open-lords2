@@ -2,14 +2,15 @@
 //!
 //! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
-mod menu_bar;
-pub use menu_bar::*;
-mod turn_timer;
-pub use turn_timer::*;
 
 #[macro_use]
 #[path = "../common/mod.rs"]
 mod common;
+
+mod menu_bar;
+pub use menu_bar::*;
+mod turn_timer;
+pub use turn_timer::*;
 
 use common::*;
 

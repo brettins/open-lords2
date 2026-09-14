@@ -21,12 +21,6 @@
 //! which county is rolled per game and is no longer asserted; see
 //! `l2_testkit::ENGLAND_TURN1_COUNTIES`.
 
-mod england_fixture;
-pub use england_fixture::*;
-mod turn_execution;
-pub use turn_execution::*;
-mod save_loading;
-pub use save_loading::*;
 
 use std::path::PathBuf;
 
@@ -53,4 +47,11 @@ macro_rules! install {
         l2_testkit::install!()
     };
 }
+
+mod england_fixture;
+pub use england_fixture::*;
+mod turn_execution;
+pub use turn_execution::*;
+mod save_loading;
+pub use save_loading::*;
 

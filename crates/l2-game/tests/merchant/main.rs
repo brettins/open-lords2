@@ -9,10 +9,6 @@
 //! can reach it — the clicks land on the original's own widget rectangles, and
 //! what changes is the county's store and the realm's treasury.
 
-mod trade_actions;
-pub use trade_actions::*;
-mod merchant_ui;
-pub use merchant_ui::*;
 
 use std::path::PathBuf;
 
@@ -46,6 +42,11 @@ macro_rules! world {
         (game, assets)
     }};
 }
+
+mod trade_actions;
+pub use trade_actions::*;
+mod merchant_ui;
+pub use merchant_ui::*;
 
 fn send<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets, e: Event) -> Transition {
     let mut ctx = Ctx { game, assets };

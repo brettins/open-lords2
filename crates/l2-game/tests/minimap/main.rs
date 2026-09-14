@@ -25,12 +25,6 @@
 //! `Minimap_DrawOverlay` (`0x00410CBD`) and `FUN_00451BBA` are the two functions
 //! under test; `docs/screens.md` §3.2 describes them.
 
-mod helpers;
-pub use helpers::*;
-mod overlays;
-pub use overlays::*;
-mod ui;
-pub use ui::*;
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -68,4 +62,11 @@ macro_rules! world {
         (game, assets, raster)
     }};
 }
+
+mod helpers;
+pub use helpers::*;
+mod overlays;
+pub use overlays::*;
+mod ui;
+pub use ui::*;
 

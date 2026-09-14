@@ -2,6 +2,11 @@
 //!
 //! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
+
+#[macro_use]
+#[path = "../common/mod.rs"]
+mod common;
+
 mod strip_and_sidebar;
 pub use strip_and_sidebar::*;
 mod panels;
@@ -12,10 +17,6 @@ mod produce_and_pastures;
 pub use produce_and_pastures::*;
 mod layout_and_labels;
 pub use layout_and_labels::*;
-
-#[macro_use]
-#[path = "../common/mod.rs"]
-mod common;
 
 use common::*;
 

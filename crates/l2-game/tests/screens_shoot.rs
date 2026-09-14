@@ -31,7 +31,7 @@ use l2_view::Canvas;
 /// So these forty lines write a real PNG with no dependency: a stored-block
 /// zlib stream (compression 0), which is legal deflate, plus the two checksums
 /// PNG requires. It is bigger than the raw dump and it opens in anything.
-pub(super) mod png {
+pub(crate) mod png {
     fn crc32(data: &[u8]) -> u32 {
         let mut table = [0u32; 256];
         for (i, e) in table.iter_mut().enumerate() {

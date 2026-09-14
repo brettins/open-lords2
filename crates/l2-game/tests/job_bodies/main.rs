@@ -27,12 +27,6 @@
 //! seasons, ordering a castle, firing an event and running the season's tick —
 //! and the few that stay zero say so beside the assertion.
 
-mod job_popups;
-pub use job_popups::*;
-mod events_and_letters;
-pub use events_and_letters::*;
-mod tile_panel;
-pub use tile_panel::*;
 
 use l2_game::game::Assets;
 use l2_game::message::category;
@@ -82,6 +76,13 @@ macro_rules! fixture_world {
         (game, assets)
     }};
 }
+
+mod job_popups;
+pub use job_popups::*;
+mod events_and_letters;
+pub use events_and_letters::*;
+mod tile_panel;
+pub use tile_panel::*;
 
 /// The popup for one job of one county, drawn on its own.
 fn draw_job(game: &mut Game, assets: &Assets, county: usize, job: usize) -> Canvas {

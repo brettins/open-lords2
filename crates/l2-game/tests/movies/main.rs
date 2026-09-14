@@ -18,12 +18,6 @@
 //! **Ablations run on this file**, each named at its test: delete the line the
 //! assertion is about and the test goes red.
 
-mod triggers;
-pub use triggers::*;
-mod playback;
-pub use playback::*;
-mod audio_part;
-pub use audio_part::*;
 
 use l2_game::audio::{self, Audio};
 use l2_game::game::Assets;
@@ -68,6 +62,13 @@ macro_rules! install {
         }
     };
 }
+
+mod triggers;
+pub use triggers::*;
+mod playback;
+pub use playback::*;
+mod audio_part;
+pub use audio_part::*;
 
 /// Five realms, realm 1 the human, as `tests/messages.rs` has them — **with
 /// animations on**, which is the original's default and ours.

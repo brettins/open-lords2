@@ -29,10 +29,6 @@
 //! from the constant under test; where only a save can settle it, the save is
 //! read.
 
-mod drag_and_drop_tests;
-pub use drag_and_drop_tests::*;
-mod game_flow_tests;
-pub use game_flow_tests::*;
 
 use std::path::PathBuf;
 
@@ -90,6 +86,11 @@ macro_rules! assets {
         a
     }};
 }
+
+mod drag_and_drop_tests;
+pub use drag_and_drop_tests::*;
+mod game_flow_tests;
+pub use game_flow_tests::*;
 
 /// `DAT_0053F04C`, the industry column's pitch, typed from `CountyStrip_Draw`.
 fn pitch(rows: usize) -> i32 {

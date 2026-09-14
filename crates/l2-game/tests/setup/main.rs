@@ -15,10 +15,6 @@
 //! coordinates read out of the geometry tables
 //! calling a method the interface does not reach.
 
-mod setup_tests;
-pub use setup_tests::*;
-mod title_tests;
-pub use title_tests::*;
 
 use std::path::PathBuf;
 
@@ -54,6 +50,11 @@ macro_rules! world {
         (game, assets)
     }};
 }
+
+mod setup_tests;
+pub use setup_tests::*;
+mod title_tests;
+pub use title_tests::*;
 
 /// Click the middle of a rectangle.
 pub(crate) fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {

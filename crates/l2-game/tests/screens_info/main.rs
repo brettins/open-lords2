@@ -2,14 +2,15 @@
 //!
 //! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
-mod field_panel;
-pub use field_panel::*;
-mod tile_panel_part;
-pub use tile_panel_part::*;
 
 #[macro_use]
 #[path = "../common/mod.rs"]
 mod common;
+
+mod field_panel;
+pub use field_panel::*;
+mod tile_panel_part;
+pub use tile_panel_part::*;
 
 use common::*;
 

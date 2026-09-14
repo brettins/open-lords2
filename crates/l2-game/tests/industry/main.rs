@@ -26,10 +26,6 @@
 //! still out of reach here is **wrecked**: it needs `Unit_TrampleTile` and three
 //! seasons of `disabled_seasons`, and no test in this file claims it.
 
-mod wheel_rates;
-pub use wheel_rates::*;
-mod visual_effects;
-pub use visual_effects::*;
 
 use std::path::PathBuf;
 
@@ -57,6 +53,11 @@ macro_rules! world {
         (game, assets)
     }};
 }
+
+mod wheel_rates;
+pub use wheel_rates::*;
+mod visual_effects;
+pub use visual_effects::*;
 
 /// **`Tick_Pulses`' four rungs, in milliseconds**, and the bands
 /// `Sprite_TopIt` picks between them with.

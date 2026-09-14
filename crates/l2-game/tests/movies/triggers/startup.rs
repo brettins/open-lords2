@@ -22,7 +22,7 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 /// does for the director. Ablation: delete the `start_up` call from `main.rs`.
 #[test]
 fn the_application_opens_on_the_intro_over_the_title_page() {
-    let src = include_str!("../../src/main.rs");
+    let src = include_str!("../../../src/main.rs");
     assert!(
         src.contains("l2_game::movie::start_up(&mut machine);"),
         "main.rs no longer plays the intro at start-up"

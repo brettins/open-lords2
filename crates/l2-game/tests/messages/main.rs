@@ -22,18 +22,6 @@
 //!
 //! > *"A rule with no way in is not a rule the game has."* — `docs/agents.md`
 
-mod dismissal_and_timing;
-pub use dismissal_and_timing::*;
-mod prompts_and_alliances;
-pub use prompts_and_alliances::*;
-mod outcomes_and_obituaries;
-pub use outcomes_and_obituaries::*;
-mod posting_and_sync;
-pub use posting_and_sync::*;
-mod painting_and_layout;
-pub use painting_and_layout::*;
-mod battle_drain;
-pub use battle_drain::*;
 
 use l2_game::game::Assets;
 use l2_game::input::Event;
@@ -121,6 +109,19 @@ macro_rules! painted {
         (g, assets, m)
     }};
 }
+
+mod dismissal_and_timing;
+pub use dismissal_and_timing::*;
+mod prompts_and_alliances;
+pub use prompts_and_alliances::*;
+mod outcomes_and_obituaries;
+pub use outcomes_and_obituaries::*;
+mod posting_and_sync;
+pub use posting_and_sync::*;
+mod painting_and_layout;
+pub use painting_and_layout::*;
+mod battle_drain;
+pub use battle_drain::*;
 
 fn painting(g: &mut Game, a: &Assets, m: &mut Machine) -> l2_view::Canvas {
     let mut canvas = l2_view::Canvas::screen();

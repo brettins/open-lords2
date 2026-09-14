@@ -63,10 +63,6 @@
 //! `docs/agents.md`'s probe computed from the thing being ablated. It is pinned
 //! from what this file sowed now, and that ablation is red.
 
-mod helpers;
-pub use helpers::*;
-mod wheat_test;
-pub use wheat_test::*;
 
 use std::path::PathBuf;
 
@@ -110,4 +106,9 @@ macro_rules! world {
         (game, assets)
     }};
 }
+
+mod helpers;
+pub use helpers::*;
+mod wheat_test;
+pub use wheat_test::*;
 

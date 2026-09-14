@@ -80,7 +80,7 @@ impl Drop for Saves {
     }
 }
 
-fn file(name: &str) -> String {
+pub(crate) fn file(name: &str) -> String {
     format!("{name}.{}", save::EXTENSION)
 }
 

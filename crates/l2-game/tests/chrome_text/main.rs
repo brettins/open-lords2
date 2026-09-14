@@ -11,14 +11,6 @@
 //! all looks exactly like one that does. `docs/agents.md` — *five defects this
 //! week existed only against real assets*.
 
-mod top_bar;
-pub use top_bar::*;
-mod panels;
-pub use panels::*;
-mod county_and_units;
-pub use county_and_units::*;
-mod png_part;
-pub use png_part::*;
 
 use std::path::PathBuf;
 
@@ -52,6 +44,15 @@ macro_rules! world {
         (game, assets)
     }};
 }
+
+mod top_bar;
+pub use top_bar::*;
+mod panels;
+pub use panels::*;
+mod county_and_units;
+pub use county_and_units::*;
+mod png_part;
+pub use png_part::*;
 
 pub(crate) fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();

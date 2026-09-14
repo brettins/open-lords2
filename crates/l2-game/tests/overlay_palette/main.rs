@@ -31,8 +31,6 @@
 //! the body of `Machine::palette_name` and both tests go red — the first on its
 //! colour assertion behind the tip, the second on the name under the scroll.
 
-mod overlay_palette;
-pub use overlay_palette::*;
 
 use l2_game::battlefield::LiveBattle;
 use l2_game::game::Assets;
@@ -55,6 +53,9 @@ macro_rules! assets {
         Assets::load(&platform.vfs).expect("assets load")
     }};
 }
+
+mod overlay_palette;
+pub use overlay_palette::*;
 
 fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     let mut ctx = Ctx { game: g, assets: a };

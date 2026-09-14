@@ -17,14 +17,6 @@
 //! appear and disappear, which is the shape the flag and minimap tests were
 //! rewritten into after a diff-in-a-box passed a wrong sprite.
 
-mod hit_map;
-pub use hit_map::*;
-mod rack;
-pub use rack::*;
-mod animation;
-pub use animation::*;
-mod screenshots;
-pub use screenshots::*;
 
 use std::path::PathBuf;
 
@@ -54,6 +46,15 @@ macro_rules! world {
         (game, assets)
     }};
 }
+
+mod hit_map;
+pub use hit_map::*;
+mod rack;
+pub use rack::*;
+mod animation;
+pub use animation::*;
+mod screenshots;
+pub use screenshots::*;
 
 /// A county the local player holds. The England fixture's realm→county
 /// assignment is **rolled per game** (`docs/environment.md`), so this is found

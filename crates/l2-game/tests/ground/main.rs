@@ -128,12 +128,6 @@
 //! invention* — but `tools/draws/screendraws.js` counts them all as English we
 //! wrote, at 0.
 
-mod pinned_part;
-pub use pinned_part::*;
-mod diplomacy_part;
-pub use diplomacy_part::*;
-mod army_and_confirm;
-pub use army_and_confirm::*;
 
 use l2_formats::pl8::DecodedFrame;
 use l2_game::game::Assets;
@@ -173,6 +167,13 @@ macro_rules! world {
         (rivals(), assets, sheets)
     }};
 }
+
+mod pinned_part;
+pub use pinned_part::*;
+mod diplomacy_part;
+pub use diplomacy_part::*;
+mod army_and_confirm;
+pub use army_and_confirm::*;
 
 /// Realm 1 is the person and realms 2 and 3 are AI rivals, so the diplomacy
 /// screen has two cards and its no-ally menu.

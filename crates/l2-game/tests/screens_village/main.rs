@@ -2,16 +2,17 @@
 //!
 //! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
+
+#[macro_use]
+#[path = "../common/mod.rs"]
+mod common;
+
 mod render;
 pub use render::*;
 mod interaction;
 pub use interaction::*;
 mod animation;
 pub use animation::*;
-
-#[macro_use]
-#[path = "../common/mod.rs"]
-mod common;
 
 use common::*;
 

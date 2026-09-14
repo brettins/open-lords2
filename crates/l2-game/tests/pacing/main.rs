@@ -50,8 +50,6 @@
 //! Sixteen in twos is eight admissions; a road admits every tick and open
 //! ground one in four. **8 ticks a road tile, 32 an open one.** `[V]`
 
-mod pacing;
-pub use pacing::*;
 
 use l2_game::audio::{self, Audio};
 use l2_game::game::Assets;
@@ -81,6 +79,9 @@ macro_rules! england {
         game
     }};
 }
+
+mod pacing;
+pub use pacing::*;
 
 fn merchant_slots(game: &l2_game::Game) -> Vec<usize> {
     game.kingdom
