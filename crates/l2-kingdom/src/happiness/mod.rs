@@ -29,6 +29,13 @@
 //! before it, so their contribution to happiness is permanent but their
 //! contribution to the *panel* lasts exactly one turn.
 
+mod update_part;
+pub use update_part::*;
+mod actions;
+pub use actions::*;
+mod calculator;
+pub use calculator::*;
+
 use crate::county::County;
 use crate::math::clamp;
 use crate::tables::Tables;
@@ -55,190 +62,6 @@ pub const UNOWNED_BONUS: i32 = 5;
 /// 1…`g_countyCount` at the top of its own pass, so a county that has just
 /// raised an army is back to no surcharge after **three seasons**. `[D]`
 pub const LEVY_SURCHARGE_DECAY: i32 = 5;
-
-/// Give back one season of [`crate::county::County::levy_surcharge`].
-///
-/// Guarded on non-zero.
-///.
-/// one, so a negative value would decay forever.
-pub fn decay_levy_surcharge(county: &mut County) {
-    if county.levy_surcharge != 0 {
-        county.levy_surcharge -= LEVY_SURCHARGE_DECAY;
-    }
-}
-
-/// One county's happiness pass.
-///
-/// `owner_is_human` distinguishes the two owned cases; an unowned county
-/// (`owner == 0`) is neither.
-///
-/// `turn_count` is `g_turnCount`, which is 1 on the first season — the average
-/// is a plain division by it, so this must never be handed 0.
-pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
-    decay_levy_surcharge(county);
-    county.happiness_last = county.happiness;
-    county.happiness += county.d_hap_tax + county.d_hap_health + county.d_hap_ration;
-
-    county.shown_tax = county.d_hap_tax;
-    county.shown_health = county.d_hap_health;
-    county.shown_ration = county.d_hap_ration;
-    county.shown_army = 0;
-    county.shown_events = 0;
-    county.shown_ale = 0;
-    // **And the ale allowance itself.** `Happiness_UpdateAll` clears `+0x219`
-    // in the same breath as the display field beside it, which makes the five
-    // points a seasonal allowance.
-    // `docs/kingdom.md` §7.6, `docs/mechanics.md` and `docs/symbols.json` all
-    // claimed. Reading the reset off the wrong line for a whole subsystem is
-    // C53; the line is here.
-    county.ale_happiness_given = 0;
-
-    if county.population == 0 && !county.is_unowned() && !owner_is_human {
-        county.happiness = EMPTY_AI_COUNTY_HAPPINESS;
-    }
-    if county.happiness < UNOWNED_BONUS_THRESHOLD && county.is_unowned() {
-        county.happiness += UNOWNED_BONUS;
-        county.shown_events = UNOWNED_BONUS;
-    }
-
-    county.happiness = clamp(county.happiness, HAPPINESS_MIN, HAPPINESS_MAX);
-    county.happiness_sum += county.happiness;
-    county.happiness_avg = if turn_count == 0 {
-        county.happiness
-    } else {
-        county.happiness_sum / turn_count as i32
-    };
-}
-
-/// `FUN_00428C42` — buy ale for a county, in crowns' worth.
-///
-/// ```c
-/// if (crowns <= 0) return;
-/// tenth = population / 10;
-/// bonus = crowns >= 5*tenth ? 5 : crowns >= 4*tenth ? 4 : ... : crowns >= tenth ? 1 : 0;
-/// if (bonus > 5 - alreadyGiven) bonus = 5 - alreadyGiven;
-/// if (bonus < 0)                bonus = 0;
-/// alreadyGiven += bonus;  happiness += bonus;  shownAle += bonus;
-/// if (happiness > 99) happiness = 100;
-/// ```
-///
-/// **This settles the published claim `docs/kingdom.md` §12 lists as
-/// unverified.** The guides say *"+1 per 20% of the population, cap +5"*; the
-/// step is `population / 10`, so it is **+1 per 10%** and the cap is right. The
-/// panel's own preview (`FUN_00435673`) computes the identical ladder, which is
-/// the second source.
-///
-/// The cap is **cumulative within a season**: [`update`] clears
-/// `ale_happiness_given` every season, so a county can have five points of ale
-/// happiness a season and no more. Returns the happiness.
-/// is 0 once the county has had its five. See
-/// [`crate::county::County::ale_happiness_given`].
-///
-/// `crowns` is `price x quantity` at the call site. Ale's base price is 1
-/// (`docs/kingdom.md` §10), so in the shipped game a barrel is a crown and the
-/// two are the same number.
-///
-/// **Switchable** — [`Quirk::AnyAleFillsATinyVillage`], `docs/bugs.md` B10.
-/// With the quirk fixed a county whose `population / step_pct` is 0 buys one
-/// rung per crown instead of all five for one, which is the ladder the rest of
-/// the function is written to walk. The county's *own* ale allowance
-/// (`ale_happiness_given`) still caps it, so the fix cannot make ale worth more
-/// than five a season either way.
-pub fn buy_ale(t: &Tables, county: &mut County, crowns: i32, quirks: Quirks) -> i32 {
-    if crowns <= 0 {
-        return 0;
-    }
-    let step = county.population / t.ale.step_pct;
-    // A village under ten people has `step == 0`, and then `crowns >= rung * 0`
-    // is true at the top rung for any ale at all.
-    let step = if step == 0 && !quirks.reproduces(Quirk::AnyAleFillsATinyVillage) {
-        1
-    } else {
-        step
-    };
-    let mut bonus = 0;
-    // Counted upward;
-    // the same. A county of fewer than ten people has `step == 0`, and the
-    // original's `crowns >= 5 * 0` is then true at the top rung — so any ale at
-    // all buys the full five. Reproduced: `0 * n` is 0 for every rung.
-    let mut rung = t.ale.max;
-    while rung >= 1 {
-        if crowns >= rung * step {
-            bonus = rung;
-            break;
-        }
-        rung -= 1;
-    }
-    let remaining = t.ale.max - county.ale_happiness_given;
-    if bonus > remaining {
-        bonus = remaining;
-    }
-    if bonus < 0 {
-        bonus = 0;
-    }
-    county.ale_happiness_given += bonus;
-    county.happiness += bonus;
-    county.shown_ale += bonus;
-    // The original's clamp is `if (happiness > 99) happiness = 100`, which is
-    // the same as clamping to 100 for any integer.
-    if county.happiness > HAPPINESS_MAX {
-        county.happiness = HAPPINESS_MAX;
-    }
-    bonus
-}
-
-/// The `L2.eng` group 85 *"From army"* term — `FUN_004A9A9A`'s tail, the writer
-/// `docs/kingdom.md` §12 records as not found.
-///
-/// Raising men costs the county happiness, and the cost is a table lookup on
-/// **the share of the county being taken**, not on the number of men:
-///
-/// ```c
-/// share = PctOf(men, population);                 /* 50 men of 500 is 10 */
-/// cost  = g_armyHappinessCost[share];             /* 10 -> 5 */
-/// if (happiness < cost) { shownArmy -= happiness; happiness = 0; }
-/// else                  { happiness -= cost;      shownArmy -= cost; }
-/// ```
-///
-/// So it is progressive and steeply so: a twentieth of a county costs 2, a
-/// tenth costs 5, a fifth costs 10, a quarter costs 19 and a half costs 90.
-/// See
-/// [`crate::tables::ARMY_HAPPINESS_COST`].
-///
-/// Note the asymmetry in the clamp, reproduced as written: when the county
-/// cannot afford the full cost, `shownArmy` is debited only what.
-/// taken, so the panel and the happiness always agree.
-///
-/// Returns the happiness.
-pub fn raise_army(t: &Tables, county: &mut County, men: i32) -> i32 {
-    if men <= 0 {
-        return 0;
-    }
-    let share = crate::industry::pct_of(men, county.population);
-    let cost = t.army_happiness_cost(share);
-    let taken = if county.happiness < cost {
-        let taken = county.happiness;
-        county.happiness = 0;
-        taken
-    } else {
-        county.happiness -= cost;
-        cost
-    };
-    county.shown_army -= taken;
-    taken
-}
-
-/// The happiness a county holds steady at, given its three terms. Zero means
-/// the county neither rises nor falls.
-///
-/// This is not a rule of its own — it is the sum [`update`] adds — but it is.
-/// the number every player-facing statement about the game is really about, so
-/// it is worth being able to ask for directly.
-pub fn steady_state(t: &Tables, tax_rate: i32, health_band: u8, ration_level: i32) -> i32 {
-    (crate::tax::FREE_TAX_RATE - tax_rate)
-        + crate::health::happiness(t, health_band)
-        + t.ration_happiness(ration_level)
-}
 
 #[cfg(test)]
 mod tests {
@@ -517,3 +340,4 @@ mod tests {
         assert_eq!(c.happiness, carried, "but the happiness itself is kept");
     }
 }
+
