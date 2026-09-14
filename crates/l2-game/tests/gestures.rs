@@ -1,6 +1,6 @@
 //! **The gesture kinds, driven through the screens that answer them.**
 //!
-//! `crates/l2-game/src/press.rs` has unit tests for the state machine and
+//! `crates/l2-game/src/press/mod.rs` has unit tests for the state machine and
 //! `crates/l2-game/tests/press.rs` pins the ramp's 48 bytes against the
 //! player's own `Lords2.exe`.
 //! wrong, which is a screen that owns a [`Press`] and never asks it anything:

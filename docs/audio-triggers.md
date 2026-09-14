@@ -301,7 +301,7 @@ said.
    * *Music* — fixed for the campaign (C116) and **now** for the front end, which
      is the ninth-primitive finding above.
 * *The click* — **fired**, and it was two sites: see the end
-     of this file. `crates/l2-game/src/press.rs` is `Widget_Test`, and the rule a
+     of this file. `crates/l2-game/src/press/mod.rs` is `Widget_Test`, and the rule a
      player can hear is that a spinner clicks on the press and **not** on its
      auto-repeat.
    * *The industry sounds on a right click* — **fired**. It is `TileInfo_Draw`
@@ -480,7 +480,7 @@ arrows of a slider widget that **nothing in the executable instantiates** —
 a control, because this binary calls with `E8` rel32 and an absolute-address search
 finds nothing for *any* function, `Widget_Test` and its 36 callers included.
 
-**Ours.** `crates/l2-game/src/press.rs` is the hit test, so the count is taken
+**Ours.** `crates/l2-game/src/press/mod.rs` is the hit test, so the count is taken
 there — in `Press::press` and `Press::press_delayed`, and deliberately not in
 `Press::tick` or `Press::press_held`. A screen cannot reach `Audio`
 (`docs/netcode.md` D-3), so the count is an outbox: `Screen::take_clicks` drains it,

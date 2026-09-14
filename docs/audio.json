@@ -1580,7 +1580,7 @@
       "class": "bank",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/press.rs",
+      "ours": "crates/l2-game/src/press/mod.rs",
       "sound": "click3.wav",
       "note": "The kind-4 arm: Sound_RestartSlot(1) inside the hit test, guarded by g_mouseLeftPressed || g_mouseLeftDoubleClick - the INITIAL press, never the auto-repeat pulses. Press::press is that line; Screen::take_clicks and Machine::clicks carry it to Director::hear_the_click without letting a screen reach Audio (netcode D-3). tests/click.rs asserts the silent cases; tests/audio_wiring.rs that it reaches the mixer."
     },
@@ -1591,7 +1591,7 @@
       "class": "bank",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/press.rs",
+      "ours": "crates/l2-game/src/press/mod.rs",
       "sound": "click3.wav",
       "note": "The kind-5 arm: Sound_RestartSlot(1) on the press, and the handler runs twenty frames later out of the countdown loop, silently. Press::press_delayed is that line, reached both through Press::event and by hand from DiplomacyScreen. tests/click.rs asserts the delayed fire is silent."
     }
