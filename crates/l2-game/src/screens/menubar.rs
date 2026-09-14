@@ -162,7 +162,7 @@
 //! * **Nothing about the plate any more.** It was ours; it is the original's
 //!   `FUN_00409429(x, y + 0x12, 0x0C, h)` now, border set 2 and all —
 //!   `l2_view::chrome::Chrome::draw_box` draws the open-topped shape, and
-//!   `crates/l2-game/tests/chrome_text.rs`'s
+//!   `crates/l2-game/tests/chrome_text/main.rs`'s
 //!   `the_drop_down_plate_has_no_top_rail` holds it there.
 //! * **`Menu_NewGame` and `Menu_Quit` reach no confirmation box.** Both open
 //!   `Ui_OpenConfirm` in the original — prompts 1 and 0 of `L2.eng` group 10 —
