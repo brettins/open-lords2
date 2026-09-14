@@ -573,7 +573,7 @@ test that could go red. The fix is §5's first ask, to be made now.
 code is ready for it.
 
 575: > **Partly instrumented, and the first run paid for itself.**
-> `crates/l2-game/tests/long_game.rs` plays a hundred turns of England, a hundred of a
+> `crates/l2-game/tests/long_game/main.rs` plays a hundred turns of England, a hundred of a
 > hand-dealt fourteen-county empire, and twenty on each of the forty-four shipped maps,
 > checking eight invariants after every turn and censusing which rules have fired at all.
 > **Nothing broke** — no invariant violation anywhere, and a game saved at turn 50 and
