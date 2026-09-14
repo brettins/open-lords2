@@ -54,7 +54,7 @@ function fromSymbols() {
 }
 
 // The count of install-gated tests is deliberately NOT a figure here.
-// crates/l2-testkit/tests/census.rs owns it, checks it against its own
+// crates/l2-testkit/tests/census/main.rs owns it, checks it against its own
 // inventory, and prints it on every run; docs/environment.md used to restate it
 // and now points at the census instead. A number with one home does not need a
 // generator.

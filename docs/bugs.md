@@ -73,7 +73,7 @@ deliberately ignores it for four of six bands.
 **Reachability, which matters here.** It only bites with **Advanced Farming on**:
 `Weather_UpdateAll` ends with `if (!g_optAdvancedFarming) band = Cloudy`, and *Cloudy* is one
 of the two bands that leave the labour cap standing. The basic game never sees this bug; the
-advanced game sees it in four seasons out of six. **[V]**, `crates/l2-kingdom/src/weather.rs`.
+advanced game sees it in four seasons out of six. **[V]**, `crates/l2-kingdom/src/weather/mod.rs`.
 
 **Switching it off** is one line in `harvest`: use `reaped` as the base. Not a data change —
 the weather factors are a Rust `match` (§6.2).
@@ -131,7 +131,7 @@ been tested** — `kingdom.md` §4.1 says so.
 **Evidence.** **[V]** on both byte widths; **[D]** on the consequence.
 
 **Reproduced.** `Realm::tax_hap_empire` is an `i8` deliberately
-(`crates/l2-kingdom/src/realm.rs:181`) and `add_empire_tax_happiness` uses `wrapping_add`
+(`crates/l2-kingdom/src/realm/mod.rs:181`) and `add_empire_tax_happiness` uses `wrapping_add`
 (`realm.rs:407`). The field width is kept intentionally.
 kept.
 
@@ -150,7 +150,7 @@ per cell, and `0x004F6470 + 6400` lands exactly on the next global the same func
 
 **Evidence.** **[V]**, from the instruction bytes.
 
-**Reproduced.** `crates/l2-sim/src/pathfind.rs:185`, and `Scratch` is a struct that survives
+**Reproduced.** `crates/l2-sim/src/pathfind/mod.rs:185`, and `Scratch` is a struct that survives
 between searches so the carry-over is modelled — *"modelling them as a local would
 quietly fix the original's bug"*.
 
@@ -242,7 +242,7 @@ is a real behaviour."*
 | | the original's bug | evidence | our code |
 |---|---|---|---|
 | **B10** | **Any ale at all buys the full five happiness in a village under ten people.** `Ale_Apply` (`0x00428C42`) walks rungs of `crowns >= rung × (population / 10)`; below ten people the step is 0, so `crowns >= 5 × 0` is true at the top rung. | [D] | `happiness.rs:136`, and the test at `:404` |
-| ~~**B11**~~ | ~~The ale allowance is never reset.~~ **RETRACTED — this was not a bug and the "[V]" was wrong.** `Happiness_UpdateAll` (`0x0044BAEA`) zeroes `+0x219` every season for every county, in the same run of statements that clears `shownAle`. The claim rested on a search for writers *in the ale code*; the writer is in the happiness code, one line from a field the same paragraph described. `Readme.txt`'s *"Ale Limitations"* had said the benefit was per season in English. | the reset is quoted in `decisions.md` C53 | `happiness.rs::update` clears it; `trade.rs`, and the seasonal test in `crates/l2-game/tests/merchant.rs` |
+| ~~**B11**~~ | ~~The ale allowance is never reset.~~ **RETRACTED — this was not a bug and the "[V]" was wrong.** `Happiness_UpdateAll` (`0x0044BAEA`) zeroes `+0x219` every season for every county, in the same run of statements that clears `shownAle`. The claim rested on a search for writers *in the ale code*; the writer is in the happiness code, one line from a field the same paragraph described. `Readme.txt`'s *"Ale Limitations"* had said the benefit was per season in English. | the reset is quoted in `decisions.md` C53 | `happiness.rs::update` clears it; `trade.rs`, and the seasonal test in `crates/l2-game/tests/merchant/main.rs` |
 | **B11a** | **An unowned county trading on its own account is checked for neither stock nor gold.** Both guards in `Merchant_Trade` are inside `if (realm != 0)`, so a county with no lord can sell grain it does not have and buy with a purse it has already emptied. `Ai_BuyGood` reaches this path for every unowned county on the map; its own purse test is all that stands in front of it, and it is applied before the lot size falls. `Ration_Apply` (`0x0044DF5F`) reads `grain` and `herd` and writes `grainAvailable`, `herdAvailable`, `rationAchieved`, `grainEaten`, `herdEaten` and `dHapRation`; it contains no store subtraction. The store is left negative, and the county has been paid for sacks. `docs/decisions.md` C149. | [V] — both guards read, and `Ration_Apply` re-read at the moment of writing | `trade.rs::trade` reproduces both missing guards; `an_unowned_county_trades_out_of_its_purse_and_is_never_refused` now asserts the store ends at −10 |
 | **B12** | **Turning castle building on removes its labour share.** `Industry_ToggleFromMap` reads `local_c = (castleSwitch != 0)` **before** flipping the switch and passes that stale value to the share toggle, so the share moves the wrong way on every click. | [D] | `industry.rs:757` |
 | **B13** | **The levy slider lies about what it took.** `Levy_SetPercent` (`0x00435EBC`) walks the requested percentage down until the county can afford it, but `pct` is a by-value parameter, so `g_levyPercent` is never written back: the slider can read 80 % while the county gives up 59 %. | [D] | `levy.rs:215` returns it as `settled` |
@@ -255,7 +255,7 @@ is a real behaviour."*
 | **B19** | **A county can never want every one of its people on the fields.** `Grain_Sow`'s worker search loops `workers < population`, stopping one short; and when the search finds nothing the floor/ceiling pair is left at its initialisers, −1 and 0. | [D] | `land.rs:819`, reproduced by search, not closed form because the integer truncation is part of the answer |
 | **B20** | **A county with no pasture is forced to maximum crowding twice** — once through a sentinel density and again as an explicit override after the bands. | — | `land.rs:563`; both reproduced *because they are separable* — a ruleset that lowered `no_pasture_density` would find the override still holding |
 | **B21** | **The history ring records counties 1 … 16 unconditionally**, not `1..=g_countyCount`, so slots above the map's county count are filled from unused records. | — | `kingdom.rs:202` — *"what a reader of the ring has to expect"* |
-| **B21a** | **The village's "put everybody to work" gesture reads two words past the end of its table.** `Village_BalanceAll` (`0x00439EDB`) loops `for (i = 0; i < 10; i++)` over `g_jobClusterToSlot` (`0x004D6780`), which has **eight** entries. The two past the end are the head of the table that follows, and they are **4** and **6** — read out of the shipped executable, not inferred. The effect is benign and arguably useful: slot 4, *Iron mining*, is otherwise unreachable from a cluster number unless cluster 0 has been overridden to it, so the overrun is what makes the gesture cover all nine slots. Slot 6 is balanced twice, which is idempotent. | [V] — the ten words are asserted against the user's own `Lords2.exe` in `crates/l2-view/tests/install.rs` | `l2_view::village::CLUSTER_TO_SLOT_BALANCE`, ten entries with the overrun written down; `Game::balance_all_labour` loops the same ten |
+| **B21a** | **The village's "put everybody to work" gesture reads two words past the end of its table.** `Village_BalanceAll` (`0x00439EDB`) loops `for (i = 0; i < 10; i++)` over `g_jobClusterToSlot` (`0x004D6780`), which has **eight** entries. The two past the end are the head of the table that follows, and they are **4** and **6** — read out of the shipped executable, not inferred. The effect is benign and arguably useful: slot 4, *Iron mining*, is otherwise unreachable from a cluster number unless cluster 0 has been overridden to it, so the overrun is what makes the gesture cover all nine slots. Slot 6 is balanced twice, which is idempotent. | [V] — the ten words are asserted against the user's own `Lords2.exe` in `crates/l2-view/tests/install/main.rs` | `l2_view::village::CLUSTER_TO_SLOT_BALANCE`, ten entries with the overrun written down; `Game::balance_all_labour` loops the same ten |
 | **B92** | **Summer's climate ladder skips band 3 and has an arm that can never run.** `FUN_00449D6E` returns the local weather swing for the chosen county and its neighbours, off the county's climate band at `+0x21E`. The five bands plainly want `+4, +2, −8, −12, −24`, and the fourth test reads `field_0x21e == 4` where it wants `== 3`: so **band 3 (counties 10 and 11) gets nothing at all in Summer**, band 4 takes the −12 written for band 3, and the −24 arm is unreachable. Winter's ladder, three lines further down, is complete — which is what makes this a slip, not a design. | [V] — the two identical `== 4` tests are in the decompiled body, and Winter's parallel ladder is the control | `weather.rs::local_modifier`, reproduced literally with the hole named; `the_summer_climate_ladder_skips_band_three_and_never_reaches_minus_24` asserts the dead arm cannot be reached from any county index |
 | **B104** | **An event letter keeps its headline and loses its number.** `Event_RollAll` (`0x00448819`) sets `eventFired` and `eventId` and clears neither again; the *only* thing that clears `eventFired` is `Event_Post` (`0x00448D7E`), which `Battle_Frame` runs once a frame for `g_selectedCounty` alone. So a letter for a county the player is not looking at **waits**, and arrives the frame he clicks it — a season later, or ten. Meanwhile `Population_UpdateAll` zeroes county `+0x2F8` every season and rewrites it only when `+0x1FB` is non-zero, and `Event_RollAll` clears `+0x1FB` — so the Wedding-fever letter opened two seasons late prints **`0 extra births.`**, and the Plague's prints `0 extra deaths.` The headline and the body are still right; only the figure has been taken away underneath them. And `eventId` is cleared by *nothing at all*, so the county panels go on quoting a finished event until the county draws another. | [V] — `Event_RollAll`'s loop head clears four fields and neither flag; `Event_Post`'s whole body is nine lines with one caller (`RefsTo`); `siege-aftersie.sav` holds a county with `eventId` `0x8E`, `eventFired` set and `+0x2F8` at zero | `l2_kingdom::event::roll_all` clears the three modifiers and the tax gate only; `l2_game::message::post_event` is `Event_Post`. `a_letter_left_waiting_for_seasons_prints_a_figure_its_season_has_zeroed` reads the zero off the player's own save. **Unswitchable as a flag**: clearing the latch at the roll destroys the letter, and posting for every county is a different game — the notification model is the rule, not a variation of it. `docs/decisions.md` C210 |
 | **B22** | **`Grain_Sow`'s two early exits do not clear the shortfall flag.** An empty store or an empty workforce returns 0 with the flag left as it was. | — | `land.rs:295`. Reproduced, and listed only for completeness: nothing observable turns on it, because a county that sowed no seed grows no crop either way |
@@ -525,7 +525,7 @@ a decision would have deleted the file, and it is still in the box.
 `audio::Director` cannot see is *who won*: the `BattleReport` travels inside
 `turn::TurnStep::Report` and is never parked on the `Game`, so the fanfare's gate is out of
 reach. Firing it on every battle would add a sound the original never makes, on the one
-outcome it is silent for, so it is left unwired. `crates/l2-game/src/audio/names.rs` names
+outcome it is silent for, so it is left unwired. `crates/l2-game/src/audio/names/mod.rs` names
 the constant `fanfare::AFTER_BATTLE`, not `LOSE`, and now carries the gate beside it,
 so whoever wires it up meets both facts, not the assumption.
 
@@ -569,8 +569,8 @@ saved game, only which characters a person ends up storing, and they can see it 
 they type. It is not presentation either — it changes a stored string — so it is neither, and
 that is fine: a quirk needs a switch only when somebody wants it switched.
 
-**Where:** `crates/l2-game/src/text.rs`, `TextField::put`; `docs/arms.json`
-`0x00401D26/overwrite-default`; tested in `crates/l2-game/tests/text.rs`.
+**Where:** `crates/l2-game/src/text/mod.rs`, `TextField::put`; `docs/arms.json`
+`0x00401D26/overwrite-default`; tested in `crates/l2-game/tests/text/main.rs`.
 
 ### B101 — The invasion tip is lost if its crossing is noticed while another tip is up
 
@@ -600,8 +600,8 @@ clear on show"*.
 **Reproduced.** Not switchable — it changes which advice a player sees and when, never a number
 in the world.
 
-**Where:** `crates/l2-game/src/tip.rs`, `update`; `docs/arms.json`
-`0x00476AA7/tip-screen-ladder`; tested in `crates/l2-game/tests/tips.rs`.
+**Where:** `crates/l2-game/src/tip/mod.rs`, `update`; `docs/arms.json`
+`0x00476AA7/tip-screen-ladder`; tested in `crates/l2-game/tests/tips/main.rs`.
 
 ### B80 — The End key cancels a save you have just confirmed
 
@@ -843,7 +843,7 @@ the castle was.
 > return. `Battle_Decline`, the Retreat button and the Autocalc button all leave for screen
 > `0x13` without passing that counter. So **a battle you gave up on un-does the castle
 damage as it undoes the casualties.
-> somebody watched to its end. `crates/l2-game/tests/siege_battle.rs` asserts both halves —
+> somebody watched to its end. `crates/l2-game/tests/siege_battle/main.rs` asserts both halves —
 > the bill after the banner, and no bill after the Autocalc button — through played clicks.
 >
 > **`docs/symbols.md` called the first accumulator `breachDamage` and that is a misnomer.**
@@ -917,7 +917,7 @@ with `Labour_ToggleIndustryShare(county, 3, 1)`, so in the original the castle j
 the order **holding a share**. Ours did not call it; the share stayed 0, and *"none on the
 walls, for ever"* was measured against that. With the share ported a palisade's 200
 man-seasons are done in four seasons with every industry still running —
-`the_orders_labour_share_is_what_gets_a_castle_built` in `crates/l2-game/tests/castles.rs`.
+`the_orders_labour_share_is_what_gets_a_castle_built` in `crates/l2-game/tests/castles/main.rs`.
 What survives is the ceiling asymmetry above: wood, iron and stone at 100,000 are never
 full, so the castle gets its share and no more. `[V]` on the call.
 
@@ -984,7 +984,7 @@ hardware, which is a matter of how long a turn takes to run. `docs/oracle-reques
 a stopwatch request and was retired on that reading; nothing a person could watch would change
 the order of three clauses.
 
-**Reproduced.** `crates/l2-game/src/turn_clock.rs`, `TurnClock::tick` — the three clauses in
+**Reproduced.** `crates/l2-game/src/turn_clock/mod.rs`, `TurnClock::tick` — the three clauses in
 the original's order, the count before the restart, with the turn's running time counted in
 ticks. Tests `a_turn_ended_early_hands_its_running_time_to_the_next_turn` and
 `a_siege_assault_leaves_the_next_turn_without_a_restart`.
@@ -1014,7 +1014,7 @@ for it to live (§6.5).
 | **N9** | **The DirectPlay `guidApplication` is different on every run**, with a byte pattern that looks like a module address repeated into the field | Not reproduced. `netcode.md` rule D-6 exists to forbid this class of defect in our engine. |
 | **N10** | **Two of the three alliance-envy tiers are unreachable** — `v < 0x15` implies `v < 0x22` and implies `!(0x32 < v)`, so only the `+1` arm can fire and envy of a winning ally accumulates at a fifth to a quarter of the intended rate. **[V]**, *"arithmetic over three constants, not a reading."* | **Diplomacy is traced and implemented nowhere.** Whoever implements it must reproduce this and move the row into §2 — or decline it and say so here. Same for two siblings: an AI's standing towards a **human** never heals (the +1 per turn is guarded on the other realm being non-human, **[V]**), and the **Bishop does not declare war** when his alliance breaks because `lord != 4` guards the `atWar` write, so he can be allied with again later ([D]; `diplomacy.md` declines to call that one a bug). |
 | **N11** | **`Map_PickTile` is pure geometry, so the top of a tall building belongs to the tile behind it.** The mine sprite is 58 × 47 on a 58 × 30 tile: in the original its upper half resolves to a tile where `Map_Click` finds no flags and does nothing at all. The forest is worse, at 22 rows of overhang. | **We test the frame's opacity mask when the diamond misses.** It can add an answer where the original had none; it can never move one. Reproducing the dead zone faithfully would reproduce a defect that **our own county-selection arm makes worse than it is in the original** — `Map_Click` has no such arm, so there a missed click does nothing, while ours falls through to selecting the county and opening a screen. A player reported it twice. `docs/decisions.md` C57. |
-| **N13** | **26 cells of `arm_grid.pl8` are hotspots that index the levy basket out of bounds.** The armoury's hit test (`FUN_0043582A`) accepts any non-zero cell as `g_uiHotspotId` and `FUN_004358B0` then reads `basket[id].available` — an eight-slot, 16-byte-stride array. The shipped grid holds 60…63 in 26 cells: column 0 for the first fifteen rows (x 0…7, y 0…119) and an eleven-cell sliver at y 216…223 between x 512 and 599. `basket[62]` is `0x0053F6A4 + 0x3E0`, past the end of all six realms' baskets. **[V]** on the cells and on the absence of a bound in both functions. | The 26 cells are asserted by position in `crates/l2-game/tests/armoury.rs` so a different `arm_grid.pl8` fails loudly. |
+| **N13** | **26 cells of `arm_grid.pl8` are hotspots that index the levy basket out of bounds.** The armoury's hit test (`FUN_0043582A`) accepts any non-zero cell as `g_uiHotspotId` and `FUN_004358B0` then reads `basket[id].available` — an eight-slot, 16-byte-stride array. The shipped grid holds 60…63 in 26 cells: column 0 for the first fifteen rows (x 0…7, y 0…119) and an eleven-cell sliver at y 216…223 between x 512 and 599. `basket[62]` is `0x0053F6A4 + 0x3E0`, past the end of all six realms' baskets. **[V]** on the cells and on the absence of a bound in both functions. | The 26 cells are asserted by position in `crates/l2-game/tests/armoury/main.rs` so a different `arm_grid.pl8` fails loudly. |
 | **N12** | **`g_moveOrderClickGuard` deadens the map for forty frames after a move order opens.** `Screen_FrameInput` polls the level of the mouse button, so without the guard the press that opens move-order mode is read again on the next frame as the press that confirms the destination. | Our `Event::Click` is edge-triggered: one press produces one event. The property is asserted, not the constant reproduced. `docs/decisions.md` C60. |
 
 ---
@@ -1268,7 +1268,7 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 | **D31** | **81 % of the game's audio exists to satisfy a test whose answer is fixed.** `FUN_004AEF7E` opens `pumkin.wav` (320 MB across two byte-identical copies), measures it against 151,000,000 and closes it. `DAT_005C9A74` is set to 1 before the test, set to 1 again in both success branches, and never set to any other value anywhere; its three readers ask `(flag < 1) \|\| (2 < flag)`, which cannot be true. | [V] |
 | **B77** | **The DirectDraw re-acquisition path cannot run, and it is the path that would have handled the crash already on file.** `g_displayLost` (`0x004E65D0`) has four references in the whole decompiled corpus: two readers and two writers, and both writers write zero — `App_OnPaused` and `App_OnResumed` alike. Nothing ever sets it. `App_WndProc`'s `WM_ACTIVATEAPP` arm `if (g_displayLost && g_windowActive)` is unreachable. `docs/symbols.md` recorded a crash with `g_ddPrimary` NULL when the window was deactivated during startup under DxWnd. | **[V]** by exhaustion over all 2,452 decompiled functions. **[I]** that a missing `= 1` is the whole of it. |
 | **B78** | **The dirty rectangle is accumulated and never read, and its bottom-edge clamp is wrong.** `Gfx_MarkDirty` (`0x00452306`) grows a box in `g_dirtyLeft`/`Top`/`Right`/`Bottom`; those four addresses have **five references each in the whole corpus** and every one is inside `Gfx_MarkDirty` or `Gfx_Present`'s reset. Nothing turns the box into a blit rectangle — `Gfx_Present` always blits the whole frame — so fourteen wrappers spend their time maintaining state with no consumer. The vestigiality hides a plain copy-paste defect in the same function: the bottom clamp reads `if (0x27F < g_dirtyBottom) g_dirtyBottom = 0x1DF;` — the **right edge's** bound with the **bottom edge's** value, so a bottom between 480 and 639 passes through unclamped. Harmless only because nobody reads it. Not reproduced: our renderer has no dirty box. | **[V]** on both — the reference counts are exhaustive and the mismatched constants are in one statement. |
-| **D41** | **A besieged castle carries no mark at the far zoom, and the call that would draw one is made.** `Sprite_TopIt`'s castle arm calls `FUN_00407F82(seasonsLeft, 8, -0x38)` at `g_mapZoom == 0` and `FUN_00407F82(seasonsLeft, 2, -0x28)` at `g_mapZoom == 2` — and the whole body of `FUN_00407F82` is inside `if (g_mapZoom == 0)`, so the second call returns having drawn nothing. The offsets for a picture that cannot appear were computed and shipped. Harmless, and **reproduced**: `Zoom::besieger_at` carries the far pair and `campaign::besieger_marker` returns `None` for any zoom but `NEAR`, asserted by `crates/l2-game/tests/screens_map.rs` `a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left`. | **[V]** on the guard, from the shipped bytes, not the decompiler: `0x00407F8C` is `83 3D 18CB5700 00` (`cmp dword [g_mapZoom], 0`), `0F 84 05 00 00 00` (`je +5` → the body at `0x00407F97`) and `E9 07 02 00 00` (`jmp` → the epilogue at `0x0040819E`). The call sites are the only two in the image. |
+| **D41** | **A besieged castle carries no mark at the far zoom, and the call that would draw one is made.** `Sprite_TopIt`'s castle arm calls `FUN_00407F82(seasonsLeft, 8, -0x38)` at `g_mapZoom == 0` and `FUN_00407F82(seasonsLeft, 2, -0x28)` at `g_mapZoom == 2` — and the whole body of `FUN_00407F82` is inside `if (g_mapZoom == 0)`, so the second call returns having drawn nothing. The offsets for a picture that cannot appear were computed and shipped. Harmless, and **reproduced**: `Zoom::besieger_at` carries the far pair and `campaign::besieger_marker` returns `None` for any zoom but `NEAR`, asserted by `crates/l2-game/tests/screens_map/main.rs` `a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left`. | **[V]** on the guard, from the shipped bytes, not the decompiler: `0x00407F8C` is `83 3D 18CB5700 00` (`cmp dword [g_mapZoom], 0`), `0F 84 05 00 00 00` (`je +5` → the body at `0x00407F97`) and `E9 07 02 00 00` (`jmp` → the epilogue at `0x0040819E`). The call sites are the only two in the image. |
 | **D36** | **`L2.eng` 163/4 — *"This lesser castle will reduce the tax collected in the county."* — describes something no code path can produce.** `castleType` has two writers in the whole binary: `g_startCastle` at new-game, and `Castle_Order`, whose OK guard sends message `0x122` and returns whenever the type picked is below the one standing. Nothing lowers it, and a siege lowers `+0x1F9` instead. **Bounded claim:** what is verified is that the two writers cannot lower it. Which of group 163's indices message `0xA3` renders was not traced, so "unreachable" is a reading of the writers and not of the renderer. | bounded claim |
 
 ---
@@ -1289,7 +1289,7 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 > | scope | *"roughly a dozen worth exposing"* | fourteen wired |
 >
 > **The switch list is generated from this document**, not written beside it:
-> `crates/l2-testkit/tests/quirks_catalogue.rs` reads §2 and both switch lists as text and
+> `crates/l2-testkit/tests/quirks_catalogue/main.rs` reads §2 and both switch lists as text and
 > fails if they disagree — including if a quirk is filed in the wrong home, which §6.3a's
 > price asymmetry makes the likely drift. §2 is now load-bearing: **adding an entry here
 > turns the suite red until somebody says what its switch is.**
@@ -1691,7 +1691,7 @@ inside the branch it should be above. The sibling prompts do it the other way ro
 `Diplo_PayHelpClicked` and `FUN_00436872` both open with `Msg_Dismiss()` before they look at
 the hotspot at all — which is what makes this look like a slip, not a design.
 
-**Reproduced**, in `crates/l2-game/src/screens/message.rs`: the `Prompt::Garrison` arm returns
+**Reproduced**, in `crates/l2-game/src/screens/message/mod.rs`: the `Prompt::Garrison` arm returns
 `Transition::Pass` for the thumb-down, leaving the scroll up. A switch would go on `Options`
 it changes which screen is on top and whether a later click lands on it.
 the map or on the scroll, and the divide screen it leads to spends men.
@@ -1788,7 +1788,7 @@ understaffed mine's forecast differs by exactly the difference the ramp makes.
 subset of the population, so `ramp(population) <= ramp(workers)` always, and the row therefore
 **understates**: a mine whose `capacity` sits between its miners and its people forecasts less
 than it will make. It was written here as *optimistic*, from the word "full", not from the
-ramp. `crates/l2-kingdom/tests/industry_forecast.rs` asserts the inequality, so the word cannot
+ramp. `crates/l2-kingdom/tests/industry_forecast/main.rs` asserts the inequality, so the word cannot
 drift back.
 
 **Reproduced**, and not switchable: it is what the player is shown, the row would be a

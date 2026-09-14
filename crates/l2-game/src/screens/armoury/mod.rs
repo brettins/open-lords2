@@ -574,7 +574,7 @@ pub const STRIP_H: i32 = 0x9E;
 /// paints `Screen_Armoury` once and never clears again), so the erase has
 /// already happened by the time the walker is drawn. What is reproduced here is
 /// the *shape* and the rectangle, which
-/// `crates/l2-game/tests/armoury.rs` asserts covers him — all but the five
+/// `crates/l2-game/tests/armoury/main.rs` asserts covers him — all but the five
 /// pixels of his right shoulder that stand outside it at each band boundary,
 /// which is the original's own smear and is measured there.
 pub fn walker_strip(x: i32) -> Rect {

@@ -194,7 +194,7 @@ pub mod misc_cty {
     ///
 /// Named, because *"blue outline"* is a memory and
     /// this is a measurement: of frame `0x55`'s 124 border pixels, 124 are one
-    /// of these three. `crates/l2-view/tests/install.rs` asserts it against the
+    /// of these three. `crates/l2-view/tests/install/main.rs` asserts it against the
     /// player's own file.
     pub const RING_COLOURS: [u8; 3] = [64, 65, 95];
 }

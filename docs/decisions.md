@@ -260,7 +260,7 @@ own ruleset data — which is exactly what `crates/l2-mods` is for, so they beco
 for the first time.
 
 **C12 — "Terrain cost is charged by deferral, not by weighting."** Wrong, and it reached
-shipped code. `docs/battle.md` §8.3 said it, `crates/l2-sim/src/pathfind.rs` repeated it in
+shipped code. `docs/battle.md` §8.3 said it, `crates/l2-sim/src/pathfind/mod.rs` repeated it in
 a module doc comment, and the implementation weighted nothing — it recorded plain hop count.
 The decompiled `Path_Search` does **both**: `cost[nb] = stepCost[nb] + (cost[cur] + 1)`, and
 separately re-queues an expensive cell until it has been popped `stepCost` extra times.
@@ -437,7 +437,7 @@ in branch structure rather than in data. **"Where is the table?" is the wrong fi
 when the answer may be "there isn't one".**
 
 **C20 — C12 had a second instance, in the test named after the save it never opened.**
-`crates/l2-kingdom/tests/reproduction.rs` was headed *"The reproduction from the shipped
+`crates/l2-kingdom/tests/reproduction/main.rs` was headed *"The reproduction from the shipped
 save"*, declared `const OWNED: usize = 4`, handed counties 1–4 to the human realm, and
 asserted numbers quoted out of `docs/kingdom.md` against rules built from the same
 document. It could not fail, and its scenario was invented: the file holds **five owned
@@ -586,7 +586,7 @@ because it stops anyone looking.
 **C23 — "The shipped save" was three words that hid a rolling autosave, and a test
 suite that passes identically whether or not it ran.**
 
-Nine tests in `crates/l2-formats/tests/save.rs` asserted one saved game's numbers against
+Nine tests in `crates/l2-formats/tests/save/main.rs` asserted one saved game's numbers against
 `lastturn.sav` *inside the game install*. That file is the **rolling autosave**: the game
 rewrites it every turn a human plays. Ten minutes of play replaced it and all nine went
 red at once, with bare assertion diffs that read like a broken reader.
@@ -639,7 +639,7 @@ tests had never run on any machine that did not export `LORDS2_DIR`; twelve of t
 the moment they were made to run, because they took the *assets* and the *position* from
 the same directory.
 
-`crates/l2-testkit/tests/census.rs` now reads the source, works out which gate each
+`crates/l2-testkit/tests/census/main.rs` now reads the source, works out which gate each
 `#[test]` sits behind, and asserts the count against a written-down inventory. Adding a
 gate fails the build until the inventory is updated. It also prints what the current
 environment satisfies, so a run that asserted an eighth of what it looks like it asserted
@@ -653,7 +653,7 @@ more than it looks: three of these defects are downstream of calling a file "shi
 **C24 — The oracle existed, printed to a console, and was wired to nothing.**
 
 `tools/oracle/*.ps1` has read the battle and economy tables straight out of `Lords2.exe`
-since C14. `crates/l2-view/tests/install.rs` has had `va_to_offset` — the four lines that
+since C14. `crates/l2-view/tests/install/main.rs` has had `va_to_offset` — the four lines that
 turn a documented virtual address into a file offset — since it was written. Neither had
 ever been applied to `l2-kingdom::tables` or `l2-sim`, the two crates carrying the most
 hand-transcribed numbers, and the test guarding `l2-sim`'s was named
@@ -1332,7 +1332,7 @@ remembered.** Whenever a test enumerates what to check, the enumeration is the t
 will be wrong, and it will be wrong silently and in the safe-looking direction. C25, C29 and
 C30 are the same shape. Where a derive macro is unavailable — `l2-kingdom` is
 dependency-free on purpose — reading the source in a test is the available substitute, and
-`crates/l2-testkit/tests/census.rs` had already established it as the house style.
+`crates/l2-testkit/tests/census/main.rs` had already established it as the house style.
 
 **The same disease one file over, and two branches independently caught it.**
 `l2_kingdom::save::VERSION` collided in four consecutive merges: two branches bumped 5 → 6
@@ -1633,7 +1633,7 @@ The picture is a measurement rather than an impression, which is what makes the 
 **[V]** rather than a second opinion: those two frames are the **4th and 5th darkest of the
 sheet's 84**, 15.3% and 11.5% of their area in near-black ink against a median frame's 1.2%,
 while the widgets that really are thin strokes sit at 0.2% and 0.0%. A tick cannot come 4th
-out of 84. The rank is asserted in `crates/l2-view/tests/install.rs` against the user's own
+out of 84. The rank is asserted in `crates/l2-view/tests/install/main.rs` against the user's own
 file, so the label cannot drift back.
 
 It is not a decoration either. `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests a 24 × 24 box
@@ -1916,7 +1916,7 @@ That is C28's failure with an index instead of a name and C5's with a table inst
 format: a confident account built from real evidence about the adjacent thing. It is the
 seventh of the species logged, and the cheapest to have avoided.
 
-`crates/l2-game/src/audio/names.rs` now converts in exactly one place, `names::slot`, with
+`crates/l2-game/src/audio/names/mod.rs` now converts in exactly one place, `names::slot`, with
 both proofs as tests; `docs/mechanics.md` carries the corrected tables.
 
 **C52 — The blue outline is real, it is a *frame*, and it is on the county strip. The
@@ -1936,7 +1936,7 @@ frame it replaces. Ten of the eleven are **exactly four pixels wider and four ta
 that plain frame, which is what a two-pixel ring around an unchanged picture measures as,
 and **every non-transparent pixel of that two-pixel border is one of three palette entries,
 all of them blue**: `95` = `rgb(0,0,121)`, `65` = `rgb(157,202,234)`, `64` =
-`rgb(194,230,255)`. That is asserted in `crates/l2-view/tests/install.rs` against the user's
+`rgb(194,230,255)`. That is asserted in `crates/l2-view/tests/install/main.rs` against the user's
 own file, so "blue outline" is now a measurement rather than a recollection. The eleventh —
 the castle, `0x40` → `0x4E` — is 23 × 26 against 32 × 34 and is a different, larger picture
 that also carries the ring; it is written down as the exception rather than smoothed over.
@@ -2098,7 +2098,7 @@ rule**: every impact test is gated on `ttl == 0`, and a hit sets `ttl = 2`.
 eleven counts a side: the fought battle used to be **won by the player with 56 men of 178**
 against a saved game in which he lost and both armies were destroyed. It is now lost by him,
 the militia holding the field with 8 men of 182 where the autocalc's ladder walks 36 home.
-`crates/l2-game/tests/seam.rs` asserts the verdict now, and the caveat is gone with the gap
+`crates/l2-game/tests/seam/main.rs` asserts the verdict now, and the caveat is gone with the gap
 it described.
 
 **Two things the brief and this tree had wrong, found on the way.** `Missile_Step` does not
@@ -2713,7 +2713,7 @@ found five things about the first, and the fifth is the one worth keeping.**
 world, then the twelve options, then one immediate `Season_Advance` — so the slot the map
 list highlights is the world the campaign screen opens on, from an empty `Game` and with no
 save anywhere in the path. All 44 shipped maps start and take a turn
-(`crates/l2-game/tests/newgame.rs`). The line the setup page drew about itself,
+(`crates/l2-game/tests/newgame/main.rs`). The line the setup page drew about itself,
 *"NOT IMPLEMENTED: STARTING ON A MAP OTHER THAN THE SAVE'S"*, is gone.
 
 **The check is the two constructors held against each other.** England out of
@@ -2990,7 +2990,7 @@ clever. The alternative — making the fixture derived — cannot be done in Rus
 and a macro that generates the thing under test would be the same mistake one level down.
 
 **Built, and falsified before being believed.**
-`crates/l2-testkit/tests/encoding.rs` reads the source text: every `impl Encode`/`impl Decode`
+`crates/l2-testkit/tests/encoding/main.rs` reads the source text: every `impl Encode`/`impl Decode`
 pair, the struct's field list, and the assertion that each field is named in both halves. **220
 fields across 21 types.** Two experiments, both red, both with the field named in the message:
 dropping `out.bool(self.has_resource)` from the encoder — *the exact case the digest passes* —
@@ -3147,7 +3147,7 @@ handlers can therefore never fire.**
 
 Asked directly — *for every field these handlers read, what writes it in a real game?* — the
 answer for `crates/l2-kingdom/src/ai_army/mod.rs` is that four fields have exactly one writer and
-that writer is `l2_kingdom::diplomacy`, which is not a module. `crates/l2-kingdom/src/realm.rs`
+that writer is `l2_kingdom::diplomacy`, which is not a module. `crates/l2-kingdom/src/realm/mod.rs`
 links to seven of its functions in doc comments and every link is dangling.
 
 | field | its only writer | what is unreachable without it |
@@ -3162,7 +3162,7 @@ dispatched, unit-tested and **can never fire in a played game**. That is C27 res
 AI's war, and it is written down here rather than left to be discovered because the suite is
 green either way.
 
-`crates/l2-game/tests/ai_war.rs` holds both halves as one test: nothing moves a standing off
+`crates/l2-game/tests/ai_war/main.rs` holds both halves as one test: nothing moves a standing off
 zero in forty turns, *and* the raid goes out the moment something does. The first assertion is
 designed to **go red when diplomacy lands**, which is the only way a gap like this announces
 that it has closed.
@@ -3215,7 +3215,7 @@ So there are two homes at very different prices — a behavioural quirk costs a 
 bump, a handshake field and a replay stamp; a presentation quirk costs one `bool` — and **the
 asymmetry is the hazard the split creates**. A rule variation filed on `Assets` because it is
 cheaper there would be invisible until a multiplayer desync.
-`crates/l2-testkit/tests/quirks_catalogue.rs` therefore asserts the home, both ways, and fails
+`crates/l2-testkit/tests/quirks_catalogue/main.rs` therefore asserts the home, both ways, and fails
 outright on a quirk implemented in both. That assertion is worth more than any of the switches
 it guards.
 
@@ -3295,7 +3295,7 @@ player being able to do one thing about it. This is that group built, and the en
 had to start from.
 
 `docs/battle.md` §15 is the enumeration; `docs/arms.json` is its machine-readable form and
-`crates/l2-game/tests/arms.rs` holds it to the code in both directions. Below is what
+`crates/l2-game/tests/arms/main.rs` holds it to the code in both directions. Below is what
 changed a document rather than a feature.
 
 **Screen `0x28` cannot be entered.** The audit named four battlefield screens. There are
@@ -3633,12 +3633,12 @@ between `0x00401984` and `0x0040210C` are the whole of it, over one 2,000-byte b
   which is the first use of that combination the schema was written for.
 
 The inventory is `docs/arms.json`, groups `text` and `front-end-keys`, 29 new records; the
-engine is `crates/l2-game/src/text.rs`.
+engine is `crates/l2-game/src/text/mod.rs`.
 
 **C75 — The field-coverage check matched prose, so the better a field was
 documented the less it checked.**
 
-`crates/l2-testkit/tests/encoding.rs` is the guard against `docs/decisions.md` C30's family —
+`crates/l2-testkit/tests/encoding/main.rs` is the guard against `docs/decisions.md` C30's family —
 *a field the encoder never writes*. Adding `Game::player_names` and then **deleting the loop
 that encodes it** left the check **green**. The comment above the deleted loop still said the
 words `player_names`, and `mentions()` matches text.
@@ -3757,7 +3757,7 @@ the two characters it was meant to be.
 work onto `main` merged `docs/arms.json`'s `arms` array by `id` exactly as intended — *"114
 arms, no entry changed on both sides"*, and it was right — and then took the other side's
 `groups` object and `_note` wholesale, **discarding five group declarations and twenty-one
-lines of prose that existed on only one side**. Every test in `crates/l2-game/tests/arms.rs`
+lines of prose that existed on only one side**. Every test in `crates/l2-game/tests/arms/main.rs`
 stayed green, because every one of them reads the `arms` array and nothing else. That is the
 same shape as the `addr`-versus-`id` key defect the driver was hardened against an hour
 earlier, one level up: the *entries* are keyed and the *object they sit in* is not. It was
@@ -4246,7 +4246,7 @@ said it was invented.**
 
 `docs/plan.md` §2.7 calls it *"the one constant in `l2-kingdom` with no evidence behind
 it"*, and the Open questions list below said the same. Both were stale:
-`crates/l2-kingdom/src/weather.rs` has carried the derivation since the day it was traced —
+`crates/l2-kingdom/src/weather/mod.rs` has carried the derivation since the day it was traced —
 `Rand_Advance` (`0x00404A46`) masks its LFSRs with `0x7F` and `Weather_UpdateAll` shifts by
 3, so the draw is 0…127 and the jitter 0…15 — and `docs/audit-method.md` re-derived it
 independently a second time and recorded that the decision log was stale. **The constant is
@@ -4299,7 +4299,7 @@ accurate about the rectangle it named, the name was wrong, and it passed. That i
 sharpest one yet, because unlike the build-stamp test it was written *specifically* to
 prevent this and still did not.
 
-The replacement names no rectangle. `crates/l2-game/tests/right_column.rs` and
+The replacement names no rectangle. `crates/l2-game/tests/right_column/main.rs` and
 `divide.rs`'s `no_two_hotspots_on_this_screen_overlap` enumerate every box the screen tests
 and compare them pairwise, and the geometry is asserted against the **player's own
 `Lords2.exe`** rather than against our reading of a painter. A check that has to name a
@@ -4701,7 +4701,7 @@ bitmap font and `widget::panel`/`frame`/`button`'s rectangles. `castle.rs` also 
 English captions written in our source — *"SELECT A CASTLE TO BUILD"*, *"1 SEASON TO
 BUILD."*, *"BOOSTS TAX REVENUES BY %"* — where `Screen_CastleBuild` fetches `L2.eng` group
 71, and `menu.rs` draws the game's own title as *"LORDS OF THE REALM II"* when `L2.eng`
-group 11 index 0 says *"Lords of the Realm 2"* — a string `crates/l2-game/tests/shell.rs`
+group 11 index 0 says *"Lords of the Realm 2"* — a string `crates/l2-game/tests/shell/main.rs`
 has asserted for weeks.
 
 **Nobody did anything wrong.** `crates/l2-view/src/text.rs`'s header said, in as many words:
@@ -4709,7 +4709,7 @@ has asserted for weeks.
 > *"the original's glyphs live in `Font_c2.pl8` … that file is an open question … so the
 > interface draws its own letters **until the real font is decoded**."*
 
-By then `crates/l2-game/src/shell/font.rs` had decoded it: `Fntl2_14.pl8` and
+By then `crates/l2-game/src/shell/font/mod.rs` had decoded it: `Fntl2_14.pl8` and
 `Fntl2_22.pl8`, through the 128-byte character-to-frame table at `0x004D71D0` that
 `Glyph_Draw` (`0x00402A14`) indexes, with a mapping that checks itself on descenders. And
 `Font_c2.pl8` was never the file the game draws from — `docs/audit.md` records that
@@ -4835,7 +4835,7 @@ thing to land mid-flight. It is the right next move and it is small.
 **C111 — `screens/menu.rs` is a whole screen of ours that the shipped binary cannot
 reach, and it was inflating the audit's placeholder count.**
 
-`crates/l2-game/src/main.rs` boots to `ScreenId::Setup(SetupPage::Title)` — the *real* front
+`crates/l2-game/src/mod.rs` boots to `ScreenId::Setup(SetupPage::Title)` — the *real* front
 end, which `setup.rs` reproduces with 41 draws through the game's own artwork and is the
 healthiest module in the whole draw audit. Nothing outside `crates/l2-game/tests/machine.rs`
 ever pushes `ScreenId::Menu`. So `menu.rs` — a two-item main menu of ours, drawn entirely in
@@ -5112,7 +5112,7 @@ broken the whole time.**
 A player: *"Rations slider moves but is inoperable, no information about feeding peasants is
 available."* Two sentences, one cause.
 
-`crates/l2-game/tests/screens_county.rs` has had
+`crates/l2-game/tests/screens_county/main.rs` has had
 `the_ration_split_slider_sets_the_field_the_original_sets` for weeks. It clicks the track,
 asserts `ration_split == 37`, steps the caps, and passes. It is about the right screen, the
 right gesture and the right field, and it is **useless**, because `Ration_SetSplit`
@@ -5635,7 +5635,7 @@ fires exactly once, and there is no memo to keep and nothing to reset when a win
 dismissed early.
 
 **Two artefacts said this was already recorded and neither was.**
-`crates/l2-game/src/screens/message.rs` lists the five constants and says they are
+`crates/l2-game/src/screens/message/mod.rs` lists the five constants and says they are
 *"recorded in `crate::message`"*. They had never been written there — a citation that does
 not resolve, which is a rule with no way in wearing a doc comment, and it survived because
 the sentence reads like a hand-off. And **which category takes which constant** was not
@@ -6063,7 +6063,7 @@ asking **who supplies it**. Same asymmetry, other end.
   and the reader absent.
 
 And one measurement worth keeping, because it is the strongest evidence the walk is right and
-it is not one of the new tests: `crates/l2-scenario/tests/newgame.rs` builds England from
+it is not one of the new tests: `crates/l2-scenario/tests/newgame/main.rs` builds England from
 `L2_maps.dat` and from `england-turn1.sav` and now diffs the **shields and the lords** as well
 as the land. That is `Realms_AssignLords` checked against a game the original program set up,
 rather than against our own reading of the same two tables. It can only confirm the default
@@ -6363,7 +6363,7 @@ through `l2_formats::save::{County, Realm, DiploPair, Globals}`.
 **The pair it was briefed to use is not a pair.** `battle-before.sav`, `battle-during.sav`
 and `battle-after.sav` all read `g_turnCount = 5`, `g_season = 4`, `g_year = 1269`: they are
 one battle caught at three moments inside **one** turn, which is exactly what
-`crates/l2-game/tests/seam.rs` uses them for. `siege-lastturn` / `siege-sieging` /
+`crates/l2-game/tests/seam/main.rs` uses them for. `siege-lastturn` / `siege-sieging` /
 `siege-aftersie` are the same, all turn 14. A differential built on the filenames would have
 run a season into a kingdom and compared it against *the same turn*, and every number it
 produced would have been wrong in a direction nobody could have guessed from the output.
@@ -6755,7 +6755,7 @@ panel really did have a readout for exactly the condition he named.
 
 **C145 — the audio inventory was prose, and prose is what rots.**
 
-`docs/arms.json` has had `crates/l2-game/tests/arms.rs` behind it since C61: set equality in
+`docs/arms.json` has had `crates/l2-game/tests/arms/main.rs` behind it since C61: set equality in
 both directions between the inventory and the `// arm:` markers in `crates/`.
 `docs/audio-triggers.md` had the same job, the same purpose and **no check at all** — a
 hand-marked table saying *"we reproduce 24 of 134"*. Both numbers were wrong: the denominator
@@ -6768,7 +6768,7 @@ It now has the same treatment, in two halves that meet in the middle:
   from the decompilation by `sounds.js --rebuild`, and `status` / `ours` / `note` ours.
 * `node tools/oracle/sounds.js --check` — the file against the corpus, both directions, plus
   the four generated fields per row. Runs where the corpus does.
-* `crates/l2-game/tests/sfx.rs` — the file against the `// sfx:` markers, both directions.
+* `crates/l2-game/tests/sfx/main.rs` — the file against the `// sfx:` markers, both directions.
   Runs everywhere.
 
 **One deliberate difference from `arms.rs`, and it is not a relaxation.** A `// sfx:` marker
@@ -6882,7 +6882,7 @@ rejects it, nothing fails to read it, and it is visible only where somebody
 happens to look at that paragraph.
 
 **And the check that sounds like the one for this is not.**
-`crates/l2-testkit/tests/encoding.rs` asserts that every field of an encodable
+`crates/l2-testkit/tests/encoding/main.rs` asserts that every field of an encodable
 struct survives a round trip through `Canonical` — the *simulation's* bytes, not
 a document's. A reader who went looking for a text-encoding check would have
 found that name and stopped. **A test whose name reads like the check you want is
@@ -7413,7 +7413,7 @@ without ever saying that is what they are. **A Ghidra field name is not evidence
 The instruction's operand is.**
 
 **A fourth reading is the original's own saves, and it is the one that runs.**
-`crates/l2-scenario/tests/import.rs` computes, for every county of every save on
+`crates/l2-scenario/tests/import/main.rs` computes, for every county of every save on
 this machine, the number `Industry_LabourEstimate` writes from **record `c`'s**
 guards and workers, and requires county `+0x2A8 + c*0x18` to hold exactly it:
 **1,152 forecasts, 81 non-zero, and 343 where record `c + 1` would have given a
@@ -7557,7 +7557,7 @@ only the drift the constant removes — reasoned, not tried.
 **C155 — The blank sign column is four pixels wide in `Ui_DrawText` and zero pixels wide
 in the measure, and the tree documents the wrong function for both.** **[V]**
 
-`crates/l2-game/src/shell/font.rs`'s `SPACE_ADVANCE` doc says *"`FUN_004014F0`
+`crates/l2-game/src/shell/font/mod.rs`'s `SPACE_ADVANCE` doc says *"`FUN_004014F0`
 special-cases `' '` before the table lookup and adds 4; `Glyph_Draw` adds nothing
 at all for a zero entry, which is what makes `'@'` an invisible sign column that
 still occupies its place in a column of numbers."* The conclusion is right and
@@ -8128,7 +8128,7 @@ for those sections to join.
 
 ---
 
-**C160 — The tip screens are built — `crates/l2-game/src/tip.rs` — and four things on file
+**C160 — The tip screens are built — `crates/l2-game/src/tip/mod.rs` — and four things on file
 about them were wrong.** Each was a sentence a careful person would have built from.
 
 **One: the twenty frames are not "after a screen is first opened".** `docs/symbols.md`
@@ -8220,7 +8220,7 @@ fourth status. Its rows come from three places, and each is checked:
   and on a row no instruction touches.
 * **The layout** — every field `docs/records.json` names must have a row of that
   name, width and array shape (146 fields once the nested arrays expand).
-* **The saves** — `crates/l2-scenario/tests/stored_fields.rs` holds every
+* **The saves** — `crates/l2-scenario/tests/stored_fields/main.rs` holds every
   `imported` and `derived` row to the file's own value after `Scenario::kingdom`,
   in every county and realm of every save on the machine: **30,600 values over
   18 saves, and all agree.** That is the check that cannot be typed into
@@ -8246,7 +8246,7 @@ crop; and on the realm, the ally byte the diplomacy screen draws, the score
 screen's totals and the AI's standing orders.
 
 **Self-verifying invariants, all `[V]` across every save** and each asserted in
-`crates/l2-scenario/tests/import.rs`:
+`crates/l2-scenario/tests/import/main.rs`:
 
 * `+0x258 == +0x268 − +0x26C − herdEaten` — one relation pinning three offsets.
 * `+0x22C` is `Grain_LabourEstimate`'s tail. **Corpus limit, stated:** `+0x230`
@@ -8294,7 +8294,7 @@ unchanged and the new reads sit in `l2-scenario` beside the ones C142 and C149 a
 **C162 — a save test failed one run in ninety, and the shared directory
 it raced over was also hiding a real defect and three assertions that could not fail.**
 
-`crates/l2-game/tests/save.rs`'s `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
+`crates/l2-game/tests/save/main.rs`'s `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
 failed at merge twice in one evening and passed every time it was run alone. It was recorded as a
 pre-existing flake in the merge of C151 and left there. This entry is what measuring it found.
 
@@ -8655,7 +8655,7 @@ cry now keeps the tips' chained takes waiting, as it would in the original.
 counted twenty-six as twenty-four and called a ladder's answer a hotspot id.**
 
 The Help Options panel's *"Tool tips"* row flipped `g_optToolTips` and nothing here
-read it. `FUN_00476E95` is now `crates/l2-game/src/tooltip.rs`, and reading all seven
+read it. `FUN_00476E95` is now `crates/l2-game/src/tooltip/mod.rs`, and reading all seven
 of its functions — not the one C86 summarised — corrected two things on file and
 found three that were not.
 
@@ -8668,7 +8668,7 @@ resolver reads a widget record: the id is a pointer ladder's own answer, and the
 reads live state — the minimap mode, whether the selected county is the player's, and
 `FUN_0040FEC1`'s two produce-row lists.
 
-**Not on file.** `[V]`, each asserted in `crates/l2-game/tests/tooltips.rs`:
+**Not on file.** `[V]`, each asserted in `crates/l2-game/tests/tooltips/main.rs`:
 
 * **The lookup is a table of screens, not of controls.** `DAT_004D6FB8[g_screenId]`
   gives the sidebar's ladder to **thirty-five** screen ids and the battlefield's
@@ -8822,7 +8822,7 @@ events — county 3 holds Wedding fever's id `0x8E` in `siege-safeturn`, `siege-
 swing bytes and `+0x1A8` every season and never `eventId` or `eventFired` (only a failed guard
 and `FUN_00448D7E`'s enqueue clear those), and the saved births reproduce with no swing in them.
 So the rule is pinned by hand-worked numbers, and the import by
-`crates/l2-scenario/tests/import.rs`'s `the_plague_letters_figure_survives_a_load`, which
+`crates/l2-scenario/tests/import/main.rs`'s `the_plague_letters_figure_survives_a_load`, which
 patches the figure into a real save's bytes — **ablated: deleting the importer's assignment
 turns it red and leaves `tests/stored_fields.rs` green**, because a row that is zero in every
 save is compared with zero.
@@ -8888,7 +8888,7 @@ happiness, below a Diseased Winter's 43% — so the extra person dies and the co
 `docs/bugs.md` B16's plain sentence had been right all along. **A survey over our own
 implementation is a statement about our implementation**, and it overturned a correct catalogue
 entry — the same shape as C61 overturning C58, with a test to make it look settled. C69's
-paragraph carries a pointer; `crates/l2-kingdom/tests/quirks.rs` now asserts the survey turned
+paragraph carries a pointer; `crates/l2-kingdom/tests/quirks/main.rs` now asserts the survey turned
 round (a living county does go negative, and the fixed path never does).
 
 **Also changed.** `realm_fives_county_diverges_…` in `tests/reproduction.rs` pinned our divergent
@@ -8911,7 +8911,7 @@ linked: the decoder is ours, MIT, written from the format description. **What ma
 to believe is the method, and it is worth reusing:** the LGPL `smk` crate was built in the
 scratchpad and run as a **black box** — its API read off generated rustdoc, its source never
 opened, nothing committed — and its per-film hashes of every frame's pixels, palette and
-samples are pinned as literals in `crates/l2-smk/tests/corpus.rs`. A copyleft implementation
+samples are pinned as literals in `crates/l2-smk/tests/corpus/main.rs`. A copyleft implementation
 can be an oracle without being a source. D5a itself is left for the lead to close.
 
 ### `Msg_DrawWindow#16` and `#21` do not speak after the film
@@ -9234,7 +9234,7 @@ an industry split of 100 is staffed by nobody, because castle building's share
 at `+0x130 + 3*4` is 0 after `order_castle` and wood cutting takes the county.
 Whether `Castle_Order` leaves that share alone too was not read.
 
-**Tests** — `crates/l2-game/tests/job_bodies.rs`, ten, each figure and word in its
+**Tests** — `crates/l2-game/tests/job_bodies/main.rs`, ten, each figure and word in its
 own box at the painter's coordinates. Stored non-zero: the grain store, eating
 and overall change; herd, births, deaths, slaughter, the overall change and all
 four crowding bands; industry output, efficiency and both blacksmith figures;
@@ -9288,7 +9288,7 @@ next palette a screen names and nobody registers will be hidden the same way.
 **The test could not have been a canvas test**, which is the reusable part: every index on the
 canvas was right, and the defect lived entirely between the canvas and the glass. The presenter
 was in `main.rs`, where nothing can call it; it is `Machine::present` now, and
-`crates/l2-game/tests/overlay_palette.rs` asserts presented colour at fixed pixels.
+`crates/l2-game/tests/overlay_palette/main.rs` asserts presented colour at fixed pixels.
 
 **A lead, not taken:** `main.rs` draws on the tick and presents on `RedrawRequested`, and the
 palette is read at present time. An event that changes the stack between the two would present
@@ -9395,7 +9395,7 @@ ceiling before the opening season's `Labour_AllocateAll`, for two reasons, both 
 With both, **a new England's four AI start counties match `england-turn1.sav` exactly** for the
 same realm, and the person's county matches the save's person's county job for job, ceiling for
 ceiling and forecast for forecast, on a different seat. The four tests in
-`crates/l2-game/tests/labour_move.rs` drive all of this through the village, End Turn, the setup
+`crates/l2-game/tests/labour_move/main.rs` drive all of this through the village, End Turn, the setup
 page and the map. Six ablations were run and each was red at its own assertion.
 
 **One order is not the original's, `[D]`:** our industry passes run iron and stone over every
@@ -9485,7 +9485,7 @@ three were one clause short, and the missing clause was the caller.
 itself, a double click never holds the button down, and four yes/no boxes answered raw
 clicks.**
 
-Three gaps C148 and C165 left in `crates/l2-game/src/press.rs`, and two more a player
+Three gaps C148 and C165 left in `crates/l2-game/src/press/mod.rs`, and two more a player
 reported while they were being closed. All of it is `[V]` from `Widget_Test` (`0x0040DA1E`),
 `App_WndProc` (`0x004B29BE`), the per-frame latch `FUN_004B191E`, `Screen_FrameInput`'s arms,
 `Screen_DrawWidgets` and the exe's own kind bytes (`node tools/oracle/kinds.js`).
@@ -10210,7 +10210,7 @@ and the call passes `(0, 0x18)` — which is exactly where `Sprite_WGenSprite(0,
 `Smithy.pl8`. So the six rectangles are in the **picture's** coordinates. Read as screen
 coordinates, as a careful person reading only the table would read them, every weapon sits
 twenty-four pixels high: a click a player aims at the pike lands on the bow, and it lands
-*silently*, because the county still changes what it forges. `crates/l2-game/tests/job_bodies.rs`
+*silently*, because the county still changes what it forges. `crates/l2-game/tests/job_bodies/main.rs`
 asserts both corners of all six against the player's own exe so that reading cannot recur.
 It is the same shape as `docs/arms.json`'s gesture field (C148): the record carried the
 address that would have answered the question and nobody read the rest of the line.
@@ -10364,7 +10364,7 @@ slews that deadline — the DirectSound path installs a `timeSetEvent` callback,
 `_TimerFunc@20`, which also reads `timeGetTime` — is not decidable from the call sites, and
 **it does not need to be**: measured over the install's 45 films, every sound track runs
 `frames × period` long to within **1 ms**, on films as long as 131 s. The audio buffer and
-the header's rate are the same clock. `crates/l2-smk/tests/corpus.rs`,
+the header's rate are the same clock. `crates/l2-smk/tests/corpus/main.rs`,
 `every_track_is_as_long_as_its_picture`.
 
 **Ours was neither.** `movie::Player` counts ticks of `TICK_MS` and converts, which is right
@@ -10566,7 +10566,7 @@ harvest moves the crop per field.
   the next estimate round — `Field_SetType`'s own `Labour_Allocate` sizes the grain ceiling
   from the store. Both are the original's.
 
-**The test is a year, through the screens.** `crates/l2-game/tests/wheat.rs` sows with the
+**The test is a year, through the screens.** `crates/l2-game/tests/wheat/main.rs` sows with the
 brush's handler, presses End Turn four times through the machine with the fog on, and after
 each turn paints the campaign map and requires the inner diamond of a lit field to equal the
 terrain pass drawn with the **literal** frame `0x58 + (stored & 3) + 4v` — `v` transcribed from
@@ -10890,7 +10890,7 @@ would try group 7 first.
 `g_playerNames + realm * 0x2C + 0x25`. `Realms_AssignLords` reads `(&DAT_00553d75)[realm * 0x2c]`,
 which is the *table's* `+0x25` and the name's `+0x21`. Nothing was built on the wrong one —
 the colour is passed into `NewGame` rather than read out of a save — so this cost nothing, and
-it is exactly the sentence that would have cost the next person a day. `crates/l2-game/src/text.rs`
+it is exactly the sentence that would have cost the next person a day. `crates/l2-game/src/text/mod.rs`
 had the record right the whole time and no reader used it.
 
 ---
@@ -11203,7 +11203,7 @@ holding its last picture, and `Missile_UpdateAll`'s class-4 alternation of `+0x3
 is how fast debris falls and not what it looks like.
 
 **Nothing added is hashed.** Every line of this is in `l2-view`, which reads
-`BattleRunner` and writes a canvas; `crates/l2-game/tests/battle_picture.rs`'s
+`BattleRunner` and writes a canvas; `crates/l2-game/tests/battle_picture/main.rs`'s
 `painting_the_battlefield_with_its_artwork_does_not_change_the_battle` plays 1,500 ticks
 with and without painting and compares the saved bytes. The one piece of renderer state
 this could have introduced — the fire jitter counter — was kept out for that reason.
@@ -11435,7 +11435,7 @@ depth the battlefield sits and only while something is over it.
 mid-battle and gets the battle back. `crate::save` does not encode a
 `LiveBattle`, and `decode` writes `battle: None`, so ours would have written a
 file that quietly lost the fight a player was in the middle of.
-`crates/l2-game/src/save.rs` carried the sentence *"The original saves from the
+`crates/l2-game/src/save/mod.rs` carried the sentence *"The original saves from the
 campaign map and nowhere else"*, which is false and is now corrected in place.
 The save box refuses while a battle is live, through the `Status::Failed` path
 whose first line is the game's own — `Eng_DrawString(40, ERROR_INDEX)` — so a
@@ -11583,7 +11583,7 @@ the row into the gap. `l2_smk::YScale` and `Decoder::display` are that, and
 `a_doubled_frame_has_black_odd_rows_and_a_written_one_has_none` pins both arms.
 The clear was already there: `Screen::draw` clears to 0 for exactly the films
 that are not over a screen, which are exactly the three doubled ones.
-`crates/l2-game/tests/movies.rs` asserted the second copy and now asserts the
+`crates/l2-game/tests/movies/main.rs` asserted the second copy and now asserts the
 black. **The second source is the disagreement this settles**: libsmacker calls
 `0x02` Y-double and `0x04` interlace, FFmpeg names them the other way round, and
 the DLL agrees with FFmpeg — `0x02` is the interlace. `docs/formats/smk.md`,
@@ -11885,7 +11885,7 @@ whichever one the human is.
 Ours had drawn the local block as "PLAYER". **`L2.eng` group 37 has no word for
 a player** — the group is the sheet's own vocabulary (CLAUDE.md rule 6) and its
 317-group map in `docs/formats/eng.md` §5 gives it no such string — so there is
-nothing to draw but the lord's name. `crates/l2-game/src/screens/ratings.rs`
+nothing to draw but the lord's name. `crates/l2-game/src/screens/ratings/mod.rs`
 takes it from the realm, with `REALM {n}` as the fallback for a realm with no
 name rather than a literal invented here.
 
@@ -11927,7 +11927,7 @@ changing, which is the diff the `Director` can see — the handler ends in
 screen-local state left to read.
 
 Checked: `the_field_brush_sounds_what_it_paints` in
-`crates/l2-game/tests/audio_wiring.rs` paints all three terrains and the waste
+`crates/l2-game/tests/audio_wiring/main.rs` paints all three terrains and the waste
 arm; ablated, all four arms fail.
 
 **The second half: which bed `setup3.wav` is.** `FUN_00433155` plays it on
@@ -11980,7 +11980,7 @@ bed** (C214). Nothing is left in the ledger row behind them.
 
 **The second half: the merchant's walk is locked.**
 `a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tiles`
-in `crates/l2-game/tests/pacing.rs` builds its own map and **measures** 8 ticks
+in `crates/l2-game/tests/pacing/main.rs` builds its own map and **measures** 8 ticks
 for a road tile and 32 for an open one, with a non-zero `campaign::walk_offset`
 mid-crossing. Ablated by gating `cross_sub_tile` on `UnitKind::Army`, the road
 gap is 1 against 8. `Unit_StepOnce` (`0x0046634D`) has no kind test (C213); the
@@ -12049,11 +12049,11 @@ both seeds 100 at 40 v 20.
 
 **C221 — Save mid-battle is refused by decision; animations option answers five reads in four functions; a new game runs no phase-7 pass.**
 
-Mid-battle save is refused: `Menu_SaveGame` (`0x00433F49`) does not test `g_battlePhase`, so the original saves the fight. Encoding `LiveBattle` requires `BattleRunner`, `Battle`, `Battlefield`, `Vec<Fighter>`, `Units`, `Ai`, `AiField`, `Missiles`, `SiegeState` — 196 fields over 16 structs, 21 private to l2-sim, against 242 stored fields for kingdom and 1975 lines of kingdom encoder, far past the ~150 lines allowed. The refusal stands by decision. Player message: `saveload::BATTLE_REFUSAL` under group 40 index 4, "THE BATTLE IS NOT SAVED. FINISH IT, THEN SAVE." Assertion `saving_is_refused_while_a_battle_is_live` ablates the old wording red (crates/l2-game/tests/battle_picture.rs).
+Mid-battle save is refused: `Menu_SaveGame` (`0x00433F49`) does not test `g_battlePhase`, so the original saves the fight. Encoding `LiveBattle` requires `BattleRunner`, `Battle`, `Battlefield`, `Vec<Fighter>`, `Units`, `Ai`, `AiField`, `Missiles`, `SiegeState` — 196 fields over 16 structs, 21 private to l2-sim, against 242 stored fields for kingdom and 1975 lines of kingdom encoder, far past the ~150 lines allowed. The refusal stands by decision. Player message: `saveload::BATTLE_REFUSAL` under group 40 index 4, "THE BATTLE IS NOT SAVED. FINISH IT, THEN SAVE." Assertion `saving_is_refused_while_a_battle_is_live` ablates the old wording red (crates/l2-game/tests/battle_picture/main.rs).
 
 Animations option: five reads in four functions, each now tested. `Screen_BattleOutcome` (`0x00423241`) chooses the tall box with film recess (ablation `the_outcome_box_is_the_tall_one_only_when_animations_are_on` red, y band 48-144). `CastleBuild_Confirm` (`0x00436B59`) plays Castle1..5.smk over chooser. `Msg_DrawWindow` (`0x0047309E`) twice: capture films and ending films, each dismissing its letter (ablation `a_capture_letter_would_play_the_capture_films_in_rotation` off half red). `Battle_CheckOutcome` (`0x00477DFC`) plays outcome film. `Map_ClampScroll` (`0x00429B1D`) does not read the flag; doc now names the four. `docs/arms.json` 0x00434AD5/opt-animations note corrected.
 
-New game runs no phase-7 pass: `Game_NewGame` (`0x00497CED`) calls `Season_Advance` (`0x00448440`) and `Score_RankRealms`, not `Mercenary_AdvanceAll`, `Units_ResetMoves` (`0x004651B9`), or `Diplo_ReconcileAlliances` (`0x004A1847`). Those three are `Turn_Tick`'s phase-7 arm. Skipped in `start_new_game`, not removed from `SEASON_PIPELINE`, so no pass index or save version moves. End Turn still runs all three. Tests `a_new_game_runs_no_phase_seven_pass_and_a_season_end_runs_all_three` (ablation either name red) and `the_pipeline_reaches_the_files_clock` lands on england-turn1.sav's clock and stored fields with the two passes gone (crates/l2-kingdom/tests/reproduction.rs).
+New game runs no phase-7 pass: `Game_NewGame` (`0x00497CED`) calls `Season_Advance` (`0x00448440`) and `Score_RankRealms`, not `Mercenary_AdvanceAll`, `Units_ResetMoves` (`0x004651B9`), or `Diplo_ReconcileAlliances` (`0x004A1847`). Those three are `Turn_Tick`'s phase-7 arm. Skipped in `start_new_game`, not removed from `SEASON_PIPELINE`, so no pass index or save version moves. End Turn still runs all three. Tests `a_new_game_runs_no_phase_seven_pass_and_a_season_end_runs_all_three` (ablation either name red) and `the_pipeline_reaches_the_files_clock` lands on england-turn1.sav's clock and stored fields with the two passes gone (crates/l2-kingdom/tests/reproduction/main.rs).
 
 ---
 
@@ -12126,7 +12126,7 @@ moved; realm 2's siege: 100 maces at 10 + Pct(10,100) = 20 each = 2,000; gold +2
 called from engagement's battle path after the return and before `Defence_Disband`, as in
 `Battle_ReturnToCampaign` (`0x004AB383`). Every battle re-farms every AI realm, not the two
 that fought. Test `a_battle_re_manages_every_ai_realms_farms_and_nobody_elses` (seam.rs,
-battle-before.sav, probe county +0x1FE), ablation red; `crates/l2-game/tests/seam.rs`.
+battle-before.sav, probe county +0x1FE), ablation red; `crates/l2-game/tests/seam/main.rs`.
 
 Lost-rule-inputs blocker: +0x15A is the round-robin cursor of `FUN_0046958F` and `FUN_0046965A`
 under `County_EnsurePasture` (`0x0046921D`); +0x15B the same sweep in `FUN_00469A9C` twice from
@@ -12238,7 +12238,7 @@ the plane-1 flags with group 30 words; mountain against woodland needs
 
 **C227 — Bankruptcy runs six stages: deserve, desert, disband; supplies reach and unload; start options include the garrison.**
 
-`Wages_PayAll` (`0x004ACBD4`) stages 0–5: Realm_ReleaseMercenaries `0x004AD230` (hire slots), Realm_DesertArmies `0x004AD0E8` (stages 1–4), Realm_DestroyArmies `0x004AD316` (stage 5). Ours ran desertions 0–2 and never destroyed because apply_bankruptcy keyed on realm.bankrupt_stage (next stage); pay wraps it to 0 after mutiny, so two rungs hit empty arms. Re-keyed on BankruptcyAction. A 400-man army over six unpaid seasons was 400/360/324/292/292/292, is now 400/360/324/292/263/gone. Test six_unpaid_seasons_desert_four_times_and_then_disband_every_army (crates/l2-kingdom/tests/campaign.rs); ablation re-measured 292/292.
+`Wages_PayAll` (`0x004ACBD4`) stages 0–5: Realm_ReleaseMercenaries `0x004AD230` (hire slots), Realm_DesertArmies `0x004AD0E8` (stages 1–4), Realm_DestroyArmies `0x004AD316` (stage 5). Ours ran desertions 0–2 and never destroyed because apply_bankruptcy keyed on realm.bankrupt_stage (next stage); pay wraps it to 0 after mutiny, so two rungs hit empty arms. Re-keyed on BankruptcyAction. A 400-man army over six unpaid seasons was 400/360/324/292/292/292, is now 400/360/324/292/263/gone. Test six_unpaid_seasons_desert_four_times_and_then_disband_every_army (crates/l2-kingdom/tests/campaign/main.rs); ablation re-measured 292/292.
 
 Supply transport: Screen_SendSupplies `0x0041AD5D`, NetAct_SendSupplies `0x00447DB6`, Transport_Spawn `0x004292AF`, Transport_RetargetAll `0x00429418` (phase 3), Transport_Deliver `0x004296B5`. Ours had all but the last; supply::deliver had zero callers, so shipments deducted and stood for ever. `0x004296B5` guards cargo_county == county, troops[0] to grain, troops[2] to herd, Herd_UpdateCrowding, tail FUN_0046F0A9 frees the slot as Army_Destroy does. Wired into units_tick::step_one ahead of attack_county. Tests a_transport_reaching_its_cargo_countys_town_unloads_and_is_gone and a_transport_passing_a_town_that_is_not_its_destination_unloads_nothing (crates/l2-kingdom/src/units_tick/mod.rs); ablation red.
 
@@ -12274,7 +12274,7 @@ track no 0x0041C208, so five draw arms tracked only in tests.
 
 `FUN_0049BD99` `0x0049BD99` stages the new game through `Game_SetupRealmsAndCounties` `0x0049BD99`. `g_startArmySize` arm at `0x0049BF9E` ported into `Settings::apply_to`: basket from `g_startTroops` row `0x004DC110`, county population pre-credited so `Levy_DebitPopulation` nets to zero, `Army_Create(realm, county, 0, 0)` through `l2_kingdom::levy::create_army` (levy screen's own path), surcharge undone, first wage refunded. `Levy_ConsumeWeapons` debits still-zero armoury in original because `g_startArmoury` written after `0x0049C15B`, so armoury row restored and garrison free [V]. `Settings::unhonoured` now returns empty, all twelve options honoured.
 
-Test `army_size_raises_the_starting_garrison` (crates/l2-game/tests/newgame.rs): England, rows 0 and 3, 0 armies then 2 armies of 300 men {0,0,0,100,100,100,0} on bare road tiles in own counties, population and armoury intact, surcharge 0. Ablation red at 0 against 2. Census crates/l2-game/tests/newgame.rs 10 to 11, GATED_TOTAL 579 to 580.
+Test `army_size_raises_the_starting_garrison` (crates/l2-game/tests/newgame/main.rs): England, rows 0 and 3, 0 armies then 2 armies of 300 men {0,0,0,100,100,100,0} on bare road tiles in own counties, population and armoury intact, surcharge 0. Ablation red at 0 against 2. Census crates/l2-game/tests/newgame/main.rs 10 to 11, GATED_TOTAL 579 to 580.
 
 Three remaining lost inputs already carried: County +0x206 stored-fields row County+0x206 imported, written by `Grain_Sow`, field::grain_to_pasture `FUN_0046965A` (field.rs:328) and `County_DestroyField` `0x00469E5B`, read by wheat divisor (land.rs:1003), save VERSION 25. County +0x29C `Industry::last_efficiency` (C218), VERSION 26. Realm +0x2A `peakCounties` imported, `Realm::peak_counties`, read by `County_ChangeOwner` nine-letter ladder, set to 1 at new game as `FUN_0049BD99` does. `Unit_TrampleTile` `0x0046873F` reads whole [V]: each arm writes tile content and frame, `industry[k].disabledSeasons = 3`, `industry[k].efficiency = 0`, four-byte zero at industryRecord + 0x18, `labour[j].wanted = -1 / useful = 0`. Record +0x0C (county +0x29C) never among them, so no ramp reset to carry; exclusion stands.
 
@@ -12284,7 +12284,7 @@ Three remaining lost inputs already carried: County +0x206 stored-fields row Cou
 
 Map rotation: Map_BuildLattice `0x004298C1` builds all four orientations, but Map_RotateCW `0x00429F12`'s only caller is Map_RotateCCW `0x0042A01B`, which has 0 callers in the 2,452 decompiled functions and 0 widget-table references; g_mapRotation `0x00522F7C`'s only other writer is Map_LoadPlanes `0x00467770`, which zeroes it per map load, so its 4 readers always take the rotation-0 branch; Lords2.exe holds no "rotat" string and L2.eng's one is "crop rotation"; ours (tile_to_cell, crates/l2-view/src/campaign/mod.rs:415) builds rotation 0 only [V]; docs/screens.md §1.6 carries it.
 
-Castle designer: Screen_CastleBuild `0x00419789`, Screen_CastleBuildPanel `0x004198AA`, CastleBuild_Select `0x00436B22` and CastleBuild_Confirm `0x00436B59` are a picture-and-stats browser over one integer 0..4; "design" occurs twice in L2.eng and never in Lords2.exe, both in help text; ours (crates/l2-game/src/screens/castle.rs, 25 tests in crates/l2-game/tests/castles.rs) reproduces all five buttons, both refusal guards (messages 0x93 and 0x122), the net materials and the CastleN.smk.
+Castle designer: Screen_CastleBuild `0x00419789`, Screen_CastleBuildPanel `0x004198AA`, CastleBuild_Select `0x00436B22` and CastleBuild_Confirm `0x00436B59` are a picture-and-stats browser over one integer 0..4; "design" occurs twice in L2.eng and never in Lords2.exe, both in help text; ours (crates/l2-game/src/screens/castle/mod.rs, 25 tests in crates/l2-game/tests/castles/main.rs) reproduces all five buttons, both refusal guards (messages 0x93 and 0x122), the net materials and the CastleN.smk.
 
 Prisoners and ransom: "ransom", "captive", "hostage" have 0 hits in Lords2.exe and L2.eng; "prisoner" has 1, in the winner's ending speech at L2.eng offset 79178; Battle_CheckOutcome `0x00477DFC` names only g_battleLoser and g_battleWinnerOwner; a beaten lord is eliminated by Realm_RecountStrength `0x0049B42B` with group 224 "Defeat!" (194 for an AI); Msg_DrawWindow `0x0047309E`'s 0x0D capture letters, groups 114 to 126, are county capture; docs/battle.md §6.4.
 
@@ -12305,7 +12305,7 @@ Tests a_letter_opens_on_its_default_and_the_first_key_types_over_it,
 the_four_letter_kinds_open_on_four_different_drafts,
 the_field_holds_two_hundred_characters_and_the_send_keeps_one_less,
 the_gift_and_the_two_county_requests_have_no_draft,
-a_letter_open_does_not_stop_the_cancel_button in crates/l2-game/tests/diplomacy.rs;
+a_letter_open_does_not_stop_the_cancel_button in crates/l2-game/tests/diplomacy/main.rs;
 ablation 3 red.
 
 Help: Opt_GameHelpContents 0x00434942 is WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1),

@@ -91,7 +91,7 @@ workspace names a save directory.
   also where the original keeps `lastturn.sav`, whose fixture identity this
   document has already watched a program destroy once.
 * **Not inside the repository.** `.gitignore` refuses `*.sav` and `*.l2sav`, and
-  `crates/l2-testkit/tests/census.rs` fails if either appears in the tree. A
+  `crates/l2-testkit/tests/census/main.rs` fails if either appears in the tree. A
   save that lands beside the source is a save somebody commits.
 * **Not beside the executable.** That works for a portable build and fails for
   an installed one: `%PROGRAMFILES%` is not writable by the user who runs the
@@ -114,7 +114,7 @@ save the original could open is not on any plan yet; what exists is a save
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # What CI runs: no install, no fixtures. The install-gated tests skip and say
-# so; crates/l2-testkit/tests/census.rs names every one of them and prints how
+# so; crates/l2-testkit/tests/census/main.rs names every one of them and prints how
 # many the current environment satisfies.
 cargo test --workspace
 
@@ -130,7 +130,7 @@ cargo test -p l2-testkit --test census -- --nocapture
 whole point of the census: `cargo test --workspace` prints the same
 `passed; 0 failed` line either way while asserting wildly different amounts, so
 the number of gated tests is written down in
-`crates/l2-testkit/tests/census.rs` and a new gate fails the build until it is
+`crates/l2-testkit/tests/census/main.rs` and a new gate fails the build until it is
 added there.
 
 ### Building while the game is open

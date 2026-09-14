@@ -68,7 +68,7 @@ Three independent corroborations that the argument is a byte count, not an eleme
 79 of the 80×80 grid — carry their counts into the next search.** The question is settled,
 and the answer is the direction the open question feared.
 
-**Where it reaches us.** `crates/l2-sim/src/pathfind.rs:201` is
+**Where it reaches us.** `crates/l2-sim/src/pathfind/mod.rs:201` is
 `let mut visits = vec![0u8; CELLS];` — a fresh, fully-zeroed 6,400-entry array every search.
 The rest of that port is careful and correct: I checked the 0x1900 queue wrap, the
 non-relaxing cost write, the `stepCost == 0` short circuit and the off-by-one on the visit
@@ -205,8 +205,8 @@ from the 42.
 | `Battlefield_BuildCastle` / `Battlefield_BuildRandom` / `Path_SearchSiege` *"not decompiled"* / *"not traced"* | `battle-ai.md:756,781`, `battle.md:199` | **False since commit `9f97838`.** All three in `decomp/00470000.c`. F2. |
 | *"Running Ghidra would have contended for the project lock"* | `audit.md` §8 | **Moot.** Re-verification is now `rg`, not a Ghidra run. F2. |
 | *"The fourteen AI turn handlers … none decompiled"* | `kingdom.md:1070` | **Contradicted by `kingdom.md:240` in the same file**, which says all fourteen are decompiled. One of the two is stale. |
-| `WEATHER_JITTER_BOUND` *"is **invented** … It needs tracing before any weather behaviour is trusted"* | `decisions.md` Open questions | **Already resolved.** Independently re-derived here: `Rand_Advance` (`0x00404A46`) publishes `DAT_0058fd60 = g_randStateB & 0x7f`, and `Weather_UpdateAll` divides it by 8 via the signed-division idiom `(x + ((x>>31)&7)) >> 3`. Range 0…127, jitter 0…15. `crates/l2-kingdom/src/weather.rs:89` has 128 and is right. |
-| `local_modifier` *"Never traced … Zero until somebody reads it out of the binary"* | `crates/l2-kingdom/src/weather.rs:104` | **False. It took four greps.** See F5 below. |
+| `WEATHER_JITTER_BOUND` *"is **invented** … It needs tracing before any weather behaviour is trusted"* | `decisions.md` Open questions | **Already resolved.** Independently re-derived here: `Rand_Advance` (`0x00404A46`) publishes `DAT_0058fd60 = g_randStateB & 0x7f`, and `Weather_UpdateAll` divides it by 8 via the signed-division idiom `(x + ((x>>31)&7)) >> 3`. Range 0…127, jitter 0…15. `crates/l2-kingdom/src/weather/mod.rs:89` has 128 and is right. |
+| `local_modifier` *"Never traced … Zero until somebody reads it out of the binary"* | `crates/l2-kingdom/src/weather/mod.rs:104` | **False. It took four greps.** See F5 below. |
 | `Title.pl8` *"decodes with provably correct geometry, but no shipped `.256` colours it"* | `formats/pl8.md:192` | **The wrong question.** `Lords2.exe` contains **zero** occurrences of `title.pl8` or `title.256`; the only title string in either shipped executable is `imptitle.smk`, twice. `mapl2.exe` contains no `title` string and no `.256` string at all. No shipped code pairs `Title.pl8` with any palette, because no shipped code loads `Title.pl8`. F7. |
 | `g_goodsStock` *"Reads like the quantity a merchant carries"*, marked inferred | `symbols.md:576` | **Zero references in the entire binary.** F6. |
 | `g_deterministicBattle` *"flag was not traced to where it is set"* `[I]` | `battle-ai.md:734` | **A write exists** at `decomp/00400000.c:7904`. The *meaning* is still a reading — `symbols.md:465` says so correctly — but "not traced to where it is set" is no longer true. **Closed since**: the write was read, it is the DirectPlay session opening, and the global is now `g_multiplayer`, `[V]`. `docs/battle.md` §14.9. |
@@ -408,7 +408,7 @@ two things labelled better than they deserve.
 1. **The `Path_Search` visit-counter divergence (F1).** Shipped code, deterministic, affects
    36% of every non-skirmish battlefield. Not a constant; a behaviour.
 2. **`local_modifier` is stubbed to zero.**
-   `crates/l2-kingdom/src/weather.rs:104` returns `0`. `FUN_00449D6E`
+   `crates/l2-kingdom/src/weather/mod.rs:104` returns `0`. `FUN_00449D6E`
    (`decomp/00440000.c:5806`) returns, on county field `+0x21E`:
    *Summer* — band 0 → **+4**, 1 → **+2**, 2 → **−8**, 4 → **−12**;
    *Winter* — band 1 → **−2**, 2 → **−4**, 3 → **−6**, 4 → **−10**; zero otherwise.
@@ -427,7 +427,7 @@ two things labelled better than they deserve.
    and `&7` from each — which then stay fixed until the next advance. `Weather_UpdateAll`
    reads two of them (`DAT_0058FD60` for the jitter, `g_rand7A` for the county) from a
    *single* advance. `crates/l2-kingdom` draws twice from one `Pcg32`.
-   `crates/l2-kingdom/src/weather.rs:51` acknowledges this and its reasoning is sound for
+   `crates/l2-kingdom/src/weather/mod.rs:51` acknowledges this and its reasoning is sound for
    weather (*the range is what a rule turns on*). What is **not** established anywhere is how
    often `Rand_Advance` is called — I count nine call sites across the binary — and that is
    the fact a save-state-level differential test turns on. `docs/netcode.md` D-3 freezes our

@@ -35,7 +35,7 @@ It has one now, and it is the same shape as the arms audit's:
 | artefact | compares | runs where |
 |---|---|---|
 | `sounds.js --check` | `docs/audio.json` against the **decompilation** | wherever the corpus is |
-| `crates/l2-game/tests/sfx.rs` | `docs/audio.json` against the **`// sfx:` markers** | everywhere |
+| `crates/l2-game/tests/sfx/main.rs` | `docs/audio.json` against the **`// sfx:` markers** | everywhere |
 | a person | the marker against what the code does | nowhere mechanical |
 
 The marker is `// sfx: <id>[,<id>…]` beside the call, and the id is
@@ -128,7 +128,7 @@ They carry no `// sfx:` marker:
 denominator for *"what does the game ask for"* and the wrong one for *"does our
 audio behave like the game's"*
 closing — adding stops to the census would put sixteen rows in it that no file
-depends on. `crates/l2-game/tests/audio_wiring.rs` is where the two are
+depends on. `crates/l2-game/tests/audio_wiring/main.rs` is where the two are
 asserted.
 
 ## The three verdicts, and the count of each
@@ -172,7 +172,7 @@ with no path.
 | mechanic | sites | files it would add |
 |---|---:|---:|
 | ~~Smacker playback~~ **built** (`crates/l2-smk`, `crate::movie`): 5 of its 8 now sound. What still blocks the other 3: `County_ChangeOwner`'s capture letters, which nothing posts (`#15`, `#16`), and the CD's fast-media branch (`#19`) | 3 | 0 — a bed and a voice already reachable |
-| ~~the sibling voice tables' callers~~ **six of the eight are gone.** Four are built — the mercenary offer (`FUN_004B3714`, `Sidebar_Button` hotspot 1, 12 files), the population panel's health line (`FUN_004B3768`, `Panel_OpenPopulation`, 4), the information panel's picked unit or castle (`FUN_004B37BC`, both openers of screen `0x04`, 9) and **the standings page's category** (`FUN_004B3994`, `crates/l2-game/src/screens/nobles.rs`, 7 of its 8) — and one is **dead**, `FUN_004B39E8` above. What is left: `S010`'s confirm box (`Ui_OpenConfirm`, and we have one of its thirteen call sites, as a flag) and the lord sting's `S246` | 2 | ≈17 — `S010` 13, `S246` 4 |
+| ~~the sibling voice tables' callers~~ **six of the eight are gone.** Four are built — the mercenary offer (`FUN_004B3714`, `Sidebar_Button` hotspot 1, 12 files), the population panel's health line (`FUN_004B3768`, `Panel_OpenPopulation`, 4), the information panel's picked unit or castle (`FUN_004B37BC`, both openers of screen `0x04`, 9) and **the standings page's category** (`FUN_004B3994`, `crates/l2-game/src/screens/nobles/mod.rs`, 7 of its 8) — and one is **dead**, `FUN_004B39E8` above. What is left: `S010`'s confirm box (`Ui_OpenConfirm`, and we have one of its thirteen call sites, as a flag) and the lord sting's `S246` | 2 | ≈17 — `S010` 13, `S246` 4 |
 | `FUN_004B3940`, the castle chooser's five buttons speaking their own name — **the one site left here whose trigger is a click *inside* a screen**, and the selection is `CastleScreen`'s own field. `S035` above was the same shape and stopped being blocked when the selection was put where the original keeps it: `DAT_0055CE7C` is a global, so `Game::nobles_category` is the faithful placement *and* the one the director can see. `DAT_0056D898` is a global too | 1 | 0 — `S071_02`…`06` already sound from `FUN_004B37BC` |
 | a channel from a click to the audio layer (the field brush) | 5 | 3 |
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
@@ -184,7 +184,7 @@ with no path.
 bridge fire `FUN_0048551D`), boiling oil (`FUN_0047A814`), a siege tower docking
 (`FUN_00491492`) and the catapult shot on a rampart four high (`Missile_Step#2`) — six
 sites and four files, `dest_ind.wav`, `pouroil.wav`, `siegedoc.wav` and `catmiss.wav`.
-They were blocked on mechanics, and the mechanics are `crates/l2-sim/src/fire.rs` and
+They were blocked on mechanics, and the mechanics are `crates/l2-sim/src/fire/mod.rs` and
 the tower half of `siege.rs`; `docs/battle.md` §17 is what was read to build them.
 
 **Read the second column before the first.**
@@ -192,7 +192,7 @@ the tower half of `siege.rs`; `docs/battle.md` §17 is what was read to build th
 **The tip screens left this table**, and they were the row a player would have heard
 most of: two sites and forty files by name — 13 first lines and 27 chained takes, the
 largest files-per-site ratio in the inventory. They are fired now
-(`crates/l2-game/src/tip.rs`), and **35 of the 40 can sound**: tips 212, 214
+(`crates/l2-game/src/tip/mod.rs`), and **35 of the 40 can sound**: tips 212, 214
 and 215 are guarded on `g_screenId == 0` during a battle, which no path was found to
 hold, so `S212_01`, `S212_02`, `S214_01`, `S214_02` and `S214_03` ship silent in the
 original as well as here. `[I]` on *"no path"*.
@@ -301,7 +301,7 @@ said.
    * *Music* — fixed for the campaign (C116) and **now** for the front end, which
      is the ninth-primitive finding above.
 * *The click* — **fired**, and it was two sites: see the end
-     of this file. `crates/l2-game/src/press.rs` is `Widget_Test`, and the rule a
+     of this file. `crates/l2-game/src/press/mod.rs` is `Widget_Test`, and the rule a
      player can hear is that a spinner clicks on the press and **not** on its
      auto-repeat.
    * *The industry sounds on a right click* — **fired**. It is `TileInfo_Draw`
@@ -377,7 +377,7 @@ sound, and now.** It is the branch for categories `0x05`…`0x09`, and the only
 function in the original that posts one is `Tip_Show` (`0x00476DA9`), from
 `g_tipCategory` — those categories *are* the tip screens. It was reverted when that
 was read, because nothing posted a tip. `crate::tip` posts them now, and
-`crates/l2-game/tests/tips.rs` hears `S200_01.wav` by name on the tick
+`crates/l2-game/tests/tips/main.rs` hears `S200_01.wav` by name on the tick
 `Msg_DrawWindow` tests.
 
 **And the chained takes are fired with it.** `[V]`: `FUN_004B3ACD(group)` has one
@@ -480,7 +480,7 @@ arrows of a slider widget that **nothing in the executable instantiates** —
 a control, because this binary calls with `E8` rel32 and an absolute-address search
 finds nothing for *any* function, `Widget_Test` and its 36 callers included.
 
-**Ours.** `crates/l2-game/src/press.rs` is the hit test, so the count is taken
+**Ours.** `crates/l2-game/src/press/mod.rs` is the hit test, so the count is taken
 there — in `Press::press` and `Press::press_delayed`, and deliberately not in
 `Press::tick` or `Press::press_held`. A screen cannot reach `Audio`
 (`docs/netcode.md` D-3), so the count is an outbox: `Screen::take_clicks` drains it,

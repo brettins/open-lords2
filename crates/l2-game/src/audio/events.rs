@@ -41,7 +41,7 @@ use wav::Sound;
 /// is the one that also plays a lord's sting at 90.
 ///
 /// `docs/audio-triggers.md` has the enumeration this came out of. The five
-/// values were already on file — `crates/l2-game/src/screens/message.rs` lists
+/// values were already on file — `crates/l2-game/src/screens/message/mod.rs` lists
 /// them and says they are *"recorded in `crate::message`"*, where they had
 /// never been written — but **which category takes which** was not, and that is
 /// the half a caller needs.

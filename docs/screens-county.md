@@ -112,7 +112,7 @@ The cases, named from the `L2.eng` groups each painter draws.
 | 0x1D | `0x00421F14` | siege preparations | group 83; `sgeplans.pl8` |
 | 0x1F | `0x0041E7E1` | **the front end**, and game setup: thirteen sub-pages on `g_setupPage` (`0x005530F0`) — §1.2 | groups 11, 39, 40, 101, 102, 103 |
 | 0x1E | `Screen_ConfirmBox` `0x0040CCFA` | **the yes/no box** — one dialog for fifteen questions — §10.3 | group 10 |
-| 0x20 | `Screen_GreatestNoble` `0x0041593B` | **the standings** — five flagpoles, not a table: one banner per realm raised to its percentage of the leader's score in one of seven categories, with the seven as an invisible tab row (`g_nobleTabs`, `0x004DC890`) along the bottom. Reached from the court's one button, which recounts first. `crates/l2-game/src/screens/nobles.rs` | group 35; `grtnoble.256` + `grtnoble.pl8`, `flags.pl8` |
+| 0x20 | `Screen_GreatestNoble` `0x0041593B` | **the standings** — five flagpoles, not a table: one banner per realm raised to its percentage of the leader's score in one of seven categories, with the seven as an invisible tab row (`g_nobleTabs`, `0x004DC890`) along the bottom. Reached from the court's one button, which recounts first. `crates/l2-game/src/screens/nobles/mod.rs` | group 35; `grtnoble.256` + `grtnoble.pl8`, `flags.pl8` |
 | 0x21 | `Screen_SliderBox` `0x0040CD58` | **the value spinner** — game speed, scroll speed, volumes — §10.3 | group 12 |
 | 0x25 | `Screen_About` `0x0041543F` | about | group 59 |
 | 0x28 / 0x29 / 0x2A | `Screen_DrawBattlefield` `0x004233F7` | the battlefield; the main loop treats 0x28 … 0x2A as one range | `g_battleIsSiege` picks the palette |
@@ -324,7 +324,7 @@ two pixels up and left of the plain frame it replaces, and ten of the eleven are
 four pixels wider and four taller — a two-pixel ring around an unchanged picture. Every
 non-transparent pixel of that border is one of **three palette entries of `Base01.256`, all
 blue**: `95` = `rgb(0,0,121)`, `65` = `rgb(157,202,234)`, `64` = `rgb(194,230,255)`.
-`crates/l2-view/tests/install.rs` asserts both properties against the shipped file.
+`crates/l2-view/tests/install/main.rs` asserts both properties against the shipped file.
 
 | plain | ringed | what | condition |
 |---|---|---|---|
@@ -465,7 +465,7 @@ record 5, `(0, 30) … (161, 49)` — **161 × 19**, so its last column (x 639) 
 (y 479) are dead too.
 above it really is 162 × 30; the hotspots are one smaller in each direction, and deriving
 the hit box from the plate is what put a live pixel where the game has none.
-`crates/l2-game/tests/right_column.rs` reads both tables out of the player's own
+`crates/l2-game/tests/right_column/main.rs` reads both tables out of the player's own
 `Lords2.exe` and asserts our constants against them. `docs/decisions.md` C97.
 
 Screen `0x17` is the **raise-army** screen: `L2.eng` group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads
@@ -691,7 +691,7 @@ The picture is measurable, not a matter of opinion, which is what makes this **[
 of the sheet's 84 frames those two are the **4th and 5th darkest**, 15.3% and 11.5% of their
 area in near-black ink against a median frame's 1.2%. The widgets that really are thin
 strokes sit where you would expect — the tax-up arrow at 0.2%, the slider knob at 0.0%. A
-tick cannot come 4th out of 84. `crates/l2-view/tests/install.rs` asserts that rank against
+tick cannot come 4th out of 84. `crates/l2-view/tests/install/main.rs` asserts that rank against
 the user's own file.
 
 **And it is live.** `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests a 24 × 24 box at
@@ -932,7 +932,7 @@ merchant, the armoury, castle building and the greatest-noble page pass, all at
 `(g_screenStride - 0x1C, g_screenHeight - 0x1C)`; every other call site passes mode 0. So
 loading the wrong skin does not blank every corner — it blanks the corners of those five
 screens and leaves the rest looking correct, which is the hardest kind of wrong to notice.
-`crates/l2-view/tests/install.rs` asserts both halves against the user's own files.
+`crates/l2-view/tests/install/main.rs` asserts both halves against the user's own files.
 
 ### 4.3 `Misc_cty.pl8` — the kingdom-mode icons
 
@@ -1242,7 +1242,7 @@ there are **three** of them, not the two that share a spot:
 
 The mine overwriting the quarry is safe because no county has both: over the England
 turn-one fixture the two are complementary in thirteen of the fourteen counties and absent in
-the fourteenth (`crates/l2-scenario/tests/import.rs`).
+the fourteenth (`crates/l2-scenario/tests/import/main.rs`).
 
 ### 6.3a `Village_Animate`'s six overlays, and its clock **[V]**
 
@@ -1361,7 +1361,7 @@ job came first take people the later ones needed.
 **And that loop reads two words past the end of its table.** It is
 `for (i = 0; i < 10; i++)` over `g_jobClusterToSlot`, which has **eight** entries. The two
 past the end are the head of the next table and are **4** and **6** — read out of the
-shipped binary at `0x004D67A0` by `crates/l2-view/tests/install.rs`. The effect is that the
+shipped binary at `0x004D67A0` by `crates/l2-view/tests/install/main.rs`. The effect is that the
 gesture covers all nine labour slots, because slot 4 (iron mining) is otherwise reachable
 only through cluster 0's quarry/mine override. Whether that was intended or is an overrun
 that happens to work, it is what the game does; `docs/bugs.md` carries it.
@@ -1641,7 +1641,7 @@ The ceiling is a rule's output, not a panel's hint: `Labour_Allocate`
 
 5. *Drawn now — this entry is kept for the record.* C164 carried the fields and the job
    popup's five bodies draw them, call for call, from the player's own `L2.eng` groups 77,
-   76, 71 and 22; `crates/l2-game/tests/job_bodies.rs` places each figure and word at its
+   76, 71 and 22; `crates/l2-game/tests/job_bodies/main.rs` places each figure and word at its
    painter's coordinates.
 
    **`+0x22C`, `+0x230`, `+0x24C`, `+0x278` and `+0x2FC`** are read by the grain job popup
@@ -1730,7 +1730,7 @@ node tools/oracle/widgets.js ref 434d33         # who *points at* a function
 
 ### 10.1 The menu bar is three tables of function pointers, and every one is accounted for **[V]**
 
-**Built.** `crates/l2-game/src/screens/menubar.rs` is this section: the three measured
+**Built.** `crates/l2-game/src/screens/menubar/mod.rs` is this section: the three measured
 titles, the sixteen items, screen `0x32` and its four arms. Six of the sixteen reach a
 screen — load, save, quit and the four option pages — and the rest refuse in one line naming
 the screen or the message id they want, because the confirm box (`0x1E`), the value spinner
@@ -2016,7 +2016,7 @@ in the module that acts on it.
 ## 11. `0x1B`, the castle chooser — five picture buttons and an OK  **[V]**
 
 The door to castles, which are the door to sieges. It was a shell; it is
-`crates/l2-game/src/screens/castle.rs` now.
+`crates/l2-game/src/screens/castle/mod.rs` now.
 
 ### 11.1 The two widget tables
 

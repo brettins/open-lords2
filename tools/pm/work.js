@@ -835,8 +835,8 @@ function inventories(base) {
     };
   });
 
-  attempt({ track: 'instruments', system: 'tests', name: 'Install-gated tests', source: 'crates/l2-testkit/tests/census.rs' }, () => {
-    const text = src.read('crates/l2-testkit/tests/census.rs');
+  attempt({ track: 'instruments', system: 'tests', name: 'Install-gated tests', source: 'crates/l2-testkit/tests/census/main.rs' }, () => {
+    const text = src.read('crates/l2-testkit/tests/census/main.rs');
     const m = text.match(/const GATED_TOTAL: usize = (\d+);/);
     if (!m) throw new Error(`GATED_TOTAL is not in census.rs in ${src.where}`);
     const files = new Set([...text.matchAll(/^\s*\("(crates\/[^"]+)",/gm)].map((x) => x[1]));

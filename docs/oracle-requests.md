@@ -6,7 +6,7 @@ to our code. Each item says what to do, when to press save, and — so you can j
 6: it is worth your time — **what it would settle**.
 
 `docs/plan.md` §5 is the older, shorter version of this list, ordered by yield. This file is
-the practical one: it exists because the hundred-turn game (`crates/l2-game/tests/long_game.rs`)
+the practical one: it exists because the hundred-turn game (`crates/l2-game/tests/long_game/main.rs`)
 measured which rules we can reach on our own and which we cannot, and **eleven of them we
 cannot reach at all.** Every request below is one of those.
 

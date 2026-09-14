@@ -103,9 +103,9 @@ At `4ea2669` plus this branch: **2,168 tests**, C1..C136 and three `CNEW` placeh
 870 citations, 1,293 functions and 573 globals named, `GATED_TOTAL` 369. All checks green.
 
 105: **And the standing gap those numbers do not show.** Three of our inventories are *checked*
-106: against the tree and the rest are prose. `crates/l2-game/tests/arms.rs` asserts set equality in
+106: against the tree and the rest are prose. `crates/l2-game/tests/arms/main.rs` asserts set equality in
 107: both directions between `docs/arms.json`'s `reproduced` records and the `// arm:` markers in
-`crates/`; `crates/l2-game/tests/sfx.rs` does the same for `docs/audio.json` and `// sfx:`, with
+`crates/`; `crates/l2-game/tests/sfx/main.rs` does the same for `docs/audio.json` and `// sfx:`, with
 `node tools/oracle/sounds.js --check` holding the *other* end of that file against the
 decompilation; `crates/l2-sim/tests/oracle.rs` opens `Lords2.exe` at its fixed `0x400000` base and
 compares three battle tables byte for byte against our constants. **`docs/draws.md` and
@@ -163,7 +163,7 @@ the goal is not met — not "mostly met".
 
 1. **A player performs a gesture the original responds to and ours does not.** This is now
 countable: `docs/arms.json` is the inventory of the original's input
-   arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
+   arms and `crates/l2-game/tests/arms/main.rs` checks it against the code in both directions. Of the
    arms enumerated so far we reproduce **<!--fig:arms-reproduced-->225<!--/fig--> of
    <!--fig:arms-live-->252<!--/fig--> live arms (<!--fig:arms-pct-->89<!--/fig-->%)** — so
    **<!--fig:arms-missing-->27<!--/fig-->** gestures a player can make get no answer — with
@@ -364,7 +364,7 @@ then the twelve options through `Settings::apply_to`, then the one immediate
 `Season_Advance` that begins a game in Winter 1268. **Pick Ireland and you play Ireland**,
 from an empty `Game` and with no save in the path at all.
 
-All 44 shipped maps start and take a turn (`crates/l2-game/tests/newgame.rs`), and England
+All 44 shipped maps start and take a turn (`crates/l2-game/tests/newgame/main.rs`), and England
 built from `L2_maps.dat` is diffed field by field against England read from `lastturn.sav`
 — two files authored separately, agreeing on every fact the map decides.
 `docs/decisions.md` C62 has the four corrections that fell out of it.
@@ -463,7 +463,7 @@ the most gameplay-critical shell in the table.
 463: > `screens/map/mod.rs` — a click on your own army selects it and the next click on the map is the
 > march order, a click on your own *besieging* army opens `0x1D` — and turn phase 2 calls
 > `engagement::run_siege_phase`, which nothing outside its own tests had ever called.
-> `crates/l2-game/tests/military.rs` drives all three verbs as `Event` values through
+> `crates/l2-game/tests/military/main.rs` drives all three verbs as `Event` values through
 > `Machine::handle`: levy, equip, raise, march, take a county, split, disband, assault.
 > `docs/decisions.md` C45 is the correction, and it names the two stale things the name was
 > hiding.
@@ -573,7 +573,7 @@ test that could go red. The fix is §5's first ask, to be made now.
 code is ready for it.
 
 575: > **Partly instrumented, and the first run paid for itself.**
-> `crates/l2-game/tests/long_game.rs` plays a hundred turns of England, a hundred of a
+> `crates/l2-game/tests/long_game/main.rs` plays a hundred turns of England, a hundred of a
 > hand-dealt fourteen-county empire, and twenty on each of the forty-four shipped maps,
 > checking eight invariants after every turn and censusing which rules have fired at all.
 > **Nothing broke** — no invariant violation anywhere, and a game saved at turn 50 and
@@ -940,7 +940,7 @@ files. C28 is why: an inferred global name reached the corpus 155 times with not
 a guess. **Nothing in this plan may be cited from `hypotheses.json` as a finding.**
 
 **And fixtures no longer skip silently.** C23: a fixture is a name plus a fingerprint, and
-`crates/l2-testkit/tests/census.rs` reads the source, works out which gate each `#[test]` sits
+`crates/l2-testkit/tests/census/main.rs` reads the source, works out which gate each `#[test]` sits
 behind and asserts the count against a written-down inventory. Before that, `cargo test
 --workspace` printed the same green number with the game present and absent, and **116 tests
 did not exist on CI and nothing said so.**

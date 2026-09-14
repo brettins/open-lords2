@@ -683,7 +683,7 @@ what the county can feed, then spends, in order:
 > the 3 is `rationAchieved` at `+0x15D`, one field along.
 >
 > Read correctly, **every county in the file reproduces**, and
-> `crates/l2-kingdom/tests/reproduction.rs` asserts it for all fourteen:
+> `crates/l2-kingdom/tests/reproduction/main.rs` asserts it for all fourteen:
 >
 > | | population | herd | grain | split | achieved | `+0x178` | `+0x17C` |
 > |---|---:|---:|---:|---:|---:|---:|---:|
@@ -726,7 +726,7 @@ what the county can feed, then spends, in order:
 > on the cheese of 95 head (475 ≥ 417) and ate no grain; nothing was debited by
 727: > `Ration_Apply` (`0x0044DF5F`), which has no store subtraction (C149), and the first call
 > did not have to debit anything. Started from `+0x228`/`+0x254`, all fourteen counties
-> reproduce twenty-five fields each with no inversion — `crates/l2-kingdom/tests/reproduction.rs`.
+> reproduce twenty-five fields each with no inversion — `crates/l2-kingdom/tests/reproduction/main.rs`.
 > "One lord always begins short of food" is not established by this: the county that goes
 731: > short is the one whose herd the season took below 84 head. **[V]** on the offsets and the
 > reproduction; **[I]** on why realm 5's herd fell furthest.
@@ -1029,7 +1029,7 @@ half-edges.
 
 **And a player has since confirmed it from memory: cut-off counties do secede in play.**
 That moves the mechanic from unanchored to corroborated and it is why
-`crates/l2-kingdom/src/territory.rs` exists.
+`crates/l2-kingdom/src/territory/mod.rs` exists.
 1033: now is — *the code, two `L2.eng` strings, and one person's recollection*. It is not a
 reproduction against a save, and until a fixture exists in which some realm holds two
 counties there is nothing here that could become one.
@@ -1048,7 +1048,7 @@ that also neighbours block B leaves A and B separate for that sweep. That is exa
 only when a whole sweep extended nothing. Run to a fixpoint it agrees with the components;
 run once it does not.
 
-`crates/l2-kingdom/src/territory.rs` reproduces all of it and
+`crates/l2-kingdom/src/territory/mod.rs` reproduces all of it and
 `crates/l2-kingdom/tests/secession.rs` is the pass through the season pipeline. It is
 1053: [`Pass::SecedeIsolatedCounties`], between the unrest counter and the field recount, which is
 where the call list puts it.
@@ -1249,7 +1249,7 @@ inside the pasture-and-beyond span come out as waste:
 **[V] against the England turn-one save, which stores both halves of the sum.** Applying
 this ladder to the tiles `g_countyFieldTiles` names reproduces all three stored counts for
 **all fourteen counties, 168 field tiles**, with nothing of ours in the loop — the file was
-written by the original. `crates/l2-kingdom/tests/fields.rs`.
+written by the original. `crates/l2-kingdom/tests/fields/main.rs`.
 
 Two rows are corroborated from their writers. `Field_ReclaimTick` writes `0x19`, `0x1A`,
 `0x1B`, `0x1C` at 200, 400, 600 and 800 units of progress and `1` when a field finishes, so
@@ -1384,7 +1384,7 @@ transcription slip:
 * **The band is cut out of the county's index**, once, in `County_Reset` (`0x00451150`):
   `id < 4 → 0`, `< 6 → 1`, `< 10 → 2`, `< 12 → 3`, else `4`. **Nothing else in the binary
   writes `+0x21E`** — one writer, one reader — so it is derived, not stored in
-  `crates/l2-kingdom/src/weather.rs::climate_band`, and a saved game's byte cannot disagree
+  `crates/l2-kingdom/src/weather/mod.rs::climate_band`, and a saved game's byte cannot disagree
   with it.
 * **Summer's ladder has a hole at band 3 and a dead arm at the bottom**, and they are the
   same slip: the fourth test reads `field == 4` where the ladder wants `field == 3`, so band
@@ -2057,7 +2057,7 @@ seven tabs and only the seventh — *Greatest noble* — reads `+0x2B`, the rank
 writes; the other six are single raw fields against the leader's, through
 `GreatestNoble_Value` (`0x00415E42`), not through the weighted sum above. A reader
 who takes *Most troops* for a score component in the ratio the bars show is reading a
-different mechanic. `crates/l2-game/src/screens/nobles.rs` and `docs/rules.md` §6.
+different mechanic. `crates/l2-game/src/screens/nobles/mod.rs` and `docs/rules.md` §6.
 
 **One UI path calls both this and `Realm_UpdateTotals`, and it is the only one outside the
 AI turn.** `Court_OpenGreatestNoble` (`0x004351C4`), the court's single button, runs
@@ -2262,7 +2262,7 @@ Eight independent predictions land:
    2262: 13 — one county for each of realms 1 … 5, nine unowned, and the realm records agree
    from the other side with `+0x29 = 1` apiece. The person is realm 1 and holds county 8
    alone. An earlier revision of this section said *"four counties owned by the human
-   realm, ten unowned"*, and `crates/l2-kingdom/tests/reproduction.rs` was built on that
+   realm, ten unowned"*, and `crates/l2-kingdom/tests/reproduction/main.rs` was built on that
    invented scenario, not on the file — `docs/decisions.md` C12 a second time. Both
    are fixed: the test now imports the save through `crates/l2-scenario` and compares
    against the stored bytes.
@@ -2294,7 +2294,7 @@ population — reproducing on live data from a real game, with no free parameter
 **And it is now a test, not a paragraph.** `crates/l2-scenario` imports
 `lastturn.sav` into a live `l2_kingdom::Kingdom` — the seam exists because `l2-kingdom` may
 not know what a file is and `l2-formats` may not know what a county is — and
-`crates/l2-kingdom/tests/reproduction.rs` rewinds it one season, runs `Season_Advance`, and
+`crates/l2-kingdom/tests/reproduction/main.rs` rewinds it one season, runs `Season_Advance`, and
 compares **twenty-six stored fields across all fourteen counties**. Nothing in that file is
 quoted from this document any more.
 
@@ -2439,7 +2439,7 @@ Each of those is now written out in the section it belongs to.
   the base table, the buy price is the base plus the *clicked merchant's morale* as a
 percentage of it, and every merchant in the shipped game has morale 100, so the
   guides' prices are double the table's. The second 15-entry table at `0x004D8950` is
-  **read by nothing**: a merchant's stock is infinite. `crates/l2-kingdom/src/trade.rs` and
+  **read by nothing**: a merchant's stock is infinite. `crates/l2-kingdom/src/trade/mod.rs` and
   `crates/l2-game/src/screens/merchant/mod.rs`.
 * **Fertility's effect.** `+0x208` runs −100 … +100 and `L2.eng` group 22 names seven
   levels, but where the crop yield reads it was not found. The yield multipliers in
@@ -2674,7 +2674,7 @@ sixth of his herd die a season with the milkmaid count drawn in black. **`[V]` o
 words against every `.sav` on the machine**, not the two counties quoted here:
 `crates/l2-kingdom/tests/cattle.rs`.
 
-**What it cost.** `crates/l2-kingdom/tests/reproduction.rs` used to reproduce `herd` and
+**What it cost.** `crates/l2-kingdom/tests/reproduction/main.rs` used to reproduce `herd` and
 2678: `herd_eaten` and no longer does, and the reason is worth stating plainly: *they reproduced
 because the rule was missing.* With the herd moving only on this map's neutral weather,
 "put back what the ration pass ate" was the whole of it. The file disagrees — `+0x254` is
@@ -2875,7 +2875,7 @@ started field by a flat quarter. Reclamation labour now does something, so alloc
 means something.
 
 **The invariant closes.** A county's nine job records sum to its population, exactly, in
-every season — `crates/l2-kingdom/tests/reproduction.rs`, all fourteen counties of the
+every season — `crates/l2-kingdom/tests/reproduction/main.rs`, all fourteen counties of the
 England position, ten seasons. That assertion used to read *"labour is frozen at the
 import's allocation, because the allocator does not rerun"*.
 
@@ -2895,7 +2895,7 @@ The setup screen's custom-game page has twelve drop-downs. **They do not write
 `0x0053F288 … 0x0053F2B4`, and `Setup_CommitOptions` (`0x00499DC3`) turns those twelve
 selections into the eleven values a game is played with at the moment *Start* is pressed.
 Only five are direct copies; one is arithmetic and five go through a lookup table.
-`docs/decisions.md` C44 is the reading and `crates/l2-game/src/setup.rs` is the
+`docs/decisions.md` C44 is the reading and `crates/l2-game/src/setup/mod.rs` is the
 implementation.
 
 | # | label (group 102) | values (group 103) | selection | commits to |

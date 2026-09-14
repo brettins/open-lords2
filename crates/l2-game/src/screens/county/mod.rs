@@ -261,9 +261,15 @@
 //! the village screen (0x02), ale is bought from the merchant (0x08), and
 //! fields are painted on the map. `docs/screens-county.md` §6.4 and §6.5.
 
+mod layout_part;
+pub use layout_part::*;
+
+use crate::shell::{font, Pen, TRAILING};
+use crate::widget;
+
 mod layout;
 pub use layout::*;
-mod draw;
+pub(crate) mod draw;
 pub use draw::*;
 mod strip;
 pub use strip::*;
@@ -278,9 +284,6 @@ use crate::game::{MAX_RATION_SPLIT, MAX_TAX_RATE};
 use crate::input::{Event, Key, Rect};
 use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Pen, TRAILING};
-use crate::widget;
-
 /// The four panels, in the order Up and Down cycle them.
 ///
 /// **The order is ours**; the original has no ordering because it has no
@@ -681,4 +684,5 @@ mod tests {
         }
     }
 }
+
 

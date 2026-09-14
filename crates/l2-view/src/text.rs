@@ -10,7 +10,7 @@
 //! `Font_c2.pl8` and friends, and that file is an open question … so the
 //! interface draws its own letters **until the real font is decoded**."
 //!
-//! **The real font has been decoded.** `crates/l2-game/src/shell/font.rs` draws
+//! **The real font has been decoded.** `crates/l2-game/src/shell/font/mod.rs` draws
 //! with `Fntl2_14.pl8` and `Fntl2_22.pl8` through the 128-byte
 //! character-to-frame table at `0x004D71D0` that `Glyph_Draw` (`0x00402A14`)
 //! indexes, and the mapping is self-checking: the frames it sends `g`, `j`,

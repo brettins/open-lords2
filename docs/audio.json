@@ -2,7 +2,7 @@
   "_note": [
     "Every place Lords2.exe asks for a sound, and what we do about each one.",
     "docs/audio-triggers.md is the prose; this is the counted form of it, and",
-    "crates/l2-game/tests/sfx.rs is what stops it rotting.",
+    "crates/l2-game/tests/sfx/main.rs is what stops it rotting.",
     "",
     "The `sites` array is GENERATED from the decompilation --- the id, addr,",
     "prim, class and arg columns all come out of `node tools/oracle/sounds.js",
@@ -711,7 +711,7 @@
       "class": "file",
       "arg": "s_S071_02_wav_004e2118 + param_1 * 0x10,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/castle.rs",
+      "ours": "crates/l2-game/src/screens/castle/mod.rs",
       "sound": "S071_02.wav",
       "note": "The castle chooser's five picture buttons speaking their own name, S071_02 + hotspot * 0x10, from CastleBuild_Select (0x00436B22)'s last statement. The selection is the screen's own field and gone by the next tick, so the screen reports the line on Game::spoken and Director::listen plays it -- the channel the other six screen-local Sound_PlayFile sites already use. Same five files as FUN_004b37bc#3, indexed by the button rather than by castleType - 1."
     },
@@ -724,7 +724,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "S035_01..07.wav",
-      "note": "The standings page (screen 0x20, crates/l2-game/src/screens/nobles.rs) saying which of its seven categories is being looked at - the spoken half of L2.eng group 35, file named after group and index. TWO CALLERS, both passing DAT_0055CE7C and both unconditional: FUN_004351C4, the court button, and FUN_0043524E, one of the seven tabs. So the edge is a counter both call sites bump (Game::nobles_spoken) and not a diff on the category, which would swallow a tab pressed twice. The category is on the Game and not on the screen for exactly the reason the S071 row below is still blocked. TWO ENTRIES PAST WHAT IS REACHABLE: there are seven categories, so S035_08.wav - the line for \"undecided.\" - ships and is played by nothing, and the guard admits nine where the table at 0x004E2168 holds eight, so index 8 would read S075_01.wav out of the next table. Neither is reachable from either caller."
+      "note": "The standings page (screen 0x20, crates/l2-game/src/screens/nobles/mod.rs) saying which of its seven categories is being looked at - the spoken half of L2.eng group 35, file named after group and index. TWO CALLERS, both passing DAT_0055CE7C and both unconditional: FUN_004351C4, the court button, and FUN_0043524E, one of the seven tabs. So the edge is a counter both call sites bump (Game::nobles_spoken) and not a diff on the category, which would swallow a tab pressed twice. The category is on the Game and not on the screen for exactly the reason the S071 row below is still blocked. TWO ENTRIES PAST WHAT IS REACHABLE: there are seven categories, so S035_08.wav - the line for \"undecided.\" - ships and is played by nothing, and the guard admits nine where the table at 0x004E2168 holds eight, so index 8 would read S075_01.wav out of the next table. Neither is reachable from either caller."
     },
     {
       "id": "FUN_004b39e8#1",
@@ -1580,7 +1580,7 @@
       "class": "bank",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/press.rs",
+      "ours": "crates/l2-game/src/press/mod.rs",
       "sound": "click3.wav",
       "note": "The kind-4 arm: Sound_RestartSlot(1) inside the hit test, guarded by g_mouseLeftPressed || g_mouseLeftDoubleClick - the INITIAL press, never the auto-repeat pulses. Press::press is that line; Screen::take_clicks and Machine::clicks carry it to Director::hear_the_click without letting a screen reach Audio (netcode D-3). tests/click.rs asserts the silent cases; tests/audio_wiring.rs that it reaches the mixer."
     },
@@ -1591,7 +1591,7 @@
       "class": "bank",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/press.rs",
+      "ours": "crates/l2-game/src/press/mod.rs",
       "sound": "click3.wav",
       "note": "The kind-5 arm: Sound_RestartSlot(1) on the press, and the handler runs twenty frames later out of the countdown loop, silently. Press::press_delayed is that line, reached both through Press::event and by hand from DiplomacyScreen. tests/click.rs asserts the delayed fire is silent."
     }

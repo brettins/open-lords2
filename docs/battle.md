@@ -1345,7 +1345,7 @@ wooden table files **none** — which is `Readme.txt`'s *"only the Stone and
 Royal castles have drawbridges"* from inside the art.
 
 Both tables are in-tree (`l2_sim::siege::STRUCTURE_STONE` / `_WOOD`) and
-`crates/l2-game/tests/siege_picture.rs` re-reads the player's own `Lords2.exe`
+`crates/l2-game/tests/siege_picture/main.rs` re-reads the player's own `Lords2.exe`
 at file offsets `0xD5D80` and `0xD5F80` to hold them there.
 
 **The "directory" is an ordinary PL8 directory**, and that is what makes the
@@ -1512,7 +1512,7 @@ round leaves the `+ 10` with nowhere to point.
 `a2` sheets that is not a knight — six colours by six troop types — has exactly
 `8 * N + 18` frames, and in all four handler groups the dying base is exactly
 `8 * N + 6`. Getting N wrong for any troop breaks both identities at once. The
-corpus check is `crates/l2-view/tests/install.rs`.
+corpus check is `crates/l2-view/tests/install/main.rs`.
 
 Knights are the exception: their frame comes from an **8 x 8 `(body facing,
 target facing)` table at `0x004D9C30`**
@@ -1568,7 +1568,7 @@ and two faults survived it:
 
 Measured over a 42-figure battle, 1,200 ticks, ~7,000–9,000 walking figure-ticks
 (`no_drawn_man_ever_jumps_half_a_cell_in_one_tick`, in
-`crates/l2-game/tests/battle_picture.rs`): drawn jumps of 16 pixels or more went
+`crates/l2-game/tests/battle_picture/main.rs`): drawn jumps of 16 pixels or more went
 **1,317 → 504 → 324 → 0**. The 504 and the 324 are the same defect measured on
 two scenarios; the last step is the runner taking `BattleMan_Step`'s order, and
 the last fifteen of the 324 were figures engaged mid-crossing, which
@@ -2507,7 +2507,7 @@ every screen's. Two enumerations reaching the same six by different routes is
 the cross-check this section could otherwise not have.
 
 `docs/arms.json` is the machine-readable form, and
-`crates/l2-game/tests/arms.rs` holds it to the code in both directions.
+`crates/l2-game/tests/arms/main.rs` holds it to the code in both directions.
 
 ### 15.12 What is still unknown here
 
@@ -2692,7 +2692,7 @@ above implies about a full table: it scans nineteen slots, and when all nineteen
 ## 17. Fire, boiling oil
 
 Five mechanics a siege has and `crates/l2-sim` did not, each read end to end and each now
-built: `crates/l2-sim/src/fire.rs` for fire and oil, the tower half of `siege.rs`, and their
+built: `crates/l2-sim/src/fire/mod.rs` for fire and oil, the tower half of `siege.rs`, and their
 places in `runner.rs`. `crates/l2-sim/src/proving.rs` is a constructed siege on which all of them
 must happen, and `runner_fire_tests.rs` asserts each against it. `[V]` throughout unless a line
 says otherwise. `docs/decisions.md` `C181`.

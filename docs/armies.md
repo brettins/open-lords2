@@ -518,7 +518,7 @@ would have refuted. Of those, **`0x38` alone has no colour in it**: all 177 of i
 pixels are true greys, and the coloured-pixel count then climbs from 13 at `0x39` to 39 at
 `0x4D`. `0x4E`, the castle/settlement marker the ladder above names, is the opposite extreme —
 177 coloured pixels and not one grey — which is it being a different picture
-another ball. Asserted against the user's own file in `crates/l2-view/tests/install.rs`.
+another ball. Asserted against the user's own file in `crates/l2-view/tests/install/main.rs`.
 
 So **the cost selects the colour**: not the realm, not the shield, not the unit's kind. A
 player described these unprompted as *"colored dot images for the army walking dots"*, which
@@ -874,14 +874,14 @@ The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could
 > why the original draws a flag over the castle and not the unit.
 >
 > Both facts were missing from our engine at once, and together they meant **a siege could
-> be laid by a test that laid it itself**. `crates/l2-game/tests/castles.rs` drives
+> be laid by a test that laid it itself**. `crates/l2-game/tests/castles/main.rs` drives
 > the whole route from the map now.
 
 > ### There is a siege in the fixtures now, and it closes every number below.
 >
 > This section was written entirely from the decompiler because no saved game held a castle
 > under siege. `E:\dev\lords2-fixtures` now holds **five snapshots of one**, and
-> `crates/l2-kingdom/tests/siege.rs` asserts this section against them.
+> `crates/l2-kingdom/tests/siege/main.rs` asserts this section against them.
 >
 > The position: county 4 has a **palisade** (`castleType` 1) garrisoned by an AI army of
 > **149**, and a human army of **43** is camped beside it building **one catapult**. Four
@@ -1527,7 +1527,7 @@ mail was bought once, at the blacksmith.
 
 ### 6.5 Splitting an army, and disbanding one
 
-The other two ends of §6.3, both now read end to end. `crates/l2-kingdom/src/divide.rs` is the
+The other two ends of §6.3, both now read end to end. `crates/l2-kingdom/src/divide/mod.rs` is the
 implementation and carries the pseudocode; this is what the two functions establish.
 
 **The shipped `Readme.txt` is a first-class source here and in three places it is the better
@@ -1568,7 +1568,7 @@ Reproduced, not tidied.
 `docs/mechanics.md` listed this as ❓. **The whole path is now implemented** — the campaign
 half in `crates/l2-kingdom/src/battle/mod.rs`, the hand-off to the simulation in
 `crates/l2-game/src/engagement/mod.rs` — and it is checked end to end against the battle fixture
-triple in `crates/l2-game/tests/seam.rs`. This section is rewritten from the four functions
+triple in `crates/l2-game/tests/seam/main.rs`. This section is rewritten from the four functions
 that make it up, not from `Battle_ReturnToCampaign` alone, because
 `Battle_ReturnToCampaign` is only the third of them.
 
@@ -1783,7 +1783,7 @@ left with one move; a winning human keeps everything but the 8. And when B wins,
 **That is not an omission
 in the reading — `g_battleArmyB` is the *defender* at all three call sites, so a defender
 that wins keeps a county it already had, or leaves a neutral county neutral. It is the half
-of this section that was inverted, and `crates/l2-game/tests/seam.rs` asserts it against
+of this section that was inverted, and `crates/l2-game/tests/seam/main.rs` asserts it against
 `battle-after.sav`, where the player lost and county 3 is still owner 0.
 
 Also, and easy to miss: `Army_AttackCounty` has *already* charged the attacker 8 moves
@@ -2387,7 +2387,7 @@ phase. That is a fit, not a finding, and it is **[I]** in `hypotheses.json` (H3)
 
 §8b read the three battle saves by hand. The array is now **imported field by field, over
 every save the machine can reach** (`crates/l2-scenario`, and the invariants in
-`crates/l2-formats/tests/save.rs`), and five things came out of it that were not here.
+`crates/l2-formats/tests/save/main.rs`), and five things came out of it that were not here.
 
 1. **`+0x167` on a merchant is the county it was spawned in.** §1.5 had the offset on the
    untraced list; `plane4.md` §5 guessed that transports use it as a destination and that

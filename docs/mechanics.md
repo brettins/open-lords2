@@ -73,7 +73,7 @@ Legend:
   is the only thing that moves a good: positive quantity buys, negative sells, no partial
   fills, and an unowned county trades out of a purse of its own at `+0x1F4`. Which good goes
   where, and what that says about the armoury and about sheep, is `docs/kingdom.md` §7.6.
-  `crates/l2-kingdom/src/trade.rs` is the rule and `crates/l2-game/src/screens/merchant/mod.rs`
+  `crates/l2-kingdom/src/trade/mod.rs` is the rule and `crates/l2-game/src/screens/merchant/mod.rs`
   the two screens; a player reaches it by clicking a merchant standing in a county he owns.
 
   **[V] The price is the base table plus the clicked merchant's own morale as a percentage
@@ -278,7 +278,7 @@ of the population, and hands the county to `County_MakeIndependent`.
   empire …"* and 128 *"Your lands divide."* It changes what conquest is worth in both
   directions: taking the county that *bridges* an enemy's territory costs him the far half
   for free, and a county taken behind his lines cannot be held. Implemented in
-  `crates/l2-kingdom/src/territory.rs` as `Pass::SecedeIsolatedCounties`;
+  `crates/l2-kingdom/src/territory/mod.rs` as `Pass::SecedeIsolatedCounties`;
   `docs/kingdom.md` §6.1 and `docs/rules.md` §5a.
 
   **It still has no data-side oracle.** Every realm in every fixture holds exactly one
@@ -410,7 +410,7 @@ that is `l2_kingdom::levy`'s single path.
     carries the chosen shield, `l2_scenario::newgame::assign_lords` is
     `Realms_AssignLords`' real walk — mark every human's shield taken, then give each AI
     in realm order **the lowest shield nobody has taken**, then pick that realm's lord
-    *from its shield* — and `crates/l2-game/tests/newgame.rs` drives page 4 with real
+    *from its shield* — and `crates/l2-game/tests/newgame/main.rs` drives page 4 with real
     coordinates for all five colours. Take yellow and the Knight becomes the **black**
     lord while the **Baron** becomes the red one, which is `docs/rules.md` §7a's second
     row and the thing no fixture can check. The line that stood in the way read
@@ -444,7 +444,7 @@ committed and a plot on the ground.
 - ✅ **Winning and losing.** `strength = 3 × counties + armies`, recounted at the top of every
   realm's turn including the human's; the last opponent's death notice is what raises
   *"Victory!"*; the outcome byte is 10 won / 11 lost and screen `0x1C` reads it.
-  `docs/kingdom.md` §8.4, `crates/l2-kingdom/src/victory.rs`
+  `docs/kingdom.md` §8.4, `crates/l2-kingdom/src/victory/mod.rs`
 - ✅ **The campaign** — eight maps, both tables read out of the executable, and **nothing
   carries between them**: the next map is a whole new game. `docs/kingdom.md` §8.5
 - ✅ **Diplomacy — traced end to end and implemented.** `l2_kingdom::diplomacy` and
@@ -510,11 +510,11 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   §6.2 and §14.7
 - ✅ Battle AI: the strength advantage, the 200-frame think, **all 17 order handlers
   reachable**. The fourteen siege ones had never been dispatched once, because nothing could
-  produce a siege; `crates/l2-sim/tests/siege.rs` runs one and enumerates every handler it
+  produce a siege; `crates/l2-sim/tests/siege/main.rs` runs one and enumerates every handler it
   reaches. `docs/battle-ai.md` §6
 - ✅ **Sieges, both halves.** Campaign: laying one, the engine order and its ceilings, the
   build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege/mod.rs`,
-  checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege.rs`).
+  checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege/main.rs`).
   Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
   the way in — `crates/l2-sim/src/siege/mod.rs`.
 - ⚠ **The castle's layout on the battlefield is ours, not the original's.**
@@ -537,11 +537,11 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   `docs/armies.md` §7.2
 - ✅ **The campaign–battle seam** — an army that reaches an enemy county now fights and hands
   the result back: `crates/l2-kingdom/src/battle/mod.rs` and `crates/l2-game/src/engagement/mod.rs`,
-  checked end to end against the battle fixture triple in `crates/l2-game/tests/seam.rs`.
+  checked end to end against the battle fixture triple in `crates/l2-game/tests/seam/main.rs`.
   **`g_battleLoser` holds the winner**; four sites say so and `docs/armies.md` §7 lists them.
   Implementing it on the name destroys the winner and hands the county to the corpse
 - ✅ **"Will you take the field?"** — screens `0x12` and `0x13`
-  (`crates/l2-game/src/screens/battle.rs`), `L2.eng` groups 80 and 81, and a turn that
+  (`crates/l2-game/src/screens/battle/mod.rs`), `L2.eng` groups 80 and 81, and a turn that
   **suspends** while the question is up. `end_turn` used to answer `Decline` for the player
   because there was no screen to ask on; the campaign now stops mid-tick with both armies
   standing, and neither the autocalc nor the fought battle runs until a thumb is clicked.
@@ -648,9 +648,9 @@ like optional content and it holds the button that creates the army. C61.
   should be audible from what already happened.
 
   **The number that keeps this row honest is 703 of 771.** 668 of them are measured
-`crates/l2-game/tests/audio_wiring.rs` and `tests/audio_battle.rs`
+`crates/l2-game/tests/audio_wiring/main.rs` and `tests/audio_battle.rs`
 drive the real paths and read back what was opened — and the other
-  the tip screens**, of which `crates/l2-game/tests/tips.rs` drives one tip's three clips
+  the tip screens**, of which `crates/l2-game/tests/tips/main.rs` drives one tip's three clips
   end to end and the rest are counted from the take table and the install's listing, not
   driven. **565 of those 678 are the narrator** — 448 lord takes, 93 system clips and 24
   tip takes — because 646 of the install's 771 files, **84 %**, are somebody speaking;
@@ -673,7 +673,7 @@ the front end is pushed under the campaign, so it answered
   as they open were wired, then 573 with the pointer click — then **560**, when thirteen tip clips
 turned out to be counted because their names resolved
   game could ask for them — then **595**, when the tip screens were built
-  (`crates/l2-game/src/tip.rs`) and 35 of their 40 files could be asked for — and then
+  (`crates/l2-game/src/tip/mod.rs`) and 35 of their 40 files could be asked for — and then
   **674**, when the battlefield got an event stream — and then **678**, when a siege could
   pour oil, dock a tower, burn a bridge and bounce a shot off a wall four high
   (`docs/battle.md` §17). Everything below this paragraph is
@@ -694,7 +694,7 @@ turned out to be counted because their names resolved
   **And the count that says what to do next is 80 of 143**, in `docs/audio.json` — the
   audio equivalent of the input-arm audit, and it now has the same two checks behind it
   that `docs/arms.json` has: `node tools/oracle/sounds.js --check` compares it with the
-  decompilation, and `crates/l2-game/tests/sfx.rs` compares it with the `// sfx:` markers
+  decompilation, and `crates/l2-game/tests/sfx/main.rs` compares it with the `// sfx:` markers
   in `crates/`. Every site is `reproduced` (80), `blocked` (29), `missing` (31) or `dead` (3), and a
   `blocked` record is required by the test to **name the mechanic** it is waiting for.
 

@@ -76,7 +76,7 @@
 //! battle mode [`track::BattleKind`] declines to guess at.
 //!
 //! **The count of triggers is `docs/audio.json`, and it is checked.**
-//! written.** `crates/l2-game/tests/sfx.rs` requires the set of sites that file
+//! written.** `crates/l2-game/tests/sfx/main.rs` requires the set of sites that file
 //! calls `reproduced` to equal the set of `// sfx:` markers in `crates/`, and
 //! `node tools/oracle/sounds.js --check` requires the file's *rows* to equal
 //! what the decompilation holds. So the sentence below cannot go stale without

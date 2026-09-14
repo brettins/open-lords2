@@ -284,7 +284,7 @@ pub fn labour_estimate(
 /// subset of the population,
 /// **understates**. This was written as *optimistic* here and in
 /// `docs/bugs.md` before anybody put an inequality on it —
-/// `crates/l2-kingdom/tests/industry_forecast.rs` is that inequality.
+/// `crates/l2-kingdom/tests/industry_forecast/main.rs` is that inequality.
 ///
 /// # The efficiency write-back, and why it does not compound
 ///

@@ -11,7 +11,7 @@
 //!
 //! `docs/screens.md` §9. The pictures are seven `RT_GROUP_CURSOR` resources
 //! inside `Lords2.exe`; we do not read them yet, and the shell maps a kind onto
-//! the nearest system cursor — `crates/l2-game/src/main.rs`.
+//! the nearest system cursor — `crates/l2-game/src/mod.rs`.
 
 /// The eight `HCURSOR`s `Cursor_Set` switches on, **by its kind number**.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

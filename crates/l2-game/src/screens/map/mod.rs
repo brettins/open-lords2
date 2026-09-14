@@ -150,6 +150,16 @@
 //! A click on the minimap goes through `MAPnn.PL8`'s own county raster, which
 //! *is* what the original does, and then centres the map on that county.
 
+mod types;
+pub use types::*;
+mod far_box;
+pub use far_box::*;
+
+mod sidebar;
+pub use sidebar::*;
+mod helpers;
+pub use helpers::*;
+
 use l2_kingdom::field::FieldType;
 use l2_kingdom::industry;
 use l2_formats::maps::Plane;
@@ -192,7 +202,7 @@ pub const PANEL: Rect = Rect::new(PANEL_X, TOP_BAR, PANEL_W, 480 - TOP_BAR);
 /// (x 639) and last row (y 479) are dead in the original, exactly like the
 /// one-pixel dead columns between the five icons above it, and ours had them
 /// live. Read out of the player's `Lords2.exe` in
-/// `crates/l2-game/tests/right_column.rs`; the artwork is 162 × 20
+/// `crates/l2-game/tests/right_column/main.rs`; the artwork is 162 × 20
 /// hotspot is not.
 pub const END_TURN_BUTTON: Rect =
     Rect::new(PANEL_X, chrome::PANEL_END_TURN_Y, PANEL_W - 1, 19);
@@ -241,45 +251,6 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
     SidebarButton { x: 130, w: 31, action: SidebarAction::Screen(0x0B), name: "LORDS" },
 ];
 
-/// **`g_minimapModeButtons` (`0x004DC620`) — the four icons in the strip beside
-/// the minimap**, `Misc_cty` frame `0x5C` (29 × 123) at (611, 32).
-/// `FUN_0043292D` tests them at offset (610, 32) and `Minimap_ModeButton`
-/// (`0x0043AB76`) handles all four.
-///
-/// The top three switch `g_minimapMode` — 1 the labour rating, 2 the food
-/// rating, 3 happiness — which recolours the minimap from a second ramp
-/// (`g_minimapRatingRamp`, `0x004D28F8`, transcribed as
-/// [`chrome::MINIMAP_RATING_RAMP`]). The fourth is **the zoom toggle** in mode
-/// 0 and **the way back out of an overlay** in every other mode; it is the
-/// control `docs/screens.md` §7 says we replaced with the `Z` key.
-/// [`MapScreen::minimap_mode_button`] has the whole of that behaviour.
-///
-/// The second record's `y1` is `0x42` where the pattern wants `0x3F`, so band 2
-/// is 34 pixels tall and overlaps band 3's first two rows. `Hotspot_Test`
-/// returns on the first match, so y 96 and 97 select mode 2. **That is the
-/// original's own data**, transcribed.
-/// What our status line calls each overlay. **Ours** — the original labels them
-/// only with the button icons
-///
-/// **`L2.eng` does have words for them, and this comment said it did not.** The
-/// original's tooltip layer (`FUN_00476E95`, gated on `g_optToolTips`) resolves
-/// the three mode buttons through `FUN_00477320` to tip ids 2, 3 and 4 and
-/// draws group **220** at those indices: *"Labour, red if needed, purple if
-/// idle."*, *"Ration status"* and *"Overall happiness"* — with *"Overview map"*
-/// on the fourth button and *"Return census map to empire mode"* (index 31) once
-/// an overlay is up. `docs/draws-map.md` §5.1, **C86**. The status line stays
-/// ours; the tips themselves are drawn
-/// from the player's own group 220 by [`crate::tooltip`], which reads
-/// [`MapScreen::minimap_mode`] through [`Screen::minimap_mode`].
-fn minimap_mode_name(mode: MinimapMode) -> &'static str {
-    match mode {
-        MinimapMode::Owner => "OWNERS",
-        MinimapMode::Labour => "LABOUR",
-        MinimapMode::Food => "FOOD",
-        MinimapMode::Happiness => "HAPPINESS",
-    }
-}
-
 pub const MINIMAP_MODE_BUTTONS: [Rect; 4] = [
     Rect::new(610, 32, 27, 31),
     Rect::new(610, 64, 27, 34),
@@ -299,12 +270,6 @@ pub struct SidebarButton {
     pub name: &'static str,
 }
 
-impl SidebarButton {
-    pub const fn rect(&self) -> Rect {
-        Rect::new(PANEL_X + self.x, chrome::PANEL_STATUS_Y, self.w, SIDEBAR_H)
-    }
-}
-
 /// **29, not 30**.
 ///
 /// Every one of the five records is `(x, 0) … (x, 29)` at the table's `0x1AE`
@@ -313,20 +278,9 @@ impl SidebarButton {
 /// between each pair of icons horizontally, once, horizontally across the whole
 /// strip. This used to be `PANEL_END_TURN_Y − PANEL_STATUS_Y`, which is the
 /// distance between two *plates* and not the height of a *hotspot*, and it made
-/// the dead row live. See `crates/l2-game/tests/right_column.rs`, which reads
+/// the dead row live. See `crates/l2-game/tests/right_column/main.rs`, which reads
 /// the table out of the player's own copy.
 pub const SIDEBAR_H: i32 = 29;
-
-/// What one of them does.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SidebarAction {
-    /// The `g_screenId` the table's handler sets. Four of the five are still
-    /// [`crate::screens::shells`] entries, so the button reaches the original's
-    /// own artwork
-    /// fifth is the raise-army screen, which is built. See
-    /// [`sidebar_destination`].
-    Screen(u8),
-}
 
 /// **Which of our screens a sidebar button opens.**
 ///
@@ -411,26 +365,6 @@ pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
 /// two arms in `Screen_FrameInput` — so it keeps working with the village open.
 pub const SPLIT_SLIDER: Rect = Rect::new(PANEL_X, 257, PANEL_W, 296 - 257 + 1);
 
-/// The slider's own arithmetic, verbatim: left of the track steps down by four,
-/// right of it up by four, and on the track the value is
-/// `((x - 531) * 2) & 0xFC` — masked, so it lands on a multiple of four.
-///
-/// **The three zones are half-open
-/// original is `if (mx < 0x213) down; else if (mx < 0x252) track; else up;` —
-/// so x = 594 steps the share **up**. This read `x > 594` and put that one
-/// column on the track instead: a wrong arm.
-/// kind nothing looks broken about.
-pub fn split_from_click(x: i32, current: i32) -> i32 {
-    let next = if x < 531 {
-        current - 4
-    } else if x >= 594 {
-        current + 4
-    } else {
-        ((x - 531) * 2) & 0xFC
-    };
-    next.clamp(0, 100)
-}
-
 /// Where a click means "that county on the map". Half-open, and it stops at
 /// 478 because `Clip_Horizontal` stops there.
 pub const MAP_AREA: Rect = Rect::new(0, TOP_BAR, PANEL_X, NEAR.bottom() - TOP_BAR);
@@ -439,62 +373,6 @@ pub const MAP_AREA: Rect = Rect::new(0, TOP_BAR, PANEL_X, NEAR.bottom() - TOP_BA
 /// county flag from `Flags1a.pl8` over the castle tile instead, which we do not
 /// yet place.
 const MARKER: i32 = 2;
-
-/// **The field markers, which are debug overlay now.**
-///
-/// This module used to hold a brush *popup* of ours on the campaign map, opened
-/// by a left click on a field. It is gone: in the original that click is
-/// `Map_Click`'s farmland arm — `_DAT_005681CC = 3; g_screenId = 4;
-/// FUN_0041B032();` — which opens **screen `0x04`, the same information panel a
-/// right click opens**.
-/// (`FUN_0041C996`, `FUN_00438990`). See [`crate::screens::info`].
-///
-/// What is left is the squares we drew on the county's fields, coloured by what
-/// each is used for. **The original draws nothing there** — `Sprite_TopIt`'s
-/// farm arm is the pasture herd and nothing else.
-/// artwork (`Terrain_Set`, which [`MapScreen::field_graphics`] reproduces) — so
-/// they are drawn only with [`crate::game::Prefs::debug_overlay`] on.
-mod brush {
-    /// Half-width of a field marker. **Ours**, debug overlay only.
-    pub const FIELD_MARKER: i32 = 3;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Focus {
-    None,
-    /// One of the five `g_sidebarButtons`, by index.
-    Sidebar(usize),
-    EndTurn,
-}
-
-/// **Where the town's 2 × 2 block is re-stamped to, by the county's own
-/// population.** `FUN_0046ac22` is called with `'/'`, `'3'` or `'7'` — 47, 51
-/// and 55 —
-///
-/// The thresholds are the original's literals `0x321` and `0x4b1`, tested as
-/// `pop < 801` and `pop < 1201`.
-const TOWN_FRAME_BASE: [(i32, u8); 3] = [(801, 47), (1201, 51), (i32::MAX, 55)];
-
-/// The plane-1 byte a town tile carries: bank `0x0c`, `Town1a.pl8`.
-const TOWN_BANK: u8 = 0x0c;
-
-/// **One industry's building on the campaign map,
-///
-/// The mine, the quarry, the forest
-/// the town is, and this is the wheel `Sprite_TopIt` turns. See
-/// [`MapScreen::step_industry`] for the rate and
-/// [`l2_view::campaign::INDUSTRY_FRAMES`] for the four runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct IndustrySite {
-    /// Tile index, `y * 64 + x`. Fixed for the life of the map.
-    tile: usize,
-    county: u8,
-    /// [`l2_kingdom::tables::Commodity::index`] — wood 0, iron 1, weapons 2,
-    /// stone 3.
-    commodity: usize,
-    /// The frame the tile is drawn with right now.
-    frame: u8,
-}
 
 pub struct MapScreen {
     zoom: Zoom,
@@ -643,78 +521,6 @@ pub struct MapScreen {
     press: Press,
 }
 
-/// **The end-of-turn screen fade, mid-flight.**
-///
-/// `FUN_004B0CB4` has exactly two call sites in the whole binary and both are
-/// on the turn boundary: `Turn_Tick`'s phase 7 with `rawFlag = 1` immediately
-/// after `Season_Advance`, and `FUN_0049A3E6` with `0` after reloading the
-/// seasonal art. So the sequence a player sees is **units walk, season
-/// advances, screen fades down, art swaps in the dark, screen fades back up** —
-/// which is the order he described from memory, and it is the order these two
-/// states run in.
-///
-/// The phase counts `0 ..= l2_view::fade::PHASES`, one per fixed tick; the
-/// palette arithmetic
-#[derive(Debug, Clone)]
-struct Fading {
-    pub(super) phase: u8,
-/// Held
-    /// written immediately because the numbers it names change *during* the
-    /// dark, and announcing them early is the abruptness the fade hides.
-    status: String,
-    /// Whether the turn ended the game, in which case the conquest screen comes
-    /// up when the light does — as it does in the original, where
-    /// `g_screenId = 0x1C` is set on the far side of the same fade.
-    over: bool,
-}
-
-/// One fixed simulation tick in milliseconds — `main::TICK`.
-///
-/// **This is a constant, not a clock.** Nothing here asks how long a frame
-/// took; the number exists so an interval the original states in
-/// milliseconds can be converted to the whole ticks this crate is allowed to
-/// count. `VillageScreen::CLICK_SETTLE_TICKS` makes the same conversion by
-/// hand and for the same reason (`docs/netcode.md`).
-const TICK_MS: u32 = 16;
-
-/// `g_optScrollSpeed`'s shipped default, written by the options-defaults
-/// routine at `0x004AE310`. **[V]**
-pub const DEFAULT_SCROLL_SPEED: i32 = 60;
-
-/// **Move-order mode's whole state** — `g_screenId == 0x10`.
-///
-/// `Map_BeginMoveSelection` (`0x0043723A`) runs `Move_FloodFill` **once**, when
-/// the army is picked, and leaves the result in `g_moveDistLocal`
-/// (`0x00500C30`). Every frame after that, `Map_HoverUnitTarget` (`0x004A8E0B`)
-/// only *descends* it — `Move_ExtractPath` — and only when the hovered tile
-/// changed since the last frame (`if (DAT_005691E0 != g_hoverTileOffset)`). One
-/// fill, one descent per new tile. Caching the field here is not an
-/// optimisation of ours; it is the shape of the original.
-///
-/// This is **display state**. Nothing in it reaches the simulation: an order is
-/// placed by [`MapScreen::order_march`] calling into `l2-kingdom`, and what is
-/// stored here is only what the player is being shown he *would* get. That
-/// matters for `docs/netcode.md` — the lockstep digest must not depend on where
-/// anyone's mouse is, and a pointer position is the least deterministic input
-/// there is.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct MoveOrder {
-    /// The unit the order is for — `g_selectedUnit` (`0x0057C8C4`).
-    unit: usize,
-    /// The terrain costs the fill was run over.
-    cost: l2_kingdom::map::CostMap,
-    /// `g_moveDistLocal`, filled from the unit's own tile.
-    field: l2_kingdom::movement::DistanceField,
-    /// `DAT_005691E0` — the tile the last descent was run for, so the pointer
-    /// moving *within* a tile costs nothing.
-    hovered: Option<(u8, u8)>,
-    /// `g_pathBuf[localPlayer]` — the route `Path_MarkPreviewTiles`
-    /// (`0x004A91BA`) marks and `Map_DrawPathMarker` (`0x004081A6`) draws.
-    /// Empty when the hovered tile is unreachable, which is
-    /// `g_moveOrderAvailable = 0`.
-    path: Vec<(u8, u8)>,
-}
-
 /// `Ui_OpenConfirm(5, …)` — `L2.eng` group 10 index 5, *"Combine armies?"*,
 /// which `Map_ConfirmMoveOrder` (`0x004A9252`) raises off `g_hoverMergeUnit`.
 pub const COMBINE_PROMPT: usize = 5;
@@ -741,75 +547,9 @@ mod tests;
 
 pub use paint::*;
 
-
 impl Default for MapScreen {
     fn default() -> Self {
         MapScreen::new()
     }
 }
 
-pub fn season_name(season: u8) -> &'static str {
-    match l2_kingdom::tables::Season::from_index(season) {
-        Some(s) => s.name(),
-        None => "-",
-    }
-}
-
-/// **The season as the game spells it** — `L2.eng` group 29, indexed by
-/// `g_season` directly.
-///
-/// The group is five strings: `"No Season"`, `"Spring"`, `"Summer"`, `"Autumn"`,
-/// `"Winter"`, and [`l2_kingdom::tables::Season`] is 1-based for exactly that
-/// reason, so index 0 is reachable and means what it says. Falls back to
-/// [`season_name`]'s English on an install with no `L2.eng` — the same four
-/// words here, and not the same in a localised install, which is the whole
-/// point of reading them out of the file.
-pub fn season_text(assets: &crate::game::Assets, season: u8) -> String {
-    let s = assets.shell.text(SEASON_GROUP, season as usize);
-    if s.is_empty() {
-        return season_name(season).to_string();
-    }
-    s.to_string()
-}
-
-// ------------------------------------------- the far zoom's box, and its words
-
-/// `L2.eng` group 101 — the sixty map names `g_scenarioIndex` indexes, the same
-/// group `ScenarioList_Draw` and `Screen_DrawConquest` read.
-const FAR_BOX_MAP_GROUP: usize = 101;
-/// Group 34: index 0 *"Year"*, index 1 *"Click on the county you wish to view."*
-/// `Screen_DrawCampaign` is its only consumer — so it is this box's vocabulary,
-/// not a naming lead. `CLAUDE.md` rule 6.
-const FAR_BOX_YEAR_GROUP: usize = 34;
-const FAR_BOX_YEAR_LABEL: usize = 0;
-const FAR_BOX_ADVICE: usize = 1;
-const FAR_BOX_Y: i32 = 0x1A8;
-const FAR_BOX_NAME_X: i32 = 0x40;
-const FAR_BOX_YEAR_LABEL_X: i32 = 0x50;
-const FAR_BOX_YEAR_X: i32 = 0x60;
-const FAR_BOX_ADVICE_X: i32 = 0x50;
-const FAR_BOX_ADVICE_Y: i32 = 0x1C6;
-
-/// `Eng_DrawString(101, g_scenarioIndex, …)` — the map's own name, from the
-/// player's own file,
-pub fn map_name(ctx: &Ctx) -> String {
-    let s = ctx.assets.shell.text(FAR_BOX_MAP_GROUP, ctx.game.map_slot);
-    if s.is_empty() {
-        return format!("MAP {}", ctx.game.map_slot);
-    }
-    s.to_string()
-}
-
-/// One of group 34's two strings, **as the player's own file spells them**, with
-/// our transcription for an install that has no `L2.eng`. `CLAUDE.md` rule 6:
-/// the fallback is the fallback, not the source.
-fn far_box_text(ctx: &Ctx, index: usize) -> String {
-    let s = ctx.assets.shell.text(FAR_BOX_YEAR_GROUP, index);
-    if !s.is_empty() {
-        return s.to_string();
-    }
-    match index {
-        FAR_BOX_YEAR_LABEL => "Year".to_string(),
-        _ => "Click on the county you wish to view.".to_string(),
-    }
-}

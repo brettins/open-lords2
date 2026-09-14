@@ -1,0 +1,359 @@
+#![allow(unused_imports)]
+use super::*;
+use super::screen::*;
+use super::machine_struct::*;
+use machine::*;
+use l2_view::Canvas;
+use crate::game::{Assets, Game};
+use crate::input::Event;
+
+/// Which screen, as a value a screen may name without being able to build one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScreenId {
+    Menu,
+    Campaign,
+    /// A county panel — the original's `0x14`, `0x15`, `0x16` and `0x19` — for
+    /// one county id.
+    ///
+    /// **The panel is part of the identity**, because in the original the four
+    /// are four different screen ids and the *only* route into any of them is
+    /// the quadrant of the county strip drawn above it
+    /// (`docs/screens-county.md` §2.3). A `County(id)` with no panel had to
+    /// guess one, and guessed tax; the player then had no way to reach the
+    /// other three, because the map screen never offered him the strip at all.
+    County(u8, crate::screens::county::Panel),
+    /// The village, for one county id — the original's screen `0x02`.
+    Village(u8),
+    /// The job popup, for one county and one of its nine labour slots — the
+    /// original's screen `0x0F`. It floats over whatever opened it, which is
+    /// either the village or the campaign sidebar.
+    Job(u8, usize),
+    /// `g_screenId` `0x1F` — the front end and game setup, by sub-page.
+    Setup(crate::screens::setup::SetupPage),
+    /// `g_screenId` `0x1C` — the campaign interstitial.
+    Conquest,
+    /// `g_screenId` `0x0B` — **the other lords**: one card per rival and the
+    /// action menu. See [`crate::screens::diplomacy`].
+    ///
+    /// The rival being looked at is **not** part of the identity, unlike the
+    /// county on a county panel: `g_diploTarget` is a global the screen owns
+/// and changes under itself when a card is clicked,
+    /// one of these open.
+    Diplomacy,
+    /// `g_screenId` `0x1A` — one of the seven compose dialogs, for one rival
+    /// and one message kind.
+    ///
+    /// Both are part of the identity because both are what the painter
+    /// dispatches on: `Screen_DiploDialog` switches on `g_diploKind` and every
+    /// line of every shape names `g_diploTarget`.
+    DiploCompose(u8, u8),
+    /// `g_screenId` `0x35` and `0x36` — loading and saving a conquest. One
+    /// painter with a mode flag, so one screen with a mode.
+    SaveLoad(crate::screens::saveload::Mode),
+    /// `g_screenId` `0x1B` — **the castle chooser**, for one county. Five
+    /// picture buttons and an OK; see [`crate::screens::castle`].
+    Castle(u8),
+    /// `g_screenId` `0x1D` — the siege-preparation screen, for one besieging
+    /// army. See [`crate::screens::siege`].
+    Siege(usize),
+    /// `g_screenId` `0x17` — **the raise-army screen**, for one county. The
+/// shell table called it *"Hire mercenaries"*
+    /// screen, and the offer is a block on this one. See
+    /// [`crate::screens::army`].
+    RaiseArmy(u8),
+    /// `g_screenId` `0x0A` — **the armoury**, for the county whose levy is
+    /// being equipped.
+    ///
+    /// It is not reached *from* the raise-army screen so much as it is the
+    /// other half of it: `Screen_Draw` paints both with `Screen_Armoury`, the
+/// two share the one `g_levyBasket`, and the button that raises
+    /// the army is on this one. See [`crate::screens::armoury`].
+    Armoury(u8),
+    /// `g_screenId` `0x0D` — one weapon's rack, opened by clicking that weapon
+    /// on the armoury's wall. The county and the troop type are both part of
+    /// the identity because the original's `DAT_00553F20` is what picks the
+    /// sprite sheet, the noun and the basket slot.
+    Rack(u8, u8),
+    /// `g_screenId` `0x11` — the army-division screen, for one army. See
+    /// [`crate::screens::divide`].
+    Divide(usize),
+    /// `g_screenId` `0x08` — **the merchant's stall**, for the merchant unit
+    /// being traded with.
+    ///
+    /// The unit is part of the identity because the *price* depends on it:
+    /// `DAT_00553C64` is written on the map click and read only by this
+    /// screen's plaque and by the panel's price arithmetic. See
+    /// [`crate::screens::merchant`].
+    Merchant(usize),
+    /// `g_screenId` `0x0C` — the trade panel, for one merchant and one
+    /// `L2.eng` group 6 good id.
+    Trade(usize, u8),
+    /// `g_screenId` `0x12` — ***"A Battle is to be fought. Will you take the
+    /// field?"*** See [`crate::screens::battle`].
+    ///
+    /// **The battle it is about is not part of the identity.** It is on the
+    /// suspended turn, where the answer has to go back to, and there can only
+    /// ever be one because there is only one campaign.
+    BattlePrompt,
+    /// `g_screenId` `0x13` — *"The Battle is decided."*
+    BattleResult,
+    /// The options panels — `g_screenId` `0x39` (Advanced), `0x42` (Sounds),
+    /// `0x43` (Display) and `0x31` (Help) — **and the quirks page, which is
+    /// ours**.
+    ///
+    /// The page is part of the identity for the same reason
+    /// [`ScreenId::County`]'s panel is: in the original these are four separate
+    /// screen ids reached from four separate menu items, and a value that had to
+    /// guess which one it meant would be a value that guessed. See
+    /// [`crate::screens::options`].
+    Options(crate::screens::options::Page),
+    /// **`g_screenId` `0x29`, `0x2A` and `0x2B`** — the battlefield, the
+    /// selection drag over it, and the outcome banner.
+    ///
+    /// One id for three, because the battle they are about is on the [`Game`]
+    /// and all three draw the same field: which of the three is up is
+    /// [`crate::battlefield::Mode`], and
+    /// [`crate::battlefield::LiveBattle::screen_id`] answers it in the
+    /// original's own numbers. `0x28` is the fourth of that block and is
+    /// unreachable in the shipped binary — see [`crate::battlefield`].
+    Battlefield,
+    /// **`g_screenId` `0x32` — a menu-bar drop-down is open**, carrying the
+    /// 1-based title index the original keeps in `DAT_00522CB4`.
+    ///
+    /// It is a screen id in the original too, and a strange one: its painter
+    /// (`Menu_RestoreBackdrop`, `0x0040C928`) only puts the 400 × 180 band at
+    /// (0, 24) back. See [`crate::screens::menubar`].
+    MenuBar(usize),
+    /// `g_screenId` `0x25` — **About**, the Help menu's box. See
+    /// [`crate::screens::about`].
+    About,
+    /// `g_screenId` `0x09` — **the court**, the realm's balance sheet. Not a
+    /// diplomacy screen; see [`crate::screens::court`].
+    Court,
+    /// `g_screenId` `0x20` — **the standings**, the court's one button.
+    ///
+    /// The category being looked at is **not** part of the identity, for
+    /// `ScreenId::Diplomacy`'s reason: `DAT_0055CE7C` is a global the original
+    /// keeps outside the screen, it survives the page being closed, and there
+/// is one of these open. It is [`Game::nobles_category`]. See
+    /// [`crate::screens::nobles`].
+    Nobles,
+    /// `g_screenId` `0x18` — **send supplies**, from one county to another.
+    /// The destination is part of the identity because the screen opens with it
+    /// equal to the source and the player moves it with the minimap. See
+    /// [`crate::screens::supplies`].
+    Supplies(u8),
+    /// `g_screenId` `0x2E` — **the Battle Master ratings**, the skirmish
+    /// scoreboard. See [`crate::screens::ratings`].
+    Ratings,
+    /// `g_screenId` `0x04` — **the map information panel**, for whatever the
+    /// right click resolved to.
+    ///
+    /// The target is part of the identity because the original keeps it in
+    /// `g_pickedTileUnit` and `DAT_0056795C` and picks the painter from them;
+    /// a value that had to guess would be a value that guessed. See
+    /// [`crate::screens::info`].
+    Info(crate::screens::info::Target),
+    /// **The message scroll.** Not a `g_screenId` at all: the original paints it
+    /// over whatever is up and leaves the screen id alone, and its input arm
+    /// (`Msg_HandleInput`, `0x0047685D`) runs *before* every per-screen arm.
+    ///
+    /// It is a screen here because our machine has exactly the two properties
+    /// that arrangement needs — an overlay draws over what is beneath it, and
+    /// the top screen gets first refusal — and because
+    /// [`Transition::Pass`] can say the thing that matters, which is that a
+    /// click the window does not want **falls through**. See
+    /// [`crate::screens::message`].
+    ///
+    /// The record it is about is on [`Game`], in `messages`, because in the
+    /// original it is in the data segment: the window is opened by the frame
+    /// driver and not by anything the player did.
+    Message,
+    /// **`g_screenId` `0x27` — the screen a tip is shown on.**
+    ///
+    /// `Tip_Show` (`0x00476DA9`) does not open a window: it writes
+    /// `g_screenId = 0x27` and posts a message, and the window follows because
+    /// `Msg_Pump` runs on `0x27`. So the screen the player was on stops answering
+    /// input while the tip is up, and comes back when `FUN_00476E21` restores the
+    /// byte on the dismissal. [`Machine`] keeps this on the stack exactly while
+    /// [`crate::tip::Tips::hosting`] is true — see [`Machine::update`] — and
+    /// nothing else pushes it. See [`crate::tip`] and [`crate::screens::tip`].
+    Tip,
+    /// **`g_screenId` `0x22` — a film is playing.** `Smk_Play` (`0x0042D91B`)
+    /// parks the screen id here and `Smk_OnFinished` puts back the one it was
+    /// told to return to. The film is the identity because each of `Smk_Play`'s
+    /// seven callers decides what the end of it does. See
+    /// [`crate::screens::movie`] and [`crate::movie`].
+    Movie(crate::movie::Film),
+    /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
+    Index,
+}
+
+/// What a screen asks the machine to do next.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Transition {
+    /// Nothing. The overwhelmingly common answer, and the default.
+    Stay,
+    /// Put a screen on top of this one; this one is still underneath.
+    Push(ScreenId),
+    /// Leave, revealing whatever was underneath. Popping the last screen quits.
+    Pop,
+    /// Leave and arrive in one step, without growing the stack.
+    Replace(ScreenId),
+    /// Leave the game.
+    Quit,
+    /// **Not mine — offer it to the screen underneath.**
+    ///
+    /// `Screen_FrameInput`'s per-screen arms are *ladders of guards*, and a
+    /// guard that returns zero has not consumed the click: the arm falls
+    /// through to the next one. The village's arm (`g_screenId == 0x02`) opens
+    /// with six of them before any village verb is tried — see
+    /// [`crate::screens::village`] — and every one of the six belongs to the
+    /// campaign map's sidebar, not to the village. So the sidebar stays live
+    /// with the village open, which is a thing our stack could not say until
+    /// this variant existed: [`Machine::handle`] offered the event to the top
+    /// screen and stopped.
+    ///
+/// The lower screen acts for real, and what it
+    /// asks for lands *at its own depth* — see [`Machine::handle`], where a
+    /// `Push` from underneath truncates everything above it first. That is the
+    /// original's single-byte `g_screenId` reproduced, not a convenience.
+    Pass,
+    /// **I acted, and everything above me closes.**
+    ///
+    /// The other half of [`Transition::Pass`], and it exists for one arm:
+    /// `Screen_FrameInput`'s **epilogue**, which runs on every screen id but
+    /// `0x12` and is the whole of the campaign minimap's reach —
+    ///
+    /// ```text
+    /// if ((leftPressed || rightPressed) && g_screenId != 0x12 && FUN_004323FE()) {
+    ///     if (g_screenId == 0x0F) { Sound_StopOneShot(); FUN_0041438C(); }
+    ///     if (g_battlePhase == 0) g_screenId = 0;
+    /// }
+    /// ```
+    ///
+    /// `FUN_004323FE` (`0x004323FE`) is `Minimap_Click` (`0x0043253A`) outside a
+    /// battle.
+    /// selects that county, centres the map on it **and drops the whole
+    /// management surface**. Our stack says that as: the overlay passes the
+    /// event down, the campaign map acts, and the campaign map asks for
+    /// everything above it to be thrown away —
+    /// stack underneath.
+    ///
+    /// It is deliberately not `Replace(self.id())`: that rebuilds the screen,
+    /// and the campaign map's viewport is re-centre is *about*.
+    Reveal,
+    /// **Go to screen X, unwinding the stack** — `g_smkReturnScreen`.
+    ///
+    /// `Smk_Play` (`0x0042D91B`) stores its fifth argument and
+    /// `Smk_OnFinished` (`0x0042E060`) performs it as one statement,
+    /// `g_screenId = g_smkReturnScreen;`. That is a *destination*, and it is
+    /// neither of the two things our stack could already say: not [`Pop`], which
+    /// only knows what it is leaving, and not [`Replace`], which leaves
+    /// everything underneath standing.
+    ///
+    /// **Six of the seven `Smk_Play` call sites pass `g_screenId` itself or the
+    /// front end's `0x1F`, which in a stack is "come back where you were" —
+    /// [`Pop`]. One passes a literal: `CastleBuild_Confirm` (`0x00436B59`)
+    /// passes `0`, the campaign map.** `[V]`, read at each call site. So the end
+    /// of a castle film is the map, and the chooser that raised it is gone with
+    /// it, because the original has no stack to leave it on: `g_screenId` is one
+    /// byte.
+    ///
+    /// Applied as: truncate to the screen already on the stack, or — if it is
+    /// not there — clear and build it, which is the byte's behaviour when the
+/// destination was not open.
+    ///
+    /// [`Pop`]: Transition::Pop
+    /// [`Replace`]: Transition::Replace
+    Goto(ScreenId),
+}
+
+/// What a screen is given. `game` is mutable through `handle` and `update`, and
+/// read-only through `draw`, because `draw` gets `&Ctx`.
+pub struct Ctx<'a> {
+    pub game: &'a mut Game,
+    pub assets: &'a Assets,
+}
+
+impl ScreenId {
+    /// The one place a screen is constructed.
+    pub fn build(self) -> Box<dyn Screen> {
+        match self {
+            ScreenId::Menu => Box::new(crate::screens::menu::MenuScreen::new()),
+            ScreenId::Campaign => Box::new(crate::screens::map::MapScreen::new()),
+            ScreenId::County(id, panel) => {
+                Box::new(crate::screens::county::CountyScreen::new(id, panel))
+            }
+            ScreenId::Village(id) => Box::new(crate::screens::village::VillageScreen::new(id)),
+            ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
+            ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
+            ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),
+            ScreenId::Diplomacy => {
+                Box::new(crate::screens::diplomacy::DiplomacyScreen::new())
+            }
+            ScreenId::DiploCompose(target, kind) => {
+                Box::new(crate::screens::diplomacy::ComposeScreen::new(target, kind))
+            }
+            ScreenId::SaveLoad(mode) => {
+                Box::new(crate::screens::saveload::SaveLoadScreen::new(mode))
+            }
+            ScreenId::Castle(county) => {
+                Box::new(crate::screens::castle::CastleScreen::new(county))
+            }
+            ScreenId::Siege(unit) => Box::new(crate::screens::siege::SiegeScreen::new(unit)),
+            ScreenId::RaiseArmy(county) => {
+                Box::new(crate::screens::army::RaiseArmyScreen::new(county))
+            }
+            ScreenId::Armoury(county) => {
+                Box::new(crate::screens::armoury::ArmouryScreen::new(county))
+            }
+            ScreenId::Rack(county, troop) => {
+                Box::new(crate::screens::armoury::RackScreen::new(county, troop))
+            }
+            ScreenId::Divide(unit) => Box::new(crate::screens::divide::DivideScreen::new(unit)),
+            ScreenId::Merchant(unit) => {
+                Box::new(crate::screens::merchant::MerchantScreen::new(unit))
+            }
+            ScreenId::Trade(unit, good) => {
+                Box::new(crate::screens::merchant::TradeScreen::new(unit, good))
+            }
+            ScreenId::BattlePrompt => {
+                Box::new(crate::screens::battle::BattlePromptScreen::new())
+            }
+            ScreenId::BattleResult => {
+                Box::new(crate::screens::battle::BattleResultScreen::new())
+            }
+            ScreenId::Battlefield => {
+                Box::new(crate::screens::battlefield::BattlefieldScreen::new())
+            }
+            ScreenId::Options(page) => {
+                Box::new(crate::screens::options::OptionsScreen::new(page))
+            }
+            ScreenId::MenuBar(title) => {
+                Box::new(crate::screens::menubar::DropdownScreen::new(title))
+            }
+            ScreenId::About => Box::new(crate::screens::about::AboutScreen::new()),
+            ScreenId::Court => Box::new(crate::screens::court::CourtScreen::new()),
+            ScreenId::Nobles => Box::new(crate::screens::nobles::NoblesScreen::new()),
+            // **`ScreenId::Diplomacy` was matched twice**, here and further up,
+            // both arms constructing the same screen. It is the pilot's second
+            // finding recurring — *a screen was in the index twice*
+            // (`docs/draws.md` §2) — and the only thing that noticed was
+            // rustc's `unreachable_patterns` warning, which had been printing
+            // on every build. The earlier arm is the one that runs; this one is
+            // removed. `screens/index.rs` listed the same screen twice as well,
+            // once as *"THE OTHER LORDS"* and once as *"DIPLOMACY"*.
+            ScreenId::Supplies(to) => {
+                Box::new(crate::screens::supplies::SuppliesScreen::new(to))
+            }
+            ScreenId::Ratings => Box::new(crate::screens::ratings::RatingsScreen::new()),
+            ScreenId::Info(target) => Box::new(crate::screens::info::InfoScreen::new(target)),
+            ScreenId::Message => Box::new(crate::screens::message::MessageScreen::new()),
+            ScreenId::Tip => Box::new(crate::screens::tip::TipScreen::new()),
+            ScreenId::Movie(film) => Box::new(crate::screens::movie::MovieScreen::new(film)),
+            ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
+        }
+    }
+}
+

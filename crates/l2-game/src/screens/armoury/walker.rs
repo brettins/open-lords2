@@ -83,7 +83,7 @@ pub fn walker_sheet(shield_index: u8, slot: u8) -> &'static str {
 /// which is session state the save does not carry and the lockstep digest
 /// cannot see (`docs/netcode.md`); a hundred ticks of this leave
 /// [`l2_kingdom::Kingdom`] byte-identical, which
-/// `crates/l2-game/tests/armoury.rs` asserts.
+/// `crates/l2-game/tests/armoury/main.rs` asserts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Walker {
     /// `DAT_005679D0` — non-zero while a soldier is on the floor.

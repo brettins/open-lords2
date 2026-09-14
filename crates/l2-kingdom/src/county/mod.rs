@@ -218,7 +218,7 @@ pub struct Industry {
     /// (`0x0046873F`) zeroes it in the same arm as that commodity's own
     /// `disabledSeasons` and `efficiency`. And every save on this machine stores
     /// there the number record `c`'s own workers produce, never record
-    /// `c + 1`'s — `crates/l2-scenario/tests/import.rs`.
+    /// `c + 1`'s — `crates/l2-scenario/tests/import/main.rs`.
     ///
     /// Written by [`crate::industry::preview`], and **imported** from the file
     /// by `l2-scenario` — a loaded game used to arrive with all four at zero and

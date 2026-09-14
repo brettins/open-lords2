@@ -947,7 +947,7 @@ Implemented, in `crates/l2-view/src/campaign/mod.rs`, `crates/l2-view/src/chrome
   `SIDEBAR_BUTTONS` and of `FUN_0040FEC1`'s two lists. The id is that ladder's answer for the
   pointer, not a widget record's hotspot id. `docs/draws-map.md` §5.1, **C86**.
 
-  **Now built**: `crates/l2-game/src/tooltip.rs`, on the thirty-six screens
+  **Now built**: `crates/l2-game/src/tooltip/mod.rs`, on the thirty-six screens
   `DAT_004D6FB8` names — thirty-five on the sidebar's ladder and the battlefield on its own
   — after a rest of more than 999 ms of `timeGetTime`, which is 63 of our ticks;
 * the map opening on the player's own town, which is `Game_SetupRealmsAndCounties`'s tail
@@ -958,7 +958,7 @@ Implemented, in `crates/l2-view/src/campaign/mod.rs`, `crates/l2-view/src/chrome
 gated and both reach the rules
   (`Kingdom::toggle_industry`, `Kingdom::paint_field`) that the original reaches.
 
-Five oracle tests in `crates/l2-view/tests/install.rs` read the shipped files and the user's
+Five oracle tests in `crates/l2-view/tests/install/main.rs` read the shipped files and the user's
 own binary back: all 830 tile frames against the pitch, the 48-byte realm ramp byte for
 byte, the 44-slot minimap census, the right column's heights, and `Panels.pl8`'s kit
 boundaries. `cargo test -p l2-game --test screens shoot -- --ignored` renders the screen
@@ -1179,7 +1179,7 @@ Three separate mechanisms could have owned a question-mark pointer, and none of 
 * the **tip screens** (`L2.eng` groups 200–219, one per screen, once per *run*, gated on
   `g_optTipScreens`) run through `Tip_Update`, whose 20-frame delay is re-armed after each
   dismissal, and `Tip_Show`, which switches `g_screenId` to `0x27`. `0x27`'s row is **0** as
-  well, and the tip driver never touches a cursor. Built: `crates/l2-game/src/tip.rs`;
+  well, and the tip driver never touches a cursor. Built: `crates/l2-game/src/tip/mod.rs`;
 * **`Ui_OpenConfirm`, the message scroll and the drop-down menus** likewise leave the row at 0.
 
 The question mark is a **static property of the village screen**, evaluated fresh every frame

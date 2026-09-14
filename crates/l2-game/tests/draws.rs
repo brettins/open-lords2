@@ -37,7 +37,7 @@
 //! **That a literal we kept is the right thing to keep.** A one-line reason in
 //! `literals_ours` is a claim by a person and this test believes it. What it
 //! guarantees is only that the list cannot grow *silently* — which is exactly
-//! the failure `crates/l2-view/src/text.rs`'s stale header caused, where whole
+//! the failure `crates/l2-view/src/text/mod.rs`'s stale header caused, where whole
 //! screens were written in our 5 x 7 debug font
 //! font was not decoded yet and nothing anywhere counted the consequence.
 //!
@@ -153,7 +153,7 @@ fn caption_of(entry: &str) -> String {
 /// The five call sites that put *our own letters* on the canvas,
 /// literal caption each is given.
 ///
-/// Pinned by name from `crates/l2-view/src/text.rs` and `crates/l2-game/src/
+/// Pinned by name from `crates/l2-view/src/text/mod.rs` and `crates/l2-game/src/
 /// widget.rs`
 /// `draw_scene`, `draw_misc` and `draw_system`, every one of which blits a
 /// frame out of a `.pl8` the player owns and is therefore the *right* thing.

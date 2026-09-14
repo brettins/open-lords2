@@ -7,7 +7,7 @@ state on every tick.
 
 ## The lobby, and an honest account of what "beyond loopback" is worth
 
-`crates/l2-net/src/lobby.rs` handles everything before tick 0: host, join, roster, readiness,
+`crates/l2-net/src/lobby/mod.rs` handles everything before tick 0: host, join, roster, readiness,
 start. The host is authoritative — clients never invent a slot, choose the seed, or decide
 who else is present.
 
@@ -574,7 +574,7 @@ session. But only at the first tick a quirk *touches* — for the
   It cannot change a turn, so putting it in the agreed configuration would make
   two peers who compute identical states refuse to play — which is D-12's own
   failure mode inverted. Presentation quirks live on `Assets`, above every crate
-  that computes anything, and `crates/l2-testkit/tests/quirks_catalogue.rs`
+  that computes anything, and `crates/l2-testkit/tests/quirks_catalogue/main.rs`
   fails if one is filed in the other home.
 
 ### Enforcing this

@@ -60,7 +60,7 @@ impl OptionsScreen {
     }
 
     /// **One row's handler, twenty ticks after its press.**
-    fn fire(&mut self, row: usize, ctx: &mut Ctx) -> Transition {
+    pub(crate) fn fire(&mut self, row: usize, ctx: &mut Ctx) -> Transition {
         let Some(row) = self.page.rows().get(row).copied() else { return Transition::Stay };
         match row.setting {
             // **`Opt_ToggleFullScreen` (`0x00434B10`) on the only desktop this
@@ -286,7 +286,7 @@ impl Screen for OptionsScreen {
 
 impl OptionsScreen {
     /// One of the original's four, drawn as its painter draws it.
-    fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen) {
+    pub(super) fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen) {
         let a = &ctx.assets.shell;
         let group = self.page.group().expect("one of the original's four");
         let (hx, hy) = self.page.heading_at();

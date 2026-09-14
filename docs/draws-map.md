@@ -304,7 +304,7 @@ above:
 tip id through one of two pointer ladders chosen by a per-screen table `DAT_004D6FB8[g_screenId]`, and draws `L2.eng` group
 220 index *id* in a box beside the cursor, flipping side at x 321 and y 241.
 
-**Built**, `crates/l2-game/src/tooltip.rs`: all four of its draws — both text passes, the
+**Built**, `crates/l2-game/src/tooltip/mod.rs`: all four of its draws — both text passes, the
 308: `0x20` fill and the `0x3F` outline — on every screen the table names.
 
 `FUN_00477320` is the campaign map's resolver — **1,082 bytes**, and it partitions the whole
@@ -505,7 +505,7 @@ than arithmetic: every raw county address the decompilation uses with a `*0x18` 
 `+0x294 … +0x2AB`, which is **exactly one stride**; `+0x294` ends the array on the next named
 field where `+0x290` leaves a four-byte hole that is the stone row's word; and every
 fixture save on this machine stores, at `+0x2A8 + c*0x18`, the forecast its own record `c`'s
-workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import.rs`).
+workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import/main.rs`).
 
 ### 5.6 Three widgets are drawn over the map from `Battle_Frame` and are in no document
 
@@ -861,7 +861,7 @@ That leaves these arms enumerated but not observed, and I have not inferred past
 * **the wrecked-industry animation** (arm 5c) — needs `Unit_TrampleTile` *and* three seasons
   of `disabledSeasons`;
 * ~~**the working-industry animation rates** (arm 5b) — needs four different output bands in
-  one county over time;~~ **Exercised.** `crates/l2-game/tests/industry.rs`.
+  one county over time;~~ **Exercised.** `crates/l2-game/tests/industry/main.rs`.
 
   866: **And the premise of this bullet was wrong.** It was
   written as *"every fixture is turn one, so only the idle appearance can be seen"*, from
@@ -875,7 +875,7 @@ That leaves these arms enumerated but not observed, and I have not inferred past
   one commodity, read as a statement about the map — `docs/agents.md`, *name the branch*;
 * ~~**the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
   campaign map, which the battle triple does not carry;~~ **Exercised, by staging one.**
-  `crates/l2-game/tests/screens_map.rs`
+  `crates/l2-game/tests/screens_map/main.rs`
   `a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left` writes the two fields
   the game keeps — `+0x19A` on the *garrison* and `+0x19C` on the besieger — and asserts
   881: frame `0x82` and the centred count pixel for pixel. **No fixture is needed and none would
@@ -914,7 +914,7 @@ panel's focus outline; the drop-down's recess and its status line (2); `NO MINIM
 > with the debug overlay on** (Ctrl+D, `Prefs::debug_overlay`, `docs/arms.json`
 > `ours/debug-overlay-toggle`). Two players reported them as *"debug squares still on the
 > town square"* and *"debug outlines and text for the 4 icons at the bottom right"*.
-> `crates/l2-game/tests/screens_info.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
+> `crates/l2-game/tests/screens_info/main.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
 > asserts each absence at a pixel the overlay really draws. The sites are still counted,
 > because the audit counts source call sites and they are still in the source.
 >

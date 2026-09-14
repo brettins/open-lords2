@@ -20,7 +20,7 @@ use l2_kingdom::victory::Outcome;
 /// Five realms on a fourteen-county map, realm 1 human. Nobody owns anything
 /// yet; each test hands out the counties itself, because *who holds what* is the
 /// whole input to the ending chain.
-fn five_realms() -> Game {
+pub(crate) fn five_realms() -> Game {
     let mut g = Game::new(0x51EED);
     g.player = 1;
     g.kingdom.set_county_count(14);

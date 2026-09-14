@@ -99,7 +99,7 @@ needs; the import half of it is the first.**
 
 This is the sharpest finding, and it is C12 again in a different subsystem.
 
-`crates/l2-kingdom/tests/reproduction.rs` is headed *"**The reproduction from the shipped
+`crates/l2-kingdom/tests/reproduction/main.rs` is headed *"**The reproduction from the shipped
 save.**"* Its model is *"fourteen counties, four owned by the human realm and ten
 unowned"* (`OWNED: usize = 4`, owners assigned to ids 1..4), and it asserts happiness 72 for
 ids 1–4 and 77 for ids 5–14.
@@ -131,7 +131,7 @@ conclusion of that errata note survives (only the negative part of `5 - rate` re
 which is 0 either way) but the premise it is argued from does not.
 
 Fix: make the test read the file when an install is present, field by field over all
-seventeen records — `crates/l2-view/tests/install.rs` already has the skip-if-no-install
+seventeen records — `crates/l2-view/tests/install/main.rs` already has the skip-if-no-install
 pattern to copy. This is method §2 step 4, *a property of the data*,
 applied to the one crate that does not yet have one.
 
@@ -234,7 +234,7 @@ Plus a `NetBattle` wrapper in `crates/l2-sim/tests/lockstep.rs`, which is real �
 *"the netcode syncs"* is true of a toy and of the melee-only `Battle`; it has never
 synchronised the simulation a player would watch.
 
-Good news attached: `Canonical` (`crates/l2-net/src/canonical.rs`) is already a
+Good news attached: `Canonical` (`crates/l2-net/src/canonical/mod.rs`) is already a
 section-tagged deterministic encoder with `recording()` and `hashing()` modes, and
 `state_snapshot` already exists because lockstep needs a whole-world snapshot for late join.
 **Workstream C does not need a new save encoder.** Implementing `Simulation for Kingdom` is
@@ -243,7 +243,7 @@ is cheaper than the plan thinks and should not wait behind A.
 
 ### 7. The campaign map screen has no test, and uses its own projection
 
-`crates/l2-view/tests/install.rs` has 7 tests: frame layout, knight sheets, walk offsets,
+`crates/l2-view/tests/install/main.rs` has 7 tests: frame layout, knight sheets, walk offsets,
 battlefield tile coverage, no-holes render, animation, figure visibility. **None touches the
 campaign map.** `compose_map` (`crates/l2-view/src/main.rs:283`) is only ever checked by
 looking at it.

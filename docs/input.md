@@ -19,7 +19,7 @@ All of it is one byte of one record, read by one of two functions.
 
 Everything below is **[V]** — decoded from `Lords2.exe` and, for the tables and the ramp,
 checked byte for byte against the player's own copy by install-gated tests
-(`crates/l2-game/tests/arms.rs`, `crates/l2-game/tests/press.rs`).
+(`crates/l2-game/tests/arms/main.rs`, `crates/l2-game/tests/press.rs`).
 
 ---
 
@@ -152,7 +152,7 @@ the **first repeat 240 ms later**, and it is running flat out — 33 a second �
 game and it is reproduced; a formula fitted to this table would be
 a guess where a copy is a fact.
 
-`crates/l2-game/src/press.rs` is this, and
+`crates/l2-game/src/press/mod.rs` is this, and
 `crates/l2-game/tests/press.rs` pins the 48 bytes against the player's own executable —
 because every other test of the ramp is computed *from* the constant and would agree with
 any table whatever (`docs/agents.md`, *ablating a constant while computing your probe from
@@ -190,7 +190,7 @@ and the loop above walks the whole table on every call and does not return after
 So two gauntlets pressed a few frames apart are both drawn down and **both act**, each
 twenty frames after its own press; and pressing a record whose countdown is already running
 just writes `0x14` again, so a button pressed twice within twenty frames acts once, twenty
-frames after the second press. `crates/l2-game/src/press.rs` held a single timer and a
+frames after the second press. `crates/l2-game/src/press/mod.rs` held a single timer and a
 single pending widget until this was read: the second press overwrote the first, and a
 spinner pressed while a thumb was waiting cancelled the thumb. It keeps a timer per record
 now, and `Press::tick` returns every handler owed on a tick, in the order `Widget_Test`
@@ -216,7 +216,7 @@ example and it **returns 0 on the release**.
   function that waits for `g_mouseInputChanged` to stay clear for **more than 999 ms of
   `timeGetTime`** (63 of our 16 ms ticks), then asks one of two pointer ladders for an
   `L2.eng` group 220 index. A button change counts as a mouse change, so a click takes a tip
-  away as a move does. `crates/l2-game/src/tooltip.rs`.
+  away as a move does. `crates/l2-game/src/tooltip/mod.rs`.
 * **Double click** — `g_mouseLeftDoubleClick`, a *different flag* set from
   `WM_LBUTTONDBLCLK`. Windows sends it **instead of** the second press. **And it does not
   hold the button down**: `App_WndProc` (`0x004B29BE`) answers `0x203` with
@@ -296,7 +296,7 @@ not claim `left-press-repeat`, `left-press-delayed` or `left-press-held`. So the
 widget is declared with and the word its marker claims cannot disagree.
 
 **What is built is the layer; what is not is the wiring, and the two are different
-claims.** `crates/l2-game/src/press.rs` carries `Kind`, `Widget` and `Press::event`, so a
+claims.** `crates/l2-game/src/press/mod.rs` carries `Kind`, `Widget` and `Press::event`, so a
 screen **declares** the kind of each rectangle and stops keeping press/release state of
 its own — that is the same shape as the original, where the kind is a byte in the record
 and the tester does the rest. What remains is that our screens name a small fraction of
@@ -314,7 +314,7 @@ the original's 332 records. That is countable:
 
 Three, in rising order of what they can catch:
 
-1. **The vocabulary is closed** (`crates/l2-game/tests/arms.rs`). A new kind costs a
+1. **The vocabulary is closed** (`crates/l2-game/tests/arms/main.rs`). A new kind costs a
 decision. It also caught `button-0` … `button-5`: **fourteen
    records had been filing a *position in a table* in the field that holds a *kind*.**
 2. **The marker carries the gesture**, and the check is set equality on **(id, gesture)

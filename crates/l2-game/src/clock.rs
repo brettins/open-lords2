@@ -26,7 +26,7 @@
 //! while its sound track is played out by the device in real time as well. The
 //! two agree by construction: measured over the install's 45 films, the track
 //! runs `frames × period` long to within **1 ms over 131 s**
-//! (`crates/l2-smk/tests/corpus.rs`), so "the audio buffer" and "the header's
+//! (`crates/l2-smk/tests/corpus/main.rs`), so "the audio buffer" and "the header's
 //! frame rate" are the same clock and neither is the game's frame count.
 //!
 //! A tick that is not 16 ms therefore desynchronises the picture from the

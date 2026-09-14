@@ -50,7 +50,7 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
 ### What `--check` enforces, and where each half runs
 
 * **Schema**, which needs only the file, runs everywhere, and runs on every push through
-  `crates/l2-testkit/tests/work_ledger.rs`: every row has every field and no other; state
+  `crates/l2-testkit/tests/work_ledger/main.rs`: every row has every field and no other; state
   and track are declared at the top; ids are unique; `depends_on` names rows that exist and
   has no cycles; an `in-flight` or `queued-merge` row names a branch.
 * **Agreement with git**, which needs the clone the work happens in: every branch a row
@@ -698,7 +698,7 @@ want the same integer, which is the case this removes entirely.
 
 ### The tool as it is
 
-`tools/decisions/corrections.js`, with `crates/l2-testkit/tests/corrections_tool.rs` building
+`tools/decisions/corrections.js`, with `crates/l2-testkit/tests/corrections_tool/main.rs` building
 small trees to break it. Built after a merge of six branches where the integrator closed three
 gaps by judgement, each of which is now a rule:
 
@@ -995,7 +995,7 @@ is left at zero and nothing anywhere says so. That is how `County::farm_style` (
 omissions a compile error: rustc refuses to build until every field is named, permanently, with
 nothing to maintain and no scanner that can be fooled by a name.
 
-Compare the two honestly. The source-text check (`crates/l2-testkit/tests/encoding.rs`) reads
+Compare the two honestly. The source-text check (`crates/l2-testkit/tests/encoding/main.rs`) reads
 text, resolves names, and got two resolutions wrong on its first run. The struct literal cannot
 be got wrong,. **Where that option exists we
 should take it**, and the check should be reserved for the boundaries where it does not — which

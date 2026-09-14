@@ -8,7 +8,7 @@
 //!
 //! # Why nothing caught it, which is the part worth keeping
 //!
-//! `crates/l2-testkit/tests/encoding.rs` sounds like the check for this and is
+//! `crates/l2-testkit/tests/encoding/main.rs` sounds like the check for this and is
 //! not: it asserts that every field of an encodable struct survives a round
 //! trip through `Canonical`, which is about the *simulation's* bytes and says
 //! nothing about the bytes in a document. **A test whose name reads like the
@@ -100,7 +100,7 @@ struct Scan {
     files: usize,
 }
 
-fn scan() -> Scan {
+pub(crate) fn scan() -> Scan {
     let root = root();
     let out = Command::new("git")
         .arg("ls-files")

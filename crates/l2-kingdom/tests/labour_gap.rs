@@ -7,7 +7,7 @@
 //!
 //! # What the gap was
 //!
-//! `crates/l2-kingdom/src/labour.rs` reproduced `Labour_Allocate`
+//! `crates/l2-kingdom/src/labour/mod.rs` reproduced `Labour_Allocate`
 //! (`0x0044F6E7`) exactly and rebuilt all fourteen counties' worker counts from
 //! the England turn-one save, and it ran only where a **click** reached it.
 //! `Season_Advance` calls it twice and this crate called it never, so from turn

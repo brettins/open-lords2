@@ -19,7 +19,7 @@ struct BitWriter {
 }
 
 impl BitWriter {
-    fn bit(&mut self, b: u32) {
+    pub(super) fn bit(&mut self, b: u32) {
         if self.len % 8 == 0 {
             self.bytes.push(0);
         }
@@ -28,7 +28,7 @@ impl BitWriter {
         }
         self.len += 1;
     }
-    fn bits(&mut self, v: u32, n: u32) {
+    pub(super) fn bits(&mut self, v: u32, n: u32) {
         for i in 0..n {
             self.bit((v >> i) & 1);
         }

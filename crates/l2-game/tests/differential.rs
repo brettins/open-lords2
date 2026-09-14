@@ -7,7 +7,7 @@
 //! # Why this file exists
 //!
 //! Everything else in this workspace checks either a set of **names** or a
-//! block of **static data**. `crates/l2-game/tests/arms.rs` asserts set
+//! block of **static data**. `crates/l2-game/tests/arms/main.rs` asserts set
 //! equality between `docs/arms.json` and the `// arm:` markers in the source.
 //! `crates/l2-sim/tests/oracle.rs` opens `Lords2.exe` at its fixed `0x400000`
 //! base and compares three battle tables byte for byte — a real oracle, and a
@@ -38,7 +38,7 @@
 //! on a recorded baseline ([`BASELINE`] and four totals).
 //! *improves* agreement fails just as loudly as one that worsens it and forces
 //! somebody to move the number deliberately. That is `GATED_TOTAL`'s contract
-//! in `crates/l2-testkit/tests/census.rs`, and the totals are stated separately
+//! in `crates/l2-testkit/tests/census/main.rs`, and the totals are stated separately
 //! from the per-field list for the same reason they are there: a change that
 //! moves a divergence from one field to another still has to be acknowledged.
 //!
@@ -51,7 +51,7 @@
 //! **They are not a turn apart.** `battle-before`, `battle-during` and
 //! `battle-after` all read `g_turnCount = 5`, `g_season = 4`, `g_year = 1269`.
 //! They are **one battle caught at three moments inside one turn**, which is
-//! what `crates/l2-game/tests/seam.rs` already uses them for. The same is true
+//! what `crates/l2-game/tests/seam/main.rs` already uses them for. The same is true
 //! of `siege-lastturn` / `siege-sieging` / `siege-aftersie`, all turn 14.
 //! [`the_named_before_and_after_saves_are_the_same_turn`] asserts that rather
 //! than leaving it as prose.
@@ -756,7 +756,7 @@ const BASELINE: &[(&str, &str, usize)] = &[
 /// separately from [`BASELINE`] so that a change which moves a divergence from
 /// one field to another still has to be acknowledged as a change — the reason
 /// `GATED_TOTAL` is stated apart from `INVENTORY` in
-/// `crates/l2-testkit/tests/census.rs`.
+/// `crates/l2-testkit/tests/census/main.rs`.
 const COMPARED_TOTAL: usize = 932;
 
 /// How many of them agree. **Read [`MOVED_AGREE_TOTAL`] before quoting this
@@ -845,7 +845,7 @@ fn the_named_before_and_after_saves_are_the_same_turn() {
                 *c, first,
                 "{name} reads turn/season/year {c:?} where {} reads {first:?} - if these three \
                  have stopped being one moment caught three times, PAIRS and \
-                 crates/l2-game/tests/seam.rs both want re-reading",
+                 crates/l2-game/tests/seam/main.rs both want re-reading",
                 seen[0].0
             );
         }

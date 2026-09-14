@@ -7,7 +7,7 @@
 //!
 //! # What these are for
 //!
-//! `crates/l2-formats/tests/save.rs` runs invariants over whatever saves exist,
+//! `crates/l2-formats/tests/save/main.rs` runs invariants over whatever saves exist,
 //! and `save_england_turn1.rs` asserts one named position. These five sit
 //! between: they are a *different* scenario — a small map with two owned
 //! counties — preserved so that the campaign-army work has a real before and

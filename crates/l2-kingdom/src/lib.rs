@@ -185,7 +185,7 @@
 //!       [`ai_army`] reads have no other writer — so the raid (step 10) and
 //!       the *assist ally* mission are implemented, dispatched and
 //!       **unreachable in a played game**. `docs/decisions.md` C62 states it,
-//!       and `crates/l2-game/tests/ai_war.rs` holds a test written to go red
+//!       and `crates/l2-game/tests/ai_war/main.rs` holds a test written to go red
 //!       the day it stops being true;
 //!     * `Transport_Deliver`, and with it the goods evacuation in AI step 7's
 //!       third pass — see [`ai_army::Evacuation`];

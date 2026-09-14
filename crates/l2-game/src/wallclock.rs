@@ -43,7 +43,7 @@
 //! and which is the same channel `Assets::quirks` already uses — the shell
 //! projects into the asset bag once per tick and the painters read it. It
 //! reaches no [`crate::Game`], no `Kingdom`, no digest and no save: `Assets` is
-//! not part of any of them, and `crates/l2-game/tests/setup.rs`
+//! not part of any of them, and `crates/l2-game/tests/setup/main.rs`
 //! `the_clock_cannot_reach_the_simulation` asserts the digest is the same under
 //! two different readings.
 //!

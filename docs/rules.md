@@ -600,7 +600,7 @@ is under **1270**, so it reads *"Greatest noble, undecided."* for the first two 
 every game whatever anyone has done — the categories beside it work from turn one. And a
 category where every lord is level does not pick a winner either: it draws all five banners
 at exactly half height and says *undecided*, which is what a turn-one game looks like on
-every tab. `crates/l2-game/src/screens/nobles.rs`.
+every tab. `crates/l2-game/src/screens/nobles/mod.rs`.
 
 ---
 
@@ -778,10 +778,10 @@ The picker had been on the screen the whole time; what it lacked was a reader. A
 the human on shield 1 or shield 5 — never a middle colour — so none of them exercises a
 collision that the two readings disagree about, and it is marked **[V]** from the walk
 What *can* be checked, and now is, is the road: four tests in
-`crates/l2-game/tests/newgame.rs` drive page 4 with real coordinates, take each of the five
+`crates/l2-game/tests/newgame/main.rs` drive page 4 with real coordinates, take each of the five
 colours in turn, press *Continue* and then *Start*, and compare the realms against this
 table typed out by hand. The one row a save can confirm — the default — is checked against
-`england-turn1.sav` in `crates/l2-scenario/tests/newgame.rs`, which now diffs both the
+`england-turn1.sav` in `crates/l2-scenario/tests/newgame/main.rs`, which now diffs both the
 shields and the lords of the world built from `L2_maps.dat` against the world the original
 program wrote.
 

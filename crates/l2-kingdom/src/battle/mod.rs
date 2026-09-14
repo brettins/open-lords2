@@ -783,7 +783,7 @@ mod tests {
     /// **The fixture battle, by arithmetic alone.** `battle-before.sav`'s two
     /// armies, resolved the way the original resolves a battle the player does
     /// not fight — and the survivor count it produces is the one the saved game
-    /// holds. `crates/l2-game/tests/seam.rs` runs the same battle from the
+    /// holds. `crates/l2-game/tests/seam/main.rs` runs the same battle from the
     /// bytes; this is the arithmetic on its own,
     /// broken ladder fail in different files.
     #[test]

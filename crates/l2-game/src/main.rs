@@ -30,6 +30,9 @@
 //! track (played out by the device in real time) ran against a picture stepped
 //! by tick count. `docs/decisions.md` C193.
 
+mod app;
+pub use app::*;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -101,7 +104,7 @@ struct App {
     /// **What decides what is audible**
     /// notice that something has *become* true. It lives in the library so that
     /// a test runs this code —
-    /// `crates/l2-game/tests/audio_wiring.rs`.
+    /// `crates/l2-game/tests/audio_wiring/main.rs`.
     director: l2_game::audio::Director,
     /// `DAT_004DF3A8` — whether Control is held. The window procedure keeps the
     /// same latch and its digit arm dispatches on it: with Control, store a
@@ -326,34 +329,6 @@ impl App {
     }
 }
 
-
-/// `ctrl` is the window procedure's `DAT_004DF3A8` — `0x004B29BE` latches
-/// `VK_CONTROL` on key-down and clears it on key-up, and its digit arm calls a
-/// different function depending on it. Only the digits carry the modifier,
-/// because only the digits are dispatched on it.
-fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
-    Some(match key {
-        WinitKey::Named(NamedKey::Escape) => Key::Escape,
-        WinitKey::Named(NamedKey::Enter) => Key::Enter,
-        WinitKey::Named(NamedKey::Space) => Key::Space,
-        WinitKey::Named(NamedKey::Backspace) => Key::Backspace,
-        WinitKey::Named(NamedKey::ArrowUp) => Key::Up,
-        WinitKey::Named(NamedKey::ArrowDown) => Key::Down,
-        WinitKey::Named(NamedKey::ArrowLeft) => Key::Left,
-        WinitKey::Named(NamedKey::ArrowRight) => Key::Right,
-        // The four the window procedure dispatches into the edit buffer and
-        // nothing else dispatches at all: `VK_HOME`, `VK_END`, `VK_INSERT`,
-        // `VK_DELETE`. See `l2_game::text`.
-        WinitKey::Named(NamedKey::Home) => Key::Home,
-        WinitKey::Named(NamedKey::End) => Key::End,
-        WinitKey::Named(NamedKey::Insert) => Key::Insert,
-        WinitKey::Named(NamedKey::Delete) => Key::Delete,
-        WinitKey::Character(s) if ctrl => Key::ctrl_letter(s.chars().next()?),
-        WinitKey::Character(s) => Key::letter(s.chars().next()?),
-        _ => return None,
-    })
-}
-
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_some() {
@@ -510,17 +485,6 @@ impl ApplicationHandler for App {
             event_loop.exit();
         }
     }
-}
-
-fn usage() -> ! {
-    eprintln!("usage: l2-game <game dir> [--mods <dir>] [--no-sound]");
-    eprintln!();
-    eprintln!("  <game dir>   a Lords of the Realm II install: Lords2.exe, L2_maps.dat,");
-    eprintln!("               the fonts, the artwork and the tile sets. Never written to.");
-    eprintln!("  --no-sound   do not open an audio device. The game already runs");
-    eprintln!("               silent on a machine that has none; this is for a");
-    eprintln!("               machine that has one and would rather it stayed quiet.");
-    std::process::exit(2)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
