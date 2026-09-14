@@ -93,7 +93,7 @@ pub fn harvest(t: &Tables, county: &mut County, advanced_farming: bool, quirks: 
 ///
 /// The order inside is the original's: `crop[2]` is cleared for every season
 /// before anything else, and the event percentage is applied to the store
-/// *before* the seed comes out of it, so a *"rats in the granary"* season eats
+/// *before* the seed comes out of it
 /// the seed corn too.
 pub fn grain_season_tick(
     t: &Tables,
@@ -102,10 +102,15 @@ pub fn grain_season_tick(
     advanced_farming: bool,
     quirks: Quirks,
 ) {
+    // The tick's opening line, and the only place the granary is ever eaten:
+    // `grain = grain - +0x18C`, the shadow `Ration_ApplyAll` (`0x0044BF04`)
+    // left. Before the event percentage
+    // takes its cut of what the eaters left.
+    county.grain -= county.grain_eaten_shadow;
     county.crop[2] = 0;
     // `field_0x278 = 0`, then `Pct(grain, |p|)` in either arm. The store moves
     // by the same number with the event's sign; `pct` truncates toward zero, so
-    // `pct(grain, p)` is exactly that signed amount and the arithmetic below is
+    // `pct(grain, p)` is
     // unchanged by storing the figure.
     county.grain_event_change = 0;
     if county.event_grain_pct != 0 {

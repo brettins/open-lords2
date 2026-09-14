@@ -80,6 +80,8 @@ impl County {
             herd_eaten: 0,
             grain_available: 0,
             herd_available: 0,
+            grain_eaten_shadow: 0,
+            herd_eaten_shadow: 0,
             friendly_troops: 0,
             enemy_troops: 0,
             mercenary_offer: 0,

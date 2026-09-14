@@ -19,11 +19,13 @@
 //! comfortably and slaughters 58 head, where the save stores **13**. Starting
 //! at `wanted` gives exactly 13. The reproduction is the stronger evidence.
 //!
-//! **A preview does not spend.** §3.4 has `Ration_Apply` running twice per
-//! season, the second time as next season's preview, and §4.3 records that the
-//! stored `rationAchieved` is consequently the *next* season's level rather
-//! than the one that was applied. [`apply`] spends; [`preview`] writes the same
-//! display fields and leaves the store alone. That is a choice, not a finding:
+//! **Neither call spends.** §3.4 has `Ration_Apply` running twice per season,
+//! the second time as next season's preview, and §4.3 records that the stored
+//! `rationAchieved` is consequently the *next* season's level
+//! one that was applied. `Ration_Apply` (`0x0044DF5F`) debits no store at all:
+//! [`apply`] is `Ration_ApplyAll`'s body and shadows the cost into
+//! `+0x18C`/`+0x190`, [`preview`] does not, and `Grain_SeasonTick` /
+//! `Herd_SeasonTick` take the food out. That is a choice, not a finding:
 //! §4.3 explicitly says it *"did not untangle which write survives"*, and it is
 //! the reason the four player-owned counties in the England turn-one fixture do not
 //! reproduce.
@@ -210,35 +212,47 @@ pub fn choose(t: &Tables, county: &County, armies_eat: bool) -> Plan {
     }
 }
 
-/// Write the outcome's display fields onto the county. Shared by [`apply`] and
-/// [`preview`]; the only difference between them is whether the store is
-/// debited.
+/// `Ration_Apply` (`0x0044DF5F`) proper — everything the original's function
+/// writes. Shared by [`apply`] and [`preview`]; the only difference between
+/// them is whether the shadow pair is written after it.
+///
+/// The two caps are the original's own: it sets `grainAvailable`/`herdAvailable`
+/// from the store and then stores `min(cost, available)` in each eaten field.
 fn record(t: &Tables, county: &mut County, p: Plan) {
     county.ration_achieved = p.level;
-    county.herd_eaten = p.heads;
-    county.grain_eaten = p.sacks;
     county.herd_available = county.herd;
     county.grain_available = county.grain;
+    county.herd_eaten = p.heads.min(county.herd_available);
+    county.grain_eaten = p.sacks.min(county.grain_available);
     county.d_hap_ration = t.ration_happiness(p.level);
 }
 
-/// The real pass: choose a level, spend the food, and set the ration happiness
-/// term.
+/// `Ration_ApplyAll` (`0x0044BF04`) for one county: choose a level, set the
+/// ration happiness term, and **shadow** what was priced.
+///
+/// `Ration_Apply` (`0x0044DF5F`) itself never debits a store — its whole loop
+/// reads `Food_Available` and writes display fields. `Ration_ApplyAll` follows
+/// it with `+0x18C = grainEaten; +0x190 = herdEaten;`, and the debit happens
+/// two passes later, at the top of `Grain_SeasonTick` (`0x0044C8AE`) and
+/// `Herd_SeasonTick` (`0x0044D60D`). The shadow is not redundant with
+/// `+0x178`/`+0x17C`: [`preview`] overwrites those with next season's forecast
+/// before either tick runs (`docs/decisions.md` C20), and in the fixture every
+/// unowned county stores `herdEaten` 13 against a shadow of 0.
+///
+/// The `min` is the original's: `Ration_Apply` caps each side at
+/// `grainAvailable`/`herdAvailable`, which [`record`] has just set to the
+/// store. At the chosen level the plan already fits, so it only bites at level
+/// 0 with a negative store.
 pub fn apply(t: &Tables, county: &mut County, armies_eat: bool) -> Plan {
     let p = choose(t, county, armies_eat);
     record(t, county, p);
-    // Each side is capped at what is in store. At the chosen level the
-    // plan already fits, so the cap only bites at level 0 with a negative store,
-    // which cannot happen - but the original applies it and so does this.
-    let heads = p.heads.min(county.herd);
-    let sacks = p.sacks.min(county.grain);
-    county.herd -= heads;
-    county.grain -= sacks;
+    county.grain_eaten_shadow = county.grain_eaten;
+    county.herd_eaten_shadow = county.herd_eaten;
     p
 }
 
 /// The second call: next season's preview. Writes the same display fields and
-/// spends nothing.
+/// leaves the shadow — and so the store — alone.
 pub fn preview(t: &Tables, county: &mut County, armies_eat: bool) -> Plan {
     let p = choose(t, county, armies_eat);
     record(t, county, p);
@@ -275,7 +289,10 @@ mod tests {
 
         apply(T, &mut c, false);
         assert_eq!(c.herd_eaten, 13);
-        assert_eq!(c.herd, 54);
+        assert_eq!(c.herd_eaten_shadow, 13, "shadowed for `Herd_SeasonTick` to spend");
+        assert_eq!(c.herd, 67, "`Ration_Apply` debits nothing");
+        crate::land::herd_season_tick(T, &mut c, 1, 2);
+        assert_eq!(c.herd_eaten_shadow, 13, "and the shadow survives the tick");
         assert_eq!(c.ration_achieved, 3);
         assert_eq!(c.d_hap_ration, 1, "Normal is worth +1 happiness");
     }

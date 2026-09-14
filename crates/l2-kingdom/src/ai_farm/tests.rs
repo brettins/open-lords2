@@ -448,10 +448,15 @@ mod tests {
         c.ration_split = 0;
         let mut m = stall(T, &c, &units);
         // Establish that this county DOES eat grain, or the assertion below is
-        // about nothing.
+        // about nothing. `ration::apply` prices the meal and shadows it into
+        // `+0x18C`; `land::grain_season_tick` is what takes it out of the
+        // granary.
         let mut control = c.clone();
         crate::ration::apply(T, &mut control, true);
-        assert!(control.grain < 57, "the fixture must actually eat grain for this to test anything");
+        assert!(
+            control.grain_eaten_shadow > 0,
+            "the fixture must actually eat grain for this to test anything"
+        );
 
         run_buys(FarmStyle::NeutralGrazing, 1, &mut c, &mut map, &mut m);
         assert_eq!(
