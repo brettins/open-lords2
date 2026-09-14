@@ -12,18 +12,24 @@ use l2_kingdom::tables::{
 use l2_view::chrome::system;
 use l2_view::Canvas;
 use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screen::{Ctx, Dirty, Screen, ScreenId, Transition};
 use crate::shell::{count_noun, font, Face, Pen};
 
 
 impl JobScreen {
+    /// `Panel_JobDetail`'s (`0x00412B33`) third statement is
+    /// `Gfx_MarkAllDirty()`, before the icon sheet is even read — the panel
+    /// opens with the whole frame marked whichever job it is.
     pub fn new(county: u8, job: usize) -> JobScreen {
-        JobScreen {
-            county,
-            job: job.min(JOB_COUNT - 1),
-            forge: Forge::default(),
-            redraw: false,
-        }
+        let mut dirty = Dirty::EMPTY;
+        dirty.mark_all();
+        JobScreen { county, job: job.min(JOB_COUNT - 1), forge: Forge::default(), dirty }
+    }
+
+    /// What the original would blit next, for a test to read:
+    /// `Gfx_Present`'s rectangle, taken.
+    pub fn take_dirty_rect(&mut self) -> Option<(i32, i32, i32, i32)> {
+        self.dirty.take()
     }
 
     pub fn job(&self) -> usize {
@@ -123,6 +129,10 @@ impl Screen for JobScreen {
                 match weapon_at(x, y) {
                     Some(w) => {
                         ctx.game.kingdom.set_weapon_type(self.county as usize, w);
+                        // `FUN_0043A997` repaints the page through
+                        // `Panel_JobBlacksmith` (`0x00413155`), whose last
+                        // statement is `Gfx_MarkAllDirty()`.
+                        self.dirty.mark_all();
                         Transition::Stay
                     }
                     None => Transition::Stay,
@@ -132,13 +142,22 @@ impl Screen for JobScreen {
         }
     }
 
+    /// **`Screen_DrawWidgets`'s (`0x004BA26E`) `0x0F` arm is one guard deep**:
+    /// `if (g_jobPanelJob == 8) FUN_00413526()`. The fire steps on the
+    /// blacksmith page and nowhere else, so every other job popup stops asking
+    /// for frames the moment it has opened. Ours ticked the forge on all nine.
     fn update(&mut self, _ctx: &mut Ctx) -> Transition {
-        self.redraw |= self.forge.tick();
+        if self.job == BLACKSMITH && self.forge.tick() {
+            // `FUN_00413526`'s own last statement:
+            // `Gfx_MarkSpriteDirty(0x58, 0x9D, 8, 8, 1)` — the hearth's 128 ×
+            // 128, level 1, and not the frame `Gfx_MarkAllDirty` would take.
+            self.dirty.mark_sprite(FORGE_AT.0, FORGE_AT.1, 8, 8, 1);
+        }
         Transition::Stay
     }
 
     fn take_redraw(&mut self) -> bool {
-        core::mem::take(&mut self.redraw)
+        self.dirty.take().is_some()
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {

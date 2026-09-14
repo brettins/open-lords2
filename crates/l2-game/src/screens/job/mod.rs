@@ -220,15 +220,34 @@
 //!
 //! # What is still not drawn here
 //!
-//! * **`Gfx_MarkAllDirty`**, `Panel_JobBlacksmith`'s last statement. Our canvas
-//!   is repainted whole.
+//! # What is marked dirty, and when
+//!
+//! **[V]**, four bodies read. Drawing is never gated: every painter draws into
+//! the back buffer whenever it is called, and a mark decides only whether the
+//! frame is blitted. [`crate::screen::Dirty`] carries the model.
+//!
+//! | address | when | rectangle |
+//! |---|---|---|
+//! | `Panel_JobDetail` `0x00412B33` | the panel opens, every job | `Gfx_MarkAllDirty` — whole frame, *before* it draws |
+//! | `Panel_JobBlacksmith` `0x00413155` | the blacksmith page is painted | `Gfx_MarkAllDirty` — whole frame, its last statement |
+//! | `FUN_00413526` | every frame the fire moves | `Gfx_MarkSpriteDirty(0x58, 0x9D, 8, 8, 1)` — 128 × 128, **not** the frame |
+//!
+//! `Panel_JobBlacksmith`'s two callers are `Panel_JobDetail` and `FUN_0043A997`
+//! (the weapon change), so the whole-frame mark is an *opening and a choice*,
+//! never a per-frame cost. The only per-frame marker is the fire, and
+//! `Screen_DrawWidgets` (`0x004BA26E`) runs it under one guard:
+//! `else if (g_screenId == 0x0F) { if (g_jobPanelJob == 8) FUN_00413526(); }`.
+//! **A job popup that is not the blacksmith marks nothing after it opens** —
+//! `FUN_00413526` is itself behind `if (g_pulse80 != 0)`, so even the fire is
+//! silent between pulses.
+//!
 //! * **`Castle_DrawStatusBlock`'s other caller**, `TileInfo_DrawCastle`
 //!   (`0x0041DA2F`), which draws it at `(8, 0x30, row)` for a castle under
 //!   construction on the player's own tile. `screens/info.rs`'s layout ladder
 //!   has no castle arm to call it from — it returns row `0x0A` for nothing.
 //!   **Not this module's** — it is `info.rs`'s, and it is left alone here.
 
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screen::{Ctx, Dirty, Screen, ScreenId, Transition};
 mod screen;
 pub use screen::*;
 mod common;
@@ -342,7 +361,12 @@ pub struct JobScreen {
 /// job 7,
     /// one `g_jobPanelJob`.
     forge: Forge,
-    redraw: bool,
+    /// **`Gfx_MarkDirty`'s accumulator for this page.** `Panel_JobDetail`
+    /// (`0x00412B33`) marks the whole frame as its third statement, before it
+    /// draws anything; `Panel_JobBlacksmith` (`0x00413155`) marks it again as
+    /// its last; `FUN_00413526` marks only the fire's cells. [`Dirty`] is the
+    /// rectangle all three grow.
+    dirty: Dirty,
 }
 
 /// One `L2.eng` string, from the install if it has one and from our own
