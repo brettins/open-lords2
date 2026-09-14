@@ -68,6 +68,13 @@
 //! shipped file that are **2 x 2 stubs**.
 //! icons, nineteen 16 x 32 frames, nothing left over.
 
+mod layout;
+pub use layout::*;
+mod icons;
+pub use icons::*;
+mod art;
+pub use art::*;
+
 use crate::sheet::Sheet;
 use crate::Canvas;
 
@@ -258,161 +265,6 @@ const OTHER_BASE: usize = 10;
 /// cluster fills from both ends instead.
 const MIXED_LIMIT: i32 = 13;
 
-/// `Job_SlotForCluster` (`0x004517CA`).
-///
-/// Cluster 0 is the stone quarry unless the county has **no** quarry and **does**
-/// have a mine, in which case the same spot is the mine.
-pub fn slot_for_cluster(cluster: usize, has_quarry: bool, has_mine: bool) -> usize {
-    let slot = CLUSTER_TO_SLOT_BALANCE[cluster.min(CLUSTER_TO_SLOT_BALANCE.len() - 1)];
-    if cluster == 0 && !has_quarry && has_mine {
-        4
-    } else {
-        slot
-    }
-}
-
-/// `FUN_0045183A`: whether clicking a cluster opens its job popup.
-///
-/// Only cluster 0 can refuse, and only for a county with neither a quarry nor a
-/// mine. **The cluster is still drawn** — `Village_DrawPeasants` loops 0 … 7
-/// with no test at all —.
-/// mine still shows the slot; it simply has nobody in it.
-pub fn cluster_is_clickable(cluster: usize, has_quarry: bool, has_mine: bool) -> bool {
-    cluster != 0 || has_quarry || has_mine
-}
-
-/// Where cluster `c`'s icon grid starts, for a scene whose top is `top`.
-pub fn cluster_origin(cluster: usize, top: i32) -> (i32, i32) {
-    let (x, y) = ORIGINS[cluster.min(CLUSTER_COUNT - 1)];
-    (x + SCENE_X, y + top)
-}
-
-/// Where one icon of one cluster is drawn.
-pub fn icon_position(cluster: usize, slot: usize, top: i32) -> (i32, i32) {
-    let (ox, oy) = cluster_origin(cluster, top);
-    let (dx, dy) = ICON_OFFSETS[slot.min(ICONS_PER_CLUSTER - 1)];
-    (ox + dx + ICON_DX, oy + dy + ICON_DY)
-}
-
-/// The point `Village_BoxSelect` tests an icon at — the icon's middle, ten
-/// pixels right and nine down from where it is drawn.
-pub fn icon_hit_point(cluster: usize, slot: usize, top: i32) -> (i32, i32) {
-    let (x, y) = icon_position(cluster, slot, top);
-    (x + 10, y + 9)
-}
-
-/// `Village_BoxSelect`'s per-cluster bounding box: a band reaches into a
-/// cluster if it overlaps `origin.x + 0x40 … + 0x98` by `origin.y + top - 0x14
-/// … + 0x3C`.
-pub fn cluster_band_box(cluster: usize, top: i32) -> (i32, i32, i32, i32) {
-    let (x, y) = ORIGINS[cluster.min(CLUSTER_COUNT - 1)];
-    (x + 0x40, y + top - 0x14, x + 0x98, y + top + 0x3C)
-}
-
-fn ceil_div(a: i32, b: i32) -> i32 {
-    if b <= 0 {
-        return 0;
-    }
-    a / b + i32::from(a % b != 0)
-}
-
-/// How many icons a cluster shows, and in which of the two "wrong" states.
-///
-/// `Village_RebuildIcons` (`0x0045161E`), exactly. The second number is
-/// **negative for a shortfall** and positive for a surplus, which is how one
-/// integer carries both and how the caller knows which frame to use.
-pub fn icon_counts(workers: i32, wanted: i32, useful: i32, pop_band: i32) -> (i32, i32) {
-    if pop_band <= 0 {
-        return (0, 0);
-    }
-    let other = if workers < wanted {
-        -ceil_div(wanted - workers, pop_band)
-    } else if useful < workers {
-        let mut n = (workers - useful) / pop_band;
-        // The original rounds up only when the ceiling is zero — a job the
-        // county cannot do at all, where every worker is surplus and the part
-        // icon still has to appear.
-        if useful == 0 && workers % pop_band != 0 {
-            n += 1;
-        }
-        n
-    } else {
-        0
-    };
-    let mut normal = ceil_div(workers, pop_band);
-    if useful < workers {
-        normal -= other;
-    }
-    (normal, other)
-}
-
-/// One cluster's twenty-five icon values, 0 for an empty slot.
-///
-/// `FUN_004518A5` and the two fillers under it. `value` is the cluster's own
-/// icon from [`ICON_VALUE`]; `main` and `other` come from [`icon_counts`].
-pub fn cluster_icons(cluster: usize, value: u8, main: i32, other: i32) -> [u8; ICONS_PER_CLUSTER] {
-    let mut icons = [0u8; ICONS_PER_CLUSTER];
-    if main == 0 && other == 0 {
-        return icons;
-    }
-    let state = if other < 1 { ICON_SHORTFALL } else { ICON_SURPLUS };
-    if other == 0 {
-        fill_one(&mut icons, cluster, value, main);
-    } else if main == 0 {
-        fill_one(&mut icons, cluster, state, other.abs());
-    } else {
-        fill_two(&mut icons, cluster, value, state, main, other.abs());
-    }
-    icons
-}
-
-/// `FUN_004519CA`: one state, scattered over all twenty-five slots.
-fn fill_one(icons: &mut [u8; ICONS_PER_CLUSTER], cluster: usize, value: u8, count: i32) {
-    let value = if cluster == IDLE_CLUSTER { ICON_SURPLUS } else { value };
-    for (i, &threshold) in FILL_ORDER.iter().enumerate() {
-        if i32::from(threshold) <= count {
-            icons[i] = value;
-        }
-    }
-}
-
-/// `FUN_00451A5D`: two states at once.
-fn fill_two(
-    icons: &mut [u8; ICONS_PER_CLUSTER],
-    cluster: usize,
-    main_value: u8,
-    other_value: u8,
-    main: i32,
-    other: i32,
-) {
-    let (main_value, other_value) = if cluster == IDLE_CLUSTER {
-        (ICON_SURPLUS, ICON_SURPLUS)
-    } else {
-        (main_value, other_value)
-    };
-    if main < MIXED_LIMIT && other < MIXED_LIMIT {
-        for i in 0..FILL_ORDER_MAIN.len() {
-            if i32::from(FILL_ORDER_OTHER[i]) <= other {
-                icons[i + OTHER_BASE] = other_value;
-            }
-            if i32::from(FILL_ORDER_MAIN[i]) <= main {
-                icons[i] = main_value;
-            }
-        }
-        return;
-    }
-    // Too many of either to scatter: fill from the front with one state and
-    // back-fill the empty tail with the other.
-    for slot in icons.iter_mut().take(main.clamp(0, ICONS_PER_CLUSTER as i32) as usize) {
-        *slot = main_value;
-    }
-    let mut i = ICONS_PER_CLUSTER as i32 - 1;
-    while i > ICONS_PER_CLUSTER as i32 - 1 - other && i >= 0 && icons[i as usize] == 0 {
-        icons[i as usize] = other_value;
-        i -= 1;
-    }
-}
-
 // ------------------------------------------------------------------- artwork
 
 /// **The three buildings `Village_Draw` paints on top of the scene**, in the
@@ -553,15 +405,6 @@ pub const GATE_MS: u32 = 20;
 /// How many gates make one 80 ms pulse — the first divider of the chain.
 pub const PULSE80_GATES: u32 = PULSE_FAST_MS / GATE_MS;
 
-/// How many gates make one rung of the chain: 4 at 80 ms, 32 at 640 ms.
-///
-/// `Tick_Pulses` (`0x004BBC80`) counts *gates*, so this is the only honest
-/// conversion from a rung's millisecond name to a period. Dividing the rung by
-/// the tick length instead is the C179 error, and runs it 1.6 times fast.
-pub fn gates_per_rung(period_ms: u32) -> u32 {
-    (period_ms / GATE_MS).max(1)
-}
-
 /// **The two counters `Village_Animate` steps and nothing reads.**
 ///
 /// Their periods, for anyone who goes looking: `DAT_004D2934` wraps at `0x14`
@@ -593,46 +436,6 @@ pub struct AnimationClock {
     pulses: [u32; 2],
 }
 
-impl AnimationClock {
-    pub fn new() -> AnimationClock {
-        AnimationClock::default()
-    }
-
-    /// Advance by one fixed tick of `tick_ms`, and say whether anything moved.
-    ///
-    /// A `false` is a screen that need not repaint — the same economy
-    /// `MapScreen`'s flag phase makes.
-    /// sixty repaints a second while a player thinks about it.
-    pub fn tick(&mut self, tick_ms: u32) -> bool {
-        let before = self.pulses;
-        self.elapsed_ms += tick_ms;
-        // `Tick_Pulses` (`0x004BBC80`): at most one gate a tick, and the
-        // remainder is thrown away — `stamp = now`, not `stamp += 20`. C179.
-        if self.elapsed_ms < GATE_MS {
-            return false;
-        }
-        self.elapsed_ms = 0;
-        self.gates += 1;
-        if self.gates < PULSE80_GATES {
-            return false;
-        }
-        // The fast pulse is the primary and the slow one is every second fast
-        // one, so they cannot drift apart.
-        self.gates = 0;
-        self.pulses[0] += 1;
-        if self.pulses[0].is_multiple_of(2) {
-            self.pulses[1] += 1;
-        }
-        self.pulses != before
-    }
-
-    /// Which frame of `overlay` is showing.
-    pub fn frame_of(&self, overlay: &Overlay) -> usize {
-        let pulses = if overlay.period_ms == PULSE_FAST_MS { self.pulses[0] } else { self.pulses[1] };
-        overlay.first + (pulses as usize % overlay.frames.max(1))
-    }
-}
-
 /// The village's own files, none of which any other screen loads.
 pub struct VillageArt {
     scene: Sheet,
@@ -646,140 +449,6 @@ pub struct VillageArt {
     /// `Pl8_DrawFrame` in `Village_Animate` is the only read of that buffer in
     /// the executable. See [`OVERLAYS`].
     animation_a: Option<Sheet>,
-}
-
-impl VillageArt {
-    /// `vill.pl8` is required; `villtops.pl8` is only drawn with *Advanced
-    /// Farming* on and `vill_gd8.pl8` only decides where a drop lands, so an
-    /// install missing either still gives a village that draws.
-    pub fn load<F>(mut read: F) -> Result<VillageArt, String>
-    where
-        F: FnMut(&str) -> Result<Vec<u8>, String>,
-    {
-        let scene = Sheet::new(read("vill.pl8")?).map_err(|e| format!("vill.pl8: {e}"))?;
-        let tops = read("villtops.pl8").ok().and_then(|b| Sheet::new(b).ok());
-        let grid = read("vill_gd8.pl8")
-            .ok()
-            .filter(|b| b.len() >= GRID_DATA_OFFSET + GRID_LEN)
-            .map(|b| b[GRID_DATA_OFFSET..GRID_DATA_OFFSET + GRID_LEN].to_vec())
-            .unwrap_or_default();
-        let animation_b = read("villani2.pl8").ok().and_then(|b| Sheet::new(b).ok());
-        let animation_a = read("villani1.pl8").ok().and_then(|b| Sheet::new(b).ok());
-        Ok(VillageArt { scene, tops, grid, animation_b, animation_a })
-    }
-
-    /// Whether the drop grid was found. Without it nothing can be dropped, and
-    /// the screen says so.
-    pub fn has_grid(&self) -> bool {
-        self.grid.len() == GRID_LEN
-    }
-
-    /// `FUN_004398F5`: which cluster a point is over, 1-based, or 0.
-    pub fn cluster_at(&self, x: i32, y: i32, top: i32) -> usize {
-        if !self.has_grid() || x < SCENE_X || x >= SCENE_X + GRID_COLS as i32 * GRID_CELL {
-            return 0;
-        }
-        if y < top || y >= top + GRID_ROWS as i32 * GRID_CELL {
-            return 0;
-        }
-        let col = ((x - SCENE_X) / GRID_CELL) as usize;
-        let row = ((y - top) / GRID_CELL) as usize;
-        // The original clamps to 8,
-        // as the last cluster.
-        (self.grid[row * GRID_COLS + col] as usize).min(CLUSTER_COUNT)
-    }
-
-    /// The scene itself. Returns false when the frame will not decode, so the
-    /// caller can draw its own ground.
-    pub fn draw_scene(&self, canvas: &mut Canvas, top: i32) -> bool {
-        match self.scene.frame(0) {
-            Some(f) => {
-                canvas.blit_opaque(&f, SCENE_X, top);
-                true
-            }
-            None => false,
-        }
-    }
-
-    /// `villtops.pl8` frame `weather`, drawn at y = 64 above an Advanced
-    /// Farming scene.
-    pub fn draw_tops(&self, canvas: &mut Canvas, weather: usize) -> bool {
-        match self.tops.as_ref().and_then(|s| s.frame(weather)) {
-            Some(f) => {
-                canvas.blit_opaque(&f, SCENE_X, TOPS_Y);
-                true
-            }
-            None => false,
-        }
-    }
-
-    pub fn tops_frames(&self) -> usize {
-        self.tops.as_ref().map_or(0, |s| s.frame_count())
-    }
-
-    /// **The quarry, the mine and the lumber camp**, drawn over the scene in
-    /// `Village_Draw`'s own order and gated on `has_resource[industry]`.
-    ///
-    /// Returns how many were painted,
-    /// none" from "the artwork is missing" —
-    /// county with a mine draws one and the county with a quarry does not.
-    ///
-    /// This is the missing half of a defect a player reported as *"a county
-    /// that clearly has iron has no iron mine in the town centre"*: the other
-    /// half was that `has_resource`.
-    /// every resource. `docs/decisions.md` C57.
-    pub fn draw_resources(&self, canvas: &mut Canvas, has_resource: [bool; 4], top: i32) -> usize {
-        let Some(sheet) = self.animation_b.as_ref() else { return 0 };
-        let mut drawn = 0;
-        for (industry, frame, x, y) in RESOURCE_BUILDINGS {
-            if !has_resource[industry] {
-                continue;
-            }
-            if let Some(f) = sheet.frame(frame) {
-                canvas.blit(&f, x, top + y);
-                drawn += 1;
-            }
-        }
-        drawn
-    }
-
-    /// **`Village_Animate`'s six overlays**, in its own order, at the frames
-    /// `clock` is currently showing.
-    ///
-    /// The three unconditional ones are drawn whatever the county holds; the
-    /// other three are gated on `has_resource`.
-    /// [`VillageArt::draw_resources`]'s are, and go **on top of** the buildings
-    /// that function paints — the original calls `Village_Draw` once and
-    /// `Village_Animate` every frame after it.
-    ///
-    /// Returns how many were painted,
-    /// a missing sheet.
-    pub fn draw_animations(
-        &self,
-        canvas: &mut Canvas,
-        has_resource: [bool; 4],
-        top: i32,
-        clock: &AnimationClock,
-    ) -> usize {
-        let mut drawn = 0;
-        for overlay in &OVERLAYS {
-            if overlay.industry.is_some_and(|i| !has_resource[i]) {
-                continue;
-            }
-            let sheet = if overlay.villani1 { &self.animation_a } else { &self.animation_b };
-            let Some(sheet) = sheet.as_ref() else { continue };
-            if let Some(f) = sheet.frame(clock.frame_of(overlay)) {
-                canvas.blit(&f, overlay.at.0, top + overlay.at.1);
-                drawn += 1;
-            }
-        }
-        drawn
-    }
-
-    /// Whether `villani1.pl8` loaded. Only the iron mine's overlay needs it.
-    pub fn has_villani1(&self) -> bool {
-        self.animation_a.is_some()
-    }
 }
 
 #[cfg(test)]
@@ -973,3 +642,4 @@ mod tests {
         }
     }
 }
+

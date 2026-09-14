@@ -446,10 +446,10 @@ crates/l2-view/src/ink.rs	C112	b767057058d1	0dbcd00423ed
 crates/l2-view/src/missiles.rs	C202	8c6c9cd6adaf	1e1898bc86a5
 crates/l2-view/src/scene/render.rs	C200	19239c5a5be7	264da18555bd
 crates/l2-view/src/text.rs	C107	b6697db1fac7	eb231bef7ee5
-crates/l2-view/src/village.rs	C179	96b4d8239d02	852ec3e69f4e
-crates/l2-view/src/village.rs	C22	4b0da6199195	0364b53a921d
-crates/l2-view/src/village.rs	C57	969de6d967c3	3b42b65157bf
-crates/l2-view/src/village.rs	C63	d61e8ed8e11e	34cab2e30849
+crates/l2-view/src/village/mod.rs	C179	96b4d8239d02	852ec3e69f4e
+crates/l2-view/src/village/mod.rs	C22	4b0da6199195	0364b53a921d
+crates/l2-view/src/village/mod.rs	C57	969de6d967c3	3b42b65157bf
+crates/l2-view/src/village/mod.rs	C63	d61e8ed8e11e	34cab2e30849
 crates/l2-view/tests/install/main.rs	C1	b6dbfeba4b54	6b7e8edb019e
 crates/l2-view/tests/install/main.rs	C46	dac2a418d8de	a3a42a5ffa04
 crates/l2-view/tests/install/main.rs	C49	cc53dbcb852e	4ce32e6c42e0
