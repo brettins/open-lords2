@@ -11980,7 +11980,7 @@ bed** (C214). Nothing is left in the ledger row behind them.
 
 **The second half: the merchant's walk is locked.**
 `a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tiles`
-in `crates/l2-game/tests/pacing.rs` builds its own map and **measures** 8 ticks
+in `crates/l2-game/tests/pacing/main.rs` builds its own map and **measures** 8 ticks
 for a road tile and 32 for an open one, with a non-zero `campaign::walk_offset`
 mid-crossing. Ablated by gating `cross_sub_tile` on `UnitKind::Army`, the road
 gap is 1 against 8. `Unit_StepOnce` (`0x0046634D`) has no kind test (C213); the
