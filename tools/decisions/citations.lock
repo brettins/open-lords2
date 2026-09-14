@@ -52,7 +52,7 @@ crates/l2-game/src/scenario.rs	C83	d0e421a3fd81	88ac11ea6de0
 crates/l2-game/src/screen/machine.rs	C178	b485ba068a37	b903c3f9550e
 crates/l2-game/src/screen/machine.rs	C197	01ab503f448a	e7abe71da733
 crates/l2-game/src/screen/machine.rs	C197	e5a77ce43c19	e7abe71da733
-crates/l2-game/src/screen/screen.rs	C22	f450c107c341	0364b53a921d
+crates/l2-game/src/screen/screen.rs	C22	e72ae3be53c7	0364b53a921d
 crates/l2-game/src/screens/armoury/screen/mod.rs	C179	f34f1e767f87	852ec3e69f4e
 crates/l2-game/src/screens/army/mod.rs	C45	23bc1a57e5ef	4d770bef92bd
 crates/l2-game/src/screens/battle/prompt.rs	C21	1405d686a5df	f7bf296341ff
