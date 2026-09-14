@@ -1,6 +1,15 @@
 //! **The castle chooser** — `Screen_CastleBuild` (`0x00419789`), `g_screenId`
 //! `0x1B`, `L2.eng` group 71.
 //!
+//! **This screen is the whole "castle designer".** **[V]** The game says so in
+//! its own help text: *"The castle screen displays five castle types. As you
+//! click on each castle, the display in the upper right tells you the materials
+//! required for that design and how long it will take workers to build it."*
+//! and *"Start with a simple castle design, then upgrade as your materials and
+//! builders increase."* — the only two occurrences of `design` in `L2.eng`, and
+//! `Lords2.exe` holds none at all.
+//! choice is one integer 0..4, and `docs/plan.md` §8 has the rest of the case.
+//!
 //! It was one of the shells in [`crate::screens::shells`]: it drew a window and
 //! did nothing. It is **the only place a player can order a castle**, and a
 //! county with no castle cannot be besieged, so without it half the campaign

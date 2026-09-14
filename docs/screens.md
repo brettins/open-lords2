@@ -51,7 +51,7 @@ and it has **two** zoom levels, not three:
 **dead code**: `DAT_0057cb18` is written in exactly three places, and never with 1 (§2.2).
 
 **Neither zoom shows the whole map.** The lattice is 65 columns wide; near shows 8 of them
-and far shows 40. Far additionally *cannot scroll at all* — the origin is pinned — so a
+and far shows 40. Far additionally *cannot scroll at all* — the origin is pinned —
 quarter of the lattice's columns are unreachable at that zoom.
 
 ---
@@ -205,7 +205,7 @@ for "no edge". Each direction moves the origin by `g_mapScrollStep`:
 | row | −2s | −2s | 0 | +2s | +2s | +2s | 0 | −2s |
 | col | 0 | +s | +s | +s | 0 | −s | −s | −s |
 
-Row moves in twos, which keeps the origin's parity — and the origin is **always even**
+Row moves in twos, which keeps the origin's parity —
 (every setter uses an even literal, `row & 0xFFFE`, or ±2). That matters: the traversal
 alternates aligned/offset rows starting from the origin, and `maps-layers.md` §4 says
 odd lattice rows are the half-shifted ones.
@@ -218,10 +218,10 @@ odd lattice rows are the half-shifted ones.
 **[V] The default is 60, which is 50 ms, which is 20 tiles a second.** Written by the
 options-defaults routine at `0x004AE310` — unnamed in `symbols.json`, and also the writer of
 `g_optGameSpeed = 90` (`0x0053F230`) and the settings magic `0x7EC` at `0x0053F204` that
-gates a re-default. The persisted settings block is `0x0053F1E0`, 0x468 bytes, and the two
+gates a re-default. The persisted settings block is `0x0053F1E0`, 0x468 bytes,
 speed options sit at `+0x50` and `+0x54`. `Menu_ScrollSpeed` (`0x00434CEE`) opens the slider
 as `min 0, max 100, step 10, format 1` — eleven settings shown as 0 … 10 — and it forms the
-pointer as `0x53F1E0 + 0x54`, so a byte scan for
+pointer as `0x53F1E0 + 0x54`,
 readers of `0x0053F234` misses the menu. There are exactly two other references in `.text`:
 the default above, and the `sub` inside the throttle.
 
@@ -262,6 +262,15 @@ row = 1 + y + x          col = (64 - y + x) / 2          value = (64*y + x) * 8
 
 **Our engine implements rotation 0 only, and says so at the call site.** The other three
 are a straightforward transposition of the same loop and are not done.
+
+**Neither does the shipped original.** **[V]** `FUN_00429F12`'s only caller is
+`FUN_0042A01B`; `FUN_0042A01B` has none, in any of the 2,452 decompiled functions, and
+neither address appears in a widget table. `g_mapRotation` (`0x00522F7C`) has exactly one
+other writer, `Map_LoadPlanes` (`0x00467770`), which zeroes it on every map load, so its
+four readers — `Map_BuildLattice`, `Map_DrawArmies` (`0x00408438`), `FUN_0046AD6B` and
+`Anim_DrawBowA2` (`0x0048804A`) — always take the rotation-0 branch. The vocabulary is
+absent too: `Lords2.exe` holds no `rotat*` string and `L2.eng`'s one is *"crop rotation"*.
+The two steppers are unreachable code. Rotation 0 only is a **match**, not a gap.
 
 ---
 
@@ -313,7 +322,7 @@ Two consequences worth writing down.
   reload runs inside the dark window. That was an unsupported `[I]`; a person reporting the
   swap independently is a second source for it.
 * **The overrides plane survives a season, and it has now been measured.** C41's
-  `campaign::Overrides` stores `(bank byte, frame)` and the reload changes neither, so the
+  `campaign::Overrides` stores `(bank byte, frame)` and the reload changes neither,
   town's 47 … 58 mean the same thing in every season *provided* the four seasonal files of a
   bank share a frame table. This paragraph used to end *"that is the one thing here nobody
   has measured"*. **They do share one.** Over all five near-zoom banks and 1,398 frame
@@ -474,7 +483,7 @@ literal `0x0053F9B3` in the disassembly mistaken for an offset; `g_counties` is 
 
 **Two of the three have no middle, and 6 is off the end of the ramp — so those counties
 are not coloured at all.** In the shipped game the food overlay is therefore a single red
-mark on the counties that went short and nothing anywhere else, and the labour overlay
+mark on the counties that went short and nothing anywhere else,
 paints only the ramp's two ends. `FUN_00451BBA` has a
 *second* food branch, spreading `rationAchieved` over bands 1…5, behind `DAT_00553E60` —
 a flag zeroed by the bulk global reset at `0x00497500` and toggled only inside the command
@@ -602,7 +611,7 @@ Frame 59 carries `L2.eng` group 4, **"End turn"**, centred in 162 px at (478, 46
 
 `FUN_0040F5FD` ends with `FUN_004B0AB5(0x5691F0)`, and `0x005691F0` is preload entry 0:
 **`Base01.256`**. `FUN_004B0AB5` widens 6-bit VGA to 8-bit by multiplying by 4 and then
-**forces entry 0 to black**. (Our `Palette` scales by 255/63 instead of 4; the difference is
+**forces entry 0 to black**.
 at most 3/255 per channel and is not corrected here.)
 
 ---
@@ -648,7 +657,7 @@ frame = shield * 8 - 8 + phase;      /* == (shield - 1) * 8 + phase */
 `Flags1a.pl8`'s frames `0x00 … 0x27` are forty 32 × 24 pictures laid out five rows by eight
 columns: **five shields × eight wave phases**, and `shield = 5, phase = 7` lands on frame 39
 exactly, with frame 40 beginning an unrelated block. **The colour is in the frame index**;
-The castle's shield is the **garrison's**, not the county's, so a
+The castle's shield is the **garrison's**, not the county's,
 captured castle holding somebody else's garrison flies their colours.
 
 **Correction: only the *town* arm guards a zero shield, and this section said both did.**
@@ -744,7 +753,7 @@ the destination. **Built** — `campaign::walk_offset`, and five more things abo
   (`0, 1, 2, 1` twice), merchants and transports through `g_merchantWalkFrames`
   (`0 … 5, 0, 1` — eight entries, restarting at every tile). Only the nudge differs.
 * **The fog test is on the tile walked into.** `Unit_MoveInFacing` relinks the unit at the
-  commit, so a unit walking out of sight vanishes as it commits and one walking into sight
+  commit,
   is drawn over the dark for its whole crossing. A person's own army never walks into the
   dark: `Unit_Step` lit the square round the tile it is leaving first.
 
@@ -786,8 +795,8 @@ construction for "which tile can the player see here", and *not* the same algori
 
 **Three things about that pick that were not written down, and one of them is a defect.**
 
-* **`Map_PickTile` never looks at a pixel.** It is pure geometry, so a tile whose artwork
-  *overhangs* — and the mine, the forest and the town all do — has most of its building
+* **`Map_PickTile` never looks at a pixel.** It is pure geometry,
+  *overhangs* —
   standing on its neighbours as far as a click is concerned. `Town1a.pl8` frame 30 is
   58 × 47 on a 58 × 30 tile: **1,314 pixels painted, 857 of them on the tile.** Our engine
   deliberately departs here, testing the frame's opacity mask when the diamond misses;
@@ -802,7 +811,7 @@ construction for "which tile can the player see here", and *not* the same algori
   `if (g_mapZoom != 2)`.
 
 **And the unit is picked from the tile, not from the figure.** `g_pickedTileUnit =
-g_tiles[t].unit` — one byte on the tile record — so a click anywhere on a unit's diamond is
+g_tiles[t].unit` — one byte on the tile record —
 that unit and a click on the part of its sprite that overhangs its neighbours is not.
 `docs/decisions.md` C58: ours asked the unit's drawn marker instead, which is nine pixels
 across, and a 40 × 32 merchant was therefore mostly unclickable.
@@ -958,7 +967,8 @@ into the gitignored `out/` so it can be looked at.
 **Left as ours, and labelled as such in the code:**
 
 * the map **rotation** — only rotation 0 is built, and `Map_BuildLattice`'s other three are
-  not;
+  not. **Not a divergence:** §1.6 — the original's two steppers have no caller and
+  `g_mapRotation` is only ever zeroed, so the shipped game is rotation 0 as well;
 * the load-time **randomisation of background tile variants** (`maps-layers.md` §4.1) — we
   draw the stored index, so the off-map surround repeats where the original varies it over
   16 grass and 8 water frames;
@@ -970,7 +980,7 @@ into the gitignored `out/` so it can be looked at.
 * one measured pixel difference: **4,600 of 436,176 diamond body pixels** across the ten
   tile banks hold palette index 0, which the original writes as black and we skip, because
   `DecodedFrame::opaque` cannot tell those from the transparent corners;
-* the county **outline** (removed) and the county **marker squares** — invented, no
+* the county **outline** (removed) and the county **marker squares** — invented,
   original equivalent, and **drawn only with the debug overlay on** (Ctrl+D,
   `Prefs::debug_overlay`): a player reported them as *"debug squares still on the town
   square"*. The flags themselves *are* placed (§5.1): the town's owner-coloured banner, the
@@ -992,7 +1002,7 @@ into the gitignored `out/` so it can be looked at.
   `FUN_00407F82`).~~ **Built.** It is over the *castle*, in `draw_flags`, not over the army
   where our dot was — `Sprite_TopIt`'s castle arm reads `units[county.garrisonUnit].besiegedBy`
   and calls `FUN_00407F82(units[besieger].siegeSeasonsLeft, 8, -0x38)`. At the far zoom it
-  calls it with `(2, -0x28)` and the callee returns without drawing, which is the original's
+  calls it with `(2, -0x28)` and the callee returns without drawing,
   and is in `docs/bugs.md`;
 * the File / Options / Help menus, their drop-downs, and everything the right column puts
   *inside* frames 55 / 66 / 56 / 58 — our own numbers go on a dark backing over frame 56,
@@ -1002,7 +1012,7 @@ into the gitignored `out/` so it can be looked at.
 
 ## 8. What this corrected elsewhere
 
-* **`maps-layers.md` §6's "three zooms" is wrong** — there are two, and the third case of
+* **`maps-layers.md` §6's "three zooms" is wrong** — there are two,
   `Map_SetZoom` is unreachable (§2.2). That section now points here.
 * **Its open 58-versus-60 discrepancy is closed** (§1.2): 58 is the artwork and 60 is the
   pitch, and `pitch = frameWidth + 2` at every zoom.
@@ -1025,7 +1035,7 @@ offsets.
 
 **A player asked about this and nothing in the tree had an answer.** *"There's also an
 alternative mouse icon in the town square, it's like a question mark of some sort"*, and
-then, unprompted, *"only when you're not selecting"*. Both halves are exactly right, and the
+then, unprompted, *"only when you're not selecting"*. Both halves are exactly right,
 second half is the more interesting one: it names the axis the game switches on.
 
 ### 9.1 The twelve `Cursor*.cur` files are not read by anything  **[V]**
