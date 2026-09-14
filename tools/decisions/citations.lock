@@ -421,11 +421,11 @@ crates/l2-testkit/tests/corrections_tool/main.rs	C3	e39639497a3e	35bf3a86555f
 crates/l2-testkit/tests/corrections_tool/main.rs	C3	e4d9dc76e385	35bf3a86555f
 crates/l2-testkit/tests/corrections_tool/main.rs	C3	eba9fd06137d	35bf3a86555f
 crates/l2-testkit/tests/corrections_tool/main.rs	C4	b7cfca1f482a	0543d23a0503
-crates/l2-testkit/tests/encoding.rs	C30	130487bc012d	50fdf5e17ba0
-crates/l2-testkit/tests/encoding.rs	C65	5ad0593919a3	6a3e10c23ada
-crates/l2-testkit/tests/encoding.rs	C65	7f6b5f13b884	6a3e10c23ada
-crates/l2-testkit/tests/encoding.rs	C65	8f3915e3cbfa	6a3e10c23ada
-crates/l2-testkit/tests/encoding.rs	C65	d4a0d532e933	6a3e10c23ada
+crates/l2-testkit/tests/encoding/main.rs	C30	130487bc012d	50fdf5e17ba0
+crates/l2-testkit/tests/encoding/main.rs	C65	5ad0593919a3	6a3e10c23ada
+crates/l2-testkit/tests/encoding/main.rs	C65	7f6b5f13b884	6a3e10c23ada
+crates/l2-testkit/tests/encoding/main.rs	C65	8f3915e3cbfa	6a3e10c23ada
+crates/l2-testkit/tests/encoding/main.rs	C65	d4a0d532e933	6a3e10c23ada
 crates/l2-testkit/tests/mojibake.rs	C146	ffa8f44828ac	97ed604f7efd
 crates/l2-testkit/tests/quirks_catalogue/main.rs	C62	0139b3d61739	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue/main.rs	C62	0b7844c1b356	ebb6a7ec3711

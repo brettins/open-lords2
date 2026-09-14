@@ -727,7 +727,7 @@ impl Scenario {
             // somebody decides where it goes. rustc, permanently, with nothing
             // to maintain and no scanner that can be fooled — which is a
             // strictly better instrument than the source-text check in
-            // `crates/l2-testkit/tests/encoding.rs`,
+            // `crates/l2-testkit/tests/encoding/main.rs`,
             // own doc says it cannot reach this path.
             //
 // The *source*, deliberately. `County`

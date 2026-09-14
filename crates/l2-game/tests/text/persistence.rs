@@ -21,7 +21,7 @@ use l2_view::Canvas;
 ///
 /// The **ablation** for this one is mechanical and was run: deleting the
 /// `for name in &game.player_names` loop from `encode_prefix` turns
-/// `crates/l2-testkit/tests/encoding.rs` red with
+/// `crates/l2-testkit/tests/encoding/main.rs` red with
 /// `Game.player_names — not named in encode`. It did **not**, on the first
 /// attempt, because that check matched the comment above the loop; it reads
 /// code with the comments stripped now, which is a defect fixed in the shared

@@ -983,7 +983,7 @@ is left at zero and nothing anywhere says so. That is how `County::farm_style` (
 omissions a compile error: rustc refuses to build until every field is named, permanently, with
 nothing to maintain and no scanner that can be fooled by a name.
 
-Compare the two honestly. The source-text check (`crates/l2-testkit/tests/encoding.rs`) reads
+Compare the two honestly. The source-text check (`crates/l2-testkit/tests/encoding/main.rs`) reads
 text, resolves names, and got two resolutions wrong on its first run. The struct literal cannot
 be got wrong,. **Where that option exists we
 should take it**, and the check should be reserved for the boundaries where it does not — which

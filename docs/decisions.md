@@ -2990,7 +2990,7 @@ clever. The alternative — making the fixture derived — cannot be done in Rus
 and a macro that generates the thing under test would be the same mistake one level down.
 
 **Built, and falsified before being believed.**
-`crates/l2-testkit/tests/encoding.rs` reads the source text: every `impl Encode`/`impl Decode`
+`crates/l2-testkit/tests/encoding/main.rs` reads the source text: every `impl Encode`/`impl Decode`
 pair, the struct's field list, and the assertion that each field is named in both halves. **220
 fields across 21 types.** Two experiments, both red, both with the field named in the message:
 dropping `out.bool(self.has_resource)` from the encoder — *the exact case the digest passes* —
@@ -3638,7 +3638,7 @@ engine is `crates/l2-game/src/text.rs`.
 **C75 — The field-coverage check matched prose, so the better a field was
 documented the less it checked.**
 
-`crates/l2-testkit/tests/encoding.rs` is the guard against `docs/decisions.md` C30's family —
+`crates/l2-testkit/tests/encoding/main.rs` is the guard against `docs/decisions.md` C30's family —
 *a field the encoder never writes*. Adding `Game::player_names` and then **deleting the loop
 that encodes it** left the check **green**. The comment above the deleted loop still said the
 words `player_names`, and `mentions()` matches text.
@@ -6882,7 +6882,7 @@ rejects it, nothing fails to read it, and it is visible only where somebody
 happens to look at that paragraph.
 
 **And the check that sounds like the one for this is not.**
-`crates/l2-testkit/tests/encoding.rs` asserts that every field of an encodable
+`crates/l2-testkit/tests/encoding/main.rs` asserts that every field of an encodable
 struct survives a round trip through `Canonical` — the *simulation's* bytes, not
 a document's. A reader who went looking for a text-encoding check would have
 found that name and stopped. **A test whose name reads like the check you want is
