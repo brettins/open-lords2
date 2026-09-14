@@ -12339,3 +12339,16 @@ Battle_CheckOutcome 0x00477DFC plays timed by Smk_OnFinished's 5001st frame; gap
 (push film before banner paints), a fix reverted because gating push on draw flag lets picture
 decide battle (painting_the_battlefield_with_its_artwork_does_not_change_the_battle red at 620).
 
+
+Wall damage is a count, not a flag: Missile_Step 0x00492C8B gates its class-3 arm on
+`elevation != 0 && surface == 4 && frame > 2` and adds the hit to the cell's byte +0;
+ours gated on flag 0x20, which no surface-4 cell carries, while
+UnitOrder_SiegeAttCatapult 0x0048DB84 aims at surface 4 (Siege_FindCellSurface4
+0x00496566) - so every aimed shot counted nothing. Now siege::shot_damages_wall,
+surface 4 or 8 above elevation 0; 8 accepted because structure code 8 gives us a
+separate surface and no frames ([I]). FLAG_WALL kept: it is Cell_TryEnter 0x00490A44's
+byte, read by the mover, orders and the painter, and smash_walls still clears it and
+still leaves byte +0 alone, as Wall_Smash 0x0049694F does. Tests
+a_shot_counts_on_masonry_by_elevation_and_not_on_the_wall_flag and
+a_catapult_raises_the_cell_byte_of_the_wall_it_is_aimed_at; ablating the gate back to
+the flag turns the second red (walk cells 0) and leaves the curtain's count standing.

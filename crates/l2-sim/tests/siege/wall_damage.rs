@@ -11,7 +11,7 @@ use l2_sim::siege::{
 };
 use l2_sim::{BattleRunner, End, Muster, Troop, SIDE_A, SIDE_B};
 
-/// **The four surfaces a siege turns on, and the two that were the wrong way
+/// **The four surfaces a siege turns on
 /// round.**
 ///
 /// This test used to assert `SURFACE_BREACH == 4` and `SURFACE_RAMPART == 5`
@@ -84,6 +84,81 @@ fn a_breach_is_nine_cells_wide_and_a_collapse_is_one() {
         FLAG_WALL,
         "the wall either side of it still stands"
     );
+}
+
+/// **Damage is a count on a surface, not the `0x20` flag.**
+///
+/// `Missile_Step`'s class-3 gate (`0x00492C8B`, `docs/battle.md` §17.7) is
+/// `elevation != 0 && surface == 4 && frame > 2`
+/// into the cell's byte `+0`. Ours read `flags & 0x20`, which no surface-4 cell
+/// carries — and `UnitOrder_SiegeAttCatapult` (`0x0048DB84`) aims at surface 4
+/// (`nearest_surface(.., 4, ..)`, the original's `Siege_FindCellSurface4`,
+/// `0x00496566`). Every aimed shot therefore counted nothing.
+///
+/// Ablation: put `flags & FLAG_WALL != 0` back in front of
+/// `siege::shot_damages_wall` and the walk rows here go false.
+#[test]
+fn a_shot_counts_on_masonry_by_elevation_and_not_on_the_wall_flag() {
+    let field = siege::our_castle(2);
+    let mut walk = 0;
+    for c in &field.cells {
+        if c.surface == SURFACE_RAMPART_WALK {
+            assert_eq!(c.flags & FLAG_WALL, 0, "the walk carries no 0x20");
+            assert!(siege::shot_damages_wall(c), "and a shot still counts on it");
+            assert_eq!(c.terrain, 1, "the builder's seed, so fifteen shots bring it down");
+            walk += 1;
+        }
+    }
+    assert!(walk > 0, "our_castle(2) has a rampart walk at all");
+
+    let mut c = field.cells[34 * 80 + 40].clone();
+    assert_eq!(c.flags & FLAG_WALL, FLAG_WALL, "the south wall at (40, 34)");
+    assert!(siege::shot_damages_wall(&c), "the curtain counts too");
+    c.flags &= !FLAG_WALL;
+    assert!(siege::shot_damages_wall(&c), "and the flag is not what said so");
+
+    // The original's own `elevation != 0`
+    // masonry: the bailey, and the rubble a collapse leaves at elevation 0.
+    let mut low = field.cells[34 * 80 + 40].clone();
+    low.elevation = 0;
+    assert!(!siege::shot_damages_wall(&low));
+    for s in [SURFACE_BAILEY, siege::SURFACE_COLLAPSED] {
+        let mut o = field.cells[34 * 80 + 40].clone();
+        o.surface = s;
+        assert!(!siege::shot_damages_wall(&o), "surface {s} is not masonry");
+    }
+    // `Wall_Smash` joins the cell to the bailey, so it stops counting because
+    // its surface changed —.
+    let mut smashed = siege::our_castle(2);
+    siege::smash_walls(&mut smashed, 40, 34, siege::SMASH_RADIUS);
+    assert!(!siege::shot_damages_wall(&smashed.cells[34 * 80 + 40]));
+}
+
+/// **And in a real siege the cell the catapult aims at is the one that takes
+/// the damage.** `UnitOrder_SiegeAttCatapult` sends the engine at a surface-4
+/// cell and surface 4 carries no `0x20`, so under the flag gate every shot that
+/// arrived where it was aimed counted nothing: the walk's byte `+0` stayed at
+/// the builder's seed of 1 for the whole siege. Ablation: restore
+/// `flags & FLAG_WALL != 0 && elevation != 0` in `BattleRunner::step_missile`
+/// and `walk` here goes to 0 while the curtain's count survives.
+#[test]
+fn a_catapult_raises_the_cell_byte_of_the_wall_it_is_aimed_at() {
+    let mut r = storming_party(2);
+    // Masonry only: a ditch's byte is the *fill* counter, seeded at the water
+    // id 11 and raised by `BattleMan_StateFillMoat`.
+    let damaged = |r: &BattleRunner, s: u8| {
+        r.field.cells.iter().filter(|c| c.terrain > 1 && c.surface == s).count()
+    };
+    let mut walk = 0;
+    for _ in 0..60 {
+        r.run(500);
+        walk = damaged(&r, SURFACE_RAMPART_WALK);
+        if walk > 0 {
+            break;
+        }
+    }
+    assert!(r.sim.cues.walls_struck() > 0, "a shot was counted against a wall");
+    assert!(walk > 0, "and the flag-free walk it was aimed at is what holds the count");
 }
 
 // ---------------------------------------------------------------------------

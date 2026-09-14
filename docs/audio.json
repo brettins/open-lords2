@@ -867,7 +867,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "catmiss.wav",
-      "note": "A catapult shot on a rampart four high. Missile_Step's class-3 arm counts the hit and plays FUN_004262cf(0xF) (#1) when the cell's elevation is 1..3, and plays Sound_PlaySlot(0x10) without counting when it is 4 or more. BattleRunner::strike_wall_with_shot's high arm; the occasion is l2_sim::cue's walls_missed. The gate in front of both arms is the original's surface 4 with frame > 2; ours is the wall flag, which is what our castle has instead of the frames."
+      "note": "A catapult shot on a rampart four high. Missile_Step's class-3 arm counts the hit and plays FUN_004262cf(0xF) (#1) when the cell's elevation is 1..3, and plays Sound_PlaySlot(0x10) without counting when it is 4 or more. BattleRunner::strike_wall_with_shot's high arm; the occasion is l2_sim::cue's walls_missed. The gate in front of both arms is the original's surface 4 with frame > 2; ours is siege::shot_damages_wall, surface 4 or 8 above elevation 0, because our castle has no frames."
     },
     {
       "id": "Missile_Step#3",
