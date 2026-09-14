@@ -8,7 +8,8 @@
 const fs = require("fs"), path = require("path"), cp = require("child_process");
 const [crate, dir] = process.argv.slice(2); if (!crate || !dir) { console.error("widen: <crate> <dir>"); process.exit(2); }
 const root = path.resolve(__dirname, "..", "..");
-const files = () => fs.readdirSync(path.join(root, dir)).filter(f => f.endsWith(".rs")).map(f => path.join(root, dir, f));
+// Every .rs under <dir>, recursively: <dir> may be one split module or a whole crate's src.
+const files = () => { const out = []; const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (e.name.endsWith(".rs")) out.push(p); } }; walk(path.join(root, dir)); return out; };
 for (let round = 0; round < 8; round++) {
   const out = cp.spawnSync("cargo", ["check", "-p", crate, "--tests"], { cwd: root, encoding: "utf8" });
   const text = (out.stdout || "") + (out.stderr || "");
