@@ -74,7 +74,7 @@ crates/l2-game/src/screens/court.rs	C140	0f96dbb1757f	e3a1ede42a95
 crates/l2-game/src/screens/diplomacy/compose.rs	C26	d7d30139b2b8	e8179d1f76a8
 crates/l2-game/src/screens/diplomacy/main.rs	C61	6fa4824ae72f	60611046b40d
 crates/l2-game/src/screens/diplomacy/mod.rs	C189	cd522ae61df6	a640e552a733
-crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
+crates/l2-game/src/screens/divide/mod.rs	C61	e4415da101c2	60611046b40d
 crates/l2-game/src/screens/info/constants.rs	C204	52bfa03d28f3	37a4a7aaee75
 crates/l2-game/src/screens/info/mod.rs	C199	05b94bdb92e3	f4bda256f5f1
 crates/l2-game/src/screens/info/screen/mod.rs	C110	610d3cd4e224	a4ab43902f60

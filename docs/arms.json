@@ -558,7 +558,7 @@
       "gesture": "left-release",
       "addr": "0x0040E7E4",
       "what": "Ui_OkButtonClicked -- the corner picture Ui_OkButton(0x1AC, 0x1B4, 0) stashed, and the third of this screen's three exits. It writes g_screenId = 0x04 like the other two and splits nothing.",
-      "ours": "crates/l2-game/src/screens/divide.rs",
+      "ours": "crates/l2-game/src/screens/divide/mod.rs",
       "evidence": "V"
     },
     {
@@ -640,7 +640,7 @@
       "what": "Five of the 19 right-close arms step back ONE level rather than to the map: 0x0C -> 0x08 (trade goods to the merchant), 0x0D -> 0x0A (a weapon's rack to the armoury), 0x11 -> 0x04 (army division to the information panel), 0x17 -> 0x0A, 0x2A -> 0x29. The other fourteen write the literal 0.",
       "note": "0x11 was the one that was wrong and it is right now: the information panel PUSHES the division screen instead of replacing it, so popping it lands on 0x04. 0x0C and 0x0D already popped to their openers, 0x17 -> 0x0A is army.rs's Replace(Armoury) and 0x2A -> 0x29 is the battlefield's. The marker is on divide.rs's right release, which did not exist at all before -- screen 0x11 had no right-button arm, so the button every other window in the game closes with did nothing there.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/divide.rs"
+      "ours": "crates/l2-game/src/screens/divide/mod.rs"
     },
     {
       "id": "0x0042FF10/cancel-drag",
@@ -2005,7 +2005,7 @@
       "addr": "0x00437AFB",
       "what": "The same handler with g_uiHotspotId == 0 -- the CROSS at (336, 424), frame 31. Army_SplitConfirm opens `g_screenId = 0; ... if (g_uiHotspotId == 0) g_screenId = 4;`, so the cross goes back to the information panel and splits nothing.",
       "note": "Two records for one function because the ladder has two distinct outcomes, which is this file's counting rule. OUR CANCEL BUTTON OVERLAPPED THIS TICK: ours/divide-cancel-button was 100 x 18 at (264, 446) and record 0 is 32 x 32 at (288, 420), so a 32 x 6 strip of the confirm was our cancel.",
-      "ours": "crates/l2-game/src/screens/divide.rs",
+      "ours": "crates/l2-game/src/screens/divide/mod.rs",
       "evidence": "V"
     },
     {
@@ -2017,7 +2017,7 @@
       "addr": "0x00437AFB",
       "what": "g_splitWidgets record 0 -- the TICK at (288, 420), 32 square, System.pl8 frame 29, hotspot id 1. Army_SplitConfirm resums both totals, then: with no destination county the minimum a side is 0x32 and the cap 5000; with one, the minimum is ZERO and the cap that castle's garrison limit less the garrison already inside. Then Army_Split.",
       "note": "KIND 5, so Widget_Test defers the handler by 20 frames. Not reproduced: the delay.",
-      "ours": "crates/l2-game/src/screens/divide.rs",
+      "ours": "crates/l2-game/src/screens/divide/mod.rs",
       "evidence": "V"
     },
     {
@@ -2029,7 +2029,7 @@
       "addr": "0x00437D65",
       "what": "SplitScreen_ToParent -- eight widgets at (256, row * 0x20 + 0x78), 24 square, g_uiHotspotId carrying the slot: slot[id].available -= 1, slot[id].chosen += 1, then both totals resummed. Hotspot 7 is the mercenary band and swaps it WHOLE rather than by one.",
       "note": "Ours hit-tested x 0xA8 -- the troop-type picture -- and not 256. See ours/divide-click-moves-ten for the other half of this button.",
-      "ours": "crates/l2-game/src/screens/divide.rs",
+      "ours": "crates/l2-game/src/screens/divide/mod.rs",
       "evidence": "V"
     },
     {
@@ -2040,7 +2040,7 @@
       "gesture": "left-press-repeat",
       "addr": "0x00437E9E",
       "what": "The same function the other way, at x 288. Ours hit-tested 0x158, the daughter column's picture.",
-      "ours": "crates/l2-game/src/screens/divide.rs",
+      "ours": "crates/l2-game/src/screens/divide/mod.rs",
       "evidence": "V"
     },
     {
@@ -3345,7 +3345,7 @@
       "what": "A click on a row button moves TEN men. SplitScreen_ToParent moves exactly one.",
       "note": "KEPT, and it is a behaviour rather than a widget, which is why it is a record and not a comment. The original's widget is kind 4 and repeats while held; our event loop does not deliver key or button repeat here. The mercenary row is the exception in both: hotspot 7 swaps the band whole, in the original's own function.",
       "removed": false,
-      "ours": "crates/l2-game/src/screens/divide.rs",
+      "ours": "crates/l2-game/src/screens/divide/mod.rs",
       "evidence": "V"
     },
     {
@@ -3369,7 +3369,7 @@
       "what": "Escape leaves; Up and Down pick a row; Left and Right move one man; Enter splits.",
       "note": "KEPT. Screen_HandleInput names no key on 0x11 and the window procedure has no 0x11 case, so the whole keyboard here is ours. The arrows are the only way to move ONE man now that a click moves ten. The D key, which disbanded, is gone with the button.",
       "removed": false,
-      "ours": "crates/l2-game/src/screens/divide.rs",
+      "ours": "crates/l2-game/src/screens/divide/mod.rs",
       "evidence": "V"
     },
     {
