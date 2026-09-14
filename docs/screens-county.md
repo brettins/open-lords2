@@ -1641,7 +1641,7 @@ The ceiling is a rule's output, not a panel's hint: `Labour_Allocate`
 
 5. *Drawn now — this entry is kept for the record.* C164 carried the fields and the job
    popup's five bodies draw them, call for call, from the player's own `L2.eng` groups 77,
-   76, 71 and 22; `crates/l2-game/tests/job_bodies.rs` places each figure and word at its
+   76, 71 and 22; `crates/l2-game/tests/job_bodies/main.rs` places each figure and word at its
    painter's coordinates.
 
    **`+0x22C`, `+0x230`, `+0x24C`, `+0x278` and `+0x2FC`** are read by the grain job popup

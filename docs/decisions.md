@@ -9234,7 +9234,7 @@ an industry split of 100 is staffed by nobody, because castle building's share
 at `+0x130 + 3*4` is 0 after `order_castle` and wood cutting takes the county.
 Whether `Castle_Order` leaves that share alone too was not read.
 
-**Tests** — `crates/l2-game/tests/job_bodies.rs`, ten, each figure and word in its
+**Tests** — `crates/l2-game/tests/job_bodies/main.rs`, ten, each figure and word in its
 own box at the painter's coordinates. Stored non-zero: the grain store, eating
 and overall change; herd, births, deaths, slaughter, the overall change and all
 four crowding bands; industry output, efficiency and both blacksmith figures;
@@ -10210,7 +10210,7 @@ and the call passes `(0, 0x18)` — which is exactly where `Sprite_WGenSprite(0,
 `Smithy.pl8`. So the six rectangles are in the **picture's** coordinates. Read as screen
 coordinates, as a careful person reading only the table would read them, every weapon sits
 twenty-four pixels high: a click a player aims at the pike lands on the bow, and it lands
-*silently*, because the county still changes what it forges. `crates/l2-game/tests/job_bodies.rs`
+*silently*, because the county still changes what it forges. `crates/l2-game/tests/job_bodies/main.rs`
 asserts both corners of all six against the player's own exe so that reading cannot recur.
 It is the same shape as `docs/arms.json`'s gesture field (C148): the record carried the
 address that would have answered the question and nobody read the rest of the line.
