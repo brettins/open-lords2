@@ -42,7 +42,7 @@ crates/l2-game/src/input.rs	C61	39c868ef7985	60611046b40d
 crates/l2-game/src/main.rs	C117	81e769c79475	b20f3a227f0f
 crates/l2-game/src/main.rs	C193	eff18505112b	ded1409ebea0
 crates/l2-game/src/main.rs	C193	fa55c65b9590	ded1409ebea0
-crates/l2-game/src/message.rs	C210	5005fe758800	38024f0b559c
+crates/l2-game/src/message/queue.rs	C210	5005fe758800	38024f0b559c
 crates/l2-game/src/movie.rs	C193	921629355a9c	ded1409ebea0
 crates/l2-game/src/save.rs	C113	292ef2506465	6fbe8ffeb1fb
 crates/l2-game/src/scenario.rs	C130	82b7defc561c	055c6c022450

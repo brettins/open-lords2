@@ -1057,7 +1057,7 @@ the same way.
 
 ### 11.5 Where it is
 
-`crates/l2-game/src/message.rs` is the ring and the rules; `crates/l2-game/src/screens/message.rs`
+`crates/l2-game/src/message/mod.rs` is the ring and the rules; `crates/l2-game/src/screens/message.rs`
 is the window and the arms; `crates/l2-game/tests/messages.rs` plays every route above with
 `Event` values. `docs/arms.json`'s `messages` group has one record per arm, including the four
 that are not built and why.
