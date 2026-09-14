@@ -83,7 +83,7 @@
     {"id": "answering", "area": "ai", "name": "Answering a lord's letter", "status": "done", "evidence": ["crates/l2-game/tests/messages/main.rs"], "gap": "", "rows": []},
     {"id": "letter-text", "area": "ai", "name": "Writing a letter in your own words", "status": "done", "evidence": ["arms:0x004BA9C8/diplo-letter","C231","crates/l2-game/tests/diplomacy/main.rs"], "gap": "", "rows": []},
     {"id": "merchant-routes", "area": "trade", "name": "Merchants walking their routes", "status": "done", "evidence": ["C40","C50"], "gap": "", "rows": []},
-    {"id": "trading", "area": "trade", "name": "Buying and selling goods", "status": "done", "evidence": ["C54","crates/l2-game/tests/merchant.rs"], "gap": "", "rows": []},
+    {"id": "trading", "area": "trade", "name": "Buying and selling goods", "status": "done", "evidence": ["C54","crates/l2-game/tests/merchant/main.rs"], "gap": "", "rows": []},
     {"id": "ale", "area": "trade", "name": "Ale", "status": "done", "evidence": ["C53"], "gap": "", "rows": []},
     {"id": "neutral-trade", "area": "trade", "name": "Trading in a neutral county", "status": "done", "evidence": ["C149"], "gap": "", "rows": []},
     {"id": "ai-trade", "area": "trade", "name": "AI lords trading at market", "status": "done", "evidence": ["C222","crates/l2-game/tests/differential.rs"], "gap": "", "rows": []},
