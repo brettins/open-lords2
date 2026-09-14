@@ -2895,7 +2895,7 @@ The setup screen's custom-game page has twelve drop-downs. **They do not write
 `0x0053F288 … 0x0053F2B4`, and `Setup_CommitOptions` (`0x00499DC3`) turns those twelve
 selections into the eleven values a game is played with at the moment *Start* is pressed.
 Only five are direct copies; one is arithmetic and five go through a lookup table.
-`docs/decisions.md` C44 is the reading and `crates/l2-game/src/setup.rs` is the
+`docs/decisions.md` C44 is the reading and `crates/l2-game/src/setup/mod.rs` is the
 implementation.
 
 | # | label (group 102) | values (group 103) | selection | commits to |
