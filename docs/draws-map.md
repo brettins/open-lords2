@@ -304,7 +304,7 @@ above:
 tip id through one of two pointer ladders chosen by a per-screen table `DAT_004D6FB8[g_screenId]`, and draws `L2.eng` group
 220 index *id* in a box beside the cursor, flipping side at x 321 and y 241.
 
-**Built**, `crates/l2-game/src/tooltip.rs`: all four of its draws — both text passes, the
+**Built**, `crates/l2-game/src/tooltip/mod.rs`: all four of its draws — both text passes, the
 308: `0x20` fill and the `0x3F` outline — on every screen the table names.
 
 `FUN_00477320` is the campaign map's resolver — **1,082 bytes**, and it partitions the whole

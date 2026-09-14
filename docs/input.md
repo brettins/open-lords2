@@ -216,7 +216,7 @@ example and it **returns 0 on the release**.
   function that waits for `g_mouseInputChanged` to stay clear for **more than 999 ms of
   `timeGetTime`** (63 of our 16 ms ticks), then asks one of two pointer ladders for an
   `L2.eng` group 220 index. A button change counts as a mouse change, so a click takes a tip
-  away as a move does. `crates/l2-game/src/tooltip.rs`.
+  away as a move does. `crates/l2-game/src/tooltip/mod.rs`.
 * **Double click** — `g_mouseLeftDoubleClick`, a *different flag* set from
   `WM_LBUTTONDBLCLK`. Windows sends it **instead of** the second press. **And it does not
   hold the button down**: `App_WndProc` (`0x004B29BE`) answers `0x203` with

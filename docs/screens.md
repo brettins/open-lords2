@@ -947,7 +947,7 @@ Implemented, in `crates/l2-view/src/campaign/mod.rs`, `crates/l2-view/src/chrome
   `SIDEBAR_BUTTONS` and of `FUN_0040FEC1`'s two lists. The id is that ladder's answer for the
   pointer, not a widget record's hotspot id. `docs/draws-map.md` §5.1, **C86**.
 
-  **Now built**: `crates/l2-game/src/tooltip.rs`, on the thirty-six screens
+  **Now built**: `crates/l2-game/src/tooltip/mod.rs`, on the thirty-six screens
   `DAT_004D6FB8` names — thirty-five on the sidebar's ladder and the battlefield on its own
   — after a rest of more than 999 ms of `timeGetTime`, which is 63 of our ticks;
 * the map opening on the player's own town, which is `Game_SetupRealmsAndCounties`'s tail

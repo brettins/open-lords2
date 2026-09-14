@@ -8655,7 +8655,7 @@ cry now keeps the tips' chained takes waiting, as it would in the original.
 counted twenty-six as twenty-four and called a ladder's answer a hotspot id.**
 
 The Help Options panel's *"Tool tips"* row flipped `g_optToolTips` and nothing here
-read it. `FUN_00476E95` is now `crates/l2-game/src/tooltip.rs`, and reading all seven
+read it. `FUN_00476E95` is now `crates/l2-game/src/tooltip/mod.rs`, and reading all seven
 of its functions — not the one C86 summarised — corrected two things on file and
 found three that were not.
 
