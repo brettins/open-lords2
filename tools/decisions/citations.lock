@@ -301,7 +301,7 @@ crates/l2-kingdom/tests/cattle.rs	C1	4cb1f0d38684	6b7e8edb019e
 crates/l2-kingdom/tests/cattle.rs	C187	5d82ed0dc8df	55fad83033cd
 crates/l2-kingdom/tests/defence.rs	C12	a16bf611d166	bb0dd488f9d2
 crates/l2-kingdom/tests/fields/counts.rs	C23	00c611a35590	6ac2f322c3bd
-crates/l2-kingdom/tests/fields/economy.rs	C123	ea6420ce0ff6	3a5cc2fec37d
+crates/l2-kingdom/tests/fields/economy/main.rs	C123	ea6420ce0ff6	3a5cc2fec37d
 crates/l2-kingdom/tests/fields/main.rs	C24	55fea2f1d2e9	52e202e041ab
 crates/l2-kingdom/tests/fields/main.rs	C3	fe6412b1ad06	35bf3a86555f
 crates/l2-kingdom/tests/fields/painting.rs	C26	bd345436ed8e	e8179d1f76a8
