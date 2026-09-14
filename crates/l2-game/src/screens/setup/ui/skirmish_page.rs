@@ -96,8 +96,16 @@ impl SetupScreen {
         // it left — the autocalc strength of each army, `DAT_0051FBBC` and
         // `DAT_0051FAD0`, which `Skirmish_FillArmies` recomputes on every one
         // of this page's arms.
+        //
+        // The boxes are realm 1's and realm 2's, like the names above them:
+        // `FUN_004209C1` (`00420000.c:277-289`) puts the local strength
+        // `DAT_0051FBBC` in the left box when `g_localPlayer == 1` and in the
+        // right box when it is 2, and `DAT_0051FAD0` in the other. Realm 1 is
+        // the local player here, so his army is on the left — by the realm,
+        // not by the side.
         let (mine, theirs) = s.fill_armies(&self.troops);
-        for (x, army) in [(0x34, mine), (0x148, theirs)] {
+        let (realm1, realm2) = if s.local_realm() == 1 { (mine, theirs) } else { (theirs, mine) };
+        for (x, army) in [(0x34, realm1), (0x148, realm2)] {
             let w = pen.eng(canvas, GROUP, 0x1C, x, 0x1C6, font::TEXT);
             pen.body(canvas, x + w, 0x1C6, &army.strength.to_string(), font::TEXT);
         }
