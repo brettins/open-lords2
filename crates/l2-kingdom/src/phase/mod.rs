@@ -316,6 +316,26 @@ pub enum Pass {
     CountyRecountMerchants,
     /// `Score_RankRealms` — scores and the ranking.
     ScoreRank,
+    /// `Army_RecountCountyTroops` (`0x004AD6C0`) — the friendly/enemy men in
+    /// every county, **and the tail that reprices the county on them**:
+    ///
+    /// ```c
+    /// for (c = 1; c < 0x11; c++) {
+    ///     Ration_Apply(c, g_seasonNext);
+    ///     Grain_LabourEstimate(c, g_seasonNext);
+    ///     Herd_LabourEstimate(c, g_seasonNext);
+    /// }
+    /// ```
+    ///
+    /// That tail is why [`Pass::LabourAllocateAgain`] deals against a **fresh**
+    /// cattle ceiling. `Ration_ApplyAll` priced the season against the herd as
+    /// it stood before `Herd_SeasonTick`; this re-prices it against the herd
+    /// that survived, and `Herd_LabourEstimate` searches `herd - herdEaten`.
+    /// `[V]`: a new England's nine unowned counties open the season on herd 95,
+    /// eat no animal (dairy covers them), come out of the tick on 67 and here
+    /// eat 13 — ceiling 386 without this pass, 323 with it, and 323 is
+    /// `england-turn1.sav`'s.
+    ArmyRecountTroops,
     /// `Labour_AllocateAll` a **second** time, after the population pass and
     /// the army recount have changed how many people a county holds.
     ///
@@ -415,7 +435,7 @@ pub enum Pass {
 ///
 ///    **`docs/armies.md` §2.1 has these two the wrong way round**, giving
 ///    `Units_ResetMoves` first. Corrected there.
-pub const SEASON_PIPELINE: [Pass; 33] = [
+pub const SEASON_PIPELINE: [Pass; 34] = [
     // **`Season_Advance`'s first call, ahead of `Rand_Advance` and the clock**
     // (`0x00448440`: `Ai_ManageFarmsAll(); Rand_Advance(); ...`). Inserted at
     // position 0, so every later pass index moved by one — which
@@ -451,6 +471,11 @@ pub const SEASON_PIPELINE: [Pass; 33] = [
     // County_RecountMerchants(); FUN_00428471(); Army_RecountCountyTroops();`.
     Pass::CountyRecountMerchants,
     Pass::ScoreRank,
+    // **Inserted, and that shifts every later pass index** — both save
+    // `VERSION`s move with it. The position is `Season_Advance`'s:
+    // `FUN_00428471(); Army_RecountCountyTroops(); Event_ClearCountyModifiers();
+    // Labour_AllocateAll();`.
+    Pass::ArmyRecountTroops,
     Pass::LabourAllocateAgain,
     Pass::History,
     Pass::RationPreview,

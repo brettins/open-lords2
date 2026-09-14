@@ -63,13 +63,14 @@ use l2_view::{campaign, Canvas};
 /// `AI_ManageFields(0)` (`0x0049DFC6`) does not reach the rest until turn phase
 /// 1, after the opening season. [`Kingdom::reset_county_for_new_game`].
 ///
-/// **What is still out is the last allocation's split, not the herd**: the nine
-/// unowned counties end on 342 milkmaids and 114 idle where the save has
-/// 323 and 133 — 342 is the whole farm half, and 323 is the ceiling *both* sides
-/// now hold. So `Pass::LabourAllocateAgain` deals against a cattle ceiling one
-/// pass out of date; that is a season-pipeline order question, and it is why
-/// claim 4 compares the ceiling for every county and the staffing for the five
-/// with an owner. Not fixed here.
+/// **The last allocation's split was out too** — the nine unowned counties on
+/// 342 milkmaids and 114 idle against the save's 323 and 133 — because
+/// `Pass::LabourAllocateAgain` dealt against a cattle ceiling one pass out of
+/// date. `Army_RecountCountyTroops` (`0x004AD6C0`) is the missing pass: its tail
+/// is `Ration_Apply(c, g_seasonNext); Grain_LabourEstimate; Herd_LabourEstimate`
+/// over every county, which re-prices the season against the herd that survived
+/// `Herd_SeasonTick` (95 head in, 67 out, 13 eaten) and drops the ceiling from
+/// 386 to the save's 323. [`Pass::ArmyRecountTroops`].
 ///
 /// **Ablations, four run.** Delete the `settle_start_county` loop from
 /// `Settings::apply_to`: red at claim 2 (280 cattle, 47 idle). Empty the
@@ -166,18 +167,19 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     assert_eq!(mine.len(), oracle.kingdom.county_ids().count(), "England's counties, owned and not");
     assert_eq!(mine, cattle(&oracle.kingdom), "(cattle ceiling, pasture, crowding, herd, people)");
 
-    // and the milkmaids themselves, for the five counties that have an owner.
+    // and the milkmaids and the idle with them, for **every** county.
     let staffed = |k: &l2_kingdom::Kingdom| {
-        let mut rows: Vec<i32> = k
+        let mut rows: Vec<(i32, i32)> = k
             .county_ids()
-            .filter(|&id| k.counties[id].owner != 0)
-            .map(|id| k.counties[id].labour[k.tables.job.cattle_farming])
+            .map(|id| {
+                let c = &k.counties[id];
+                (c.labour[k.tables.job.cattle_farming], c.labour[l2_kingdom::tables::JOB_IDLE_TOWNSFOLK])
+            })
             .collect();
         rows.sort_unstable();
         rows
     };
-    assert_eq!(staffed(&game.kingdom).len(), 5, "five start counties");
-    assert_eq!(staffed(&game.kingdom), staffed(&oracle.kingdom), "the owned counties' milkmaids");
+    assert_eq!(staffed(&game.kingdom), staffed(&oracle.kingdom), "(milkmaids, idle) every county");
 
     // 3 — drawn.
     let wood = t.industry[Commodity::Wood.index()].next_season;

@@ -88,7 +88,10 @@ pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 /// * 5 — **`Game::event_posted`**, the half of `Event_Post`'s latch that moved
 ///   out of the kingdom so the lockstep digest would stop covering one peer's
 ///   cursor. The original keeps it in the county record; we cannot.
-pub const VERSION: u32 = 5;
+/// * 6 — **a pass index moved**: `l2_kingdom::phase::Pass::ArmyRecountTroops`
+///   was inserted into `SEASON_PIPELINE`, and a season report writes a pass as
+///   its position in that array.
+pub const VERSION: u32 = 6;
 
 /// Magic, version, the prefix's length and the kingdom blob's length.
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
