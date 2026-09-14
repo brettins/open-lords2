@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+
+use super::*;
 use super::view::*;
 use tests::*;
 use l2_sim::runner::{BattleRunner, Conclusion, Formation};
@@ -804,4 +806,5 @@ impl LiveBattle {
         std::mem::take(&mut self.redraw)
     }
 }
+
 

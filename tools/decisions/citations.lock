@@ -26,8 +26,8 @@ crates/l2-game/build.rs	C154	f9de42bc3129	4f820bfd08c8
 crates/l2-game/src/app.rs	C117	81e769c79475	b20f3a227f0f
 crates/l2-game/src/audio/director/engine/mod.rs	C133	15d1b1c19eb7	91fcca97cc98
 crates/l2-game/src/audio/names/audio_tables.rs	C133	cdef544c10db	91fcca97cc98
-crates/l2-game/src/battlefield/logic.rs	C60	3ab509e4145a	2f31848557d2
-crates/l2-game/src/battlefield/logic.rs	C79	76ceb5b70be2	7dc379494ecf
+crates/l2-game/src/battlefield/logic/mod.rs	C60	3ab509e4145a	2f31848557d2
+crates/l2-game/src/battlefield/logic/mod.rs	C79	76ceb5b70be2	7dc379494ecf
 crates/l2-game/src/battlefield/mod.rs	C61	e5b8ebac6d3d	60611046b40d
 crates/l2-game/src/battlefield/tests.rs	C61	9fa3719be417	60611046b40d
 crates/l2-game/src/build_id.rs	C107	357dac9ad6ce	eb231bef7ee5
