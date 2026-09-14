@@ -1180,8 +1180,8 @@
       "gesture": "left-release",
       "addr": "0x0042FF10",
       "what": "Ui_OkButtonClicked() in the 24 x 24 box at (612, 452) - Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1), mode 1, so System.pl8 frame 0x10 - sets g_screenId = 0 and g_redrawRequest = 1.",
-      "note": "THE ORIGINAL GOES TO THE MAP, NOT BACK TO THE COURT, because g_screenId is one byte and it has nowhere to keep what the page was opened over. Ours pops, which lands on the court. Recorded rather than reproduced with Transition::Goto(Campaign): the court is where the button was, and docs/decisions.md C190 exists for the cases where the original names a destination it MEANS rather than one it can afford.",
-      "ours": "crates/l2-game/src/screens/nobles/mod.rs",
+      "note": "THE ORIGINAL GOES TO THE MAP, NOT BACK TO THE COURT, because g_screenId is one byte and it has nowhere to keep what the page was opened over. Ours used to pop, which landed on the court; since 2026-09-14 OK, the right release and the keyboard close are Transition::Goto(ScreenId::Campaign) in screens/nobles/view.rs, the road docs/decisions.md C190 built for a byte that names the destination it means.",
+      "ours": "crates/l2-game/src/screens/nobles/view.rs",
       "evidence": "V"
     },
     {
@@ -1192,7 +1192,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "g_mouseRightReleased anywhere on the page sets g_screenId = 0. Tested before the OK box, exactly as on the county panels.",
-      "ours": "crates/l2-game/src/screens/nobles/mod.rs",
+      "ours": "crates/l2-game/src/screens/nobles/view.rs",
       "evidence": "V"
     },
     {
