@@ -30,7 +30,7 @@ const FREE_FUNCTION_CODECS: &[(&str, &str, &[&str], &[&str])] = &[(
 )];
 
 /// Add [`FREE_FUNCTION_CODECS`] to what `codec_bodies` found.
-fn free_function_codecs(out: &mut BTreeMap<String, Codec>) {
+pub(super) fn free_function_codecs(out: &mut BTreeMap<String, Codec>) {
     let files = rust_files();
     for (ty, krate, enc_heads, dec_heads) in FREE_FUNCTION_CODECS {
         let mut enc = String::new();

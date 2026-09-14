@@ -130,7 +130,7 @@ impl Quirks {
 
     /// The bits [`Quirk::ALL`] occupies. Everything else is reserved and held
     /// at zero.
-    const MASK: u64 = {
+    pub(crate) const MASK: u64 = {
         // A `const fn` loop, so the mask cannot drift from the enum: adding a
         // variant to `ALL` widens it with no second edit.
         let mut m = 0u64;

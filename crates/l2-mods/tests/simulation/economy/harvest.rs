@@ -11,9 +11,6 @@ use l2_sim::{Battle, Troop, TroopTable, SIDE_A, SIDE_B};
 use l2_kingdom::tables::{health_band, Tables};
 use l2_kingdom::{Kingdom, Options};
 use l2_kingdom::tables::{Commodity, JOB_COUNT};
-use l2_kingdom::tables::{health_band, Tables};
-use l2_kingdom::{Kingdom, Options};
-use l2_kingdom::tables::{Commodity, JOB_COUNT};
 
 /// A one-county kingdom with five grain fields, a hundred sacks of seed and
 /// more labour than sowing can use, run through a full year: Spring sows,

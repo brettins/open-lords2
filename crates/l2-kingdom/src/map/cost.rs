@@ -11,7 +11,7 @@ use crate::tables::{MOVE_COST_BLOCKED, MOVE_COST_IMPASSABLE};
 /// `cost != 0`, so "free to enter" is not representable and never needs to be.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CostMap {
-    cost: Vec<i16>,
+    pub(super) cost: Vec<i16>,
 }
 
 impl CostMap {

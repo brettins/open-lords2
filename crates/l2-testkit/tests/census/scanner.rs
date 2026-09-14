@@ -7,15 +7,15 @@ use std::path::{Path, PathBuf};
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 581;
+pub(crate) const GATED_TOTAL: usize = 581;
 
 /// The workspace root, from this crate's manifest.
-fn repo_root() -> PathBuf {
+pub(crate) fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_path_buf()
 }
 
 /// Every `.rs` under `crates/`, excluding this crate.
-fn source_files(root: &Path) -> Vec<PathBuf> {
+pub(super) fn source_files(root: &Path) -> Vec<PathBuf> {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(entries) = std::fs::read_dir(dir) else { return };
         let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
@@ -37,7 +37,7 @@ fn source_files(root: &Path) -> Vec<PathBuf> {
     out
 }
 
-fn relative(root: &Path, p: &Path) -> String {
+pub(super) fn relative(root: &Path, p: &Path) -> String {
     p.strip_prefix(root).unwrap_or(p).to_string_lossy().replace('\\', "/")
 }
 
@@ -101,7 +101,7 @@ fn gate_of(body: &str, items: &[(String, Gate)]) -> Option<Gate> {
     best
 }
 
-fn scan() -> BTreeMap<(String, &'static str), usize> {
+pub(crate) fn scan() -> BTreeMap<(String, &'static str), usize> {
     let root = repo_root();
     let mut found: BTreeMap<(String, &'static str), usize> = BTreeMap::new();
     for path in source_files(&root) {

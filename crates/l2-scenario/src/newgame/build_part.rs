@@ -57,13 +57,13 @@ impl Tiles {
             .expect("Tiles holds MAP_TILES of each")
     }
 
-    fn bank_layer(&self, tile: usize) -> u8 {
+    pub(crate) fn bank_layer(&self, tile: usize) -> u8 {
         self.bank[tile] & BANK_LAYER
     }
 
     /// `FUN_0046AC22(frameBase, 2, tile, layerBit, content)` — stamp a 2×2
 /// object. The bank is rebuilt: `(bank | 1) & 0xE3 | bit`.
-    fn stamp_2x2(&mut self, tile: usize, frame_base: u8, bank_bits: u8, content: u8) {
+    pub(super) fn stamp_2x2(&mut self, tile: usize, frame_base: u8, bank_bits: u8, content: u8) {
         for (n, offset) in [0usize, 1, PLANE_DIM, PLANE_DIM + 1].into_iter().enumerate() {
             let Some(t) = tile.checked_add(offset).filter(|t| *t < MAP_TILES) else { continue };
             self.bank[t] = ((self.bank[t] | 1) & 0xE3) | bank_bits;
@@ -183,7 +183,7 @@ fn load_planes(slot: &MapSlot<'_>) -> Result<MapWorld, MapError> {
 
 /// The four 4-adjacent neighbours of a tile, in `FUN_0046C080`'s order —
 /// north, east, south, west — with the edge reading as county 0.
-fn four_neighbours(x: usize, y: usize) -> [Option<usize>; 4] {
+pub(crate) fn four_neighbours(x: usize, y: usize) -> [Option<usize>; 4] {
     [
         if y > 0 { Some((y - 1) * PLANE_DIM + x) } else { None },
         if x + 1 < PLANE_DIM { Some(y * PLANE_DIM + x + 1) } else { None },

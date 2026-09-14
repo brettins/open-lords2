@@ -22,7 +22,7 @@ use l2_kingdom::{field, land, CampaignMap, Kingdom, Options};
 /// — `crates/l2-scenario/tests/import/main.rs` asserts every populated slot is a
 /// real tile —
 /// panicking somewhere else later.
-fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_FIELDS], SaveError> {
+pub(super) fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_FIELDS], SaveError> {
     let base = COUNTY_FIELD_TILES + county as u32 * COUNTY_FIELD_STRIDE;
     let mut tiles = [0u16; MAX_FIELDS];
     for (slot, out) in tiles.iter_mut().enumerate() {
@@ -40,7 +40,7 @@ fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_FIELDS], Sav
 
 /// `g_tiles`' terrain, flags and county planes, de-interleaved out of the
 /// eight-byte records.
-fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
+pub(super) fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
     let mut terrain = vec![0u8; MAP_TILES];
     let mut flags = vec![0u8; MAP_TILES];
     let mut bank = vec![0u8; MAP_TILES];
@@ -56,7 +56,7 @@ fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
         .expect("four planes of MAP_TILES bytes each"))
 }
 
-fn read_explored(save: &Save, local_player: u8) -> Result<Explored, SaveError> {
+pub(super) fn read_explored(save: &Save, local_player: u8) -> Result<Explored, SaveError> {
     let mut explored = Explored::new();
     for tile in 0..MAP_TILES {
         if save.u8_at(TILES + tile as u32 * TILE_STRIDE + TILE_BANK)? & BANK_SEEN != 0 {
@@ -67,16 +67,16 @@ fn read_explored(save: &Save, local_player: u8) -> Result<Explored, SaveError> {
 }
 
 /// One signed byte out of a county record, by offset.
-fn county_i8(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError> {
+pub(crate) fn county_i8(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError> {
     Ok(save.i8_at(COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + offset)? as i32)
 }
 
 /// One `i32` out of a county record, by offset.
-fn county_i32(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError> {
+pub(super) fn county_i32(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError> {
     save.i32_at(COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + offset)
 }
 
-fn read_industry(save: &Save, county: usize) -> Result<[IndustryState; 4], SaveError> {
+pub(super) fn read_industry(save: &Save, county: usize) -> Result<[IndustryState; 4], SaveError> {
     let base = COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + INDUSTRY_BASE;
     let mut out = [IndustryState::default(); 4];
     for (c, slot) in out.iter_mut().enumerate() {
@@ -101,7 +101,7 @@ fn read_industry(save: &Save, county: usize) -> Result<[IndustryState; 4], SaveE
 /// assigned, 4 the wanted floor, 8 the useful ceiling. All three are
 /// read the same way because the record really is three plain `i32`s — which
 /// is the whole reason the stride is twelve and not four.
-fn read_labour(save: &Save, county: usize, word: u32) -> Result<[i32; JOB_COUNT], SaveError> {
+pub(crate) fn read_labour(save: &Save, county: usize, word: u32) -> Result<[i32; JOB_COUNT], SaveError> {
     let base = COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + LABOUR_BASE + word;
     let mut jobs = [0i32; JOB_COUNT];
     for (job, slot) in jobs.iter_mut().enumerate() {

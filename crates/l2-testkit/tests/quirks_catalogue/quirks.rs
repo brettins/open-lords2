@@ -11,7 +11,7 @@ fn presentation_rows(root: &Path) -> usize {
     presentation(root).0.len()
 }
 
-fn repo_root() -> PathBuf {
+pub(crate) fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_path_buf()
 }
 

@@ -100,7 +100,7 @@ struct Scan {
     files: usize,
 }
 
-fn scan() -> Scan {
+pub(crate) fn scan() -> Scan {
     let root = root();
     let out = Command::new("git")
         .arg("ls-files")

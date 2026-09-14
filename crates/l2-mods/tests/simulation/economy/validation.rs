@@ -11,9 +11,6 @@ use l2_sim::{Battle, Troop, TroopTable, SIDE_A, SIDE_B};
 use l2_kingdom::tables::{health_band, Tables};
 use l2_kingdom::{Kingdom, Options};
 use l2_kingdom::tables::{Commodity, JOB_COUNT};
-use l2_kingdom::tables::{health_band, Tables};
-use l2_kingdom::{Kingdom, Options};
-use l2_kingdom::tables::{Commodity, JOB_COUNT};
 
 /// The two ways one of these new rules can be impossible
 /// unbalanced, both refused at load with the file and line that wrote them.

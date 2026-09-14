@@ -33,7 +33,7 @@ use crate::{Clock, CountyState, IndustryState, RealmState, Scenario};
 /// same one of the four. `FUN_0046D7F4` then recomputes the identical number
 /// from the other side (`docs/formats/maps-layers.md` §5.5), which is a
 /// redundancy in the original and not a second rule.
-fn place_starting_fields(w: &mut MapWorld, difficulty: u8) {
+pub(super) fn place_starting_fields(w: &mut MapWorld, difficulty: u8) {
     let mut ordinal = [0i32; 0x20];
     for c in w.farm_tile_count.iter_mut() {
         *c = 0;
@@ -90,7 +90,7 @@ fn place_starting_fields(w: &mut MapWorld, difficulty: u8) {
 ///
 /// `[D]` on the consequence, `[V]` on the code: the razing branch is the `else`
 /// of *"is there a free slot"*, and the four writes are literal.
-fn collect_field_tiles(w: &mut MapWorld) {
+pub(super) fn collect_field_tiles(w: &mut MapWorld) {
     for row in w.field_tiles.iter_mut() {
         *row = [0; MAX_FIELDS];
     }
@@ -125,7 +125,7 @@ fn collect_field_tiles(w: &mut MapWorld) {
 /// not. `Merchant_StartCountyTaken` returns 1 for county 0 as well, because
 /// unset entries are 0 —
 /// `Merchant_SpawnAll` stops dead at the first zero.
-fn pick_merchant_starts(w: &mut MapWorld) {
+pub(super) fn pick_merchant_starts(w: &mut MapWorld) {
     let taken = |starts: &[u8; ROUTES], c: u8| starts.iter().any(|&s| s == c);
     let mut starts = [0u8; ROUTES];
     for row in 0..ROUTES {
@@ -223,7 +223,7 @@ fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
 /// [`shuffle_starts`] left it. Written that way, with
 /// the equivalence stated here and checked over all 44 shipped maps in
 /// `tests/newgame.rs`.
-fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapError> {
+pub(super) fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapError> {
     let seats = shuffle_starts(w, seed);
     if seats.is_empty() {
         return Err(MapError::NoPlayerStarts);

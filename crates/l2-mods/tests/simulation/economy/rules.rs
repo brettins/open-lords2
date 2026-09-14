@@ -11,15 +11,11 @@ use l2_sim::{Battle, Troop, TroopTable, SIDE_A, SIDE_B};
 use l2_kingdom::tables::{health_band, Tables};
 use l2_kingdom::{Kingdom, Options};
 use l2_kingdom::tables::{Commodity, JOB_COUNT};
-use l2_kingdom::tables::{health_band, Tables};
-use l2_kingdom::{Kingdom, Options};
-use l2_kingdom::tables::{Commodity, JOB_COUNT};
 
-use l2_kingdom::tables::{Commodity, JOB_COUNT};
 
 /// Build a platform over one mod whose single rule file is `rules`, and take
 /// the economy table out of it.
-fn modded(name: &'static str, rules: &str) -> Tables {
+pub(crate) fn modded(name: &'static str, rules: &str) -> Tables {
     let base = TempDir::new(&format!("{name}-base"));
     let mods = TempDir::new(&format!("{name}-mods"));
     empty_base(&base);
@@ -37,7 +33,7 @@ fn modded(name: &'static str, rules: &str) -> Tables {
 
 /// One human-owned county of five hundred people, already through its first
 /// season, on whatever rules it is handed.
-fn one_county(tables: Tables) -> Kingdom {
+pub(crate) fn one_county(tables: Tables) -> Kingdom {
     let mut k = Kingdom::with_tables(0xBEEF_0001, tables);
     k.options = Options { difficulty: 0, advanced_farming: false, ..Options::default() };
     assert!(k.set_county_count(1));

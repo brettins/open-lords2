@@ -8,7 +8,7 @@ use l2_kingdom::tables::{health_band, Tables};
 use l2_kingdom::{Kingdom, Options};
 use l2_kingdom::tables::{Commodity, JOB_COUNT};
 
-fn empty_base(dir: &TempDir) {
+pub(crate) fn empty_base(dir: &TempDir) {
     // A layer must be a directory that exists; it need contain nothing. The
     // engine's own rules are compiled in
     // still has combat constants.

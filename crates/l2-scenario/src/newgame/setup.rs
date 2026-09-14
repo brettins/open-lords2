@@ -27,10 +27,10 @@ struct Assignment {
     /// Realm `+0x0A`, `shieldIndex`, 1 … 5. **Zero means the walk gave this
     /// realm nothing** — it is above the lord count — and the caller falls back
 /// to `FUN_0049C995`'s seed.
-    shield: [u8; MAX_REALMS],
+    pub(crate) shield: [u8; MAX_REALMS],
     /// Realm `+0x28`, the lord id. Zero for a human and for a realm out of
     /// play, which is what the original writes at the top of every iteration.
-    lord: [u8; MAX_REALMS],
+    pub(crate) lord: [u8; MAX_REALMS],
 }
 
 /// `Realms_AssignLords` (`0x0049CAAA`) — **the shield first, by position, and
@@ -74,7 +74,7 @@ struct Assignment {
 /// because it is the one a single-player custom game reaches unless that flag
 /// is set, and because it is the only reading under which the four groups exist
 /// for a reason.
-fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
+pub(crate) fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
     let group = setup.slot & 3;
     let human = setup.local_player as usize;
     // `g_aiLordCount` — `Setup_CommitOptions` keeps *Nobles* minus the people,
@@ -134,7 +134,7 @@ fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
 /// wholesale by `FUN_0046EA28` in `Game_NewGame`'s preamble and no new-game
 /// path writes a tax rate,
 /// `[D]`, and it is the answer to a question `docs/kingdom.md` does not ask.
-fn county_reset(id: usize) -> CountyState {
+pub(crate) fn county_reset(id: usize) -> CountyState {
     CountyState {
         owner: 0,
         population: reset::POPULATION,
@@ -307,7 +307,7 @@ fn industry_reset() -> [IndustryState; 4] {
 /// defence carry. The route cursor lives in the low byte of `yearFormed` and
 /// opens at 1, not 0: the merchant's first destination is the *second* town on
 /// its row, because it is standing in the first.
-fn spawn_merchants(w: &MapWorld, map: &CampaignMap) -> Vec<(usize, Unit)> {
+pub(super) fn spawn_merchants(w: &MapWorld, map: &CampaignMap) -> Vec<(usize, Unit)> {
     let mut units = Units::new();
     let mut out = Vec::new();
     for (row, &county) in w.merchant_start.iter().enumerate() {

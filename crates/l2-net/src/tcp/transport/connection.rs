@@ -10,15 +10,15 @@ use crate::transport::{frame, FrameReader, PeerId, Transport, TransportError};
 
 /// One connection, and everything half-delivered in either direction.
 #[derive(Debug)]
-pub(super) struct Connection {
-    id: PeerId,
-    stream: TcpStream,
+pub(crate) struct Connection {
+    pub(crate) id: PeerId,
+    pub(crate) stream: TcpStream,
     /// Inbound reassembly. The tested one; see [`FrameReader`].
     reader: FrameReader,
     /// Complete messages, waiting for the caller to poll.
-    inbox: VecDeque<Vec<u8>>,
+    pub(crate) inbox: VecDeque<Vec<u8>>,
     /// Bytes we have accepted from `send` and the kernel has not taken.
-    out: Vec<u8>,
+    pub(super) out: Vec<u8>,
     /// How far into `out` the kernel has taken. Same compaction
     /// reasoning as [`FrameReader`]: draining from the front of a `Vec`
     /// on every write is quadratic on a busy link.
@@ -26,7 +26,7 @@ pub(super) struct Connection {
     /// The peer closed, or the link failed. Either way nothing more
     /// will be sent on it; anything already in `inbox` is still
     /// delivered.
-    dead: bool,
+    pub(crate) dead: bool,
 }
 
 impl Connection {
@@ -48,13 +48,13 @@ impl Connection {
         })
     }
 
-    fn pending_out(&self) -> usize {
+    pub(crate) fn pending_out(&self) -> usize {
         self.out.len() - self.out_done
     }
 
     /// Push as much of the outbox as the kernel will take. Never
     /// blocks.
-    fn flush(&mut self) -> Result<(), TransportError> {
+    pub(crate) fn flush(&mut self) -> Result<(), TransportError> {
         while self.out_done < self.out.len() {
             match self.stream.write(&self.out[self.out_done..]) {
                 Ok(0) => {
@@ -81,7 +81,7 @@ impl Connection {
     }
 
     /// Read what has arrived and turn it into whole messages.
-    fn fill(&mut self, scratch: &mut [u8]) -> Result<(), TransportError> {
+    pub(super) fn fill(&mut self, scratch: &mut [u8]) -> Result<(), TransportError> {
         let mut budget = READ_BUDGET;
         let mut failure = None;
         while budget > 0 {

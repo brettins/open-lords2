@@ -141,7 +141,7 @@ const SEED: u64 = 0x10D_52;
 /// That struct belongs to `l2-formats` and is not this test's to change, and
 /// `Save` exposes the addressed read the struct is itself built from — so the
 /// bytes are reachable without either crate growing a field for a test.
-fn county_i32(save: &Save, id: usize, offset: u32) -> i32 {
+pub(crate) fn county_i32(save: &Save, id: usize, offset: u32) -> i32 {
     save.i32_at(0x0053_F9B0 + (id as u32) * 0x300 + offset).expect("a saved county address")
 }
 

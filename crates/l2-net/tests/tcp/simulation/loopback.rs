@@ -37,7 +37,7 @@ fn two_sessions_over_real_sockets_agree_on_every_tick() {
 }
 
 /// The same schedule over the in-process [`Loopback`], for comparison.
-fn loopback_hashes(seed: u64, target: Tick) -> Vec<Vec<(Tick, u64)>> {
+pub(super) fn loopback_hashes(seed: u64, target: Tick) -> Vec<Vec<(Tick, u64)>> {
     let slots = [PlayerSlot::new(0), PlayerSlot::new(1)];
     let ids = [PeerId(0), PeerId(1)];
     let net = Loopback::with_peers(&ids);

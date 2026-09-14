@@ -18,6 +18,4 @@ use l2_kingdom::tables::{health_band, Tables};
 use l2_kingdom::{Kingdom, Options};
 use l2_kingdom::tables::{Commodity, JOB_COUNT};
 
-use l2_kingdom::tables::{health_band, Tables};
-use l2_kingdom::{Kingdom, Options};
 

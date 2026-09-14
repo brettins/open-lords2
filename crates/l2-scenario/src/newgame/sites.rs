@@ -23,7 +23,7 @@ use crate::{Clock, CountyState, IndustryState, RealmState, Scenario};
 /// and counts them into `+0x5B`. Reproducing the order matters: the list is
 /// walked by index in half a dozen places and two peers must walk it the same
 /// way (`docs/netcode.md` D-4).
-fn adjacency(w: &mut MapWorld) {
+pub(super) fn adjacency(w: &mut MapWorld) {
     let n = w.county_count;
     for y in 0..PLANE_DIM {
         for x in 0..PLANE_DIM {
@@ -65,7 +65,7 @@ fn adjacency(w: &mut MapWorld) {
 /// *"a `0x80` tile with no terrain yet"* — which is exactly the tiles the
 /// resource sites did not take. Reorder them and the county's mine becomes its
 /// castle.
-fn place_sites(w: &mut MapWorld) {
+pub(super) fn place_sites(w: &mut MapWorld) {
     for county in 1..=w.county_count {
         let Some((town, anchor)) = find_town_tile(w, county) else { continue };
         w.town_tile[county] = town;

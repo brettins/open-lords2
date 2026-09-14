@@ -58,7 +58,7 @@ const T: &Tables = &Tables::DEFAULT;
 
 /// One county field straight out of the file, at the offset `docs/kingdom.md`
 /// §1 names it at. The same reader `tests/reproduction.rs` uses.
-fn county_i32(save: &Save, id: usize, offset: u32) -> i32 {
+pub(crate) fn county_i32(save: &Save, id: usize, offset: u32) -> i32 {
     save.i32_at(0x0053_F9B0 + (id as u32) * 0x300 + offset).expect("a saved county address")
 }
 

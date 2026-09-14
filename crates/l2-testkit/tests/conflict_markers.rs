@@ -65,7 +65,7 @@ fn is_marker(line: &str) -> bool {
 /// Fenced hits are kept
 /// the exemption is
 /// exemption that could be swallowing everything.
-fn scan() -> Vec<Hit> {
+pub(crate) fn scan() -> Vec<Hit> {
     let root = root();
     let out = Command::new("git")
         .arg("ls-files")

@@ -122,9 +122,9 @@ pub fn expand6(v: u8) -> u8 {
 }
 
 pub(super) struct Chunks<'a> {
-    palette: Option<&'a [u8]>,
+    pub(super) palette: Option<&'a [u8]>,
     pub(super) audio: [Option<&'a [u8]>; 7],
-    video: &'a [u8],
+    pub(super) video: &'a [u8],
 }
 
 // ------------------------------------------------------------- video
