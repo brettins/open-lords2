@@ -524,7 +524,7 @@ fn sources(root: &Path) -> Vec<(String, String)> {
 /// reason the behavioural half is: a textual join cannot be satisfied by code
 /// that compiles.
 fn presentation(root: &Path) -> (Vec<(String, String)>, Vec<String>) {
-    let src = read(root, "crates/l2-game/src/game.rs");
+    let src = read(root, "crates/l2-game/src/game/mod.rs");
 
     let table = src
         .split("pub const PRESENTATION: &[(&str, &str)] = &[")
