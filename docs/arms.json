@@ -751,7 +751,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "0x13 has a right-button test and an OK-corner test, either of which returns to the map. 0x12, one screen earlier, has NEITHER -- which is what made right-click-to-Decline look reasonable.",
-      "ours": "crates/l2-game/src/screens/battle.rs",
+      "ours": "crates/l2-game/src/screens/battle/mod.rs",
       "evidence": "V"
     },
     {
@@ -3185,7 +3185,7 @@
       "addr": "0x004BA9C8",
       "what": "DAT_004DDBB0[1], the thumb down at (372, 116), hotspot id 0 -> Battle_Decline, which is Battle_AutoResolve and the report. The table holds exactly these two records: g_sliderWidgets begins 48 bytes on at 0x004DDBE0, and the count DAT_00554408 is 2 when g_battleChoiceOwner == 1 and 0 otherwise.",
       "note": "GESTURE CORRECTED, and it had been wrong in BOTH directions. It was filed left-press, moved to left-release by the branch that found Ui_OkButtonClicked waits for the release, and the kind byte at +0x0F of 0x004DDBC8 says 4 -- the PRESS, with the pressed picture. The pair of pictures is the yes/no box's and the KIND is not: g_confirmWidgets' two records are kind 5 and these are kind 4. A family resemblance is not a kind. docs/decisions.md C148.",
-      "ours": "crates/l2-game/src/screens/battle.rs",
+      "ours": "crates/l2-game/src/screens/battle/mod.rs",
       "evidence": "V"
     },
     {
@@ -3197,7 +3197,7 @@
       "addr": "0x004BA9C8",
       "what": "DAT_004DDBB0[0], the thumb up at (332, 116), hotspot id 1 -> FUN_0043B593 -> Battle_Start. It RAISES THE BATTLEFIELD; it does not settle the battle.",
       "note": "GESTURE CORRECTED: the kind byte at +0x0F of 0x004DDBB0 is 4, the press. The auto-repeat that comes with kind 4 is unreachable -- Battle_PromptAnswered leaves screen 0x12 on the first fire and a table nobody walks cannot repeat -- so what the kind buys a player here is the pressed picture and the press edge. See the sibling record.",
-      "ours": "crates/l2-game/src/screens/battle.rs",
+      "ours": "crates/l2-game/src/screens/battle/mod.rs",
       "evidence": "V"
     },
     {

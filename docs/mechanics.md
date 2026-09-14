@@ -541,7 +541,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   **`g_battleLoser` holds the winner**; four sites say so and `docs/armies.md` §7 lists them.
   Implementing it on the name destroys the winner and hands the county to the corpse
 - ✅ **"Will you take the field?"** — screens `0x12` and `0x13`
-  (`crates/l2-game/src/screens/battle.rs`), `L2.eng` groups 80 and 81, and a turn that
+  (`crates/l2-game/src/screens/battle/mod.rs`), `L2.eng` groups 80 and 81, and a turn that
   **suspends** while the question is up. `end_turn` used to answer `Decline` for the player
   because there was no screen to ask on; the campaign now stops mid-tick with both armies
   standing, and neither the autocalc nor the fought battle runs until a thumb is clicked.
