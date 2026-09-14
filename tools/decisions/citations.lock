@@ -188,8 +188,8 @@ crates/l2-game/tests/screens_county/layout_and_labels.rs	C123	33ec2c598c8c	3a5cc
 crates/l2-game/tests/screens_county/layout_and_labels.rs	C129	9dcd01797f42	d7820532a89c
 crates/l2-game/tests/screens_county/layout_and_labels.rs	C140	227badb0235c	e3a1ede42a95
 crates/l2-game/tests/screens_county/layout_and_labels.rs	C140	e626e6be922d	e3a1ede42a95
-crates/l2-game/tests/screens_county/panels.rs	C118	3de9b4c34a46	cd0e7b0adc57
-crates/l2-game/tests/screens_county/panels.rs	C125	7451a8225f45	6084e87aec70
+crates/l2-game/tests/screens_county/panels/main.rs	C118	3de9b4c34a46	cd0e7b0adc57
+crates/l2-game/tests/screens_county/panels/main.rs	C125	7451a8225f45	6084e87aec70
 crates/l2-game/tests/screens_county/produce_and_pastures.rs	C112	a5a80ad18330	0dbcd00423ed
 crates/l2-game/tests/screens_county/produce_and_pastures.rs	C153	623b31365217	c724d7afe0dd
 crates/l2-game/tests/screens_county/strip_and_sidebar.rs	C42	5cc4b466670e	a2ac3547bb32
