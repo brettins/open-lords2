@@ -643,7 +643,7 @@ impl LiveBattle {
     /// `Map_ScrollThrottle` adds 2 to its quotient when `g_screenId == 0x10`,
     /// and the battlefield is not `0x10`, so the battle scrolls at the plain
     /// `((100 − speed) / 10) × 12 + 2` milliseconds. The quantisation to whole
-    /// ticks is ours and is the same one `screens/map.rs` documents —
+    /// ticks is ours and is the same one `screens/map/mod.rs` documents —
     /// `docs/decisions.md` C60. Without it the battle camera would move 62 cells
     /// a second.
     ///
@@ -1185,7 +1185,7 @@ impl LiveBattle {
 /// `Map_ScrollThrottle` (`0x004320D1`) in whole simulation ticks.
 ///
 /// `((100 − speed) / 10) × 12 + 2` milliseconds, rounded to the nearest tick and
-/// never below one; speed 0 never scrolls. Identical to `screens/map.rs`'s,
+/// never below one; speed 0 never scrolls. Identical to `screens/map/mod.rs`'s,
 /// without the `+= 2` that function adds for `g_screenId == 0x10`.
 pub fn scroll_interval_ticks(speed: i32) -> u32 {
     const TICK_MS: u32 = 16;

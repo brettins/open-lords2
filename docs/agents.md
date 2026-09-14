@@ -571,7 +571,7 @@ What happened, in order:
    recentres* — and the conclusion drawn was that the fix asked for was too big: the original
    selects, it just does not open anything.
 3. That reading was written up as C61, **C58 was edited in place to apologise for its claim that
-   `Map_Click` has no county-selection arm**, `screens/map.rs`'s module header was rewritten around
+   `Map_Click` has no county-selection arm**, `screens/map/mod.rs`'s module header was rewritten around
    it, and two tests were rewritten to assert it. All of it passed.
 4. It is the **prologue of the industry branch**, guarded by tile flag `0x80` *and* by the county
    being the local player's. `Map_Click` has no such arm; its three writes to `g_selectedCounty`

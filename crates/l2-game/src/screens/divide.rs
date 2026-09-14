@@ -177,7 +177,7 @@ pub fn totals_y(band: bool) -> i32 {
 /// was: `row_y(row) - 8` is the table's `row * 0x20 + 0x78` exactly.
 ///
 /// That is the fifth time a hit box on this project has been placed by reading
-/// a painter; `screens/map.rs`'s header carries the
+/// a painter; `screens/map/mod.rs`'s header carries the
 /// standing warning and this is now one of its examples.
 pub const BUTTON_DIM: i32 = 24;
 pub const PARENT_BUTTON_X: i32 = 256;

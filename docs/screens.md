@@ -884,7 +884,7 @@ a field, `0x004DC530` two (begin reclaiming `0x19`, abandon `0`) for waste; all 
 ## 7. What our engine does, and what it does not
 
 Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs` and
-`crates/l2-game/src/screens/map.rs`:
+`crates/l2-game/src/screens/map/mod.rs`:
 
 * both real zooms and their tile art, the real pitches, the scrolling window, `Map_ClampScroll`'s
   bounds, `Map_ScrollStep`'s eight directions and one-tile step, `Map_ToggleZoom`'s

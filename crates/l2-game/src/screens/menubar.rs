@@ -2,7 +2,7 @@
 //!
 //! `docs/screens-county.md` §10.1. The bar itself is painted every frame by
 //! `Screen_DrawMenuBar`, and until now it was painted here too and did nothing:
-//! `crates/l2-game/src/screens/map.rs`'s header carried the line *"**not
+//! `crates/l2-game/src/screens/map/mod.rs`'s header carried the line *"**not
 //! reproduced:** the menu bar's three titles — `Menu_OpenDropdown`
 //! (`0x0040DECA`)"*, which is nineteen input arms in one row of a table.
 //!
