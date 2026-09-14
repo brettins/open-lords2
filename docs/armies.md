@@ -1527,7 +1527,7 @@ mail was bought once, at the blacksmith.
 
 ### 6.5 Splitting an army, and disbanding one
 
-The other two ends of §6.3, both now read end to end. `crates/l2-kingdom/src/divide.rs` is the
+The other two ends of §6.3, both now read end to end. `crates/l2-kingdom/src/divide/mod.rs` is the
 implementation and carries the pseudocode; this is what the two functions establish.
 
 **The shipped `Readme.txt` is a first-class source here and in three places it is the better
