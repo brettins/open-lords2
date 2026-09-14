@@ -12267,3 +12267,13 @@ rough-tile test on "Mountain." heading at (0x28, row*16 + 0x40).
 
 Finding: docs/arms.json has no TileInfo_Draw; docs/draws.md and draws-map.md
 track no 0x0041C208, so five draw arms tracked only in tests.
+
+---
+
+**C229 — The starting army option raises the starting garrison; all twelve start options honoured.**
+
+`FUN_0049BD99` `0x0049BD99` stages the new game through `Game_SetupRealmsAndCounties` `0x0049BD99`. `g_startArmySize` arm at `0x0049BF9E` ported into `Settings::apply_to`: basket from `g_startTroops` row `0x004DC110`, county population pre-credited so `Levy_DebitPopulation` nets to zero, `Army_Create(realm, county, 0, 0)` through `l2_kingdom::levy::create_army` (levy screen's own path), surcharge undone, first wage refunded. `Levy_ConsumeWeapons` debits still-zero armoury in original because `g_startArmoury` written after `0x0049C15B`, so armoury row restored and garrison free [V]. `Settings::unhonoured` now returns empty, all twelve options honoured.
+
+Test `army_size_raises_the_starting_garrison` (crates/l2-game/tests/newgame.rs): England, rows 0 and 3, 0 armies then 2 armies of 300 men {0,0,0,100,100,100,0} on bare road tiles in own counties, population and armoury intact, surcharge 0. Ablation red at 0 against 2. Census crates/l2-game/tests/newgame.rs 10 to 11, GATED_TOTAL 579 to 580.
+
+Three remaining lost inputs already carried: County +0x206 stored-fields row County+0x206 imported, written by `Grain_Sow`, field::grain_to_pasture `FUN_0046965A` (field.rs:328) and `County_DestroyField` `0x00469E5B`, read by wheat divisor (land.rs:1003), save VERSION 25. County +0x29C `Industry::last_efficiency` (C218), VERSION 26. Realm +0x2A `peakCounties` imported, `Realm::peak_counties`, read by `County_ChangeOwner` nine-letter ladder, set to 1 at new game as `FUN_0049BD99` does. `Unit_TrampleTile` `0x0046873F` reads whole [V]: each arm writes tile content and frame, `industry[k].disabledSeasons = 3`, `industry[k].efficiency = 0`, four-byte zero at industryRecord + 0x18, `labour[j].wanted = -1 / useful = 0`. Record +0x0C (county +0x29C) never among them, so no ramp reset to carry; exclusion stands.
