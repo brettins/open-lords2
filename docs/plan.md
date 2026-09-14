@@ -460,7 +460,7 @@ the most gameplay-critical shell in the table.
 > **Closed.** Screen `0x17` is `crates/l2-game/src/screens/army.rs` and screen `0x11` is
 461: > `screens/divide.rs`; both have left the shell table, and the name is corrected in it, in
 > `docs/screens-county.md` and in `docs/mechanics.md`. `Map_Click`'s army branch is
-463: > `screens/map.rs` — a click on your own army selects it and the next click on the map is the
+463: > `screens/map/mod.rs` — a click on your own army selects it and the next click on the map is the
 > march order, a click on your own *besieging* army opens `0x1D` — and turn phase 2 calls
 > `engagement::run_siege_phase`, which nothing outside its own tests had ever called.
 > `crates/l2-game/tests/military.rs` drives all three verbs as `Event` values through

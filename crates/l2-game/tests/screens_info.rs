@@ -65,7 +65,7 @@ fn visible_field(
 ///
 /// Driven through the [`Machine`] at the pixel a player would click, on a field
 /// That is on screen. **Ablation, run:** deleting the `Push` in the
-/// farmland arm of `screens/map.rs` fails the second assertion — the left click
+/// farmland arm of `screens/map/mod.rs` fails the second assertion — the left click
 /// stays on the campaign map.
 #[test]
 fn a_left_click_on_your_own_field_opens_what_a_right_click_opens() {

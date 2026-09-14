@@ -1490,7 +1490,7 @@ code confirms the reading, not the behaviour.
 
 **C43 — The campaign sidebar's five buttons were one button of ours, drawn over.**
 
-`crates/l2-game/src/screens/map.rs` said, of the 162 × 30 strip at (478, 430): *"the
+`crates/l2-game/src/screens/map/mod.rs` said, of the 162 × 30 strip at (478, 430): *"the
 original puts a status line here, not a button; we use it to open the county panel"*. The
 original puts **five buttons** there — `g_sidebarButtons` (`0x004DC680`), dispatched by
 `Sidebar_Button` (`0x0043AE30`) — and the artwork for all five is painted into `Misc_cty`
@@ -3675,7 +3675,7 @@ county panels and screens `0x04` … `0x13` — at **64 of 114** arms. This is t
 and the shape of what was found is the finding rather than the count.
 
 **A one-line "not reproduced" in a table hid twenty-one arms.**
-`crates/l2-game/src/screens/map.rs`'s header carried three rows reading *"**not
+`crates/l2-game/src/screens/map/mod.rs`'s header carried three rows reading *"**not
 reproduced:** the menu bar's three titles — `Menu_OpenDropdown`"*, *"…right release clears
 the minimap mode"* and *"…the sidebar's job rows"*. The first of those three lines is
 **sixteen menu items over three drop-downs plus four dispatch arms**, because
@@ -3747,7 +3747,7 @@ only control on any job popup* (`0x004BA9C8/blacksmith-weapon-choice`); and
 cannot be hit-tested until it has been painted. `docs/arms.json`'s `_note` now says this
 where the number is taken.
 
-**A stray NUL byte in `crates/l2-game/src/screens/map.rs`** — a `'\0'` pasted verbatim out
+**A stray NUL byte in `crates/l2-game/src/screens/map/mod.rs`** — a `'\0'` pasted verbatim out
 of the decompiler into a doc comment — made `grep` treat the file as binary and hide every
 `// arm:` marker in it from a plain search. `rustc` accepted it and so did the arms test,
 which reads the file with `read_to_string`; only the human-facing tool lied. Replaced with
@@ -6118,7 +6118,7 @@ recorded. Its **visual** half — the yellow outline round the selected county �
 a player reported it four merges later: *"still a weird yellow outline around the county
 that is selected on the real map."*
 
-Nobody was careless. `screens/map.rs` carried the comment *"Ours: the selected county
+Nobody was careless. `screens/map/mod.rs` carried the comment *"Ours: the selected county
 outlined on the shape the player can see. The original has no such outline"*, accurately,
 directly above the draw call, and the module header listed it under *"ours, and it should
 look it."* This is the shape `docs/agents.md` records as *a correct explanation sitting
@@ -7120,7 +7120,7 @@ original's overlay pass never visits.**
 
 A player: *"I haven't seen any mercenary icons on the town square yet."* The
 feature was **not missing.** `crates/l2-view/src/campaign.rs` had
-`MERCENARY_MARKER_FRAME = 0x81` and `screens/map.rs`'s `draw_flags` blitted it,
+`MERCENARY_MARKER_FRAME = 0x81` and `screens/map/mod.rs`'s `draw_flags` blitted it,
 gated on `county.mercenary_offer`, with a comment that named the right quadrant:
 
 ```rust
@@ -7306,7 +7306,7 @@ if ((g_realms[i].strength != 0) && (g_realms[i].aiStep < 999)) {
 }
 ```
 
-`draw_menu_bar` in `crates/l2-game/src/screens/map.rs` tests `Realm::in_play`, which
+`draw_menu_bar` in `crates/l2-game/src/screens/map/mod.rs` tests `Realm::in_play`, which
 *is* `strength != 0`, and nothing else. So no shield ever vanishes.
 
 **`aiStep == 999` is "this realm's turn is over"**, from four sites: `Turn_End`

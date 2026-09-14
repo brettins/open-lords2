@@ -185,7 +185,7 @@
 //!
 //! # The hit boxes
 //!
-//! `crates/l2-game/src/screens/map.rs`'s header records three wrong-screen bugs
+//! `crates/l2-game/src/screens/map/mod.rs`'s header records three wrong-screen bugs
 //! that reached a player in one evening, all of them near-misses falling through
 //! to county selection. **A page of checkboxes is a page of small hotspots and
 //! has the same exposure**, so this module takes the other side of every

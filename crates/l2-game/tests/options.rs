@@ -6,7 +6,7 @@
 //! Three things this file is written to catch, all of which have already
 //! reached a player from other screens:
 //!
-//! * **a near-miss acting anyway.** `crates/l2-game/src/screens/map.rs`'s header
+//! * **a near-miss acting anyway.** `crates/l2-game/src/screens/map/mod.rs`'s header
 //!   records three wrong-screen bugs in one evening, every one a click that fell
 //!   through to county selection. A page of check boxes is a page of small
 //!   hotspots with the same exposure, so every test that clicks a box also

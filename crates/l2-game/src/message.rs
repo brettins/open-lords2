@@ -942,7 +942,7 @@ impl MessageQueue {
     /// map from silently declining an alliance.
     ///
     /// Returns whether it closed. The marker for this arm is on its CALLER, in
-    /// `screens/map.rs`: the gesture is a click on the campaign map and this is
+    /// `screens/map/mod.rs`: the gesture is a click on the campaign map and this is
     /// only the four-line helper it reaches.
     pub fn dismiss_unless_question(&mut self) -> bool {
         match self.open {

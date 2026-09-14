@@ -894,7 +894,7 @@ wants is two bytes, which is the same shape as the mercenary marker's one;
 
 ## 7. What we draw that the original does not
 
-About **29** sites, hand-counted from the `OURS`-marked code in `screens/map.rs`,
+About **29** sites, hand-counted from the `OURS`-marked code in `screens/map/mod.rs`,
 `screens/county.rs` and `screens/menubar.rs`, excluding the eight fallbacks that appear only
 when the artwork is missing:
 

@@ -2490,7 +2490,7 @@ neither.
 
 **`docs/arms.json` holds 33 battlefield records for these 38 arms
 the same rule applied from the other end.** This table counts an arm once **per
-screen it is live on**, which is how C61 counted (`screens/map.rs`'s table lists
+screen it is live on**, which is how C61 counted (`screens/map/mod.rs`'s table lists
 the edge scroll under both `0` and `0x10`); the file counts it once **per
 implementation**
 has one function. The five that differ are the overview panel, live on all three

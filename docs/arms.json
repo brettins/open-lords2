@@ -501,8 +501,8 @@
       "gesture": "left-press",
       "addr": "0x0040DECA",
       "what": "Menu_OpenDropdown(&g_menuBarItems, 3). Menu_HitTitle (0x0040E00A) picks the title under the pointer; on a hit it saves g_screenId into g_menuPrevScreen, writes 0x32 and calls Menu_SaveBackdrop. The titles are MEASURED, not placed: Ui_DrawMenuTitles writes each caption's pen-after into the record and the next title starts 32 pixels further on, so a title's hit box is exactly the width of its own word in the 14-pixel body font and the gap between two titles is dead.",
-      "note": "This is the arm docs/screens.md and crates/l2-game/src/screens/map.rs both carried as 'not reproduced' in a table row -- one row for nineteen arms. It sits INSIDE the turn-ended gate while Sidebar_ButtonClicked, two guards above it, sits outside: the sidebar keeps working after End Turn and the menu bar does not.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "note": "This is the arm docs/screens.md and crates/l2-game/src/screens/map/mod.rs both carried as 'not reproduced' in a table row -- one row for nineteen arms. It sits INSIDE the turn-ended gate while Sidebar_ButtonClicked, two guards above it, sits outside: the sidebar keeps working after End Turn and the menu bar does not.",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -935,7 +935,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "The clause immediately after the Map_Click call in the screen-0 ladder: `if (DAT_005533B0 != 0 && g_mouseRightReleased) { g_screenId = 4; FUN_0043CAF4(); }` -- a right release over a picked tile opens the information panel. It is screen 0's arm and ONLY screen 0's, which is the whole of why the deselect below was missing.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -948,7 +948,7 @@
       "what": "`if (picked && leftPressed && g_mapZoom == 2) { g_screenId = 0; Map_ZoomInAtTile(); return; }` -- at the far zoom a left PRESS on a tile zooms the map in on it, and the arm RETURNS rather than falling through to Map_Click. So at zoom 2 the left button does not select anything; it zooms.",
       "note": "The arm RETURNS, so Map_Click and every tile arm below it are unreachable at zoom 2. Guarded on there being no move-order selection, because the arm is inside the g_screenId == 0 ladder and 0x10 has its own four-line arm with no zoom test. Map_ZoomInAtTile's centring is Map_CentreOnTile's, which is MapScreen::centre_on_tile.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/map.rs"
+      "ours": "crates/l2-game/src/screens/map/events.rs"
     },
     {
       "id": "0x0042FF10/merchant-ok",
@@ -971,7 +971,7 @@
       "addr": "0x0042FF10",
       "what": "Screen_FrameInput's EPILOGUE, which runs after every per-screen arm on every screen id but 0x12: `if ((leftPressed || rightPressed) && FUN_004323FE()) { if (g_screenId == 0x0F) Sound_StopOneShot(); if (g_battlePhase == 0) g_screenId = 0; }`. FUN_004323FE is Minimap_Click outside a battle and BattleMap_Click inside one. So a press on the minimap raster from ANY management screen re-centres the map and DROPS THE WHOLE MANAGEMENT SURFACE.",
       "note": "The reach of this arm is the finding: the minimap is not the campaign map's control, it is the game's. Reproduced by Transition::Reveal, a new machine verb meaning 'I acted and everything above me closes' -- which is what `g_screenId = 0` is when there is a stack underneath. The county panels, the job popup and the shells pass the press down; the village's two drag phases do not, which is Minimap_Click's own guard rather than an omission.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -1066,7 +1066,7 @@
       "addr": "0x0042FF10",
       "what": "The third clause of the 0x10 arm: `if (g_mouseLeftPressed != 0 && g_moveOrderClickGuard < 1) { g_screenId = 0; DAT_0056D64C = 1; Map_ConfirmMoveOrder(); }`. Map_ConfirmMoveOrder (0x004A9252) opens `if (g_moveOrderAvailable != 1) return;`, the gate Map_HoverUnitTarget lit or cleared for the tile under the cursor.",
       "note": "A left PRESS, where Map_Click one screen id away is a left RELEASE. g_moveOrderClickGuard (0x00553ECC, 40 frames) is absent from ours and that is a difference of model rather than an omission: Screen_FrameInput polls the button's LEVEL every frame, so one physical press reads as a click on every frame it is held, and our Event::Click is already an edge. C61.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -1078,7 +1078,7 @@
       "addr": "0x0042FF10",
       "what": "THE DESELECT, and the whole of it: `if (g_mouseRightReleased != 0) { g_screenId = 0; g_redrawRequest = 2; }`. Leave move-order mode, redraw, and nothing else -- no information panel, no confirmation, and no order placed.",
       "note": "A player: \"i also cant deselect an army.\" Ours had the right button bound to screen 0's arm -- 0x0042FF10/map-right-opens-info above -- with no test of the mode, so it opened a panel where the original cancels. NOTE WHAT IS NOT HERE: a click on empty ground does NOT deselect. That click is Map_ConfirmMoveOrder and it either places an order or returns; a second click on the army itself is the same thing aimed at the tile it stands on, which Map_HoverUnitTarget has already cleared the gate for. The right release is the only cancel the shipped game has -- FUN_00437107's on-screen CANCEL button is cut, and is on file as 0x00437107/dead-move-order-strip. C61.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -1259,7 +1259,7 @@
       "addr": "0x00432221",
       "what": "Map_EdgeScroll, the FIRST guard of both the screen-0 and the screen-0x10 arms, and it returns non-zero to swallow the frame. Two rows and one column of the desktop against the battlefield's single outermost pixel, throttled by Map_ScrollThrottle (0x004BBBE3) rather than running every frame.",
       "note": "A separate record from 0x00432221/battle-edge-scroll and 0x00432221/dead-0x28-edge-scroll because this file counts PER IMPLEMENTATION and MapScreen::update is a different one from the battlefield's. The four arrow keys beside it are ours -- the original scrolls by pushing the pointer into the edge of the DESKTOP, which a windowed player today cannot do.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -1282,7 +1282,7 @@
       "addr": "0x0043253A",
       "what": "Minimap_Click: x 480..607, y 25..152, reads g_minimapCounty[(x-480) + (y-25)*128] and, for a non-zero county with a town tile, selects it and calls Map_CentreOnTile. It returns 1 -- CONSUMED -- for any press inside the rectangle, county or no county.",
       "note": "Two guards worth having written down. It returns 0 outright while g_mouseRightPressed is set, so a right-click on the minimap deliberately does not re-centre; and it returns 0 outright on screens 0x05 and 0x06, THE VILLAGE'S TWO DRAG SCREENS, so a stray click on the minimap cannot lose a peasant drag.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -1293,7 +1293,7 @@
       "gesture": "left-press",
       "addr": "0x0043292D",
       "what": "Hotspot_Test(0x262, 0x20, &g_minimapModeButtons, 4) -- the four icons in the 29x123 strip at (611, 32). Record 1's y1 is 0x42 where the pattern wants 0x3F, so band 2 is 34 pixels tall and overlaps band 3's first two rows; Hotspot_Test returns on the first match, so y 96 and 97 select mode 2. That is the original's own data.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -1305,7 +1305,7 @@
       "addr": "0x00432967",
       "what": "Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6) and nothing else. SIX records, not five: the sixth is End Turn at (0,30)..(161,49), whose handler is Turn_End rather than Sidebar_Button. The five buttons' rectangles start at x offsets 0, 34, 66, 98, 130 and end at 33, 65, 97, 129, 161, and Hotspot_Test is half-open, so there is a one-pixel dead column between each pair.",
       "note": "Guard 3 of the 0x00 arm and OUTSIDE the turn-ended gate, so the whole strip outlives End Turn while the menu bar, the minimap modes, the county strip, the split slider and the produce rows -- all of which are inside it -- do not. Nothing in our engine yet distinguishes the two, because our End Turn resolves the turn synchronously.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -1494,7 +1494,7 @@
       "gesture": "left-press-delayed",
       "addr": "0x004347C7",
       "what": "Help options row 2: record 1 (0x004DDD00) at (240, 220), kind 5. Flips g_optToolTips and zeroes DAT_004EA830.",
-      "note": "THE FLIP IS REPRODUCED AND IT CHANGES NOTHING. Prefs::tool_tips has no reader in this engine. The original's one reader is FUN_00476E95, the tooltip layer, which is not built (crates/l2-game/src/screens/map.rs names it); DAT_004EA830 belongs to the same layer.",
+      "note": "THE FLIP IS REPRODUCED AND IT CHANGES NOTHING. Prefs::tool_tips has no reader in this engine. The original's one reader is FUN_00476E95, the tooltip layer, which is not built (crates/l2-game/src/screens/map/mod.rs names it); DAT_004EA830 belongs to the same layer.",
       "ours": "crates/l2-game/src/screens/options.rs",
       "evidence": "V"
     },
@@ -2050,7 +2050,7 @@
       "gesture": "left-release",
       "addr": "0x00438990",
       "what": "Hotspot_Test on g_infoFieldBrush (0x004DC4D0, three ids 1/2/0x13) or the waste table (0x004DC530, two ids 0x19/0) -> FUN_00438B02 -> Field_SetType(county, tile, id), a sound per id, then g_screenId = 0. KIND 3, so it fires on RELEASE.",
-      "note": "The buttons are at y 376..424, not 184: g_uiPopupRow is always applied and always comes to +192 for both variants. crates/l2-game/src/screens/map.rs mod brush had this 192 pixels too high.",
+      "note": "The buttons are at y 376..424, not 184: g_uiPopupRow is always applied and always comes to +192 for both variants. crates/l2-game/src/screens/map/mod.rs mod brush had this 192 pixels too high.",
       "ours": "crates/l2-game/src/screens/info.rs",
       "evidence": "V"
     },
@@ -2087,7 +2087,7 @@
       "gesture": "left-press",
       "addr": "0x00438CEB",
       "what": "Top-right: mx 568..629, my 182..211 -> screen 0x16. The dead band 548..567 between the two columns is 19 pixels wide and the health thermometer is 14 wide at x = 552, so the bar sits inside it with two pixels to spare each side and is deliberately not clickable.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2099,7 +2099,7 @@
       "addr": "0x00438CEB",
       "what": "CountyStrip_Click's top-left quadrant: mx 488..547, my 182..211 -> screen 0x14. The outer guard is mx > 487 && mx < 630 && my > 181 && my < 241.",
       "note": "The four quadrants are four records rather than one because they are a ladder with four outcomes, which is this file's counting rule -- the same rule that makes the battlefield's five buttons five records under one hit test.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2110,7 +2110,7 @@
       "gesture": "left-press",
       "addr": "0x00438CEB",
       "what": "Bottom-right: my 212..240 -> screen 0x19. Population, tax, happiness and rations are four separate windows and this 2x2 is the whole menu; nothing else opens any of them.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2121,7 +2121,7 @@
       "gesture": "left-press",
       "addr": "0x00438CEB",
       "what": "Bottom-left: my 212..240 -> screen 0x15.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2133,7 +2133,7 @@
       "addr": "0x00438E3B",
       "what": "CountyStrip_JobClick: the 162x128 plate at y = 302, farm jobs left of x = 0x230 and industry right of it, row = (y - 0x12E) / pitch, and the row's stored value IS the labour slot. It sets g_jobPanelJob = slot + 1, dismisses any message, sets DAT_005533F4 = 1 (meaning 'opened from the map, so close to the map') and opens screen 0x0F. Gated on ownership; a row index past the end of its column's list returns 0 rather than falling through to the other column.",
       "note": "The two lists and the two pitches are FUN_0040FEC1 and CountyStrip_Draw: the farm column is cattle, grain, reclamation with pitch 0x3C or 0x2D, and the industry column is wood, iron, stone, weapons, castle -- gated on industry[n].enabled, the byte Industry_ToggleFromMap XORs -- with pitch 0x3C, 0x2D or 0x1E. crates/l2-game/src/screens/county.rs holds both and draw_produce_rows now reads the same list it hit-tests.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2145,7 +2145,7 @@
       "addr": "0x00439079",
       "what": "A right release in x >= 0x1DE, 0x18 <= y < 0x99 with a minimap overlay up clears the overlay and SWALLOWS the click; with no overlay up it returns 0 and the arm falls through. The rectangle is the minimap and its button strip, not the whole column: y stops at 152, four pixels above the county strip's plate.",
       "note": "It is guard 2 of the 0x00 arm and guard 6 of the village's and of all four county panels'. Only the campaign map's copy is reproduced: an overlay screen cannot see the map's minimap mode, so with a panel open the panel's own right-release closes it first. That is a divergence and it is written here rather than left implicit.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2157,7 +2157,7 @@
       "addr": "0x00439122",
       "what": "Labour_SplitSliderDrag: hit box x 0x1DE..0x27F, y 0x101..0x128, gated on the county being the local player's. It is a DRAG -- it acts while the button is DOWN and the pointer MOVED, and returns 1 without doing anything on the release. Three zones, half-open: x < 0x213 steps the share down by four, x < 0x252 sets it to ((x - 0x213) * 2) & 0xFC, and 0x252 or more steps it up by four; clamped 0..100, and it skips the recompute when the value did not change.",
       "note": "TWO WRONG ARMS were found here rather than a missing one. Ours tested `x > 594` for the up zone where the original tests `x >= 594`, so the column at x = 594 landed on the track instead of stepping; and ours gated on `selected != 0` where the original gates on OWNERSHIP, so the slider moved another lord's peasants. Both fixed. Neither looked broken.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2245,7 +2245,7 @@
       "gesture": "left-press",
       "addr": "0x0043AB76",
       "what": "In any mode but 0, id 4 turns the overlay off -- and is the ONLY button that responds at all. Same hotspot as the zoom toggle, a different verb by state, which is why they are two records.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2257,7 +2257,7 @@
       "addr": "0x0043AB76",
       "what": "In mode 0 only, ids 1..3 set g_minimapMode to the labour, food or happiness rating. THE FOUR ARE NOT RADIO BUTTONS: while any mode is up, ids 1..3 do nothing at all, so going from food to happiness takes two clicks and not one.",
       "note": "The artwork says it from the other side -- Misc_cty frame 0x5C, drawn in mode 0, carries four buttons and frame 0x5B, drawn while a mode is up, carries a colour bar and one.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2268,7 +2268,7 @@
       "gesture": "left-press",
       "addr": "0x0043AB76",
       "what": "In mode 0, id 4 is g_screenId = 0 and Map_ToggleZoom -- the campaign map's zoom control, which docs/screens.md section 7 records us having replaced with the Z key.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2280,7 +2280,7 @@
       "addr": "0x0043AC23",
       "what": "Record 5 of g_sidebarButtons -- the full-width button at (478, 460) -- whose handler is Turn_End, which writes 999 into the realm's +0x00.",
       "note": "Its caption is suppressed once the turn has been ended: Screen_DrawEndTurn guards it on g_realms[g_localPlayer].aiStep < 999.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2302,7 +2302,7 @@
       "gesture": "left-press",
       "addr": "0x0043AE30",
       "what": "FUN_00436A88 (Castle_OpenScreen): the ownership refusal, then g_screenId = 0x1B.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2313,7 +2313,7 @@
       "gesture": "left-press",
       "addr": "0x0043AE30",
       "what": "g_screenId = 9. UNGATED -- the court is the realm's, not the county's, and it is one of only two buttons in the strip that do not test ownership.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2324,7 +2324,7 @@
       "gesture": "left-press",
       "addr": "0x0043AE30",
       "what": "Levy_SetPercent(sel, g_levyPercent), FUN_004AA90A(sel, g_levyMen), g_screenId = 0x17, and the mercenary band loaded on top when county.mercenaryOffer != 0. Refused with Msg_Enqueue(..., 0x70, ...) for a county that is not yours.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2335,7 +2335,7 @@
       "gesture": "left-press",
       "addr": "0x0043AE30",
       "what": "FUN_0043611B: g_screenId = 0x0B, the other lords. Ungated, like the court.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2346,7 +2346,7 @@
       "gesture": "left-press",
       "addr": "0x0043AE30",
       "what": "g_screenId = 0x18, and it seeds the basket before it goes: the county's grain and herd into DAT_005678C0 + player*0x18, the county id into DAT_00553C78, and Sound_PlayFile(s033_01.wav). Gated on ownership.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2618,7 +2618,7 @@
       "addr": "0x0043CE1A",
       "what": "Plane-0 flag 0x20 (farmland), no 0x80 or 0x40 on the tile, no unit of kind 1 or 3, county owned by g_localPlayer: _DAT_005681CC = 3; g_screenId = 4; FUN_0041B032(). That is SCREEN 0x04, THE INFORMATION PANEL -- the same screen the right release opens through FUN_0043CAF4, which ends in the same _DAT_005681CC = 3 and the same FUN_0041B032(), and FUN_0041B032 picks the tile half (FUN_0041BEFE -> TileInfo_Draw, then FUN_0041C996's brush) on g_pickedTileUnit == 0. So on your own field the left and the right button open ONE screen. A foreign field falls out of the bottom: the owner test is inside the flag arm, not beside it.",
       "note": "CORRECTED. This record said the mode byte _DAT_005681CC 'is what makes the information panel draw the crop table instead of the tile panel'; nothing on that path reads it -- FUN_0041B032 decides on g_pickedTileUnit and DAT_0052AFB4 -- and both buttons write the same 3. And it was answered with a popup of ours on the map (ours/brush-popup-on-the-map, removed): a player reported the left click 'still brings up placeholder' while the right click opened the right screen. Now a Push of ScreenId::Info(Target::Tile) on Map_PickTile's tile, the tile the right button resolves. The two paths still differ in one thing, recorded rather than built here: FUN_0043CAF4 also selects and recentres on a county other than the selected one when no unit is picked, and Map_Click's farmland arm does not. crates/l2-game/tests/screens_info.rs a_left_click_on_your_own_field_opens_what_a_right_click_opens.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2641,7 +2641,7 @@
       "addr": "0x0043CE1A",
       "what": "No unit, plane-0 flag 0x80 (a settlement), county owned by g_localPlayer: if the county is not the selected one it is selected and the map recentred on its town -- and a county with NO town returns outright, before the toggle. Then a ladder on g_pickedTileGraphic picks the industry (0..3 iron, 4..6 stone, 7..9 weapons, 10..12 wood, 13..20 nothing, 21+ castle) and Industry_ToggleFromMap runs, ending in a floating-tip Msg_Enqueue.",
       "note": "THE PROLOGUE OF THIS ARM IS THE CODE C61 ONCE QUOTED AS A FREE-STANDING COUNTY-SELECTION ARM. It is not one: it is guarded by flag 0x80 and by the county being yours, and the three writes to g_selectedCounty in Map_Click are all inside branches that open something. Selection from the map is a side effect of arriving somewhere, never a verb of its own.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2653,7 +2653,7 @@
       "addr": "0x0043CE1A",
       "what": "A picked unit of kind 3 in a county whose OWNER is g_localPlayer: DAT_00553C64 = unit, and then only if the county has a town -- g_selectedCounty = county, Map_CentreOnTile(townTile), g_screenId = 8. The guard is the COUNTY's owner and the merchant's own owner byte is never read in the whole 1,263-byte function, which is why \"your merchant\" is not a thing that exists: every merchant carries owner 6. C50.",
       "note": "This is one half of the player report that produced C58 -- \"if I click a merchant while the map has a different county selected it will open up the tax window\". The selection was innocent; the hit test was a nine-pixel marker box under a 40 x 32 figure, so most clicks missed this arm and fell through to a county-selection arm of ours that no longer exists. crates/l2-game/tests/screens_map.rs a_merchant_is_clickable_over_its_whole_tile_whichever_county_is_selected.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2664,7 +2664,7 @@
       "gesture": "left-release",
       "addr": "0x0043CE1A",
       "what": "The same unit with besiegingCounty != 0 takes the other leg: Siege_ValidateLink(unit) first -- which can CLEAR the link and drop the click into the move-order leg above -- then g_siegeScreenUnit = unit, g_screenId = 0x1D, g_redrawRequest = 2.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2676,7 +2676,7 @@
       "addr": "0x0043CE1A",
       "what": "Map_Click's FIRST test, before any tile flag: a picked unit of kind 1 whose owner is g_localPlayer and whose besiegingCounty is 0 runs Panel_MoveButton(), which is g_screenId = 0 then Map_BeginMoveSelection() -- the map stays up and the next click is the order. The unit test comes first, so an army standing on your own farmland is an army and not a field.",
       "note": "Reached on g_mouseLeftReleased, not the press: Screen_FrameInput's screen-0 ladder calls Map_Click() under `if (DAT_005533B0 != 0 && g_mouseLeftReleased != 0)`. Every Map_Click arm in this group therefore has gesture left-release, and the 0x10 arm that follows a selection is a left-PRESS -- one screen apart, two different edges of the same button.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2687,7 +2687,7 @@
       "gesture": "left-release",
       "addr": "0x0043CE1A",
       "what": "Plane-0 flag 0x40 (the county town), county owned by g_localPlayer: `if (townTile != 0) { g_selectedCounty = county; Map_CentreOnTile(townTile); ... }` and then g_screenId = 2, Village_Draw(1) OUTSIDE that guard -- so a town-less county still opens the village. The only writer of g_screenId = 2 in the binary.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2796,7 +2796,7 @@
       "what": "Msg_DismissUnlessQuestion: `if (category != 0x11 && category != 10 && category != 0x0B && category != 0x0C) Msg_Dismiss();`. One caller, and it is the else of Map_Click's OUTERMOST guard -- Map_Click's entire 1,263-byte body is `if (g_messageGroup == 0) { ...the whole campaign map click... } else { this }`. So with a message up, a left click on the map closes it and the map does NOTHING ELSE: no tile picked, no county selected, no village, no army orders.",
       "note": "Not in Msg_DrawWindow, not in Msg_HandleInput, and not reachable from either: found by asking who calls the four-line function next to Msg_Dismiss. The four categories it refuses are exactly the four Msg_HandleInput runs a Widget_Test for, which is a correspondence that could have failed and did not -- a question survives a stray click on the map and a notice does not.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/map.rs"
+      "ours": "crates/l2-game/src/screens/map/events.rs"
     },
     {
       "id": "0x00476768/quit-to-shell-groups",
@@ -2985,7 +2985,7 @@
       "addr": "0x004A8E0B",
       "what": "Map_HoverUnitTarget -- THE MARCH ROUTE FOLLOWS THE POINTER. Run once a frame from Screen_DrawWidgets' 0x10 arm, where every other screen draws its widget table: it calls Path_MarkPreviewTiles (the only writer of tile bank bit 0x40 in the binary, so the gold balls exist in move-order mode and nowhere else), and then, ONLY IF the hovered tile changed (`if (DAT_005691E0 != g_hoverTileOffset)`), reads the step count out of g_moveDistLocal, refuses it under 2, collects the six 'what would a click here do' globals -- village, field, county town, merge unit, garrison, siege -- and ZEROES all six when moveAllowance - movesUsed is less than the distance, leaving g_moveOrderAvailable set. The flood fill is not re-run: it was done once when the army was picked.",
       "note": "IT HAD NO RECORD AND NO MARKER. The arm was built by the branch that found it (docs/decisions.md C61 -- 'the original has the army steps on hover, yours just populate on click') and then counted by nothing, because arms.rs checks records against markers in both directions and an arm with NEITHER is invisible to both. That is the blind spot between the two halves of a two-sided check, and it is the reason this record exists. It has no kind byte -- it is not a widget record at all -- so the exe-gated check cannot classify it either.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -2997,7 +2997,7 @@
       "addr": "0x004A8E0B",
       "what": "Screen_DrawWidgets' 0x10 arm is Map_HoverUnitTarget() and NOTHING ELSE -- where every other screen draws a widget table, this one recomputes the route under the cursor. It decrements g_moveOrderClickGuard, sets or clears g_moveOrderAvailable, marks the route through Path_MarkPreviewTiles (0x004A91BA) and re-runs the descent only when the hovered tile changed. It also collects a castle under the cursor as g_hoverGarrisonCounty or g_hoverSiegeCounty, and a second army as g_hoverMergeUnit.",
       "note": "Path_MarkPreviewTiles is the ONLY writer of tile bank bit 0x40 in the binary and runs only from here, which runs only on 0x10; Map_DrawPathMarker (0x004081A6) draws a ball on every marked tile and CLEARS the mark as it draws it, which is why the trail does not accumulate as the cursor sweeps. A player: \"the original has the army steps on hover, ours just populate on click.\" C61.",
-      "ours": "crates/l2-game/src/screens/map.rs",
+      "ours": "crates/l2-game/src/screens/map/events.rs",
       "evidence": "V"
     },
     {
@@ -3278,7 +3278,7 @@
       "gesture": "left-press",
       "what": "The field brush appears as a popup ON THE CAMPAIGN MAP, opened by a left click on a field tile, and a click anywhere else dismisses it.",
       "why": "In the original the brush is part of the INFORMATION PANEL, screen 0x04, which a RIGHT click opens -- FUN_00438990 is one of that arm's three guards and its y offset is the panel's own row. There is no popup on screen 0 at all. Kept because screen 0x04 is a shell and the brush is the only way a player can set a field; recorded so that building 0x04 properly is known to have this to remove.",
-      "ours": "crates/l2-game/src/screens/map.rs"
+      "ours": "crates/l2-game/src/screens/map/events.rs"
     },
     {
       "id": "ours/county-back-to-map-button",

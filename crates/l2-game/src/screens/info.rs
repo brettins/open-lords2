@@ -79,7 +79,7 @@
 //!
 //! # `L2.eng` 31/21, *"Morale"*, is dead text — and a `[V]` rested on it
 //!
-//! `docs/armies.md` §1 and `screens/map.rs` both list *"31/21 Morale"* among
+//! `docs/armies.md` §1 and `screens/map/mod.rs` both list *"31/21 Morale"* among
 //! *"the army info panel's own field labels, drawn by `UnitPanel_Draw` right
 //! next to the offsets"*, and `armies.md` then rests the **[V]** on unit
 //! `+0x166 morale` on it.
@@ -94,7 +94,7 @@
 //!
 //! # The brush is 192 pixels lower than we draw it
 //!
-//! `screens/map.rs`'s `mod brush` has `ROW_Y: i32 = 184` with the comment
+//! `screens/map/mod.rs`'s `mod brush` has `ROW_Y: i32 = 184` with the comment
 //! *"before its `g_uiPopupRow` offset"*. The original **always** applies that
 //! offset and it always comes to `+192` — the field variant uses `R = 5` and
 //! adds seven cells, `(5 + 7) * 16 = 192`; the waste variant uses `R = 0x0C`
@@ -1785,7 +1785,7 @@ impl Screen for InfoScreen {
                 }
                 // **The county-town arm, and the one line of English the
                 // mercenary has anywhere in the game.** The map's marker
-                // (`screens/map.rs`'s `draw_flags`) is a picture with no words
+                // (`screens/map/paint.rs`'s `draw_flags`) is a picture with no words
                 // on it; this is where the original says what it means, and a
                 // player who had looked straight at the marker still reported
                 // never having seen a mercenary. Rule 6: the strings are the
