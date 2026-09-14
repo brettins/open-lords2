@@ -1437,7 +1437,7 @@ three of them.**
 > `Opt_ToggleFightHumansOnly`. Index 4 is *"Fight humans only?"*, it is on the same panel, and
 > it changes a rule: `FUN_004A6A30` auto-resolves a battle the local player is not in when
 > `g_optFightHumansOnly` (`0x0053F284`) is 0. **[V]** on both counts — the string count out of
-> `L2.eng` and the record count out of `.data`. `crates/l2-game/src/screens/options.rs` draws
+> `L2.eng` and the record count out of `.data`. `crates/l2-game/src/screens/options/mod.rs` draws
 Nothing turned on the number; it was wrong.
 > been discussing that fourth option's *save* behaviour for weeks without either half noticing
 > the other.

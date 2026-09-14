@@ -512,7 +512,7 @@
       "screen": "0x32",
       "gesture": "left-press",
       "addr": "0x0040DECA",
-      "what": "Four items over two menus that are one arm here because they are one line of code: Menu_AdvancedOptions -> 0x39, Menu_SoundOptions -> 0x42, Menu_DisplayOptions -> 0x43 and Menu_GameHelp -> 0x31. All four screens exist (crates/l2-game/src/screens/options.rs) and had no way in but the index screen.",
+      "what": "Four items over two menus that are one arm here because they are one line of code: Menu_AdvancedOptions -> 0x39, Menu_SoundOptions -> 0x42, Menu_DisplayOptions -> 0x43 and Menu_GameHelp -> 0x31. All four screens exist (crates/l2-game/src/screens/options/mod.rs) and had no way in but the index screen.",
       "ours": "crates/l2-game/src/screens/menubar.rs",
       "evidence": "V"
     },
@@ -570,7 +570,7 @@
       "addr": "0x0040E7E4",
       "what": "Ui_OkButtonClicked() -- the corner picture at (404, 262) on 0x31, (392, 256) on 0x39 and 0x43, (392, 240) on 0x42 -- closes the panel to g_menuPrevScreen, ON THE RELEASE.",
       "note": "Ours closed on the press. One record for four screens, because it is one implementation.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1112,7 +1112,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "g_mouseRightReleased closes the panel to g_menuPrevScreen: the first test on 0x31, 0x42 and 0x43, the second on 0x39.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1436,7 +1436,7 @@
       "addr": "0x00434556",
       "what": "Advanced options row 1: g_advancedOptWidgets record 0 (0x004DDC10), frame 25 at (280, 156), Widget_Test kind 5. The press puts frame 26 up and plays click3.wav; Opt_ToggleAdvancedFarming runs TWENTY FRAMES LATER, out of Widget_Test's countdown, and flips g_optAdvancedFarming.",
       "note": "Ours acted on the click. Read by l2_kingdom: fertility, weather, the harvest and the AI's planting ladder. The g_multiplayer branch -- Net_SendCommand(0x32, 0) in place of the flip, then g_screenId = g_menuPrevScreen -- is not reproduced, for docs/netcode.md's reason. docs/symbols.json and docs/screens-county.md called that branch 'tip 0x32'; it is net opcode 0x32, whose writer sends g_uiHotspotId (the row, 1..4), per tools/oracle/netcmds.js.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1448,7 +1448,7 @@
       "addr": "0x004345D0",
       "what": "Advanced options row 2: record 1 (0x004DDC28) at (280, 188), kind 5. Flips g_optArmiesEat and THEN runs Ration_Apply(county, g_season) and County_RefreshEstimates(county, g_seasonNext) for every county 1 .. g_countyCount, because the rule changes who a county feeds this season.",
       "note": "Ours flipped the flag and re-ran nothing, so every county's ration fields described the old rule until the season turned. Kingdom::toggle_army_foraging is the loop, with Ration_Apply as ration::preview for the reason Kingdom::set_ration_wanted gives. Same multiplayer branch as row 1, not reproduced.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1460,7 +1460,7 @@
       "addr": "0x00434693",
       "what": "Advanced options row 3: record 2 (0x004DDC40) at (280, 220), kind 5. Flips g_optExploration.",
       "note": "THE FLIP IS REPRODUCED AND IT CHANGES NOTHING. Options::exploration is carried, saved and imported, and no rule or painter in this engine reads it. The original's readers are the map painters -- Map_RenderIso, Map_RenderAlignedRow, Map_DrawTile, Map_DrawTileApex, Map_DrawArmies and more -- each testing tile flag 0x20, which is the fog. docs/mechanics.md: the fog is not built.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1472,7 +1472,7 @@
       "addr": "0x0043470D",
       "what": "Advanced options row 4: record 3 (0x004DDC58) at (280, 252), kind 5. Flips g_optFightHumansOnly, which is stored inverted: the painter shows Yes when it is 0.",
       "note": "Read by l2_kingdom::battle::settlement, byte and sense kept. Same multiplayer branch as row 1, not reproduced.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1484,7 +1484,7 @@
       "addr": "0x00434787",
       "what": "Help options row 1: g_helpOptWidgets record 0 (0x004DDCE8) at (240, 188), kind 5. Flips g_optTipScreens and calls FUN_00476A5D -- every tip unshown and the twenty-frame re-arm, on the flip off as well as on.",
       "note": "Read by tip::Tips. The kind was found while wiring this row.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1496,7 +1496,7 @@
       "addr": "0x004347C7",
       "what": "Help options row 2: record 1 (0x004DDD00) at (240, 220), kind 5. Flips g_optToolTips and zeroes DAT_004EA830.",
       "note": "THE FLIP IS REPRODUCED AND IT CHANGES NOTHING. Prefs::tool_tips has no reader in this engine. The original's one reader is FUN_00476E95, the tooltip layer, which is not built (crates/l2-game/src/screens/map/mod.rs names it); DAT_004EA830 belongs to the same layer.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1519,7 +1519,7 @@
       "addr": "0x004349A4",
       "what": "Sound options row 1: g_soundOptWidgets record 0 (0x004DDC70) at (280, 156), kind 5. Flips g_optMusic, then Music_Stop and Sound_StopOneShot when it goes off, or Music_StartCampaign / Music_StartBattle by g_battlePhase when it comes on.",
       "note": "Reached through Prefs::music: audio::Director::listen pushes the flag every tick and Audio::follow re-derives the bed, which docs/audio.json already records as Opt_ToggleMusic's two sound sites.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1531,7 +1531,7 @@
       "addr": "0x00434A29",
       "what": "Sound options row 2: record 1 (0x004DDC88) at (280, 188), kind 5. Flips g_optSoundEffects and, when it comes on, reloads the kingdom or the battle sample bank by g_battlePhase.",
       "note": "The flag gates every effect in audio::Director. The bank reload has no counterpart because nothing in this engine unloads a bank.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1543,7 +1543,7 @@
       "addr": "0x00434A9A",
       "what": "Sound options row 3: record 2 (0x004DDCA0) at (280, 220), kind 5. Flips g_optSpeech, which Sound_PlayFile tests before playing a speech file.",
       "note": "Opt_ToggleSpeech is ALSO the handler of a kind-4 record in the orphaned table no call site tests (0x00434CA2/orphaned-options-widgets), so its address alone is in tables of two kinds. This record names its own record base, and the exe-gated check in crates/l2-game/tests/arms.rs settles the kind from that.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1555,7 +1555,7 @@
       "addr": "0x00434AD5",
       "what": "Display options row 1: g_displayOptWidgets record 0 (0x004DDCB8) at (280, 204), kind 5. Flips g_optAnimations.",
       "note": "THE FLIP IS REPRODUCED AND ALL FIVE READS NOW ANSWER IT. The original reads it five times in four functions -- Screen_BattleOutcome (the taller box with the inset animation), CastleBuild_Confirm (Castle1 .. Castle5.smk), Msg_DrawWindow twice (its animation once g_messageTimer passes 0x7C6) and Battle_CheckOutcome -- and each has a test with the flag off as its discrimination: the_outcome_box_is_the_tall_one_only_when_animations_are_on, an_ordered_castle_plays_its_film_over_the_chooser, a_capture_letter_would_play_the_capture_films_in_rotation with an_ending_with_animations_on_is_a_film_and_the_victory_after_it_is_another, and a_decided_battle_plays_the_film_for_its_outcome_in_rotation. Also reused in the orphaned kind-4 table; see opt-speech.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -1567,7 +1567,7 @@
       "addr": "0x00434B10",
       "what": "Display options row 2: record 1 (0x004DDCD0) at (280, 236), kind 5. Opt_ToggleFullScreen leaves the panel FIRST (g_screenId = 0 on the campaign, 0x29 in a battle), then: g_optFullScreen == 1 on a desktop that is not 8bpp -> Msg_Enqueue(0, g_localPlayer, 0x104), L2.eng group 260, 'Cannot change display.'. The low-resolution warning and the mode switch are the other two branches.",
       "note": "Reproduced for the desktop this engine runs on, which is every modern one: Display_Init forces g_optFullScreen to 1 on any desktop that is not 8bpp, so the original takes this same branch there. Ours did nothing -- not even close the panel. The row is still drawn dimmed, which is our presentation and not this arm.",
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -3448,7 +3448,7 @@
       "what": "Escape closes all five pages.",
       "note": "KEPT. No key reaches 0x31, 0x39, 0x42 or 0x43 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Enter and Space do nothing, as they do nothing in the original.",
       "removed": false,
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {
@@ -3460,7 +3460,7 @@
       "what": "The fifth page: a tri-state parent check box and one box per switchable defect across both homes, answered on the press, with a hover highlight.",
       "note": "KEPT. The original has no such page and could not -- to it these are not settings. docs/decisions.md C62. Counted so that the markers in options.rs describe the whole module.",
       "removed": false,
-      "ours": "crates/l2-game/src/screens/options.rs",
+      "ours": "crates/l2-game/src/screens/options/mod.rs",
       "evidence": "V"
     },
     {

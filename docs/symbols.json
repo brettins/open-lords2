@@ -1765,7 +1765,7 @@
       "section": "ui",
       "confidence": "inferred",
       "signature": "void Display_Init(void)",
-      "comment": "Sets g_desktopBpp = GetDeviceCaps(BITSPIXEL) * GetDeviceCaps(PLANES) and FORCES g_optFullScreen = 1 whenever that is not 8. On any modern desktop the Display panel's 'Full screen' row is therefore a permanent Yes that Opt_ToggleFullScreen also refuses to change (it raises message 260 instead). We do not reproduce it: this engine is a winit window. See crates/l2-game/src/screens/options.rs."
+      "comment": "Sets g_desktopBpp = GetDeviceCaps(BITSPIXEL) * GetDeviceCaps(PLANES) and FORCES g_optFullScreen = 1 whenever that is not 8. On any modern desktop the Display panel's 'Full screen' row is therefore a permanent Yes that Opt_ToggleFullScreen also refuses to change (it raises message 260 instead). We do not reproduce it: this engine is a winit window. See crates/l2-game/src/screens/options/mod.rs."
     },
     {
       "addr": "0x0042EAA6",
