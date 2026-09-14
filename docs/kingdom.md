@@ -353,7 +353,7 @@ kind 7 — [`armies.md`](armies.md) §1 has four and `g_unitTickTable` has four 
 `+0x1A`, the mission byte. [`armies.md`](armies.md) §10 is the whole enum. It is C28's shape
 for the fourth time on this project: a field name in a table read as a fact.
 
-356: **Steps 4, 7, 9, 10 and 11 are implemented**, in `crates/l2-kingdom/src/ai_army.rs`, and the
+356: **Steps 4, 7, 9, 10 and 11 are implemented**, in `crates/l2-kingdom/src/ai_army/mod.rs`, and the
 reason they were not is recorded in `docs/plan.md` §2.4: the module comment said they *"drive
 armies, merchants, diplomacy and map tiles, none of which `l2-kingdom` owns"*, and it had owned
 a unit model since the day that was written. Two of the fourteen are still not run and both are

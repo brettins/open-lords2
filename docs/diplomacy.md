@@ -802,7 +802,7 @@ the file), **[D]** on each field's meaning, from its single reader.
 realm **`+0x138`**, the maintained sum of the six weapon counters (`Realm_RecountWeapons`,
 `0x004487A9`) — the number the panel draws as *Arms*. `+0x38` sits inside the twenty-four
 army-name counters at `+0x2D`. Found by trying
-to use the field; see `crates/l2-kingdom/src/ai_army.rs`.
+to use the field; see `crates/l2-kingdom/src/ai_army/mod.rs`.
 
 **Three more of the untraced set have readers now**, all in the table above and all `[D]` from
 a single reader each: `+0x70`, `+0x74` and `+0x9C`. Two of them are worth a sentence. `+0x70`

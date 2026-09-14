@@ -2487,7 +2487,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
 ## 10. The AI's army orders — unit `+0x1A`, the **mission** byte
 
 Everything below is `[D]` from `Lords2.exe`'s decompilation unless marked otherwise, and is
-implemented in `crates/l2-kingdom/src/ai_army.rs`, which carries the same table with its
+implemented in `crates/l2-kingdom/src/ai_army/mod.rs`, which carries the same table with its
 addresses.
 
 §1.5 closed `+0x1A` as *"a UI feedback code taking 2 and 5 on the garrison path"* and §9
