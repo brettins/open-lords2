@@ -209,7 +209,7 @@
     "text": {
       "what": "TYPING. Every text-entry field in the game, and the keyboard dispatch behind them.",
       "complete": true,
-      "note": "THE GAME HAS SEVEN TEXT FIELDS. Enumerated exhaustively and from the direction that cannot miss one: `g_editActive` (0x005AEB78) is the single flag that decides whether a keystroke reaches the edit buffer at all, Screen_HandleInput CLEARS it at the top of every frame, and exactly seven of its arms set it again. Every one of those seven is a record below, and there is no eighth because there is no eighth writer of the flag in the binary. A second enumeration from a different direction agrees, and closes exactly: Edit_Commit (0x0040210C) -- the OTHER end, where the buffer is copied out to wherever the field belongs -- also has exactly SEVEN call sites, and they are the same seven places, each one two lines below its `g_editActive = 1`. Four distinct destination buffers between them, because three of the seven share DAT_00553E80. (Edit_Begin, the third end, has 23 call sites over 14 seed strings, and is NOT a count of fields: a seed is the text a field opens with, and most of those 14 are string literals in .rdata.)\n\nTHE DISPATCH IS THE WINDOW PROCEDURE (0x004B29BE), not Screen_FrameInput and not Screen_HandleInput -- which is why an audit that read the screen ladders found no text entry to count. WM_CHAR (0x102) is one statement, Edit_TypeChar(ch), with NO screen test; the seven editing keys are WM_KEYDOWN (0x100) cases and are equally ungated. The whole editor is one 2000-byte buffer at 0x005CD550 with a caret, two limits and a kind, and the sixteen functions between 0x00401984 and 0x0040210C are all of it.\n\nARMS ARE COUNTED PER IMPLEMENTATION here as everywhere: the seven editing keys are ONE record each even though every field is edited by the same seven, because crates/l2-game/src/text.rs has one function each. The seven FIELDS are seven records because they are seven guards in seven places."
+      "note": "THE GAME HAS SEVEN TEXT FIELDS. Enumerated exhaustively and from the direction that cannot miss one: `g_editActive` (0x005AEB78) is the single flag that decides whether a keystroke reaches the edit buffer at all, Screen_HandleInput CLEARS it at the top of every frame, and exactly seven of its arms set it again. Every one of those seven is a record below, and there is no eighth because there is no eighth writer of the flag in the binary. A second enumeration from a different direction agrees, and closes exactly: Edit_Commit (0x0040210C) -- the OTHER end, where the buffer is copied out to wherever the field belongs -- also has exactly SEVEN call sites, and they are the same seven places, each one two lines below its `g_editActive = 1`. Four distinct destination buffers between them, because three of the seven share DAT_00553E80. (Edit_Begin, the third end, has 23 call sites over 14 seed strings, and is NOT a count of fields: a seed is the text a field opens with, and most of those 14 are string literals in .rdata.)\n\nTHE DISPATCH IS THE WINDOW PROCEDURE (0x004B29BE), not Screen_FrameInput and not Screen_HandleInput -- which is why an audit that read the screen ladders found no text entry to count. WM_CHAR (0x102) is one statement, Edit_TypeChar(ch), with NO screen test; the seven editing keys are WM_KEYDOWN (0x100) cases and are equally ungated. The whole editor is one 2000-byte buffer at 0x005CD550 with a caret, two limits and a kind, and the sixteen functions between 0x00401984 and 0x0040210C are all of it.\n\nARMS ARE COUNTED PER IMPLEMENTATION here as everywhere: the seven editing keys are ONE record each even though every field is edited by the same seven, because crates/l2-game/src/text/mod.rs has one function each. The seven FIELDS are seven records because they are seven guards in seven places."
     },
     "village": {
       "what": "0x02 the village, 0x05 the rubber band, 0x06 carrying peasants, 0x0F the job popup",
@@ -273,7 +273,7 @@
       "gesture": "key",
       "addr": "0x00401C70",
       "what": "VK_BACK: caret back one, THEN delete. Not gated on the field being full, which is what makes deleting the only way out of a field that has hit either limit.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -284,7 +284,7 @@
       "gesture": "key",
       "addr": "0x00401CA3",
       "what": "VK_INSERT: g_editInsert ^= 1, and that is the whole function. It matters far more than the name suggests, because OVERWRITE IS THE DEFAULT -- see 0x00401D26/overwrite-default -- so this is the key that turns typing OVER the name you have into typing BESIDE it.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -295,7 +295,7 @@
       "gesture": "key",
       "addr": "0x00401CBC",
       "what": "VK_LEFT: `if (0 < caret) caret--`. The window procedure's arm ALSO steps g_debugSelectedMan down, which is the battle debug panel's figure index and is the one debug key of the four that is ungated.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -306,7 +306,7 @@
       "gesture": "key",
       "addr": "0x00401CDA",
       "what": "VK_RIGHT: `if (caret < length) caret++`. Stops at the length, not at the character limit.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -317,7 +317,7 @@
       "gesture": "key",
       "addr": "0x00401CFC",
       "what": "VK_HOME: caret = 0.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -328,7 +328,7 @@
       "gesture": "key",
       "addr": "0x00401D11",
       "what": "VK_END: caret = length. The window procedure's VK_END arm calls TWO functions -- this and Chat_Close (0x004360F2) -- so the same key also cancels a pending save; see 0x004360F2/end-cancels-confirm, which is a separate record and is missing.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -340,7 +340,7 @@
       "addr": "0x00401D26",
       "what": "Edit_Insert has TWO branches with DIFFERENT limits and the wrong-looking one is the default. g_editInsert (0x005C9280) starts at zero, zero is the OVERWRITE branch -- `buf[caret++] = ch`, bounded only by the caret reaching the character limit -- and the insert branch additionally needs the LENGTH to be under it. So arriving on the name page, whose field is seeded with the name you already have, and typing E, d gives Edayer1 and not Ed. docs/bugs.md B79.",
       "note": "Reproduced as found, not corrected. The caret glyph follows it and is the opposite way round to the usual convention: underline for overwrite, I-beam for insert.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -351,7 +351,7 @@
       "gesture": "key",
       "addr": "0x00401DC8",
       "what": "VK_DELETE, through 0x00401C93: the tail shifts left over the caret and the caret stays. More load-bearing than it looks -- see 0x00401D26/overwrite-default, where it is how a person gets from Edayer1 to Ed.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -363,7 +363,7 @@
       "addr": "0x0040ACCE",
       "what": "Edit_DrawCaret: a counter 0..=16 stepped once per call, drawn only above 8, so EIGHT FRAMES LIT IN SEVENTEEN. Two shapes: overwrite draws a 2-pixel underline under the character, insert draws a 15-pixel I-beam with four serifs before it. The underline's width is the advance of the character UNDER the caret, and at the end of the text that character is the terminator, whose advance FUN_004015B9 returns as 0 -- so the caret at the end of a name is a two-pixel stub.",
       "note": "Not an input arm; recorded because it is the whole of the affordance -- there is no focus ring and no second plate frame, so a field with no caret is indistinguishable from a label, which is exactly what ours were. Ours steps on a TICK rather than a frame, because docs/netcode.md does not let anything below the renderer read a clock. Presentation only.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {
@@ -3071,7 +3071,7 @@
       "addr": "0x004B29BE",
       "what": "WM_CHAR's WHOLE ARM is Edit_TypeChar(ch) -- 0x00401A20 -- with no test of g_screenId, so every printable character a person types anywhere in the game goes into the one edit buffer. Whether it LANDS is g_editActive's business, not this arm's.\n\nTHE CHARACTER SET, exactly, in the chain's own order: space always; , . ? ! only when the field's kind is 0; - always; 0-9 always; a-z always; A-Z always, LOWER-CASED by 0x004011B0 when the kind is not 0; 0x80-0x9A, 0xA0-0xA7 and 0xE1 always. Everything else is dropped in SILENCE -- no beep, no message -- and that includes the apostrophe, the ampersand, every bracket and all of 0xA8-0xE0. A person typing O'Neill gets ONeill.",
       "note": "Ours arrives as Event::Text rather than Event::KeyDown, which is the same split Windows makes: WM_KEYDOWN carries a key and WM_CHAR carries a character. It has to be, because Key::Char is folded to upper case for the hotkeys and a name typed through it would come out RICHARD.",
-      "ours": "crates/l2-game/src/text.rs",
+      "ours": "crates/l2-game/src/text/mod.rs",
       "evidence": "V"
     },
     {

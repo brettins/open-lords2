@@ -3633,7 +3633,7 @@ between `0x00401984` and `0x0040210C` are the whole of it, over one 2,000-byte b
   which is the first use of that combination the schema was written for.
 
 The inventory is `docs/arms.json`, groups `text` and `front-end-keys`, 29 new records; the
-engine is `crates/l2-game/src/text.rs`.
+engine is `crates/l2-game/src/text/mod.rs`.
 
 **C75 — The field-coverage check matched prose, so the better a field was
 documented the less it checked.**
@@ -10890,7 +10890,7 @@ would try group 7 first.
 `g_playerNames + realm * 0x2C + 0x25`. `Realms_AssignLords` reads `(&DAT_00553d75)[realm * 0x2c]`,
 which is the *table's* `+0x25` and the name's `+0x21`. Nothing was built on the wrong one —
 the colour is passed into `NewGame` rather than read out of a save — so this cost nothing, and
-it is exactly the sentence that would have cost the next person a day. `crates/l2-game/src/text.rs`
+it is exactly the sentence that would have cost the next person a day. `crates/l2-game/src/text/mod.rs`
 had the record right the whole time and no reader used it.
 
 ---

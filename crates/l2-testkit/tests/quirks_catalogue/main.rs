@@ -336,9 +336,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // but neither reaches the simulation or the digest, because a filename is
 // not state the rules read. Unwired: a switch for
     // either would change what the field CONTAINS, not which pixels show it.
-    ("B79", Unwired("crates/l2-game/src/text.rs, the overwrite branch")),
+    ("B79", Unwired("crates/l2-game/src/text/mod.rs, the overwrite branch")),
     ("B101", Unswitchable("it changes which advice a player sees and when, never a number in the world")),
-    ("B80", Unwired("crates/l2-game/src/text.rs, the End-key arm")),
+    ("B80", Unwired("crates/l2-game/src/text/mod.rs, the End-key arm")),
     // Both from the siege battle, both reproduced and neither wired: a repeat
     // assault billing the same repair twice is a rule the original has, and
     // switching it would change what a siege costs; the drawbridge search
