@@ -226,7 +226,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B47", Unwired("crates/l2-sim/src/formation.rs")),
     ("B48", Unwired("crates/l2-sim/src/runner/mod.rs")),
     ("B49", Unwired("crates/l2-sim/src/terrain.rs")),
-    ("B50", Unwired("crates/l2-view/src/scene.rs")),
+    ("B50", Unwired("crates/l2-view/src/scene/mod.rs")),
     ("B102", Unwired("crates/l2-sim/src/fire.rs — l2-sim takes no Quirks value yet")),
     // Numbered B69 until `corrections.js` learned to read `docs/bugs.md`: it
     // shared that number with the siege repair bill below, and this list held
