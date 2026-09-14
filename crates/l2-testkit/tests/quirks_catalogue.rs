@@ -267,11 +267,11 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         ),
     ),
     // 2.8 — sieges
-    ("B57", Unwired("crates/l2-kingdom/src/siege.rs")),
-    ("B58", Unwired("crates/l2-kingdom/src/siege.rs")),
-    ("B59", Unwired("crates/l2-kingdom/src/siege.rs")),
-    ("B60", Unwired("crates/l2-kingdom/src/siege.rs")),
-    ("B61", Unwired("crates/l2-kingdom/src/siege.rs")),
+    ("B57", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B58", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B59", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B60", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B61", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
     // 2.9 — sound
     (
         "B62",

@@ -513,7 +513,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   produce a siege; `crates/l2-sim/tests/siege.rs` runs one and enumerates every handler it
   reaches. `docs/battle-ai.md` §6
 - ✅ **Sieges, both halves.** Campaign: laying one, the engine order and its ceilings, the
-  build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege.rs`,
+  build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege/mod.rs`,
   checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege.rs`).
   Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
   the way in — `crates/l2-sim/src/siege/mod.rs`.
