@@ -65,10 +65,10 @@ crates/l2-game/src/screens/county/draw.rs	C22	11557e27ba54	0364b53a921d
 crates/l2-game/src/screens/county/draw.rs	C59	d92177ac30ca	37ab8ac1a2fc
 crates/l2-game/src/screens/county/draw.rs	C61	835ec1cbf9ae	60611046b40d
 crates/l2-game/src/screens/county/mod.rs	C22	f88818d7df89	0364b53a921d
-crates/l2-game/src/screens/county/strip.rs	C112	f88ab6b616c3	0dbcd00423ed
-crates/l2-game/src/screens/county/strip.rs	C135	a8a8cbf37bb0	39859e3b9368
-crates/l2-game/src/screens/county/strip.rs	C153	a1c8941ae6ab	c724d7afe0dd
-crates/l2-game/src/screens/county/strip.rs	C42	8b7388d80e13	a2ac3547bb32
+crates/l2-game/src/screens/county/strip/mod.rs	C112	f88ab6b616c3	0dbcd00423ed
+crates/l2-game/src/screens/county/strip/mod.rs	C135	a8a8cbf37bb0	39859e3b9368
+crates/l2-game/src/screens/county/strip/mod.rs	C153	a1c8941ae6ab	c724d7afe0dd
+crates/l2-game/src/screens/county/strip/mod.rs	C42	8b7388d80e13	a2ac3547bb32
 crates/l2-game/src/screens/court.rs	C110	4001eefdd973	a4ab43902f60
 crates/l2-game/src/screens/court.rs	C140	0f96dbb1757f	e3a1ede42a95
 crates/l2-game/src/screens/diplomacy/compose.rs	C26	d7d30139b2b8	e8179d1f76a8
