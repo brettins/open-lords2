@@ -266,7 +266,7 @@ which is **correct within that document's mode-2 scope**.
 without re-counting.
 
 The same wrong number is in the crate, twice:
-`crates/l2-formats/src/pl8.rs` — "24 frames in the corpus declare rows and still occupy
+`crates/l2-formats/src/pl8/mod.rs` — "24 frames in the corpus declare rows and still occupy
 24 frames in the real corpus declare rows on shape 1"
 (test `a_diamond_ignores_its_overhang_row_count`).
 
@@ -343,7 +343,7 @@ There is none.
 ### F15 — frame record `0x0E` is documented as a `u16`; `0x0F` is not always zero
 
 * `pl8.md` frame-table: `0x0E | u16 | Padding`.
-* `crates/l2-formats/src/pl8.rs` module doc: `0x0E u16 padding`.
+* `crates/l2-formats/src/pl8/mod.rs` module doc: `0x0E u16 padding`.
 * `pl8-mode2.md` §3 splits them: `0x0E u8` — "never non-zero in any of the 21,344 frames
   in the corpus"; `0x0F u8` — "non-zero in 32 frames, none of them mode 2".
 
