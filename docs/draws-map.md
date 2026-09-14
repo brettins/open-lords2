@@ -914,7 +914,7 @@ panel's focus outline; the drop-down's recess and its status line (2); `NO MINIM
 > with the debug overlay on** (Ctrl+D, `Prefs::debug_overlay`, `docs/arms.json`
 > `ours/debug-overlay-toggle`). Two players reported them as *"debug squares still on the
 > town square"* and *"debug outlines and text for the 4 icons at the bottom right"*.
-> `crates/l2-game/tests/screens_info.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
+> `crates/l2-game/tests/screens_info/main.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
 > asserts each absence at a pixel the overlay really draws. The sites are still counted,
 > because the audit counts source call sites and they are still in the source.
 >
