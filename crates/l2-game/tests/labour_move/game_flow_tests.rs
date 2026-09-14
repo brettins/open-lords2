@@ -38,17 +38,31 @@ use l2_view::{campaign, Canvas};
 ///    number below came out equal. Before this change ours had **no foresters,
 ///    155 idle, and all four forecasts zero**, because nothing had computed an
 ///    industry ceiling before the opening season's `Labour_AllocateAll` —
-/// `Industry_ProduceAll`'s estimates were not ported — and the person's
+/// `Industry_ProduceAll`'s estimates were not ported
 ///    herd went into `Herd_SeasonTick` unminded, because
 ///    `Game_SetupRealmsAndCounties`' two allocation rounds were not either.
 /// 3. **The wood row draws it** on the first frame of the campaign.
 ///
-/// The herd *count* is not compared: the save's 101 against our 109, on a
-/// different county. Not explained, and not claimed.
+/// 4. **Every owned county's herd is the save's**, paired by cattle labour —
+///    `(labour, pasture, crowding, herd)` as a sorted multiset, because the
+///    seats are rolled. `FUN_0049BD99`'s first loop closes on
+///    `County_RecountFields(c); Herd_UpdateCrowding(c)` (`0x00469B8D`,
+/// `0x0044D913`) and ours ran neither,
+///    opening crowding 10 into the opening `Herd_SeasonTick` and bred at the
+///    low-crowding rate: the person's came out 109 against the save's 101.
+///    Only the AI's were right, and by accident — `Ai_ManageFarmsAll` calls
+///    `Herd_UpdateCrowding` for its own counties.
 ///
-/// **Ablations, both run.** Delete the `settle_start_county` loop from
+/// **The unowned counties still differ** — ours 44 head against the save's 67 —
+/// and for another reason: they enter the tick with **no cattle labour at all**
+/// where the save shows 323. `Game_SetupRealmsAndCounties` runs `Labour_Allocate`
+/// on the start counties only. Not this test's claim, and not fixed here.
+///
+/// **Ablations, three run.** Delete the `settle_start_county` loop from
 /// `Settings::apply_to`: red at claim 2 (280 cattle, 47 idle). Empty the
-/// estimates in `Kingdom::industry`: red at claim 2 (no foresters).
+/// estimates in `Kingdom::industry`: red at claim 2 (no foresters). Delete the
+/// `herd_update_crowding` call from `Settings::apply_to`: red at claim 4, our
+/// person's county 109 against the save's 101.
 #[test]
 fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     let assets = assets!();
@@ -117,6 +131,25 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     assert_eq!(next(o), next(t), "the four industry forecasts");
     assert_eq!(o.herd_change_expected, t.herd_change_expected, "the cattle forecast");
     assert_eq!(o.grain_change_expected, t.grain_change_expected, "the grain forecast");
+    assert_eq!(o.herd, t.herd, "the person's herd after the opening season");
+
+    // 4 — the cattle of all five start counties, paired by their cattle labour
+    // because the seats are rolled.
+    let cattle = |k: &l2_kingdom::Kingdom| {
+        let mut rows: Vec<(i32, i32, i32, i32)> = k
+            .county_ids()
+            .filter(|&id| k.counties[id].owner != 0)
+            .map(|id| {
+                let c = &k.counties[id];
+                (c.labour[k.tables.job.cattle_farming], c.fields_cattle, c.herd_crowding, c.herd)
+            })
+            .collect();
+        rows.sort_unstable();
+        rows
+    };
+    let mine = cattle(&game.kingdom);
+    assert_eq!(mine.len(), 5, "five start counties");
+    assert_eq!(mine, cattle(&oracle.kingdom), "(cattle labour, pasture, crowding, herd)");
 
     // 3 — drawn.
     let wood = t.industry[Commodity::Wood.index()].next_season;
