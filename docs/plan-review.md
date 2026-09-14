@@ -185,7 +185,7 @@ Twenty-one of the constants the simulation reads are **not fields of `Tables` at
 all** — `AI_TAX_LADDERS`, `AI_TAX_LADDER_NEUTRAL`, `AI_FIELD_LADDER`, `AI_GOLD_GRANT_SMALL`,
 `ALE_HAPPINESS_MAX`, `ALE_HAPPINESS_STEP_PCT`, `ARMY_HAPPINESS_COST`, `INDUSTRY_ORDER`,
 `EFFICIENCY_MAX`, `EFFICIENCY_WITHOUT_ADVANCED_FARMING`, `RESOURCE_LIMIT_UNLIMITED` and
-others. `crates/l2-mods/src/kingdom.rs` has no ruleset keys for them either.
+others. `crates/l2-mods/src/kingdom/mod.rs` has no ruleset keys for them either.
 
 So the stated goal — *"a modded `kingdom.toml` … take effect"* — is not reached by
 threading `&Tables` through. It also needs `Tables` widened, `l2-mods`'s reader widened in
