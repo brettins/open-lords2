@@ -18,7 +18,7 @@
     "  derived  - the load recomputes it, and it still holds exactly the file's bytes;",
     "  excluded - not carried, and `why` says why in one line.",
     "",
-    "Checked from both sides. crates/l2-scenario/tests/stored_fields.rs requires every row to be",
+    "Checked from both sides. crates/l2-scenario/tests/stored_fields/main.rs requires every row to be",
     "well formed, every field docs/records.json names to have a row of that name and width, and -",
     "against every save on the machine - every imported and derived row to reach the kingdom holding",
     "the file's own value. `node tools/oracle/fields.js --check` requires every offset the",

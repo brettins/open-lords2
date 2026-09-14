@@ -315,7 +315,7 @@ pub struct IndustryState {
 
 /// **The offsets C161 imports**, one constant each, and nothing
 /// else. Every one is a row of `docs/stored-fields.json` with status
-/// `imported`, and `crates/l2-scenario/tests/stored_fields.rs` holds each to the
+/// `imported`, and `crates/l2-scenario/tests/stored_fields/main.rs` holds each to the
 /// file's own bytes after [`Scenario::kingdom`] in every save on the machine —
 /// so the prose for each lives in that inventory and in the kingdom field's own
 /// doc comment, not a third time here.

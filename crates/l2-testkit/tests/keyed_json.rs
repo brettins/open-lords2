@@ -276,7 +276,7 @@ fn drive(label: &str, base: &str, ours: &str, theirs: &str) -> Option<(bool, Str
 /// On the mercenaries merge (C164) the driver rewrote this file from 274 lines to
 /// 1,617, pretty-printed, and reported the merge clean. The content was the right
 /// union; the layout broke the file's contract, which is one object per line
-/// because `crates/l2-scenario/tests/stored_fields.rs` scans it by line, and three
+/// because `crates/l2-scenario/tests/stored_fields/main.rs` scans it by line, and three
 /// of those tests went red.
 ///
 /// So this merges **the real file** three ways — ours rewrites one row and adds a

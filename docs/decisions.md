@@ -8220,7 +8220,7 @@ fourth status. Its rows come from three places, and each is checked:
   and on a row no instruction touches.
 * **The layout** — every field `docs/records.json` names must have a row of that
   name, width and array shape (146 fields once the nested arrays expand).
-* **The saves** — `crates/l2-scenario/tests/stored_fields.rs` holds every
+* **The saves** — `crates/l2-scenario/tests/stored_fields/main.rs` holds every
   `imported` and `derived` row to the file's own value after `Scenario::kingdom`,
   in every county and realm of every save on the machine: **30,600 values over
   18 saves, and all agree.** That is the check that cannot be typed into
