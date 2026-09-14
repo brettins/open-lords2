@@ -1730,7 +1730,7 @@ node tools/oracle/widgets.js ref 434d33         # who *points at* a function
 
 ### 10.1 The menu bar is three tables of function pointers, and every one is accounted for **[V]**
 
-**Built.** `crates/l2-game/src/screens/menubar.rs` is this section: the three measured
+**Built.** `crates/l2-game/src/screens/menubar/mod.rs` is this section: the three measured
 titles, the sixteen items, screen `0x32` and its four arms. Six of the sixteen reach a
 screen — load, save, quit and the four option pages — and the rest refuse in one line naming
 the screen or the message id they want, because the confirm box (`0x1E`), the value spinner

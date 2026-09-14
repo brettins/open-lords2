@@ -387,7 +387,7 @@
       "addr": "0x0040DD92",
       "what": "FUN_0040E099 recomputes DAT_00522CB0, the highlighted row, every frame the button is up. The row is x .. x + 0x90 -- 144 pixels wide WHATEVER THE CAPTION SAYS -- and 15 tall in a 20-pixel pitch, so the five pixels between two rows highlight nothing.",
       "note": "The only hover arm in the whole management interface. Every other screen in this group acts on a press or a release.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -398,7 +398,7 @@
       "gesture": "left-press",
       "addr": "0x0040DD92",
       "what": "With the button DOWN and a row highlighted: g_screenId = g_menuPrevScreen FIRST, then the item's handler. The ordering is what lets a handler that sets a screen id win and a handler that does not leave the player where he was.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -409,7 +409,7 @@
       "gesture": "hover",
       "addr": "0x0040DD92",
       "what": "With the button UP, FUN_0040DD92 runs Menu_HitTitle again: a pointer that reaches a DIFFERENT title while a menu is open switches the open menu to it. No click involved.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -432,7 +432,7 @@
       "gesture": "left-press",
       "addr": "0x0040DECA",
       "what": "L2.eng 1.2: Menu_LoadGame globs *.sav and sets g_screenId = 0x35. Ours reaches crates/l2-game/src/screens/saveload/mod.rs, which was previously reachable only by the L key -- a key of ours standing in for this item.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -444,7 +444,7 @@
       "addr": "0x0040DECA",
       "what": "File menu item 1, L2.eng 1.1: Menu_NewGame -> Ui_OpenConfirm(1, ...), L2.eng group 10 index 1.",
       "note": "The ITEM is reproduced and its handler is not: screen 0x1E, the one yes/no box that serves fifteen questions in the whole game, is not built, so this refuses with a line naming the screen it wants. Recorded as reproduced because the input arm -- title, row, hit test, dispatch -- is the thing this file counts; docs/decisions.md C76 says what the missing half costs.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -456,7 +456,7 @@
       "addr": "0x0040DECA",
       "what": "L2.eng 1.4: Menu_Quit -> Ui_OpenConfirm(0, ...), 'Exit the game?'.",
       "note": "Quits outright, because there is no confirm box to carry the question. That is the answer the box would have returned and not the box; the same missing screen as file-new-game.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -467,7 +467,7 @@
       "gesture": "left-press",
       "addr": "0x0040DECA",
       "what": "L2.eng 1.3: Menu_SaveGame sets g_screenId = 0x36 after stashing the current screen in g_screenIdSaved, which is what SaveLoad_Cancel puts back.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -478,7 +478,7 @@
       "gesture": "left-press",
       "addr": "0x0040DECA",
       "what": "L2.eng 3.7: Menu_About sets g_screenId = 0x25, which is a shell whose `unfinished` reads 'nothing -- this is the whole screen'.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -490,7 +490,7 @@
       "addr": "0x0040DECA",
       "what": "Five items, L2.eng 3.2 .. 3.6, each Msg_Enqueue with one of FIVE CONSECUTIVE message ids 0x123 .. 0x127.",
       "note": "The consecutive ids are the independent check on the table: they were read off five separate handlers and came out in the item order with no gaps. The message scroll is not built, so each says which id it wanted.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -513,7 +513,7 @@
       "gesture": "left-press",
       "addr": "0x0040DECA",
       "what": "Four items over two menus that are one arm here because they are one line of code: Menu_AdvancedOptions -> 0x39, Menu_SoundOptions -> 0x42, Menu_DisplayOptions -> 0x43 and Menu_GameHelp -> 0x31. All four screens exist (crates/l2-game/src/screens/options/mod.rs) and had no way in but the index screen.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -525,7 +525,7 @@
       "addr": "0x0040DECA",
       "what": "L2.eng 2.4 and 2.5: Menu_GameSpeed passes &g_optGameSpeed and Menu_ScrollSpeed passes &g_optScrollSpeed to the value spinner, screen 0x21 -- the screen that prints L2.eng group 12 index 0, 'Click Right to Exit'.",
       "note": "Menu_ScrollSpeed is the row that proves the whole table was read rather than assembled: g_optScrollSpeed was named months earlier for unrelated reasons and the caption above it turns out to be 'Scroll Speed'. The items dispatch; screen 0x21 is not built, so both say so.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -536,7 +536,7 @@
       "gesture": "left-press",
       "addr": "0x0040DF62",
       "what": "A press with no row highlighted closes the drop-down unconditionally -- including a press back on the title that opened it, which is what makes the bar behave like a menu bar.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -774,7 +774,7 @@
       "addr": "0x0042FF10",
       "what": "The whole of Screen_FrameInput's 0x32 arm: `if (FUN_0040DD92(&g_menuBarItems, 3) == 0 && g_mouseRightReleased) FUN_0040DF62();`.",
       "note": "A right PRESS also cancels, by a different route: FUN_0040E12E, the drop-down's own modal loop, spins `while (DAT_004EABE0 == 0)`. That is one of only five reads of the right press flag in the binary and is not reproduced -- we have no modal loop.",
-      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs",
       "evidence": "V"
     },
     {
@@ -3393,7 +3393,7 @@
       "gesture": "key",
       "what": "Escape closes an open drop-down.",
       "why": "No key reaches screen 0x32 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Kept because a menu that can only be dismissed with the mouse traps a keyboard player, and counted here rather than left as a comment admitting a choice.",
-      "ours": "crates/l2-game/src/screens/menubar.rs"
+      "ours": "crates/l2-game/src/screens/menubar/mod.rs"
     },
     {
       "id": "ours/info-keyboard-close",

@@ -101,7 +101,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/save.rs", "saves", 19),
     ("crates/l2-formats/tests/save_england_turn1.rs", "england", 13),
     ("crates/l2-game/src/audio/mod.rs", "install", 1),
-    ("crates/l2-game/src/screens/menubar.rs", "install", 2),
+    ("crates/l2-game/src/screens/menubar/mod.rs", "install", 2),
     ("crates/l2-game/tests/ai_war.rs", "england", 2),
     ("crates/l2-game/tests/armoury/main.rs", "england", 13),
     ("crates/l2-game/tests/arms.rs", "executable", 1),
