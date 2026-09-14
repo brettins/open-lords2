@@ -1686,7 +1686,7 @@ within three tiles of the county's centre, and never looks at the county at all.
 The player: *"I raised an army and nothing appeared on the map."* Two independent faults put
 it out of shot and this is the first of them.
 
-`crates/l2-kingdom/src/levy.rs`'s `muster_tile` scanned all 4,096 tiles row-major for the
+`crates/l2-kingdom/src/levy/mod.rs`'s `muster_tile` scanned all 4,096 tiles row-major for the
 first free road tile **whose county id matched**, and called that `County_FindFreeRoadTile`.
 The real one (`0x00428007`) is four lines:
 
