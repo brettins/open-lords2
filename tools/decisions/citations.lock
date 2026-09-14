@@ -77,9 +77,9 @@ crates/l2-game/src/screens/diplomacy/mod.rs	C189	cd522ae61df6	a640e552a733
 crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
 crates/l2-game/src/screens/info/constants.rs	C204	52bfa03d28f3	37a4a7aaee75
 crates/l2-game/src/screens/info/mod.rs	C199	05b94bdb92e3	f4bda256f5f1
-crates/l2-game/src/screens/info/screen.rs	C110	610d3cd4e224	a4ab43902f60
-crates/l2-game/src/screens/info/screen.rs	C25	66b49eac1b0f	5d466f0cb89c
-crates/l2-game/src/screens/info/screen.rs	C25	81871fcedfac	5d466f0cb89c
+crates/l2-game/src/screens/info/screen/mod.rs	C110	610d3cd4e224	a4ab43902f60
+crates/l2-game/src/screens/info/screen/mod.rs	C25	66b49eac1b0f	5d466f0cb89c
+crates/l2-game/src/screens/info/screen/mod.rs	C25	81871fcedfac	5d466f0cb89c
 crates/l2-game/src/screens/job/blacksmith_part.rs	C61	304bbda5317e	60611046b40d
 crates/l2-game/src/screens/job/mod.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/job/mod.rs	C61	e18410735c96	60611046b40d
