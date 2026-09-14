@@ -65,6 +65,9 @@ use crate::unit::{ArmyNames, UnitKind, Units};
 /// otherwise have to grow four arguments of its own.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Restore {
+    /// `g_season` and `g_optAdvancedFarming` as `Ration_Apply` (`0x0044DF5F`)
+    /// wants them: entering Spring it holds back the seed corn.
+    pub sowing: crate::ration::Sowing,
     pub season_next: Season,
     pub advanced_farming: bool,
     pub armies_eat: bool,
@@ -75,6 +78,7 @@ impl Restore {
     /// A world with nothing in it — for a test whose county never goes
     /// independent, and for a caller that has no kingdom to read.
     pub const NEUTRAL: Restore = Restore {
+        sowing: crate::ration::Sowing::NONE,
         season_next: Season::Spring,
         advanced_farming: false,
         armies_eat: false,

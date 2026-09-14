@@ -473,10 +473,16 @@ impl Kingdom {
 
     fn ration_apply(&mut self, preview: bool) {
         for id in 1..=self.county_count {
+            // `Ration_ApplyAll` (`0x0044BF04`) hands `Ration_Apply`
+            // `g_seasonPrev`; every other call in the binary hands it
+            // `g_season`. The gate is season 4, so the spending pass reserves
+            // the seed on the turn `Grain_SeasonTick` sows — Spring.
+            let season = if preview { self.season } else { self.season_prev };
+            let sowing = ration::Sowing::from_index(season, self.options.advanced_farming);
             if preview {
-                ration::preview(&self.tables, &mut self.counties[id], self.options.armies_eat);
+                ration::preview(&self.tables, &mut self.counties[id], self.options.armies_eat, sowing);
             } else {
-                ration::apply(&self.tables, &mut self.counties[id], self.options.armies_eat);
+                ration::apply(&self.tables, &mut self.counties[id], self.options.armies_eat, sowing);
             }
         }
     }
@@ -632,8 +638,9 @@ impl Kingdom {
         let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
         let advanced = self.options.advanced_farming;
         let armies_eat = self.options.armies_eat;
+        let sowing = ration::Sowing::from_index(self.season, advanced);
         for id in 1..=self.county_count {
-            ration::preview(&self.tables, &mut self.counties[id], armies_eat);
+            ration::preview(&self.tables, &mut self.counties[id], armies_eat, sowing);
             if let Some(grain) =
                 land::grain_labour_estimate(&self.tables, &self.counties[id], season_next, advanced)
             {
@@ -699,6 +706,7 @@ impl Kingdom {
     /// `g_optArmiesEat` and `g_countyCount`.
     pub fn restore(&self) -> crate::conquest::Restore {
         crate::conquest::Restore {
+            sowing: crate::ration::Sowing::from_index(self.season, self.options.advanced_farming),
             season_next: Season::from_index(self.season_next).unwrap_or(Season::Spring),
             advanced_farming: self.options.advanced_farming,
             armies_eat: self.options.armies_eat,

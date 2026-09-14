@@ -198,7 +198,7 @@ impl Kingdom {
         let on = crate::industry::toggle_from_map(&mut self.counties[county], what, quirks);
         self.refresh_estimates(county);
         crate::labour::allocate(&mut self.counties[county]);
-        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
         crate::labour::allocate(&mut self.counties[county]);
         self.refresh_estimates(county);
         // `Industry_UpdateSiteTile(county, industry)` — the *visible* half of
@@ -254,7 +254,7 @@ impl Kingdom {
         self.counties[county].castle_switch = false;
         for _ in 0..2 {
             crate::labour::allocate(&mut self.counties[county]);
-            crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+            crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
             self.refresh_estimates(county);
         }
         for (industry, on) in self.counties[county].industry.iter_mut().zip(switches) {
@@ -418,7 +418,7 @@ impl Kingdom {
                 crate::labour::recompute_industry_share(&mut self.counties[county]);
                 crate::labour::recompute_shares(&mut self.counties[county]);
             }
-            crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+            crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
             self.refresh_estimates(county);
             self.refresh_blacksmiths(owner);
         }
@@ -559,7 +559,7 @@ impl Kingdom {
         // [`toggle_army_foraging`] make the same substitution for the same
         // reason. Calling the spending twin here would charge the county for a
         // meal every time the player nudged the slider.
-        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
         self.refresh_estimates(county);
         true
     }

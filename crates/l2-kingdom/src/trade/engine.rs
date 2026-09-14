@@ -147,10 +147,11 @@ fn settle(kingdom: &mut Kingdom, county: usize) {
     let t = kingdom.tables;
     let armies_eat = kingdom.options.armies_eat;
     let season_next = kingdom.season_next;
+    let sowing = crate::ration::Sowing::from_index(kingdom.season, kingdom.options.advanced_farming);
     // Split off `kingdom` before the county is borrowed, because the repaint
     // needs the map and the rest of the tail needs the county.
     let Kingdom { counties, campaign, .. } = kingdom;
-    settle_county(&t, &mut counties[county], &mut campaign.map, armies_eat, season_next);
+    settle_county(&t, &mut counties[county], &mut campaign.map, armies_eat, season_next, sowing);
 }
 
 /// `Merchant_Trade`'s tail, against one county and the map.
@@ -171,6 +172,7 @@ pub fn settle_county(
     map: &mut crate::map::CampaignMap,
     armies_eat: bool,
     season_next: u8,
+    sowing: crate::ration::Sowing,
 ) {
     // `Merchant_Trade`'s own `Herd_UpdateCrowding` — buying or selling cattle
     // moves the herd, so the animals on the county's pasture move with it.
@@ -196,10 +198,10 @@ pub fn settle_county(
     // > food is taken out of the county later in the season, and
     // > `docs/decisions.md` C149 records that our own
     // > `ration::apply` is therefore a pass the original splits in two.
-    crate::ration::preview(t, county, armies_eat);
+    crate::ration::preview(t, county, armies_eat, sowing);
     crate::land::herd_preview(t, county, season_next);
     crate::labour::allocate(county);
-    crate::ration::preview(t, county, armies_eat);
+    crate::ration::preview(t, county, armies_eat, sowing);
     crate::land::herd_preview(t, county, season_next);
 }
 

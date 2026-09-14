@@ -51,7 +51,7 @@ pub fn make_independent(
         c.castle_switch = false;
     }
     crate::labour::allocate(&mut counties[id]);
-    crate::ration::apply(t, &mut counties[id], r.armies_eat);
+    crate::ration::apply(t, &mut counties[id], r.armies_eat, r.sowing);
     // `County_RefreshEstimates(county, g_seasonNext)` with the owner it now
     // has, which is nobody: realm 0 owns no blacksmith, so the share is what a
     // neutral county's share is.

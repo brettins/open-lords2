@@ -66,7 +66,7 @@ impl Kingdom {
         // `Ration_Apply` computes and records; it does not spend. The spending
         // twin is `crate::ration::apply`, whose name matches the original's and
         // whose behaviour does not — see `set_ration_split`.
-        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
         self.refresh_estimates(county);
         moved
     }
@@ -96,7 +96,7 @@ impl Kingdom {
         self.options.armies_eat = !self.options.armies_eat;
         let armies_eat = self.options.armies_eat;
         for id in 1..=self.county_count {
-            crate::ration::preview(&self.tables, &mut self.counties[id], armies_eat);
+            crate::ration::preview(&self.tables, &mut self.counties[id], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
             self.refresh_estimates(id);
         }
     }
@@ -229,7 +229,7 @@ impl Kingdom {
             let c = &mut self.counties[county];
             c.ration_split = split;
         }
-        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
 
         let stuck = {
             let c = &self.counties[county];
@@ -252,7 +252,7 @@ impl Kingdom {
                     let c = &mut self.counties[county];
                     c.ration_split = (c.ration_split + dir).clamp(0, crate::county::MAX_RATION_SPLIT);
                 }
-                crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+                crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
                 if self.counties[county].herd_eaten != was {
                     break;
                 }
@@ -264,6 +264,7 @@ impl Kingdom {
                         &self.tables,
                         &mut self.counties[county],
                         armies_eat,
+                        crate::ration::Sowing::from_index(self.season, self.options.advanced_farming),
                     );
                     break;
                 }
@@ -376,6 +377,7 @@ impl Kingdom {
             &mut self.realms,
             env.season_next,
             env.armies_eat,
+            crate::ration::Sowing::new(env.season, env.advanced_farming),
         );
         crate::ai_farm::manage_neutral_fields(
             &self.tables,
@@ -421,6 +423,7 @@ impl Kingdom {
             &mut self.realms,
             env.season_next,
             env.armies_eat,
+            crate::ration::Sowing::new(env.season, env.advanced_farming),
         );
         crate::ai_farm::manage_county_farms(
             &self.tables,
