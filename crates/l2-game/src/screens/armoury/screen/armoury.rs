@@ -84,7 +84,7 @@ impl ArmouryScreen {
     /// `FUN_00435AE8`'s id 1 and id 3 — `Army_RaiseConfirm` with the answer set
 /// either way. A no closes the screen and raises
     /// nothing, which is `g_screenId = 0` down both arms of the handler.
-    fn confirm(&mut self, ctx: &mut Ctx, yes: bool) -> Transition {
+    pub(super) fn confirm(&mut self, ctx: &mut Ctx, yes: bool) -> Transition {
         if !yes {
             return Transition::Pop;
         }

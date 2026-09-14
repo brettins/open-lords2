@@ -58,7 +58,7 @@ impl VillageScreen {
         }
     }
 
-    fn county_ref<'a>(&self, ctx: &'a Ctx) -> Option<&'a County> {
+    pub(super) fn county_ref<'a>(&self, ctx: &'a Ctx) -> Option<&'a County> {
         ctx.game.kingdom.counties.get(self.county as usize)
     }
 
@@ -141,7 +141,7 @@ impl VillageScreen {
     /// bottom, left and right through `FUN_00403A8F` in one colour — and the
     /// colour here is the literal `0x20`, which is `rgb(255, 255, 255)` in
     /// `Base01.256`, the palette `Screen_DrawCampaign` leaves set.
-    fn band_rect(&self, top: i32) -> Option<Rect> {
+    pub(super) fn band_rect(&self, top: i32) -> Option<Rect> {
         let (x0, y0, x1, y1) = self.band()?;
         let (mut x, mut w) = (x0, x1 - x0 + 1);
         let (mut y, mut h) = (y0, y1 - y0 + 1);
@@ -162,7 +162,7 @@ impl VillageScreen {
 
     /// `Village_BoxSelect` (`0x0043958A`).
     // arm: 0x0043958A/box-select drag
-    pub(super) fn box_select(&mut self, ctx: &Ctx) {
+    pub(crate) fn box_select(&mut self, ctx: &Ctx) {
         self.selected = [false; ICONS_PER_CLUSTER];
         self.drag_cluster = 0;
         self.drag_count = 0;
@@ -201,7 +201,7 @@ impl VillageScreen {
         }
     }
 
-    fn clear_drag(&mut self) {
+    pub(crate) fn clear_drag(&mut self) {
         self.phase = Phase::Idle;
         self.anchor = None;
         self.drag_cluster = 0;
@@ -210,7 +210,7 @@ impl VillageScreen {
     }
 
     /// `FUN_004399B0`: the drop. Returns true if anything moved.
-    fn drop_on(&mut self, ctx: &mut Ctx, x: i32, y: i32) -> bool {
+    pub(super) fn drop_on(&mut self, ctx: &mut Ctx, x: i32, y: i32) -> bool {
         let top = Self::top_y(ctx);
         let Some(art) = ctx.assets.village.as_ref() else {
             self.status = "NO VILL_GD8.PL8 - NOTHING TO DROP ON".into();
@@ -243,7 +243,7 @@ impl VillageScreen {
     /// A click that never became a drag: the job popup for whatever cluster it
     /// landed on. `FUN_0043A123`, whose one refusal is cluster 0 in a county
     /// with neither a quarry nor a mine.
-    fn job_under(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
+    pub(super) fn job_under(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
         let top = Self::top_y(ctx);
         let cluster = ctx.assets.village.as_ref()?.cluster_at(x, y, top);
         if cluster == 0 {
@@ -256,7 +256,7 @@ impl VillageScreen {
     }
 
     /// Whether a press here arms the band at all — `FUN_004393EB`'s guard.
-    fn in_band_area(ctx: &Ctx, x: i32, y: i32) -> bool {
+    pub(super) fn in_band_area(ctx: &Ctx, x: i32, y: i32) -> bool {
         let top = Self::top_y(ctx);
         (0..=vill::BAND_X_MAX).contains(&x) && y >= top && y < top + vill::BAND_H
     }
@@ -265,7 +265,7 @@ impl VillageScreen {
     /// [`VillageScreen::in_band_area`]: the band arms from x 0, the double
     /// click only from x `0x40`, the left edge of the picture. Returns the
     /// cluster it landed on, 1-based, or `None`.
-    fn double_click_cluster(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
+    pub(super) fn double_click_cluster(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
         let top = Self::top_y(ctx);
         if x < vill::SCENE_X || x > vill::BAND_X_MAX || y < top || y >= top + vill::BAND_H {
             return None;
@@ -275,7 +275,7 @@ impl VillageScreen {
     }
 
     /// The double click, once a cluster is known — `FUN_00439EDB`.
-    fn balance(&mut self, ctx: &mut Ctx, cluster: usize) {
+    pub(super) fn balance(&mut self, ctx: &mut Ctx, cluster: usize) {
         let moved = if cluster == vill::IDLE_CLUSTER {
             ctx.game.balance_all_labour(self.county)
         } else {
@@ -313,7 +313,7 @@ impl VillageScreen {
     /// (`g_mouseRightReleased` → `g_screenId = 0`), so it must not pass. The
     /// double click must not pass either: `Village_DoubleClick` is read in
     /// exactly one place in the whole binary and this arm is it.
-    fn belongs_to_the_sidebar(event: Event) -> bool {
+    pub(super) fn belongs_to_the_sidebar(event: Event) -> bool {
         // The six guards are the *same six* the four county panels open with,
         // so the predicate is one function for both:
         // [`crate::screens::belongs_to_the_right_column`].
@@ -323,7 +323,7 @@ impl VillageScreen {
 
 impl VillageScreen {
     /// The eight clusters, and the icons in them.
-    fn draw_clusters(
+    pub(super) fn draw_clusters(
         &self,
         ctx: &Ctx,
         canvas: &mut Canvas,

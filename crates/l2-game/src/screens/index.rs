@@ -136,7 +136,7 @@ impl IndexScreen {
         Rect::new(LEFT + col as i32 * COL_W, TOP + row as i32 * ROW_H, COL_W - 8, ROW_H)
     }
 
-    fn at(&self, x: i32, y: i32) -> Option<usize> {
+    pub(super) fn at(&self, x: i32, y: i32) -> Option<usize> {
         (0..self.rows.len())
             .find(|&i| self.rows[i].to.is_some() && self.rect(i).contains(x, y))
     }

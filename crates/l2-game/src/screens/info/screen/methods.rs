@@ -227,7 +227,7 @@ impl InfoScreen {
     /// garrisoned table (`0x004DC5A8`) on `unit.garrisonCounty`, behind three
     /// guards: a unit is picked, it is **kind 1**, and its owner is the local
     /// player. The two tables differ in one slot.
-    fn unit_buttons(&self, ctx: &Ctx) -> Option<(usize, bool)> {
+    pub(super) fn unit_buttons(&self, ctx: &Ctx) -> Option<(usize, bool)> {
         let Target::Unit(id) = self.target else { return None };
         let u = ctx.game.kingdom.campaign.units.get(id)?;
         if u.kind != l2_kingdom::unit::UnitKind::Army || u.owner != ctx.game.player {
@@ -382,7 +382,7 @@ impl InfoScreen {
     /// **`FUN_00438A91`**: a press or a double click on the garrison widget,
     /// and `FUN_00438ACC` behind it, which turns the tile half into the unit
     /// half in place. True when it did.
-    fn garrison_press(&mut self, ctx: &mut Ctx, event: Event) -> bool {
+    pub(crate) fn garrison_press(&mut self, ctx: &mut Ctx, event: Event) -> bool {
         if self.press.event(&garrison_widgets(), event).is_none() || ctx.game.map_zoom_far {
             return false;
         }

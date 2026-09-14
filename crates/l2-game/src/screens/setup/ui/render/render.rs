@@ -215,7 +215,7 @@ impl SetupScreen {
         }
     }
 
-    fn at(&self, x: i32, y: i32) -> Option<(usize, Action)> {
+    pub(super) fn at(&self, x: i32, y: i32) -> Option<(usize, Action)> {
         self.hotspots()
             .into_iter()
             .enumerate()

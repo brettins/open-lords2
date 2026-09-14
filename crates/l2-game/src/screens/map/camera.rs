@@ -80,7 +80,7 @@ impl MapScreen {
         }
     }
 
-    pub(super) fn scroll(&mut self, dir: Dir) -> bool {
+    pub(crate) fn scroll(&mut self, dir: Dir) -> bool {
         match self.view.scrolled(dir, &self.zoom) {
             Some(v) => {
                 self.view = v;

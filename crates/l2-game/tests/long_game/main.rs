@@ -69,7 +69,7 @@ struct Census {
 }
 
 impl Census {
-    fn fire(&mut self, what: &'static str, turn: usize) {
+    pub(crate) fn fire(&mut self, what: &'static str, turn: usize) {
         self.first.entry(what).or_insert(turn);
         *self.count.entry(what).or_insert(0) += 1;
     }

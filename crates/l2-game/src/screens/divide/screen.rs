@@ -75,7 +75,7 @@ impl DivideScreen {
     /// or repeat, or a kind-5 countdown expiring twenty ticks after the press.
     ///
     /// The index is [`widgets`]'.
-    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+    pub(crate) fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
             // **`SplitScreen_ToParent` (`0x00437D65`) and
             // `SplitScreen_ToDaughter` (`0x00437E9E`)** — sixteen widgets in
@@ -164,7 +164,7 @@ impl DivideScreen {
 /// One row's pair of arrow records — `System.pl8` frames 27 and 25 at the
 /// geometry `g_splitWidgets` gives them. Falls back to our own outline when
 /// the sheet is not loaded.
-fn arrows(pen: &Pen, canvas: &mut Canvas, row: usize, press: &Press) {
+pub(crate) fn arrows(pen: &Pen, canvas: &mut Canvas, row: usize, press: &Press) {
     // `Widget_Draw` adds one to the frame while the press timer at `+0x0D`
     // runs. The index is [`widgets`]`: `row * 2` parent, `+ 1` daughter.
     for (half, (rect, frame)) in

@@ -16,6 +16,4 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen, TRAILING};
 use crate::widget;
 
-use crate::shell::{font, Pen, TRAILING};
-use crate::widget;
 

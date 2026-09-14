@@ -23,7 +23,7 @@ impl SuppliesScreen {
     /// One widget's handler, whether it was reached from the press
     /// ([`crate::press::Kind::Repeat`]) or from the countdown
     /// ([`crate::press::Kind::Delayed`]).
-    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+    pub(crate) fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
             // The two spinners' own arms are marked on [`Cart::minus`] and
             // [`Cart::plus`], which is where their rule lives.

@@ -34,7 +34,7 @@ impl Panel {
     /// panel's shape: `Panel_Ration` opens
     /// `rows = g_optArmiesEat == 1 ? 2 : 0; Ui_DrawBox(0x80, 0x60, 0x12, rows + 0xF)`,
     /// making room for the foraging line at y = 336. Everything else ignores it.
-    pub(super) fn box_cells_for(self, armies_eat: bool) -> (i32, i32, i32, i32) {
+    pub(crate) fn box_cells_for(self, armies_eat: bool) -> (i32, i32, i32, i32) {
         match self {
             Panel::Population => POPULATION_BOX,
             Panel::Happiness => HAPPINESS_BOX,

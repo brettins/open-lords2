@@ -23,7 +23,7 @@ impl TradeScreen {
     }
 
     /// One `DAT_004DD838` record's handler, from the press or from the repeat.
-    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+    pub(crate) fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         let by = if self.press.repeat_step() < TRADE_FAST_STEP { 1 } else { 10 };
         match widget {
             0 => self.step(ctx, by),
@@ -180,7 +180,7 @@ impl TradeScreen {
     }
 
     /// `FUN_00435286` — the tick. `Merchant_Trade`, then back to the stall.
-    fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
+    pub(super) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         let q = self.quote(&Ctx { game: ctx.game, assets: ctx.assets });
         let county = self.county(&Ctx { game: ctx.game, assets: ctx.assets });
         let order = Order {

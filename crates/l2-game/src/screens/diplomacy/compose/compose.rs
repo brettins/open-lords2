@@ -56,7 +56,7 @@ impl ComposeScreen {
 
     /// One widget's handler, whichever way it was reached. The arms are
     /// declared on [`ComposeScreen::widgets`].
-    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+    pub(crate) fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
             // `Diplo_SendClicked` (`0x00436408`), hotspot 1.
             0 => self.send(ctx),

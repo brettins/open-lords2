@@ -9,13 +9,13 @@ use crate::input::Event;
 
 /// The screen stack.
 pub struct Machine {
-    stack: Vec<Box<dyn Screen>>,
-    quit: bool,
+    pub(crate) stack: Vec<Box<dyn Screen>>,
+    pub(crate) quit: bool,
     /// Set whenever anything happened that could change what is on screen.
     /// The event loop consults it to decide whether to repaint, which is the
     /// difference between a still menu costing nothing and costing a GPU
     /// submission sixty times a second.
-    dirty: bool,
+    pub(crate) dirty: bool,
     /// **Every widget click the stack has made since the process started.**
     ///
     /// Monotone on purpose. [`crate::audio::Director`] keeps the previous
@@ -29,23 +29,23 @@ pub struct Machine {
 /// Drained out of the screens by [`Machine::handle`]
     /// them,
     /// with it. See [`Screen::take_clicks`].
-    clicks: u32,
+    pub(crate) clicks: u32,
     /// `(g_mouseX, g_mouseY)` — the last canvas pixel an event put the pointer
     /// on. The original reads `GetCursorPos` every frame; ours hears about it.
-    pointer: (i32, i32),
+    pub(crate) pointer: (i32, i32),
     /// **`g_mouseInputChanged`** — the pointer moved or a button changed since
     /// the last tick. `FUN_004B191E` recomputes it once a frame, so it is taken
     /// once a tick, by [`Machine::run_tooltips`].
-    pointer_changed: bool,
+    pub(crate) pointer_changed: bool,
     /// **The tool tips** — `FUN_00476E95`'s state. Here and not on
     /// [`Game`], because it counts frames and `Game` is compared whole by the
     /// save round trips. See [`crate::tooltip`].
-    tooltips: crate::tooltip::Tooltips,
+    pub(crate) tooltips: crate::tooltip::Tooltips,
     /// The screens the last tick painted, to see a repaint — `Screen_Draw`
     /// opens with `FUN_0047703A`.
-    tooltip_screens: Vec<ScreenId>,
+    pub(crate) tooltip_screens: Vec<ScreenId>,
     /// `g_optToolTips` as the last tick saw it, to see `Opt_ToggleToolTips`.
-    tool_tips_seen: Option<bool>,
+    pub(crate) tool_tips_seen: Option<bool>,
     /// **A `Save_RotateAndWrite` (`0x0049A453`) is owed**, drained out of the
 /// screens. See [`Screen::take_autosave`] and
     /// [`crate::saves::run_pending`].
@@ -53,7 +53,7 @@ pub struct Machine {
     /// A latch and not a counter, because two turns cannot come round between
     /// two pumps: the request is raised in a tick and taken in the same tick's
     /// tail by the application.
-    autosave: bool,
+    pub(crate) autosave: bool,
 }
 
 

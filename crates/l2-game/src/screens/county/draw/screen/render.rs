@@ -45,7 +45,7 @@ impl CountyScreen {
     ///
     /// The `arm!` is `Screen_HandleInput`'s widget tables' marker.
     /// they are answered with, in one token.
-    fn arrows(&self) -> Vec<Widget> {
+    pub(crate) fn arrows(&self) -> Vec<Widget> {
         [self.panel.increase_button(), self.panel.decrease_button()]
             .into_iter()
             .flatten()
@@ -65,14 +65,14 @@ impl CountyScreen {
         self.panel = panel;
     }
 
-    fn panel_index(&self) -> usize {
+    pub(crate) fn panel_index(&self) -> usize {
         PANELS.iter().position(|&p| p == self.panel).unwrap_or(0)
     }
 
     /// Move the open panel's own value by `step`. Silently refused for a county
     /// the player does not hold, and there is nothing to move on the two panels
     /// that only report.
-    fn adjust(&self, ctx: &mut Ctx, step: i32) {
+    pub(crate) fn adjust(&self, ctx: &mut Ctx, step: i32) {
         let id = self.county;
         let Some(c) = ctx.game.kingdom.counties.get(id as usize) else { return };
         match self.panel {
@@ -112,7 +112,7 @@ impl CountyScreen {
     /// g_mouseLeftDoubleClick`), so holding the button down on an arrow and
     /// wiggling does not repeat — but holding it on the **track** does, because
     /// the track branch reads `mouseX` every frame.
-    fn split_click(&self, ctx: &mut Ctx, x: i32, y: i32, pressed: bool) -> bool {
+    pub(crate) fn split_click(&self, ctx: &mut Ctx, x: i32, y: i32, pressed: bool) -> bool {
         if self.panel != Panel::Ration {
             return false;
         }
@@ -159,7 +159,7 @@ impl CountyScreen {
         }
     }
 
-    fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(super) fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas) {
         let pen = self.pen(ctx);
         let ink = &ctx.assets.ink;
         let armies_eat = ctx.game.kingdom.options.armies_eat;

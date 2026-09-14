@@ -97,7 +97,7 @@ impl CastleScreen {
     }
 
     /// `CastleBuild_Confirm`'s hotspot 1.
-    fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
+    pub(super) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         let want = self.castle_type(ctx);
         let t = ctx.game.kingdom.tables;
         let county = &mut ctx.game.kingdom.counties[self.county as usize];

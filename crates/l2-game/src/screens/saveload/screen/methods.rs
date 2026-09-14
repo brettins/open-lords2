@@ -76,20 +76,20 @@ impl SaveLoadScreen {
     }
 
     /// The highest `top` that still shows a full page, in steps of three.
-    pub(super) fn max_top(&self) -> usize {
+    pub(crate) fn max_top(&self) -> usize {
         let over = self.entries.len().saturating_sub(PAGE);
         // Round up to a whole scroll step so that the last press lands on a
 // reachable value.
         over.div_ceil(SCROLL_STEP) * SCROLL_STEP
     }
 
-    pub(super) fn scroll(&mut self, by: i32) {
+    pub(crate) fn scroll(&mut self, by: i32) {
         let max = self.max_top() as i32;
         self.top = (self.top as i32 + by).clamp(0, max) as usize;
     }
 
     /// Which entry a click landed on, if any.
-    fn at(&self, x: i32, y: i32) -> Option<usize> {
+    pub(super) fn at(&self, x: i32, y: i32) -> Option<usize> {
         (0..PAGE)
             .find(|&i| Self::row_rect(i).contains(x, y))
             .map(|i| self.top + i)
@@ -99,7 +99,7 @@ impl SaveLoadScreen {
     /// Highlight a row and put its name in the field. In save mode that is how
     /// an existing save is overwritten — you pick it, and the name it had is
     /// what the confirm button will write to.
-    fn select(&mut self, i: usize) {
+    pub(super) fn select(&mut self, i: usize) {
         let Some(entry) = self.entries.get(i) else { return };
         self.selected = Some(i);
         self.name = begin_name(&entry.name);
@@ -118,7 +118,7 @@ impl SaveLoadScreen {
     /// A screen cannot reach the audio layer (`docs/netcode.md` D-3), so the
     /// decision is made here and reported on [`crate::game::Game::spoken`].
     // sfx: FUN_004ad9f0#1,FUN_004ad9f0#2
-    fn begin(&mut self, ctx: &mut Ctx) {
+    pub(super) fn begin(&mut self, ctx: &mut Ctx) {
         self.working = WORK_FRAMES;
         self.status = Status::Working;
         let line = match self.mode {
@@ -134,7 +134,7 @@ impl SaveLoadScreen {
     }
 
     /// One `g_saveLoadWidgets` record's handler. The index is [`widgets`]'.
-    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+    pub(crate) fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
             // `FUN_004342F3`.
             0 => {
@@ -158,7 +158,7 @@ impl SaveLoadScreen {
     /// The load or the save itself — what `SaveLoad_Tick` does when
     /// `DAT_0057D3C4` reaches zero. Everything that can go wrong comes back as
     /// a [`Status`] and the screen stays open; only success closes it.
-    fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
+    pub(super) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         match self.mode {
             Mode::Load => {
                 // **The path comes from the edit buffer, not from the
@@ -255,7 +255,7 @@ impl SaveLoadScreen {
     /// than out of the highlighted row. Ours refused every keystroke unless
     /// `mode == Save`, which was a restriction we invented; clicking a row
     /// still fills the field, so the mouse route is unchanged.
-    fn edit(&mut self, event: Event, ctx: &Ctx) -> bool {
+    pub(super) fn edit(&mut self, event: Event, ctx: &Ctx) -> bool {
         // arm: 0x004BA9C8/saveload-name key
         let m = crate::text::FontMetrics::of(&ctx.assets.shell);
         if !self.name.event(event, &m) {
