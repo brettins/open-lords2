@@ -507,13 +507,36 @@ impl BattleRunner {
                 // A figure whose chosen target is gone would stand in 17 for
                 // the rest of the battle. Returning it to idle lets its unit
                 // order it again.
+                let Some(shot) = WeaponClass::for_troop(self.fighters[i].troop) else {
+                    return;
+                };
                 let alive = self.sim.figures[sim]
                     .target
                     .is_some_and(|t| self.sim.figures[t].is_alive());
+                // **`&& targetCell == 0` is the rest of the original's test**,
+                // and it is what makes the player's fire arrow survive
+                // `Order_StopShortOfTarget`. `BattleMan_StateCloseToAttack`
+                // (`0x00484BF9`) opens on
+                // `other.owner == 0 && unit.targetCell == 0`, and that arm is
+                // the one that *leaves* state 17 — by writing **state 5**,
+                // which answers [`Self::fire_tick`]'s open question about what
+                // puts a figure into the firing state. So a unit carrying a
+                // fire-arrow cell holds its bowmen in 17 with no live target,
+                // and they acquire one there. `[V]`.
+                let cell = {
+                    let u = self.sim.figures[sim].unit as usize;
+                    if (1..=MAX_UNITS).contains(&u) { self.units.get(u).target_cell } else { 0 }
+                };
                 if !alive {
-                    self.sim.figures[sim].state = State::Idle;
-                    self.sim.figures[sim].target = None;
-                    return;
+                    if cell == 0 {
+                        self.sim.figures[sim].state = State::Idle;
+                        self.sim.figures[sim].target = None;
+                        return;
+                    }
+                    match self.missile_target(i, shot.stats().range as i32) {
+                        Some(t) => self.sim.figures[sim].target = Some(t),
+                        None => return,
+                    }
                 }
                 // **`BattleMan_StateCloseToAttack` (`0x00484BF9`) looses.** Its
                 // cadence is `BattleMan_FireMissile`'s own pair — swingTimer
