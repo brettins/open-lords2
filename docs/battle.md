@@ -171,7 +171,7 @@ reaches zero the figure enters the dead state and is removed.
 
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
-| `+0x164` | u8 | **on route** | [V] | 1 while the figure is following a stored path instead of walking straight at its target. |
+| `+0x164` | u8 | **on route** | [V] | 1 while the figure is following a stored path. |
 | `+0x165` | u8 | **hold it** | [V] | ticks to wait before asking the pathfinder again; set to 64 after each attempt. |
 | `+0x166` | i16 | **routed** | [V] | how many times this figure has been **re-routed**. Not morale — §8.3. |
 | `+0x168` | u8 | **polar dirc** | [V] | facing chosen when knocked back or thrown. |
@@ -1355,7 +1355,7 @@ record's own 24-bit offset field. The shipped `Stnfield.pl8` is **64,168
 bytes** = 8 header + 160 directory + 10 × 6,400 — ten uncompressed 80 × 80
 frames, five castles of two layers, `castle` being `g_castleLevel` 0…4. **[V]**,
 and `the_layout_file_holds_five_castles_of_two_layers_each` re-derives it from
-the player's own file instead of trusting this paragraph.
+the player's own file.
 
 **The structure layer is a grammar, not a raster.**
 `Battlefield_ReadStructureLayer` (`0x0047CEC1`) walks it for 2 × 2 marker
@@ -1509,7 +1509,7 @@ strike's second frame is the standing pose. Getting the two blocks the wrong way
 round leaves the `+ 10` with nowhere to point.
 
 **Why this is more than a decompiler reading.** Every one of the **36** shipped
-`a2` sheets that is not a knight — six colours by six troop types — has exactly
+`a2` sheets — six colours by six troop types — has exactly
 `8 * N + 18` frames, and in all four handler groups the dying base is exactly
 `8 * N + 6`. Getting N wrong for any troop breaks both identities at once. The
 corpus check is `crates/l2-view/tests/install/main.rs`.
@@ -2526,7 +2526,7 @@ the cross-check this section could otherwise not have.
 
 ## 16. The ditch, the drawbridge, and what a siege bills the county
 
-The three things a siege *does to the castle*, as opposed to to the men in it. All three
+The three things a siege *does to the castle*. All three
 were named in earlier sections and none of them had been followed to the end; doing so
 turned up four defects of our own, which are `C81`,
 `C82`, `C79` and `C80` in
@@ -2817,9 +2817,14 @@ plays; **at 4 and above nothing is counted**, the catapult is marked engaged —
 reads as *withdraw and try again* — and `Sound_PlaySlot(0x10)` plays. Either way the shot becomes
 debris.
 
-**Our gate is the wall flag `0x20`, not surface 4 with frame > 2**, and that is older than this
-chapter and not changed by it: our castle has no frames, and its rampart walk is surface 4 at frame
-0, where the original's gate would never open. The elevation split is the original's.
+**Our gate was the wall flag `0x20` and is now the surface**, `siege::shot_damages_wall`:
+`elevation != 0` and surface 4 *or* 8. The flag was a defect and not a simplification — surface 4
+carries no `0x20`, and `UnitOrder_SiegeAttCatapult` (`0x0048DB84`) aims the engine at surface 4
+(`Siege_FindCellSurface4`, `0x00496566`), so **every shot that arrived where it was aimed counted
+nothing** and a walk cell's byte `+0` stayed at the builder's seed of 1 for a whole siege. `frame >
+2` has no counterpart here: the original's raster paints one masonry surface 4 and tells walk from
+curtain by the frame, where structure code 8 gives us surface 8 and no frames — `[I]`, and the
+reason both surfaces are accepted. The elevation split is the original's.
 
 ### 17.8 Found here and not built
 

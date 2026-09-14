@@ -847,13 +847,15 @@ impl BattleRunner {
 
         // **A catapult shot against a wall.** It cannot hurt a man at all, and
         // this is the only thing it can hurt.
-        // The original's gate is `elevation != 0 && surface == 4 && frame > 2`
-        // — the rampart walk, drawn as wall — and ours is the wall flag, which
-        // is what our castle has instead of the frames.
-        // the original's and is kept.
+        // The gate is `Missile_Step`'s own — `elevation != 0 && surface == 4`,
+        // masonry above ground level — in [`crate::siege::shot_damages_wall`],
+        // not the `0x20` flag this used to read. The flag is the mover's
+        // (`Cell_TryEnter`, `0x00490A44`); damage is the count in byte `+0`, so
+        // the flag-free rampart walk `UnitOrder_SiegeAttCatapult` aims at takes
+        // it, and a cell `Wall_Smash` has joined to the bailey stops taking it
+        // because its surface changed.
         if self.missiles.get(slot).class == WeaponClass::Catapult.index()
-            && self.field.cells[cell].flags & crate::siege::FLAG_WALL != 0
-            && elevation != 0
+            && crate::siege::shot_damages_wall(&self.field.cells[cell])
         {
             self.strike_wall_with_shot(slot, cell);
             return true;

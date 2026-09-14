@@ -108,6 +108,30 @@ pub fn smash_walls(field: &mut Battlefield, x: i32, y: i32, radius: i32) -> usiz
     opened
 }
 
+/// **What a catapult shot counts against** — the class-3 gate of `Missile_Step`
+/// (`0x00492C8B`), `docs/battle.md` §17.7: `elevation != 0 && surface == 4 &&
+/// frame > 2`. **Damage is a count, not a flag**: the hit is added to the
+/// cell's own byte `+0` and the cell collapses when that byte passes
+/// [`crate::missile::WALL_DAMAGE_MAX`]. [`FLAG_WALL`] is the *mover's* byte —
+/// `Cell_TryEnter` (`0x00490A44`) returns 5 for it — and says nothing about how
+/// damaged a cell is; [`smash_walls`] clears it and leaves the count alone,
+///
+///
+/// `[V]` on the original's three clauses. `[I]` on accepting [`SURFACE_WALL`]
+/// beside [`SURFACE_RAMPART_WALK`]: the original's raster paints **one** masonry
+/// surface 4 and tells walk from curtain by the frame, while
+/// `Battlefield_BuildCastle`'s structure code 8 gives us a separate surface 8
+/// and no frames at all — so `frame > 2` has no counterpart here and both
+/// halves of that surface are masonry. `Siege_FindCellSurface4` (`0x00496566`),
+/// which is how a catapult finds the wall, hunts surface 4.
+///
+/// The elevation *split* stays with the caller: at
+/// [`crate::missile::WALL_TOO_HIGH`] and above the shot still lands and is not
+/// counted.
+pub fn shot_damages_wall(cell: &Cell) -> bool {
+    cell.elevation != 0 && (cell.surface == SURFACE_RAMPART_WALK || cell.surface == SURFACE_WALL)
+}
+
 /// The radius `BattleMan_StateAttackWall` and `BattleMan_StateRamGate` both
 /// pass to [`smash_walls`]. Four, so the square is 9 × 9. `[V]` — the literal
 /// at all three call sites.
