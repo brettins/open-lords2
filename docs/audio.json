@@ -711,7 +711,7 @@
       "class": "file",
       "arg": "s_S071_02_wav_004e2118 + param_1 * 0x10,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/castle.rs",
+      "ours": "crates/l2-game/src/screens/castle/mod.rs",
       "sound": "S071_02.wav",
       "note": "The castle chooser's five picture buttons speaking their own name, S071_02 + hotspot * 0x10, from CastleBuild_Select (0x00436B22)'s last statement. The selection is the screen's own field and gone by the next tick, so the screen reports the line on Game::spoken and Director::listen plays it -- the channel the other six screen-local Sound_PlayFile sites already use. Same five files as FUN_004b37bc#3, indexed by the button rather than by castleType - 1."
     },

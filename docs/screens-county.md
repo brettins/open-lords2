@@ -2016,7 +2016,7 @@ in the module that acts on it.
 ## 11. `0x1B`, the castle chooser — five picture buttons and an OK  **[V]**
 
 The door to castles, which are the door to sieges. It was a shell; it is
-`crates/l2-game/src/screens/castle.rs` now.
+`crates/l2-game/src/screens/castle/mod.rs` now.
 
 ### 11.1 The two widget tables
 

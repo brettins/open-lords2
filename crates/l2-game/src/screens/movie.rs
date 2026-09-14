@@ -84,7 +84,7 @@ impl MovieScreen {
     /// screen existed. `CastleBuild_Confirm`'s own first call (`FUN_004B18E3`)
     /// throws the click away as well.
     ///
-    /// `crates/l2-game/src/screens/castle.rs` confirmed on the press itself
+    /// `crates/l2-game/src/screens/castle/mod.rs` confirmed on the press itself
     /// until the press timers landed, so the release of the ordering click
     /// arrived here and skipped the film it had just started, and a
     /// `swallow_release` flag ate one left release to hide it. The gesture is

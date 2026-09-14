@@ -673,7 +673,7 @@
       "gesture": "left-release",
       "addr": "0x0042FF10",
       "what": "Ui_OkButtonClicked() in the corner box at (612, 452) -> g_screenId = 0, Gfx_LoadCountyMode(), g_redrawRequest = 1. A THIRD way off the castle chooser beside the thumb-up and thumb-down, and it orders nothing. Guarded on g_mouseRightReleased == 0; the right button takes the same exit. Found by the draw-call audit: we drew the corner picture and did not answer it.",
-      "ours": "crates/l2-game/src/screens/castle.rs",
+      "ours": "crates/l2-game/src/screens/castle/mod.rs",
       "evidence": "V"
     },
     {
@@ -1910,7 +1910,7 @@
       "gesture": "left-press-delayed",
       "addr": "0x00436B59",
       "what": "g_castleBuildWidgets (0x004DDB98) record 1, the thumb down at (472, 444), hotspot 0: the same handler closes to the map and orders nothing, twenty frames after the press.",
-      "ours": "crates/l2-game/src/screens/castle.rs",
+      "ours": "crates/l2-game/src/screens/castle/mod.rs",
       "evidence": "V"
     },
     {
@@ -1922,7 +1922,7 @@
       "addr": "0x00436B59",
       "what": "g_castleBuildWidgets (0x004DDB80) record 0, the thumb up at (432, 440), hotspot 1: CastleBuild_Confirm places the order or sends one of its two refusals, and closes the screen either way -- twenty frames after the press.",
       "note": "Kind 5 by the table's own byte, which the screen's module header had said since the table was decoded, and ours answered a raw click at once with no picture and no click.",
-      "ours": "crates/l2-game/src/screens/castle.rs",
+      "ours": "crates/l2-game/src/screens/castle/mod.rs",
       "evidence": "V"
     },
     {
