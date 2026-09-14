@@ -19,7 +19,7 @@ use l2_net::{Quirk, Quirks};
 /// Five callers in the original: `Turn_Tick`'s phase 7, `Game_NewGame`,
 /// `Turn_AdvancePhase`, [`recount_strength`], and one UI path. It is **not** in
 /// `Season_Advance`'s call list — `docs/kingdom.md` §3.4 said it was and
-/// `crates/l2-kingdom/src/phase.rs` already records the correction.
+/// `crates/l2-kingdom/src/phase/mod.rs` already records the correction.
 pub fn rank_and_crown(
     t: &Tables,
     realms: &mut [Realm; MAX_REALMS],
