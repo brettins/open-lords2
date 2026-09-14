@@ -201,6 +201,7 @@ fn six_county_world() -> Game {
     let mut game = Game::new(0xA1_1EED);
     game.player = 1;
     game.kingdom.set_county_count(6);
+    l2_testkit::chain_neighbours!(game.kingdom);
     game.kingdom.season = 4;
     game.kingdom.season_next = 1;
     game.kingdom.year = 1268;

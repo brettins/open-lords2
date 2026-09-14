@@ -65,6 +65,7 @@ pub(crate) fn world() -> Game {
     // **Tip screens: No.** See the module header.
     g.prefs.tip_screens = false;
     g.kingdom.set_county_count(6);
+    l2_testkit::chain_neighbours!(g.kingdom);
     g.kingdom.counties[1].owner = 1;
     g.selected = 1;
     g

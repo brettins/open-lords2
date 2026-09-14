@@ -57,6 +57,7 @@ const APP_ROOT: ScreenId = ScreenId::Setup(SetupPage::Title);
 pub(crate) fn world() -> Game {
     let mut g = Game::new(5);
     g.kingdom.set_county_count(14);
+    l2_testkit::chain_neighbours!(g.kingdom);
     g.kingdom.realms[1].in_play = true;
     g.kingdom.counties[1].owner = 1;
     g.kingdom.realms[1].county_count = 1;

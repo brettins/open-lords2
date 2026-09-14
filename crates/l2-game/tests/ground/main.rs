@@ -180,6 +180,7 @@ pub use army_and_confirm::*;
 fn rivals() -> Game {
     let mut g = Game::new(5);
     g.kingdom.set_county_count(4);
+    l2_testkit::chain_neighbours!(g.kingdom);
     for realm in 1..=3usize {
         let r = &mut g.kingdom.realms[realm];
         r.in_play = true;

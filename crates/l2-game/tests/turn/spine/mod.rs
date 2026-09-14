@@ -21,6 +21,7 @@ pub(super) fn five_realms() -> Game {
     let mut g = Game::new(0x51EED);
     g.player = 1;
     g.kingdom.set_county_count(14);
+    l2_testkit::chain_neighbours!(g.kingdom);
     for id in 1..=14 {
         let c = &mut g.kingdom.counties[id];
         c.population = 417;

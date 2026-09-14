@@ -28,6 +28,7 @@ pub(crate) fn world() -> (Game, Assets) {
     // screen `0x27`; that is `tests/tips.rs`'s subject, not this file's.
     g.prefs.tip_screens = false;
     g.kingdom.set_county_count(3);
+    l2_testkit::chain_neighbours!(g.kingdom);
     g.kingdom.realms[1].in_play = true;
     g.kingdom.realms[1].strength = 3;
     g.kingdom.realms[1].is_human = true;

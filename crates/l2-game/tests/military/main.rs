@@ -95,13 +95,7 @@ pub(crate) fn world() -> (Game, Assets) {
     g.kingdom.counties[2].owner = 2;
     g.kingdom.counties[3].owner = 2;
     // 1 — 2 — 3, a chain, so no realm ever holds two disjoint blocks.
-    for (id, neighbours) in [(1usize, vec![2u8]), (2, vec![1, 3]), (3, vec![2])] {
-        let c = &mut g.kingdom.counties[id];
-        c.neighbour_count = neighbours.len() as u8;
-        for (i, n) in neighbours.into_iter().enumerate() {
-            c.neighbours[i] = n;
-        }
-    }
+    l2_testkit::chain_neighbours!(g.kingdom);
     for realm in 1..=2usize {
         g.kingdom.realms[realm].in_play = true;
         g.kingdom.realms[realm].strength = 5;

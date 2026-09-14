@@ -34,6 +34,7 @@ use l2_view::Canvas;
 pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(5);
     g.kingdom.set_county_count(4);
+    l2_testkit::chain_neighbours!(g.kingdom);
     for realm in 1..=3usize {
         let r = &mut g.kingdom.realms[realm];
         r.in_play = true;
