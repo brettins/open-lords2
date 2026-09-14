@@ -144,7 +144,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
              searches ran before it, so a per-entry toggle has no meaning; bugs.md §6.4",
         ),
     ),
-    ("B6", Unwired("crates/l2-kingdom/src/units_tick.rs")),
+    ("B6", Unwired("crates/l2-kingdom/src/units_tick/mod.rs")),
     ("B7", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
     ("B8", Unwired("crates/l2-sim/src/runner/mod.rs — l2-sim takes no Quirks value yet")),
     ("B9", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
@@ -213,7 +213,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ),
     ("B39", Unwired("crates/l2-kingdom/src/movement/mod.rs")),
     ("B40", Unwired("crates/l2-kingdom/src/movement/mod.rs")),
-    ("B41", Unwired("crates/l2-kingdom/src/units_tick.rs")),
+    ("B41", Unwired("crates/l2-kingdom/src/units_tick/mod.rs")),
     ("B42", Switchable(Behavioural)),
     ("B43", Unwired("the merchant route script and crates/l2-kingdom/src/merchant.rs")),
     (
