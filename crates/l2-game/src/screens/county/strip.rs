@@ -633,7 +633,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // two-pixel ring*. Every one of the ring's 124 pixels is one of three
     // palette entries, and all three are blue: `95` = `rgb(0, 0, 121)`,
     // `65` = `rgb(157, 202, 234)` and `64` = `rgb(194, 230, 255)`.
-    // `crates/l2-view/tests/install.rs` asserts that against the player's own
+    // `crates/l2-view/tests/install/main.rs` asserts that against the player's own
     // `Misc_cty.pl8`.
     let share = c.industry_share.clamp(0, 100);
     let idle = c.labour[JOB_IDLE_TOWNSFOLK] != 0;

@@ -1512,7 +1512,7 @@ round leaves the `+ 10` with nowhere to point.
 `a2` sheets that is not a knight — six colours by six troop types — has exactly
 `8 * N + 18` frames, and in all four handler groups the dying base is exactly
 `8 * N + 6`. Getting N wrong for any troop breaks both identities at once. The
-corpus check is `crates/l2-view/tests/install.rs`.
+corpus check is `crates/l2-view/tests/install/main.rs`.
 
 Knights are the exception: their frame comes from an **8 x 8 `(body facing,
 target facing)` table at `0x004D9C30`**

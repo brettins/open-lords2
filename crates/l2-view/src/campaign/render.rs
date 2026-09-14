@@ -510,7 +510,7 @@ pub const PATH_MARKER_AT: (i32, i32) = (0x14, 6);
 /// grey** (`r == g == b`). Frame `0x39` has 13 coloured pixels, and the count
 /// climbs to 39 by `0x4D`, so the ball gains colour as the cost rises. The
 /// inference is now a measurement, and it is asserted in
-/// `crates/l2-view/tests/install.rs` against the user's own file. **[V]**
+/// `crates/l2-view/tests/install/main.rs` against the user's own file. **[V]**
 ///
 /// `0x4E` is the odd one out and is the action marker the ladder above names:
 /// 177 coloured pixels and **not one grey**, a different picture entirely.

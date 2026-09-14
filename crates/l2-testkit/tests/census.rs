@@ -190,9 +190,9 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-sim/tests/castle_layout.rs", "install", 12),
     ("crates/l2-sim/tests/oracle.rs", "executable", 4),
     ("crates/l2-smk/tests/corpus.rs", "install", 5),
-    ("crates/l2-view/tests/install.rs", "executable", 3),
-    ("crates/l2-view/tests/install.rs", "fixture", 1),
-    ("crates/l2-view/tests/install.rs", "install", 29),
+    ("crates/l2-view/tests/install/main.rs", "executable", 3),
+    ("crates/l2-view/tests/install/main.rs", "fixture", 1),
+    ("crates/l2-view/tests/install/main.rs", "install", 29),
 ];
 
 /// The total the inventory adds up to, stated separately so that a change

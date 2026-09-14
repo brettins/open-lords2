@@ -450,9 +450,9 @@ crates/l2-view/src/village.rs	C179	96b4d8239d02	852ec3e69f4e
 crates/l2-view/src/village.rs	C22	4b0da6199195	0364b53a921d
 crates/l2-view/src/village.rs	C57	969de6d967c3	3b42b65157bf
 crates/l2-view/src/village.rs	C63	d61e8ed8e11e	34cab2e30849
-crates/l2-view/tests/install.rs	C1	b6dbfeba4b54	6b7e8edb019e
-crates/l2-view/tests/install.rs	C46	dac2a418d8de	a3a42a5ffa04
-crates/l2-view/tests/install.rs	C49	cc53dbcb852e	4ce32e6c42e0
+crates/l2-view/tests/install/main.rs	C1	b6dbfeba4b54	6b7e8edb019e
+crates/l2-view/tests/install/main.rs	C46	dac2a418d8de	a3a42a5ffa04
+crates/l2-view/tests/install/main.rs	C49	cc53dbcb852e	4ce32e6c42e0
 docs/agents.md	C1	d79ae046534d	6b7e8edb019e
 docs/agents.md	C12	15180248099e	bb0dd488f9d2
 docs/agents.md	C12	a5449079efd4	bb0dd488f9d2

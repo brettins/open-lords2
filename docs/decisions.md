@@ -653,7 +653,7 @@ more than it looks: three of these defects are downstream of calling a file "shi
 **C24 — The oracle existed, printed to a console, and was wired to nothing.**
 
 `tools/oracle/*.ps1` has read the battle and economy tables straight out of `Lords2.exe`
-since C14. `crates/l2-view/tests/install.rs` has had `va_to_offset` — the four lines that
+since C14. `crates/l2-view/tests/install/main.rs` has had `va_to_offset` — the four lines that
 turn a documented virtual address into a file offset — since it was written. Neither had
 ever been applied to `l2-kingdom::tables` or `l2-sim`, the two crates carrying the most
 hand-transcribed numbers, and the test guarding `l2-sim`'s was named
@@ -1633,7 +1633,7 @@ The picture is a measurement rather than an impression, which is what makes the 
 **[V]** rather than a second opinion: those two frames are the **4th and 5th darkest of the
 sheet's 84**, 15.3% and 11.5% of their area in near-black ink against a median frame's 1.2%,
 while the widgets that really are thin strokes sit at 0.2% and 0.0%. A tick cannot come 4th
-out of 84. The rank is asserted in `crates/l2-view/tests/install.rs` against the user's own
+out of 84. The rank is asserted in `crates/l2-view/tests/install/main.rs` against the user's own
 file, so the label cannot drift back.
 
 It is not a decoration either. `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests a 24 × 24 box
@@ -1936,7 +1936,7 @@ frame it replaces. Ten of the eleven are **exactly four pixels wider and four ta
 that plain frame, which is what a two-pixel ring around an unchanged picture measures as,
 and **every non-transparent pixel of that two-pixel border is one of three palette entries,
 all of them blue**: `95` = `rgb(0,0,121)`, `65` = `rgb(157,202,234)`, `64` =
-`rgb(194,230,255)`. That is asserted in `crates/l2-view/tests/install.rs` against the user's
+`rgb(194,230,255)`. That is asserted in `crates/l2-view/tests/install/main.rs` against the user's
 own file, so "blue outline" is now a measurement rather than a recollection. The eleventh —
 the castle, `0x40` → `0x4E` — is 23 × 26 against 32 × 34 and is a different, larger picture
 that also carries the ring; it is written down as the exception rather than smoothed over.

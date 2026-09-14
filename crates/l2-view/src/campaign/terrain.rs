@@ -193,7 +193,7 @@ pub fn field_graphic(terrain: u8, stored_frame: u8) -> (u8, u8) {
 /// 54/50/55/49, then 71/70/72/69 — while the fallow block before them (84 … 87)
 /// and the pasture block after (104 … 107) have two to seven each. Four blocks
 /// of four starting at 88 end at 103, and 104 is exactly where the next base
-/// begins. `crates/l2-view/tests/install.rs` asserts the ramp. **[V]**
+/// begins. `crates/l2-view/tests/install/main.rs` asserts the ramp. **[V]**
 pub fn field_variant(terrain: u8) -> u8 {
     // `band < 3 ? 0 : (band - 3) / 4 + 1`, over the range `Terrain_Set` gives
     // base 88. Everything else in the game passes a literal zero.

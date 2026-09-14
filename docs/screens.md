@@ -958,7 +958,7 @@ Implemented, in `crates/l2-view/src/campaign/mod.rs`, `crates/l2-view/src/chrome
 gated and both reach the rules
   (`Kingdom::toggle_industry`, `Kingdom::paint_field`) that the original reaches.
 
-Five oracle tests in `crates/l2-view/tests/install.rs` read the shipped files and the user's
+Five oracle tests in `crates/l2-view/tests/install/main.rs` read the shipped files and the user's
 own binary back: all 830 tile frames against the pitch, the 48-byte realm ramp byte for
 byte, the 44-slot minimap census, the right column's heights, and `Panels.pl8`'s kit
 boundaries. `cargo test -p l2-game --test screens shoot -- --ignored` renders the screen

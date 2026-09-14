@@ -88,7 +88,7 @@
     {"id": "neutral-trade", "area": "trade", "name": "Trading in a neutral county", "status": "done", "evidence": ["C149"], "gap": "", "rows": []},
     {"id": "ai-trade", "area": "trade", "name": "AI lords trading at market", "status": "done", "evidence": ["C222","crates/l2-game/tests/differential.rs"], "gap": "", "rows": []},
     {"id": "setup", "area": "screens", "name": "Title screen and game setup", "status": "done", "evidence": ["C44","crates/l2-game/tests/setup.rs"], "gap": "", "rows": []},
-    {"id": "campaign-map", "area": "screens", "name": "Campaign map, zoom and scrolling", "status": "done", "evidence": ["C48","C60","C139","C173","crates/l2-view/tests/install.rs","crates/l2-game/tests/chrome_text.rs","crates/l2-game/tests/screens_map/main.rs"], "gap": "", "rows": []},
+    {"id": "campaign-map", "area": "screens", "name": "Campaign map, zoom and scrolling", "status": "done", "evidence": ["C48","C60","C139","C173","crates/l2-view/tests/install/main.rs","crates/l2-game/tests/chrome_text.rs","crates/l2-game/tests/screens_map/main.rs"], "gap": "", "rows": []},
     {"id": "minimap", "area": "screens", "name": "Minimap and its overlays", "status": "done", "evidence": ["crates/l2-game/tests/minimap.rs"], "gap": "", "rows": []},
     {"id": "rotation", "area": "screens", "name": "Rotating the map", "status": "done", "evidence": ["C230"], "gap": "", "rows": []},
     {"id": "sidebar", "area": "screens", "name": "County sidebar and forecasts", "status": "done", "evidence": ["C123","C151","C180","C218","crates/l2-game/tests/right_column.rs"], "gap": "", "rows": []},

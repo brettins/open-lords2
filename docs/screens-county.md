@@ -324,7 +324,7 @@ two pixels up and left of the plain frame it replaces, and ten of the eleven are
 four pixels wider and four taller — a two-pixel ring around an unchanged picture. Every
 non-transparent pixel of that border is one of **three palette entries of `Base01.256`, all
 blue**: `95` = `rgb(0,0,121)`, `65` = `rgb(157,202,234)`, `64` = `rgb(194,230,255)`.
-`crates/l2-view/tests/install.rs` asserts both properties against the shipped file.
+`crates/l2-view/tests/install/main.rs` asserts both properties against the shipped file.
 
 | plain | ringed | what | condition |
 |---|---|---|---|
@@ -691,7 +691,7 @@ The picture is measurable, not a matter of opinion, which is what makes this **[
 of the sheet's 84 frames those two are the **4th and 5th darkest**, 15.3% and 11.5% of their
 area in near-black ink against a median frame's 1.2%. The widgets that really are thin
 strokes sit where you would expect — the tax-up arrow at 0.2%, the slider knob at 0.0%. A
-tick cannot come 4th out of 84. `crates/l2-view/tests/install.rs` asserts that rank against
+tick cannot come 4th out of 84. `crates/l2-view/tests/install/main.rs` asserts that rank against
 the user's own file.
 
 **And it is live.** `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests a 24 × 24 box at
@@ -932,7 +932,7 @@ merchant, the armoury, castle building and the greatest-noble page pass, all at
 `(g_screenStride - 0x1C, g_screenHeight - 0x1C)`; every other call site passes mode 0. So
 loading the wrong skin does not blank every corner — it blanks the corners of those five
 screens and leaves the rest looking correct, which is the hardest kind of wrong to notice.
-`crates/l2-view/tests/install.rs` asserts both halves against the user's own files.
+`crates/l2-view/tests/install/main.rs` asserts both halves against the user's own files.
 
 ### 4.3 `Misc_cty.pl8` — the kingdom-mode icons
 
@@ -1361,7 +1361,7 @@ job came first take people the later ones needed.
 **And that loop reads two words past the end of its table.** It is
 `for (i = 0; i < 10; i++)` over `g_jobClusterToSlot`, which has **eight** entries. The two
 past the end are the head of the next table and are **4** and **6** — read out of the
-shipped binary at `0x004D67A0` by `crates/l2-view/tests/install.rs`. The effect is that the
+shipped binary at `0x004D67A0` by `crates/l2-view/tests/install/main.rs`. The effect is that the
 gesture covers all nine labour slots, because slot 4 (iron mining) is otherwise reachable
 only through cluster 0's quarry/mine override. Whether that was intended or is an overrun
 that happens to work, it is what the game does; `docs/bugs.md` carries it.

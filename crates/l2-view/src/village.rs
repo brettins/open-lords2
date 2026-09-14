@@ -135,7 +135,7 @@ pub const IDLE_CLUSTER: usize = 6;
 /// It is an over-read and it is reproduced on purpose — `docs/bugs.md`. The two
 /// words past `g_jobClusterToSlot` are the head of `DAT_004D67A0`, and they are
 /// **4** and **6**, read out of the shipped `Lords2.exe` at `0x004D67A0` by
-/// `crates/l2-view/tests/install.rs`.
+/// `crates/l2-view/tests/install/main.rs`.
 /// also balances slot 4, *Iron mining* — which no cluster 0 … 7 reaches unless
 /// the county's cluster 0 has been overridden to it — and balances slot 6,
 /// *Wood cutting*, a second time. Whether the original meant to reach iron or

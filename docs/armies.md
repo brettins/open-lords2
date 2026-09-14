@@ -518,7 +518,7 @@ would have refuted. Of those, **`0x38` alone has no colour in it**: all 177 of i
 pixels are true greys, and the coloured-pixel count then climbs from 13 at `0x39` to 39 at
 `0x4D`. `0x4E`, the castle/settlement marker the ladder above names, is the opposite extreme —
 177 coloured pixels and not one grey — which is it being a different picture
-another ball. Asserted against the user's own file in `crates/l2-view/tests/install.rs`.
+another ball. Asserted against the user's own file in `crates/l2-view/tests/install/main.rs`.
 
 So **the cost selects the colour**: not the realm, not the shield, not the unit's kind. A
 player described these unprompted as *"colored dot images for the army walking dots"*, which

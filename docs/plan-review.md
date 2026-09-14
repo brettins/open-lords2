@@ -131,7 +131,7 @@ conclusion of that errata note survives (only the negative part of `5 - rate` re
 which is 0 either way) but the premise it is argued from does not.
 
 Fix: make the test read the file when an install is present, field by field over all
-seventeen records — `crates/l2-view/tests/install.rs` already has the skip-if-no-install
+seventeen records — `crates/l2-view/tests/install/main.rs` already has the skip-if-no-install
 pattern to copy. This is method §2 step 4, *a property of the data*,
 applied to the one crate that does not yet have one.
 
@@ -243,7 +243,7 @@ is cheaper than the plan thinks and should not wait behind A.
 
 ### 7. The campaign map screen has no test, and uses its own projection
 
-`crates/l2-view/tests/install.rs` has 7 tests: frame layout, knight sheets, walk offsets,
+`crates/l2-view/tests/install/main.rs` has 7 tests: frame layout, knight sheets, walk offsets,
 battlefield tile coverage, no-holes render, animation, figure visibility. **None touches the
 campaign map.** `compose_map` (`crates/l2-view/src/main.rs:283`) is only ever checked by
 looking at it.
