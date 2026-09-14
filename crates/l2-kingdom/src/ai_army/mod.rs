@@ -221,3 +221,4 @@ pub const GARRISON_EQUIP_ORDER: [TroopType; 5] = [
     TroopType::Swordsman,
     TroopType::Maceman,
     TroopType::Knight,
+];

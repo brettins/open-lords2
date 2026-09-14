@@ -13,7 +13,6 @@ use crate::realm::{Realm, MAX_REALMS};
 use crate::tables::Tables;
 use crate::unit::{TroopType, UnitKind, Units};
 
-];
 
 // ---------------------------------------------------------------------------
 // Step 4 — what the realm wants to buy

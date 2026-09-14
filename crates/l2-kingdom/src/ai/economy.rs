@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 use super::*;
 
-use economy::*;
 use crate::county::County;
 use crate::realm::{Realm, AI_STEP_DONE};
 use crate::tables::{
@@ -60,6 +59,27 @@ pub enum AiStep {
 }
 
 impl AiStep {
+    /// Map a step-counter value (`1..=14`) to its target, or `None` if it is an
+    /// idle or invalid step.
+    pub fn from_counter(c: i32) -> Option<Self> {
+        match c {
+            1 => Some(Self::Diplomacy),
+            2 => Some(Self::ConsiderWar),
+            3 => Some(Self::SetTaxRates),
+            4 => Some(Self::ResourceWants),
+            5 => Some(Self::ManageFields),
+            6 => Some(Self::BuildCastles),
+            7 => Some(Self::ManageArmies),
+            8 => Some(Self::Nothing),
+            9 => Some(Self::RaiseArmy),
+            10 => Some(Self::SendUnit),
+            11 => Some(Self::MoveArmies),
+            12 => Some(Self::ChooseIndustry),
+            13 => Some(Self::Taunt),
+            14 => Some(Self::UpdateTotals),
+            _ => None,
+        }
+    }
 }
 /// A realm is finished once its step counter **reaches** `15 + 2 * realmIndex`
 /// — the original's test is `15 + 2*realm <= aiStep`, not `<`.

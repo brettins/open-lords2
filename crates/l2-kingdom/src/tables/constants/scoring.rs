@@ -6,7 +6,6 @@ use super::castle_and_tax::*;
 use super::jobs_and_goods::*;
 use super::ai_and_grants::*;
 use super::military_and_movement::*;
-use super::*;
 
 // ---------------------------------------------------------------------------
 // Score
@@ -135,3 +134,4 @@ pub const SCORE_INPUT_NAMES: [&str; 6] = [
     "mean county health",
     "total men under arms",
     "castles held",
+];

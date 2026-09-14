@@ -6,9 +6,6 @@ use super::castle_and_tax::*;
 use super::jobs_and_goods::*;
 use super::military_and_movement::*;
 use super::scoring::*;
-use super::*;
-
-];
 
 /// `g_aiGoldGrantSmall` (`0x004DC230`) - the same shape, used instead when the
 /// realm holds **fewer than three** counties. `[V]`

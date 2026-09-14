@@ -6,7 +6,6 @@ use super::castle_and_tax::*;
 use super::ai_and_grants::*;
 use super::military_and_movement::*;
 use super::scoring::*;
-use super::*;
 
 // ---------------------------------------------------------------------------
 // Industry and weapons
@@ -138,7 +137,8 @@ pub const AI_GOLD_GRANT: [[i32; 4]; 5] = [
     [100, 500, 800, 1400],  // lord 2
     [0, 400, 700, 1200],    // lord 3 - the same row as lord 1
     [250, 600, 1100, 1800], // lord 4
-/// Buying ale is worth one happiness per this percentage of the county's
+];
+
 /// population, up to [`ALE_HAPPINESS_MAX`].
 ///
 /// **`[V]`, and it settles the claim `docs/kingdom.md` §12 records as

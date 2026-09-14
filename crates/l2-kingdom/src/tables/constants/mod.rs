@@ -134,7 +134,6 @@ pub const HISTORY_SEASONS: usize = 400;
 /// [`MAX_COUNTY_ID`]: crate::county::MAX_COUNTY_ID
 pub const HISTORY_COUNTIES: usize = 16;
 
-];
 
 #[cfg(test)]
 mod tests {
