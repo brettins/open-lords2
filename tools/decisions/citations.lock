@@ -195,10 +195,10 @@ crates/l2-game/tests/screens_county/produce_and_pastures/main.rs	C153	623b313652
 crates/l2-game/tests/screens_county/strip_and_sidebar.rs	C42	5cc4b466670e	a2ac3547bb32
 crates/l2-game/tests/screens_diplomacy.rs	C189	c97df222123f	a640e552a733
 crates/l2-game/tests/screens_info/field_panel/main.rs	C138	dcf67743539a	7724e6665b90
-crates/l2-game/tests/screens_map/interaction_tests.rs	C132	bcc7335581ba	84bc50c0ddbe
-crates/l2-game/tests/screens_map/interaction_tests.rs	C138	800999466b29	7724e6665b90
-crates/l2-game/tests/screens_map/interaction_tests.rs	C42	34537294a71e	a2ac3547bb32
-crates/l2-game/tests/screens_map/interaction_tests.rs	C61	0666dfecda29	60611046b40d
+crates/l2-game/tests/screens_map/interaction_tests/main.rs	C132	bcc7335581ba	84bc50c0ddbe
+crates/l2-game/tests/screens_map/interaction_tests/main.rs	C138	800999466b29	7724e6665b90
+crates/l2-game/tests/screens_map/interaction_tests/main.rs	C42	34537294a71e	a2ac3547bb32
+crates/l2-game/tests/screens_map/interaction_tests/main.rs	C61	0666dfecda29	60611046b40d
 crates/l2-game/tests/screens_map/view_tests/main.rs	C47	944e764a1fca	ed7ea7df1f23
 crates/l2-game/tests/screens_map/view_tests/main.rs	C48	38f59896d07f	9e81512f4c0d
 crates/l2-game/tests/screens_map/view_tests/main.rs	C48	a3f70d784d36	9e81512f4c0d
