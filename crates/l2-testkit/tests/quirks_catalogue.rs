@@ -349,7 +349,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B86", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::ai_diplomacy")),
     ("B87", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::reconcile_alliances")),
     ("B88", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::reconcile_alliances")),
-    ("B89", Unwired("crates/l2-game/src/screens/diplomacy.rs::refusal")),
+    ("B89", Unwired("crates/l2-game/src/screens/diplomacy/mod.rs::refusal")),
     // Not reproduced and not switchable: the accept-alliance prompt is not
     // built, because Msg_DrawWindow window layouts have never been read.
     ("B90", Unswitchable("the prompt it lives in is not built")),

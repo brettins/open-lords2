@@ -855,7 +855,7 @@ Stated plainly, because a wrong map is worse than a small one.
 
 ## 10. What happened when it was implemented
 
-`crates/l2-kingdom/src/diplomacy/mod.rs`, `crates/l2-game/src/screens/diplomacy.rs`. Implementing
+`crates/l2-kingdom/src/diplomacy/mod.rs`, `crates/l2-game/src/screens/diplomacy/mod.rs`. Implementing
 a document is the only way to find out whether it is true, and this one was right about
 almost everything and wrong in nine places that each change behaviour. Seven are corrections
 to sections above and are marked there; two are new.

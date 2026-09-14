@@ -548,7 +548,7 @@
       "gesture": "left-release",
       "addr": "0x0040E7E4",
       "what": "Ui_OkButtonClicked over the corner picture Ui_OkButton(0x1A8, 0x1A6) drew -- a 24x24 box tested on the LEFT button's RELEASE -- closes the screen back to the campaign map.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
       "id": "0x0040E7E4/divide-ok",
@@ -681,7 +681,7 @@
       "evidence": "V",
       "id": "0x0042FF10/compose-letter-text",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs",
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs",
       "screen": "0x1A",
       "gesture": "type",
       "addr": "0x0042FF10",
@@ -697,7 +697,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "The 0x1A arm's right release: g_screenId = 0, the campaign map -- NOT back to 0x0B. Tested after the county picker, so a right click over the map still leaves.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
       "id": "0x0042FF10/court-ok",
@@ -741,7 +741,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "Screen_FrameInput's 0x0B arm: a right release sets g_screenId = 0 without consulting the corner button at all. Right-click exits -- the gesture docs/agents.md records this project as systematically missing.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
       "id": "0x0042FF10/dismiss-report",
@@ -1820,7 +1820,7 @@
       "gesture": "left-press-delayed",
       "addr": "0x00436141",
       "what": "The six g_diploWidgets handlers -- Diplo_OpenGift 0x00436141, OpenCompliment 0x0043618B, OpenInsult 0x004361DA, OpenAlliance 0x00436229, OpenAskHelp 0x004362CA, OpenAskAttack 0x0043631E. One record because they differ only in the g_diploKind they set and the draft buffer they clear. Diplo_OpenAlliance is the one with a decision in it: it picks kind 4 over kind 3 exactly when the target is already this realm's ally, so ONE widget serves group 72 rows 5 and 6.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
       "group": "diplomacy",
@@ -1831,7 +1831,7 @@
       "gesture": "left-press-repeat",
       "addr": "0x00436372",
       "what": "The gift dialog's plus and minus at (184, 240) and (216, 240), hotspots 1 and 0 of one handler: ten crowns a click, clamped to [0, my gold] on EVERY click -- so an amount already set follows the treasury down when something else spends it.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
       "group": "diplomacy",
@@ -1842,7 +1842,7 @@
       "gesture": "left-press-delayed",
       "addr": "0x00436408",
       "what": "The same handler's hotspot 0, the cross, and it is the function's first statement: g_screenId = 0x0B, back to the lord cards. It lands somewhere DIFFERENT from the corner button and the right release on the same screen, both of which go to the campaign map.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
       "group": "diplomacy",
@@ -1853,7 +1853,7 @@
       "gesture": "left-press-delayed",
       "addr": "0x00436408",
       "what": "Diplo_SendClicked hotspot 1, the tick. It closes the screen and copies the draft into the player's g_diploLetter slot BEFORE it validates, so all six of its refusals -- L2.eng 240, 241, 242, 243, 244 and 219 -- are messages on the map rather than a red light on the dialog. Then Diplo_Post, or net command 0x48/0x49 in multiplayer.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
       "group": "diplomacy",
@@ -1899,7 +1899,7 @@
       "gesture": "left-press",
       "addr": "0x004369BD",
       "what": "Test (48, 49 + 100*slot, 82, 78) for each rival still in play and set g_diploTarget. THE ONLY place a player sets the target, and it works even in menu state 3, where there are no widgets at all - so a lord with a pending letter is never a dead end.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs",
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs",
       "evidence": "V"
     },
     {
@@ -2428,7 +2428,7 @@
       "gesture": "left-press",
       "addr": "0x0043B4CB",
       "what": "Diplo_PickCountyFromMap(0x60, 0xB0) -- the 128x128 county raster on the ask-for-help and ask-for-attack dialogs, indexed straight out of g_minimapCounty. Guarded by g_diploKind >= 5, and a pixel whose county is 0 is NOT a hit, so a click on the sea inside the map falls through to the corner button behind it.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+      "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
       "id": "0x0043B9A1/pause",
