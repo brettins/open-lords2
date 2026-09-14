@@ -2692,7 +2692,7 @@ above implies about a full table: it scans nineteen slots, and when all nineteen
 ## 17. Fire, boiling oil
 
 Five mechanics a siege has and `crates/l2-sim` did not, each read end to end and each now
-built: `crates/l2-sim/src/fire.rs` for fire and oil, the tower half of `siege.rs`, and their
+built: `crates/l2-sim/src/fire/mod.rs` for fire and oil, the tower half of `siege.rs`, and their
 places in `runner.rs`. `crates/l2-sim/src/proving.rs` is a constructed siege on which all of them
 must happen, and `runner_fire_tests.rs` asserts each against it. `[V]` throughout unless a line
 says otherwise. `docs/decisions.md` `C181`.

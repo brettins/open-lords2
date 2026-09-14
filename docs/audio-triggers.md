@@ -184,7 +184,7 @@ with no path.
 bridge fire `FUN_0048551D`), boiling oil (`FUN_0047A814`), a siege tower docking
 (`FUN_00491492`) and the catapult shot on a rampart four high (`Missile_Step#2`) — six
 sites and four files, `dest_ind.wav`, `pouroil.wav`, `siegedoc.wav` and `catmiss.wav`.
-They were blocked on mechanics, and the mechanics are `crates/l2-sim/src/fire.rs` and
+They were blocked on mechanics, and the mechanics are `crates/l2-sim/src/fire/mod.rs` and
 the tower half of `siege.rs`; `docs/battle.md` §17 is what was read to build them.
 
 **Read the second column before the first.**

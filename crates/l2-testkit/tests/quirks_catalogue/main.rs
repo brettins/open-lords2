@@ -230,7 +230,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B48", Unwired("crates/l2-sim/src/runner/mod.rs")),
     ("B49", Unwired("crates/l2-sim/src/terrain/mod.rs")),
     ("B50", Unwired("crates/l2-view/src/scene/mod.rs")),
-    ("B102", Unwired("crates/l2-sim/src/fire.rs — l2-sim takes no Quirks value yet")),
+    ("B102", Unwired("crates/l2-sim/src/fire/mod.rs — l2-sim takes no Quirks value yet")),
     // Numbered B69 until `corrections.js` learned to read `docs/bugs.md`: it
     // shared that number with the siege repair bill below, and this list held
     // one row for the two, so nothing here could see the collision.
