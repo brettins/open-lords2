@@ -835,7 +835,6 @@ fn no_record_slot_is_silenced() {
 //
 // The two tests below are the mechanism `docs/decisions.md` C30 asked for and
 // C39 delivered: the field list is *derived from the struct definitions*
-// instead of retyped
 
 /// Fields of the reachable state that the save body deliberately does not
 /// carry. **Inclusion is the default and exclusion is the statement**
@@ -844,12 +843,21 @@ fn no_record_slot_is_silenced() {
 ///
 /// Reachability stops at these fields
 /// root — which is what `Kingdom::tables` does for the ruleset.
-const NOT_IN_THE_BODY: &[(&str, &str, &str)] = &[(
-    "Kingdom",
-    "tables",
-    "the ruleset is fingerprinted into the header rather than written into the \
-     body (docs/modding.md); every_sub_table_reaches_the_fingerprint covers it",
-)];
+const NOT_IN_THE_BODY: &[(&str, &str, &str)] = &[
+    (
+        "Kingdom",
+        "tables",
+        "the ruleset is fingerprinted into the header rather than written into the \
+         body (docs/modding.md); every_sub_table_reaches_the_fingerprint covers it",
+    ),
+    (
+        "TurnMachine",
+        "players_turn_open",
+        "the latch that stops `Turn_BeginPlayersTurn` running twice over one phase 4, \
+         and not a fact about the kingdom: a loaded game is parked at phase 1 and its \
+         first map frames open phase 4 again (docs/netcode.md)",
+    ),
+];
 
 /// Fields the fixture cannot name.
 ///
@@ -1228,7 +1236,7 @@ fn trailing_bytes_are_refused() {
 }
 
 // ---------------------------------------------------------------------------
-// The census: reading the struct definitions instead of retyping them
+// The census: reading the struct definitions
 // ---------------------------------------------------------------------------
 
 /// **`#[derive(PartialEq)]` is the only exhaustive reader of a struct we have,

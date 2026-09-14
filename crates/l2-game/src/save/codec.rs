@@ -222,6 +222,8 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         messages,
         // `g_multiplayer` — session, not world. A save carries no session.
         multiplayer: false,
+        // The phase-4 grant latch, cleared with the phase the frames open.
+        ai_granted: false,
         player,
         // **A save of ours is between turns, always** — and that is a limit of
         // ours, not a fact about the original.

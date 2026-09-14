@@ -855,6 +855,12 @@ impl Screen for MapScreen {
         // frame, or every unit would take two tiles a tick and three of the
         // seven phases would settle early.
         if !turn::turn_in_flight(ctx.game) {
+            // **`Turn_Tick`'s phase-4 arm on an ordinary frame.** The original
+            // is *in* phase 4 while the person deliberates and calls
+            // `AI_RunTurnStep` (`0x0049A581`) every frame of it, so the AI
+            // realms take their turn before End Turn and not inside it. See
+            // [`turn::tick_ai_frame`].
+            turn::tick_ai_frame(ctx.game);
             // **`Units_Tick` on an ordinary frame.** This is what makes an army
             // the player has just ordered walk away while he watches, rather
             // than standing still until End Turn. See

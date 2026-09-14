@@ -99,7 +99,10 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
         .campaign
         .units
         .iter()
-        .find(|(_, u)| u.kind == l2_kingdom::unit::UnitKind::Army)
+        // **The person's army, not the first one on the map.** The AI realms
+        // take their `AI_RunTurnStep` steps on these frames now — the original's
+        // phase-4 arm — so an AI lord may have raised one of his own first.
+        .find(|(_, u)| u.kind == l2_kingdom::unit::UnitKind::Army && u.owner == realm as u8)
         .expect("an army on the map");
     assert_eq!(unit.men, men);
     assert_eq!(unit.troops[troop as usize], armed, "and it is carrying the fixture's weapons");
@@ -118,7 +121,7 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
 /// The two rectangles being the answer is itself the finding. The test was
 /// written expecting one, went red with 5,754 pixels adrift, and they were all
 /// the crossbowman leaving the bottom row — a realm with no crossbows has
-/// nobody who could carry one, and the picture says both things.
+///
 #[test]
 fn emptying_one_rack_removes_that_weapon_from_the_wall_and_nothing_else() {
     let (mut g, a) = world!();

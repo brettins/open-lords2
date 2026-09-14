@@ -39,6 +39,10 @@ pub fn capture_world() -> (Game, Assets, Machine) {
     g.kingdom.counties[2].owner = 2;
     g.kingdom.counties[2].population = 30;
     g.kingdom.counties[3].owner = 2;
+    // The human's `realms()` seat goes to his rival: the player holds county 1
+    // and nothing else here, which is the campaign bed's first band
+    // (`FUN_00499ACA`) and what `audio_part` listens for.
+    g.kingdom.counties[8].owner = 2;
     for (id, neighbours) in [(1usize, vec![2u8]), (2, vec![1, 3]), (3, vec![2])] {
         let c = &mut g.kingdom.counties[id];
         c.neighbour_count = neighbours.len() as u8;
