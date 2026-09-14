@@ -150,7 +150,7 @@ per cell, and `0x004F6470 + 6400` lands exactly on the next global the same func
 
 **Evidence.** **[V]**, from the instruction bytes.
 
-**Reproduced.** `crates/l2-sim/src/pathfind.rs:185`, and `Scratch` is a struct that survives
+**Reproduced.** `crates/l2-sim/src/pathfind/mod.rs:185`, and `Scratch` is a struct that survives
 between searches so the carry-over is modelled — *"modelling them as a local would
 quietly fix the original's bug"*.
 

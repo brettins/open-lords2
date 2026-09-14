@@ -260,7 +260,7 @@ own ruleset data — which is exactly what `crates/l2-mods` is for, so they beco
 for the first time.
 
 **C12 — "Terrain cost is charged by deferral, not by weighting."** Wrong, and it reached
-shipped code. `docs/battle.md` §8.3 said it, `crates/l2-sim/src/pathfind.rs` repeated it in
+shipped code. `docs/battle.md` §8.3 said it, `crates/l2-sim/src/pathfind/mod.rs` repeated it in
 a module doc comment, and the implementation weighted nothing — it recorded plain hop count.
 The decompiled `Path_Search` does **both**: `cost[nb] = stepCost[nb] + (cost[cur] + 1)`, and
 separately re-queues an expensive cell until it has been popped `stepCost` extra times.

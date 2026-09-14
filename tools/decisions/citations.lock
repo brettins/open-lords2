@@ -369,8 +369,8 @@ crates/l2-sim/src/ai/mod.rs	C186	a4386483ca52	e4c22886df5f
 crates/l2-sim/src/ai/tests.rs	C71	4fa25e346302	3d674af30522
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab	bb0dd488f9d2
 crates/l2-sim/src/movement.rs	C200	56b5e9488de3	264da18555bd
-crates/l2-sim/src/pathfind.rs	C103	62f78ee316b4	7f535dce1087
-crates/l2-sim/src/pathfind.rs	C103	82fc499e9bf3	7f535dce1087
+crates/l2-sim/src/pathfind/mod.rs	C103	62f78ee316b4	7f535dce1087
+crates/l2-sim/src/pathfind/mod.rs	C103	82fc499e9bf3	7f535dce1087
 crates/l2-sim/src/runner/combat.rs	C100	0b67e8835502	c490b4875689
 crates/l2-sim/src/runner/conclusion.rs	C203	d54d449778b9	a885abd5494f
 crates/l2-sim/src/runner/orders.rs	C200	a0976d2da606	264da18555bd

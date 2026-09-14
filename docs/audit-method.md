@@ -68,7 +68,7 @@ Three independent corroborations that the argument is a byte count, not an eleme
 79 of the 80×80 grid — carry their counts into the next search.** The question is settled,
 and the answer is the direction the open question feared.
 
-**Where it reaches us.** `crates/l2-sim/src/pathfind.rs:201` is
+**Where it reaches us.** `crates/l2-sim/src/pathfind/mod.rs:201` is
 `let mut visits = vec![0u8; CELLS];` — a fresh, fully-zeroed 6,400-entry array every search.
 The rest of that port is careful and correct: I checked the 0x1900 queue wrap, the
 non-relaxing cost write, the `stepCost == 0` short circuit and the off-by-one on the visit
