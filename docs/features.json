@@ -32,7 +32,7 @@
     {"id": "weapon-choice", "area": "kingdom", "name": "Choosing what your blacksmiths make", "status": "done", "evidence": ["crates/l2-kingdom/tests/weapon_choice.rs","arms:0x004BA9C8/blacksmith-weapon-choice"], "gap": "", "rows": []},
     {"id": "industry-toggle", "area": "kingdom", "name": "Switching industries on and off", "status": "done", "evidence": ["C121","crates/l2-game/tests/industry.rs"], "gap": "", "rows": []},
     {"id": "court", "area": "kingdom", "name": "The court: treasury and stores", "status": "done", "evidence": ["crates/l2-game/tests/shell/main.rs","crates/l2-game/tests/text.rs"], "gap": "", "rows": []},
-    {"id": "wages", "area": "kingdom", "name": "Paying the army", "status": "done", "evidence": ["crates/l2-game/tests/long_game.rs","crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
+    {"id": "wages", "area": "kingdom", "name": "Paying the army", "status": "done", "evidence": ["crates/l2-game/tests/long_game.rs","crates/l2-kingdom/tests/campaign/main.rs"], "gap": "", "rows": []},
     {"id": "bankruptcy", "area": "kingdom", "name": "Bankruptcy and desertion", "status": "done", "evidence": ["C227"], "gap": "", "rows": []},
     {"id": "supplies", "area": "kingdom", "name": "Sending supplies to a county", "status": "done", "evidence": ["C227"], "gap": "", "rows": []},
     {"id": "births-deaths", "area": "people", "name": "Births and deaths", "status": "done", "evidence": ["crates/l2-kingdom/tests/reproduction/main.rs","crates/l2-kingdom/tests/oracle.rs"], "gap": "", "rows": []},
@@ -51,7 +51,7 @@
     {"id": "taking-counties", "area": "armies", "name": "Taking a county", "status": "done", "evidence": ["crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
     {"id": "splitting", "area": "armies", "name": "Splitting and merging armies", "status": "done", "evidence": ["C93","arms:army-division","C224","C226","crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
     {"id": "garrisons", "area": "armies", "name": "Garrisons in castles", "status": "done", "evidence": ["crates/l2-game/tests/castles/main.rs","C224","C226","crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
-    {"id": "foraging", "area": "armies", "name": "Armies eating (Foraging option)", "status": "done", "evidence": ["C223","crates/l2-game/tests/options/main.rs","crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
+    {"id": "foraging", "area": "armies", "name": "Armies eating (Foraging option)", "status": "done", "evidence": ["C223","crates/l2-game/tests/options/main.rs","crates/l2-kingdom/tests/campaign/main.rs"], "gap": "", "rows": []},
     {"id": "trampling", "area": "armies", "name": "Armies trampling fields", "status": "done", "evidence": ["C134","C229"], "gap": "", "rows": []},
     {"id": "fog", "area": "armies", "name": "Fog of war (Exploration option)", "status": "done", "evidence": ["C21","C172","C184","crates/l2-game/tests/screens_map/main.rs"], "gap": "", "rows": []},
     {"id": "take-field", "area": "battles", "name": "Choosing to take the field", "status": "done", "evidence": ["C115","crates/l2-game/tests/seam.rs","crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
@@ -128,7 +128,7 @@
     {"id": "autosave", "area": "game", "name": "Autosave every turn", "status": "done", "evidence": ["C190","crates/l2-game/tests/save/main.rs","crates/l2-game/tests/newgame/main.rs"], "gap": "", "rows": []},
     {"id": "victory", "area": "game", "name": "Winning and losing", "status": "done", "evidence": ["C32","crates/l2-game/tests/ending.rs"], "gap": "", "rows": []},
     {"id": "scoring", "area": "game", "name": "Scoring", "status": "done", "evidence": ["C33"], "gap": "", "rows": []},
-    {"id": "campaign", "area": "game", "name": "The eight-map campaign", "status": "done", "evidence": ["crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
+    {"id": "campaign", "area": "game", "name": "The eight-map campaign", "status": "done", "evidence": ["crates/l2-kingdom/tests/campaign/main.rs"], "gap": "", "rows": []},
     {"id": "multiplayer", "area": "game", "name": "Multiplayer", "status": "out-of-scope", "evidence": ["docs/plan.md"], "gap": "", "rows": ["lobby-player-shield"]}
   ]
 }
