@@ -902,7 +902,7 @@
       "addr": "0x0042FF10",
       "what": "0x0F's whole arm: `if (Ui_OkButtonClicked() || rightReleased) { g_screenId = DAT_005533F4 ? 0 : 0x02; DAT_005533F4 = 0; Sound_StopOneShot(); }`. The popup returns to whichever screen opened it, and DAT_005533F4 is a flag the two CALL SITES set -- Village_ClickJob writes 0, CountyStrip_JobClick writes 1 -- rather than a memory of where the interface was.",
       "note": "0x0F has NO turn-ended guard, which 29 of the 49 arms do have. The Sound_StopOneShot half is not reproduced: the popup's voice clip is not played.",
-      "ours": "crates/l2-game/src/screens/job.rs",
+      "ours": "crates/l2-game/src/screens/job/mod.rs",
       "evidence": "V"
     },
     {
@@ -1031,7 +1031,7 @@
       "gesture": "left-press",
       "addr": "0x0042FF10",
       "what": "The epilogue's minimap arm, and 0x0F is the screen it NAMES: `if (g_screenId == 0x0F) { Sound_StopOneShot(); FUN_0041438C(); }` before the close. Only the raster is live -- 0x0F's own arm runs none of the six sidebar guards -- so passing the whole column down would have been five inventions.",
-      "ours": "crates/l2-game/src/screens/job.rs",
+      "ours": "crates/l2-game/src/screens/job/mod.rs",
       "evidence": "V"
     },
     {
@@ -3134,7 +3134,7 @@
     {
       "id": "0x004BA9C8/blacksmith-weapon-choice",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/job.rs",
+      "ours": "crates/l2-game/src/screens/job/mod.rs",
       "group": "village",
       "screen": "0x0F",
       "gesture": "left-press",
@@ -3415,7 +3415,7 @@
       "gesture": "key",
       "what": "Escape and Enter close the job popup.",
       "why": "0x0F's arm reads Ui_OkButtonClicked and the right-release flag and no key.",
-      "ours": "crates/l2-game/src/screens/job.rs"
+      "ours": "crates/l2-game/src/screens/job/mod.rs"
     },
     {
       "id": "ours/map-selected-county-outline",
