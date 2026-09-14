@@ -41,6 +41,7 @@ impl Game {
             gold_last: [0; MAX_REALMS],
             last_report: None,
             turns_played: 0,
+            ai_granted: false,
             campaign: crate::victory::Campaign::new(crate::victory::Track::First),
             field_policy: crate::engagement::Answer::Decline,
             turn: None,
