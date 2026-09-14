@@ -12233,3 +12233,13 @@ save round-trip; ablation removes the three paint_tile calls, all seven red.
 Tile panel ladder was mapped and not built: `TileInfo_Draw` `0x0041C208` branches on
 the plane-1 flags with group 30 words; mountain against woodland needs
 (tile.bank & 0x1c) == 4 and CampaignMap carries no bank plane.
+
+---
+
+**C227 — Bankruptcy runs six stages: deserve, desert, disband; supplies reach and unload; start options include the garrison.**
+
+`Wages_PayAll` (`0x004ACBD4`) stages 0–5: Realm_ReleaseMercenaries `0x004AD230` (hire slots), Realm_DesertArmies `0x004AD0E8` (stages 1–4), Realm_DestroyArmies `0x004AD316` (stage 5). Ours ran desertions 0–2 and never destroyed because apply_bankruptcy keyed on realm.bankrupt_stage (next stage); pay wraps it to 0 after mutiny, so two rungs hit empty arms. Re-keyed on BankruptcyAction. A 400-man army over six unpaid seasons was 400/360/324/292/292/292, is now 400/360/324/292/263/gone. Test six_unpaid_seasons_desert_four_times_and_then_disband_every_army (crates/l2-kingdom/tests/campaign.rs); ablation re-measured 292/292.
+
+Supply transport: Screen_SendSupplies `0x0041AD5D`, NetAct_SendSupplies `0x00447DB6`, Transport_Spawn `0x004292AF`, Transport_RetargetAll `0x00429418` (phase 3), Transport_Deliver `0x004296B5`. Ours had all but the last; supply::deliver had zero callers, so shipments deducted and stood for ever. `0x004296B5` guards cargo_county == county, troops[0] to grain, troops[2] to herd, Herd_UpdateCrowding, tail FUN_0046F0A9 frees the slot as Army_Destroy does. Wired into units_tick::step_one ahead of attack_county. Tests a_transport_reaching_its_cargo_countys_town_unloads_and_is_gone and a_transport_passing_a_town_that_is_not_its_destination_unloads_nothing (crates/l2-kingdom/src/units_tick.rs); ablation red.
+
+Start options: Game_NewGame `0x00497CED`, Setup_CommitOptions `0x00499DC3`, Game_SetupRealmsAndCounties `0x0049BD99`. Settings::apply_to reproduces 6 of 7 effects (gold 100/500/1000/2500/5000, iron/wood/stone 50 each, armour row plus difficulty×20 to slot 4 for AI, castle, county status, +100 grain to unowned) and 11 of 12 drop-downs; missing the starting garrison from g_startTroops[g_startArmySize] (row 3 = 300 men, row 0 = none), declared by Settings::unhonoured (option 5, L2.eng 102); not built.
