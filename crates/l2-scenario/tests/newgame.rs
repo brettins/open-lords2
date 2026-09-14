@@ -1087,7 +1087,7 @@ const JUDGED: &[&str] = &[
 /// **Enumerate the fields; do not spot-check them.**
 ///
 /// Reads `pub struct CountyState`'s field list out of
-/// `crates/l2-scenario/src/lib.rs` and fails if a field is not in [`JUDGED`].
+/// `crates/l2-scenario/src/mod.rs` and fails if a field is not in [`JUDGED`].
 /// A hand-written list goes stale the day somebody adds a field; a list checked
 /// against the definition cannot.
 ///
