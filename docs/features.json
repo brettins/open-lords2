@@ -41,7 +41,7 @@
     {"id": "migration", "area": "people", "name": "Migration", "status": "done", "evidence": ["crates/l2-kingdom/tests/reproduction.rs","crates/l2-kingdom/tests/quirks.rs"], "gap": "", "rows": []},
     {"id": "jobs", "area": "people", "name": "Peasant jobs", "status": "done", "evidence": ["C180","crates/l2-kingdom/tests/labour_gap.rs"], "gap": "", "rows": []},
     {"id": "village-drag", "area": "people", "name": "Moving peasants between jobs", "status": "done", "evidence": ["C22","C121"], "gap": "", "rows": []},
-    {"id": "events", "area": "people", "name": "Random events", "status": "done", "evidence": ["C169","C170","C210","docs/bugs.md","crates/l2-kingdom/src/event.rs","crates/l2-game/tests/messages.rs","crates/l2-game/tests/job_bodies.rs"], "gap": "", "rows": []},
+    {"id": "events", "area": "people", "name": "Random events", "status": "done", "evidence": ["C169","C170","C210","docs/bugs.md","crates/l2-kingdom/src/event/mod.rs","crates/l2-game/tests/messages.rs","crates/l2-game/tests/job_bodies.rs"], "gap": "", "rows": []},
     {"id": "revolts", "area": "people", "name": "Unrest and peasant revolts", "status": "done", "evidence": ["C90","crates/l2-game/tests/long_game.rs"], "gap": "", "rows": []},
     {"id": "secession", "area": "people", "name": "Cut-off counties break away", "status": "done", "evidence": ["C34","crates/l2-kingdom/tests/secession.rs"], "gap": "", "rows": []},
     {"id": "raise-army", "area": "armies", "name": "Raising an army", "status": "done", "evidence": ["C45","C66","C179","crates/l2-game/tests/military.rs"], "gap": "", "rows": []},

@@ -94,7 +94,7 @@ that do draw behave
 seeds, not sampled. `00448822 MOV EAX,[0x0058FD60] / ADD EAX,EAX` quoted from the
 disassembly, not the decompiler, per `decisions.md` C13. `kingdom.md` §8.1.
 
-**Reproduced.** `crates/l2-kingdom/src/event.rs:998`, with
+**Reproduced.** `crates/l2-kingdom/src/event/mod.rs:998`, with
 `only_odd_numbered_counties_can_ever_draw_an_event` and
 `a_kingdom_of_even_numbered_counties_never_sees_an_event`.
 
@@ -114,7 +114,7 @@ at all** (§5, D6).
 
 **Evidence.** **[D]** — two call sites, no second source.
 
-**Reproduced.** `crates/l2-kingdom/src/event.rs:319` — *"This is a bug and it is reproduced."*
+**Reproduced.** `crates/l2-kingdom/src/event/mod.rs:319` — *"This is a bug and it is reproduced."*
 
 ### B4 — The empire tax happiness term is summed into a signed byte
 
