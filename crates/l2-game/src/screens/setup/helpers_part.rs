@@ -14,5 +14,3 @@ use crate::setup::SetupOptions;
 use crate::shell::{self, font, Pen};
 use crate::text::{self, TextField};
 
-mod helpers;
-pub use helpers::*;

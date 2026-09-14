@@ -13,8 +13,6 @@ use crate::shell::{self, font, Pen};
 use crate::widget;
 use crate::screens::armoury::Raised;
 
-mod raise;
-pub use raise::*;
 
 /// The painter's one local: `0x80` when the county has a mercenary offer,
 /// `0xA0` when it has not. Everything on the screen is placed off it.

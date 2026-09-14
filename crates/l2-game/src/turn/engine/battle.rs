@@ -4,7 +4,6 @@ use super::control::*;
 use super::tick::*;
 use super::*;
 use super::types::*;
-use super::battle::*;
 use super::ai_part::*;
 use super::tests::*;
 use l2_kingdom::ai::{self, AiStep};
