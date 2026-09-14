@@ -570,7 +570,7 @@ they type. It is not presentation either — it changes a stored string — so i
 that is fine: a quirk needs a switch only when somebody wants it switched.
 
 **Where:** `crates/l2-game/src/text.rs`, `TextField::put`; `docs/arms.json`
-`0x00401D26/overwrite-default`; tested in `crates/l2-game/tests/text.rs`.
+`0x00401D26/overwrite-default`; tested in `crates/l2-game/tests/text/main.rs`.
 
 ### B101 — The invasion tip is lost if its crossing is noticed while another tip is up
 
