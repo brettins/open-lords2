@@ -153,8 +153,8 @@ crates/l2-game/tests/ai_war/main.rs	C26	1e92346b988f	e8179d1f76a8
 crates/l2-game/tests/armoury/main.rs	C21	7b180bf100d0	f7bf296341ff
 crates/l2-game/tests/armoury/main.rs	C58	b9ae26438b9f	2a1ff4d5966d
 crates/l2-game/tests/arms.rs	C61	6bc2bab5881e	60611046b40d
-crates/l2-game/tests/audio_install.rs	C1	ad3f2bee3991	6b7e8edb019e
-crates/l2-game/tests/audio_install.rs	C116	6b5e72a469c5	1c49feddd496
+crates/l2-game/tests/audio_install/main.rs	C1	ad3f2bee3991	6b7e8edb019e
+crates/l2-game/tests/audio_install/main.rs	C116	6b5e72a469c5	1c49feddd496
 crates/l2-game/tests/audio_screens/main.rs	C133	6b579154315d	91fcca97cc98
 crates/l2-game/tests/audio_wiring/main.rs	C116	bd3d5e5ea876	1c49feddd496
 crates/l2-game/tests/audio_wiring/main.rs	C116	ca080a64f6a9	1c49feddd496
