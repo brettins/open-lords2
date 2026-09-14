@@ -37,6 +37,8 @@ mod render;
 pub use render::*;
 mod motion;
 pub use motion::*;
+mod column;
+pub use column::*;
 mod panel;
 pub use panel::*;
 mod entities;

@@ -384,10 +384,28 @@ impl Screen for BattlefieldScreen {
 
         // --- the right column ---------------------------------------------
         draw_overview(canvas, &self.overview, live, ink, have_sheets);
+        // The column's artwork goes down before the banner plates, the way
+        // `Screen_DrawBattlefield` lays it: frame 0 is the ground they sit on.
+        let art_column = draw_column_chrome(
+            canvas,
+            ctx.assets.chrome.as_ref(),
+            side_shields(ctx.game, live),
+            live.paused,
+        );
         draw_banners(canvas, live, ink);
-        for b in Button::ALL {
-            let r = b.rect();
-            crate::widget::button(canvas, ink, r, b.label(), matches!(b, Button::Pause) && live.paused);
+        // Ours, and only where the sheet is not: frame 1's own strip carries
+        // the five button pictures, so drawing boxes over it would hide them.
+        if !art_column {
+            for b in Button::ALL {
+                let r = b.rect();
+                crate::widget::button(
+                    canvas,
+                    ink,
+                    r,
+                    b.label(),
+                    matches!(b, Button::Pause) && live.paused,
+                );
+            }
         }
 
         // --- the pause banner ----------------------------------------------

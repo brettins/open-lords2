@@ -55,10 +55,10 @@ pub(super) fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink
 /// [`Overview`].
 ///
 ///
-/// `FUN_004BC51A` draws two things and neither is a rectangle: a terrain tile
+/// `FUN_004BC51A` draws two things: a terrain tile
 /// per cell and a man over it. **[V]** That nothing *else* writes inside
 /// `(0x1E0, 0x18)`–`(0x280, 0xB8)` is **[I]**: `Screen_DrawBattlefield`'s three
-/// `Misc_bat.pl8` blits all start at `y 0xB8` or below, and the earliest banner
+/// `Misc_bat.pl8` blits all start at `y 0xB8` or below
 /// in `DAT_004D31F4` is at `y 185`.
 ///
 /// `have_sheets` is false on an install that does not ship `T2_bat1.pl8` beside
@@ -91,6 +91,60 @@ pub(super) fn draw_overview(
         let c = if f.side == l2_sim::SIDE_A { ink.highlight } else { ink.text };
         canvas.fill_rect(OVERVIEW.x + f.x as i32 * 2, OVERVIEW.y + f.y as i32 * 2, 2, 2, c);
     }
+}
+
+/// **The right column's own artwork, `Misc_bat.PL8` through
+/// `g_miscCtySheet`.** False when the install does not ship the file, and then
+/// the caller keeps the plates and buttons that are ours.
+///
+/// `Screen_DrawBattlefield` (`0x004233F7`) lays the column down in one run,
+/// and every one of the five frames is drawn at the position in its own
+/// `Pl8` header:
+///
+/// ```c
+/// Pl8_DrawFrameHere(g_miscCtySheet, 0, 0x1e0, 0xb8);                   /* 160 x 228 */
+/// Pl8_DrawFrameHere(g_miscCtySheet, 1, 0x1e0, 0x1c0);                  /* 160 x  32 */
+/// Pl8_DrawFrameHere(g_miscCtySheet, 2, 0x1e0, 0x19c);                  /* 160 x  36 */
+/// Pl8_DrawFrameHere(g_miscCtySheet, DAT_00568934 + 6, 0x1e2, 0x19d);   /*  28 x  35 */
+/// Pl8_DrawFrameHere(g_miscCtySheet, DAT_00568938 + 6, 0x230, 0x19d);
+/// ```
+///
+/// `FUN_00423530` (`0x00423530`), the once-a-frame refresh, repaints frames 1
+/// and 2 and both shields and adds the two lit buttons: frame 5 at
+/// `(0x1E1, 0x1C1)` while the pause word `DAT_0053F238` is set, frame 6 at
+/// `(0x201, 0x1C1)` while `DAT_00568964 == 1` — input armed, which
+/// `Battle_Start` does before the screen is raised and nothing clears while it
+/// is up, so the second is unconditional here. **[V]**
+///
+/// **`DAT_00568934` is side 4's shield and `DAT_00568938` is side 0's**, which
+/// is the way round nothing about the names suggests: both are
+/// `g_units[army] + 0x02`, and `g_battleArmyB` — the one on the *right*, at
+/// `0x230` — is the side-0 army, `l2_view::scene`'s `BattleBanner_Draw` note.
+/// So the left plate is [`l2_sim::SIDE_B`]. **[V]**
+///
+/// Not built here: `FUN_00423530`'s two
+/// `Ui_DrawNumberRight(g_battleMenA/B, ' ', …, 0x1FA / 0x24A, 0x1A6, 0x38,
+/// &g_fontBody, 0x20)` put the counts on frame 2's plate, and
+/// `FUN_004238B8` / `FUN_004239D5` draw the banner plates over frame 0 out of
+/// the same sheet — the ledger's other row.
+pub(super) fn draw_column_chrome(
+    canvas: &mut Canvas,
+    chrome: Option<&l2_view::chrome::Chrome>,
+    shields: (u8, u8),
+    paused: bool,
+) -> bool {
+    use l2_view::chrome::misc_bat as mb;
+    let Some(c) = chrome.filter(|c| c.misc_bat().is_some()) else { return false };
+    c.draw_misc_bat(canvas, mb::COLUMN, 0x1E0, 0xB8);
+    c.draw_misc_bat(canvas, mb::BUTTONS, 0x1E0, 0x1C0);
+    c.draw_misc_bat(canvas, mb::COUNTS, 0x1E0, 0x19C);
+    c.draw_misc_bat(canvas, mb::SHIELD + shields.0 as usize, 0x1E2, 0x19D);
+    c.draw_misc_bat(canvas, mb::SHIELD + shields.1 as usize, 0x230, 0x19D);
+    if paused {
+        c.draw_misc_bat(canvas, mb::PAUSE_LIT, 0x1E1, 0x1C1);
+    }
+    c.draw_misc_bat(canvas, mb::RETREAT_LIT, 0x201, 0x1C1);
+    true
 }
 
 /// One banner per figure the player holds, in the layout the count picks.

@@ -23,7 +23,10 @@ impl Chrome {
             .or_else(|_| read("System2.pl8"))
             .ok()
             .and_then(|b| Sheet::new(b).ok());
-        Ok(Chrome { panels, misc_cty, system })
+        // `Misc_bat.PL8` is the battle's tenant of `g_miscCtySheet`; optional
+        // for the same reason `System.pl8` is.
+        let misc_bat = read("Misc_bat.PL8").ok().and_then(|b| Sheet::new(b).ok());
+        Ok(Chrome { panels, misc_cty, misc_bat, system })
     }
 
     pub fn panels(&self) -> &Sheet {
@@ -69,6 +72,20 @@ impl Chrome {
 /// missing, so a caller can fall back.
     pub fn draw_misc(&self, canvas: &mut Canvas, frame: usize, x: i32, y: i32) -> bool {
         self.blit(canvas, &self.misc_cty, frame, x, y)
+    }
+
+    /// One `Misc_bat.PL8` frame — the battlefield's half of `g_miscCtySheet`.
+    /// False when the install does not ship the file, so the caller keeps its
+    /// own chrome. Frame names in [`misc_bat`].
+    pub fn draw_misc_bat(&self, canvas: &mut Canvas, frame: usize, x: i32, y: i32) -> bool {
+        match self.misc_bat.as_ref() {
+            Some(s) => self.blit(canvas, s, frame, x, y),
+            None => false,
+        }
+    }
+
+    pub fn misc_bat(&self) -> Option<&Sheet> {
+        self.misc_bat.as_ref()
     }
 
     pub fn draw_panel_frame(&self, canvas: &mut Canvas, frame: usize, x: i32, y: i32) -> bool {

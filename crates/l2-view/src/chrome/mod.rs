@@ -62,6 +62,31 @@ pub mod panels {
     pub const STRIP_CELL: i32 = 24;
 }
 
+// -------------------------------------------------------------- Misc_bat.pl8
+
+/// Frame indices inside `Misc_bat.pl8`, the battlefield's right column.
+///
+/// `g_miscCtySheet` (`0x005530C8`) holds this file, not `Misc_cty.pl8`, while a
+/// battle is up — `DAT_0053F050` picks — so these indices and `misc_cty`'s are
+/// two vocabularies over one slot. Each frame's own header carries the position
+/// it is drawn at, and every one below agrees with its call site. **[V]**
+pub mod misc_bat {
+    /// The column under the overview panel, 160 × 228 at (480, 184).
+    pub const COLUMN: usize = 0;
+    /// The button strip, 160 × 32 at (480, 448).
+    pub const BUTTONS: usize = 1;
+    /// The two-count plate, 160 × 36 at (480, 412).
+    pub const COUNTS: usize = 2;
+    /// The lit pause button, 30 × 30, over slot 0 of the strip.
+    pub const PAUSE_LIT: usize = 5;
+    /// The lit retreat button, 30 × 30, over slot 1.
+    pub const RETREAT_LIT: usize = 6;
+    /// `shieldIndex + SHIELD` — six 28 × 35 plates, frames 7 … 12. A
+    /// `shieldIndex` of 0 is clamped to 6 by the writer, so frame 6 is never
+    /// reached this way and stays [`RETREAT_LIT`].
+    pub const SHIELD: usize = 6;
+}
+
 // -------------------------------------------------------------- Misc_cty.pl8
 
 /// Frame indices inside `Misc_cty.pl8` used by the campaign screen.
@@ -414,6 +439,9 @@ pub fn realm_pen_highlight(shield: u8) -> Option<u8> {
 pub struct Chrome {
     panels: Sheet,
     misc_cty: Sheet,
+    /// `Misc_bat.PL8`, the other tenant of `g_miscCtySheet`. Optional because
+    /// only the battle screens draw it.
+    misc_bat: Option<Sheet>,
     system: Option<Sheet>,
 }
 
@@ -500,7 +528,7 @@ mod tests {
         }
     }
 
-    /// The overlay leaves everything that is not a county shade alone,
+    /// The overlay leaves everything,
     /// marks the selected county with the original's own 0x20.
     #[test]
     fn the_minimap_overlay_recolours_only_the_four_county_shades() {

@@ -55,6 +55,37 @@ pub(crate) fn overview_occupants(game: &crate::Game, live: &LiveBattle) -> Vec<u
     occupants
 }
 
+/// **A side's shield plate index**, `DAT_00568934` / `DAT_00568938` as
+/// `FUN_004A0000`'s seeder writes them:
+///
+/// ```c
+/// DAT_00568934 = g_units[g_battleArmyA + 0x02];   /* the shield byte */
+/// if (DAT_00568934 == 0) DAT_00568934 = 6;
+/// ```
+///
+/// The unit byte is a copy of realm `+0x0A`, so ours reads the realm the side's
+/// men belong to. The clamp is the original's and it is what keeps an ownerless
+/// army off frame 6, which is a button. **[V]**
+pub(crate) fn side_shield(game: &crate::Game, live: &LiveBattle, side: l2_sim::Side) -> u8 {
+    let owner = live
+        .runner
+        .fighters
+        .iter()
+        .enumerate()
+        .find(|(i, f)| f.side == side && live.runner.is_alive(*i))
+        .map(|(_, f)| live.runner.sim.figures[f.sim].owner);
+    let shield = owner
+        .and_then(|o| game.kingdom.realms.get(o as usize))
+        .map_or(0, |r| r.shield_index);
+    if shield == 0 { 6 } else { shield }
+}
+
+/// The pair the column draws, left then right — side 4 then side 0. See
+/// [`draw_column_chrome`].
+pub(crate) fn side_shields(game: &crate::Game, live: &LiveBattle) -> (u8, u8) {
+    (side_shield(game, live, l2_sim::SIDE_B), side_shield(game, live, l2_sim::SIDE_A))
+}
+
 /// The cursor the ladder picks, exposed for the tests — the picture has no
 /// cursor sheet to draw it with.
 pub fn cursor_of(live: &LiveBattle) -> Cursor {
