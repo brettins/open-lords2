@@ -1300,7 +1300,7 @@ round is for is the `Herd_UpdateCrowding` between them, which does move an estim
 
 All fourteen counties of the England turn-one position store `fieldsGrain = 0`. That is not
 an artefact of the fixture: **in this game you paint your fields at the start**, and until
-`crates/l2-kingdom/src/field.rs` there was no code path in this tree that could set that
+`crates/l2-kingdom/src/field/mod.rs` there was no code path in this tree that could set that
 1304: number for the human player at all. The AI could not farm either — and the reason was worse
 than it looked. The ladder in `Ai_ManageCountyFarms` does not *add* a field, it orders one
 **reclaimed** (`Field_OrderReclamation`, `0x0044C6C4`, paints terrain `0x19` on a wasteland

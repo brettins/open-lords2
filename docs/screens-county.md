@@ -1672,7 +1672,7 @@ Named here so nobody mistakes silence for coverage.
   `0x0043611B` are now known to open screens 0x1B and 0x0B — castle building and the other
   lords — but what they do first is not read.*
 * ~~**The field-painting brush** on the campaign map: `Field_SetType` is seen, not
-  understood.~~ *Done — `docs/kingdom.md` §7.2 and `crates/l2-kingdom/src/field.rs`. The
+  understood.~~ *Done — `docs/kingdom.md` §7.2 and `crates/l2-kingdom/src/field/mod.rs`. The
   brush is five 48 × 48 buttons in two hotspot tables at `0x004DC4D0` (three: fallow, grain,
   pasture) and `0x004DC530` (two: begin reclaiming, abandon), all five calling
   `FUN_00438B02`, which passes the button's id to `Field_SetType` as a raw terrain value.
