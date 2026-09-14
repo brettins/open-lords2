@@ -226,6 +226,11 @@ impl Screen for BattlefieldScreen {
             // field on any of the three battle screens, so the character
             // message has nothing to do here. See `crate::text`.
             Event::Text(_) => Transition::Stay,
+            // **The right button's down edge is nothing here.** The epilogue
+            // that reads `g_mouseRightPressed` (`0x004EABE0`) is guarded on
+            // `g_screenId != 0x12` and on `g_battlePhase == 0`, so it drops no
+            // byte during a battle; `0x2A`'s own arms all read the release.
+            Event::RightPress { .. } => Transition::Stay,
         }
     }
 

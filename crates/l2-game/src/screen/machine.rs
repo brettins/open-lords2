@@ -165,7 +165,8 @@ impl Machine {
             Event::Click { x, y }
             | Event::Release { x, y }
             | Event::DoubleClick { x, y }
-            | Event::RightClick { x, y } => {
+            | Event::RightClick { x, y }
+            | Event::RightPress { x, y } => {
                 self.pointer = (x, y);
                 self.pointer_changed = true;
             }

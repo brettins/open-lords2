@@ -70,15 +70,16 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// * **`eventId` is never cleared by anything.** It is overwritten by the next
 ///   event the county draws and otherwise stands for the rest of the game, which
 ///   is why four siege fixtures still read `0x8E` on a county whose Wedding
-/// fever is long over. The county panels read it too, so a county keeps
+/// fever is long over. The county panels read it too
 ///   showing its last event's line.
 ///
 /// # What is not reproduced, and why
 ///
-/// **`g_mouseRightDown`.** Our [`crate::input::Event`] has no right *press* —
-/// `RightClick` is the release, deliberately, because the original's fifty-odd
-/// right-button arms all read the released-this-frame flag (`DAT_004E6900`) and
-/// never the held one. So
+/// **`g_mouseRightDown`.** Our [`crate::input::Event`] has no *held* right
+/// button — `RightClick` is the release and [`crate::input::Event::RightPress`] the
+/// down edge, both edges, because the original's fifty-odd right-button arms
+/// all read the released-this-frame flag (`DAT_004E6900`) and never the held
+/// one. So
 /// right button is down, the guard would be false on every one of them, and a
 /// flag invented to satisfy it would be a flag nothing could ever set. The
 /// original's effect is to hold a letter back while the button is held; ours
@@ -142,7 +143,7 @@ pub fn post_event(game: &mut Game) -> bool {
 /// **The other half of [`post_event`]'s latch: `Event_RollAll` raising it.**
 ///
 /// `Event_RollAll` (`0x00448819`) does `eventFired = 1; eventId = <slot>;` on
-/// every county it deals to, and the original needs nothing further, because
+/// every county it deals to,
 /// `Event_Post` had cleared that same byte. Ours clears
 /// [`Game::event_posted`] instead — the kingdom's latch is never lowered — so
 /// the raising has to be mirrored here, once per season, from the report
@@ -288,7 +289,7 @@ pub fn animate(game: &mut Game) -> Option<crate::movie::Film> {
 /// This is what a *headless* turn does in place of the frame loop: it is
 /// `Msg_Pump` + [`show`] + [`dismiss`] run to exhaustion, with no window and no
 /// click. [`crate::turn::end_turn`] is the headless door — `docs/agents.md`,
-/// *name the branch* — and it cannot raise a screen, so a game driven through it
+/// *name the branch* — and it cannot raise a screen
 /// still ends, and ends by the same ladder an interactive game does.
 ///
 /// Every step goes through
@@ -300,7 +301,7 @@ pub fn animate(game: &mut Game) -> Option<crate::movie::Film> {
 /// dismissing that message enters screen `0x1C` and nothing behind it in the
 /// ring is ever shown.
 pub fn drain(game: &mut Game) -> Outcome {
-    // Fifty slots and one enqueue-while-draining (group 225), so a hundred
+    // Fifty slots and one enqueue-while-draining (group 225)
     // iterations is a hard bound that a full ring cannot reach. A `while true`
     // here would be one ring-corruption away from hanging the turn.
     for _ in 0..(RING * 2) {

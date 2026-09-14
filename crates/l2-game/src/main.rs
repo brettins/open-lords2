@@ -469,8 +469,20 @@ impl ApplicationHandler for App {
                     self.deliver(e);
                 }
             }
-            // The original acts on the right button's **release** everywhere,
-            // never its press — see `input::Event::RightClick`.
+            // The right button's **down** edge — `g_mouseRightPressed`
+            // (`0x004EABE0`), read five times in the image and by exactly one
+            // arm we build: `Screen_FrameInput`'s minimap epilogue
+            // (`0x0042FF10`). See `input::Event::RightPress`.
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Right,
+                ..
+            } => {
+                let (x, y) = self.last_cursor;
+                self.deliver(GameEvent::RightPress { x, y });
+            }
+            // Everything else the right button does is on its **release** —
+            // see `input::Event::RightClick`.
             WindowEvent::MouseInput {
                 state: ElementState::Released,
                 button: MouseButton::Right,
