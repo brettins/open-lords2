@@ -94,7 +94,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// * 5 — **four county fields that were never written at all**:
 ///   `labour_wanted`, `labour_useful`, `labour_share` and `industry_share`.
 ///   Found by the *game* save's round trip over the England turn-one position
-///   (`crates/l2-game/tests/save.rs`): a decoded kingdom compared equal on its
+///   (`crates/l2-game/tests/save/main.rs`): a decoded kingdom compared equal on its
 ///   checksum and unequal on `PartialEq`, because the four were absent from the
 ///   `Encode` impl below and therefore absent from the hash as well. Two of
 ///   them — `labour_useful` and `labour_share` — are what the labour allocator

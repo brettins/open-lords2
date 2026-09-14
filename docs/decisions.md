@@ -8294,7 +8294,7 @@ unchanged and the new reads sit in `l2-scenario` beside the ones C142 and C149 a
 **C162 — a save test failed one run in ninety, and the shared directory
 it raced over was also hiding a real defect and three assertions that could not fail.**
 
-`crates/l2-game/tests/save.rs`'s `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
+`crates/l2-game/tests/save/main.rs`'s `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
 failed at merge twice in one evening and passed every time it was run alone. It was recorded as a
 pre-existing flake in the merge of C151 and left there. This entry is what measuring it found.
 
