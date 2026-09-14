@@ -129,7 +129,7 @@ crates/l2-game/src/shell/drawing/mod.rs	C155	c841635f22d7	03caee7e7f69
 crates/l2-game/src/shell/drawing/mod.rs	C155	d741267a7948	03caee7e7f69
 crates/l2-game/src/shell/drawing/mod.rs	C61	4852635e7bff	60611046b40d
 crates/l2-game/src/shell/drawing/mod.rs	C61	bf7c15012e16	60611046b40d
-crates/l2-game/src/shell/font.rs	C155	b2daf0637f13	03caee7e7f69
+crates/l2-game/src/shell/font/mod.rs	C155	b2daf0637f13	03caee7e7f69
 crates/l2-game/src/turn/ai_part.rs	C62	4fea74e6f685	ebb6a7ec3711
 crates/l2-game/src/turn/battle.rs	C149	101237d06443	138117948441
 crates/l2-game/src/turn/battle.rs	C35	90db6b8f5bcd	193a1920e229

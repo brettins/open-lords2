@@ -218,7 +218,7 @@ looking for
 Our draws are one of two kinds:
 
 * **real** — the draw goes through the game's own assets. Every `shell::Pen` method draws
-  with `Fntl2_14.pl8` / `Fntl2_22.pl8` through `crates/l2-game/src/shell/font.rs`, and
+  with `Fntl2_14.pl8` / `Fntl2_22.pl8` through `crates/l2-game/src/shell/font/mod.rs`, and
   every `draw_*` on the chrome or the village art blits a frame out of a `.pl8` the player
   owns.
 * **placeholder** — `l2_view::text` is our own hand-authored **5 × 7 bitmap font**, and

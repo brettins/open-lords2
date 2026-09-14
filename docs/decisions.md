@@ -4709,7 +4709,7 @@ has asserted for weeks.
 > *"the original's glyphs live in `Font_c2.pl8` … that file is an open question … so the
 > interface draws its own letters **until the real font is decoded**."*
 
-By then `crates/l2-game/src/shell/font.rs` had decoded it: `Fntl2_14.pl8` and
+By then `crates/l2-game/src/shell/font/mod.rs` had decoded it: `Fntl2_14.pl8` and
 `Fntl2_22.pl8`, through the 128-byte character-to-frame table at `0x004D71D0` that
 `Glyph_Draw` (`0x00402A14`) indexes, with a mapping that checks itself on descenders. And
 `Font_c2.pl8` was never the file the game draws from — `docs/audit.md` records that
@@ -7557,7 +7557,7 @@ only the drift the constant removes — reasoned, not tried.
 **C155 — The blank sign column is four pixels wide in `Ui_DrawText` and zero pixels wide
 in the measure, and the tree documents the wrong function for both.** **[V]**
 
-`crates/l2-game/src/shell/font.rs`'s `SPACE_ADVANCE` doc says *"`FUN_004014F0`
+`crates/l2-game/src/shell/font/mod.rs`'s `SPACE_ADVANCE` doc says *"`FUN_004014F0`
 special-cases `' '` before the table lookup and adds 4; `Glyph_Draw` adds nothing
 at all for a zero entry, which is what makes `'@'` an invisible sign column that
 still occupies its place in a column of numbers."* The conclusion is right and
