@@ -1788,7 +1788,7 @@ understaffed mine's forecast differs by exactly the difference the ramp makes.
 subset of the population, so `ramp(population) <= ramp(workers)` always, and the row therefore
 **understates**: a mine whose `capacity` sits between its miners and its people forecasts less
 than it will make. It was written here as *optimistic*, from the word "full", not from the
-ramp. `crates/l2-kingdom/tests/industry_forecast.rs` asserts the inequality, so the word cannot
+ramp. `crates/l2-kingdom/tests/industry_forecast/main.rs` asserts the inequality, so the word cannot
 drift back.
 
 **Reproduced**, and not switchable: it is what the player is shown, the row would be a

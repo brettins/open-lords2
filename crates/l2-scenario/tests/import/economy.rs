@@ -340,7 +340,7 @@ fn the_local_tax_happiness_byte_is_five_minus_the_rate_in_every_save() {
 /// only ever checked at zero; that is a limit of the corpus and is said here.
 ///
 /// Weapons is excluded from the equality, as in
-/// `crates/l2-kingdom/tests/industry_forecast.rs`: its limit is a realm-wide
+/// `crates/l2-kingdom/tests/industry_forecast/main.rs`: its limit is a realm-wide
 /// share of wood and iron. It is still checked to be zero when a guard fails
 /// and never above the unlimited figure.
 ///
