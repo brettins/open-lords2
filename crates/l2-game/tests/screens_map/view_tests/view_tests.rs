@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+
+use super::*;
 use super::interaction_tests::*;
 use super::structures_tests::*;
 use super::fog_and_march_tests::*;
@@ -532,4 +534,5 @@ fn a_merchant_is_clickable_over_its_whole_tile_whichever_county_is_selected() {
     let t = send(&mut screen, &mut game, &assets, Event::Click { x: cx, y: cy });
     assert_eq!(t, Transition::Push(ScreenId::Merchant(merchant)), "and it opens the merchant");
 }
+
 

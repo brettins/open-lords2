@@ -199,9 +199,9 @@ crates/l2-game/tests/screens_map/interaction_tests.rs	C132	bcc7335581ba	84bc50c0
 crates/l2-game/tests/screens_map/interaction_tests.rs	C138	800999466b29	7724e6665b90
 crates/l2-game/tests/screens_map/interaction_tests.rs	C42	34537294a71e	a2ac3547bb32
 crates/l2-game/tests/screens_map/interaction_tests.rs	C61	0666dfecda29	60611046b40d
-crates/l2-game/tests/screens_map/view_tests.rs	C47	944e764a1fca	ed7ea7df1f23
-crates/l2-game/tests/screens_map/view_tests.rs	C48	38f59896d07f	9e81512f4c0d
-crates/l2-game/tests/screens_map/view_tests.rs	C48	a3f70d784d36	9e81512f4c0d
+crates/l2-game/tests/screens_map/view_tests/main.rs	C47	944e764a1fca	ed7ea7df1f23
+crates/l2-game/tests/screens_map/view_tests/main.rs	C48	38f59896d07f	9e81512f4c0d
+crates/l2-game/tests/screens_map/view_tests/main.rs	C48	a3f70d784d36	9e81512f4c0d
 crates/l2-game/tests/screens_shoot.rs	C21	1523306009a2	f7bf296341ff
 crates/l2-game/tests/screens_village/interaction.rs	C180	7ba053c3b72d	fea6f0ec7284
 crates/l2-game/tests/screens_village/render.rs	C22	1d39d618c245	0364b53a921d
