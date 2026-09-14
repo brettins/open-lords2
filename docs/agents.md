@@ -686,7 +686,7 @@ want the same integer, which is the case this removes entirely.
 
 ### The tool as it is
 
-`tools/decisions/corrections.js`, with `crates/l2-testkit/tests/corrections_tool.rs` building
+`tools/decisions/corrections.js`, with `crates/l2-testkit/tests/corrections_tool/main.rs` building
 small trees to break it. Built after a merge of six branches where the integrator closed three
 gaps by judgement, each of which is now a rule:
 
