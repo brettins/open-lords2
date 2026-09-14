@@ -243,6 +243,25 @@ pub enum Event {
 /// only ever hears about presses cannot tell a drag from two clicks, and
     /// would have had to invent a gesture the original does not have.
     Release { x: i32, y: i32 },
+    /// The **right** button went **down** at a canvas pixel.
+    ///
+    /// **`g_mouseRightPressed` (`0x004EABE0`)**, the down edge beside
+    /// [`Event::RightClick`]'s `g_mouseRightReleased` (`0x004E6900`). `[V]`
+    /// `docs/symbols.md`: the released flag is what all forty-eight
+    /// *click-right-to-exit* arms read, and this one is read five times and
+    /// never to dismiss anything —.
+    /// vocabulary until an arm needed it.
+    ///
+    /// **The arm that needed it** is `Screen_FrameInput`'s epilogue
+    /// (`0x0042FF10`), whose guard is `g_mouseLeftPressed || g_mouseRightPressed`
+    /// over the minimap raster: the two buttons do the *same* job there, on the
+    /// same edge, and answering the right half with the release would fire it
+    /// one edge late. See [`crate::screens::tip`].
+    ///
+    /// **Not a dismissal.** No screen may close on this; a right *release* is
+    /// what closes a window in this game, and a press arriving here does not
+    /// imply a release will (the pointer may leave first).
+    RightPress { x: i32, y: i32 },
 }
 
 /// **The left button's down bit, and the release edge derived from it.**

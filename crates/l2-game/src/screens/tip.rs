@@ -108,19 +108,30 @@ impl Screen for TipScreen {
     /// is reproduced on the map's own ladder and not on this path.
     /// press under a tip closes the tip's hold and does not yet move the map.
     ///
-    /// **The left press only**
-    /// arm do. The epilogue's guard is `g_mouseLeftPressed || g_mouseRightPressed`
-    /// and our vocabulary has no right *press*: [`Event::RightClick`] is the
-    /// right **release**, because that is what all fifty-odd of the original's
-    /// right-button arms read. The half we cannot say is recorded here rather
-    /// than approximated with the release, which would fire on the wrong edge.
+    /// **Both buttons, and that is the guard.**
+    /// `g_mouseLeftPressed || g_mouseRightPressed`, so the right button does the
+    /// *same* job here as the left on the *same* edge — the one place in the
+    /// image where it does. This used to answer the left press alone and say the
+    /// right half could not be said, our vocabulary having no right press;
+    /// [`Event::RightPress`] is that edge now (`g_mouseRightPressed`,
+    /// `0x004EABE0`)
+    /// [`Event::RightClick`], the **release**, which would fire one edge late.
+    ///
+    /// **The release still arrives, and it belongs to the map.** The original is
+    /// the same machine: the press drops `g_screenId` to `0`, so the right
+    /// release lands one ladder later on the campaign map's own arm. Nothing
+    /// here swallows it.
     ///
     /// **Only the raster, not the column.** Answering the whole column would
     /// invent five more arms; see `crates/l2-game/src/screens/job/mod.rs` at the
     /// same arm.
     // arm: 0x0042FF10/minimap-under-a-tip left-press
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        if let Event::Click { x, y } = event {
+        let down = match event {
+            Event::Click { x, y } | Event::RightPress { x, y } => Some((x, y)),
+            _ => None,
+        };
+        if let Some((x, y)) = down {
             if l2_view::chrome::minimap_hit_area().contains(x, y) {
                 ctx.game.tips.unhost();
             }
