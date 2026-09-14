@@ -510,7 +510,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   §6.2 and §14.7
 - ✅ Battle AI: the strength advantage, the 200-frame think, **all 17 order handlers
   reachable**. The fourteen siege ones had never been dispatched once, because nothing could
-  produce a siege; `crates/l2-sim/tests/siege.rs` runs one and enumerates every handler it
+  produce a siege; `crates/l2-sim/tests/siege/main.rs` runs one and enumerates every handler it
   reaches. `docs/battle-ai.md` §6
 - ✅ **Sieges, both halves.** Campaign: laying one, the engine order and its ceilings, the
   build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege/mod.rs`,
