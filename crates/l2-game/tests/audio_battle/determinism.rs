@@ -148,7 +148,7 @@ fn sound_does_not_change_a_siege_that_burns() {
 // ------------------------------------------------------ against the install
 
 /// The install's case-insensitive lookup, as `tests/audio_install.rs` does it.
-fn find(dir: &Path, name: &str) -> Option<PathBuf> {
+pub(crate) fn find(dir: &Path, name: &str) -> Option<PathBuf> {
     let want = name.to_ascii_lowercase();
     std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).find_map(|e| {
         let p = e.path();

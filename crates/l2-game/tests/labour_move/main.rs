@@ -177,7 +177,7 @@ fn cluster_of(game: &Game, county: u8, slot: usize) -> usize {
     (0..vill::CLUSTER_COUNT).find(|&i| slots[i] == slot).expect("the job has a cluster")
 }
 
-fn end_turn(m: &mut Machine, game: &mut Game, assets: &Assets) {
+pub(crate) fn end_turn(m: &mut Machine, game: &mut Game, assets: &Assets) {
     let before = game.kingdom.turn_count;
     handle(m, game, assets, Event::KeyDown(Key::Char('E')));
     let mut done_at = None;

@@ -30,7 +30,7 @@ use l2_game::audio::{names, track, wav};
 /// The install is inconsistent about casing — `Scroll1.wav` on disk,
 /// `scroll1.wav` in `Lords2.exe`'s tables — so every lookup here is
 /// case-insensitive, the same rule the mod overlay applies.
-fn find(dir: &Path, name: &str) -> Option<PathBuf> {
+pub(crate) fn find(dir: &Path, name: &str) -> Option<PathBuf> {
     let want = name.to_ascii_lowercase();
     std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).find_map(|e| {
         let p = e.path();

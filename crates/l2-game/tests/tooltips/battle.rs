@@ -14,7 +14,7 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_view::Canvas;
 
 /// A battle between two armies, on the field and paused, over the campaign.
-fn battlefield() -> (Game, Assets, Machine) {
+pub(super) fn battlefield() -> (Game, Assets, Machine) {
     let mut g = world();
     g.kingdom.counties[2].owner = 2;
     for realm in 1..=2usize {

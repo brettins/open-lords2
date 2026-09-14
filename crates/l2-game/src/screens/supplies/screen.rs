@@ -235,7 +235,7 @@ impl Screen for SuppliesScreen {
         Transition::Stay
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         // `open` is deferred to the first draw for the same reason the map's
         // `ensure` is: the screen is built from a `ScreenId` and does not see
         // the game until it is given one.

@@ -260,7 +260,7 @@ impl Screen for CountyScreen {
         true
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         // **No clear.** The campaign map is the screen underneath on the stack.
 
         // **The seven column plates are no longer repainted here, and that is a

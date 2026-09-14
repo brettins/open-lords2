@@ -175,7 +175,7 @@ fn run_until(
 
 /// Press End Turn and run the whole turn, including the screen fade that
 /// follows the season. Panics if the turn stops to ask something.
-fn end_turn(m: &mut Machine, g: &mut Game, a: &Assets) {
+pub(crate) fn end_turn(m: &mut Machine, g: &mut Game, a: &Assets) {
     let before = g.kingdom.turn_count;
     press(m, g, a, 'e');
     run_until(m, g, a, "the turn", |_, g| g.kingdom.turn_count > before);

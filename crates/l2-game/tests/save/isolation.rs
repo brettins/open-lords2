@@ -43,7 +43,7 @@ use l2_kingdom::{Kingdom, Options};
 /// And forgetting this is loud: see
 /// [`an_unscoped_save_is_refused`].
 pub(crate) struct Saves {
-    path: PathBuf,
+    pub(crate) path: PathBuf,
     _scope: saves::ScopedDir,
 }
 
@@ -64,7 +64,7 @@ impl Saves {
     /// Every file in the directory, sorted — **read from the directory, not
     /// through `saves::list`**, which shows only `.l2sav` files and so cannot
     /// see a `.part` left behind or a file written under another name.
-    fn files(&self) -> Vec<String> {
+    pub(crate) fn files(&self) -> Vec<String> {
         let mut names: Vec<String> = std::fs::read_dir(&self.path)
             .expect("the test's own directory")
             .map(|e| e.expect("an entry").file_name().to_string_lossy().into_owned())

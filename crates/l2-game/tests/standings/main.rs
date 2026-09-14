@@ -39,7 +39,7 @@ use l2_kingdom::tables::SCORE_INPUT_CASTLES;
 // ---------------------------------------------------------------- the rules
 
 /// Five realms in play, every field zero, so a test can set the one it means.
-fn five_realms() -> Vec<Realm> {
+pub(crate) fn five_realms() -> Vec<Realm> {
     let mut realms = vec![Realm::new(); l2_kingdom::MAX_REALMS];
     for (i, r) in realms.iter_mut().enumerate() {
         r.in_play = i != 0;

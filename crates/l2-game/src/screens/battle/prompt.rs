@@ -199,7 +199,7 @@ impl Screen for BattlePromptScreen {
         Transition::Stay
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let Some(q) = BattlePromptScreen::question(ctx) else { return };
         let p = pen(ctx);
         draw_frame(ctx, canvas, q.county, q.attacker_owner, q.defender_owner, q.is_siege);

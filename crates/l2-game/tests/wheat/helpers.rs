@@ -32,7 +32,7 @@ use l2_view::{campaign, Canvas};
 /// /* FUN_00469D21, the shortfall arm: every grain tile after the first */
 /// if (lo == 2 && county.field_0x1a7 != 0 && notFirst) Terrain_Set(tile, 2, 0);
 /// ```
-fn originals_variant(season: u8, crop: [i32; 3], standing: i32, shortfall: bool, first: bool) -> u8 {
+pub(super) fn originals_variant(season: u8, crop: [i32; 3], standing: i32, shortfall: bool, first: bool) -> u8 {
     if shortfall && !first {
         return 0;
     }
@@ -59,7 +59,7 @@ fn originals_variant(season: u8, crop: [i32; 3], standing: i32, shortfall: bool,
 /// top and only the harvest refills it before the repaint, so outside Winter
 /// that word was zero when the band was taken. (After the turn it can hold
 /// `Grain_LabourEstimate`'s harvest forecast, which the repaint never saw.)
-fn c124_variant(season: u8, crop: [i32; 3], fields_grain: i32) -> u8 {
+pub(super) fn c124_variant(season: u8, crop: [i32; 3], fields_grain: i32) -> u8 {
     let word = if season == 4 { crop[2] } else { 0 };
     let band = if word < 1 || fields_grain < 1 {
         2
@@ -86,7 +86,7 @@ pub(crate) fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) 
 
 /// **End Turn, as a player presses it**: the key on the campaign map, then
 /// frames until the turn comes round, then the fade back up.
-fn end_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) {
+pub(super) fn end_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) {
     let before = game.kingdom.turn_count;
     {
         let mut ctx = Ctx { game: &mut *game, assets };
@@ -116,7 +116,7 @@ fn end_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) {
 /// reads only the inner part of the tile's own diamond and a herd sprite is a
 /// neighbour's diamond shifted `(+4, −4)` (`Sprite_TopIt`'s farm arm), which
 /// never reaches it.
-fn a_quiet_tile(game: &Game, candidates: &[usize]) -> usize {
+pub(super) fn a_quiet_tile(game: &Game, candidates: &[usize]) -> usize {
     let map = &game.kingdom.campaign.map;
     let near = |t: usize, r: i32, test: &dyn Fn(u8, u8) -> bool| {
         let (x, y) = coords(t);
@@ -206,7 +206,7 @@ fn tile_box(canvas: &Canvas, screen: &MapScreen, x: usize, y: usize) -> Vec<u8> 
 /// Paint the campaign screen on `tile` at one zoom and return which of the four
 /// wheat variants the tile shows, or `None` for none of them. Also returns
 /// whether the four are four different pictures at this zoom.
-fn drawn_variant(game: &mut Game, assets: &Assets, tile: usize, far: bool) -> (Option<u8>, bool) {
+pub(crate) fn drawn_variant(game: &mut Game, assets: &Assets, tile: usize, far: bool) -> (Option<u8>, bool) {
     let (x, y) = coords(tile);
     let (x, y) = (x as usize, y as usize);
     let stored = assets.slot(game.map_slot).expect("the map slot").at(Plane::GfxIndex, x, y);

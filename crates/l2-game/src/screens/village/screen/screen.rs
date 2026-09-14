@@ -253,7 +253,7 @@ impl Screen for VillageScreen {
         true
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let top = VillageScreen::top_y(ctx);
         // **No clear.** Everything below paints inside the picture at

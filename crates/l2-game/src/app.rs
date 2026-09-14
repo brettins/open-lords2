@@ -23,7 +23,7 @@ use winit::window::{CursorIcon, Window, WindowId};
 /// `VK_CONTROL` on key-down and clears it on key-up, and its digit arm calls a
 /// different function depending on it. Only the digits carry the modifier,
 /// because only the digits are dispatched on it.
-fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
+pub(super) fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
     Some(match key {
         WinitKey::Named(NamedKey::Escape) => Key::Escape,
         WinitKey::Named(NamedKey::Enter) => Key::Enter,

@@ -238,7 +238,7 @@ impl Screen for ConquestScreen {
         Transition::Stay
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         self.adopt(ctx);
         let a = &ctx.assets.shell;
         // `FUN_0041E1DD` sets `DAT_0058FE2C = 1` around *every* line it draws

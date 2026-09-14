@@ -62,7 +62,7 @@ fn with_a_map() -> Game {
 ///
 /// Returns the number of ticks it took, so a caller can assert the pace rather
 /// than only the destination.
-fn march(g: &mut Game) -> u32 {
+pub(super) fn march(g: &mut Game) -> u32 {
     for ticks in 1..=turn::MAX_TICKS {
         turn::tick_units_only(g);
         if !g.kingdom.campaign.units.iter().any(|(_, u)| u.moving) {

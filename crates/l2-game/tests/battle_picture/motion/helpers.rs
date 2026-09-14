@@ -22,7 +22,7 @@ use l2_view::Canvas;
 /// Two armies eight cells apart, marched at each other. 42 figures, no
 /// install, no painter — [`l2_view::scene::figure_origin`] is the whole
 /// picture and this counts how far it moves a live man in one tick.
-fn march() -> BattleRunner {
+pub(super) fn march() -> BattleRunner {
     let human: &[(Troop, u16)] = &[(Troop::Swordsmen, 8), (Troop::Archers, 6), (Troop::Macemen, 7)];
     let ai: &[(Troop, u16)] = &[(Troop::Crossbowmen, 7), (Troop::Macemen, 8), (Troop::Peasants, 6)];
     let mut r = BattleRunner::deploy_armies(
@@ -53,7 +53,7 @@ fn untouched_regions() -> Vec<(i32, i32, i32, i32)> {
     ]
 }
 
-fn snapshot(canvas: &Canvas) -> Vec<u8> {
+pub(crate) fn snapshot(canvas: &Canvas) -> Vec<u8> {
     let mut out = Vec::new();
     for (x0, y0, x1, y1) in untouched_regions() {
         for y in y0..y1 {
@@ -151,7 +151,7 @@ pub(crate) fn played(assets: &Assets, ticks: u32) -> (Game, Game, u32) {
 
 /// Check the two plays agree to the byte, that the battle did something, and
 /// print the fingerprint.
-fn same_battle(drawn: &Game, blind: &Game, label: &str, killed: u32) {
+pub(crate) fn same_battle(drawn: &Game, blind: &Game, label: &str, killed: u32) {
     let (a, b) = (l2_game::save::encode(drawn), l2_game::save::encode(blind));
     assert_eq!(a, b, "the saved bytes differ between the painted and the unpainted battle");
     eprintln!("{label}: saved battle {} bytes, fnv1a {:016x}", a.len(), fnv1a(&a));

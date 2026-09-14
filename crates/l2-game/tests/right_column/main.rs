@@ -41,7 +41,7 @@ mod geometry;
 pub use geometry::*;
 mod overlays_part;
 pub use overlays_part::*;
-mod end_turn;
+pub(crate) mod end_turn;
 pub use end_turn::*;
 
 use l2_game::game::Assets;

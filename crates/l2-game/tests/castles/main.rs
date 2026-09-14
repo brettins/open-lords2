@@ -125,13 +125,13 @@ fn run_until(
 /// road tile and 32 to cross anything else. Nothing in the turn machine waits
 /// on the human's armies,
 /// the order is asserting a race
-fn march(m: &mut Machine, g: &mut Game, a: &Assets) {
+pub(crate) fn march(m: &mut Machine, g: &mut Game, a: &Assets) {
     run_until(m, g, a, "the march", |_, g| {
         !g.kingdom.campaign.units.iter().any(|(_, u)| u.moving)
     });
 }
 
-fn end_turn(m: &mut Machine, g: &mut Game, a: &Assets) {
+pub(crate) fn end_turn(m: &mut Machine, g: &mut Game, a: &Assets) {
     let before = g.kingdom.turn_count;
     press(m, g, a, 'e');
     run_until(m, g, a, "the turn", |_, g| g.kingdom.turn_count > before);

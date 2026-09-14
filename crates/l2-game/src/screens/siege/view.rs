@@ -121,7 +121,7 @@ impl Screen for SiegeScreen {
         }
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         // `DAT_0058FE2C := 1` is the painter's second statement and `:= 0` its
         // last, so every string on this screen is drawn with drop capitals.

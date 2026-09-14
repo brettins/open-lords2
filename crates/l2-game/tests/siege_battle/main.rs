@@ -231,7 +231,7 @@ fn lay_siege(m: &mut Machine, g: &mut Game, a: &Assets, besieger: usize, keep: (
 /// and what is under test here is the assault.
 /// The player's own march in [`the_player_besieges_and_watches_the_assault`] is
 /// still two clicks, because there it *is* the route.
-fn march(g: &mut Game, unit: usize, to: (u8, u8)) {
+pub(crate) fn march(g: &mut Game, unit: usize, to: (u8, u8)) {
     let map = g.kingdom.campaign.map.clone();
     l2_kingdom::movement::order_move(
         &map,

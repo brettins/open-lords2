@@ -128,7 +128,7 @@ impl Screen for MenuScreen {
         Transition::Stay
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         canvas.clear(ink.background);
         let mid = canvas.width as i32 / 2;

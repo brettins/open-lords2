@@ -334,7 +334,7 @@ impl Screen for MessageScreen {
         Transition::Stay
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let Some(record) = MessageScreen::record(ctx) else { return };
         let pen = Pen {
             assets: &ctx.assets.shell,

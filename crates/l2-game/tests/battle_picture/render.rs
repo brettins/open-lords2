@@ -208,7 +208,7 @@ fn opaque(frame: &DecodedFrame) -> Vec<(i32, i32, u8)> {
 /// Every top-left corner in `xs × ys` at which `frame` sits on the canvas
 /// exactly: every opaque pixel that lands inside the field equals the canvas,
 /// and at least half of them land inside it.
-fn locate(canvas: &Canvas, frame: &DecodedFrame, xs: std::ops::Range<i32>, ys: std::ops::Range<i32>) -> Vec<(i32, i32)> {
+pub(crate) fn locate(canvas: &Canvas, frame: &DecodedFrame, xs: std::ops::Range<i32>, ys: std::ops::Range<i32>) -> Vec<(i32, i32)> {
     let pts = opaque(frame);
     let mut hits = Vec::new();
     for y in ys {
@@ -232,7 +232,7 @@ fn locate(canvas: &Canvas, frame: &DecodedFrame, xs: std::ops::Range<i32>, ys: s
 
 /// What fraction of a frame's opaque pixels sit on the canvas at `(x, y)`.
 /// For a sprite something else is drawn over — [`locate`] wants every pixel.
-fn matched(canvas: &Canvas, frame: &DecodedFrame, (x, y): (i32, i32)) -> f64 {
+pub(crate) fn matched(canvas: &Canvas, frame: &DecodedFrame, (x, y): (i32, i32)) -> f64 {
     let pts = opaque(frame);
     let (mut hit, mut seen) = (0usize, 0usize);
     for &(dx, dy, idx) in &pts {

@@ -145,7 +145,7 @@ impl MapScreen {
     /// hand it back; [`Self::resume_turn`] is what picks it up again when they
     /// pop, and it is called from `update` because this screen is underneath
     /// them and gets its tick back the moment they are gone.
-    pub(super) fn end_turn(&mut self, ctx: &mut Ctx) -> Transition {
+    pub(crate) fn end_turn(&mut self, ctx: &mut Ctx) -> Transition {
         if turn::turn_in_flight(ctx.game) || self.fading.is_some() {
             return Transition::Stay;
         }

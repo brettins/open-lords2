@@ -17,7 +17,7 @@ use l2_kingdom::unit::{Unit, UnitKind};
 
 /// One human realm holding county 1, four AI realms holding one each, and nine
 /// unowned — the shape of the England turn-one scenario, without needing the file.
-fn five_realms() -> Game {
+pub(super) fn five_realms() -> Game {
     let mut g = Game::new(0x51EED);
     g.player = 1;
     g.kingdom.set_county_count(14);

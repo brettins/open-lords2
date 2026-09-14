@@ -232,7 +232,7 @@ impl Screen for IndexScreen {
         }
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         canvas.clear(ink.background);
         text::draw(canvas, LEFT, 10, "OPEN-LORDS2 SCREEN INDEX", ink.highlight);

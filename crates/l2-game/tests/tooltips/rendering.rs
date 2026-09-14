@@ -22,7 +22,7 @@ pub(crate) fn draw(m: &mut Machine, g: &mut Game, a: &Assets) -> Canvas {
     canvas
 }
 
-fn region(c: &Canvas, r: Rect) -> Vec<u8> {
+pub(crate) fn region(c: &Canvas, r: Rect) -> Vec<u8> {
     let mut out = Vec::new();
     for y in r.y..r.y + r.h {
         for x in r.x..r.x + r.w {

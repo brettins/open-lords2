@@ -223,7 +223,7 @@ impl Screen for MerchantScreen {
         }
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let a = &ctx.assets.shell;
         let ink = &ctx.assets.ink;
         let pen = Pen {

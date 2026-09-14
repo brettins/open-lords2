@@ -128,5 +128,5 @@ impl Screen for TipScreen {
         Transition::Stay
     }
 
-    pub(crate) fn draw(&mut self, _ctx: &Ctx, _canvas: &mut Canvas) {}
+    fn draw(&mut self, _ctx: &Ctx, _canvas: &mut Canvas) {}
 }

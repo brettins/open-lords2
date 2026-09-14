@@ -209,7 +209,7 @@ impl Screen for RaiseArmyScreen {
         }
     }
 
-    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         // The room underneath, the same painter `Screen_Draw` runs first. The
         // three labels come out dim: they are painted on this screen and dead
         // on it.
