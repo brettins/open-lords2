@@ -650,7 +650,7 @@ like optional content and it holds the button that creates the army. C61.
   **The number that keeps this row honest is 703 of 771.** 668 of them are measured
 `crates/l2-game/tests/audio_wiring/main.rs` and `tests/audio_battle.rs`
 drive the real paths and read back what was opened — and the other
-  the tip screens**, of which `crates/l2-game/tests/tips.rs` drives one tip's three clips
+  the tip screens**, of which `crates/l2-game/tests/tips/main.rs` drives one tip's three clips
   end to end and the rest are counted from the take table and the install's listing, not
   driven. **565 of those 678 are the narrator** — 448 lord takes, 93 system clips and 24
   tip takes — because 646 of the install's 771 files, **84 %**, are somebody speaking;

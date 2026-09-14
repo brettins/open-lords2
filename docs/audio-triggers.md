@@ -377,7 +377,7 @@ sound, and now.** It is the branch for categories `0x05`…`0x09`, and the only
 function in the original that posts one is `Tip_Show` (`0x00476DA9`), from
 `g_tipCategory` — those categories *are* the tip screens. It was reverted when that
 was read, because nothing posted a tip. `crate::tip` posts them now, and
-`crates/l2-game/tests/tips.rs` hears `S200_01.wav` by name on the tick
+`crates/l2-game/tests/tips/main.rs` hears `S200_01.wav` by name on the tick
 `Msg_DrawWindow` tests.
 
 **And the chained takes are fired with it.** `[V]`: `FUN_004B3ACD(group)` has one

@@ -601,7 +601,7 @@ clear on show"*.
 in the world.
 
 **Where:** `crates/l2-game/src/tip/mod.rs`, `update`; `docs/arms.json`
-`0x00476AA7/tip-screen-ladder`; tested in `crates/l2-game/tests/tips.rs`.
+`0x00476AA7/tip-screen-ladder`; tested in `crates/l2-game/tests/tips/main.rs`.
 
 ### B80 — The End key cancels a save you have just confirmed
 
