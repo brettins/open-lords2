@@ -24,7 +24,7 @@ crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609	bb0dd488f9d2
 crates/l2-game/build.rs	C154	344919686118	4f820bfd08c8
 crates/l2-game/build.rs	C154	f9de42bc3129	4f820bfd08c8
 crates/l2-game/src/audio/director/engine.rs	C133	15d1b1c19eb7	91fcca97cc98
-crates/l2-game/src/audio/names.rs	C133	cdef544c10db	91fcca97cc98
+crates/l2-game/src/audio/names/mod.rs	C133	cdef544c10db	91fcca97cc98
 crates/l2-game/src/battlefield/mod.rs	C60	3ab509e4145a	2f31848557d2
 crates/l2-game/src/battlefield/mod.rs	C61	e5b8ebac6d3d	60611046b40d
 crates/l2-game/src/battlefield/mod.rs	C79	76ceb5b70be2	7dc379494ecf

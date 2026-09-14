@@ -525,7 +525,7 @@ a decision would have deleted the file, and it is still in the box.
 `audio::Director` cannot see is *who won*: the `BattleReport` travels inside
 `turn::TurnStep::Report` and is never parked on the `Game`, so the fanfare's gate is out of
 reach. Firing it on every battle would add a sound the original never makes, on the one
-outcome it is silent for, so it is left unwired. `crates/l2-game/src/audio/names.rs` names
+outcome it is silent for, so it is left unwired. `crates/l2-game/src/audio/names/mod.rs` names
 the constant `fanfare::AFTER_BATTLE`, not `LOSE`, and now carries the gate beside it,
 so whoever wires it up meets both facts, not the assumption.
 

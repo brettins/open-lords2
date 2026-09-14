@@ -1916,7 +1916,7 @@ That is C28's failure with an index instead of a name and C5's with a table inst
 format: a confident account built from real evidence about the adjacent thing. It is the
 seventh of the species logged, and the cheapest to have avoided.
 
-`crates/l2-game/src/audio/names.rs` now converts in exactly one place, `names::slot`, with
+`crates/l2-game/src/audio/names/mod.rs` now converts in exactly one place, `names::slot`, with
 both proofs as tests; `docs/mechanics.md` carries the corrected tables.
 
 **C52 — The blue outline is real, it is a *frame*, and it is on the county strip. The
