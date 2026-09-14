@@ -31,7 +31,7 @@
     {"id": "industry", "area": "kingdom", "name": "Wood, iron, stone and weapons", "status": "done", "evidence": ["C57","C136","C153","C180","C218","crates/l2-game/tests/industry.rs"], "gap": "", "rows": []},
     {"id": "weapon-choice", "area": "kingdom", "name": "Choosing what your blacksmiths make", "status": "done", "evidence": ["crates/l2-kingdom/tests/weapon_choice.rs","arms:0x004BA9C8/blacksmith-weapon-choice"], "gap": "", "rows": []},
     {"id": "industry-toggle", "area": "kingdom", "name": "Switching industries on and off", "status": "done", "evidence": ["C121","crates/l2-game/tests/industry.rs"], "gap": "", "rows": []},
-    {"id": "court", "area": "kingdom", "name": "The court: treasury and stores", "status": "done", "evidence": ["crates/l2-game/tests/shell.rs","crates/l2-game/tests/text.rs"], "gap": "", "rows": []},
+    {"id": "court", "area": "kingdom", "name": "The court: treasury and stores", "status": "done", "evidence": ["crates/l2-game/tests/shell/main.rs","crates/l2-game/tests/text.rs"], "gap": "", "rows": []},
     {"id": "wages", "area": "kingdom", "name": "Paying the army", "status": "done", "evidence": ["crates/l2-game/tests/long_game.rs","crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
     {"id": "bankruptcy", "area": "kingdom", "name": "Bankruptcy and desertion", "status": "done", "evidence": ["C227"], "gap": "", "rows": []},
     {"id": "supplies", "area": "kingdom", "name": "Sending supplies to a county", "status": "done", "evidence": ["C227"], "gap": "", "rows": []},

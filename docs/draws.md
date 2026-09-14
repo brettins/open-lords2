@@ -104,7 +104,7 @@ Two costs beyond that:
 
 * **The `L2.eng` and sheet-frame checks are cheap and worth doing first.** *Every group and
   index this engine draws exists in the player's own `L2.eng`* is a check that runs today —
-  `crates/l2-game/tests/shell.rs` does it for these seven — and it is the one that would
+  `crates/l2-game/tests/shell/main.rs` does it for these seven — and it is the one that would
   have caught the armoury's group 16. Likewise *every frame index we pass exists in the sheet
   we pass it to*. Neither needs an inventory file; both need only the constants to be named
 * **A `// draw:` marker set-equality check, the way `// arm:` works, is the expensive half
@@ -249,7 +249,7 @@ ways once you read the list:
 
 **The one that says the most is `screens/menu.rs`'s `"LORDS OF THE REALM II"`.** The game's
 own title is `L2.eng` group 11 index 0 and it reads **"Lords of the Realm 2"** — a fact
-`crates/l2-game/tests/shell.rs` has asserted for weeks. We had the string, we had a test on
+`crates/l2-game/tests/shell/main.rs` has asserted for weeks. We had the string, we had a test on
 it, and we drew a different spelling of it in a font of ours anyway.
 
 ### Why this happened, which is more useful than the count
@@ -388,7 +388,7 @@ is cheaper and fires on ordinary work:
 
 1. **`screendraws.js --check`**: the stored count against the binary.
 2. **`figures.js --check`**: the quoted count against the stored one.
-3. **The `L2.eng` check** in `crates/l2-game/tests/shell.rs`: every `(group, index)` a
+3. **The `L2.eng` check** in `crates/l2-game/tests/shell/main.rs`: every `(group, index)` a
    screen's named constants declare exists in the player's own `L2.eng`.
 4. **The font split**, printed with the count and never typed.
 

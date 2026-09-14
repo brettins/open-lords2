@@ -63,7 +63,7 @@ pub const COUNTY_OK: Rect = Rect::new(0x188, 0x146, 24, 24);
 //
 // Every one of these is a literal argument to an `Eng_DrawString` in
 // `Diplo_DrawGiftGold`, `Diplo_DrawLetter` or `Diplo_DrawCountyRequest`, and
-// the words are checked against `L2.eng` in `crates/l2-game/tests/shell.rs`.
+// the words are checked against `L2.eng` in `crates/l2-game/tests/shell/main.rs`.
 // **The check is on existence and these indices are verified against the
 // words**
 

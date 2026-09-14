@@ -27,7 +27,7 @@
 //! # The title was a misspelling of the game's own
 //!
 //! It drew `"LORDS OF THE REALM II"`. `L2.eng` group 11 index 0 — which
-//! `crates/l2-game/tests/shell.rs` has asserted for weeks — is
+//! `crates/l2-game/tests/shell/main.rs` has asserted for weeks — is
 //! **`"Lords of the Realm 2"`**, with a digit. [`TITLE_GROUP`] draws the
 //! game's own string where the install has one, so the one line on this screen
 //! that has a right answer now has it.
@@ -48,7 +48,7 @@ const ITEM_GAP: i32 = 30;
 /// `L2.eng` group 11 — the front end's own words. Index 0 is the game's title,
 /// *"Lords of the Realm 2"*, and it is the one string on this screen that the
 /// original has an opinion about. Verified against the words;
-/// `crates/l2-game/tests/shell.rs` asserts it.
+/// `crates/l2-game/tests/shell/main.rs` asserts it.
 pub const TITLE_GROUP: usize = 11;
 pub const TITLE_INDEX: usize = 0;
 /// What to draw with no install. **Ours**, and deliberately not a guess at the

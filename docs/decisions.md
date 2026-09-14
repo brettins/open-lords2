@@ -4701,7 +4701,7 @@ bitmap font and `widget::panel`/`frame`/`button`'s rectangles. `castle.rs` also 
 English captions written in our source — *"SELECT A CASTLE TO BUILD"*, *"1 SEASON TO
 BUILD."*, *"BOOSTS TAX REVENUES BY %"* — where `Screen_CastleBuild` fetches `L2.eng` group
 71, and `menu.rs` draws the game's own title as *"LORDS OF THE REALM II"* when `L2.eng`
-group 11 index 0 says *"Lords of the Realm 2"* — a string `crates/l2-game/tests/shell.rs`
+group 11 index 0 says *"Lords of the Realm 2"* — a string `crates/l2-game/tests/shell/main.rs`
 has asserted for weeks.
 
 **Nobody did anything wrong.** `crates/l2-view/src/text.rs`'s header said, in as many words:
