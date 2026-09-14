@@ -179,7 +179,7 @@
     "management-screens": {
       "what": "0x04 and the close arms of 0x08 .. 0x13",
       "complete": false,
-      "note": "The two panels behind 0x04 are driven now -- FUN_00437002's three buttons and FUN_00438A91's garrison widget are crates/l2-game/src/screens/info.rs -- and four of this group's records were second copies of records the `panels` and `army-division` groups already held; they are folded in, each survivor carrying a `merged` field with the text. What is left open is FUN_004374C4, the sortie, which needs a battle started from a click. The screens themselves belong to the merchant, armoury, diplomacy and army agents."
+      "note": "The two panels behind 0x04 are driven now -- FUN_00437002's three buttons and FUN_00438A91's garrison widget are crates/l2-game/src/screens/info/mod.rs -- and four of this group's records were second copies of records the `panels` and `army-division` groups already held; they are folded in, each survivor carrying a `merged` field with the text. What is left open is FUN_004374C4, the sortie, which needs a battle started from a click. The screens themselves belong to the merchant, armoury, diplomacy and army agents."
     },
     "menu-bar": {
       "what": "g_menuBarItems (0x004DC428) and screen 0x32 -- three titles, sixteen items",
@@ -846,7 +846,7 @@
       "note": "Needed Game::map_zoom_far to be reproducible at all: Map_EdgeScroll returns 0 at the far zoom, so the gesture does nothing there, and an overlay in our stack cannot see MapScreen. Its other refusal -- g_messageGroup != 0 -- is vacuous until there is a message scroll.",
       "evidence": "V",
       "merged": "0x00432221/info-panel-edge-scroll-leaves (management-screens) was a second record for this arm and was folded in here. Its text: 0x04's arm runs Map_EdgeScroll SECOND, and a scroll CLOSES THE PANEL: `if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }`. Pushing the pointer into the edge of the screen with the information panel up dismisses it.",
-      "ours": "crates/l2-game/src/screens/info.rs"
+      "ours": "crates/l2-game/src/screens/info/mod.rs"
     },
     {
       "id": "0x0042FF10/info-ok",
@@ -856,7 +856,7 @@
       "gesture": "left-release",
       "addr": "0x0042FF10",
       "what": "Ui_OkButtonClicked() in the 24 x 24 box at (428, 438) closes the panel: g_screenId = 0; FUN_0043CC56().",
-      "ours": "crates/l2-game/src/screens/info.rs",
+      "ours": "crates/l2-game/src/screens/info/mod.rs",
       "evidence": "V"
     },
     {
@@ -867,7 +867,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "A right release anywhere closes it. The same button opens it from the map, which is the whole gesture: press right to look, press right to stop looking.",
-      "ours": "crates/l2-game/src/screens/info.rs",
+      "ours": "crates/l2-game/src/screens/info/mod.rs",
       "evidence": "V"
     },
     {
@@ -1020,7 +1020,7 @@
       "addr": "0x0042FF10",
       "what": "Screen_FrameInput's epilogue -- Minimap_Click on every screen id but 0x12 -- is live under the information panel, and the panel swallowed it. A press in the 128x128 raster selects that county, recentres the map and drops the panel.",
       "note": "FOUND WRONG, not missing: the arm existed on the court, the job popup, send supplies and the ratings and was absent here, so the one control that works from everywhere did not work from 0x04. ONLY the raster: 0x04's arm does not run the six sidebar guards -- the village's and the four county panels' do -- so the sidebar, the county strip and the split slider really are dead with this panel up.",
-      "ours": "crates/l2-game/src/screens/info.rs",
+      "ours": "crates/l2-game/src/screens/info/mod.rs",
       "evidence": "V"
     },
     {
@@ -1934,7 +1934,7 @@
       "addr": "0x00437002",
       "what": "Record 1, (112,352)-(152,392) -> Panel_DisbandButton (0x0043733A).",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/info.rs",
+      "ours": "crates/l2-game/src/screens/info/mod.rs",
       "note": "The rule was already l2_kingdom::divide::disband and Game::disband_army, driven by a button of OURS on screen 0x11 (ours/divide-disband-button, now removed). This is its real home. The refusal CLOSES the panel, which reads wrong and is the original's: Panel_DisbandButton's else branch enqueues message 0x91 and writes g_screenId = 0. NOT reproduced: Ui_OpenConfirm(6, ...) -- L2.eng 10/6 \"Disband army?\" -- so ours disbands without asking."
     },
     {
@@ -1948,7 +1948,7 @@
       "note": "Panel_MoveButton is g_screenId = 0 then Map_BeginMoveSelection(). Move-order mode is MapScreen's own state here and the panel is a different screen, so the request goes on Game::begin_move_order and MapScreen::update takes it on the next tick -- the same two steps in the same order. NOT reproduced: the besieging case, where the original asks L2.eng 10/13 \"Lift the siege?\" through Ui_OpenConfirm first. We have no confirm box; ours marches.",
       "evidence": "V",
       "merged": "0x00437002/unit-panel-buttons (management-screens) was a second record for this arm and was folded in here. Its text: The information panel's UNIT half: for a type-1 unit of the local player's, three 40x40 buttons at (48, 352), (112, 352) and (176, 352) -- Panel_MoveButton, Panel_DisbandButton, Panel_SplitButton -- or, for a GARRISONED army, the same table with FUN_004374C4 in the first slot instead.",
-      "ours": "crates/l2-game/src/screens/info.rs"
+      "ours": "crates/l2-game/src/screens/info/mod.rs"
     },
     {
       "id": "0x00437107/dead-move-order-strip",
@@ -1993,7 +1993,7 @@
       "gesture": "left-press",
       "addr": "0x004378B3",
       "what": "Record 2, (176,352)-(216,392) -> Panel_SplitButton, which opens the army-division screen 0x11.",
-      "ours": "crates/l2-game/src/screens/info.rs",
+      "ours": "crates/l2-game/src/screens/info/mod.rs",
       "evidence": "V"
     },
     {
@@ -2052,7 +2052,7 @@
       "addr": "0x00438990",
       "what": "Hotspot_Test on g_infoFieldBrush (0x004DC4D0, three ids 1/2/0x13) or the waste table (0x004DC530, two ids 0x19/0) -> FUN_00438B02 -> Field_SetType(county, tile, id), a sound per id, then g_screenId = 0. KIND 3, so it fires on RELEASE.",
       "note": "The buttons are at y 376..424, not 184: g_uiPopupRow is always applied and always comes to +192 for both variants. crates/l2-game/src/screens/map/mod.rs mod brush had this 192 pixels too high.",
-      "ours": "crates/l2-game/src/screens/info.rs",
+      "ours": "crates/l2-game/src/screens/info/mod.rs",
       "evidence": "V"
     },
     {
@@ -2063,9 +2063,9 @@
       "gesture": "left-release",
       "addr": "0x00438990",
       "what": "The information panel's TILE half. Gated on plane-0 flag 0x20, no unit on the tile, the county being the local player's, and the tile graphic not being 0x17 or 0x18. Then one of two hotspot tables by graphic: DAT_004DC4D0, three records at (240,184) (304,184) (368,184) 48x48 with hotspot ids 1, 2 and 19, for graphics 1..0x18; or DAT_004DC530, two records at (304,184) and (368,184) with ids 25 and 0, for everything else. Both dispatch to FUN_00438B02 and both are tested at a runtime y offset, DAT_00553D2C * 16.",
-      "note": "THE SAME ARM AS 0x00438990/field-brush, filed twice -- this file's own counting hazard -- while the table stood in a popup of ours on screen 0 at y 184, the row BEFORE the runtime offset. The popup is removed (ours/brush-popup-on-the-map) and the marker now sits beside field-brush's on screen 0x04's hit test in crates/l2-game/src/screens/info.rs, where both buttons of the map reach it. Kept as a record rather than folded because folding moves the generated arm counts CLAUDE.md quotes; an integrator may fold it.",
+      "note": "THE SAME ARM AS 0x00438990/field-brush, filed twice -- this file's own counting hazard -- while the table stood in a popup of ours on screen 0 at y 184, the row BEFORE the runtime offset. The popup is removed (ours/brush-popup-on-the-map) and the marker now sits beside field-brush's on screen 0x04's hit test in crates/l2-game/src/screens/info/mod.rs, where both buttons of the map reach it. Kept as a record rather than folded because folding moves the generated arm counts CLAUDE.md quotes; an integrator may fold it.",
       "evidence": "D",
-      "ours": "crates/l2-game/src/screens/info.rs"
+      "ours": "crates/l2-game/src/screens/info/mod.rs"
     },
     {
       "id": "0x00438A91/info-garrison-widget",
@@ -2077,7 +2077,7 @@
       "what": "Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) - the \"View these troops?\" button at (344, 414) on a castle tile - runs FUN_00438ACC, which sets g_pickedTileUnit = county.garrisonUnit and repaints. It flips the panel from the tile half to the unit half WITHOUT leaving screen 0x04. The record's kind byte at +0x0F of 0x004DD640 is 4: the right EDGE and, until the gesture-kind audit, the wrong KIND -- it also shows the pressed picture and takes a double click as a press. Its repeat is inert because the handler assigns the same garrison every time, which is a property of the handler and not of the record.",
       "evidence": "V",
       "merged": "0x00438A91/tile-panel-widgets (management-screens) was a second record for this arm and was folded in here. Its text: Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) -- a widget table whose COUNT is a runtime global the painter writes, so how many widgets the panel has depends on what was picked. Record 0 is FUN_00438ACC at (336, 382), frame 25, which is the tick.",
-      "ours": "crates/l2-game/src/screens/info.rs",
+      "ours": "crates/l2-game/src/screens/info/mod.rs",
       "note": "Kept as a mutation of the panel's target rather than a transition, because g_screenId never moves. FUN_00438ACC opens `if (g_mapZoom != 2)`, which is Game::map_zoom_far here. NOTE, not reproduced and worth a bug number: DAT_00568474 is written only by TileInfo_DrawCastle, so on a NON-castle panel the count is whatever the last castle tile left there and the widget is still hit-tested at (344, 414). [I] -- read out of the painter, not observed."
     },
     {
@@ -3273,7 +3273,7 @@
       "id": "ours/brush-popup-on-the-map",
       "status": "invention",
       "removed": true,
-      "removal": "REMOVED with the field markers it drew targets for. A player: 'Clicking on a field still brings up placeholder' -- and 'right click and left click on fields does the same thing in the real game.' Map_Click's farmland arm is g_screenId = 4 and FUN_0041B032, screen 0x04, which is built (crates/l2-game/src/screens/info.rs) with the brush on it, so the left click now pushes that screen. See 0x0043CE1A/field-brush.",
+      "removal": "REMOVED with the field markers it drew targets for. A player: 'Clicking on a field still brings up placeholder' -- and 'right click and left click on fields does the same thing in the real game.' Map_Click's farmland arm is g_screenId = 4 and FUN_0041B032, screen 0x04, which is built (crates/l2-game/src/screens/info/mod.rs) with the brush on it, so the left click now pushes that screen. See 0x0043CE1A/field-brush.",
       "group": "management-screens",
       "screen": "0x00",
       "gesture": "left-press",
@@ -3404,7 +3404,7 @@
       "gesture": "key",
       "what": "Escape and Enter close the panel.",
       "why": "The 0x04 arm has no keyboard test at all. Kept rather than removed because the demo index is reachable by keyboard and a screen with no key exit is a screen a keyboard user cannot leave; it is listed here so the count is honest.",
-      "ours": "crates/l2-game/src/screens/info.rs"
+      "ours": "crates/l2-game/src/screens/info/mod.rs"
     },
     {
       "id": "ours/job-popup-keyboard",

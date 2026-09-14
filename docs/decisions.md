@@ -12257,7 +12257,7 @@ flags with L2.eng group 30; 0x01 road 1/23/0x18; 0x04 sea 3/24/0x1D; 0x10 plot
 (village 48/49 else ruined 50/51, icon 0x1B); 0x08 rough (mountain 4/25/0x19 by
 bank else woodland 5/26/0x1A); fall-through scrubland 0/22/0x17. Map_ResolvePick
 `0x0046D5FE` blanks flags for town graphic 0x14 and empty plot. Built as picked_flags,
-tile_kind, TILE_LADDER, draw_plain_tile in crates/l2-game/src/screens/info.rs.
+tile_kind, TILE_LADDER, draw_plain_tile in crates/l2-game/src/screens/info/mod.rs.
 
 Tests a_road_tile_says_road, a_sea_tile_says_sea_and_gets_no_head_room,
 a_dwelling_plot_says_village_ruined_village_or_nothing, a_rough_tile_says_mountain_or_woodland_by_its_bank,
