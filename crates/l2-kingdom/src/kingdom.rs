@@ -721,7 +721,7 @@ impl Kingdom {
     /// This is the hook `docs/armies.md` §6.4 calls *"the missing half"*, and
     /// until now it had nothing to attach to: the pass paid a `realm.wages` a
     /// caller had to set, and told [`industry::pay`] that nobody had
-    /// mercenaries because there were no units to ask. Three things happen here
+    /// mercenaries. Three things happen here
     /// now, in the original's order:
     ///
     /// 1. **`Army_Starve` runs first**, before anyone is charged — so an army
@@ -758,10 +758,13 @@ impl Kingdom {
                 .units
                 .iter()
                 .any(|(_, u)| u.owner == id as u8 && u.mercenaries.is_some());
-            industry::pay(&mut self.realms[id], id as u8, had_mercenaries, &mut report.messages);
-
-            let stage = self.realms[id].bankrupt_stage;
-            self.apply_bankruptcy(id as u8, stage);
+            let action = industry::pay(
+                &mut self.realms[id],
+                id as u8,
+                had_mercenaries,
+                &mut report.messages,
+            );
+            self.apply_bankruptcy(id as u8, action);
         }
     }
 
@@ -769,27 +772,51 @@ impl Kingdom {
 /// armies.
     ///
     /// [`industry::pay`] advances the stage and reports it; what the stage
-    /// *does* needs the unit array, so it happens here. The mapping is the one
-    /// [`industry::BankruptcyAction`] already documents — stage 1 is
-    /// `Mercenary_Release` over the whole realm (`L2.eng` 160, *"Mercenaries
-    /// desert!"*), stages 2..=4 are `Army_Desert` per army, and stage 5 is the
-    /// mutiny that destroys every army the realm holds.
-    fn apply_bankruptcy(&mut self, realm: u8, stage: u8) {
-        match stage {
-            1 => {
+    /// *does* needs the unit array, so it happens here.
+    ///
+    /// **It is keyed on the action, not on the counter.** The counter is the
+    /// *next* stage, and `Wages_PayAll` wraps it to 0 after the mutiny, so two
+    /// rungs of the six were unreachable through it: the fourth desertion, and
+    /// `Realm_DestroyArmies` itself.
+    fn apply_bankruptcy(&mut self, realm: u8, action: industry::BankruptcyAction) {
+        use industry::BankruptcyAction as A;
+        match action {
+            // `Realm_ReleaseMercenaries` (`0x004AD230`) — stage 0, and it runs
+            // whichever message the release picked.
+            A::MercenariesDesert | A::Warned => {
                 self.campaign.mercenaries.release_realm(&mut self.campaign.units, realm);
             }
-            2..=4 => {
+            // `Realm_DesertArmies` (`0x004AD0E8`) — stages 1..=4, the four
+            // seasons `L2.eng` 271 calls "over a year".
+            A::Desertion | A::LastWarning => {
                 for (_, u) in self.campaign.units.iter_mut() {
                     if u.owner == realm && u.kind == crate::unit::UnitKind::Army {
                         u.desert();
                     }
                 }
             }
-            // `industry::pay` resets the counter to 0 after the mutiny, so the
-            // mutiny is reported as stage 0 — see `Message::Bankrupt`.
-            0 => {}
-            _ => {}
+            // `Realm_DestroyArmies` (`0x004AD316`) — stage 5, `Army_Destroy` on
+            // every army the realm has. `L2.eng` 272.
+            A::Mutiny => {
+                let ids: Vec<usize> = self
+                    .campaign
+                    .units
+                    .iter()
+                    .filter(|(_, u)| u.owner == realm && u.kind == crate::unit::UnitKind::Army)
+                    .map(|(id, _)| id)
+                    .collect();
+                for id in ids {
+                    crate::unit::destroy(
+                        &self.tables,
+                        &mut self.campaign.units,
+                        &mut self.realms,
+                        &mut self.campaign.names,
+                        id,
+                        self.options.difficulty,
+                    );
+                }
+            }
+            A::None => {}
         }
     }
 
@@ -2778,7 +2805,7 @@ mod tests {
     /// mechanic is human-only and no run of ours exercises it** —
     /// `docs/decisions.md` C26.
     ///
-    /// This is the half of the player's report that is not a defect
+    /// This is the half of the player's report
     /// asserted so that nobody "fixes" it later.
     #[test]
     fn the_empire_tax_happiness_term_is_flat_until_the_rate_reaches_twenty() {

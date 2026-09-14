@@ -463,6 +463,30 @@ impl Kingdom {
         // the cached castle tile, which the other placed by search. The one
         // thing only the AI branch had, the mission reset that stops a lord
         // marching at a full castle for ever, now lives in that function.
+        // `Transport_Deliver` (`0x004296B5`) — the mover's code-5 branch calls
+        // it *before* `Army_AttackCounty`, and its tail is `FUN_0046F0A9`, the
+        // slot free `Army_Destroy` also uses: a transport that reaches its
+        // cargo county's town unloads and is gone. `[V]` from the
+        // decompilation. Non-matching county: nothing at all, and the unit
+        // stands. `attack_county` would refuse either way (`NotAnArmy`).
+        if let Some(county) = step.reached_castle {
+            if let Some(u) = self.campaign.units.get(id) {
+                if u.kind == UnitKind::Transport {
+                    if u.cargo_county == county {
+                        let u = u.clone();
+                        crate::supply::deliver(&mut self.counties, &u);
+                        crate::field::herd_update_crowding(
+                            &self.tables,
+                            &mut self.counties[county as usize],
+                            &mut self.campaign.map,
+                        );
+                        self.campaign.units.remove(id);
+                    }
+                    return;
+                }
+            }
+        }
+
         if let Some(county) = step.reached_castle {
             let restore = self.restore();
             let outcome = conquest::attack_county(
@@ -1249,6 +1273,62 @@ mod tests {
         assert_eq!(u.dest, Some((50, 10)), "county 2's anchor, not a tile near it");
         assert_eq!(u.dest_county, 2);
         assert!(u.moving);
+    }
+
+    /// **The other end of a shipment.** `Transport_Deliver` (`0x004296B5`):
+    /// the transport reaches the destination county's town tile, its cargo
+    /// lands in `grain` and `herd`, and the slot is freed.
+    ///
+    /// Ablation: drop the transport arm in `step_one` and the cart stands on
+    /// the town for ever with the food still on it — county 2 gains nothing.
+    #[test]
+    fn a_transport_reaching_its_cargo_countys_town_unloads_and_is_gone() {
+        let mut k = kingdom();
+        k.campaign.map.set_flags(40, 10, flags::CASTLE);
+        let (grain, herd) = (k.counties[2].grain, k.counties[2].herd);
+        let mut t = Unit::new(UnitKind::Transport, 1, 30, 10);
+        t.county = 1;
+        t.morale = 1;
+        t.cargo_county = 2;
+        t.needs_destination = false;
+        t.troops[0] = 300;
+        t.troops[2] = 40;
+        t.men = 340;
+        let id = k.campaign.units.spawn(t).unwrap();
+        movement::order_move(&k.campaign.map, &mut k.campaign.units, id, (40, 10), movement::Routing::Direct)
+            .unwrap();
+
+        for _ in 0..400 {
+            k.tick_units();
+        }
+        assert!(k.campaign.units.get(id).is_none(), "the cart is unloaded and gone");
+        assert_eq!(k.counties[2].grain, grain + 300);
+        assert_eq!(k.counties[2].herd, herd + 40);
+        assert_eq!(k.counties[2].owner, 0, "and a transport takes no county");
+    }
+
+    /// A transport whose cargo is for somebody else walks over the town and
+    /// keeps its load — `Transport_Deliver`'s `destCounty == county` guard.
+    #[test]
+    fn a_transport_passing_a_town_that_is_not_its_destination_unloads_nothing() {
+        let mut k = kingdom();
+        k.campaign.map.set_flags(40, 10, flags::CASTLE);
+        let grain = k.counties[2].grain;
+        let mut t = Unit::new(UnitKind::Transport, 1, 30, 10);
+        t.county = 1;
+        t.cargo_county = 1;
+        t.needs_destination = false;
+        t.troops[0] = 300;
+        t.men = 300;
+        let id = k.campaign.units.spawn(t).unwrap();
+        movement::order_move(&k.campaign.map, &mut k.campaign.units, id, (40, 10), movement::Routing::Direct)
+            .unwrap();
+
+        for _ in 0..400 {
+            k.tick_units();
+        }
+        assert_eq!(k.campaign.units.get(id).map(|u| u.troops[0]), Some(300));
+        assert_eq!(k.counties[2].grain, grain);
     }
 
     /// Phase 5's cursor is shared, so two mobs are sent to two different

@@ -353,6 +353,46 @@ fn a_realm_that_cannot_pay_loses_its_mercenaries_before_it_loses_men() {
     assert_eq!(k.campaign.units.get(id).unwrap().men, 360);
 }
 
+/// **The whole six-season ladder, and its last two rungs.** `Wages_PayAll`
+/// (`0x004ACBD4`): stage 0 releases mercenaries, stages 1..=4 are
+/// `Realm_DesertArmies` (`0x004AD0E8`) — **four** desertions, not three — and
+/// stage 5 is `Realm_DestroyArmies` (`0x004AD316`), which disbands every army
+/// the realm holds and wraps the counter to 0.
+///
+/// Ablation: key the handler on `realm.bankrupt_stage` instead of the action
+/// and the last two seasons do nothing at all — the counter is the *next*
+/// stage, and the mutiny has already wrapped it to 0.
+#[test]
+fn six_unpaid_seasons_desert_four_times_and_then_disband_every_army() {
+    let mut k = kingdom();
+    k.realms[1].gold = 0;
+    let a = army(&mut k, 1, 1, 400, 5, 5);
+    let b = army(&mut k, 1, 1, 200, 7, 5);
+
+    let mut men = Vec::new();
+    let mut ladder = Vec::new();
+    for _ in 0..6 {
+        let mut report = l2_kingdom::report::SeasonReport::new();
+        k.run_pass(Pass::WagesPay, &mut report);
+        ladder.extend(report.messages.iter().filter_map(|m| match m {
+            Message::Bankrupt { action, .. } => Some(*action),
+            _ => None,
+        }));
+        men.push(k.campaign.units.get(a).map(|u| u.men));
+    }
+
+    use l2_kingdom::industry::BankruptcyAction as A;
+    assert_eq!(
+        ladder,
+        vec![A::Warned, A::Desertion, A::Desertion, A::Desertion, A::LastWarning, A::Mutiny]
+    );
+    // A tenth off every count above ten, four times: 400, 360, 324, 292, 263.
+    assert_eq!(men, vec![Some(400), Some(360), Some(324), Some(292), Some(263), None]);
+    assert!(k.campaign.units.get(b).is_none(), "the mutiny takes every army, not one");
+    assert_eq!(k.realms[1].bankrupt_stage, 0, "and the counter wraps");
+    assert_eq!(k.realms[1].wages, 0, "with nobody left to pay");
+}
+
 // ---------------------------------------------------------------------------
 // Trampling, and the industry counter it writes
 // ---------------------------------------------------------------------------
