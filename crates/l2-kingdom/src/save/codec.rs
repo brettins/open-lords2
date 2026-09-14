@@ -351,6 +351,10 @@ fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, Loa
             at: input.position() - 1,
         })?,
         step: input.u32()?,
+        // Not in the stream and not in the digest: a loaded game is parked at
+        // phase 1 and the first map frames open phase 4 again. See
+        // `TurnMachine::players_turn_open` and `docs/netcode.md`.
+        players_turn_open: false,
     };
     k.weather_county = input.u32()? as usize;
 

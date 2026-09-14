@@ -82,6 +82,70 @@ pub(super) fn step_zero(game: &mut Game, realm: u8) {
 /// > a realm is done only when its `aiStep` has passed `15 + 2 × realmIndex`
 /// > **and** none of its armies is still walking. A realm marching on somebody
 /// > keeps taking steps.
+/// **Open phase 4 on the frame the person gets control** —
+/// `Turn_AdvancePhase`'s (`0x0049CE51`) call to `Turn_BeginPlayersTurn`
+/// (`0x0049B6D3`), followed by `AI_RunTurnStep`'s (`0x0049A581`) step-0
+/// prologue for every realm.
+///
+/// # Why this is a door of its own
+///
+/// `Turn_Tick` (`0x0049A010`) runs phase 4's arm **every frame**, and its arm is
+/// `AI_RunTurnStep(); if (Turn_AllRealmsDone()) Turn_AdvancePhase();` with no
+/// test on the person at all: the AI realms take their steps while he is still
+/// deciding, and `Turn_End` (`0x0043AC23`) writing 999 into his own `aiStep` is
+/// the last thing the phase waits for. Our machine parks between turns instead
+/// (`g_turnPhase = 1`, the instant the original's autosave is taken), so phase 4
+/// used to be opened *and run to the end* inside the wind-on End Turn starts —
+/// which is the whole of the report *"the AI seems to take its turn at End Turn
+/// instead of at the start of the turn"*. This opens it on the map's idle
+/// frames instead, and [`TurnMachine::players_turn_open`](l2_kingdom::phase::TurnMachine)
+/// stops the wind-on opening it again.
+///
+/// The person's realm parks at 1 — `Turn_BeginPlayersTurn` writes 0 and step 0's
+/// prologue writes 1 for every realm, the human included — so
+/// [`l2_kingdom::ai::all_realms_done`] stays false until End Turn.
+pub fn open_players_turn(game: &mut Game) {
+    if game.kingdom.turn.players_turn_open {
+        return;
+    }
+    ai::begin_turn(&mut game.kingdom.realms);
+    for id in 1..l2_kingdom::realm::MAX_REALMS {
+        step_zero(game, id as u8);
+        let realm = &mut game.kingdom.realms[id];
+        if realm.in_play && realm.is_human {
+            realm.ai_step = 1;
+        }
+    }
+    game.ai_granted = false;
+    game.kingdom.turn.players_turn_open = true;
+}
+
+/// **`Turn_End` (`0x0043AC23`)** — the sidebar's bottom button writes 999 into
+/// the local player's `aiStep`, and that is the only thing phase 4 is still
+/// waiting for once the AI realms have finished.
+pub fn end_players_turn(game: &mut Game) {
+    for realm in game.kingdom.realms.iter_mut() {
+        if realm.is_human {
+            realm.ai_step = l2_kingdom::AI_STEP_DONE;
+        }
+    }
+}
+
+/// **`Turn_Tick`'s phase-4 arm on a frame that is not part of a wind-on** — the
+/// frames the person spends deciding. Opens the phase if it is not open and
+/// takes one `AI_RunTurnStep` step for every AI realm.
+///
+/// It does **not** tick the phase machine: the machine is parked at phase 1
+/// between turns and End Turn's wind-on is what walks it, so this moves the
+/// counters and runs the handlers only. `Turn_AllRealmsDone` is then already
+/// true for the AI realms when the wind-on reaches phase 4.
+pub fn tick_ai_frame(game: &mut Game) {
+    open_players_turn(game);
+    let mut granted = game.ai_granted;
+    drive_ai(&mut game.kingdom, &mut granted);
+    game.ai_granted = granted;
+}
+
 pub fn drive_ai(kingdom: &mut Kingdom, granted: &mut bool) {
     for id in 1..kingdom.realms.len() {
         if kingdom.realms[id].turn_done() {

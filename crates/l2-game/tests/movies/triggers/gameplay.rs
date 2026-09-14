@@ -99,6 +99,10 @@ fn a_fallen_lords_film_is_chosen_by_his_title_and_how_long_the_game_has_run() {
 fn an_ending_with_animations_on_is_a_film_and_the_victory_after_it_is_another() {
     let a = Assets::placeholder();
     let mut g = realms();
+    // The ranking below has to be the one the draw reads: an AI frame's step-0
+    // prologue would rank the realms again and find the four opponents this
+    // test is keeping out of it.
+    ai_turns_over(&mut g);
     g.campaign.ranking = l2_kingdom::victory::Ranking { opponents_remaining: 0, ..Default::default() };
     let player = g.player;
     assert!(g.messages.enqueue(ending(3, 194), player));

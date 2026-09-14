@@ -165,8 +165,14 @@ pub(super) fn begin_phase(game: &mut Game, phase: Phase) {
             game.kingdom.run_neutral_farms_at_the_stall();
         }
         Phase::PlayersTurn => {
-            for id in 1..l2_kingdom::realm::MAX_REALMS {
-                step_zero(game, id as u8);
+            // Once per turn, and the interactive frames may have run it already
+            // when they opened the phase — `turn::open_players_turn`. A second
+            // pass would clear `offer_pending` under the diplomacy that had
+            // just set it.
+            if !game.kingdom.turn.players_turn_open {
+                for id in 1..l2_kingdom::realm::MAX_REALMS {
+                    step_zero(game, id as u8);
+                }
             }
         }
         _ => {}

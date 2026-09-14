@@ -12,7 +12,7 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::Game;
 use l2_kingdom::victory::Outcome;
 
-/// **A player is told he has won, and the telling is what wins it.**
+/// **A player is told he has won,
 ///
 /// The chain, end to end and with nothing skipped: realm 3 is recounted at zero
 /// strength, `Realm_RecountStrength` enqueues group 194; `Score_RankRealms`
@@ -31,8 +31,8 @@ fn a_player_is_told_he_has_won_and_dismissing_it_wins_the_game() {
     for id in 1..=6usize {
         g.kingdom.counties[id].owner = 1;
     }
-    l2_kingdom::conquest::recount_realm_counties(&g.kingdom.counties, &mut g.kingdom.realms);
     for realm in 2..=5u8 {
+        dispossess(&mut g, realm, 1);
         g.recount_realm(realm);
     }
     assert_eq!(g.campaign.ranking.opponents_remaining, 0, "nobody is left to fight");
@@ -78,6 +78,12 @@ fn a_player_is_told_he_has_won_and_dismissing_it_wins_the_game() {
 #[test]
 fn displaying_an_ending_with_nobody_left_is_what_enqueues_the_victory() {
     let (mut g, a, mut m) = world();
+    // Late in the player's turn: phase 4 is open, every AI realm has finished
+    // its steps and the map's frames run no `Realm_RecountStrength` — so the
+    // ranking below is the one the draw reads. Without this the AI frames'
+    // step-0 prologue ranks the realms again and hands back the four opponents
+    // this test is keeping out of it.
+    ai_turns_over(&mut g);
     g.campaign.ranking =
         l2_kingdom::victory::Ranking { opponents_remaining: 0, ..Default::default() };
     post(
@@ -112,7 +118,7 @@ fn a_player_is_told_he_has_lost_and_dismissing_it_loses_the_game() {
     for id in 1..=6usize {
         g.kingdom.counties[id].owner = 2;
     }
-    l2_kingdom::conquest::recount_realm_counties(&g.kingdom.counties, &mut g.kingdom.realms);
+    dispossess(&mut g, 1, 2);
     g.recount_realm(1);
     assert!(g.campaign.ranking.opponents_remaining > 0, "or it would be scored a win");
 
@@ -126,7 +132,7 @@ fn a_player_is_told_he_has_lost_and_dismissing_it_loses_the_game() {
     assert_eq!(g.campaign.map, 0, "a loss replays the map");
 }
 
-/// **An AI dying while others live ends nothing**, and the player still gets
+/// **An AI dying while others live ends nothing**
 /// told. Without this the two tests above would pass on a chain that declared a
 /// winner every time anybody died.
 #[test]
@@ -135,7 +141,7 @@ fn an_ai_dying_while_others_live_is_a_message_and_not_an_ending() {
     for id in 1..=6usize {
         g.kingdom.counties[id].owner = if id <= 3 { 1 } else { 2 };
     }
-    l2_kingdom::conquest::recount_realm_counties(&g.kingdom.counties, &mut g.kingdom.realms);
+    dispossess(&mut g, 3, 2);
     g.recount_realm(3);
 
     open_the_scroll(&mut m, &mut g, &a);
@@ -157,7 +163,7 @@ fn an_ai_obituary_carries_the_lords_own_line() {
     for id in 1..=6usize {
         g.kingdom.counties[id].owner = 1;
     }
-    l2_kingdom::conquest::recount_realm_counties(&g.kingdom.counties, &mut g.kingdom.realms);
+    dispossess(&mut g, 4, 1);
     g.kingdom.realms[4].lord = 3;
     g.kingdom.realms[4].voice_rotation = 2;
     g.recount_realm(4);
