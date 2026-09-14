@@ -370,6 +370,18 @@ fn repo_root() -> PathBuf {
 
 fn read(root: &Path, rel: &str) -> String {
     let p = root.join(rel);
+    // A `mod.rs` stands for its whole directory: a split module keeps its text in siblings.
+    if p.file_name().is_some_and(|f| f == "mod.rs") {
+        let dir = p.parent().unwrap();
+        let mut names: Vec<_> = std::fs::read_dir(dir)
+            .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|q| q.extension().is_some_and(|x| x == "rs"))
+            .collect();
+        names.sort();
+        return names.iter().map(|q| std::fs::read_to_string(q).unwrap().replace("\r\n", "\n")).collect::<Vec<_>>().join("\n");
+    }
     std::fs::read_to_string(&p)
         .unwrap_or_else(|e| panic!("{} is part of this check and could not be read: {e}", p.display()))
         // `.gitattributes` pins line endings per extension; a check that measures
