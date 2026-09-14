@@ -60,7 +60,7 @@ pub fn strip_centred_at(
     strip_centred(ctx, canvas, x, y, width, s, colour)
 }
 
-fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: &str, colour: u8) {
+pub(crate) fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: &str, colour: u8) {
     let w = match ctx.assets.shell.small.as_ref() {
         Some(f) => f.width(s),
         None => text::width(s),
@@ -123,7 +123,7 @@ fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: 
 /// numeric block's population, happiness and tax rate, which are flat
 /// (`DAT_005AEA40 = 1`). The jobs plate's numbers are [`ten_number`].
 #[allow(clippy::too_many_arguments)]
-fn strip_number(
+pub(crate) fn strip_number(
     ctx: &Ctx,
     canvas: &mut Canvas,
     value: i32,
@@ -167,7 +167,7 @@ fn ten_text(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8)
 /// `Ui_DrawNumber(value, lead, suffix, x, y, &g_font10, colour)` (`0x00402F64`):
 /// lead in slot 0, digits, suffix, one [`ten_text`].
 #[allow(clippy::too_many_arguments)]
-fn ten_number(
+pub(crate) fn ten_number(
     ctx: &Ctx,
     canvas: &mut Canvas,
     value: i32,
@@ -184,7 +184,7 @@ fn ten_number(
 /// `Ui_DrawUnitNoun`'s *"Season(s)"* and `L2.eng` 71/18 *"Needed"*, which
 /// `CountyStrip_DrawCastleIcon` draws inside the same `g_dropShadow = 1` as its
 /// number. The rest of the strip's `&g_fontSmall` text is flat ([`strip_text`]).
-fn small_dropped(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) {
+pub(crate) fn small_dropped(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) {
     match ctx.assets.shell.small.as_ref() {
         Some(f) => {
             f.draw_dropped(canvas, x, y, s, colour);
@@ -199,7 +199,7 @@ fn small_dropped(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour
 /// width.** Its tail is `FUN_004025D7`, which **centres**; see
 /// [`body_centred_in`]. The lead column is `Ui_DrawNumber`'s, so it widens the
 /// string and moves the digits half a space right of a bare centring.
-fn body_number_centred(
+pub(super) fn body_number_centred(
     ctx: &Ctx,
     canvas: &mut Canvas,
     value: i32,
@@ -259,7 +259,7 @@ fn body_number_centred(
 /// the drop shadow its painters set ([`ten_text`]). This used to be
 /// `Fntl2_9.pl8` under a comment calling it ours, because `Font_10.pl8` was not
 /// loaded.
-fn strip_delta(ctx: &Ctx, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
+pub(crate) fn strip_delta(ctx: &Ctx, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
     // `if ((value != 0) || (mode != 0))` — every produce row passes mode 0.
     if value == 0 {
         return;
@@ -307,7 +307,7 @@ fn body_centred_in(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, w: i32, s: &s
 /// Centred in `width` from `x`, with the emboss pair chosen by the caller — because
 /// `CountyStrip_Draw` uses **two different ones** in the same plate. See
 /// [`crate::shell::font::SHADOW_GREY`].
-fn body_centred_styled(
+pub(crate) fn body_centred_styled(
     ctx: &Ctx,
     canvas: &mut Canvas,
     x: i32,

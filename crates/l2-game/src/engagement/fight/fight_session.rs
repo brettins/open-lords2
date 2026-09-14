@@ -110,7 +110,7 @@ pub fn begin_fight(
 /// Putting the stand-in here is what lets a watched battle open the way the
 /// original's does while a headless one still resolves. `docs/decisions.md`
 /// C186.
-fn charge_for_the_absent_player(
+pub(super) fn charge_for_the_absent_player(
     kingdom: &Kingdom,
     runner: &mut BattleRunner,
     attacker: usize,

@@ -31,7 +31,7 @@ use crate::turn::{self, TurnStep};
 /// moves with `mapX`/`mapY`, and `FUN_00491B1F` moves those at the *start* of a
 /// crossing. A man walking east is on the minimap's next cell for the whole of
 /// it, as he is in the viewport. **[V]**
-pub(super) fn overview_occupants(game: &crate::Game, live: &LiveBattle) -> Vec<u8> {
+pub(crate) fn overview_occupants(game: &crate::Game, live: &LiveBattle) -> Vec<u8> {
     let mut occupants = vec![0u8; l2_sim::terrain::CELLS];
     for i in 0..live.runner.fighters.len() {
         if !live.runner.is_alive(i) {

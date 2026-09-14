@@ -24,7 +24,7 @@ use crate::turn::{self, TurnStep};
 /// The blocks stand where the artwork's men would —
 /// `l2_view::scene::figure_origin`, `BattleMan_Step`'s cell and trail — so the
 /// placeholder walks the way the picture does.
-fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
+pub(super) fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
     let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
     canvas.fill_rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h, ink.background);
     for row in 0..VIEW_ROWS {
@@ -65,7 +65,7 @@ fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view:
 /// the executable — the older DOS tree does not — and on
 /// [`crate::game::Assets::placeholder`]. Then the panel is a flat fill and a dot
 /// a side, which is ours and is marked as ours.
-fn draw_overview(
+pub(super) fn draw_overview(
     canvas: &mut Canvas,
     panel: &Overview,
     live: &LiveBattle,
@@ -94,7 +94,7 @@ fn draw_overview(
 }
 
 /// One banner per figure the player holds, in the layout the count picks.
-fn draw_banners(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
+pub(super) fn draw_banners(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
     let picked = live.runner.selected_fighters(live.owner);
     let layout = BannerLayout::for_count(picked.len());
     for (slot, &f) in picked.iter().enumerate() {

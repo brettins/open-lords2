@@ -29,7 +29,7 @@ use crate::game::Game;
 ///
 /// Only the local player's own two armies: an AI's pair merges with no prompt
 /// (`Contact::Merged`), and nobody may be asked about another realm's units.
-fn ask_combine(game: &mut Game, contacts: &[Contact]) {
+pub(super) fn ask_combine(game: &mut Game, contacts: &[Contact]) {
     if game.combine_ask.is_some() {
         return;
     }
@@ -46,7 +46,7 @@ fn ask_combine(game: &mut Game, contacts: &[Contact]) {
 
 /// `Battle_ChooseSettlement` for a battle raised outside a turn. See
 /// [`tick_units_only`].
-fn raise_idle_battle(game: &mut Game, e: Encounter) {
+pub(super) fn raise_idle_battle(game: &mut Game, e: Encounter) {
     use l2_kingdom::battle::Settlement;
     let settlement = l2_kingdom::battle::settlement(
         &game.kingdom.campaign.units,
@@ -108,7 +108,7 @@ pub(crate) fn raise_sortie(game: &mut Game, garrison: usize, besieger: usize, co
 
 /// The phase's own tick and the unit sweep that follows it, up to the point
 /// where a battle may interrupt.
-fn run_phase_tick(game: &mut Game) {
+pub(super) fn run_phase_tick(game: &mut Game) {
     let phase = game.kingdom.turn.phase;
     if phase == Phase::PlayersTurn {
         let mut granted = game.turn.as_ref().is_some_and(|p| p.granted);
@@ -134,7 +134,7 @@ fn run_phase_tick(game: &mut Game) {
 }
 
 /// One assault of phase 2, asked about or settled.
-fn pump_siege(game: &mut Game) {
+pub(super) fn pump_siege(game: &mut Game) {
     let Some(mut phase) = game.turn.as_mut().and_then(|p| p.siege.take()) else { return };
     let Some(assault) = phase.next(&mut game.kingdom) else {
         // The cursor ran off the end; phase 2 is done and the tick carries on.
@@ -198,7 +198,7 @@ fn settled(kingdom: &Kingdom, phase: Phase) -> bool {
 /// clock, an address or an iteration order. `run_siege_phase` adds the round
 /// number to it,
 /// same phase run twice fights the same two.
-fn siege_seed(kingdom: &Kingdom) -> u64 {
+pub(crate) fn siege_seed(kingdom: &Kingdom) -> u64 {
     let mut z = (kingdom.turn_count as u64)
         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
         ^ 0x5165_6765_0000_0002;

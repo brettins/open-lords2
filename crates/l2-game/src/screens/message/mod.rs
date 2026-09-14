@@ -163,7 +163,7 @@ impl MessageScreen {
 
     /// The record on screen, or `None` for the one frame the machine may still
     /// draw this after the queue closed it.
-    fn record(ctx: &Ctx) -> Option<Record> {
+    pub(crate) fn record(ctx: &Ctx) -> Option<Record> {
         ctx.game.messages.open().copied()
     }
 }

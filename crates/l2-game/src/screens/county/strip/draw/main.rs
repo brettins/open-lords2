@@ -147,7 +147,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // prompt and the three diplomacy screens: `g_playerNames` and then
         // `L2.eng` group 7 by the realm's **lord**, which is the pair
         // `Game_NewGame` itself uses.
-        let owner = super::super::message::lord_name(ctx, c.owner);
+        let owner = super::super::super::super::message::lord_name(ctx, c.owner);
         // **The pen is keyed by the realm's shield, not by its id**, and that
         // was the bug a player reported as *"the sovereign land text has the
         // wrong colours … the counties seem to have the right colours … but the

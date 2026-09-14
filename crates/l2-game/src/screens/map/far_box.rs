@@ -27,24 +27,24 @@ use paint::*;
 
 /// `L2.eng` group 101 — the sixty map names `g_scenarioIndex` indexes, the same
 /// group `ScenarioList_Draw` and `Screen_DrawConquest` read.
-const FAR_BOX_MAP_GROUP: usize = 101;
+pub(super) const FAR_BOX_MAP_GROUP: usize = 101;
 /// Group 34: index 0 *"Year"*, index 1 *"Click on the county you wish to view."*
 /// `Screen_DrawCampaign` is its only consumer — so it is this box's vocabulary,
 /// not a naming lead. `CLAUDE.md` rule 6.
 const FAR_BOX_YEAR_GROUP: usize = 34;
-const FAR_BOX_YEAR_LABEL: usize = 0;
-const FAR_BOX_ADVICE: usize = 1;
-const FAR_BOX_Y: i32 = 0x1A8;
-const FAR_BOX_NAME_X: i32 = 0x40;
-const FAR_BOX_YEAR_LABEL_X: i32 = 0x50;
-const FAR_BOX_YEAR_X: i32 = 0x60;
-const FAR_BOX_ADVICE_X: i32 = 0x50;
-const FAR_BOX_ADVICE_Y: i32 = 0x1C6;
+pub(super) const FAR_BOX_YEAR_LABEL: usize = 0;
+pub(super) const FAR_BOX_ADVICE: usize = 1;
+pub(crate) const FAR_BOX_Y: i32 = 0x1A8;
+pub(crate) const FAR_BOX_NAME_X: i32 = 0x40;
+pub(crate) const FAR_BOX_YEAR_LABEL_X: i32 = 0x50;
+pub(super) const FAR_BOX_YEAR_X: i32 = 0x60;
+pub(super) const FAR_BOX_ADVICE_X: i32 = 0x50;
+pub(crate) const FAR_BOX_ADVICE_Y: i32 = 0x1C6;
 
 /// One of group 34's two strings, **as the player's own file spells them**, with
 /// our transcription for an install that has no `L2.eng`. `CLAUDE.md` rule 6:
 /// the fallback is the fallback, not the source.
-fn far_box_text(ctx: &Ctx, index: usize) -> String {
+pub(crate) fn far_box_text(ctx: &Ctx, index: usize) -> String {
     let s = ctx.assets.shell.text(FAR_BOX_YEAR_GROUP, index);
     if !s.is_empty() {
         return s.to_string();

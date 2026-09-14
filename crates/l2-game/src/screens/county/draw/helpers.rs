@@ -36,11 +36,11 @@ use crate::widget;
 /// — with nothing left to contradict it. `[V]` records that somebody read it,
 /// not that somebody read it correctly. Twenty call sites in the original
 /// inherit it and **eighteen beyond this panel are unaudited.**
-pub(super) fn line_text(ctx: &Ctx, l: Line) -> String {
+pub(crate) fn line_text(ctx: &Ctx, l: Line) -> String {
     eng(ctx, l.group, l.index, l.ours)
 }
 
-pub(super) fn ration_name(level: i32) -> &'static str {
+pub(crate) fn ration_name(level: i32) -> &'static str {
     RATION_NAMES
         .get(level.clamp(0, RATION_LEVEL_COUNT as i32 - 1) as usize)
         .copied()
@@ -49,7 +49,7 @@ pub(super) fn ration_name(level: i32) -> &'static str {
 
 /// `Eng_DrawString(20, healthBand, …)` — the five health words, with
 /// [`HEALTH_BAND_NAMES`] as the fallback.
-fn health_label(ctx: &Ctx, band: u8) -> String {
+pub(super) fn health_label(ctx: &Ctx, band: u8) -> String {
     let ours = HEALTH_BAND_NAMES.get(band as usize).copied().unwrap_or("?");
     eng(ctx, GROUP_HEALTH_BANDS, band as usize, ours)
 }
@@ -57,7 +57,7 @@ fn health_label(ctx: &Ctx, band: u8) -> String {
 /// A `Ui_DrawNumber(v, '@', "", 0x150, y, heading)` row: the label in the left
 /// column and the value **left-aligned from x = 336**, both in the 22-pixel
 /// font, which is what the three plain rows on the two graph panels are.
-fn heading_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
+pub(crate) fn heading_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
     pen.heading(canvas, LABEL_X, y, label, font::TEXT);
     pen.heading(canvas, VALUE_LEFT, y, &value.to_string(), font::TEXT);
 }
@@ -65,7 +65,7 @@ fn heading_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) 
 /// The same with `Pl8_DrawFrame(Misc_cty, 0x17, pen + 0x150, y + 3)` after it —
 /// the happiness panel's *Last season* and *This Season* rows both carry the
 /// face, three pixels below the text's own line.
-fn heading_row_face(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
+pub(crate) fn heading_row_face(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
     pen.heading(canvas, LABEL_X, y, label, font::TEXT);
     let x = pen.heading(canvas, VALUE_LEFT, y, &value.to_string(), font::TEXT);
     pen.misc_frame(canvas, FRAME_FACE, x, y + 3);
@@ -73,7 +73,7 @@ fn heading_row_face(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: 
 
 /// `Ui_DrawDelta(value, 0, "", "", 0x150, y, body, 0x3F, 0xF9)` — the label and
 /// the value.
-fn delta_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
+pub(crate) fn delta_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
     pen.body(canvas, LABEL_X, y, label, font::TEXT);
     delta_value(pen, canvas, y, value);
 }
@@ -86,7 +86,7 @@ fn delta_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
 /// first `Ui_DrawText` — the digits are **left-aligned from `x`**
 /// right-anchored to it, and the empty prefix still advances the pen by
 /// [`TRAILING`], so they start four pixels right of it.
-fn delta_value(pen: &Pen, canvas: &mut Canvas, y: i32, value: i32) {
+pub(super) fn delta_value(pen: &Pen, canvas: &mut Canvas, y: i32, value: i32) {
     if value == 0 {
         return;
     }
@@ -110,7 +110,7 @@ fn delta_value(pen: &Pen, canvas: &mut Canvas, y: i32, value: i32) {
 /// in `Misc_cty.pl8`, so the gap is the picture's and not a guess. **Mode 1
 /// never suppresses a zero**, unlike the panel rows: a zero draws `0` with the
 /// blank sign column.
-fn happiness_delta(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32, value: i32) {
+pub(crate) fn happiness_delta(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32, value: i32) {
     let after_bracket = pen.body(canvas, x, y, "(", font::TEXT) - TRAILING;
     let colour = if value < 0 { font::HIGHLIGHT } else { font::TEXT };
     let sign = match value.signum() {

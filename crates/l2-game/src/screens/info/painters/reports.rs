@@ -78,7 +78,7 @@ fn weather_line(pen: &Pen, canvas: &mut Canvas, y: i32, v: i32, noun: usize) {
 /// are group 77's — 0x19/0x1A after the figure, and 0x10/0x11/0x12 on the
 /// weather line — and [`weather_line`] is the shape `Panel_JobGrain` and
 /// `Panel_JobCattle` share with this painter at a different y.
-fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
+pub(super) fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
     let k = &ctx.game.kingdom;
     let a = pen.assets;
     let say = |canvas: &mut Canvas, x: i32, y: i32, index: usize| {
@@ -149,7 +149,7 @@ fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l
 /// *Bad cattle* (`0x8C`) and *Cow bonanza* (`0x8D`) — *No bull*'s 99 zeroes it
 /// — so any other id leaves the figure with no words after it. The weather
 /// line is `+0x270`, `herd_weather_change`.
-fn draw_herd_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
+pub(super) fn draw_herd_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, c: &l2_kingdom::County) {
     let a = pen.assets;
     let say = |canvas: &mut Canvas, x: i32, y: i32, index: usize| {
         pen.body(canvas, x, y, &words(a, REPORT_GROUP, index), font::TEXT)

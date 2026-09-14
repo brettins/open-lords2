@@ -235,7 +235,7 @@ impl Screen for InfoScreen {
                     // arm: 0x00437002/info-disband left-press
                     (1, _) => match ctx.game.disband_army(id) {
                         Ok((county, men)) => {
-                            let name = super::super::county::county_name(&*ctx, county);
+                            let name = super::super::super::county::county_name(&*ctx, county);
                             self.status = format!("{men} MEN WENT HOME TO {name}");
                             Transition::Pop
                         }
@@ -330,7 +330,7 @@ impl Screen for InfoScreen {
                             y,
                             font::TEXT,
                         );
-                        let name = super::super::county::county_name(ctx, u.cargo_county);
+                        let name = super::super::super::county::county_name(ctx, u.cargo_county);
                         pen.heading(canvas, w, y, &name, font::TEXT);
                     }
                     UnitKind::Army => {
@@ -374,7 +374,7 @@ impl Screen for InfoScreen {
                     // transcribing a painter faithfully produces it.
                     // `docs/decisions.md` C110.
                     let w = pen.eng(canvas, UNIT_GROUP, ARMY_FROM, HEADING_X, l.y(0x4A), font::TEXT);
-                    let name = super::super::county::county_name(ctx, u.home_county);
+                    let name = super::super::super::county::county_name(ctx, u.home_county);
                     pen.body(canvas, w, l.y(0x4A), &name, font::TEXT);
                 }
                 if u.kind != UnitKind::Army {
@@ -549,7 +549,7 @@ impl Screen for InfoScreen {
                 // The county's name, centred over the box in the head-room the
                 // layout granted.
                 if l.headroom != 0 {
-                    let name = super::super::county::county_name(ctx, map.county[tile]);
+                    let name = super::super::super::county::county_name(ctx, map.county[tile]);
                     pen.heading_centred(canvas, 8, l.y(0x18), 0x1C0, &name, font::TEXT);
                 }
                 // The brush, if the tile is one of the player's fields.

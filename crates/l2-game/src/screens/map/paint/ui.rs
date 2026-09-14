@@ -5,7 +5,7 @@ use super::*;
 
 /// What a settlement click switched, in words. **Ours** — the original enqueues
 /// one of `L2.eng`'s "mining stopped / started" messages instead.
-pub(super) fn toggle_name(what: industry::MapToggle) -> &'static str {
+pub(crate) fn toggle_name(what: industry::MapToggle) -> &'static str {
     match what {
         industry::MapToggle::Industry(c) => match c {
             l2_kingdom::Commodity::Wood => "WOOD CUTTING",
@@ -19,7 +19,7 @@ pub(super) fn toggle_name(what: industry::MapToggle) -> &'static str {
 
 /// **Ours.** One colour per field use,
 /// without a legend.
-pub(super) fn field_colour(ink: &Ink, kind: FieldType) -> u8 {
+pub(crate) fn field_colour(ink: &Ink, kind: FieldType) -> u8 {
     match kind {
         FieldType::Grain => ink.good,
         FieldType::Pasture => ink.highlight,
@@ -31,7 +31,7 @@ pub(super) fn field_colour(ink: &Ink, kind: FieldType) -> u8 {
 
 /// A filled square
 /// cannot spill into the panel.
-pub(super) fn fill_clipped(canvas: &mut Canvas, x: i32, y: i32, side: i32, colour: u8, clip: Clip) {
+pub(crate) fn fill_clipped(canvas: &mut Canvas, x: i32, y: i32, side: i32, colour: u8, clip: Clip) {
     for yy in y..y + side {
         for xx in x..x + side {
             if clip.contains(xx, yy) {
@@ -210,7 +210,7 @@ pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
 
 /// The right column: the original's seven `Misc_cty` frames, our numbers inside
 /// them.
-pub(super) fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
+pub(crate) fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     let ink = &ctx.assets.ink;
     let game = &ctx.game;
     let k = &game.kingdom;

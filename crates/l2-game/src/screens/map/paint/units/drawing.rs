@@ -11,7 +11,7 @@ use super::*;
 ///
 /// The words are `L2.eng` group 10 index 5 — *"Combine armies?"* — read from
 /// the group, never typed here (rule 6).
-pub(super) fn draw_combine_box(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
+pub(crate) fn draw_combine_box(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     if ctx.game.combine_ask.is_none() {
         return;
     }
@@ -37,7 +37,7 @@ pub(super) fn draw_combine_box(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ct
     }
 }
 
-pub(super) fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+pub(crate) fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
     for id in units_in_paint_order(ctx.game) {
         let Some(unit) = ctx.game.kingdom.campaign.units.get(id) else { continue };
@@ -138,7 +138,7 @@ pub(super) fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, cli
 /// **`docs/screens.md` §5 attributed all of this to `FUN_004081A6`, which is
 /// not the flag at all** — it is the gold path-preview ball, and its `bank`
 /// bit `0x40` is the path mark `Path_MarkPreviewTiles` sets. C49.
-pub(super) fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+pub(crate) fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let k = &ctx.game.kingdom;
     let phase = screen.flag_phase;
 // A free function; the mercenary arm below needs the
@@ -286,7 +286,7 @@ pub(super) fn draw_besieger_mark(
 ///
 /// The phase is [`MapScreen::herd_phase`] and is **display state**: it never
 /// reaches [`l2_kingdom::Kingdom`].
-pub(super) fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+pub(crate) fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let map = &ctx.game.kingdom.campaign.map;
     for tile in 0..map.terrain.len() {
         if map.flags[tile] & l2_kingdom::map::flags::FARMLAND == 0 {
@@ -337,7 +337,7 @@ pub(super) fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, cli
 /// perfectly good one all looked the same on screen. The path is the original's
 /// own answer to that, and drawing it is how a player tells our bug from his own
 /// mis-click.
-pub(super) fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+pub(crate) fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
     let Some(sel) = screen.move_order.as_ref() else { return };
     let Some(unit) = ctx.game.kingdom.campaign.units.get(sel.unit) else { return };
@@ -392,7 +392,7 @@ pub(super) fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &C
 /// order* can see what he is ordering without leaving move-order mode. The
 /// right column belongs to the county strip. When `0x04` graduates, this stays:
 /// they answer different questions.
-pub(super) fn draw_unit_banner(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
+pub(crate) fn draw_unit_banner(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // Debug overlay only: the original draws nothing over the foot of the map.
     if !ctx.game.prefs.debug_overlay {
         return;

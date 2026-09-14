@@ -12,7 +12,7 @@ use crate::input::Rect;
 /// never below one; speed 0 never scrolls. Identical to `screens/map/mod.rs`'s,
 /// without the `+= 2` that function adds for `g_screenId == 0x10`.
 pub fn scroll_interval_ticks(speed: i32) -> u32 {
-    const TICK_MS: u32 = 16;
+    pub(crate) const TICK_MS: u32 = 16;
     let q = (100 - speed.clamp(0, 100)) / 10;
     if q >= 10 {
         return u32::MAX;
@@ -23,7 +23,7 @@ pub fn scroll_interval_ticks(speed: i32) -> u32 {
 
 /// Virtual keys `0x31` … `0x39` are groups 0 … 8. `0x30` is not one: the
 /// original tests `0x30 < key && key < 0x3A`.
-fn group_slot(digit: u8) -> Option<usize> {
+pub(crate) fn group_slot(digit: u8) -> Option<usize> {
     if (b'1'..=b'9').contains(&digit) {
         Some((digit - b'1') as usize)
     } else {

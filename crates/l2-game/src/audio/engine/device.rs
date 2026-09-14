@@ -17,7 +17,7 @@ use wav::Sound;
 /// Split out so that every way this can go wrong arrives at one `Err` and one
 /// message. `cpal` reports "no host", "no device" and "no supported config" as
 /// three different shapes; downstream they are all "run silent".
-fn start_device(mixer: Arc<Mutex<Mixer>>) -> Result<cpal::Stream, String> {
+pub(super) fn start_device(mixer: Arc<Mutex<Mixer>>) -> Result<cpal::Stream, String> {
     let host = cpal::default_host();
     let device = host
         .default_output_device()

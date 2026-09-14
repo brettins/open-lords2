@@ -89,7 +89,7 @@ pub fn body(ctx: &Ctx, record: &Record) -> String {
 ///
 /// So `+0x13` is not spare: it puts a **second realm's** name where the group's
 /// own label would have gone.
-fn draw_notice(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+pub(super) fn draw_notice(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     let heading = if record.county != 0 {
         county_name(ctx, record.county)
     } else if record.spare != 0 {
@@ -119,7 +119,7 @@ fn draw_notice(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: me
 /// and the body is sixteen pixels higher than a notice's, under a window
 /// sixteen shorter. The string is index **1**, not `variant + 1`; every
 /// capture letter is posted with variant 0, so the two agree.
-fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+pub(super) fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     let heading = county_name(ctx, record.county);
     pen.heading_centred(canvas, f.x + 0x10, f.y + 0x20, f.w - 0x20, &heading, font::TEXT);
     let words = crate::arrival::words(&ctx.assets.shell, record.group, 1);
@@ -133,7 +133,7 @@ fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: m
 /// The pay prompt inserts `Ui_DrawCount(g_diploHelpPrice, 0, …)` immediately
 /// after the label, on the same line, so the price reads as part of
 /// the sentence.
-fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+pub(super) fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     draw_portrait(pen, ctx, canvas, record.from, f);
     let from = ctx.assets.shell.text(message::GROUP_FROM, 0).to_string();
     let mut x = pen.heading(canvas, f.x + 0x6C, f.y + 0x20, &from, font::TEXT);
@@ -153,7 +153,7 @@ fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: me
 
 /// **Category `0x02`** — the portrait panel with `L2.eng` 109/1 over the county
 /// name, both centred in 0x140.
-fn draw_county_portrait(
+pub(super) fn draw_county_portrait(
     pen: &Pen,
     ctx: &Ctx,
     canvas: &mut Canvas,
@@ -171,7 +171,7 @@ fn draw_county_portrait(
 /// **Category `0x0E`, the ending.** The name at the top is the *local player's*
 /// for group 225 and the *sender's* for everything else —
 /// one layout serve *"Victory!"*, *"Defeat!"* and an AI's obituary.
-fn draw_ending(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+pub(super) fn draw_ending(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     draw_portrait_well(pen, canvas, f);
     let who = if record.group == l2_kingdom::victory::MSG_VICTORY {
         ctx.game.player
@@ -195,7 +195,7 @@ fn draw_ending(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: me
 ///
 /// The first is `castleCapacity[castleType] - garrison`, and it is drawn with
 /// the `'@'` blank lead so it lines up with the second.
-fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+pub(super) fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     pen.heading_centred(
         canvas,
         f.x + 0x10,
@@ -279,7 +279,7 @@ fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: 
 /// **The record is posted by [`message::post_event`]**, the port of
 /// `FUN_00448D7E`, which `Machine::update` runs once a frame for
 /// `Game::selected`
-fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+pub(super) fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     pen.heading_centred(
         canvas,
         f.x + 0x10,
@@ -338,7 +338,7 @@ const EVENT_NOUN_ANIMAL: usize = 4;
 /// ```
 ///
 /// One centred line of the group's label, and **no button**.
-fn draw_tip(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, pointer: (i32, i32)) {
+pub(super) fn draw_tip(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, pointer: (i32, i32)) {
     if record.category != category::TIP {
         return;
     }
@@ -462,7 +462,7 @@ fn glyph_width(ctx: &Ctx, c: char) -> i32 {
 /// The first of the arm's two loops paints every paragraph at one height
 /// before the box exists, to measure them; the box then covers it, so it is
 /// not reproduced as paint.
-fn draw_paragraphs(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, n: usize) {
+pub(super) fn draw_paragraphs(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, n: usize) {
     let (layout, texts) = tip_layout(ctx, record, n);
     let f = layout.frame;
     pen.window(canvas, f.x, f.y, f.w / 16, f.h / 16, BOX_SET);
@@ -479,7 +479,7 @@ fn draw_paragraphs(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, n
 
 /// `Widget_Draw(0, 0, table, 2)` — the two mailed hands, `System.pl8` frames 29
 /// and 31.
-fn draw_prompt(pen: &Pen, canvas: &mut Canvas, prompt: Prompt, press: &Press) {
+pub(super) fn draw_prompt(pen: &Pen, canvas: &mut Canvas, prompt: Prompt, press: &Press) {
     let [yes, no] = prompt.widgets();
     // `Widget_Draw` adds one to the frame while `+0x0D` runs.
     for (i, (at, frame)) in [(yes, Prompt::FRAME_YES), (no, Prompt::FRAME_NO)].into_iter().enumerate() {

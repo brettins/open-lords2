@@ -53,7 +53,7 @@ use paint::*;
 /// ours; the tips themselves are drawn
 /// from the player's own group 220 by [`crate::tooltip`], which reads
 /// [`MapScreen::minimap_mode`] through [`Screen::minimap_mode`].
-fn minimap_mode_name(mode: MinimapMode) -> &'static str {
+pub(super) fn minimap_mode_name(mode: MinimapMode) -> &'static str {
     match mode {
         MinimapMode::Owner => "OWNERS",
         MinimapMode::Labour => "LABOUR",

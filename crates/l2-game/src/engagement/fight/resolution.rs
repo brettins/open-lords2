@@ -72,7 +72,7 @@ pub fn resolve_fought(
 /// `FUN_0047F474` for one side: zero all eleven counts, refill the seven the
 /// campaign carries from the surviving figures, and rebuild the total by
 /// summing.
-fn write_back(kingdom: &mut Kingdom, id: usize, survivors: [u32; 11]) {
+pub(crate) fn write_back(kingdom: &mut Kingdom, id: usize, survivors: [u32; 11]) {
     let Some(u) = kingdom.campaign.units.get_mut(id) else { return };
     for (slot, left) in u.troops.iter_mut().zip(survivors.iter()) {
         *slot = *left as i32;

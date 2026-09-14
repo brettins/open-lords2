@@ -11,7 +11,7 @@ use l2_net::canonical::{Canonical, CodecError, Reader};
 use crate::game::Game;
 use crate::screens::setup::MAP_COUNT;
 
-fn encode_prefix(game: &Game, out: &mut Canonical) {
+pub(super) fn encode_prefix(game: &Game, out: &mut Canonical) {
     out.section("player");
     out.u8(game.player);
     out.u32(game.map_slot as u32);
@@ -165,7 +165,7 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::victory::Campaign, L
     Ok(Campaign { track, map, outcome, ranking })
 }
 
-fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadError> {
+pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadError> {
     let player = input.u8()?;
     if player as usize >= MAX_REALMS {
         return Err(LoadError::Player(player));

@@ -69,7 +69,7 @@ impl SuppliesScreen {
     }
 
     fn county_name(&self, ctx: &Ctx, id: u8) -> String {
-        super::county::county_name(ctx, id)
+        super::super::county::county_name(ctx, id)
     }
 
     /// `FUN_0043B04C`'s thumb-up.

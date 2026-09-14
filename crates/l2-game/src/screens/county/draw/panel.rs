@@ -17,7 +17,7 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen, TRAILING};
 use crate::widget;
 
-const RATION_SUFFIX: &str = "";
+pub(crate) const RATION_SUFFIX: &str = "";
 
 impl Panel {
     /// The panel's window in pixels — the rectangle `Ui_DrawBox` covers.

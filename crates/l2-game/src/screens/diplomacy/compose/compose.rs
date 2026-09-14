@@ -387,7 +387,7 @@ impl Screen for ComposeScreen {
                     pen.eng(canvas, GROUP, REQUEST_PROMPT + k, 0x50, 0x140, font::TEXT);
                 } else {
                     let w = pen.eng(canvas, GROUP, REQUEST_PICKED + k, 0x50, 0x140, font::TEXT);
-                    let index = super::super::army::county_name_index(ctx, self.county);
+                    let index = super::super::super::army::county_name_index(ctx, self.county);
                     pen.eng(canvas, COUNTY_NAME_GROUP, index, w, 0x140, font::TEXT);
                 }
                 pen.eng(canvas, GROUP, DISPATCH, 0x140, 0xE0, font::TEXT);

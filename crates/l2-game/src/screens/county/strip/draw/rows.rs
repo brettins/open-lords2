@@ -119,7 +119,7 @@ use crate::widget;
 /// record — and are drawn by [`draw_industry_rows`]. This said the word was
 /// the next record's head and that stone's `0x2F0` ran past the array; the
 /// array's base was four bytes low. `docs/decisions.md` C153.
-fn draw_produce_rows(
+pub(super) fn draw_produce_rows(
     ctx: &Ctx,
     canvas: &mut Canvas,
     c: &l2_kingdom::county::County,
@@ -268,7 +268,7 @@ fn draw_produce_rows(
 /// readings say otherwise: the dispatch above, and `Unit_TrampleTile`
 /// (`0x0046873F`), whose iron arm zeroes the same `industry + 2` word
 /// `FUN_00410502` draws. `docs/decisions.md` C135.
-fn draw_industry_rows(ctx: &Ctx, canvas: &mut Canvas, c: &l2_kingdom::county::County) {
+pub(super) fn draw_industry_rows(ctx: &Ctx, canvas: &mut Canvas, c: &l2_kingdom::county::County) {
     use l2_kingdom::tables::Commodity;
 
     // The same list `job_row_at` hit-tests, so the picture and the target

@@ -26,7 +26,7 @@ use crate::widget;
 use paint::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Focus {
+pub(crate) enum Focus {
     None,
     /// One of the five `g_sidebarButtons`, by index.
     Sidebar(usize),
@@ -40,15 +40,15 @@ enum Focus {
 /// [`MapScreen::step_industry`] for the rate and
 /// [`l2_view::campaign::INDUSTRY_FRAMES`] for the four runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct IndustrySite {
+pub(crate) struct IndustrySite {
     /// Tile index, `y * 64 + x`. Fixed for the life of the map.
-    tile: usize,
-    county: u8,
+    pub(crate) tile: usize,
+    pub(crate) county: u8,
     /// [`l2_kingdom::tables::Commodity::index`] — wood 0, iron 1, weapons 2,
     /// stone 3.
-    commodity: usize,
+    pub(crate) commodity: usize,
     /// The frame the tile is drawn with right now.
-    frame: u8,
+    pub(crate) frame: u8,
 }
 
 /// **The end-of-turn screen fade, mid-flight.**
@@ -64,16 +64,16 @@ struct IndustrySite {
 /// The phase counts `0 ..= l2_view::fade::PHASES`, one per fixed tick; the
 /// palette arithmetic
 #[derive(Debug, Clone)]
-struct Fading {
+pub(crate) struct Fading {
     pub(super) phase: u8,
 /// Held
     /// written immediately because the numbers it names change *during* the
     /// dark, and announcing them early is the abruptness the fade hides.
-    status: String,
+    pub(super) status: String,
     /// Whether the turn ended the game, in which case the conquest screen comes
     /// up when the light does — as it does in the original, where
     /// `g_screenId = 0x1C` is set on the far side of the same fade.
-    over: bool,
+    pub(super) over: bool,
 }
 
 /// **Move-order mode's whole state** — `g_screenId == 0x10`.
@@ -93,20 +93,20 @@ struct Fading {
 /// anyone's mouse is, and a pointer position is the least deterministic input
 /// there is.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct MoveOrder {
+pub(crate) struct MoveOrder {
     /// The unit the order is for — `g_selectedUnit` (`0x0057C8C4`).
-    unit: usize,
+    pub(super) unit: usize,
     /// The terrain costs the fill was run over.
-    cost: l2_kingdom::map::CostMap,
+    pub(super) cost: l2_kingdom::map::CostMap,
     /// `g_moveDistLocal`, filled from the unit's own tile.
-    field: l2_kingdom::movement::DistanceField,
+    pub(crate) field: l2_kingdom::movement::DistanceField,
     /// `DAT_005691E0` — the tile the last descent was run for, so the pointer
     /// moving *within* a tile costs nothing.
-    hovered: Option<(u8, u8)>,
+    pub(crate) hovered: Option<(u8, u8)>,
     /// `g_pathBuf[localPlayer]` — the route `Path_MarkPreviewTiles`
     /// (`0x004A91BA`) marks and `Map_DrawPathMarker` (`0x004081A6`) draws.
     /// Empty when the hovered tile is unreachable, which is
     /// `g_moveOrderAvailable = 0`.
-    path: Vec<(u8, u8)>,
+    pub(crate) path: Vec<(u8, u8)>,
 }
 

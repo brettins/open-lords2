@@ -35,7 +35,7 @@ fn side_name(ctx: &Ctx, owner: u8) -> String {
         }
         return "THE PEOPLE".into();
     }
-    super::message::lord_name(ctx, owner)
+    super::super::message::lord_name(ctx, owner)
 }
 
 /// The realm's shield frame, with `Battle_ChooseSettlement`'s own substitution
@@ -52,7 +52,7 @@ fn shield_frame(ctx: &Ctx, owner: u8) -> usize {
 
 /// The common half of both screens: the window, the county, the medallion, the
 /// two shields and the two names.
-fn draw_frame(
+pub(crate) fn draw_frame(
     ctx: &Ctx,
     canvas: &mut Canvas,
     county: u8,
@@ -67,7 +67,7 @@ fn draw_frame(
     // `Ui_DrawBevelRect(0x34, 0x44, 0x52, 0x52)` — the raised edge only. The
     // fill this used to draw first is not in the original and, under the game's
     // own palette, is a black square where the medallion goes.
-    super::siege::bevel_rect(canvas, MEDALLION.x, MEDALLION.y, MEDALLION.w, MEDALLION.h);
+    super::super::siege::bevel_rect(canvas, MEDALLION.x, MEDALLION.y, MEDALLION.w, MEDALLION.h);
 
     // `icon_tmp.pl8`: the medallion and the two shields, three
     // `Sprite_WGenSprite` calls with the sheet read whole immediately before.
@@ -100,7 +100,7 @@ fn draw_frame(
 ///
 /// `totals` is the pair the original reads **out of the unit record** rather
 /// than off the rows — see the loop at the end of this function.
-fn draw_roster(
+pub(crate) fn draw_roster(
     ctx: &Ctx,
     canvas: &mut Canvas,
     a: (&Roster, Option<&Roster>),
@@ -171,7 +171,7 @@ fn draw_roster(
 
 /// The seven banners in our own words, for an install with no `L2.eng`. The
 /// original's are far better and are used whenever they are there.
-fn ours_banner(outcome: Outcome) -> String {
+pub(crate) fn ours_banner(outcome: Outcome) -> String {
     match outcome {
         Outcome::Won => "THE BATTLE IS WON.",
         Outcome::Lost => "THE BATTLE IS LOST.",

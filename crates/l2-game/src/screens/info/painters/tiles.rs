@@ -182,7 +182,7 @@ pub fn draw_farmland(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Layout, tile:
 }
 
 /// The worker count's colour — both reports' three-way ladder on their own job.
-fn workers_colour(c: &l2_kingdom::County, job: usize) -> u8 {
+pub(crate) fn workers_colour(c: &l2_kingdom::County, job: usize) -> u8 {
     if c.labour[job] < c.labour_wanted[job] {
         WORKERS_SHORT
     } else if c.labour_useful[job] < c.labour[job] {

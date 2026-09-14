@@ -12,7 +12,7 @@ use super::*;
 /// described as one, two or three figures (`docs/armies.md` §2.4) —
 /// marker grows with them so that the same thing is legible. **The square is
 /// ours**: `Sprite1a.pl8` holds the actual figures and we do not place them.
-pub(super) fn unit_marker_half(zoom: &Zoom, unit: &l2_kingdom::Unit) -> i32 {
+pub(crate) fn unit_marker_half(zoom: &Zoom, unit: &l2_kingdom::Unit) -> i32 {
     let base = if zoom.id == FAR.id { 1 } else { 3 };
     base + unit.size_class() as i32
 }
@@ -25,7 +25,7 @@ pub(super) fn unit_marker_half(zoom: &Zoom, unit: &l2_kingdom::Unit) -> i32 {
 ///
 /// One function for the painter
 /// across a tile is clicked where it is seen.
-pub(super) fn unit_sprite(zoom: &Zoom, game: &crate::game::Game, id: usize, unit: &l2_kingdom::Unit) -> campaign::UnitSprite {
+pub(crate) fn unit_sprite(zoom: &Zoom, game: &crate::game::Game, id: usize, unit: &l2_kingdom::Unit) -> campaign::UnitSprite {
     campaign::UnitSprite {
         sheet: unit.sprite_sheet(),
         frame: game.unit_frame(id, unit),

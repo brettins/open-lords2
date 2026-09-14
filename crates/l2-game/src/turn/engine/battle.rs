@@ -31,7 +31,7 @@ use crate::game::Game;
 /// `l2_kingdom::victory::recount_strength`'s own doc comment has listed the two
 /// post-battle sites among its four callers since it was written, and nothing
 /// called it from either. `docs/decisions.md` C71.
-fn record(game: &mut Game, report: Option<BattleReport>) {
+pub(crate) fn record(game: &mut Game, report: Option<BattleReport>) {
     let Some(report) = report else { return };
     // `County_ChangeOwner`'s letters. They are posted inside
     // `Battle_ReturnToCampaign`, before the `Realm_RecountStrength` at its
@@ -45,7 +45,7 @@ fn record(game: &mut Game, report: Option<BattleReport>) {
 }
 
 /// The unit sweep raised a battle: ask about it, or fight it now.
-fn raise_battle(game: &mut Game, e: Encounter, interactive: bool) {
+pub(super) fn raise_battle(game: &mut Game, e: Encounter, interactive: bool) {
     let settlement = l2_kingdom::battle::settlement(
         &game.kingdom.campaign.units,
         e.mover,
@@ -67,7 +67,7 @@ fn raise_battle(game: &mut Game, e: Encounter, interactive: bool) {
 }
 
 /// Read the two records into a [`Question`] while both still exist.
-fn question_for(
+pub(crate) fn question_for(
     game: &Game,
     attacker: usize,
     defender: usize,
@@ -145,7 +145,7 @@ fn question_for(
 }
 
 /// Settle the question on the table, whichever kind it is, and clear it.
-fn settle_question(game: &mut Game, q: Question, answer: Answer) {
+pub(crate) fn settle_question(game: &mut Game, q: Question, answer: Answer) {
     let Some(p) = game.turn.as_mut() else { return };
     p.question = None;
     let staged = p.pending_assault.take();

@@ -15,7 +15,7 @@ use crate::shell::{font, Face, Pen};
 /// **Our transcription of the words this arm draws**, used only where the
 /// player's `L2.eng` has none — an install with no file, or a placeholder test
 /// asset. Group 30's are the eighteen indices the farmland arm can reach.
-const TILE_WORDS: [(usize, &str); 49] = [
+pub(super) const TILE_WORDS: [(usize, &str); 49] = [
     (6, "Farmland"),
     (9, "Mine (iron)."),
     (10, "Quarry (stone)."),
@@ -70,7 +70,7 @@ const TILE_WORDS: [(usize, &str); 49] = [
 ];
 
 /// Group 77, indices 0 … 28.
-const REPORT_WORDS: [&str; 29] = [
+pub(super) const REPORT_WORDS: [&str; 29] = [
     "from",
     "to be sown, yielding",
     "in 4 seasons.",
@@ -103,7 +103,7 @@ const REPORT_WORDS: [&str; 29] = [
 ];
 
 /// Group 22, indices 0 … 6.
-const FERTILITY_WORDS: [&str; 7] = [
+pub(super) const FERTILITY_WORDS: [&str; 7] = [
     "Infertile - almost no production.",
     "Very poor fertility - mainly weeds.",
     "Poor fertility - crops grow less well.",

@@ -20,7 +20,7 @@ use crate::widget;
 /// **[I] on the column.** Our wrap splits on whitespace and drops it, so a
 /// caret standing on a run of spaces is drawn at the end of the word before
 /// them; the original measures the spaces. Elsewhere the two agree.
-fn caret_pen(pen: &Pen, text: &str, caret: usize, x: i32, y: i32, width: i32) -> (i32, i32) {
+pub(super) fn caret_pen(pen: &Pen, text: &str, caret: usize, x: i32, y: i32, width: i32) -> (i32, i32) {
     use crate::text::Metrics;
     let m = crate::text::FontMetrics::of(pen.assets);
     let line_h = pen.assets.body.as_ref().map_or(16, |f| f.line);

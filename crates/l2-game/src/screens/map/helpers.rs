@@ -48,10 +48,10 @@ mod brush {
 ///
 /// The thresholds are the original's literals `0x321` and `0x4b1`, tested as
 /// `pop < 801` and `pop < 1201`.
-const TOWN_FRAME_BASE: [(i32, u8); 3] = [(801, 47), (1201, 51), (i32::MAX, 55)];
+pub(super) const TOWN_FRAME_BASE: [(i32, u8); 3] = [(801, 47), (1201, 51), (i32::MAX, 55)];
 
 /// The plane-1 byte a town tile carries: bank `0x0c`, `Town1a.pl8`.
-const TOWN_BANK: u8 = 0x0c;
+pub(crate) const TOWN_BANK: u8 = 0x0c;
 
 /// One fixed simulation tick in milliseconds — `main::TICK`.
 ///
@@ -60,7 +60,7 @@ const TOWN_BANK: u8 = 0x0c;
 /// milliseconds can be converted to the whole ticks this crate is allowed to
 /// count. `VillageScreen::CLICK_SETTLE_TICKS` makes the same conversion by
 /// hand and for the same reason (`docs/netcode.md`).
-const TICK_MS: u32 = 16;
+pub(crate) const TICK_MS: u32 = 16;
 
 /// `g_optScrollSpeed`'s shipped default, written by the options-defaults
 /// routine at `0x004AE310`. **[V]**

@@ -130,7 +130,7 @@ impl Screen for NoblesScreen {
         // *"undecided."*, two pixels past where the label ended.
         let x = pen.eng(canvas, GROUP, category, LINE_AT.0, LINE_AT.1, font::TEXT);
         if s.decided() {
-            let name = super::message::lord_name(ctx, s.leader);
+            let name = super::super::message::lord_name(ctx, s.leader);
             pen.body(canvas, x + NAME_DX, LINE_AT.1, &name, font::TEXT);
         } else {
             pen.eng(canvas, GROUP, UNDECIDED, x + NAME_DX, LINE_AT.1, font::TEXT);

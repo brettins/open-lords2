@@ -14,7 +14,7 @@ use l2_sim::runner::{blank_field, BattleRunner, Muster};
 use l2_sim::{End, Troop, SIDE_A, SIDE_B};
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn resolve_battle(
+pub(crate) fn resolve_battle(
     kingdom: &mut Kingdom,
     attacker: usize,
     defender: usize,
@@ -254,7 +254,7 @@ fn fight(
 
 /// The same, plus the four battle-only slots a siege fills. `extra` is empty
 /// for a field battle, so the two paths are one function.
-pub(super) fn muster_with(
+pub(crate) fn muster_with(
     kingdom: &Kingdom,
     id: usize,
     extra: l2_kingdom::siege::BattleEngines,

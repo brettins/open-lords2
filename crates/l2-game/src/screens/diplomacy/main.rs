@@ -126,7 +126,7 @@ pub(super) const MENU_SLOTS: usize = 6;
 /// `…Compliment`, `…Insult`, `…Alliance`, `…AskHelp`, `…AskAttack` differ only
 /// in the `g_diploKind` they set and in which draft buffer they clear —
 /// kind they are answered with.
-fn menu_widgets(menu: Menu) -> Vec<Widget> {
+pub(crate) fn menu_widgets(menu: Menu) -> Vec<Widget> {
     if menu == Menu::Dispatched {
         return Vec::new();
     }
