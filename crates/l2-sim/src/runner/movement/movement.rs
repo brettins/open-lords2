@@ -3,6 +3,10 @@ use super::*;
 use super::pathfinding::*;
 use super::*;
 
+/// [`BattleRunner::request_path`] and the side-step live next door.
+#[path = "sidestep.rs"]
+mod sidestep;
+
 impl BattleRunner {
     /// The next cell to try: the stored path if the figure is on one, else
     /// straight at the target. Figures normally walk straight and never search
@@ -24,91 +28,6 @@ impl BattleRunner {
         Some(Pos::new(nx as u8, ny as u8))
     }
 
-    /// Ask [`crate::pathfind`] for a route, subject to the original's two
-    /// throttles: a cooldown after each attempt, and a hard stop after four
-    /// consecutive failures.
-    pub(crate) fn request_path(&mut self, i: usize) {
-        {
-            let f = &self.fighters[i];
-            if f.hold > 0 || f.barred >= 4 {
-                return;
-            }
-        }
-        let (start, dest, side) = {
-            let f = &self.fighters[i];
-            (f.pos(), Pos::new(f.target.0, f.target.1), f.side)
-        };
-
-        let mut grid = Grid::open();
-        for (c, blocked) in self.blocked.iter().enumerate() {
-            if *blocked {
-                grid.blocked[c] = true;
-            }
-        }
-        // Only *friendly* figures are marked. Enemies are deliberately left
-        // out: the original routes straight through them and leaves contact to
-        // the mover.
-        for (c, occ) in self.occupant.iter().enumerate() {
-            if let Some(o) = occ {
-                if self.fighters[*o as usize].side == side && *o as usize != i {
-                    grid.occupied[c] = true;
-                }
-            }
-        }
-
-        let search = pathfind::search(&grid, start, dest);
-        let f = &mut self.fighters[i];
-        f.hold = 64;
-        f.reroutes = f.reroutes.saturating_add(1);
-        match search.outcome {
-            Outcome::Found => {
-                let mut path = pathfind::extract(&grid, &search, start, dest);
-                path.reverse(); // consumed from the end
-                if path.is_empty() {
-                    f.barred = f.barred.saturating_add(1);
-                } else {
-                    f.path = path;
-                    f.barred = 0;
-                }
-            }
-            // **The line is clear and the figure still could not move**,
-            // means a comrade is standing in the one cell it wanted. This arm
-            // used to do nothing at all, and *nothing* is a deadlock: the
-            // figure retries the same taken step, frame after frame, with
-            // `barred` at 0 and an empty path, and nothing anywhere times it
-            // out. One figure does that invisibly. An army pressing a breach
-            // does it as a permanent jam — measured at 45 besiegers frozen in a
-            // block eight cells wide for 200,000 frames, every one `Walking`.
-            //
-            // The original has no such hole, because **`Path_LineIsClear` is
-            // not a predicate**: it seeds `g_pathCost` through
-            // `Path_BuildBlockedMap` — which marks friendly figures 998 — walks
-            // two greedy walkers that *rotate around* whatever is in the way,
-            // and **leaves the cost field behind**. `BattleMan_Step` then runs
-            // `Path_Extract` on it whether or not the flood fill ran, so the
-            // figure comes away with the walked route, comrade-avoiding
-            // detours and all. [`pathfind::Grid::walk_line`] is that walk, read
-            // out of `0x004710F2`.
-            //
-            // It is applied **only here** — where the straight line is clear
-            // and the step was refused anyway —
-            // position in which the two readings differ. A figure that is not
-            // blocked never asks for a path at all.
-            Outcome::NoSearchNeeded => {
-                if let Some(cost) = grid.walk_line(start, dest) {
-                    let walked = pathfind::Search { outcome: Outcome::Found, cost };
-                    let mut path = pathfind::extract(&grid, &walked, start, dest);
-                    path.reverse();
-                    let f = &mut self.fighters[i];
-                    if !path.is_empty() {
-                        f.path = path;
-                        f.barred = 0;
-                    }
-                }
-            }
-            Outcome::Unreachable => f.barred = f.barred.saturating_add(1),
-        }
-    }
 
     // -- fire, oil and the tower --------------------------------------------
 
