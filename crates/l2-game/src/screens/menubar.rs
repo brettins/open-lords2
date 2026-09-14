@@ -168,9 +168,10 @@
 //!   `Ui_OpenConfirm` in the original — prompts 1 and 0 of `L2.eng` group 10 —
 //!   and screen `0x1E` is not built. New Game is refused with a status line and
 //!   Quit leaves at once; both say so below.
-//! * **The five help topics enqueue nothing.** `Menu_HelpHowDoI` and its four
+//! * **The five help topics go on the message ring.** `Menu_HelpHowDoI` and its four
 //!   siblings are `Msg_Enqueue(…, 0x123 … 0x127, …)`, five consecutive message
-//!   ids, and we have no message scroll. They are recorded and refused.
+//!   ids, category 0x13, and they now go on the ring: the window is drawn by
+//!   the notice layout, not yet by g_helpWindowGeom (0x004D6EB8).
 
 use l2_view::{text, Canvas};
 
@@ -447,7 +448,7 @@ impl DropdownScreen {
     /// it, so a handler that sets a screen id wins and one that does not leaves
     /// the player where he was. `Transition::Pop` first is that ordering; a
     /// `Push` on top of the pop is a handler that moved.
-    fn run(&mut self, _ctx: &mut Ctx, item: Item) -> Transition {
+    fn run(&mut self, ctx: &mut Ctx, item: Item) -> Transition {
         match item {
             // `Menu_NewGame`: `Ui_OpenConfirm(1, …)` — group 10 index 1. Screen
             // 0x1E is not built, so this is refused.
@@ -475,11 +476,29 @@ impl DropdownScreen {
                 self.status = format!("{what} IS ON THE ADVANCED PAGE - NO SPINNER (SCREEN 0x21)");
                 Transition::Stay
             }
-            // Five consecutive message ids, 0x123 … 0x127, through `Msg_Enqueue`.
+            // `Menu_HelpHowDoI` (`0x0043480C`) and its four siblings, read
+            // whole: `Msg_Enqueue(0, g_localPlayer, 0x123, 0, 0x13, 0, 0, 0);
+            // g_screenId = g_menuPrevScreen;`. Five consecutive ids, 0x123 …
+            // 0x127, all category `0x13` — [`crate::message::category::HELP`],
+            // whose window geometry is `g_helpWindowGeom` (`0x004D6EB8`). The
+            // topic goes on the ring and the menu closes behind it.
             // arm: 0x0040DECA/help-topics left-press
             Item::Help(id) => {
-                self.status = format!("HELP MESSAGE 0x{id:03X} NEEDS THE MESSAGE SCROLL");
-                Transition::Stay
+                let player = ctx.game.player;
+                ctx.game.messages.enqueue(
+                    crate::message::Record {
+                        to: player,
+                        from: 0,
+                        group: id as u16,
+                        variant: 0,
+                        category: crate::message::category::HELP,
+                        county: 0,
+                        spare: 0,
+                        payload: 0,
+                    },
+                    player,
+                );
+                Transition::Pop
             }
             // arm: 0x0040DECA/help-about left-press
             Item::About => Transition::Replace(ScreenId::About),

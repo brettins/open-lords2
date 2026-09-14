@@ -113,6 +113,40 @@ fn the_options_menu_reaches_the_four_option_screens() {
     }
 }
 
+/// **Help > *"How do I…"* and its four siblings put a help message on the
+/// ring**, which is what `Menu_HelpHowDoI` (`0x0043480C`) does:
+/// `Msg_Enqueue(0, g_localPlayer, 0x123, 0, 0x13, 0, 0, 0)` then
+/// `g_screenId = g_menuPrevScreen`. Five consecutive ids, `0x123` … `0x127`,
+/// all category `0x13`.
+///
+/// **`l2help.hlp` is a different mechanism and is out of scope.** The only
+/// `WinHelpA` in the interface is `Opt_GameHelpContents` (`0x00434942`) on the
+/// help-options page, and a `winit` window cannot open a Windows 3.1 help
+/// file. These five are `L2.eng`, not the help file.
+///
+/// **Ablation, run:** return `Transition::Stay` without the enqueue and the
+/// ring stays empty.
+#[test]
+fn the_five_help_topics_put_their_message_on_the_ring() {
+    let (mut game, assets) = world!();
+    let titles = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        menubar::titles(&ctx)
+    };
+    for (row, id) in (1..=5usize).zip(0x123u16..=0x127) {
+        let mut m = Machine::new(ScreenId::Campaign);
+        send_stack(&mut m, &mut game, &assets, Event::Click { x: titles[2].x + 2, y: 10 });
+        assert_eq!(m.top_id(), Some(ScreenId::MenuBar(2)), "the Help menu is open");
+        let r = menubar::item_rect(&titles, 2, row);
+        send_stack(&mut m, &mut game, &assets, Event::Click { x: r.x + 4, y: r.y + 4 });
+        assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the menu closed behind it");
+        let posted = *game.messages.waiting().last().expect("a help message");
+        assert_eq!(posted.group, id);
+        assert_eq!(posted.category, l2_game::message::category::HELP);
+        assert_eq!(posted.to, game.player);
+    }
+}
+
 /// **The menu bar's shields are the realms still to move.**
 ///
 /// A player: *"I think in the original game the shield icons at the top meant
