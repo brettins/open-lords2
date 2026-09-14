@@ -7,7 +7,7 @@
 //! # Why this file exists
 //!
 //! Everything else in this workspace checks either a set of **names** or a
-//! block of **static data**. `crates/l2-game/tests/arms.rs` asserts set
+//! block of **static data**. `crates/l2-game/tests/arms/main.rs` asserts set
 //! equality between `docs/arms.json` and the `// arm:` markers in the source.
 //! `crates/l2-sim/tests/oracle.rs` opens `Lords2.exe` at its fixed `0x400000`
 //! base and compares three battle tables byte for byte — a real oracle, and a

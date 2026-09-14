@@ -65,7 +65,7 @@ pub(super) const BLACKSMITH_OK: Rect = Rect::new(0x1C0, 0x1C0, system::OK_DIM, s
 /// `FUN_0043A950`, which publishes `g_uiHotspotId` (0…5) and calls
 /// `FUN_0043A997(g_selectedCounty, id)`. Read out of the player's own exe by
 /// `node tools/oracle/widgets.js widgets 4dca10 6`; asserted against it in
-/// `crates/l2-game/tests/arms.rs`.
+/// `crates/l2-game/tests/arms/main.rs`.
 pub const WEAPON_HOTSPOTS: [(i32, i32, i32, i32); l2_kingdom::tables::WEAPON_TYPE_COUNT] = [
     (354, 10, 479, 97),  // 0 crossbow
     (296, 63, 354, 198), // 1 mace

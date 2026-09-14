@@ -485,7 +485,7 @@ fn a_kind_three_box_answers_the_release_wherever_the_press_was() {
 /// apart by somebody editing one of them.
 ///
 /// The five words are also checked against the closed vocabulary in
-/// `crates/l2-game/tests/arms.rs`; this is the third artefact of the three, and
+/// `crates/l2-game/tests/arms/main.rs`; this is the third artefact of the three, and
 /// the one the compiler can reach.
 #[test]
 fn every_kinds_gesture_word_is_the_inventorys() {

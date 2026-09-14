@@ -127,7 +127,7 @@ pub const HELD_PULSE_MS: u32 = 320;
 ///
 /// `arm!("0x00437AFB/divide-confirm", Delayed)` *is* `Kind::Delayed` — it
 /// expands to nothing else — and it is also the `docs/arms.json` marker for
-/// that arm. `crates/l2-game/tests/arms.rs` reads the id out of the first
+/// that arm. `crates/l2-game/tests/arms/main.rs` reads the id out of the first
 /// argument and the gesture out of the second, through [`Kind::gesture`],
 /// the word the marker claims and the kind the widget is answered with are
 /// the same identifier and cannot drift apart.

@@ -103,7 +103,7 @@ At `4ea2669` plus this branch: **2,168 tests**, C1..C136 and three `CNEW` placeh
 870 citations, 1,293 functions and 573 globals named, `GATED_TOTAL` 369. All checks green.
 
 105: **And the standing gap those numbers do not show.** Three of our inventories are *checked*
-106: against the tree and the rest are prose. `crates/l2-game/tests/arms.rs` asserts set equality in
+106: against the tree and the rest are prose. `crates/l2-game/tests/arms/main.rs` asserts set equality in
 107: both directions between `docs/arms.json`'s `reproduced` records and the `// arm:` markers in
 `crates/`; `crates/l2-game/tests/sfx/main.rs` does the same for `docs/audio.json` and `// sfx:`, with
 `node tools/oracle/sounds.js --check` holding the *other* end of that file against the
@@ -163,7 +163,7 @@ the goal is not met — not "mostly met".
 
 1. **A player performs a gesture the original responds to and ours does not.** This is now
 countable: `docs/arms.json` is the inventory of the original's input
-   arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
+   arms and `crates/l2-game/tests/arms/main.rs` checks it against the code in both directions. Of the
    arms enumerated so far we reproduce **<!--fig:arms-reproduced-->225<!--/fig--> of
    <!--fig:arms-live-->252<!--/fig--> live arms (<!--fig:arms-pct-->89<!--/fig-->%)** — so
    **<!--fig:arms-missing-->27<!--/fig-->** gestures a player can make get no answer — with

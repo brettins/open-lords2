@@ -19,7 +19,7 @@ use crate::game::Game;
 /// Those four groups are the demo's *"Congratulations"* / *"Defeat"* posters and
 /// **nothing in the binary enqueues any of them** — `docs/formats/eng.md` marks
 /// all four dead. Building it would be a `dead-reproduced` arm, which
-/// `crates/l2-game/tests/arms.rs` asserts stays empty. `docs/arms.json` records
+/// `crates/l2-game/tests/arms/main.rs` asserts stays empty. `docs/arms.json` records
 /// it as `dead`.
 pub fn dismiss(game: &mut Game) -> Dismissal {
     if !game.messages.is_open() {

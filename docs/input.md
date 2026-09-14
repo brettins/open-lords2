@@ -19,7 +19,7 @@ All of it is one byte of one record, read by one of two functions.
 
 Everything below is **[V]** — decoded from `Lords2.exe` and, for the tables and the ramp,
 checked byte for byte against the player's own copy by install-gated tests
-(`crates/l2-game/tests/arms.rs`, `crates/l2-game/tests/press.rs`).
+(`crates/l2-game/tests/arms/main.rs`, `crates/l2-game/tests/press.rs`).
 
 ---
 
@@ -314,7 +314,7 @@ the original's 332 records. That is countable:
 
 Three, in rising order of what they can catch:
 
-1. **The vocabulary is closed** (`crates/l2-game/tests/arms.rs`). A new kind costs a
+1. **The vocabulary is closed** (`crates/l2-game/tests/arms/main.rs`). A new kind costs a
 decision. It also caught `button-0` … `button-5`: **fourteen
    records had been filing a *position in a table* in the field that holds a *kind*.**
 2. **The marker carries the gesture**, and the check is set equality on **(id, gesture)

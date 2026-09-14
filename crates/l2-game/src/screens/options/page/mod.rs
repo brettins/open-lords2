@@ -105,7 +105,7 @@ pub struct Row {
     /// of the twelve is **5**: `Widget_Test` shows the pressed picture on the
     /// press and runs the `Opt_Toggle*` handler **twenty frames later**, out
     /// of its countdown loop. `node tools/oracle/kinds.js` lists all twelve
-    /// under `widget 5`, and `crates/l2-game/tests/arms.rs` reads the byte out
+    /// under `widget 5`, and `crates/l2-game/tests/arms/main.rs` reads the byte out
     /// of the player's own `Lords2.exe`.
     ///
     /// Ours acted on the click until this field existed — the same defect a
