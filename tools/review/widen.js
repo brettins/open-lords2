@@ -15,8 +15,11 @@ for (let round = 0; round < 8; round++) {
   const text = (out.stdout || "") + (out.stderr || "");
   const names = new Set();
   for (const m of text.matchAll(/error\[E0624\]: (?:method|associated function) `(\w+)` is private/g)) names.add(["fn", m[1]]);
+  for (const m of text.matchAll(/error\[E0624\]: associated (?:constant|type) `(\w+)` is private/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E0603\]: (?:function|struct|enum|constant|type alias|module|static) `(\w+)` is private/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E0616\]: field `(\w+)` of struct `([\w:]+)` is private/g)) names.add(["field", m[2].split("::").pop() + "." + m[1]]);
+  // A struct literal naming private fields: every backticked name before "of struct".
+  for (const m of text.matchAll(/error\[E0451\]: fields? (.*?) of struct `([\w:]+)` (?:is|are) private/g)) for (const f of m[1].matchAll(/`(\w+)`/g)) names.add(["field", m[2].split("::").pop() + "." + f[1]]);
   // A submodule that kept the parent's `use` lines and got them again from the prelude:
   // the second copy goes (E0252 names the line).
   for (const m of text.matchAll(/^(crates[^:\n]+\.rs):(\d+):(\d+): error\[E0252\]: the name `(\w+)` is defined multiple times/gm)) names.add(["dupuse", m[1].replace(/\\/g, "/") + ":" + m[2] + ":" + m[3] + ":" + m[4]]);
@@ -48,9 +51,10 @@ for (let round = 0; round < 8; round++) {
   for (const [kind, name] of names) for (const f of files()) {
     if (kind === "dupuse" || kind === "deeper") continue;
     let s = fs.readFileSync(f, "utf8"), t = s;
-    if (kind === "fn") t = s.replace(new RegExp(`^(\\s*)fn ${name}\\b`, "m"), `$1pub(super) fn ${name}`);
-    else if (kind === "item") t = s.replace(new RegExp(`^(\\s*)(fn|struct|enum|const|type|static|mod|trait) ${name}\\b`, "m"), `$1pub(super) $2 ${name}`);
-    else { const [st, fld] = name.split("."); const i = s.search(new RegExp(`^(pub(\\([a-z]+\\))? )?struct ${st}\\b[^;{]*\\{`, "m")); if (i >= 0) { const end = s.indexOf("\n}", i); const body = s.slice(i, end).replace(new RegExp(`^(\\s{4})${fld}:`, "m"), `$1pub(super) ${fld}:`); t = s.slice(0, i) + body + s.slice(end); } }
+    // A name already pub(super) that rustc still calls private is used by a cousin: pub(crate).
+    if (kind === "fn") t = s.replace(new RegExp(`^(\\s*)(pub\\(super\\) )?fn ${name}\\b`, "m"), (m, ind, ps) => `${ind}${ps ? "pub(crate)" : "pub(super)"} fn ${name}`);
+    else if (kind === "item") t = s.replace(new RegExp(`^(\\s*)(pub\\(super\\) )?(fn|struct|enum|const|type|static|mod|trait) ${name}\\b`, "m"), (m, ind, ps, kw) => `${ind}${ps ? "pub(crate)" : "pub(super)"} ${kw} ${name}`);
+    else { const [st, fld] = name.split("."); const i = s.search(new RegExp(`^(pub(\\([a-z]+\\))? )?struct ${st}\\b[^;{]*\\{`, "m")); if (i >= 0) { const end = s.indexOf("\n}", i); const body = s.slice(i, end).replace(new RegExp(`^(\\s{4})(pub\\(super\\) )?${fld}:`, "m"), (m, ind, ps) => `${ind}${ps ? "pub(crate)" : "pub(super)"} ${fld}:`); t = s.slice(0, i) + body + s.slice(end); } }
     if (t !== s) { fs.writeFileSync(f, t); changed++; }
   }
   console.log(`widen: round ${round}, ${names.size} private name(s), ${changed} widened`);

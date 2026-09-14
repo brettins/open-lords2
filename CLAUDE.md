@@ -30,7 +30,9 @@ agent, so it stays short. Read the linked document before working in that area.
    carries findings, numbers and what you left alone. Density, never omission: keep every
    piece of evidence, drop the prose around it. `node tools/review/prose.js` lists the
    filler phrases; a post-edit hook cuts them from whatever you write, and losing a
-   clause is the accepted price. `docs/agents.md` *The prose pass*.
+   clause is the accepted price. `docs/agents.md` *The prose pass*. Files too: a test
+   file under 300 lines, a source under 500, a new file under 300; a post-edit hook says
+   when you are over, and `docs/agents.md` *File size* names the split script.
 
 ## Where to look
 

@@ -46,7 +46,7 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   // No boundary inside an item: every line takes the owner of the item start above it,
   // where an item starts at a depth-0 line or a depth-1 method/const line in an impl.
   // A `mod x { ... }` block is one unit: its items must stay together, in one file.
-  { let d = 0, cur = 1, inMod = false; for (let i = 1; i <= N; i++) { const l = lines[i - 1]; const code = l.replace(/\/\/.*$/, "").replace(/'(\\.|[^'\\])'/g, "''").replace(/"([^"\\]|\\.)*"/g, '""'); const top = d === 0 && /^\S/.test(l) && !/^}/.test(l); if (top) inMod = /^(pub(\([a-z]+\))? )?mod\b/.test(l); const starts = top || (d === 1 && !inMod && /^    (pub(\([a-z]+\))? )?(fn|const|type|static)\b/.test(l)); if (starts) cur = i; if (!(d === 0 && /^}/.test(l))) owner[i] = owner[cur]; d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
+  { let d = 0, cur = 1, inMod = false; for (let i = 1; i <= N; i++) { const l = lines[i - 1]; const code = l.replace(/\/\/.*$/, "").replace(/'(\\.|[^'\\])'/g, "''").replace(/"([^"\\]|\\.)*"/g, '""'); const top = d === 0 && /^\S/.test(l) && !/^[}\])]/.test(l); if (top) inMod = /^(pub(\([a-z]+\))? )?mod\b/.test(l); const starts = top || (d === 1 && !inMod && /^    (pub(\([a-z]+\))? )?(fn|const|type|static)\b/.test(l)); if (starts) cur = i; if (!(d === 0 && /^}/.test(l))) owner[i] = owner[cur]; d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
   // A doc comment or attribute belongs to the item under it: a boundary that falls
   // between them moves up so they travel together.
   for (let i = N - 1; i >= 1; i--) if (owner[i] !== owner[i + 1] && /^\s*(\/\/\/|\/\/!|#\[)/.test(lines[i - 1])) owner[i] = owner[i + 1];
@@ -89,13 +89,28 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   const decl = names.map(n => `mod ${n};\npub use ${n}::*;`).join("\n") + "\n";
   // The mod declarations go after the module doc (`//!` lines) and before the first item.
   if (!names.length) { console.error("split-llm: the plan put every line in mod; nothing to split"); process.exit(1); }
-  const docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && !/^#!\[/.test(l) && l.trim() !== "");
+  // The declarations go after the module doc, and after any `macro_rules!` the parts use:
+  // a macro by example is textually scoped, so it must precede the `mod x;` that needs it.
+  let docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && !/^#!\[/.test(l) && l.trim() !== "");
+  { let d = 0, inMacro = false; for (let i = 0; i < files.mod.length; i++) { const l = files.mod[i]; if (d === 0 && /^macro_rules!/.test(l)) inMacro = true; const code = l.replace(/\/\/.*$/, ""); d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; if (inMacro && d === 0) { inMacro = false; docEnd = Math.max(docEnd, i + 1); } } }
   // `use` lines the plan sent to a submodule still serve the items that stayed.
   const lost = uses.filter(u => !files.mod.includes(u) && !files.mod.includes("pub " + u));
   const modLines = files.mod.slice(); modLines.splice(docEnd < 0 ? 0 : docEnd, 0, "", decl, ...(lost.length ? [...lost, ""] : []));
-  fs.writeFileSync(path.join(root, modPath), modLines.join("\n").replace(/\n{3,}/g, "\n\n") + "\n");
-  for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), prelude(n) + files[n].join("\n") + "\n");
+  // A `mod x;` the file already had names a sibling at the old level (a test's `mod common;`).
+  if (!isModRs) for (let i = 0; i < modLines.length; i++) { const m = modLines[i].match(/^(pub(\([a-z]+\))? )?mod (\w+);$/); if (!m || names.includes(m[3]) || /#\[path/.test(modLines[i - 1] || "")) continue;
+    const up = path.join(root, path.dirname(file)); const rel = fs.existsSync(path.join(up, m[3] + ".rs")) ? `../${m[3]}.rs` : fs.existsSync(path.join(up, m[3], "mod.rs")) ? `../${m[3]}/mod.rs` : null;
+    if (rel) modLines.splice(i, 0, `#[path = "${rel}"]`), i++; }
+  // `#[path = "x.rs"]` inside a file that moved one directory deeper points one level up.
+  const deeper = s => isModRs ? s : s.replace(/^(\s*#\[path = ")(?!\.\.\/|\/)/gm, "$1../");
+  fs.writeFileSync(path.join(root, modPath), deeper(modLines.join("\n").replace(/\n{3,}/g, "\n\n")) + "\n");
+  for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), prelude(n) + deeper(files[n].join("\n")) + "\n");
   if (!isModRs) fs.unlinkSync(path.join(root, file));
+  // Any `#[path]` elsewhere in the crate that named the old file now names the new root.
+  if (!isModRs) { const crateDir = path.join(root, file.split("/").slice(0, 2).join("/")); const target = path.resolve(root, file);
+    const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { if (e.name !== "target") walk(p); } else if (e.name.endsWith(".rs")) {
+      const s = fs.readFileSync(p, "utf8"); const t = s.replace(/#\[path = "([^"]+)"\]/g, (m, rel) => path.resolve(path.dirname(p), rel) === target ? `#[path = "${path.relative(path.dirname(p), path.join(root, modPath)).replace(/\\/g, "/")}"]` : m);
+      if (t !== s) fs.writeFileSync(p, t); } } }; walk(crateDir); }
   console.log(`${String(files.mod.length + 2).padStart(6)} ${modPath}`); for (const n of names) console.log(`${String(files[n].length + 2).padStart(6)} ${dir}/${n}.rs`);
   console.log(`split-llm: ${names.length + 1} files from ${N} lines, every line kept (${j.usageMetadata?.totalTokenCount} tokens)`);
+  process.exit(0); // node 24 on Windows can assert in libuv while closing the fetch handle at exit
 })();
