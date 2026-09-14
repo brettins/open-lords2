@@ -28,7 +28,7 @@
 //!    unread. A Huffman tree read one bit wrong desynchronises every code after
 //! it and the decoder runs off the end of its chunk instead.
 //!    [`Decoder::video_bits`] and [`AudioChunk`] report both numbers so the
-//!    corpus test can demand it (`crates/l2-smk/tests/corpus.rs`).
+//!    corpus test can demand it (`crates/l2-smk/tests/corpus/main.rs`).
 //! 3. **An independent decoder agrees, pixel for pixel.** That comparison was
 //!    run once, outside the tree, against a black-box build of the LGPL crate —
 //!    its output compared, its source never opened — and its numbers are pinned

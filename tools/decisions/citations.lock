@@ -387,7 +387,7 @@ crates/l2-sim/tests/oracle.rs	C12	7ec839366322	bb0dd488f9d2
 crates/l2-sim/tests/oracle.rs	C17	0f5dbd453b42	b9aaae4e270c
 crates/l2-sim/tests/oracle.rs	C20	d336abeab0e5	0ec8eeb4f874
 crates/l2-sim/tests/siege/wall_damage.rs	C99	7fb125cdbfcd	b890db1f6d4a
-crates/l2-smk/tests/corpus.rs	C193	b934b9c1462b	ded1409ebea0
+crates/l2-smk/tests/corpus/main.rs	C193	b934b9c1462b	ded1409ebea0
 crates/l2-testkit/src/fixtures.rs	C1	365a5efbf069	6b7e8edb019e
 crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8	2e6270fa32a9
 crates/l2-testkit/tests/corrections_tool/corrections_tool_tests/main.rs	C1	22262a93ed54	6b7e8edb019e

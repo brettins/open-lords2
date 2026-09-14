@@ -8911,7 +8911,7 @@ linked: the decoder is ours, MIT, written from the format description. **What ma
 to believe is the method, and it is worth reusing:** the LGPL `smk` crate was built in the
 scratchpad and run as a **black box** — its API read off generated rustdoc, its source never
 opened, nothing committed — and its per-film hashes of every frame's pixels, palette and
-samples are pinned as literals in `crates/l2-smk/tests/corpus.rs`. A copyleft implementation
+samples are pinned as literals in `crates/l2-smk/tests/corpus/main.rs`. A copyleft implementation
 can be an oracle without being a source. D5a itself is left for the lead to close.
 
 ### `Msg_DrawWindow#16` and `#21` do not speak after the film
@@ -10364,7 +10364,7 @@ slews that deadline — the DirectSound path installs a `timeSetEvent` callback,
 `_TimerFunc@20`, which also reads `timeGetTime` — is not decidable from the call sites, and
 **it does not need to be**: measured over the install's 45 films, every sound track runs
 `frames × period` long to within **1 ms**, on films as long as 131 s. The audio buffer and
-the header's rate are the same clock. `crates/l2-smk/tests/corpus.rs`,
+the header's rate are the same clock. `crates/l2-smk/tests/corpus/main.rs`,
 `every_track_is_as_long_as_its_picture`.
 
 **Ours was neither.** `movie::Player` counts ticks of `TICK_MS` and converts, which is right
