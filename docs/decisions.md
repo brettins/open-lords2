@@ -12371,3 +12371,22 @@ Siege orders: Order_StopShortOfTarget 0x00497437 keeps range-3 per axis from the
 Floods and droughts were already built (Weather_UpdateAll 0x00449889, FUN_00469A9C writes 0x17/0x18, FUN_0046942C clears last season's ruin, cursor +0x15B saved at VERSION 27); the ledger row was stale; tests crates/l2-kingdom/tests/fields/blight.rs.
 
 The fought seam verdict (crates/l2-game/tests/seam/battle.rs) is held over eight seeds, the militia holding most (6 of 8 on main), after the side-step branch showed one seed is a coin flip. The side-step branch (FUN_004904EC, Path_DetourTooLong 0x00472227, BattleMen_SwapPlaces 0x0049005F, Fighter::delay) is held unmerged: with it the militia holds 2 of 8.
+---
+
+**C233 - Peasant mobs, battlefield plates, the new game's herd and labour, the side-step, adjacency in test worlds, the job panel's dirty marks, capture sound sites.**
+
+Peasant mob crossing a border: FUN_004ABD0F; owned county by happiness, under 10 letter 154 and a County_RaiseRevolt attempt, under 30 letter 155 and unrest 1 from 0, else 156; all Msg_Enqueue category 3; toll on re-read happiness, under 10 floors it, else minus 10 on both; unowned county byte only. crates/l2-kingdom/src/mob.rs, tests mob/tests.rs and mob/tick_tests.rs.
+
+Battlefield plates: FUN_00423530's two Ui_DrawNumberRight men counts at 0x1FA/0x24A, y 0x1A6, width 0x38; FUN_004238B8's banner plates (Misc_bat frame record.frame + troop type, bases 13/24/35 at DAT_004D31F0) and FUN_004239D5's per-banner men; the original draws no selection boxes (Ui_DrawRectOutline 0x00403CF4's only battle caller is Battlefield_DrawBand 0x0041298A, the drag band). Tests crates/l2-game/tests/battle_picture/plates.rs; docs/features.json battlefield-picture is done.
+
+New game herd: Game_SetupRealmsAndCounties FUN_0049BD99 ends each county with County_RecountFields 0x00469B8D and Herd_UpdateCrowding 0x0044D913; ours skipped both, so crowding stayed at County_Reset's 10 and the herd bred 109 against the save's 101. Unowned counties: County_Reset 0x00451150 closes each county with RecountFields, UpdateCrowding, Herd_LabourEstimate, Field_ReclaimEstimate, Labour_Allocate, Ration_Apply at its opening numbers; ported as Kingdom::reset_county_for_new_game (herd 67 as the save). Test a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one claim 4. Open: milkmaids 342 against 323 (ledger row labour-allocate-again-stale-ceiling: Ration_ApplyAll 0x0044BF04 passes g_seasonPrev and shadows herdEaten into +0x190, which Herd_SeasonTick 0x0044D60D subtracts).
+
+The side-step: FUN_004904EC (two walkers plus or minus 4 over five rounds, guarded by the live Chebyshev under 2), Path_DetourTooLong 0x00472227 (caps 0x14 field, 0x96 siege, times 5, only the human owner gives up), the same-unit wait, Fighter::delay from BattleMan_Step 0x0048F1DD's swap arm, onRoute cleared at the head of the blocked arm, BattleMan_NextPathDir 0x00491A34 one-cell steps. BattleMen_SwapPlaces 0x0049005F swaps in place and the original draws that jump, so the picture test excuses that pair. The fought seam verdict is held over eight seeds (the militia holds 4 of 8 with the branch). Open: the swap arm whole (ledger row swap-places-arm-whole).
+
+Test worlds: l2-testkit worlds.rs chain_neighbours! and isolated_counties!; thirteen shared builders gained adjacency by default; no test flipped.
+
+Job panel dirty marks: Gfx_MarkDirty 0x00452306 is a count plus a union rect, Gfx_Present 0x00452160 blits only when the count is positive; Panel_JobDetail 0x00412B33 marks all before drawing, Panel_JobBlacksmith 0x00413155 marks all last, FUN_00413526 marks the forge's 128 by 128 behind g_jobPanelJob == 8; the bottom clamp tests the width (a kept defect). crates/l2-game/src/screen/dirty.rs; JobScreen::update ticked the forge on every job, now only the blacksmith.
+
+Capture sound sites: Msg_DrawWindow#15 and #16 regraded reproduced in docs/audio.json (the capture letter posts since 8b8227c; test the_narrator_reads_a_capture_over_its_film_and_the_bed_starts_over_after_it). The capture film end to end: tests/movies/triggers/capture.rs.
+
+Mercenary offer voice: no mercenary letter exists; L2.eng group 16 is the raise-army screen's list; the S016 table's only caller is Sidebar_Button 0x0043AE30 hotspot 1, so the offer arriving is silent by design, and a message window up eats the sidebar click. Tests tests/audio_wiring/audio_controls_and_feedback/mercenary_offer_voice.rs.
