@@ -118,10 +118,29 @@ impl Settings {
             } else {
                 county.castle_type = self.castle_type;
             }
+            // `FUN_0049BD99`'s first loop closes on
+            // `County_RecountFields(county); Herd_UpdateCrowding(county);`
+            // (`0x00469B8D`, `0x0044D913`) — the row above has just replaced the
+            // herd, so the crowding level it is tended at is stale. Without this
+            // a county keeps `County_Reset`'s opening 10 into the opening
+            // `Herd_SeasonTick` and breeds at the *low*-crowding rate: the
+            // person's England county came out at 109 head against the save's
+            // 101, and only the AI's counties were right because
+            // `Ai_ManageFarmsAll` calls `Herd_UpdateCrowding` for its own.
+            // The recount is the binary's line and finds nothing to move on this
+            // path — the world came from a save with its fields already counted;
+            // ablating it alone leaves the suite green.
+            let map = &mut game.kingdom.campaign.map;
+            l2_kingdom::field::recount(&mut game.kingdom.counties[id], map);
+            l2_kingdom::field::herd_update_crowding(
+                &game.kingdom.tables,
+                &mut game.kingdom.counties[id],
+                map,
+            );
         }
 
         // **The starting garrison** — `FUN_0049BD99`'s `g_startArmySize` arm
-        // (`0x0049BF9E`), between the county-status row and the two food rounds:
+        // (`0x0049BF9E`)
         //
         // ```c
         // if (g_startArmySize != 0) {
