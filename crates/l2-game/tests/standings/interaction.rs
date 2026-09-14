@@ -3,7 +3,7 @@ use super::*;
 use super::scoring::*;
 use super::geometry::*;
 use l2_game::game::Assets;
-use l2_game::input::Event;
+use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::nobles::{self, NoblesScreen};
 use l2_game::Game;
@@ -137,24 +137,38 @@ fn each_tab_selects_its_own_category_and_speaks_it() {
 /// ladder — `Ui_OkButtonClicked` in the corner box, and a right release
 /// anywhere.
 ///
-/// The original sets `g_screenId = 0` — the map — and ours pops onto the court
-/// the button was pressed on. `docs/arms.json`
-/// `0x0042FF10/standings-ok` records the difference and why it is deliberate.
+/// Both write `g_screenId = 0` — **the map**, not the court the button was
+/// pressed on — so the court is unwound with the page:
+/// `Transition::Goto(Campaign)`, `docs/decisions.md` C190.
+///
+/// Ablation, run: answer either with `Transition::Pop` and the court is left
+/// standing, which is the defect this replaces.
 #[test]
-fn the_corner_picture_and_a_right_click_leave_the_page() {
+fn the_corner_picture_and_a_right_click_go_to_the_map() {
     let (mut game, assets) = bare_world();
 
     for (what, event) in [
         ("the corner picture", Event::Click { x: nobles::OK.x + 4, y: nobles::OK.y + 4 }),
         ("a right release", Event::RightClick { x: 320, y: 240 }),
+        ("escape", Event::KeyDown(Key::Escape)),
     ] {
         let mut m = Machine::new(ScreenId::Campaign);
         m.push(ScreenId::Court);
         m.push(ScreenId::Nobles);
         let mut c = Ctx { game: &mut game, assets: &assets };
         m.handle(event, &mut c);
-        assert_eq!(m.top_id(), Some(ScreenId::Court), "{what} leaves the page");
+        assert_eq!(m.ids(), vec![ScreenId::Campaign], "{what} goes to the map");
     }
+
+    // The court is thrown away even when the page was opened over nothing else
+    // — `Goto` builds the destination if it is not on the stack.
+    let mut m = Machine::new(ScreenId::Court);
+    m.push(ScreenId::Nobles);
+    {
+        let mut c = Ctx { game: &mut game, assets: &assets };
+        m.handle(Event::Click { x: nobles::OK.x + 4, y: nobles::OK.y + 4 }, &mut c);
+    }
+    assert_eq!(m.ids(), vec![ScreenId::Campaign], "the map is built if it was not open");
 
     // A left press anywhere that is not the corner box and not a tab keeps it
     // up: the arm consults `Ui_OkButtonClicked` and the tab table, nothing

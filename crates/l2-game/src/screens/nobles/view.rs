@@ -67,17 +67,24 @@ impl Screen for NoblesScreen {
                 ctx.game.nobles_spoken = ctx.game.nobles_spoken.wrapping_add(1);
                 Transition::Stay
             }
-            // `Ui_OkButtonClicked()` — a left release in the 24 x 24 corner
-            // box. The original goes to the map; we pop, which lands on the
-            // court the button was pressed on. See the module docs.
+            // `Ui_OkButtonClicked()` (`0x0040E7E4`) — a left release in the
+            // 24 x 24 corner box — then `g_screenId = 0`: **the map**, not the
+            // court the button was pressed on, so the court goes with it.
+            // `docs/decisions.md` C190's `Goto` is that destination.
             // arm: 0x0042FF10/standings-ok left-release
-            Event::Click { x, y } if OK.contains(x, y) => Transition::Pop,
-            // `g_mouseRightReleased`, anywhere, tested before the OK.
+            Event::Click { x, y } if OK.contains(x, y) => {
+                Transition::Goto(ScreenId::Campaign)
+            }
+            // `g_mouseRightReleased`, anywhere, tested before the OK — and it
+            // writes the same `g_screenId = 0`.
             // arm: 0x0042FF10/standings-right right-release
-            Event::RightClick { .. } => Transition::Pop,
-            // **Ours**: the arm has no keyboard test.
+            Event::RightClick { .. } => Transition::Goto(ScreenId::Campaign),
+            // **Ours**: the arm has no keyboard test. It stands in for the
+            // corner picture, so it leaves where the corner picture leaves.
             // arm: ours/standings-keyboard-close key
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
+            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => {
+                Transition::Goto(ScreenId::Campaign)
+            }
             _ => Transition::Stay,
         }
     }

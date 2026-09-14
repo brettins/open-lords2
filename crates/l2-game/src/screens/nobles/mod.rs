@@ -11,7 +11,7 @@
 //! line of text naming the category and whoever leads it.
 //!
 //! The player's report was *"I can't click the Greatest Nobles button in the
-//! treasury view"*, and the button was not the defect: `court.rs` answered it
+//! treasury view"*
 //! with `Transition::Stay` because there was nothing to go to.
 //!
 //! # The painter, address by address
@@ -43,7 +43,7 @@
 //! ```
 //!
 //! **`Screen_DrawWidgets` has no `0x20` arm** — checked across all of its arms
-//! — so this painter is the whole of the screen, and the seven tabs are drawn
+//! — so this painter is the whole of the screen
 //! by `grtnoble.pl8` itself.
 //!
 //! # `flags.pl8` has **six** frames
@@ -75,7 +75,7 @@
 //! 0x4F6` returns a flat 2 for every realm, which makes every bar equal, which
 //! makes the line read *"Greatest noble, undecided."* until 1270. And
 //! **category 1 reads a byte**: `+0x4C` is the finished-castle count
-//! `Castle_BuildTick` (`0x004508DE`) writes, and the original truncates it, so
+//! `Castle_BuildTick` (`0x004508DE`) writes
 //! a 256th castle would read as none. Reproduced, in [`value`].
 //!
 //! # The ranking — `FUN_00415BDC` (`0x00415BDC`)
@@ -90,7 +90,7 @@
 //! else           { pct[r] = 50 for every in-play realm; }
 //! ```
 //!
-//! **`best <= v`, not `<`** — so a tie for the lead is won by the **highest
+//! **`best <= v`
 //! realm index**, and with every value zero the leader is realm 5. It never
 //! shows, because the same function then calls the category undecided; it is
 //! reproduced anyway, because [`Standings::leader`] is what the line would
@@ -103,7 +103,7 @@
 //!
 //! # The seven tabs — `Hotspot_Test(0, 0, &g_nobleTabs, 7)`
 //!
-//! `Screen_HandleInput`'s `0x20` arm, and the only widget pass this screen
+//! `Screen_HandleInput`'s `0x20` arm
 //! has. The table is at `0x004DC890`, seven 24-byte records read out of
 //! `Lords2.exe`:
 //!
@@ -119,17 +119,19 @@
 //! category, repaints, and **speaks its own name**: `S035_01.wav` …
 //! `S035_07.wav`, the files named after the `L2.eng` group this screen draws.
 //!
-//! # The way out, and the way in
+//! # The way out
 //!
 //! `Screen_FrameInput`'s `0x20` arm is the county panels' shape exactly: a
 //! turn ending under it force-closes it, otherwise a right release anywhere or
-//! `Ui_OkButtonClicked` in the corner box sets `g_screenId = 0`. So it closes
-//! to the **map**, not to the court — but our stack pops, and popping lands on
-//! the court, which is a divergence and is recorded as one. The original has
-//! one byte; we have a stack, and `docs/decisions.md` C190's `Goto` exists for
-//! exactly this. It is deliberately not used: the court is where the button
-//! was, and the original's `g_screenId = 0` throws it away only because it has
-//! nowhere to keep it.
+//! `Ui_OkButtonClicked` (`0x0040E7E4`) in the corner box sets `g_screenId = 0`.
+//! `0` is the **map**. The court that raised the page is unwound with it.
+//! `[V]`, both exits write the same byte.
+//!
+//! That is `docs/decisions.md` C190's `Transition::Goto(Campaign)` — *go to
+//! screen X, unwinding the stack*. C190 built it and does not forbid it; what
+//! it warns against is `Goto` where the byte means "come back where you were",
+//! and this arm names a screen instead. Ours popped onto the court, which was
+//! filed as deliberate and is now the behaviour the original does not have.
 //!
 //! The way in is `FUN_004351C4` (`0x004351C4`), the court's one widget:
 //!
@@ -182,7 +184,7 @@ pub const CATEGORIES: usize = 7;
 /// The full-screen page and its palette.
 pub const BACKGROUND: &str = "Grtnoble.pl8";
 pub const PALETTE: &str = "Grtnoble.256";
-/// The banners, and the tab marker. Six frames: 0…4 are 51 × 92 and frame
+/// The banners. Six frames: 0…4 are 51 × 92 and frame
 /// [`MARKER_FRAME`] is 23 × 60.
 pub const FLAGS: &str = "Flags.pl8";
 pub const MARKER_FRAME: usize = 5;
@@ -215,7 +217,7 @@ pub const PIXELS_PER_PERCENT: i32 = 2;
 /// What [`rank`] writes into every in-play realm when the category is level.
 pub const LEVEL_BAR_PCT: i32 = 50;
 
-/// `Eng_DrawString(35, category, 0x148, 0x1BE, body)`, and the name two pixels
+/// `Eng_DrawString(35, category, 0x148, 0x1BE, body)`
 /// past where it ended — `g_penAdvance + 0x14A` against a label at `0x148`.
 pub const LINE_AT: (i32, i32) = (0x148, 0x1BE);
 pub const NAME_DX: i32 = 0x14A - 0x148;
@@ -283,7 +285,7 @@ pub struct Standings {
 ///
 /// Every field it writes — `+0x2B` the rank, `+0x50` the score, `+0x29`,
 /// `+0x10`, `+0x14`, `+0x0C`, `+0x58`, `+0x60`, `+0x2C`, `+0x54` — is on
-/// [`l2_kingdom::Realm`], and the digest is `Canonical::hash_of(kingdom)`. So
+/// [`l2_kingdom::Realm`]
 /// **opening a scoreboard changes the world**, and it changes it only where
 /// the totals had gone stale since the last AI turn: run twice over an
 /// unchanged kingdom it is idempotent, and run after a county has changed
