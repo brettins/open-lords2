@@ -116,7 +116,7 @@ fn is_entry_id(s: &str) -> bool {
 /// Parsed from the source, so that the two lists are joined
 /// by *text* — code that compiles is not evidence that two documents agree.
 fn quirk_variants(root: &Path) -> Vec<(String, String)> {
-    let src = read(root, "crates/l2-net/src/quirks.rs");
+    let src = read(root, "crates/l2-net/src/quirks/mod.rs");
     let body = src
         .split("pub const fn entry(self) -> &'static str {")
         .nth(1)
@@ -422,7 +422,7 @@ fn every_switch_is_read_by_the_simulation() {
         let read_by: Vec<&str> = files
             .iter()
             .filter(|(path, text)| {
-                path != "crates/l2-net/src/quirks.rs"
+                path != "crates/l2-net/src/quirks/mod.rs"
                     && !path.contains("/tests/")
                     && text.contains(&needle)
                     // Only the *reading* side counts. A `match` arm inside a
