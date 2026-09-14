@@ -9,7 +9,7 @@ use crate::transport::{frame, FrameReader, PeerId, Transport, TransportError};
 
 /// One connection, and everything half-delivered in either direction.
 #[derive(Debug)]
-struct Connection {
+pub(super) struct Connection {
     id: PeerId,
     stream: TcpStream,
     /// Inbound reassembly. The tested one; see [`FrameReader`].

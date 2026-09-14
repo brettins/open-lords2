@@ -109,7 +109,7 @@ pub fn largest_castle_affordable(ladder: &[i32; AI_CASTLE_LADDER_LEN], gold: i32
 /// independent confirmation that `+0x1D4` is wood and `+0x1D0` stone: the two
 /// tests are keyed on industry slots 0 and 3, which `Industry_Produce` fixes as
 /// wood and stone. `[V]`
-fn castle_allows(slot: usize, county: &County) -> bool {
+pub(super) fn castle_allows(slot: usize, county: &County) -> bool {
     use crate::tables::Commodity;
     match slot {
         s if s == Commodity::Wood as usize => county.castle_wood_owed > 0,

@@ -8,13 +8,13 @@ use types::*;
 ///
 /// Deliberately minimal and dependency-free: this crate has no third-party
 /// dependencies and a save reader is no reason to acquire one.
-struct Pe<'a> {
+pub(super) struct Pe<'a> {
     bytes: &'a [u8],
     sections: Vec<(u32, u32, u32, u32)>, // vaddr, vsize, rawptr, rawsize
 }
 
 impl<'a> Pe<'a> {
-    fn parse(bytes: &'a [u8]) -> Result<Pe<'a>, SaveError> {
+    pub(super) fn parse(bytes: &'a [u8]) -> Result<Pe<'a>, SaveError> {
         let pe_off = read_u32(bytes, 0x3C).ok_or(SaveError::NotPe)? as usize;
         if read_u32(bytes, pe_off) != Some(0x0000_4550) {
             return Err(SaveError::NotPe);
@@ -41,7 +41,7 @@ impl<'a> Pe<'a> {
         None
     }
 
-    fn u32_at(&self, va: u32) -> Option<u32> {
+    pub(super) fn u32_at(&self, va: u32) -> Option<u32> {
         read_u32(self.bytes, self.offset(va)?)
     }
 }

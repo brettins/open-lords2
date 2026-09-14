@@ -116,14 +116,14 @@ impl AiField {
         f
     }
 
-    fn surface_at(&self, x: i32, y: i32) -> Option<u8> {
+    pub(super) fn surface_at(&self, x: i32, y: i32) -> Option<u8> {
         if !(0..DIM as i32).contains(&x) || !(0..DIM as i32).contains(&y) {
             return None;
         }
         self.surface.get(y as usize * DIM + x as usize).copied()
     }
 
-    fn elevation_at(&self, x: i32, y: i32) -> u8 {
+    pub(super) fn elevation_at(&self, x: i32, y: i32) -> u8 {
         if !(0..DIM as i32).contains(&x) || !(0..DIM as i32).contains(&y) {
             return 0;
         }
@@ -293,19 +293,19 @@ pub struct Ai {
 
     // --- per-handler rotations. Module statics in the original, so they are
     // shared by every unit that runs that handler, not per unit. ---
-    rot_missile3: i32,
-    rot_missile16: i32,
-    rot_missile_objective: i32,
-    tick_missile: i32,
-    rot_foot3: i32,
-    tick_foot: i32,
-    rot_melee6: i32,
-    rot_knight3: i32,
-    wall_slot_cursor: usize,
-    inner_slot_cursor: usize,
+    pub(super) rot_missile3: i32,
+    pub(super) rot_missile16: i32,
+    pub(super) rot_missile_objective: i32,
+    pub(super) tick_missile: i32,
+    pub(super) rot_foot3: i32,
+    pub(super) tick_foot: i32,
+    pub(super) rot_melee6: i32,
+    pub(super) rot_knight3: i32,
+    pub(super) wall_slot_cursor: usize,
+    pub(super) inner_slot_cursor: usize,
     /// `Siege_ClaimDefencePost`'s claims, parallel to
     /// [`AiField::defence_posts`].
-    defence_post_owner: [u16; 20],
+    pub(super) defence_post_owner: [u16; 20],
 
     /// What each unit last decided, for tests and for a debug panel. Index 0 is
     /// the unused slot.
@@ -414,7 +414,7 @@ impl Ai {
         }
     }
 
-    fn record(&mut self, unit: usize, action: Action) {
+    pub(super) fn record(&mut self, unit: usize, action: Action) {
         self.last_action[unit] = action;
     }
 }

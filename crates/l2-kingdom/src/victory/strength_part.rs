@@ -112,7 +112,7 @@ pub fn recount_strength(
 }
 
 /// Realm `+0x159`, wrapping at 4. `docs/diplomacy.md` §0.
-fn advance_voice(realm: &mut Realm) {
+pub(super) fn advance_voice(realm: &mut Realm) {
     realm.voice_rotation += 1;
     if realm.voice_rotation > 3 {
         realm.voice_rotation = 0;

@@ -42,7 +42,7 @@ impl Grid {
 
     /// A step is allowed when the two cells differ by at most one level, unless
     /// the destination is exactly 5 — the same rule movement uses.
-    fn step_allowed(&self, from: usize, to: usize) -> bool {
+    pub(super) fn step_allowed(&self, from: usize, to: usize) -> bool {
         let (a, b) = (self.elevation[from] as i32, self.elevation[to] as i32);
         (b - a).abs() <= 1 || b == 5
     }
