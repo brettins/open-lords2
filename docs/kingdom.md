@@ -1029,7 +1029,7 @@ half-edges.
 
 **And a player has since confirmed it from memory: cut-off counties do secede in play.**
 That moves the mechanic from unanchored to corroborated and it is why
-`crates/l2-kingdom/src/territory.rs` exists.
+`crates/l2-kingdom/src/territory/mod.rs` exists.
 1033: now is — *the code, two `L2.eng` strings, and one person's recollection*. It is not a
 reproduction against a save, and until a fixture exists in which some realm holds two
 counties there is nothing here that could become one.
@@ -1048,7 +1048,7 @@ that also neighbours block B leaves A and B separate for that sweep. That is exa
 only when a whole sweep extended nothing. Run to a fixpoint it agrees with the components;
 run once it does not.
 
-`crates/l2-kingdom/src/territory.rs` reproduces all of it and
+`crates/l2-kingdom/src/territory/mod.rs` reproduces all of it and
 `crates/l2-kingdom/tests/secession.rs` is the pass through the season pipeline. It is
 1053: [`Pass::SecedeIsolatedCounties`], between the unrest counter and the field recount, which is
 where the call list puts it.

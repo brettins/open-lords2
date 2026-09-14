@@ -286,7 +286,7 @@ crates/l2-kingdom/src/tables/mod.rs	C11	dd0ab25a802a	07dfad15821c
 crates/l2-kingdom/src/tax/mod.rs	C149	7ceb97ebaf2f	138117948441
 crates/l2-kingdom/src/tax/mod.rs	C26	03649751764a	e8179d1f76a8
 crates/l2-kingdom/src/tax/mod.rs	C26	2b481fbbd074	e8179d1f76a8
-crates/l2-kingdom/src/territory.rs	C34	bb48e016877c	be3b535841d7
+crates/l2-kingdom/src/territory/mod.rs	C34	bb48e016877c	be3b535841d7
 crates/l2-kingdom/src/trade/mod.rs	C149	8e38e2fb84cc	138117948441
 crates/l2-kingdom/src/trade/mod.rs	C149	9f99d2db016e	138117948441
 crates/l2-kingdom/src/unit/mod.rs	C134	fd68bb3094c3	d12cd2f96f79

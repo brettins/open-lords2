@@ -278,7 +278,7 @@ of the population, and hands the county to `County_MakeIndependent`.
   empire …"* and 128 *"Your lands divide."* It changes what conquest is worth in both
   directions: taking the county that *bridges* an enemy's territory costs him the far half
   for free, and a county taken behind his lines cannot be held. Implemented in
-  `crates/l2-kingdom/src/territory.rs` as `Pass::SecedeIsolatedCounties`;
+  `crates/l2-kingdom/src/territory/mod.rs` as `Pass::SecedeIsolatedCounties`;
   `docs/kingdom.md` §6.1 and `docs/rules.md` §5a.
 
   **It still has no data-side oracle.** Every realm in every fixture holds exactly one
