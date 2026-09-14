@@ -1089,7 +1089,7 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
         // name in the census and three fields in the digest, so `free` could
         // have been added and hashed by nobody with this test green — which is
         // exactly C39's failure, one level down.
-        ("src/movement.rs", "Progress", 3),
+        ("src/movement/mod.rs", "Progress", 3),
     ] {
         let src = std::fs::read_to_string(root.join(file)).expect(file);
         let fields = fields_of(&src, want);
