@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-pub(crate) const GATED_TOTAL: usize = 581;
 
 /// The workspace root, from this crate's manifest.
 pub(crate) fn repo_root() -> PathBuf {
@@ -111,17 +110,42 @@ pub(crate) fn scan() -> BTreeMap<(String, &'static str), usize> {
         // in a `tests/` directory pulls in `common/mod.rs`, which is where
         // `tests/screens_*.rs` keep the `world!()` that carries their gate. Read
         // it into the preamble, or the census loses every test behind it.
-        let mods: Vec<String> = preamble
-            .lines()
-            .filter_map(|l| l.trim().strip_prefix("mod ")?.strip_suffix(';').map(str::to_string))
-            .collect();
-        for name in mods {
-            let dir = path.parent().unwrap_or(&root);
-            for cand in [dir.join(&name).join("mod.rs"), dir.join(format!("{name}.rs"))] {
-                if let Ok(extra) = std::fs::read_to_string(&cand) {
-                    preamble.push('\n');
-                    preamble.push_str(&extra);
-                }
+        // **A split target's part reads its root's macros through `use super::*`.**
+        // Every `main.rs` or `mod.rs` between the file and `tests/` joins the preamble,
+        // and each of those roots names sibling modules of its own.
+        let mut roots: Vec<(PathBuf, String)> = Vec::new();
+        let mut dir = path.parent();
+        while let Some(d) = dir {
+            if d.file_name().is_some_and(|n| n == "tests") || !relative(&root, d).contains("/tests") { break; }
+            for n in ["main.rs", "mod.rs"] {
+                let cand = d.join(n);
+                if cand != path { if let Ok(t) = std::fs::read_to_string(&cand) { roots.push((d.to_path_buf(), t)); } }
+            }
+            dir = d.parent();
+        }
+        // A `#[path = "..."]` above the declaration names the file outright.
+        let mods_of = |text: &str| -> Vec<String> {
+            let mut out = Vec::new();
+            let mut at: Option<String> = None;
+            for l in text.lines() {
+                let l = l.trim();
+                if let Some(rest) = l.strip_prefix("#[path = \"") { at = rest.split('"').next().map(str::to_string); continue; }
+                if let Some(name) = l.strip_prefix("mod ").and_then(|r| r.strip_suffix(';')) {
+                    match at.take() { Some(p) => out.push(p), None => { out.push(format!("{name}/mod.rs")); out.push(format!("{name}.rs")); } }
+                } else if !l.starts_with("#[") { at = None; }
+            }
+            out
+        };
+        let mut wanted: Vec<PathBuf> = mods_of(&preamble).into_iter().map(|m| path.parent().unwrap_or(&root).join(m)).collect();
+        for (dir, text) in roots {
+            wanted.extend(mods_of(&text).into_iter().map(|m| dir.join(m)));
+            preamble.push('\n');
+            preamble.push_str(&text);
+        }
+        for cand in wanted {
+            if let Ok(extra) = std::fs::read_to_string(&cand) {
+                preamble.push('\n');
+                preamble.push_str(&extra);
             }
         }
         // The gate can now sit entirely in the sibling module, so the cheap

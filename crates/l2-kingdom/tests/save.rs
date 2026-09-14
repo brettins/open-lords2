@@ -981,7 +981,7 @@ fn every_field_of_the_state_is_furnished() {
 /// they meet, which is the earliest a machine can know.
 #[test]
 fn the_version_is_ahead_of_its_own_changelog() {
-    let source = include_str!("../src/save/mod.rs");
+    let source = include_str!("../src/save/codec_part.rs");
     let head = source.split("pub const VERSION").next().expect("VERSION is declared");
     let mut entries: Vec<u32> = Vec::new();
     for line in head.lines() {

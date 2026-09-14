@@ -26,7 +26,7 @@
 //! So this crate does three things: it puts the search for an install in one
 //! place, it makes a fixture something you name and verify
 //! you happen to open, and it gives every gate a shape that
-//! [`tests/census.rs`](../../tests/census.rs) can count.
+//! [`tests/census.rs`](../../tests/census/main.rs) can count.
 //!
 //! # Two directories, two variables
 //!
