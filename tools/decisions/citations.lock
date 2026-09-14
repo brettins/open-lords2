@@ -101,12 +101,15 @@ crates/l2-game/src/screens/map/paint/units/helpers.rs	C21	d1c133d85cfc	f7bf29634
 crates/l2-game/src/screens/map/panel.rs	C48	5ed2d9912e7f	9e81512f4c0d
 crates/l2-game/src/screens/map/terrain.rs	C25	23e8c28769c0	5d466f0cb89c
 crates/l2-game/src/screens/map/units.rs	C57	9fd010b0fd49	3b42b65157bf
+crates/l2-game/src/screens/message/help.rs	C231	e3a7d4da418e	31b68af1513f
 crates/l2-game/src/screens/message/mod.rs	C126	15170181ab5e	1b2c97c7731a
 crates/l2-game/src/screens/message/render.rs	C189	83743da87d1f	a640e552a733
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28	37ab8ac1a2fc
-crates/l2-game/src/screens/nobles/mod.rs	C190	915c36f4ef8e	036491ce2ede
+crates/l2-game/src/screens/nobles/mod.rs	C190	cfedcfb49e29	036491ce2ede
+crates/l2-game/src/screens/nobles/mod.rs	C190	d87a0024efd1	036491ce2ede
+crates/l2-game/src/screens/nobles/view.rs	C190	1808d3cc58ab	036491ce2ede
 crates/l2-game/src/screens/options/mod.rs	C62	1fbae8c54322	ebb6a7ec3711
 crates/l2-game/src/screens/ratings/render.rs	C140	86ed189821f1	e3a1ede42a95
 crates/l2-game/src/screens/ratings/render.rs	C61	ca0d887d21ae	60611046b40d
@@ -208,6 +211,7 @@ crates/l2-game/tests/screens_village/render/render_tests.rs	C22	1d39d618c245	036
 crates/l2-game/tests/seam/realm.rs	C170	f927f45cf447	2bbb0887e7d4
 crates/l2-game/tests/shell/navigation.rs	C22	21e39e71ac79	0364b53a921d
 crates/l2-game/tests/siege_battle/main.rs	C35	b760daabde99	193a1920e229
+crates/l2-game/tests/standings/interaction.rs	C190	32b665bc7de6	036491ce2ede
 crates/l2-game/tests/standings/main.rs	C26	dfae3b8af92f	e8179d1f76a8
 crates/l2-game/tests/text/main.rs	C189	173208b2add6	a640e552a733
 crates/l2-game/tests/tips/tip_tests/audio_and_narration.rs	C166	594d57b2ba61	e426c5b6c94a
@@ -517,7 +521,7 @@ docs/arms.json	C139	86c8a3f81ef8	d11336df05e7
 docs/arms.json	C148	0f2eaac7e339	d3efa7d90685
 docs/arms.json	C148	1b0cadc06fdc	d3efa7d90685
 docs/arms.json	C148	fe435023f020	d3efa7d90685
-docs/arms.json	C190	772bd119bdcc	036491ce2ede
+docs/arms.json	C190	080c0b63c5f0	036491ce2ede
 docs/arms.json	C197	5430b8b9481d	e7abe71da733
 docs/arms.json	C61	39d63dd72f38	60611046b40d
 docs/arms.json	C61	470ac14e79ae	60611046b40d
@@ -753,6 +757,7 @@ docs/decisions.md	C184	b2af8a802fd4	68993561dc7c
 docs/decisions.md	C189	0b09be3d6777	a640e552a733
 docs/decisions.md	C189	cb3224233a9e	a640e552a733
 docs/decisions.md	C189	e6efefd0abf5	a640e552a733
+docs/decisions.md	C190	65241b563b76	036491ce2ede
 docs/decisions.md	C190	68f8ca643e9f	036491ce2ede
 docs/decisions.md	C192	de1973c3ff09	b39ebc129fac
 docs/decisions.md	C193	5a0fe55307ab	ded1409ebea0
