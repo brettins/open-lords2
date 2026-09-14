@@ -11,7 +11,6 @@ use super::*;
 use super::render_helpers::*;
 use super::*;
 use super::layout::*;
-use super::draw::*;
 use l2_kingdom::tables::{
     HEALTH_BAND_NAMES, JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT, RATION_NAMES,
 };

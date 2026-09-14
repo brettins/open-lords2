@@ -101,6 +101,8 @@
 
 mod main;
 pub use main::*;
+mod screen;
+pub use screen::*;
 mod compose;
 pub use compose::*;
 mod tests;
