@@ -165,7 +165,7 @@ crates/l2-game/tests/differential.rs	C170	fcf69e74c64c	2bbb0887e7d4
 crates/l2-game/tests/diplomacy.rs	C26	287743d8f84c	e8179d1f76a8
 crates/l2-game/tests/diplomacy.rs	C62	bcbec6054c4e	ebb6a7ec3711
 crates/l2-game/tests/ground/main.rs	C61	03aaaf89ad80	60611046b40d
-crates/l2-game/tests/industry.rs	C161	2e61d9d2d361	8b6af36909ef
+crates/l2-game/tests/industry/main.rs	C161	2e61d9d2d361	8b6af36909ef
 crates/l2-game/tests/labour_move/main.rs	C180	34491beeff6b	fea6f0ec7284
 crates/l2-game/tests/long_game.rs	C134	7b2b965b84f1	d12cd2f96f79
 crates/l2-game/tests/long_game.rs	C26	04b3dcfc382f	e8179d1f76a8

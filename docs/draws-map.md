@@ -861,7 +861,7 @@ That leaves these arms enumerated but not observed, and I have not inferred past
 * **the wrecked-industry animation** (arm 5c) — needs `Unit_TrampleTile` *and* three seasons
   of `disabledSeasons`;
 * ~~**the working-industry animation rates** (arm 5b) — needs four different output bands in
-  one county over time;~~ **Exercised.** `crates/l2-game/tests/industry.rs`.
+  one county over time;~~ **Exercised.** `crates/l2-game/tests/industry/main.rs`.
 
   866: **And the premise of this bullet was wrong.** It was
   written as *"every fixture is turn one, so only the idle appearance can be seen"*, from
