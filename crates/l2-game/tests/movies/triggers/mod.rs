@@ -4,6 +4,8 @@ mod startup;
 pub use startup::*;
 mod gameplay;
 pub use gameplay::*;
+mod capture;
+pub use capture::*;
 mod validation;
 pub use validation::*;
 

@@ -133,10 +133,10 @@ fn an_ending_with_animations_on_is_a_film_and_the_victory_after_it_is_another() 
 /// **The animated capture's rotation, `DAT_00553ED4`**: stepped before use, so
 /// the first capture of a session is `cap_cty2.smk`.
 ///
-/// **No player reaches this.** Nothing in this engine posts a category-`0x0D`
-/// letter — `County_ChangeOwner`'s nine are not built — so the record here is
-/// posted by hand, and `docs/audio.json` keeps its two sound sites `blocked`
-/// for exactly that reason.
+/// The record here is **posted by hand**, which is what keeps this test on the
+/// rotation alone. A player does reach it now — `l2_game::arrival::capture_record`
+/// posts the category-`0x0D` letter and `triggers::capture` walks an army onto a
+/// town to get one; `docs/audio.json` still keeps the two sound sites `blocked`.
 #[test]
 fn a_capture_letter_would_play_the_capture_films_in_rotation() {
     let a = Assets::placeholder();
