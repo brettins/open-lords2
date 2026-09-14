@@ -11203,7 +11203,7 @@ holding its last picture, and `Missile_UpdateAll`'s class-4 alternation of `+0x3
 is how fast debris falls and not what it looks like.
 
 **Nothing added is hashed.** Every line of this is in `l2-view`, which reads
-`BattleRunner` and writes a canvas; `crates/l2-game/tests/battle_picture.rs`'s
+`BattleRunner` and writes a canvas; `crates/l2-game/tests/battle_picture/main.rs`'s
 `painting_the_battlefield_with_its_artwork_does_not_change_the_battle` plays 1,500 ticks
 with and without painting and compares the saved bytes. The one piece of renderer state
 this could have introduced — the fire jitter counter — was kept out for that reason.
@@ -12049,7 +12049,7 @@ both seeds 100 at 40 v 20.
 
 **C221 — Save mid-battle is refused by decision; animations option answers five reads in four functions; a new game runs no phase-7 pass.**
 
-Mid-battle save is refused: `Menu_SaveGame` (`0x00433F49`) does not test `g_battlePhase`, so the original saves the fight. Encoding `LiveBattle` requires `BattleRunner`, `Battle`, `Battlefield`, `Vec<Fighter>`, `Units`, `Ai`, `AiField`, `Missiles`, `SiegeState` — 196 fields over 16 structs, 21 private to l2-sim, against 242 stored fields for kingdom and 1975 lines of kingdom encoder, far past the ~150 lines allowed. The refusal stands by decision. Player message: `saveload::BATTLE_REFUSAL` under group 40 index 4, "THE BATTLE IS NOT SAVED. FINISH IT, THEN SAVE." Assertion `saving_is_refused_while_a_battle_is_live` ablates the old wording red (crates/l2-game/tests/battle_picture.rs).
+Mid-battle save is refused: `Menu_SaveGame` (`0x00433F49`) does not test `g_battlePhase`, so the original saves the fight. Encoding `LiveBattle` requires `BattleRunner`, `Battle`, `Battlefield`, `Vec<Fighter>`, `Units`, `Ai`, `AiField`, `Missiles`, `SiegeState` — 196 fields over 16 structs, 21 private to l2-sim, against 242 stored fields for kingdom and 1975 lines of kingdom encoder, far past the ~150 lines allowed. The refusal stands by decision. Player message: `saveload::BATTLE_REFUSAL` under group 40 index 4, "THE BATTLE IS NOT SAVED. FINISH IT, THEN SAVE." Assertion `saving_is_refused_while_a_battle_is_live` ablates the old wording red (crates/l2-game/tests/battle_picture/main.rs).
 
 Animations option: five reads in four functions, each now tested. `Screen_BattleOutcome` (`0x00423241`) chooses the tall box with film recess (ablation `the_outcome_box_is_the_tall_one_only_when_animations_are_on` red, y band 48-144). `CastleBuild_Confirm` (`0x00436B59`) plays Castle1..5.smk over chooser. `Msg_DrawWindow` (`0x0047309E`) twice: capture films and ending films, each dismissing its letter (ablation `a_capture_letter_would_play_the_capture_films_in_rotation` off half red). `Battle_CheckOutcome` (`0x00477DFC`) plays outcome film. `Map_ClampScroll` (`0x00429B1D`) does not read the flag; doc now names the four. `docs/arms.json` 0x00434AD5/opt-animations note corrected.
 

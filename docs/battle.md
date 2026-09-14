@@ -1568,7 +1568,7 @@ and two faults survived it:
 
 Measured over a 42-figure battle, 1,200 ticks, ~7,000–9,000 walking figure-ticks
 (`no_drawn_man_ever_jumps_half_a_cell_in_one_tick`, in
-`crates/l2-game/tests/battle_picture.rs`): drawn jumps of 16 pixels or more went
+`crates/l2-game/tests/battle_picture/main.rs`): drawn jumps of 16 pixels or more went
 **1,317 → 504 → 324 → 0**. The 504 and the 324 are the same defect measured on
 two scenarios; the last step is the runner taking `BattleMan_Step`'s order, and
 the last fifteen of the 324 were figures engaged mid-crossing, which
