@@ -11435,7 +11435,7 @@ depth the battlefield sits and only while something is over it.
 mid-battle and gets the battle back. `crate::save` does not encode a
 `LiveBattle`, and `decode` writes `battle: None`, so ours would have written a
 file that quietly lost the fight a player was in the middle of.
-`crates/l2-game/src/save.rs` carried the sentence *"The original saves from the
+`crates/l2-game/src/save/mod.rs` carried the sentence *"The original saves from the
 campaign map and nowhere else"*, which is false and is now corrected in place.
 The save box refuses while a battle is live, through the `Status::Failed` path
 whose first line is the game's own — `Eng_DrawString(40, ERROR_INDEX)` — so a
