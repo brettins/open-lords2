@@ -586,7 +586,7 @@ because it stops anyone looking.
 **C23 — "The shipped save" was three words that hid a rolling autosave, and a test
 suite that passes identically whether or not it ran.**
 
-Nine tests in `crates/l2-formats/tests/save.rs` asserted one saved game's numbers against
+Nine tests in `crates/l2-formats/tests/save/main.rs` asserted one saved game's numbers against
 `lastturn.sav` *inside the game install*. That file is the **rolling autosave**: the game
 rewrites it every turn a human plays. Ten minutes of play replaced it and all nine went
 red at once, with bare assertion diffs that read like a broken reader.

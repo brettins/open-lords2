@@ -19,7 +19,7 @@ README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
 crates/l2-formats/src/save/mod.rs	C83	69ef8566a965	88ac11ea6de0
 crates/l2-formats/tests/battle_fixtures.rs	C23	24f9d69c852a	6ac2f322c3bd
-crates/l2-formats/tests/save.rs	C1	93f2edca7e60	6b7e8edb019e
+crates/l2-formats/tests/save/main.rs	C1	93f2edca7e60	6b7e8edb019e
 crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609	bb0dd488f9d2
 crates/l2-game/build.rs	C154	344919686118	4f820bfd08c8
 crates/l2-game/build.rs	C154	f9de42bc3129	4f820bfd08c8

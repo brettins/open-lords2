@@ -2387,7 +2387,7 @@ phase. That is a fit, not a finding, and it is **[I]** in `hypotheses.json` (H3)
 
 §8b read the three battle saves by hand. The array is now **imported field by field, over
 every save the machine can reach** (`crates/l2-scenario`, and the invariants in
-`crates/l2-formats/tests/save.rs`), and five things came out of it that were not here.
+`crates/l2-formats/tests/save/main.rs`), and five things came out of it that were not here.
 
 1. **`+0x167` on a merchant is the county it was spawned in.** §1.5 had the offset on the
    untraced list; `plane4.md` §5 guessed that transports use it as a destination and that
