@@ -457,7 +457,7 @@ is filed under a name that reads as optional content. **A name is a claim** (C25
 three corrections about exactly this), and this one has been quietly setting the priority of
 the most gameplay-critical shell in the table.
 
-> **Closed.** Screen `0x17` is `crates/l2-game/src/screens/army.rs` and screen `0x11` is
+> **Closed.** Screen `0x17` is `crates/l2-game/src/screens/army/mod.rs` and screen `0x11` is
 461: > `screens/divide.rs`; both have left the shell table, and the name is corrected in it, in
 > `docs/screens-county.md` and in `docs/mechanics.md`. `Map_Click`'s army branch is
 463: > `screens/map/mod.rs` — a click on your own army selects it and the next click on the map is the

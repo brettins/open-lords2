@@ -498,7 +498,7 @@ impl Screen for CountyScreen {
             // click on the track moves nothing. Ours latched the drag on and
             // the thumb then followed the cursor with the button up.
             // `crate::input::LeftButton` is the bit; this is one reader of it.
-            // `[V]`, and `crates/l2-game/src/screens/army.rs` is the same line
+            // `[V]`, and `crates/l2-game/src/screens/army/mod.rs` is the same line
             // on the levy slider, which already passed `down: false` here.
             Event::DoubleClick { x, y } => {
                 if self.split_click(ctx, x, y, true) {
