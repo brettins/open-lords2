@@ -12243,3 +12243,27 @@ the plane-1 flags with group 30 words; mountain against woodland needs
 Supply transport: Screen_SendSupplies `0x0041AD5D`, NetAct_SendSupplies `0x00447DB6`, Transport_Spawn `0x004292AF`, Transport_RetargetAll `0x00429418` (phase 3), Transport_Deliver `0x004296B5`. Ours had all but the last; supply::deliver had zero callers, so shipments deducted and stood for ever. `0x004296B5` guards cargo_county == county, troops[0] to grain, troops[2] to herd, Herd_UpdateCrowding, tail FUN_0046F0A9 frees the slot as Army_Destroy does. Wired into units_tick::step_one ahead of attack_county. Tests a_transport_reaching_its_cargo_countys_town_unloads_and_is_gone and a_transport_passing_a_town_that_is_not_its_destination_unloads_nothing (crates/l2-kingdom/src/units_tick.rs); ablation red.
 
 Start options: Game_NewGame `0x00497CED`, Setup_CommitOptions `0x00499DC3`, Game_SetupRealmsAndCounties `0x0049BD99`. Settings::apply_to reproduces 6 of 7 effects (gold 100/500/1000/2500/5000, iron/wood/stone 50 each, armour row plus difficulty×20 to slot 4 for AI, castle, county status, +100 grain to unowned) and 11 of 12 drop-downs; missing the starting garrison from g_startTroops[g_startArmySize] (row 3 = 300 men, row 0 = none), declared by Settings::unhonoured (option 5, L2.eng 102); not built.
+
+---
+
+**C228 — CampaignMap carries its bank plane to distinguish mountain from woodland.**
+
+CampaignMap gained its bank plane in map.rs, imported by the scenario and newgame
+paths. Save VERSION 28 (+round-trip test); is_mountain = (bank & 0x1c) == 4.
+Body 63,338 to 67,434 bytes; gate census 574 to 579, INVENTORY screens.rs 97 to 102.
+
+Tile information panel's ladder: TileInfo_Draw `0x0041C208` branches on plane-1
+flags with L2.eng group 30; 0x01 road 1/23/0x18; 0x04 sea 3/24/0x1D; 0x10 plot
+(village 48/49 else ruined 50/51, icon 0x1B); 0x08 rough (mountain 4/25/0x19 by
+bank else woodland 5/26/0x1A); fall-through scrubland 0/22/0x17. Map_ResolvePick
+`0x0046D5FE` blanks flags for town graphic 0x14 and empty plot. Built as picked_flags,
+tile_kind, TILE_LADDER, draw_plain_tile in crates/l2-game/src/screens/info.rs.
+
+Tests a_road_tile_says_road, a_sea_tile_says_sea_and_gets_no_head_room,
+a_dwelling_plot_says_village_ruined_village_or_nothing, a_rough_tile_says_mountain_or_woodland_by_its_bank,
+an_unflagged_tile_and_a_bare_castle_plot_both_say_scrubland in
+crates/l2-game/tests/screens.rs; ablation is_mountain forced false fails
+rough-tile test on "Mountain." heading at (0x28, row*16 + 0x40).
+
+Finding: docs/arms.json has no TileInfo_Draw; docs/draws.md and draws-map.md
+track no 0x0041C208, so five draw arms tracked only in tests.
