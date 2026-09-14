@@ -6,7 +6,7 @@ impl BattleRunner {
     /// **`Missile_Step` does not raise the breach score itself** — the brief
     /// said it did, and it is one level removed. The shot adds one to the cell's
     /// own counter; only when that counter passes
-    /// [`missile::WALL_HITS_PER_COLLAPSE`] does the cell collapse, and the
+    /// [`missile::WALL_HITS_PER_COLLAPSE`] does the cell collapse,
     /// collapse is what scores. The original's collapse routine
     /// (`FUN_0047DFE0`) then adds **one per orthogonal neighbour that is still
     /// rampart**,
@@ -24,7 +24,7 @@ impl BattleRunner {
         // ```
         //
         // **A rampart four or more high cannot be shot down**: the shot is not
-        // counted, the cell never collapses, and the catapult is marked engaged
+        // counted,
         // — which `BattleMan_StateEngineFire` reads as "move to the approach
         // lane and try again", a state this crate does not model, so that one
         // write has nothing to land on. Either arm leaves debris. `[V]`.
@@ -82,7 +82,7 @@ impl BattleRunner {
         // `m[+0x0A] -= 0x10; m[+0x0C] -= 0x10;` — the last two statements of
         // the arm. Sixteen thirty-seconds is **half a cell**, so the rubble
 // pile is drawn up and left of the masonry it came off
-        // centred on it. Ours never moved it, and the sprite is 32 pixels.
+        // centred on it.
         m.x -= missile::DEBRIS_NUDGE;
         m.y -= missile::DEBRIS_NUDGE;
     }
@@ -123,7 +123,7 @@ impl BattleRunner {
         self.ai.breach_score += crate::siege::GATE_BREACH_SCORE;
         // `Path_BuildTerrainTemplate(); Path_BuildElevation();` — the two
         // pathfinder planes the routine rebuilds, which here is the blocked
-        // map and the AI's copy of the surfaces.
+        // map.
         for (c, cell) in self.field.cells.iter().enumerate() {
             self.blocked[c] = cell.impassable();
         }
@@ -368,7 +368,7 @@ impl BattleRunner {
         }
     }
 
-    /// Try to move figure `i` into `next` — `BattleMan_TryStepDir`, and the two
+    /// Try to move figure `i` into `next` — `BattleMan_TryStepDir`,
     /// things it can set off before a step is decided.
     ///
     /// * **A siege tower tests its leading edge**, `Cell_TryEnterEngine`'s three
@@ -410,7 +410,7 @@ impl BattleRunner {
         // elevations differ by at most 1, unless the destination's elevation is
         // exactly 5"*, marked `[V]`. [`crate::movement::can_step_elevation`]
         // has said so since it was written and **nothing called it** — the
-        // pathfinder enforced the rule and the mover did not,
+        // pathfinder enforced the rule,
         // walking straight at its target (which is what a figure does when the
         // line is clear, and no search ever runs) climbed cliffs. It is inert
         // on a `.skr` field, where every cell is at elevation 0, and it is the
@@ -426,7 +426,7 @@ impl BattleRunner {
         }
         if self.blocked[dst] {
             // **`BattleMan_Step`'s state-9 arm.** `Cell_TryEnter` answered 2 —
-            // impassable — and the original asks this *before* it reroutes:
+            // impassable —
             //
             // ```c
             // if (state == 9 && DAT_004EEA94 == 2) {
@@ -471,6 +471,12 @@ impl BattleRunner {
                 // figure's cell is the one it is crossing *to* — which is what
                 // `BattleFigure_Draw` trails him behind.
                 f.progress.begin_crossing();
+                // `Cell_TryEnter` answered 1,
+                // the one arm in the mover that plays `Anim_WalkA2`. Every
+                // other outcome — impassable, barred, a wall, an enemy — leaves
+                // the standing pose [`BattleRunner::step_one`] set before it
+                // asked. §14.5's third agreement.
+                self.march(i, true);
             }
             Some(other) => {
                 let other = other as usize;
@@ -493,7 +499,7 @@ impl BattleRunner {
                     // **A man who walks into a pot of oil is poured on.**
                     // `BattleMan_Step`'s 999 arm locks the pot into state 4
                     // with him as its opponent — it tests the walker's troop,
-                    // not the pot's — and the pot's next `Melee_Tick` opens
+                    // not the pot's —
                     // with `if (troopType == 10) FUN_0047A814(pot,
                     // opponent.mapX, opponent.mapY)`. Poured here at the
 // contact: the
@@ -507,7 +513,8 @@ impl BattleRunner {
                     }
                     let (a, b) = (self.fighters[i].sim, self.fighters[other].sim);
                     self.sim.engage(a, b);
-                    self.fighters[i].anim = Motion::Attacking;
+                    let facing = self.fighters[i].facing;
+                    self.strike(i, facing);
                 } else {
                     self.occupant[dst] = None;
                 }
@@ -516,7 +523,7 @@ impl BattleRunner {
     }
 
     /// **A figure walks into the castle** — `Cell_TryEnter`'s three siege
-    /// answers, and the two damage accumulators behind them.
+    /// answers,
     ///
     /// Returns true when the step was consumed here, whatever the outcome.
     ///
@@ -529,7 +536,7 @@ impl BattleRunner {
     /// and a **siege engine** goes through `Cell_TryEnterEngine` instead, which
     /// returns **6** — the value `BattleMan_Step` turns into state 14 — for a
     /// `0x20` or `0x40` cell, and **only when `troopType == 9`**.
-    /// the only figure in the game that reaches state 14, and every other
+    /// the only figure in the game that reaches state 14,
 /// engine is stopped by a wall.
     fn strike_castle(&mut self, i: usize, dst: usize) -> bool {
         use crate::siege::{FLAG_DRAWBRIDGE, FLAG_KEEP, FLAG_WALL};
@@ -552,25 +559,31 @@ impl BattleRunner {
                 // The garrison walks its own walls.
                 return false;
             }
-// An engine that is not a ram is stopped: no state 14, no
+// An engine that is not a ram is stopped: no state 14,
             // hits, nothing. `Cell_TryEnterEngine` returns 6 for troop type 9
             // and 2 — blocked — for 7 and 8.
             if engine && !is_ram {
-                self.fighters[i].anim = Motion::Idle;
+                self.stand(i);
                 return true;
             }
             let standing = self.field.cells
                 [self.fighters[i].y as usize * DIM + self.fighters[i].x as usize]
                 .surface;
             let blow = crate::siege::strike_wall(&mut self.siege, standing, is_ram);
-            self.fighters[i].anim = Motion::Attacking;
+            // `BattleMan_StateAttackWall` (`0x00483A88`) opens with
+            // `Anim_StrikeA2` and drops back to `dly state` when
+            // `Cell_NeighbourHasSurface(.., 8)` finds no wall left, so the pose
+            // ends with the wall: the tick after it is gone this arm answers
+            // false and the mover stands him.
+            let facing = self.fighters[i].facing;
+            self.strike(i, facing);
             // **Both thresholds open a 9 × 9, and it is the same call.**
             // `FUN_0049694F(mapX, mapY, 4)` — `Wall_Smash` — centred on the
 // *attacker's* cell
             // enter, which is the original's argument list exactly. Every wall
             // cell in the square loses `0x20` and becomes
             // [`crate::siege::SURFACE_BAILEY`]; the elevation is left alone,
-// so a wall is built one high.
+//
             //
             // > This used to open the single destination cell. A one-cell hole
             // > in a castle wall is a funnel: the first figure through it
@@ -618,7 +631,7 @@ impl BattleRunner {
             if side == SIDE_B {
                 self.siege.broke_in = true;
             }
-            self.fighters[i].anim = Motion::Idle;
+            self.stand(i);
             return true;
         }
         false
@@ -630,13 +643,13 @@ impl BattleRunner {
     /// the garrison and not bookkeeping: `Siege_ClaimDefencePost` returns 0
 /// until a catapult has knocked a hole in something, so every
     /// defender handler's `cellOffset == 0` arm — the wall slots — is what a
-    /// garrison uses for the whole of an unbombarded siege, and the defence
+    /// garrison uses for the whole of an unbombarded siege,
     /// posts are *the holes*. The original files the four **billed
     /// neighbours**, not the collapsed cell.
     ///
     /// The original's loop writes past the end of the nineteen slots it scans
     /// into a twentieth word when the table is full; that overrun is not
-/// behaviour and the table stays full here. `docs/bugs.md` N4.
+/// behaviour.
     fn register_defence_posts(&mut self, cell: usize) {
         for n in crate::siege::orthogonal_neighbours(cell) {
             if self.field.cells[n].surface != crate::siege::SURFACE_BAILEY {
@@ -651,7 +664,7 @@ impl BattleRunner {
         }
     }
 
-    /// Re-derive the pathfinder's blocked map and the AI's surface copy from
+    /// Re-derive the pathfinder's blocked map
     /// the battlefield — the pair `Path_BuildTerrainTemplate` and
     /// `Path_BuildStepCost` that `Wall_Smash` ends with, plus our own copy of
     /// the surfaces.
@@ -675,7 +688,7 @@ impl BattleRunner {
     ///
     /// The original exchanges the whole records — hits, men and all
     /// (`docs/battle.md` §7). Swapping positions here is the same observable
-    /// move with stable indices, which the renderer and the tests both want.
+    /// move with stable indices,
     fn swap_places(&mut self, a: usize, b: usize) {
         if a == b {
             return;
