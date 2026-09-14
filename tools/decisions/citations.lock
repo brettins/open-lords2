@@ -159,8 +159,8 @@ crates/l2-game/tests/audio_screens.rs	C133	6b579154315d	91fcca97cc98
 crates/l2-game/tests/audio_wiring/main.rs	C116	bd3d5e5ea876	1c49feddd496
 crates/l2-game/tests/audio_wiring/main.rs	C116	ca080a64f6a9	1c49feddd496
 crates/l2-game/tests/audio_wiring/main.rs	C116	d318cacc719d	1c49feddd496
-crates/l2-game/tests/castles.rs	C115	8abcbf2c939a	085c9b771281
-crates/l2-game/tests/castles.rs	C115	f291bedec323	085c9b771281
+crates/l2-game/tests/castles/main.rs	C115	8abcbf2c939a	085c9b771281
+crates/l2-game/tests/castles/main.rs	C115	f291bedec323	085c9b771281
 crates/l2-game/tests/differential.rs	C170	fcf69e74c64c	2bbb0887e7d4
 crates/l2-game/tests/diplomacy.rs	C26	287743d8f84c	e8179d1f76a8
 crates/l2-game/tests/diplomacy.rs	C62	bcbec6054c4e	ebb6a7ec3711

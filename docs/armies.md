@@ -874,7 +874,7 @@ The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could
 > why the original draws a flag over the castle and not the unit.
 >
 > Both facts were missing from our engine at once, and together they meant **a siege could
-> be laid by a test that laid it itself**. `crates/l2-game/tests/castles.rs` drives
+> be laid by a test that laid it itself**. `crates/l2-game/tests/castles/main.rs` drives
 > the whole route from the map now.
 
 > ### There is a siege in the fixtures now, and it closes every number below.

@@ -917,7 +917,7 @@ with `Labour_ToggleIndustryShare(county, 3, 1)`, so in the original the castle j
 the order **holding a share**. Ours did not call it; the share stayed 0, and *"none on the
 walls, for ever"* was measured against that. With the share ported a palisade's 200
 man-seasons are done in four seasons with every industry still running —
-`the_orders_labour_share_is_what_gets_a_castle_built` in `crates/l2-game/tests/castles.rs`.
+`the_orders_labour_share_is_what_gets_a_castle_built` in `crates/l2-game/tests/castles/main.rs`.
 What survives is the ceiling asymmetry above: wood, iron and stone at 100,000 are never
 full, so the castle gets its share and no more. `[V]` on the call.
 
