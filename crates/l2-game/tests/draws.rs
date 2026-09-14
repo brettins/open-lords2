@@ -255,6 +255,34 @@ fn screens_dir(root: &Path) -> PathBuf {
     root.join("crates/l2-game/src/screens")
 }
 
+/// A module the inventory names as `x.rs` is that file, or after a split the
+/// directory `x/` read whole.
+fn module_source(dir: &Path, module: &str) -> Option<String> {
+    let file = dir.join(module);
+    if file.is_file() {
+        return std::fs::read_to_string(&file).ok();
+    }
+    let sub = dir.join(module.trim_end_matches(".rs"));
+    if !sub.is_dir() {
+        return None;
+    }
+    fn walk(d: &Path, out: &mut String) {
+        let mut entries: Vec<_> = std::fs::read_dir(d).unwrap().flatten().map(|e| e.path()).collect();
+        entries.sort();
+        for p in entries {
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().is_some_and(|e| e == "rs") {
+                out.push_str(&std::fs::read_to_string(&p).unwrap());
+                out.push('\n');
+            }
+        }
+    }
+    let mut out = String::new();
+    walk(&sub, &mut out);
+    Some(out)
+}
+
 #[test]
 fn every_english_caption_we_draw_is_one_the_inventory_defends() {
     let root = repo_root();
@@ -279,9 +307,8 @@ fn every_english_caption_we_draw_is_one_the_inventory_defends() {
     }
 
     for module in &declared_for {
-        let path = screens_dir(&root).join(module);
-        let Ok(src) = std::fs::read_to_string(&path) else {
-            panic!("{} names module {module}, which does not exist", path.display())
+        let Some(src) = module_source(&screens_dir(&root), module) else {
+            panic!("{} names module {module}, which does not exist", screens_dir(&root).display())
         };
         let drawn = literals_in(&src);
         let defended = by_module.get(module).cloned().unwrap_or_default();
@@ -328,7 +355,7 @@ fn every_screen_module_the_inventory_names_exists() {
     let mut bad = Vec::new();
     for rec in records(&root) {
         let Some(module) = rec.module else { continue };
-        if !dir.join(&module).exists() {
+        if module_source(&dir, &module).is_none() {
             bad.push(format!("{} names {module}", rec.screen));
         }
     }
