@@ -50,7 +50,7 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
 ### What `--check` enforces, and where each half runs
 
 * **Schema**, which needs only the file, runs everywhere, and runs on every push through
-  `crates/l2-testkit/tests/work_ledger.rs`: every row has every field and no other; state
+  `crates/l2-testkit/tests/work_ledger/main.rs`: every row has every field and no other; state
   and track are declared at the top; ids are unique; `depends_on` names rows that exist and
   has no cycles; an `in-flight` or `queued-merge` row names a branch.
 * **Agreement with git**, which needs the clone the work happens in: every branch a row
