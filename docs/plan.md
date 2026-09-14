@@ -358,7 +358,7 @@ under it.
 
 **Status: yes.** This section used to say *"no"*, and named exactly what was missing: a
 **new game on a chosen scenario**, which is `Map_InitScenario`. It is written —
-`crates/l2-scenario/src/newgame.rs` — and *Start* on the custom page now runs
+`crates/l2-scenario/src/newgame/mod.rs` — and *Start* on the custom page now runs
 `Game_NewGame`'s three steps in its order: the world from the chosen `L2_maps.dat` slot,
 then the twelve options through `Settings::apply_to`, then the one immediate
 `Season_Advance` that begins a game in Winter 1268. **Pick Ireland and you play Ireland**,

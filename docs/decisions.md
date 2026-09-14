@@ -2708,7 +2708,7 @@ enforcement of the ones that failed, so the proposal for what would check it is 
 **C62 — A person can pick Ireland and play Ireland. Building the second world constructor
 found five things about the first, and the fifth is the one worth keeping.**
 
-`Map_InitScenario` (`0x004676E0`) is written: `crates/l2-scenario/src/newgame.rs`. Pressing
+`Map_InitScenario` (`0x004676E0`) is written: `crates/l2-scenario/src/newgame/mod.rs`. Pressing
 *Start* on the custom page now runs `Game_NewGame`'s own three steps in its own order — the
 world, then the twelve options, then one immediate `Season_Advance` — so the slot the map
 list highlights is the world the campaign screen opens on, from an empty `Game` and with no
