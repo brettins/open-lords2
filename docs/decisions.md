@@ -11583,7 +11583,7 @@ the row into the gap. `l2_smk::YScale` and `Decoder::display` are that, and
 `a_doubled_frame_has_black_odd_rows_and_a_written_one_has_none` pins both arms.
 The clear was already there: `Screen::draw` clears to 0 for exactly the films
 that are not over a screen, which are exactly the three doubled ones.
-`crates/l2-game/tests/movies.rs` asserted the second copy and now asserts the
+`crates/l2-game/tests/movies/main.rs` asserted the second copy and now asserts the
 black. **The second source is the disagreement this settles**: libsmacker calls
 `0x02` Y-double and `0x04` interlace, FFmpeg names them the other way round, and
 the DLL agrees with FFmpeg — `0x02` is the interlace. `docs/formats/smk.md`,

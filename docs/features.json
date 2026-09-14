@@ -115,7 +115,7 @@
     {"id": "field-sounds", "area": "sound", "name": "Field-painting sounds", "status": "done", "evidence": ["audio:FUN_00438b02#1","C214","crates/l2-game/tests/audio_wiring/main.rs"], "gap": "", "rows": []},
     {"id": "wreck-sounds", "area": "sound", "name": "Armies wrecking fields and homes", "status": "done", "evidence": ["C220"], "gap": "", "rows": []},
     {"id": "mixing", "area": "sound", "name": "Speech and fanfares not overlapping", "status": "done", "evidence": ["C176","crates/l2-game/tests/audio_wiring/main.rs"], "gap": "", "rows": []},
-    {"id": "films", "area": "sound", "name": "Films: intro, castles, battles, ending", "status": "done", "evidence": ["C171","C190","crates/l2-game/tests/arrival.rs","crates/l2-game/tests/movies.rs","C208","C231"], "gap": "", "rows": []},
+    {"id": "films", "area": "sound", "name": "Films: intro, castles, battles, ending", "status": "done", "evidence": ["C171","C190","crates/l2-game/tests/arrival.rs","crates/l2-game/tests/movies/main.rs","C208","C231"], "gap": "", "rows": []},
     {"id": "season-fade", "area": "sound", "name": "Fade between seasons", "status": "done", "evidence": ["C59"], "gap": "", "rows": []},
     {"id": "village-animation", "area": "sound", "name": "Village animations", "status": "done", "evidence": ["C63","C217"], "gap": "", "rows": []},
     {"id": "unit-walk", "area": "sound", "name": "Armies walking smoothly on the map", "status": "done", "evidence": ["docs/screens.md","C184","C217","crates/l2-game/tests/screens_map/main.rs","C211"], "gap": "", "rows": []},
