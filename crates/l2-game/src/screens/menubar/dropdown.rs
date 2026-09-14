@@ -6,6 +6,7 @@ use super::tests_part::*;
 use l2_view::{text, Canvas};
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screens::confirm;
 use crate::screens::options::Page;
 use crate::screens::saveload::Mode;
 use crate::shell::font;
@@ -16,7 +17,7 @@ pub struct DropdownScreen {
     menu: usize,
     /// `DAT_00522CB0`, zero-based: the item under the pointer, if any.
     hover: Option<usize>,
-    /// Ours: what a refused item said, drawn under the bar so a player is told
+    /// Ours: what a refused item said
     ///.
     status: String,
 }
@@ -37,27 +38,24 @@ impl DropdownScreen {
     /// One item's handler.
     ///
     /// The original restores `g_screenId = g_menuPrevScreen` **before** calling
-    /// it, so a handler that sets a screen id wins and one that does not leaves
+    /// it
     /// the player where he was. `Transition::Pop` first is that ordering; a
     /// `Push` on top of the pop is a handler that moved.
     fn run(&mut self, ctx: &mut Ctx, item: Item) -> Transition {
         match item {
-            // `Menu_NewGame`: `Ui_OpenConfirm(1, …)` — group 10 index 1. Screen
-            // 0x1E is not built, so this is refused.
+            // `Menu_NewGame`: `Ui_OpenConfirm(1, …)` — group 10 index 1,
+            // *"Start a new game?"*, on screen 0x1E.
             // arm: 0x0040DECA/file-new-game left-press
-            Item::NewGame => {
-                self.status = "NEW GAME NEEDS THE CONFIRM BOX (SCREEN 0x1E)".into();
-                Transition::Stay
-            }
+            Item::NewGame => Transition::Replace(ScreenId::Confirm(confirm::Ask::NewGame)),
             // arm: 0x0040DECA/file-load left-press
             Item::Load => Transition::Replace(ScreenId::SaveLoad(Mode::Load)),
             // arm: 0x0040DECA/file-save left-press
             Item::Save => Transition::Replace(ScreenId::SaveLoad(Mode::Save)),
-            // `Menu_Quit`: `Ui_OpenConfirm(0, …)`, *"Exit the game?"*. With no
-            // confirm box we quit outright, which is the answer the box would
-            // have carried and not the box.
+            // `Menu_Quit` (`0x004343F8`): `Ui_OpenConfirm(0, 0xA0, 0xA0,
+            // FUN_0043441C)`, *"Exit the game?"* — group 10 index 0, on screen
+            // 0x1E. The quit is the box's yes, not this item.
             // arm: 0x0040DECA/file-quit left-press
-            Item::Quit => Transition::Quit,
+            Item::Quit => Transition::Replace(ScreenId::Confirm(confirm::Ask::Quit)),
             // arm: 0x0040DECA/options-and-help-pages left-press
             Item::Options(page) => Transition::Replace(ScreenId::Options(page)),
             // `Ui_OpenSlider` on one option — screen `0x21`, the value spinner.
@@ -225,7 +223,7 @@ impl Screen for DropdownScreen {
             );
         }
 
-        // **Ours**, and in our own 5 x 7 font so a screenshot cannot mistake it
+        // **Ours**
         // for the game's wording: what a refused item could not do.
         // Debug overlay only.
         if ctx.game.prefs.debug_overlay && !self.status.is_empty() {

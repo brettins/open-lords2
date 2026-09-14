@@ -176,6 +176,7 @@ use crate::screens::battlefield::{
     CONFIRM_YES_FRAME, GROUP_CONFIRM,
 };
 use crate::screens::county;
+use crate::screens::confirm;
 use crate::screens::menubar;
 use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::turn;

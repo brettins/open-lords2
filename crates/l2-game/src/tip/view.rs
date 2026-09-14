@@ -110,7 +110,8 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         | S::Nobles
         | S::Supplies(_)
         | S::Ratings
-        | S::Info(_) => None,
+        | S::Info(_)
+        | S::Confirm(_) => None,
     }
 }
 

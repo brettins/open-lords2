@@ -9,6 +9,7 @@
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
+use l2_game::screens::confirm::Ask;
 use l2_game::screens::county::Panel;
 use l2_game::screens::menu::MenuScreen;
 use l2_game::Game;
@@ -100,17 +101,25 @@ fn the_menu_starts_a_campaign_and_the_map_sits_on_top_of_it() {
     assert!(!m.should_quit());
 }
 
+/// **Escape on the map asks first.** `App_WndProc` (`0x004B29BE`) `VK_ESCAPE`
+/// is `Menu_Quit()` inside a game, which is `Ui_OpenConfirm(0, …)` — the box,
+/// not the exit. `tests/confirm_box.rs` drives its two answers; here it is the
+/// stack that matters. Escape on the *menu* is ours and quits.
 #[test]
-fn escape_from_the_map_returns_to_the_menu_and_escape_there_quits() {
+fn escape_from_the_map_asks_the_exit_box_and_escape_on_the_menu_quits() {
     let (mut game, assets) = world();
     let mut m = Machine::new(ScreenId::Menu);
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Enter));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Escape));
-    assert_eq!(m.ids(), vec![ScreenId::Menu], "the map popped, the menu is back");
+    assert_eq!(
+        m.ids(),
+        vec![ScreenId::Menu, ScreenId::Campaign, ScreenId::Confirm(Ask::Quit)],
+        "the map is still under the question"
+    );
     assert!(!m.should_quit());
 
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Escape));
-    assert!(m.should_quit());
+    assert!(!m.should_quit(), "the box has no keyboard arm — the original's has none either");
 }
 
 #[test]

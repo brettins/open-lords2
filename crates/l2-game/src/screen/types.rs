@@ -30,6 +30,11 @@ pub enum ScreenId {
     Job(u8, usize),
     /// `g_screenId` `0x1F` — the front end and game setup, by sub-page.
     Setup(crate::screens::setup::SetupPage),
+    /// `g_screenId` `0x1E` — **the yes/no box** `Ui_OpenConfirm`
+    /// (`0x0040E6F2`) opens. The question is part of the identity because in
+    /// the original it is `g_confirmCallback`, and two questions are two
+    /// functions. See [`crate::screens::confirm`].
+    Confirm(crate::screens::confirm::Ask),
     /// `g_screenId` `0x1C` — the campaign interstitial.
     Conquest,
     /// `g_screenId` `0x0B` — **the other lords**: one card per rival and the
@@ -98,7 +103,7 @@ pub enum ScreenId {
     /// `g_screenId` `0x13` — *"The Battle is decided."*
     BattleResult,
     /// The options panels — `g_screenId` `0x39` (Advanced), `0x42` (Sounds),
-    /// `0x43` (Display) and `0x31` (Help) — **and the quirks page, which is
+    /// `0x43` (Display) and `0x31` (Help) — **and the quirks page
     /// ours**.
     ///
     /// The page is part of the identity for the same reason
@@ -248,7 +253,7 @@ pub enum Transition {
     /// `Smk_Play` (`0x0042D91B`) stores its fifth argument and
     /// `Smk_OnFinished` (`0x0042E060`) performs it as one statement,
     /// `g_screenId = g_smkReturnScreen;`. That is a *destination*, and it is
-    /// neither of the two things our stack could already say: not [`Pop`], which
+    /// neither of the two things our stack could already say: not [`Pop`]
     /// only knows what it is leaving, and not [`Replace`], which leaves
     /// everything underneath standing.
     ///
@@ -288,6 +293,7 @@ impl ScreenId {
             ScreenId::Village(id) => Box::new(crate::screens::village::VillageScreen::new(id)),
             ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
             ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
+            ScreenId::Confirm(ask) => Box::new(crate::screens::confirm::ConfirmScreen::new(ask)),
             ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),
             ScreenId::Diplomacy => {
                 Box::new(crate::screens::diplomacy::DiplomacyScreen::new())

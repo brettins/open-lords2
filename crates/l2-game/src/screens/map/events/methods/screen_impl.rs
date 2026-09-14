@@ -53,7 +53,18 @@ impl Screen for MapScreen {
             return Transition::Stay;
         }
         match event {
-            Event::KeyDown(Key::Escape) => return Transition::Pop,
+            // **`App_WndProc` (`0x004B29BE`) `VK_ESCAPE`**: `if (g_appPhase ==
+            // 3) Menu_Quit(); else g_quitRequest = 1;` — inside a game the key
+            // *is* File > Quit, which is `Ui_OpenConfirm(0, …)`, and not a way
+            // out on its own. Ours used to pop straight off the map.
+            // **No `// arm:` marker yet**: `docs/arms.json` still files
+            // `0x004B29BE/escape-quits-outside-the-game` as *missing*, and
+            // `tests/arms.rs` rejects a marker for a record that says so. The
+            // half built here is the `g_appPhase == 3` branch; the record is
+            // the lead's to flip.
+            Event::KeyDown(Key::Escape) => {
+                return Transition::Push(ScreenId::Confirm(confirm::Ask::Quit))
+            }
             // **Ours, and only the key is.** The original has no keyboard route
             // into a county panel at all; the strip's quadrants are it. Enter
             // opens the one the strip's bottom-left quadrant opens.
@@ -730,7 +741,7 @@ impl Screen for MapScreen {
             self.begin_move_selection(&read, unit);
         }
         // **`Widget_Test`'s countdown** — index 0 is the thumb up, index 1 the
-        // thumb down, and the answer comes from the timer, not the press.
+        // thumb down, and the answer comes from the timer,.
         if let Some(widget) = self.press.tick().next() {
             return self.answer_combine(ctx, widget == 0);
         }

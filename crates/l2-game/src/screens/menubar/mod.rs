@@ -164,10 +164,9 @@
 //!   `l2_view::chrome::Chrome::draw_box` draws the open-topped shape, and
 //!   `crates/l2-game/tests/chrome_text/main.rs`'s
 //!   `the_drop_down_plate_has_no_top_rail` holds it there.
-//! * **`Menu_NewGame` and `Menu_Quit` reach no confirmation box.** Both open
-//!   `Ui_OpenConfirm` in the original — prompts 1 and 0 of `L2.eng` group 10 —
-//!   and screen `0x1E` is not built. New Game is refused with a status line and
-//!   Quit leaves at once; both say so below.
+//! * **`Menu_NewGame` and `Menu_Quit` reach the confirmation box**, prompts 1
+//!   and 0 of `L2.eng` group 10 on screen `0x1E` —
+//!   [`crate::screens::confirm`]. Neither item acts itself; the box's yes does.
 //! * **The five help topics go on the message ring.** `Menu_HelpHowDoI` and its four
 //!   siblings are `Msg_Enqueue(…, 0x123 … 0x127, …)`, five consecutive message
 //!   ids, category 0x13, and they go on the ring; the window is

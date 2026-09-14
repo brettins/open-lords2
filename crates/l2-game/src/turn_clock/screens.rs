@@ -29,7 +29,7 @@ pub const SCREENS: [u8; 0x46] = [
 /// `0x00`'s closes**. Nine test it and close at once — `0x02`, `0x04`, `0x05`,
 /// `0x06`, `0x10`, `0x11`, `0x1D`, `0x26` and `0x39`, read. Eighteen test its
 /// negation around the arm's input instead; the `else` was read for `0x09`,
-/// `0x13`, `0x14` and `0x35`/`0x36`, all of which close, and the other thirteen
+/// `0x13`, `0x14` and `0x35`/`0x36` and the other thirteen
 /// have the same shape and were not each opened. `0x00` is the map itself, where
 /// the negated guard only stops the menus and the strip taking clicks. `0x11`
 /// closes to `0x04`, `0x05` and `0x06` to `0x02`, `0x35`/`0x36` and `0x39` to the
@@ -78,6 +78,8 @@ pub fn screen_byte(id: ScreenId) -> Option<u8> {
         ScreenId::Castle(_) => 0x1B,
         ScreenId::Conquest => 0x1C,
         ScreenId::Siege(_) => 0x1D,
+        // `Ui_OpenConfirm`'s own `g_screenId = 0x1E`.
+        ScreenId::Confirm(_) => 0x1E,
         ScreenId::Setup(_) => 0x1F,
         ScreenId::Nobles => 0x20,
         // A film: `Smk_Play` parks `g_screenId` at `0x22`. `SCREENS[0x22]` is 2, so
