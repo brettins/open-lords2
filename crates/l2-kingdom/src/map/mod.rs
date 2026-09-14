@@ -32,6 +32,15 @@
 //! no loader and never learns what `L2_maps.dat` is; building one of these out
 //! of a map file is `l2-scenario`'s job.
 
+mod site;
+pub use site::*;
+mod castle;
+pub use castle::*;
+mod campaign;
+pub use campaign::*;
+mod cost;
+pub use cost::*;
+
 use crate::tables::{MOVE_COST_BLOCKED, MOVE_COST_IMPASSABLE};
 
 /// The campaign map is 64 × 64 tiles on every shipped map.
@@ -225,53 +234,6 @@ pub enum SiteState {
     Wrecked,
 }
 
-/// The commodity and state a settlement terrain byte names, or `None` when the
-/// tile is a town, a castle plot or plain ground.
-///
-/// The inverse of [`terrain::INDUSTRY_IDLE`]
-/// [`crate::industry::map_toggle_for_graphic`] reads from the click side — kept
-/// as two functions because the click ladder folds terrain 0 into iron and
-/// everything from 21 up into the castle, which are `Map_Click`'s concerns and
-/// not a site's.
-pub fn industry_state(terrain: u8) -> Option<(crate::tables::Commodity, SiteState)> {
-    if terrain == 0 || terrain > 12 {
-        return None;
-    }
-    let state = match (terrain - 1) % 3 {
-        0 => SiteState::Idle,
-        1 => SiteState::Working,
-        _ => SiteState::Wrecked,
-    };
-    let base = terrain - (terrain - 1) % 3;
-    let commodity = crate::tables::Commodity::ALL
-        .into_iter()
-        .find(|c| terrain::INDUSTRY_IDLE[c.index()] == base)?;
-    Some((commodity, state))
-}
-
-/// **Where one county's industry sits.** The original keeps the answer on the
-/// record — `Industry.siteTile`, county `+0x298 + c*0x18`, a byte offset into
-/// `g_tiles` that `County_PlaceResourceSites` stores at load — and this derives
-/// it instead
-/// terrain ladder.
-///
-/// Derived. A cached tile index is a field an
-/// importer has to fill and can silently fail to — which is
-/// `docs/decisions.md` C30's whole shape, and this project has already paid for
-/// it twice. The scan is over the county's own tiles in index order, so the
-/// answer is deterministic (`docs/netcode.md` §3).
-pub fn industry_site(
-    map: &CampaignMap,
-    county: u8,
-    commodity: crate::tables::Commodity,
-) -> Option<usize> {
-    (0..map.terrain.len()).find(|&tile| {
-        map.county[tile] == county
-            && map.flags[tile] & flags::SETTLEMENT != 0
-            && industry_state(map.terrain[tile]).is_some_and(|(c, _)| c == commodity)
-    })
-}
-
 /// Where a tile sits
 /// `y * 64 + x`.
 #[inline]
@@ -283,129 +245,6 @@ pub fn index(x: u8, y: u8) -> usize {
 #[inline]
 pub fn coords(i: usize) -> (u8, u8) {
     ((i % MAP_DIM) as u8, (i / MAP_DIM) as u8)
-}
-
-// ---------------------------------------------------------------------------
-// The castle plot
-// ---------------------------------------------------------------------------
-
-/// **Where a county's castle stands** — the 2×2 block on plane-0 bit `0x80`
-/// whose terrain is [`terrain::CASTLE_PLOT`] or a castle above it.
-///
-/// `County_FindCastleTile` (`0x00468121`) scans for it once at load and stores
-/// the corner in county `+0x74`/`+0x75`; we scan, the way every other
-/// settlement lookup in this workspace does, because the alternative is a
-/// cached tile index that a loader has to remember to fill and that nothing
-/// notices is zero. Tiles come back in index order, so the first is the
-/// original's `+0x74`/`+0x75` corner.
-pub fn castle_tiles(map: &CampaignMap, county: u8) -> Vec<usize> {
-    (0..MAP_TILES)
-        .filter(|&i| {
-            map.county[i] == county
-                && map.flags[i] & flags::SETTLEMENT != 0
-                && terrain::castle_type(map.terrain[i]).is_some()
-        })
-        .collect()
-}
-
-/// The corner of [`castle_tiles`] — county `+0x74`/`+0x75`, the tile an army
-/// garrisoning the castle is teleported onto.
-pub fn castle_tile(map: &CampaignMap, county: u8) -> Option<usize> {
-    castle_tiles(map, county).first().copied()
-}
-
-/// The plane-1 byte [`castle_stamp`] writes. Bank index
-/// `(0x10 & 0x1C) >> 2 == 4`, which is `Castle1a.pl8` / `Castle2a.pl8`.
-///
-/// Bit `0` is set by `Map_StampBlock` on every tile it touches and nothing we
-/// have read consumes it; it is carried.
-pub const CASTLE_BANK_BYTE: u8 = 0x11;
-
-/// **What a castle looks like** — `Castle_StampTile` (`0x0046826C`), which is
-/// the reason a castle is missing from our campaign map entirely.
-///
-/// ```c
-/// if (castleDegraded == 0) frame = level*4 + 0x50;   /* finished */
-/// else if (percent < 0x32) frame = level*4 + 0x28;   /* scaffolding */
-/// else                     frame = level*4 + 0x3C;   /* half-built */
-/// content = 0x15 + level;
-/// Map_StampBlock(frame, 2, county.castleTile, 0x10, content);
-/// ```
-///
-/// Three appearances per level, twenty frames apart, and **the map file does
-/// not hold any of them**: unlike the mine,
-/// `L2_maps.dat` stores as real artwork that `County_PlaceResourceSites`
-/// flags — the castle plot is plain ground in the base bank and every castle on
-/// the screen is stamped in at run time. It is re-stamped **every season** by
-/// `Castle_BuildTick`, so it lives beside the build rules
-/// in a load-time pass.
-///
-/// `frames` are in the block's own order — north-west, north-east, south-west,
-/// south-east — with the quadrant offsets `[0, 2, 1, 3]` already added.
-/// `Map_StampBlock`'s size-2 quadrant table was read out of `Lords2.exe` at
-/// `0x004D80E0`. `[V]`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CastleStamp {
-    pub bank: u8,
-    pub frames: [u8; 4],
-    pub terrain: u8,
-}
-
-/// The quadrant offsets `Map_StampBlock` adds for a 2×2 stamp — `0x004D80E0`,
-/// read from the binary. North-west, north-east, south-west, south-east.
-pub const BLOCK_QUADRANTS_2: [u8; 4] = [0, 2, 1, 3];
-
-/// A finished castle's base frame, by level: `level * 4 + 0x50`.
-pub const CASTLE_FRAME_BUILT: u8 = 0x50;
-/// Under way and less than half done: `level * 4 + 0x28`.
-pub const CASTLE_FRAME_SCAFFOLD: u8 = 0x28;
-/// Under way and half done or more: `level * 4 + 0x3C`.
-pub const CASTLE_FRAME_HALF: u8 = 0x3C;
-
-/// The percentage at which the scaffolding becomes a half-built castle.
-pub const CASTLE_HALF_PERCENT: u8 = 0x32;
-
-/// **The simulation's half of `Castle_StampTile`** — write the castle's
-/// `content` byte onto its 2×2 block.
-///
-/// The frame and the bank are the renderer's
-/// `Unit_TryEnterTile` masks the settlement bit off at
-/// [`terrain::CASTLE_PLOT`] and leaves it set above it, so this write is what
-/// turns a tile an army walks over into a castle it has to garrison or besiege.
-/// Ordering a castle stamps the new level at once — the scaffolding is already
-/// an obstacle — which is the original's ordering in `Castle_Order`.
-///
-/// Returns the tiles written
-/// plot at all.
-pub fn stamp_castle_terrain(map: &mut CampaignMap, county: u8, castle_type: u8) -> usize {
-    let Some(t) = terrain::CASTLE_PLOT.checked_add(castle_type.min(5)) else { return 0 };
-    let tiles = castle_tiles(map, county);
-    for i in &tiles {
-        map.terrain[*i] = t;
-    }
-    tiles.len()
-}
-
-/// See [`CastleStamp`]. `castle_type` is 1..=5; type 0 has nothing to draw and
-/// answers `None`, which leaves the bare plot the map file already holds.
-pub fn castle_stamp(castle_type: u8, castle_degraded: u8, castle_percent: u8) -> Option<CastleStamp> {
-    if castle_type == 0 || castle_type > 5 {
-        return None;
-    }
-    let level = castle_type - 1;
-    let base = if castle_degraded == 0 {
-        CASTLE_FRAME_BUILT
-    } else if castle_percent < CASTLE_HALF_PERCENT {
-        CASTLE_FRAME_SCAFFOLD
-    } else {
-        CASTLE_FRAME_HALF
-    };
-    let base = base + level * 4;
-    Some(CastleStamp {
-        bank: CASTLE_BANK_BYTE,
-        frames: core::array::from_fn(|q| base + BLOCK_QUADRANTS_2[q]),
-        terrain: terrain::CASTLE_PLOT + castle_type,
-    })
 }
 
 /// The three tile planes the simulation reads, plus the county count.
@@ -434,205 +273,6 @@ pub const BANK_MOUNTAIN: u8 = 0x04;
 impl Default for CampaignMap {
     fn default() -> Self {
         CampaignMap::empty()
-    }
-}
-
-impl CampaignMap {
-    /// An all-zero map. Every tile has [`flags::NO_COUNTY`] clear and county 0,
-    /// which the cost map reads as passable open ground in county 0 — a blank
-    /// field, which is what a test wants and what a real scenario overwrites.
-    pub fn empty() -> CampaignMap {
-        CampaignMap {
-            terrain: vec![0; MAP_TILES],
-            flags: vec![0; MAP_TILES],
-            bank: vec![0; MAP_TILES],
-            county: vec![0; MAP_TILES],
-        }
-    }
-
-    /// Build from four 4,096-byte planes, in tile-record order `+0`, `+1`,
-    /// `+2`, `+7`. `None` if any is the wrong length —
-    /// `l2-scenario` already applies to a save.
-    pub fn from_planes(
-        terrain: &[u8],
-        flags: &[u8],
-        bank: &[u8],
-        county: &[u8],
-    ) -> Option<CampaignMap> {
-        if terrain.len() != MAP_TILES
-            || flags.len() != MAP_TILES
-            || bank.len() != MAP_TILES
-            || county.len() != MAP_TILES
-        {
-            return None;
-        }
-        Some(CampaignMap {
-            terrain: terrain.to_vec(),
-            flags: flags.to_vec(),
-            bank: bank.to_vec(),
-            county: county.to_vec(),
-        })
-    }
-
-    pub fn terrain_at(&self, x: u8, y: u8) -> u8 {
-        self.terrain[index(x, y)]
-    }
-
-    pub fn flags_at(&self, x: u8, y: u8) -> u8 {
-        self.flags[index(x, y)]
-    }
-
-    pub fn bank_at(&self, x: u8, y: u8) -> u8 {
-        self.bank[index(x, y)]
-    }
-
-    /// `Map_ResolvePick` (`0x0046D5FE`): `(tile.bank & 0x1C) == 4` — the tile
-    /// is drawn from the `Mtns` set, so its `0x08` rough bit is a mountain and
-    /// not a wood.
-    pub fn is_mountain(&self, tile: usize) -> bool {
-        self.bank[tile] & BANK_SELECTOR == BANK_MOUNTAIN
-    }
-
-    pub fn county_at(&self, x: u8, y: u8) -> u8 {
-        self.county[index(x, y)]
-    }
-
-    pub fn has(&self, x: u8, y: u8, bit: u8) -> bool {
-        self.flags_at(x, y) & bit != 0
-    }
-
-    pub fn set_terrain(&mut self, x: u8, y: u8, value: u8) {
-        self.terrain[index(x, y)] = value;
-    }
-
-    pub fn set_flags(&mut self, x: u8, y: u8, value: u8) {
-        self.flags[index(x, y)] = value;
-    }
-
-    pub fn set_county(&mut self, x: u8, y: u8, value: u8) {
-        self.county[index(x, y)] = value;
-    }
-
-    /// `Move_BuildCostMap` (`0x0046FF43`) — the whole 64×64 `i16` cost map,
-    /// rebuilt from the three planes.
-    ///
-    /// **The test order is the rule**, because the bits combine: a farmland
-    /// tile that is also a road is a road, and a settlement that has been
-    /// ruined is impassable. The chain, in the order the original's nested
-    /// `if`/`else` makes it:
-    ///
-    /// ```text
-    /// 1. flags & 0x0C            -> 0     sea, mountain or woodland
-    /// 2. county >= 17            -> 0     not a county on this map
-    /// 3. flags & 0x01            -> 1     road
-    /// 4. flags & 0x20            -> 3 if terrain < 2; 6 if terrain < 0x17; else 3
-    /// 5. flags & 0x40            -> 100   castle site
-    /// 6. flags & 0x80            -> 3 if terrain == 0x14
-    ///                               0 if terrain in {3, 6, 12, 9}   (ruined)
-    ///                               else 100
-    /// 7. flags & 0x10            -> 100 if terrain == 0x10; else 0
-    /// 8. otherwise               -> 3     open ground
-    /// ```
-    ///
-    /// `[V]` — road 1, open 3 and field 6 agree exactly with the *stepper*,
-    /// which classifies the same bits independently (`docs/armies.md` §2.2),
-    /// and the field's 6 is assembled there from two separate `+3`s. `[D]` on
-    /// the four 100s and the two 0s
-/// about because those tiles are never entered.
-    ///
-    /// **Nothing about units or ownership enters this.** Byte `+5` of the tile
-    /// record — the occupying unit — is never read, so armies path straight
-    /// through each other and through enemy stacks; blocking is resolved at
-    /// step time instead. Ownership only decides what a step *does* to the
-    /// tile, never whether it is cheap.
-    pub fn cost_map(&self) -> CostMap {
-        let mut cost = vec![0i16; MAP_TILES];
-        for i in 0..MAP_TILES {
-            let f = self.flags[i];
-            let t = self.terrain[i];
-            cost[i] = if f & flags::IMPASSABLE != 0 {
-                MOVE_COST_IMPASSABLE as i16
-            } else if self.county[i] > crate::county::MAX_COUNTY_ID {
-                MOVE_COST_IMPASSABLE as i16
-            } else if f & flags::ROAD != 0 {
-                crate::tables::STEP_COST_ROAD as i16
-            } else if f & flags::FARMLAND != 0 {
-                if t < terrain::FIELD_STANDING_FROM || t >= terrain::FIELD_STANDING_TO {
-                    crate::tables::STEP_COST_OPEN as i16
-                } else {
-                    (crate::tables::STEP_COST_OPEN + crate::tables::STEP_COST_FIELD_EXTRA) as i16
-                }
-            } else if f & flags::CASTLE != 0 {
-                MOVE_COST_BLOCKED as i16
-            } else if f & flags::SETTLEMENT != 0 {
-                if t == terrain::TOWN {
-                    crate::tables::STEP_COST_OPEN as i16
-                } else if terrain::RUINED.contains(&t) {
-                    MOVE_COST_IMPASSABLE as i16
-                } else {
-                    MOVE_COST_BLOCKED as i16
-                }
-            } else if f & flags::PLOT != 0 {
-                if t == terrain::DWELLING {
-                    MOVE_COST_BLOCKED as i16
-                } else {
-                    MOVE_COST_IMPASSABLE as i16
-                }
-            } else {
-                crate::tables::STEP_COST_OPEN as i16
-            };
-        }
-        CostMap { cost }
-    }
-
-    /// Is this tile a standing crop — the test `Unit_CrossField` makes before
-    /// it destroys anything. `[D]` — terrain 2…0x16 on a farmland tile, the
-    /// same window the cost map charges 6 for.
-    pub fn is_standing_field(&self, x: u8, y: u8) -> bool {
-        let t = self.terrain_at(x, y);
-        self.has(x, y, flags::FARMLAND)
-            && (terrain::FIELD_STANDING_FROM..terrain::FIELD_STANDING_TO).contains(&t)
-    }
-}
-
-/// `g_moveCost` (`0x004F4080`) — a 64×64 `i16` grid, **0 meaning impassable**.
-///
-/// The flood fill's only blocked test is
-/// `cost != 0`, so "free to enter" is not representable and never needs to be.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CostMap {
-    cost: Vec<i16>,
-}
-
-impl CostMap {
-    /// A map where every tile costs the same. Only useful in tests; a real one
-    /// comes from [`CampaignMap::cost_map`].
-    pub fn uniform(cost: i16) -> CostMap {
-        CostMap { cost: vec![cost; MAP_TILES] }
-    }
-
-    #[inline]
-    pub fn at(&self, x: u8, y: u8) -> i16 {
-        self.cost[index(x, y)]
-    }
-
-    #[inline]
-    pub fn at_index(&self, i: usize) -> i16 {
-        self.cost[i]
-    }
-
-    pub fn set(&mut self, x: u8, y: u8, cost: i16) {
-        self.cost[index(x, y)] = cost;
-    }
-
-    /// A tile no unit can ever enter.
-    #[inline]
-    pub fn is_impassable(&self, i: usize) -> bool {
-        self.cost[i] == MOVE_COST_IMPASSABLE as i16
-    }
-
-    pub fn as_slice(&self) -> &[i16] {
-        &self.cost
     }
 }
 
@@ -720,3 +360,4 @@ mod tests {
         assert!(CampaignMap::from_planes(&p, &p, &[0; 10], &p).is_none());
     }
 }
+
