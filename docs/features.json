@@ -38,7 +38,7 @@
     {"id": "births-deaths", "area": "people", "name": "Births and deaths", "status": "done", "evidence": ["crates/l2-kingdom/tests/reproduction/main.rs","crates/l2-kingdom/tests/oracle.rs"], "gap": "", "rows": []},
     {"id": "happiness", "area": "people", "name": "Happiness", "status": "done", "evidence": ["C26","C53"], "gap": "", "rows": []},
     {"id": "health", "area": "people", "name": "Health", "status": "done", "evidence": ["crates/l2-game/tests/differential.rs"], "gap": "", "rows": []},
-    {"id": "migration", "area": "people", "name": "Migration", "status": "done", "evidence": ["crates/l2-kingdom/tests/reproduction/main.rs","crates/l2-kingdom/tests/quirks.rs"], "gap": "", "rows": []},
+    {"id": "migration", "area": "people", "name": "Migration", "status": "done", "evidence": ["crates/l2-kingdom/tests/reproduction/main.rs","crates/l2-kingdom/tests/quirks/main.rs"], "gap": "", "rows": []},
     {"id": "jobs", "area": "people", "name": "Peasant jobs", "status": "done", "evidence": ["C180","crates/l2-kingdom/tests/labour_gap.rs"], "gap": "", "rows": []},
     {"id": "village-drag", "area": "people", "name": "Moving peasants between jobs", "status": "done", "evidence": ["C22","C121"], "gap": "", "rows": []},
     {"id": "events", "area": "people", "name": "Random events", "status": "done", "evidence": ["C169","C170","C210","docs/bugs.md","crates/l2-kingdom/src/event/mod.rs","crates/l2-game/tests/messages/main.rs","crates/l2-game/tests/job_bodies/main.rs"], "gap": "", "rows": []},

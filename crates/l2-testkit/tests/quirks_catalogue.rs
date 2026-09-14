@@ -63,7 +63,7 @@
 //!
 //! Stated here. It checks that a variant is
 //! *named* in the simulation, not that the branch it guards is reachable or
-//! correct — `crates/l2-kingdom/tests/quirks.rs` is what flips each one and
+//! correct — `crates/l2-kingdom/tests/quirks/main.rs` is what flips each one and
 //! observes a different answer, and that is the check that pays.
 //! It also cannot tell a wrong disposition from a right one: calling a
 //! switchable bug `Unswitchable` silences it here, so the reason is

@@ -8888,7 +8888,7 @@ happiness, below a Diseased Winter's 43% — so the extra person dies and the co
 `docs/bugs.md` B16's plain sentence had been right all along. **A survey over our own
 implementation is a statement about our implementation**, and it overturned a correct catalogue
 entry — the same shape as C61 overturning C58, with a test to make it look settled. C69's
-paragraph carries a pointer; `crates/l2-kingdom/tests/quirks.rs` now asserts the survey turned
+paragraph carries a pointer; `crates/l2-kingdom/tests/quirks/main.rs` now asserts the survey turned
 round (a living county does go negative, and the fixed path never does).
 
 **Also changed.** `realm_fives_county_diverges_…` in `tests/reproduction.rs` pinned our divergent

@@ -310,8 +310,8 @@ crates/l2-kingdom/tests/oracle.rs	C10	54a471daa1d9	68e4eb2d2a1f
 crates/l2-kingdom/tests/oracle.rs	C12	e241145b7370	bb0dd488f9d2
 crates/l2-kingdom/tests/oracle.rs	C17	edc2b5f29915	b9aaae4e270c
 crates/l2-kingdom/tests/oracle.rs	C20	981f2d23d128	0ec8eeb4f874
-crates/l2-kingdom/tests/quirks.rs	C30	06301ff299f3	50fdf5e17ba0
-crates/l2-kingdom/tests/quirks.rs	C30	baa38c081a33	50fdf5e17ba0
+crates/l2-kingdom/tests/quirks/main.rs	C30	06301ff299f3	50fdf5e17ba0
+crates/l2-kingdom/tests/quirks/main.rs	C30	baa38c081a33	50fdf5e17ba0
 crates/l2-kingdom/tests/reproduction/main.rs	C12	40909731b47f	bb0dd488f9d2
 crates/l2-kingdom/tests/reproduction/main.rs	C12	410abd9ce336	bb0dd488f9d2
 crates/l2-kingdom/tests/reproduction/main.rs	C12	7bfb2efd8284	bb0dd488f9d2

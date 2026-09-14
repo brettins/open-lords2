@@ -63,7 +63,7 @@
 //! the simulation and has a test that flips it and observes a different answer:
 //! `crates/l2-testkit/tests/quirks_catalogue.rs` reads this file and
 //! `docs/bugs.md` as text and fails on a variant nothing calls `reproduces(` on,
-//! and `crates/l2-kingdom/tests/quirks.rs` flips each one and watches the
+//! and `crates/l2-kingdom/tests/quirks/main.rs` flips each one and watches the
 //! simulation give a different answer.
 //! Catalogue entries that cannot be switched off for a reasonable price are
 //! **not** variants here — they are rows in that catalogue marked unswitchable,
@@ -143,7 +143,7 @@ pub enum Quirk {
     /// the season of death lands on exactly 0 and only the next season goes
     /// negative; that was our own comparison of the *unscaled* birth rate against
     /// the death rate, not the original's (C170). Both cases are
-    /// switched here and asserted in `crates/l2-kingdom/tests/quirks.rs`.
+    /// switched here and asserted in `crates/l2-kingdom/tests/quirks/main.rs`.
     ExtinctCountyRecordsNegativeDeaths = 8,
 
     /// **B17** — the AI unrest ladder has a dead band from happiness 1 to 10.
