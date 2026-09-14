@@ -28,6 +28,7 @@ for (let round = 0; round < 8; round++) {
   // A private item of a sibling is "not found" rather than "private" through a glob.
   for (const m of text.matchAll(/error\[E04(?:22|25)\]: cannot find (?:value|function|type|struct, variant or union type) `(\w+)` in this scope/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E04(?:12|33)\]: cannot find type `(\w+)` in this scope/g)) names.add(["item", m[1]]);
+  for (const m of text.matchAll(/error\[E0433\]: cannot find module or crate `(\w+)` in this scope/g)) names.add(["item", m[1]]);
   // `super::x` from a file that moved one level deeper: the path gains a `super::`.
   for (const m of text.matchAll(/^(crates[^:\n]+\.rs):(\d+):(\d+): error\[E0433\]: (?:failed to resolve: )?(?:could not find|cannot find) `(\w+)` in `super`/gm)) names.add(["deeper", m[1].replace(/\\/g, "/") + ":" + m[2] + ":" + m[3] + ":" + m[4]]);
   const errors = (text.match(/^(crates[^:\n]+:\d+:\d+: )?error/gm) || []).length;
