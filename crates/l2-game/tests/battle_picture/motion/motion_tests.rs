@@ -201,9 +201,11 @@ fn painting_the_battlefield_does_not_change_the_battle() {
 /// walk pose — which is what *"archers do not use their shooting animation"*
 /// looked like from the player's chair.
 ///
-/// **Ablation**: put `DRAW_BOW_BASE` back to 6 (the old `WALK_BASE`) and the
-/// draw collides with the strike band; drop the `Shooting` arm and it returns
-/// the standing frame, which the last assertion catches.
+/// **Ablation**: put the base back to 6 (the old `WALK_BASE`) and the draw
+/// collides with the strike band; index the band by `phase / 4` instead of the
+/// `swingTimer` curve `g_drawBowArcher` (`0x004D9AC8`) and the archer shows one
+/// frame for the first eight ticks and pose 12 forever after, so the count of
+/// three fails.
 #[test]
 fn an_archer_drawing_a_bow_is_three_frames_of_its_own() {
     let Some((_assets, platform)) = install() else {
@@ -218,10 +220,12 @@ fn an_archer_drawing_a_bow_is_three_frames_of_its_own() {
     for facing in 0..8u8 {
         let stand = l2_view::figures::frame(Troop::Archers, Motion::Idle, facing, 0);
         let mut drawn = std::collections::BTreeSet::new();
-        for phase in 0..12u8 {
-            let i = l2_view::figures::frame(Troop::Archers, Motion::Shooting, facing, phase);
+        // The pose is the curve's, indexed by `swingTimer` over the reload.
+        for swing in 0..80u16 {
+            let pose = l2_view::figures::Pose { swing, ..Default::default() };
+            let i = l2_view::figures::frame(Troop::Archers, Motion::Shooting, facing, pose);
             let pose = i - facing as usize * stride;
-            assert!((10..13).contains(&pose), "facing {facing} phase {phase} pose {pose}");
+            assert!((10..13).contains(&pose), "facing {facing} swing {swing} pose {pose}");
             assert_ne!(i, stand, "the bow draw is not the standing pose");
             assert!(sheet.frame(i).is_some(), "frame {i} does not decode");
             drawn.insert(i);

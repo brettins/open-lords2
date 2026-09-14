@@ -622,6 +622,20 @@ impl BattleRunner {
     /// what an archer that has been ordered somewhere and arrived is doing.
     /// Marked `[I]`; the mechanism it drives is `[V]` throughout.
     fn fire_tick(&mut self, i: usize) {
+        self.reload_tick(i);
+        // **The draw is held for the whole reload.** `BattleMan_FireMissile`
+        // ends `if (target != 0) Anim_DrawBow();` — the last thing it does,
+        // every tick it runs, not the tick the target was found. See
+        // [`Self::shoot`]; the pose itself comes from `swingTimer`, which is
+        // `Figure::reload_counter`.
+        let sim = self.fighters[i].sim;
+        if self.sim.figures[sim].target.is_some() {
+            self.shoot(i);
+        }
+    }
+
+    /// The reload counter and the shot — `BattleMan_FireMissile` up to its tail.
+    fn reload_tick(&mut self, i: usize) {
         let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else {
             return;
         };
@@ -635,15 +649,9 @@ impl BattleRunner {
 
         if counter + missile::ACQUIRE_LEAD == stats.reload {
             match self.missile_target(i, stats.range as i32) {
-                Some(t) => {
-                    self.sim.figures[sim].target = Some(t);
-                    // **The bow comes up here.** `Anim_DrawBowA2`
-                    // (`0x0048804A`), poses 10 … 12 — see [`Self::shoot`] for
-                    // the window and what is inferred about it. Nothing drew
-                    // this at all before: archers stood still and arrows
-                    // appeared out of them.
-                    self.shoot(i);
-                }
+                // The bow is not raised here: the tail of [`Self::fire_tick`]
+                // raises it, on this tick and on every tick the target lives.
+                Some(t) => self.sim.figures[sim].target = Some(t),
                 None => {
                     let f = &mut self.sim.figures[sim];
                     f.target = None;

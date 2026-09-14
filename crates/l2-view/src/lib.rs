@@ -1,10 +1,10 @@
-//! Rendering for Lords of the Realm II: an indexed framebuffer, and the world
+//! Rendering for Lords of the Realm II: an indexed framebuffer
 //! painted onto it from other crates' state.
 //!
 //! **This crate is a library of drawing and nothing else.** It has no window,
 //! no event loop, no input and no `main`; those live in `l2-game`, which is the
 //! workspace's only binary (`docs/plan.md`). Two screens cannot each own the
-//! event loop, and the moment there was more than one screen this crate had to
+//! event loop
 //! stop owning it.
 //!
 //! Everything here is a **reader** of state. Nothing feeds back into `l2-sim`
@@ -14,17 +14,17 @@
 //!
 //! # What is here
 //!
-//! * [`Canvas`] — a 640 x 480 plane of **palette indices**, and the original's
+//! * [`Canvas`] — a 640 x 480 plane of **palette indices**
 //!   two blitters. Colour appears only in [`Canvas::to_rgba`].
 //! * [`canvas::Tags`] — a parallel plane recording *what* was drawn at each
 //!   pixel, which is how the campaign map is picked.
 //! * [`campaign`] — the campaign map: a **scrolling viewport** into
 //!   `L2_maps.dat`'s lattice at one of the original's two zooms. See
 //!   `docs/screens.md`.
-//! * [`fade`] — the end-of-turn palette fade, and the only effect in the game
+//! * [`fade`] — the end-of-turn palette fade
 //!   that lives entirely in the colour table.
 //! * [`chrome`] — the original's interface artwork: the `Panels.pl8` framed-box
-//! kit, the `Misc_cty.pl8` right column, and the `MAPnn.PL8` minimap.
+//! kit, the `Misc_cty.pl8` right column
 //! * [`village`] — the village screen's picture, its eight peasant clusters
 //! and the `vill_gd8.pl8` grid that decides where a drop lands.
 //! * [`scene`] — the battlefield viewport and the men on it.
@@ -43,7 +43,7 @@
 //! transitive crates — while every other crate in the workspace is
 //! dependency-free *for correctness*, because a lockstep value stream may not
 //! be owned by somebody else. This crate now has no third-party dependency at
-//! all: the window went up to `l2-game` with `winit` and `pixels`, and the mod
+//! all: the window went up to `l2-game` with `winit` and `pixels`
 //! overlay went with it, because deciding *which file* to load is not drawing.
 //!
 //! Everything drawn can be produced, and asserted on, with no window at all —
@@ -53,6 +53,7 @@
 pub mod campaign;
 pub mod canvas;
 pub mod chrome;
+pub mod drawbow;
 pub mod engines;
 pub mod fade;
 pub mod figures;

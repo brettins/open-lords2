@@ -327,7 +327,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 599;
+pub(crate) const GATED_TOTAL: usize = 600;
 
 /// The needles that name a gate, strongest first. A body containing several is
 /// counted against the first that matches.

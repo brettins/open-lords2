@@ -40,15 +40,16 @@ impl BattleRunner {
     /// This is also the exit every other arm needs. A man with nothing to do is
     /// standing, and saying so in one place is what stops a pose being left
     /// behind by an arm that returned.
+    ///
+    /// **The counter is touched nowhere else.** `Anim_StandA2` is the only
+    /// function in `Lords2.exe` that writes `+0x0B`, and it neither zeroes it
+    /// on arrival nor writes `facingDrawn` outside the turn — a man who walks
+    /// up and stops keeps the drawn facing his last handler left and carries on
+    /// counting from wherever he was. Ours reset the counter in all four
+    /// handlers and wrote `facingDrawn = dirc` here, which restarted the fidget
+    /// of every man who so much as took a step.
     pub(super) fn stand(&mut self, i: usize) {
         let f = &mut self.fighters[i];
-        // Every handler's tail writes `facingDrawn = dirc2`, so a man arriving
-        // in the standing pose faces where he last faced; the fidget then walks
-        // away from it for as long as he stays there.
-        if f.anim != Motion::Idle {
-            f.facing_drawn = f.facing;
-            f.fidget = 0;
-        }
         f.anim = Motion::Idle;
         f.fidget = f.fidget.wrapping_add(1);
         if f.fidget > f.fidget_period {
@@ -80,7 +81,6 @@ impl BattleRunner {
         }
         let f = &mut self.fighters[i];
         f.anim = Motion::Walking;
-        f.fidget = 0;
         f.facing_drawn = f.facing;
     }
 
@@ -93,34 +93,28 @@ impl BattleRunner {
     pub(super) fn strike(&mut self, i: usize, facing: u8) {
         let f = &mut self.fighters[i];
         f.anim = Motion::Attacking;
-        f.fidget = 0;
         f.facing_drawn = facing % 8;
     }
 
     /// `Anim_DrawBowA2` (`0x0048804A`) — **draw a bow**, poses 10 … 12.
     ///
-    /// The window is `BattleMan_FireMissile`'s own: the target is acquired ten
-    /// ticks before the reload interval expires and the missile leaves when it
-    /// does, so the draw is those ten ticks and nothing else. **[V]** on the
-    /// window (§6.2) and on the pose band (§13.5); **[I]** on the binding
-    /// between them — `Anim_DrawBowA2` has no caller we can read, and ten ticks
-    /// of held aim is the only place in the tick that wants three poses.
+    /// **The window is the whole reload, and it is the caller's.**
+    /// `BattleMan_FireMissile` (`0x00483337`) ends `if (target != 0)
+    /// Anim_DrawBow();` — every tick, and the pose
+    /// comes from a curve indexed by `swingTimer`, which that same function
+    /// steps every tick and zeroes only when the shot leaves. **[V]**: the call
+    /// is the function's tail and `swingTimer` has three writers in it, all
+    /// read. `l2_view::drawbow` holds the two curves.
     ///
-    /// **While the missile flies the shooter stands.** He is back in
-    /// `Anim_StandA2` the tick after the loose; nothing in the figure record
-    /// follows a missile once it is spawned (§14.7 — `+0x06` is the shooter and
-    ///), so there is nothing for a follow-through
-    /// pose to be driven by. **[I]**, and it is what the pose band can pay for.
+    /// Ours drew for one tick: `shoot` ran on the acquisition tick alone and
+    /// `stand` took the pose back the next, so poses 11 and 12 never reached
+    /// the screen and arrows left a standing man.
     ///
-    /// The phase is restarted at the draw so the three poses run once through
-    ///
+    /// The phase is **not** restarted here — `Anim_DrawBowA2` does not touch
+    /// `animPhase`, and it does not read it either.
     pub(super) fn shoot(&mut self, i: usize) {
         let f = &mut self.fighters[i];
-        if f.anim != Motion::Shooting {
-            f.phase = 0;
-        }
         f.anim = Motion::Shooting;
-        f.fidget = 0;
         f.facing_drawn = f.facing;
     }
 }

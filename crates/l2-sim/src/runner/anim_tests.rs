@@ -115,6 +115,57 @@ fn an_archer_enters_shooting_before_the_arrow_is_loosed() {
     );
 }
 
+/// **The draw is held for the whole reload.** `BattleMan_FireMissile`
+/// (`0x00483337`) calls `Anim_DrawBow` at its tail on every tick the figure has
+/// a target, and `swingTimer` — [`crate::Figure::reload_counter`] — steps once
+/// a tick under it, so `l2_view::drawbow`'s curve walks the three poses.
+///
+/// **Ablation**: raise the bow on the acquisition tick only, as we did, and
+/// `stand` takes the pose back on the very next tick — `held` is 1, and poses
+/// 11 and 12 never reach the screen.
+#[test]
+fn the_bow_stays_drawn_across_the_reload_and_the_swing_timer_walks_the_curve() {
+    let mut r = pair(Troop::Archers, Troop::Peasants, 10);
+    let sim = r.fighters[0].sim;
+    let (mut held, mut swings) = (0u32, std::collections::BTreeSet::new());
+    for _ in 0..200 {
+        r.run(1);
+        if r.fighters[0].anim == Motion::Shooting {
+            held += 1;
+            swings.insert(r.sim.figures[sim].reload_counter.min(0x4F));
+        }
+    }
+    assert!(held > 30, "the bow was up for {held} ticks of 200");
+    // Both curves are flat over any short run; 24 apart is the archer's step
+    // from pose 12 to 11, so the drawn pose cannot be constant.
+    let (lo, hi) = (*swings.iter().next().unwrap(), *swings.iter().last().unwrap());
+    assert!(hi - lo >= 24, "swingTimer only covered {lo}…{hi}");
+}
+
+/// **The fidget belongs to `Anim_StandA2` alone** (`0x004872AE`): it is the one
+/// function that writes `+0x0B`, and it does not reset it on arrival.
+///
+/// **Ablation**: reset `fidget` in `march`, `strike` or `shoot`, or write
+/// `facing_drawn = facing` on entering idle as we did, and a man who takes one
+/// step never reaches his period — a standing rank stops shuffling.
+#[test]
+fn only_standing_touches_the_fidget_counter() {
+    let mut r = pair(Troop::Swordsmen, Troop::Swordsmen, 12);
+    r.fighters[0].fidget = 100;
+    r.fighters[0].facing_drawn = 5;
+    r.march(0, true);
+    assert_eq!(r.fighters[0].fidget, 100, "marching reset the counter");
+    r.strike(0, 3);
+    assert_eq!(r.fighters[0].fidget, 100, "striking reset the counter");
+    r.shoot(0);
+    assert_eq!(r.fighters[0].fidget, 100, "drawing reset the counter");
+    // Standing is the only writer, and it counts up.
+    r.fighters[0].facing_drawn = 5;
+    r.stand(0);
+    assert_eq!(r.fighters[0].fidget, 101);
+    assert_eq!(r.fighters[0].facing_drawn, 5, "standing rewrote the drawn facing");
+}
+
 /// **The jitter.** Over a whole battle no figure may change pose on two
 /// consecutive ticks more than a handful of times — a pose that flips every
 /// tick is the symptom, and the walk cycle itself is a *frame* change,

@@ -177,7 +177,11 @@ pub fn draw_figures(
                     Anim::Walking => f.facing,
                     _ => f.facing_drawn,
                 };
-                figures::frame(f.troop, f.anim, facing, f.phase)
+                // The three fields the handlers read besides the phase: the
+                // figure's index (`Anim_StandA2`'s pose), its reload counter
+                // (`Anim_DrawBowA2`'s `swingTimer`) and its melee role
+                // (`Anim_StrikeA2` swings only under `role == 1`).
+                figures::frame(f.troop, f.anim, facing, figures::pose_of(runner, i))
             }
         };
         let Some(frame) = sheet.frame(index) else { continue };
