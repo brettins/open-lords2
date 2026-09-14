@@ -16,6 +16,8 @@ for (let round = 0; round < 8; round++) {
   const names = new Set();
   for (const m of text.matchAll(/error\[E0624\]: (?:method|associated function) `(\w+)` is private/g)) names.add(["fn", m[1]]);
   for (const m of text.matchAll(/error\[E0624\]: associated (?:constant|type) `(\w+)` is private/g)) names.add(["item", m[1]]);
+  // A widened fn whose signature names a narrower type (E0446): the type widens too.
+  for (const m of text.matchAll(/error(?:\[E0446\])?: type `(\w+)` is private/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E0603\]: (?:function|struct|enum|constant|type alias|module|static) `(\w+)` is private/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E0616\]: field `(\w+)` of struct `([\w:]+)` is private/g)) names.add(["field", m[2].split("::").pop() + "." + m[1]]);
   // A struct literal naming private fields: every backticked name before "of struct".
@@ -52,9 +54,12 @@ for (let round = 0; round < 8; round++) {
     if (kind === "dupuse" || kind === "deeper") continue;
     let s = fs.readFileSync(f, "utf8"), t = s;
     // A name already pub(super) that rustc still calls private is used by a cousin: pub(crate).
-    if (kind === "fn") t = s.replace(new RegExp(`^(\\s*)(pub\\(super\\) )?fn ${name}\\b`, "m"), (m, ind, ps) => `${ind}${ps ? "pub(crate)" : "pub(super)"} fn ${name}`);
-    else if (kind === "item") t = s.replace(new RegExp(`^(\\s*)(pub\\(super\\) )?(fn|struct|enum|const|type|static|mod|trait) ${name}\\b`, "m"), (m, ind, ps, kw) => `${ind}${ps ? "pub(crate)" : "pub(super)"} ${kw} ${name}`);
-    else { const [st, fld] = name.split("."); const i = s.search(new RegExp(`^(pub(\\([a-z]+\\))? )?struct ${st}\\b[^;{]*\\{`, "m")); if (i >= 0) { const end = s.indexOf("\n}", i); const body = s.slice(i, end).replace(new RegExp(`^(\\s{4})(pub\\(super\\) )?${fld}:`, "m"), (m, ind, ps) => `${ind}${ps ? "pub(crate)" : "pub(super)"} ${fld}:`); t = s.slice(0, i) + body + s.slice(end); } }
+    // A crate root (main.rs, lib.rs) has no super: pub(crate) from the start.
+    const rootFile = /^(main|lib)\.rs$/.test(path.basename(f));
+    const vis = ps => (ps || rootFile) ? "pub(crate)" : "pub(super)";
+    if (kind === "fn") t = s.replace(new RegExp(`^(\\s*)(pub\\(super\\) )?fn ${name}\\b`, "m"), (m, ind, ps) => `${ind}${vis(ps)} fn ${name}`);
+    else if (kind === "item") t = s.replace(new RegExp(`^(\\s*)(pub\\(super\\) )?(fn|struct|enum|const|type|static|mod|trait) ${name}\\b`, "m"), (m, ind, ps, kw) => `${ind}${vis(ps)} ${kw} ${name}`);
+    else { const [st, fld] = name.split("."); const i = s.search(new RegExp(`^(pub(\\([a-z]+\\))? )?struct ${st}\\b[^;{]*\\{`, "m")); if (i >= 0) { const end = s.indexOf("\n}", i); const body = s.slice(i, end).replace(new RegExp(`^(\\s{4})(pub\\(super\\) )?${fld}:`, "m"), (m, ind, ps) => `${ind}${vis(ps)} ${fld}:`); t = s.slice(0, i) + body + s.slice(end); } }
     if (t !== s) { fs.writeFileSync(f, t); changed++; }
   }
   console.log(`widen: round ${round}, ${names.size} private name(s), ${changed} widened`);
