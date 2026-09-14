@@ -1,37 +1,6 @@
-//! **The sounds a screen makes when it opens**, which is where nearly all of
-//! the original's non-battlefield audio lives.
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test audio_screens
-//! ```
-//!
-//! `tests/audio_wiring.rs` covers the music policy and the narrator's message
-//! window. This file covers the class that `docs/audio-triggers.md` had counted
-//! and nobody had wired: **`Sound_PlayFile(name, 1, 0)` and
-//! `Sound_RestartSlot(n)` in the function that sets `g_screenId`.**
-//!
-//! # Why the screen arriving is the trigger and not a stand-in for it
-//!
-//! The temptation is to read `Director`'s screen-stack diff as an approximation
-//! — *the original plays a sound, we notice a screen*. It is not.
-//! `Panel_OpenRation` (`0x0043A846`) is **four statements** and two of them are
-//! sounds:
-//!
-//! ```c
-//! g_screenId = 0x19; Panel_Ration();
-//! if (rationAchieved == 0)                                Sound_PlayFile("S021_02.wav", 1, 0);
-//! else if (herd && !herdEaten && !grainEaten)             Sound_PlayFile("S021_01.wav", 1, 0);
-//! ```
-//!
-//! The sound *is* the screen opening, with a condition on the county attached.
-//! `Sidebar_Button`'s supplies arm, `Panel_SplitButton`, `Map_ZoomOut`,
-//! `Panel_JobDetail` and `TileInfo_Draw` are all that shape.
-//! mechanism reaches fourteen sites.
-//!
-//! Everything below drives real [`Event`]s through [`Machine::handle`] and then
-//! runs [`audio::Director::listen`], the way `main.rs` does. Nothing constructs
-//! a stack, for the reason `audio_wiring.rs` opens with.
-
+#![allow(unused_imports)]
+use super::*;
+use super::audio_behavior::*;
 use l2_game::audio::{self, names, Audio};
 use l2_game::game::Assets;
 use l2_game::screen::{Machine, ScreenId};
@@ -41,35 +10,6 @@ use l2_game::screens::setup::SetupPage;
 use l2_game::input::{Event, Key};
 use l2_game::screen::Ctx;
 use l2_game::Game;
-
-fn send(m: &mut Machine, game: &mut Game, assets: &Assets, e: Event) {
-    let mut ctx = Ctx { game, assets };
-    m.handle(e, &mut ctx);
-}
-
-const APP_ROOT: ScreenId = ScreenId::Setup(SetupPage::Title);
-
-fn world() -> Game {
-    let mut g = Game::new(5);
-    g.kingdom.set_county_count(14);
-    g.kingdom.realms[1].in_play = true;
-    g.kingdom.counties[1].owner = 1;
-    g.kingdom.realms[1].county_count = 1;
-    g.player = 1;
-    g
-}
-
-/// An audio layer that indexes and decodes the player's install with no device.
-fn headless() -> Option<Audio> {
-    let dir = l2_testkit::install_dir()?;
-    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
-    Some(Audio::headless(&platform.vfs))
-}
-
-/// Run the director over the machine as it stands, as the event loop does.
-fn listen(d: &mut audio::Director, a: &mut Audio, m: &Machine, g: &Game) {
-    d.listen(a, m, g);
-}
 
 /// **The front end is not silent, and it was.**
 ///
@@ -381,94 +321,6 @@ fn a_screen_speaks_once_and_not_once_a_frame() {
     let _ = &assets;
 }
 
-/// Mix until `name` has stopped sounding.
-fn drain(audio: &mut Audio, name: &str) {
-    let mut buf = vec![0.0f32; 2 * 4096];
-    for _ in 0..2_000 {
-        if !audio.is_playing(name) {
-            return;
-        }
-        audio.mix(&mut buf);
-    }
-    panic!("{name} never finished");
-}
-
-/// **A line or a fanfare asked for while the one-shot buffer sounds is
-/// dropped, and one asked for once it has finished plays.** `Sound_PlayFile`
-/// opens with `if (Sound_OneShotBusy()) return 0;`, and `Map_ZoomOut` and
-/// `Battle_ChooseSettlement` call it with nothing in front of it, so the
-/// narrator's zoom-out line and the battle fanfare wait for nobody: asked for
-/// over another clip, they are not played at all. `[V]`
-///
-/// The buffer is held by `Panel_OpenRation`'s `S021_01.wav`, itself a
-/// `Sound_PlayFile`. **And a request that is dropped does not take the
-/// buffer**: after each drop the ration line is still what `Sound_OneShotBusy`
-/// asks about. Nothing is mixed until both drops have been asked for, so the
-/// line cannot have ended by itself in between.
-///
-/// Ablations: take the busy test out of `Audio::play_file` and the zoom-out line
-/// is heard over the ration line; give `Map_ZoomOut` `stop_and_play_file`, the
-/// same; give `Battle_ChooseSettlement` `play_effect` back and `ff_batl.wav` is
-/// heard; record the name in `play_file` before its busy return and
-/// `one_shot_busy` answers no after the first drop.
-#[test]
-fn a_line_or_a_fanfare_over_the_one_shot_buffer_is_dropped_and_after_it_plays() {
-    let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
-    let mut game = world();
-    game.kingdom.counties[1].ration_achieved = 3;
-    game.kingdom.counties[1].herd = 400;
-    game.kingdom.counties[1].herd_eaten = 0;
-    game.kingdom.counties[1].grain_eaten = 0;
-    game.select(1);
-    // `Machine` has no pop, and the director reads nothing but the ids, so each
-    // listen is handed the stack it should see.
-    let stack = |over: &[ScreenId]| {
-        let mut m = Machine::new(APP_ROOT);
-        m.push(ScreenId::Campaign);
-        for id in over {
-            m.push(*id);
-        }
-        m
-    };
-    let ration = ScreenId::County(1, Panel::Ration);
-    let prompt = ScreenId::BattlePrompt;
-    let mut director = audio::Director::new();
-    listen(&mut director, &mut audio, &stack(&[]), &game);
-
-    listen(&mut director, &mut audio, &stack(&[ration]), &game);
-    assert!(
-        audio.is_playing(names::speech::RATION_ON_DAIRY),
-        "the ration line did not start, so nothing below is tested - heard {:?}",
-        audio.heard()
-    );
-    assert!(audio.one_shot_busy());
-
-    game.map_zoom_far = true;
-    listen(&mut director, &mut audio, &stack(&[ration]), &game);
-    assert!(!audio.heard().contains(&"s033_02.wav"), "Map_ZoomOut's line played over the ration line");
-    assert!(audio.one_shot_busy(), "the dropped zoom-out line took the buffer");
-
-    listen(&mut director, &mut audio, &stack(&[ration, prompt]), &game);
-    assert!(!audio.heard().contains(&"ff_batl.wav"), "the battle fanfare played over the ration line");
-    assert!(audio.one_shot_busy(), "the dropped fanfare took the buffer");
-
-    drain(&mut audio, names::speech::RATION_ON_DAIRY);
-    assert!(!audio.one_shot_busy());
-
-    // The same two again, each into an idle buffer.
-    game.map_zoom_far = false;
-    listen(&mut director, &mut audio, &stack(&[ration]), &game);
-    game.map_zoom_far = true;
-    listen(&mut director, &mut audio, &stack(&[ration]), &game);
-    assert!(audio.heard().contains(&"s033_02.wav"), "heard {:?}", audio.heard());
-    assert!(audio.one_shot_busy(), "the zoom-out line holds the buffer");
-
-    drain(&mut audio, names::speech::ZOOM_OUT);
-    listen(&mut director, &mut audio, &stack(&[ration, prompt]), &game);
-    assert!(audio.heard().contains(&"ff_batl.wav"), "heard {:?}", audio.heard());
-    assert!(audio.one_shot_busy(), "and the fanfare holds it in turn");
-}
-
 /// **The standings page says which category you are looking at** —
 /// `FUN_004B3994(DAT_0055CE7C)`, whose two callers are the court's *Greatest
 /// nobles* button (`FUN_004351C4`) and one of the page's seven tabs
@@ -593,3 +445,4 @@ fn the_save_box_and_the_trade_spinner_speak_what_their_handlers_decided() {
     }
     assert_eq!(game.spoken.0, spoken, "the spinner said its line once per crossing");
 }
+
