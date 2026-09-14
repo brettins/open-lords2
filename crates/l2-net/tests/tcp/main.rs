@@ -49,6 +49,7 @@ pub use transport::*;
 mod simulation;
 pub use simulation::*;
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use std::io::Write;

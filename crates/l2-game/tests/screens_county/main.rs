@@ -14,6 +14,7 @@ mod layout_and_labels;
 pub use layout_and_labels::*;
 
 #[macro_use]
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::*;

@@ -30,6 +30,7 @@ pub use order_determinism::*;
 mod hashing_and_types;
 pub use hashing_and_types::*;
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::TempDir;

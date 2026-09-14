@@ -19,6 +19,7 @@ pub use flow_tests::*;
 mod divergence_tests;
 pub use divergence_tests::*;
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::{Order, ToySim};

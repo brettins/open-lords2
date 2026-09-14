@@ -8,6 +8,7 @@ mod tile_panel_part;
 pub use tile_panel_part::*;
 
 #[macro_use]
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::*;

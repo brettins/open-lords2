@@ -10,6 +10,7 @@ mod animation;
 pub use animation::*;
 
 #[macro_use]
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::*;

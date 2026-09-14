@@ -8,26 +8,26 @@ use std::fmt;
 
 /// **Least significant bit first**, within bytes taken in order — the order
 /// every Smacker bitstream is written in.
-struct Bits<'a> {
+pub(super) struct Bits<'a> {
     data: &'a [u8],
-    pos: usize,
+    pub(super) pos: usize,
     what: &'static str,
 }
 
 impl<'a> Bits<'a> {
-    fn new(data: &'a [u8], what: &'static str) -> Bits<'a> {
+    pub(super) fn new(data: &'a [u8], what: &'static str) -> Bits<'a> {
         Bits { data, pos: 0, what }
     }
 
     #[inline]
-    fn bit(&mut self) -> Result<usize> {
+    pub(super) fn bit(&mut self) -> Result<usize> {
         let byte = *self.data.get(self.pos >> 3).ok_or(Error::Overrun(self.what))?;
         let b = (byte >> (self.pos & 7)) & 1;
         self.pos += 1;
         Ok(b as usize)
     }
 
-    fn bits(&mut self, n: u32) -> Result<u32> {
+    pub(super) fn bits(&mut self, n: u32) -> Result<u32> {
         let mut v = 0u32;
         for i in 0..n {
             v |= (self.bit()? as u32) << i;
@@ -35,7 +35,7 @@ impl<'a> Bits<'a> {
         Ok(v)
     }
 
-    fn total(&self) -> usize {
+    pub(super) fn total(&self) -> usize {
         self.data.len() * 8
     }
 }
@@ -60,13 +60,13 @@ const MAX_DEPTH: usize = 512;
 /// 8-bit value for a leaf; then a `0` bit closing it. An absent tree decodes
 /// every symbol as zero and costs no bits.
 #[derive(Debug, Clone)]
-struct Tree8 {
+pub(super) struct Tree8 {
     nodes: Vec<[u32; 2]>,
     root: u32,
 }
 
 impl Tree8 {
-    fn read(bits: &mut Bits) -> Result<Tree8> {
+    pub(super) fn read(bits: &mut Bits) -> Result<Tree8> {
         let mut t = Tree8 { nodes: Vec::new(), root: LEAF };
         if bits.bit()? == 0 {
             return Ok(t);
@@ -95,7 +95,7 @@ impl Tree8 {
     }
 
     #[inline]
-    fn decode(&self, bits: &mut Bits) -> Result<u8> {
+    pub(super) fn decode(&self, bits: &mut Bits) -> Result<u8> {
         let mut n = self.root;
         while n & LEAF == 0 {
             n = self.nodes[n as usize][bits.bit()?];
@@ -116,13 +116,13 @@ impl Tree8 {
 /// not already the most recent is pushed onto the front of the three and the
 /// oldest falls off. The three reset to zero at the start of every frame.
 #[derive(Debug, Clone)]
-struct Tree16 {
+pub(super) struct Tree16 {
     nodes: Vec<[u32; 2]>,
     root: u32,
 }
 
 impl Tree16 {
-    fn read(bits: &mut Bits) -> Result<Tree16> {
+    pub(super) fn read(bits: &mut Bits) -> Result<Tree16> {
         let mut t = Tree16 { nodes: Vec::new(), root: LEAF };
         if bits.bit()? == 0 {
             return Ok(t);
@@ -167,7 +167,7 @@ impl Tree16 {
     }
 
     #[inline]
-    fn decode(&self, bits: &mut Bits, recent: &mut [u16; 3]) -> Result<u16> {
+    pub(super) fn decode(&self, bits: &mut Bits, recent: &mut [u16; 3]) -> Result<u16> {
         let mut n = self.root;
         while n & LEAF == 0 {
             n = self.nodes[n as usize][bits.bit()?];

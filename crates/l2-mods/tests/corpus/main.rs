@@ -16,6 +16,7 @@ pub use seeding::*;
 mod difficulty;
 pub use difficulty::*;
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::TempDir;

@@ -26,7 +26,7 @@ pub struct AudioChunk {
 /// bits, **right before left**; and then one tree code per sample, a signed
 /// delta added to that channel's last value, channels interleaved from the
 /// left.
-fn decode_audio(raw: &[u8], desc: Track) -> Result<AudioChunk> {
+pub(super) fn decode_audio(raw: &[u8], desc: Track) -> Result<AudioChunk> {
     if !desc.packed {
         return Ok(AudioChunk { pcm: raw.to_vec(), unpacked: raw.len(), bits: (0, 0) });
     }

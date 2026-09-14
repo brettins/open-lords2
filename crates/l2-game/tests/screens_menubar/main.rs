@@ -8,6 +8,7 @@ mod turn_timer;
 pub use turn_timer::*;
 
 #[macro_use]
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::*;

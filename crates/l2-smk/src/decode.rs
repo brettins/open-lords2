@@ -95,7 +95,7 @@ const TYPE: usize = 3;
 
 /// A block type's run length, indexed by bits 2–7 of the type value: one
 /// through fifty-nine, then five powers of two.
-const RUN: [u32; 64] = {
+pub(super) const RUN: [u32; 64] = {
     let mut t = [0u32; 64];
     let mut i = 0;
     while i < 59 {
@@ -121,9 +121,9 @@ pub fn expand6(v: u8) -> u8 {
     (v << 2) | (v >> 4)
 }
 
-struct Chunks<'a> {
+pub(super) struct Chunks<'a> {
     palette: Option<&'a [u8]>,
-    audio: [Option<&'a [u8]>; 7],
+    pub(super) audio: [Option<&'a [u8]>; 7],
     video: &'a [u8],
 }
 
@@ -228,7 +228,7 @@ impl Decoder {
         Ok(true)
     }
 
-    fn decode(&mut self, smk: &Smk, i: usize) -> Result<()> {
+    pub(super) fn decode(&mut self, smk: &Smk, i: usize) -> Result<()> {
         let chunks = smk.chunks(i)?;
         self.palette_changed = false;
         if let Some(p) = chunks.palette {

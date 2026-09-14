@@ -17,6 +17,7 @@
 mod lobby_tests;
 pub use lobby_tests::*;
 
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::{Order, ToySim};

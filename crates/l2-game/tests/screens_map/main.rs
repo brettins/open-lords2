@@ -12,6 +12,7 @@ mod fog_and_march_tests;
 pub use fog_and_march_tests::*;
 
 #[macro_use]
+#[path = "../common/mod.rs"]
 mod common;
 
 use common::*;
