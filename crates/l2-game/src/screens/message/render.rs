@@ -153,6 +153,11 @@ pub(super) fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Re
 
 /// **Category `0x02`** — the portrait panel with `L2.eng` 109/1 over the county
 /// name, both centred in 0x140.
+///
+/// The well is **not** empty: the arm blits a face into it like a lord's letter
+/// does, only the frame is [`peasant_face_frame`]'s and not a realm's. The
+/// county the picture answers to is the record's — `DAT_0055CE54`, the same
+/// byte the heading's county name is read with two lines below.
 pub(super) fn draw_county_portrait(
     pen: &Pen,
     ctx: &Ctx,
@@ -160,7 +165,9 @@ pub(super) fn draw_county_portrait(
     record: &Record,
     f: message::Frame,
 ) {
-    draw_portrait_well(pen, canvas, f);
+    let population =
+        ctx.game.kingdom.counties.get(record.county as usize).map_or(0, |c| c.population);
+    draw_face(pen, canvas, peasant_face_frame(population), f);
     let heading = ctx.assets.shell.text(message::GROUP_FROM, 1).to_string();
     pen.heading_centred(canvas, f.x + 0x6C, f.y + 0x18, 0x140, &heading, font::TEXT);
     let county = county_name(ctx, record.county);
@@ -359,6 +366,20 @@ fn draw_portrait_well(pen: &Pen, canvas: &mut Canvas, f: message::Frame) {
     pen.inset(canvas, Rect::new(f.x + dx, f.y + dy, w, h));
 }
 
+/// The well and one `Faces.pl8` frame in it — `Ui_DrawInsetRect(x + 0xF, y +
+/// 0x11, 0x52, 0x4E)` then `Blit_Raster(0x4EEB80, x + 0x10, y + 0x12, 0x50,
+/// 0x4C)`. `0x4EEB80` is the buffer `FUN_00475D73` decoded the frame into, so
+/// the pair is *one* portrait draw, and every arm of `Msg_DrawWindow` that has
+/// a portrait writes it out identically.
+fn draw_face(pen: &Pen, canvas: &mut Canvas, frame: usize, f: message::Frame) {
+    draw_portrait_well(pen, canvas, f);
+    if let Some(sheet) = pen.assets.sheet(FACES) {
+        if let Some(bitmap) = sheet.frame(frame) {
+            canvas.blit(&bitmap, f.x + FACE_AT.0, f.y + FACE_AT.1);
+        }
+    }
+}
+
 /// The well, the face and the shield.
 fn draw_portrait(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, realm: u8, f: message::Frame) {
     let r = ctx.game.kingdom.realms.get(realm as usize);
@@ -366,17 +387,12 @@ fn draw_portrait(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, realm: u8, f: messag
         let shield = SHIELD_BASE + r.shield_index.clamp(0, 5) as usize;
         chrome.draw_panel_frame(canvas, shield, f.x + f.w - 0x1E, f.y + 0x12);
     }
-    draw_portrait_well(pen, canvas, f);
     let frame = face_frame(
         r.map_or(0, |r| r.lord),
         r.is_some_and(|r| r.is_human),
         realm,
     );
-    if let Some(sheet) = pen.assets.sheet(FACES) {
-        if let Some(bitmap) = sheet.frame(frame) {
-            canvas.blit(&bitmap, f.x + FACE_AT.0, f.y + FACE_AT.1);
-        }
-    }
+    draw_face(pen, canvas, frame, f);
 }
 
 /// **Draw the scroll's two clickable pictures again, and nothing else.**
