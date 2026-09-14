@@ -53,6 +53,8 @@ macro_rules! world {
 
 mod setup_tests;
 pub use setup_tests::*;
+mod skirmish_tests;
+pub use skirmish_tests::*;
 mod title_tests;
 pub use title_tests::*;
 
