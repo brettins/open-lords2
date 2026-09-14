@@ -242,7 +242,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B51", Switchable(Behavioural)),
     ("B52", Switchable(Behavioural)),
     ("B53", Switchable(Behavioural)),
-    ("B54", Unwired("crates/l2-kingdom/src/conquest.rs and its caller")),
+    ("B54", Unwired("crates/l2-kingdom/src/conquest/mod.rs and its caller")),
     ("B55", Unswitchable("invisible: a wrapping subtraction on a message variant; bugs.md §6.4")),
     (
         "B55a",

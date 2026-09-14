@@ -13,7 +13,7 @@
 //! scope is a 4×4 tile block around the county *town*, and the tie-break is the
 //! largest army.
 //!
-//! The unit tests beside the function in `src/conquest.rs` state the geometry.
+//! The unit tests beside the function in `src/conquest/mod.rs` state the geometry.
 //! This file states the thing the geometry was checked against: that
 //! `battle-before.sav` really does hold a position where the two readings
 //! **disagree**.

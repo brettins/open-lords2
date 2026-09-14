@@ -396,7 +396,7 @@ The game ends, and somebody wins it.
 396: right outcome byte and the right sentence of screen `0x1C`, and a campaign steps map to map.
 What is missing: the way a person gets to that position on the board.
 
-**Sieges are on the critical path.** `crates/l2-kingdom/src/conquest.rs:114` implements the
+**Sieges are on the critical path.** `crates/l2-kingdom/src/conquest/mod.rs:114` implements the
 gate, and it is one `if`: a county with a castle *and* a garrison that is not yours cannot be
 entered at all — `Refusal::Garrisoned`. It is correct and it is tested at all four corners.
 Its consequence is that **without sieges the map stops moving and a game cannot be won.** Any
