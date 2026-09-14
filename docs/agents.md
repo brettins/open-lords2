@@ -141,6 +141,18 @@ tokens per file when an agent did the same job; never give this to an agent. Aft
 the lead runs `corrections.js --relock`, `cargo check --workspace --tests`, counts the
 `fig:` markers per doc, and commits.
 
+## File size
+
+The player's cap, 2026-09-13: a test file stays under 300 lines, a source under 500, and a
+new file under 300. `.claude/hooks/file-size.js` tells an agent when a file it edited is
+over the cap. The split is a script, never hand work: `tools/review/split-llm.js <file>`
+(Flash plans line ranges from the outline, the script moves every line; a `tests/x.rs`
+becomes `tests/x/main.rs`, anything else `x/mod.rs`) then `tools/review/widen.js <crate>
+crates/<crate>` until `cargo check --workspace --tests` is clean. Widen reads every seam
+class rustc reports and escalates `pub(super)` to `pub(crate)` for a cousin; what it cannot
+read is a file's own doing (a cut inside a const, a self-reading test) and goes back to the
+lead. 215 files went through it in one evening at about 3 s each.
+
 ## What agents are good and bad at here
 
 **Good:** bounded investigations with a clear validation test (crack a format, find a
