@@ -76,7 +76,13 @@ pub fn begin_fight(
                 level,
             ),
         },
-        None => BattleRunner::deploy_muster(blank_field(), seed, a, d),
+        // **The open field.** `Battle_Start` (`0x004778A0`) calls
+        // `Battlefield_BuildRandom` (`0x0047AAA3`) here, which reads one
+        // `batfield.pl8` frame as an 80 x 80 terrain plane —
+        // `l2_sim::terrain::build_field`. `crate::batfield` is the process
+        // global the original reads it out of, and it falls back to
+        // [`blank_field`] on a checkout with no install.
+        None => BattleRunner::deploy_muster(crate::batfield::field(seed), seed, a, d),
     };
 
     // **What the last siege on this castle left.** `FUN_004787A4` is the last

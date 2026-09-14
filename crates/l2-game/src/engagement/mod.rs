@@ -32,10 +32,14 @@
 //! exactly — see [`l2_kingdom::battle::Settlement`]. What the original does
 //! *inside* a fought battle that we do not:
 //!
-//! * **The battlefield is blank.** `Battlefield_BuildRandom` (`0x004AAA3`)
-//!   builds one from the campaign tile the armies are standing on and is
-//!   `[I]`-level unread; [`l2_sim::runner::blank_field`] is used instead, so
-//!   terrain plays no part yet.
+//! * **The battlefield now has terrain on it.** `Battlefield_BuildRandom`
+//!   (`0x0047AAA3`) is read: it builds the field from one `batfield.pl8`
+//!   frame's 6,400-byte raster, not from the campaign tile, and
+//!   [`l2_sim::terrain::build_field`] reproduces it. What is still ours is
+//!   *which* frame — the original walks a 48-entry playlist at `0x0057CAE0`
+//! that a new game shuffles and the network syncs; [`crate::batfield`] takes
+//!   the map from the battle seed instead. A checkout with no install still
+//!   gets [`l2_sim::runner::blank_field`].
 //! * **Nobody clicks — but only where nobody is watching.** A human side gets
 //!   no AI order handler in the original either (`Battle_UpdateAllUnits`
 //!   (`0x00489401`) guards on `humanControlled`), and `Battle_Start`

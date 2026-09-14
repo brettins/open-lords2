@@ -152,7 +152,7 @@ const WATER: [Pattern; 49] = [
     e(0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0),
 ];
 
-/// `0x004D7860`, 17 entries — shared by woodland (id 0x0C) and the `0x15`
+/// `0x004D7860`, 17 entries
 /// lines (id 0x0D), which apply different arithmetic to the same base.
 const WOOD: [Pattern; 17] = [
     e(1, 2, 1, 2, 1, 2, 1, 2, 0x12, 1),
@@ -350,6 +350,28 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
 
     // Pass 3 - graphics and flags.
     let mut cells = vec![Cell::default(); CELLS];
+    for (c, &t) in cells.iter_mut().zip(terrain.iter()) {
+        c.terrain = t;
+    }
+    graphics_pass(&mut cells, &terrain, seed, true);
+
+    // Pass 4 - bridges.
+    bridge_pass(&mut cells);
+
+    Battlefield { cells, deploy_side0, deploy_side4, home_side0, home_side4 }
+}
+
+/// **The third pass of both open-field builders** — `Battlefield_BuildFromSkr`
+/// (`0x0047B8B2`) and `Battlefield_BuildRandom` (`0x0047AAA3`) run the same
+/// code here: clear cell byte `+2`'s sheet bits, step the LFSR once per cell
+/// whether or not the arm uses it, and give ground, hills, water, woodland and
+/// the `0x15` lines their frame out of the four auto-tiling tables.
+///
+/// `random_rocks` is the one difference. The `.skr` builder picks a random
+/// variant for ids 3 and 6 here; `Battlefield_BuildRandom` gave them their
+/// frame in its *first* pass, straight out of the source byte, and has no arm
+/// for them at all. **[V]** on both decompilations.
+pub(super) fn graphics_pass(cells: &mut [Cell], terrain: &[u8], seed: u32, random_rocks: bool) {
     let mut rng = Lfsr::new(seed);
     let mut counters = Counters::new();
     for y in 0..DIM {
@@ -360,7 +382,8 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
             let r = rng.next();
             let t = terrain[i];
             let cell = &mut cells[i];
-            cell.terrain = t;
+            // `flags2 &= 0xE3` — both builders clear the sheet selector.
+            cell.flags2 &= !tileset::MASK;
             match t {
                 id::OPEN => {
                     let mask = neighbour_mask(&terrain, x, y, id::OBSTACLE, false);
@@ -383,11 +406,11 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
                     }
                     cell.flags |= flag::IMPASSABLE;
                 }
-                id::ROCKS => {
+                id::ROCKS if random_rocks => {
                     cell.gfx = (r & 7) + 0x20;
                     cell.flags |= flag::IMPASSABLE;
                 }
-                id::UNUSED6 => {
+                id::UNUSED6 if random_rocks => {
                     cell.gfx = (r & 7) + 0x7C;
                     cell.flags |= flag::IMPASSABLE;
                 }
@@ -413,11 +436,15 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
             }
         }
     }
+}
 
-    // Pass 4 - bridges. Each part stamps a 4-wide block of consecutive
-    // graphics, clears the terrain id behind it so the block is stamped once,
-    // and marks the two outer columns as parapets. The cells either side get a
-    // fixed water graphic.
+/// **The fourth pass of both open-field builders** — the three `FUN_0047D6FE`
+/// calls at the tail of `Battlefield_BuildFromSkr` and of
+/// `Battlefield_BuildRandom`, byte for byte the same in each. Each bridge part
+/// stamps a 4-wide block of consecutive graphics, clears the terrain id behind
+/// it so the block is stamped once, and marks the two outer columns as
+/// parapets. The cells either side get a fixed water graphic.
+pub(super) fn bridge_pass(cells: &mut [Cell]) {
     for y in 0..DIM {
         for x in 0..DIM {
             let i = y * DIM + x;
@@ -427,7 +454,7 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
                 id::BRIDGE_FAR => (0x98, 2, 0xB4, 0),
                 _ => continue,
             };
-            stamp(&mut cells, x, y, gfx0, 4, rows);
+            stamp(cells, x, y, gfx0, 4, rows);
             let sy = y + side_row;
             if sy < DIM {
                 if x >= 1 {
@@ -443,13 +470,11 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
             }
         }
     }
-
-    Battlefield { cells, deploy_side0, deploy_side4, home_side0, home_side4 }
 }
 
 /// `FUN_0047D6FE` — write a `cols x rows` block of consecutive graphic indices
 /// and clear the terrain id behind it.
-fn stamp(cells: &mut [Cell], x: usize, y: usize, gfx0: u8, cols: usize, rows: usize) {
+pub(super) fn stamp(cells: &mut [Cell], x: usize, y: usize, gfx0: u8, cols: usize, rows: usize) {
     let mut g = gfx0;
     for r in 0..rows {
         for c in 0..cols {
