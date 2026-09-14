@@ -9288,7 +9288,7 @@ next palette a screen names and nobody registers will be hidden the same way.
 **The test could not have been a canvas test**, which is the reusable part: every index on the
 canvas was right, and the defect lived entirely between the canvas and the glass. The presenter
 was in `main.rs`, where nothing can call it; it is `Machine::present` now, and
-`crates/l2-game/tests/overlay_palette.rs` asserts presented colour at fixed pixels.
+`crates/l2-game/tests/overlay_palette/main.rs` asserts presented colour at fixed pixels.
 
 **A lead, not taken:** `main.rs` draws on the tick and presents on `RedrawRequested`, and the
 palette is read at present time. An event that changes the stack between the two would present
