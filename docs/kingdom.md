@@ -1384,7 +1384,7 @@ transcription slip:
 * **The band is cut out of the county's index**, once, in `County_Reset` (`0x00451150`):
   `id < 4 → 0`, `< 6 → 1`, `< 10 → 2`, `< 12 → 3`, else `4`. **Nothing else in the binary
   writes `+0x21E`** — one writer, one reader — so it is derived, not stored in
-  `crates/l2-kingdom/src/weather.rs::climate_band`, and a saved game's byte cannot disagree
+  `crates/l2-kingdom/src/weather/mod.rs::climate_band`, and a saved game's byte cannot disagree
   with it.
 * **Summer's ladder has a hole at band 3 and a dead arm at the bottom**, and they are the
   same slip: the fourth test reads `field == 4` where the ladder wants `field == 3`, so band

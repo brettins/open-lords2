@@ -359,6 +359,6 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // Summer's climate ladder skips band 3 and has an unreachable arm.
     // Reproduced literally with the hole named, and not wired: switching it
     // would change the weather every county gets, which is a rule.
-    ("B92", Unwired("crates/l2-kingdom/src/weather.rs::local_modifier")),
+    ("B92", Unwired("crates/l2-kingdom/src/weather/mod.rs::local_modifier")),
 ];
 

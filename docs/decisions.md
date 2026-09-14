@@ -4246,7 +4246,7 @@ said it was invented.**
 
 `docs/plan.md` §2.7 calls it *"the one constant in `l2-kingdom` with no evidence behind
 it"*, and the Open questions list below said the same. Both were stale:
-`crates/l2-kingdom/src/weather.rs` has carried the derivation since the day it was traced —
+`crates/l2-kingdom/src/weather/mod.rs` has carried the derivation since the day it was traced —
 `Rand_Advance` (`0x00404A46`) masks its LFSRs with `0x7F` and `Weather_UpdateAll` shifts by
 3, so the draw is 0…127 and the jitter 0…15 — and `docs/audit-method.md` re-derived it
 independently a second time and recorded that the decision log was stale. **The constant is

@@ -73,7 +73,7 @@ deliberately ignores it for four of six bands.
 **Reachability, which matters here.** It only bites with **Advanced Farming on**:
 `Weather_UpdateAll` ends with `if (!g_optAdvancedFarming) band = Cloudy`, and *Cloudy* is one
 of the two bands that leave the labour cap standing. The basic game never sees this bug; the
-advanced game sees it in four seasons out of six. **[V]**, `crates/l2-kingdom/src/weather.rs`.
+advanced game sees it in four seasons out of six. **[V]**, `crates/l2-kingdom/src/weather/mod.rs`.
 
 **Switching it off** is one line in `harvest`: use `reaped` as the base. Not a data change —
 the weather factors are a Rust `match` (§6.2).
