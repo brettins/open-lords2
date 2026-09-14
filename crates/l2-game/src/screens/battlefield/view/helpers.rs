@@ -86,6 +86,13 @@ pub(crate) fn side_shields(game: &crate::Game, live: &LiveBattle) -> (u8, u8) {
     (side_shield(game, live, l2_sim::SIDE_B), side_shield(game, live, l2_sim::SIDE_A))
 }
 
+/// `g_battleMenA` and `g_battleMenB` in the order `FUN_00423530` draws them —
+/// the count under the left shield first. `BattleRunner::men` is
+/// `Battle_CountMenByType`'s census, troop types 0 … 6.
+pub(crate) fn side_men(live: &LiveBattle) -> (u32, u32) {
+    (live.runner.men(l2_sim::SIDE_B), live.runner.men(l2_sim::SIDE_A))
+}
+
 /// The cursor the ladder picks, exposed for the tests — the picture has no
 /// cursor sheet to draw it with.
 pub fn cursor_of(live: &LiveBattle) -> Cursor {

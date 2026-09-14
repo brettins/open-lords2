@@ -38,6 +38,8 @@ pub use render::*;
 mod motion;
 pub use motion::*;
 mod column;
+
+mod plates;
 pub use column::*;
 mod panel;
 pub use panel::*;
