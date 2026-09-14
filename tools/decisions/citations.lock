@@ -144,7 +144,7 @@ crates/l2-game/src/turn/engine/mod.rs	C80	a56b43c8f6c4	c26c30b0d0d8
 crates/l2-game/src/turn/mod.rs	C35	731b0b4ffa74	193a1920e229
 crates/l2-game/src/turn/mod.rs	C35	87cde1fdbcb4	193a1920e229
 crates/l2-game/src/turn/types.rs	C35	5d5f3b924ebe	193a1920e229
-crates/l2-game/src/turn_clock.rs	C140	9266033b8ec5	e3a1ede42a95
+crates/l2-game/src/turn_clock/mod.rs	C140	9266033b8ec5	e3a1ede42a95
 crates/l2-game/src/victory.rs	C44	81209403d144	caaab37ee8ce
 crates/l2-game/src/victory.rs	C44	eb2da78efce9	caaab37ee8ce
 crates/l2-game/src/victory.rs	C44	fa73148cbb7c	caaab37ee8ce

@@ -312,7 +312,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // screens::job::castle_word. Nothing to switch: the pair IS what the block
     // says about a castle that is not there.
     ("B105", Unswitchable("the block's whole statement about an absent castle; a corrected pair is a different screen")),
-    ("B99", Unwired("crates/l2-game/src/turn_clock.rs")),
+    ("B99", Unwired("crates/l2-game/src/turn_clock/mod.rs")),
     ("B69", Unwired("l2_kingdom::siege, the repair bill material")),
     // The six the AI branch reproduced. All are behavioural and none is wired
     // to a switch yet: each is a defect of the original the AI now reproduces,

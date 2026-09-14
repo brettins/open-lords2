@@ -984,7 +984,7 @@ hardware, which is a matter of how long a turn takes to run. `docs/oracle-reques
 a stopwatch request and was retired on that reading; nothing a person could watch would change
 the order of three clauses.
 
-**Reproduced.** `crates/l2-game/src/turn_clock.rs`, `TurnClock::tick` — the three clauses in
+**Reproduced.** `crates/l2-game/src/turn_clock/mod.rs`, `TurnClock::tick` — the three clauses in
 the original's order, the count before the restart, with the turn's running time counted in
 ticks. Tests `a_turn_ended_early_hands_its_running_time_to_the_next_turn` and
 `a_siege_assault_leaves_the_next_turn_without_a_restart`.

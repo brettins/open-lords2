@@ -2961,7 +2961,7 @@
       "gesture": "timer",
       "addr": "0x0049A010",
       "what": "Turn_Tick's phase-4 arm counts DAT_005440C8 = g_optTimeLimit - (timeGetTime() - _DAT_00568D9C) / 1000 and, below zero, writes -1 and calls Turn_End (0x0043AC23) -- the End Turn button's handler, ending the LOCAL player's turn with nobody pressing anything. Then 1 < DAT_0055403C && aiStep != 999 restarts the count for the next turn. The limit is the custom game's Time limit drop-down, single-player page included; the campaign forces it to 0.",
-      "note": "Not a gesture: a timer, counted in Turn_Tick from Battle_Frame's loop on whatever screen is up, which is why ours is in Machine::update rather than in a screen. Its consequences are reproduced with it -- Turn_End's Msg_Dismiss, and the 0x0042FF10 guard's screens closed until the map is on top to start the turn. The draw, FUN_0041A639, is docs/draws-map.md's. The countdown running before the restart in one frame is docs/bugs.md B99 and is reproduced. crates/l2-game/src/turn_clock.rs has what is not.",
+      "note": "Not a gesture: a timer, counted in Turn_Tick from Battle_Frame's loop on whatever screen is up, which is why ours is in Machine::update rather than in a screen. Its consequences are reproduced with it -- Turn_End's Msg_Dismiss, and the 0x0042FF10 guard's screens closed until the map is on top to start the turn. The draw, FUN_0041A639, is docs/draws-map.md's. The countdown running before the restart in one frame is docs/bugs.md B99 and is reproduced. crates/l2-game/src/turn_clock/mod.rs has what is not.",
       "evidence": "D",
       "ours": "crates/l2-game/src/screen/mod.rs"
     },

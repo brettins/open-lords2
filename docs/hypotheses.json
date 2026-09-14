@@ -73,7 +73,7 @@
       "section": "ui",
       "confidence": "subject",
       "comment": "The per-turn countdown, drawn from the frame loop: Misc_cty frame 0x60 at (404, 430), then the seconds left centred in 50 px at (424, 442), trailing space from DAT_004D41D0. docs/decisions.md C158.",
-      "basis": "crates/l2-game/src/turn_clock.rs quotes the draw: guard g_battlePhase == 0 && 2 < g_appPhase && 0 < DAT_005440C8 plus the screen table at DAT_004D2E80, then Ui_DrawNumberRight(DAT_005440C8, ' ', &DAT_004D41D0, 0x1A8, 0x1BA, 0x32, &g_fontBody, 0x3F).",
+      "basis": "crates/l2-game/src/turn_clock/mod.rs quotes the draw: guard g_battlePhase == 0 && 2 < g_appPhase && 0 < DAT_005440C8 plus the screen table at DAT_004D2E80, then Ui_DrawNumberRight(DAT_005440C8, ' ', &DAT_004D41D0, 0x1A8, 0x1BA, 0x32, &g_fontBody, 0x3F).",
       "caveat": "Name suggested by the coordinator at merge, not used or verified by the branch, which calls it by its address throughout. The address and the behaviour are the branch's; the name is a hypothesis."
     },
     {
