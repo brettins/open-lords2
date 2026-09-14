@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+
+use super::*;
 use super::widget_tests::*;
 use l2_game::game::{Assets, Prefs, PRESENTATION};
 use l2_game::input::{Event, Key};
@@ -359,4 +361,5 @@ fn every_options_page_can_be_built() {
         assert!(built.is_overlay(), "{page:?} is a window over what opened it");
     }
 }
+
 
