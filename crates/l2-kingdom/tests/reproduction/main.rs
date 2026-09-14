@@ -111,16 +111,6 @@
 //! when something is configured that is not it. Those are different states and
 //! conflating them is how the previous breakage went unnoticed.
 
-mod helpers;
-pub use helpers::*;
-mod reproduction;
-pub use reproduction::*;
-mod food_and_ration;
-pub use food_and_ration::*;
-mod population_and_labour;
-pub use population_and_labour::*;
-mod simulation;
-pub use simulation::*;
 
 use l2_formats::save::Save;
 use l2_kingdom::county::County;
@@ -154,6 +144,17 @@ macro_rules! england {
         Scenario::from_save(&save).expect("the England turn-one fixture must import")
     }};
 }
+
+mod helpers;
+pub use helpers::*;
+mod reproduction;
+pub use reproduction::*;
+mod food_and_ration;
+pub use food_and_ration::*;
+mod population_and_labour;
+pub use population_and_labour::*;
+mod simulation;
+pub use simulation::*;
 
 /// County 1 borders one county and nothing else. That **is** a property of the
 /// England map and is stable across every save of it.

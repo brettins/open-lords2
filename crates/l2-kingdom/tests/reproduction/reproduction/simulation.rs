@@ -5,7 +5,6 @@ use super::*;
 use super::helpers::*;
 use super::food_and_ration::*;
 use super::population_and_labour::*;
-use super::simulation::*;
 use l2_formats::save::Save;
 use l2_kingdom::county::County;
 use l2_kingdom::phase::SEASON_PIPELINE;

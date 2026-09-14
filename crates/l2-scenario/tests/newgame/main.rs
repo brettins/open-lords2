@@ -26,11 +26,6 @@
 //! `CountyState` **out of the source**, so a field added tomorrow fails this
 //! test until somebody says which verdict it takes.
 
-mod validation;
-pub use validation::*;
-mod diff;
-pub use diff::*;
-
 use l2_formats::maps::{MapSet, Plane, PLANE_DIM, SLOT_LEN};
 use l2_kingdom::map::MAP_TILES;
 use l2_scenario::newgame::{self, MapError, NewGame};
@@ -46,6 +41,11 @@ macro_rules! maps {
         }
     };
 }
+
+mod build;
+pub use build::*;
+mod comparison;
+pub use comparison::*;
 
 /// Slot 0 is England — `L2.eng` group 101 names it, and rendering it produces
 /// England and Wales (`docs/formats/maps-layers.md` §0).
@@ -216,3 +216,43 @@ const JUDGED: &[&str] = &[
     "grain_event_change",
     "herd_weather_change",
     "herd_event_change",
+];
+
+/// **Enumerate the fields; do not spot-check them.**
+///
+/// Reads `pub struct CountyState`'s field list out of
+/// `crates/l2-scenario/src/mod.rs` and fails if a field is not in [`JUDGED`].
+/// A hand-written list goes stale the day somebody adds a field; a list checked
+/// against the definition cannot.
+///
+/// It needs no game, so it runs on CI — which is the point, because the diff
+/// itself is fixture-gated and this is the half of it that is not.
+#[test]
+fn every_county_field_is_accounted_for() {
+    let src = include_str!("../src/lib.rs");
+    let start = src.find("pub struct CountyState {").expect("the struct is still called that");
+    let body = &src[start..];
+    let end = body.find("\n}").expect("the struct closes");
+    let mut fields = Vec::new();
+    for line in body[..end].lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix("pub ") else { continue };
+        let Some(name) = rest.split(':').next() else { continue };
+        if name.is_empty() || name.contains(' ') {
+            continue;
+        }
+        fields.push(name.to_string());
+    }
+    assert!(fields.len() > 20, "the parser found only {} fields", fields.len());
+    let missing: Vec<&String> = fields.iter().filter(|f| !JUDGED.contains(&f.as_str())).collect();
+    assert!(
+        missing.is_empty(),
+        "CountyState fields the two-constructor diff does not judge: {missing:?}.\n\
+         Add each to JUDGED with a verdict, or say in the test why it cannot be compared."
+    );
+    let stale: Vec<&&str> = JUDGED.iter().filter(|c| !fields.iter().any(|f| f == *c)).collect();
+    assert!(stale.is_empty(), "JUDGED names fields CountyState no longer has: {stale:?}");
+}
+
+// ------------------------------------------------------------------ ablation
+

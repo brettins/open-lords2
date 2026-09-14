@@ -1,8 +1,6 @@
 #![allow(unused_imports)]
 use super::*;
-
-use super::*;
-use super::validation::*;
+use super::build::*;
 use l2_formats::maps::{MapSet, Plane, PLANE_DIM, SLOT_LEN};
 use l2_kingdom::map::MAP_TILES;
 use l2_scenario::newgame::{self, MapError, NewGame};
@@ -697,5 +695,4 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
 }
 
 // ------------------------------------------------ the enumeration, from source
-
 

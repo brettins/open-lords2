@@ -70,7 +70,7 @@ fn fnv(h: &mut u64, bytes: &[u8]) {
 
 const FNV_START: u64 = 0xcbf29ce484222325;
 
-pub(super) fn decode(path: &std::path::Path) -> Stats {
+pub(crate) fn decode(path: &std::path::Path) -> Stats {
     let smk = Smk::parse(std::fs::read(path).unwrap()).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     let h = *smk.header();
     let mut d = smk.decoder();
