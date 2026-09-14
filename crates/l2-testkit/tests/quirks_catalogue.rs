@@ -801,13 +801,13 @@ fn every_switch_is_read_by_the_simulation() {
 #[test]
 fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     let root = repo_root();
-    let tables = read(&root, "crates/l2-kingdom/src/tables.rs");
+    let tables = read(&root, "crates/l2-kingdom/src/tables/mod.rs");
     // Everything from `pub struct Tables` to the end of its `Encode` impl is
     // what the fingerprint covers.
     for needle in ["Quirk", "quirks"] {
         assert!(
             !tables.contains(needle),
-            "crates/l2-kingdom/src/tables.rs names `{needle}`. A quirk on `Tables` is hashed \
+            "crates/l2-kingdom/src/tables/mod.rs names `{needle}`. A quirk on `Tables` is hashed \
              into the save header (`ruleset_fingerprint`), so adding one invalidates every \
              existing save — and it frames a quirk as a rule. Put it on \
              `l2_kingdom::kingdom::Options::quirks`, which is in the save body and in the \

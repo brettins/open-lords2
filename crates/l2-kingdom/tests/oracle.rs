@@ -6,7 +6,7 @@
 //!
 //! # Why this file exists
 //!
-//! `crates/l2-kingdom/src/tables.rs` is 1,200 lines of hand-transcribed
+//! `crates/l2-kingdom/src/tables/mod.rs` is 1,200 lines of hand-transcribed
 //! literals, each with an address in its doc comment and none with a check. The
 //! addresses were read once, by hand, out of a decompiler; the numbers were
 //! typed once, by hand, into Rust. `tools/oracle/kingdom.ps1` reads the same

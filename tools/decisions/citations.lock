@@ -277,12 +277,12 @@ crates/l2-kingdom/src/save.rs	C195	9d5ecaaad554	f0bf50bfaad1
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	061a96a14194	ed7ea7df1f23
-crates/l2-kingdom/src/tables.rs	C10	a6c634a96def	68e4eb2d2a1f
-crates/l2-kingdom/src/tables.rs	C11	3dce2a33c715	07dfad15821c
-crates/l2-kingdom/src/tables.rs	C11	dd0ab25a802a	07dfad15821c
-crates/l2-kingdom/src/tables.rs	C16	d8ed617206dd	2e6270fa32a9
-crates/l2-kingdom/src/tables.rs	C16	ee2a3a83524e	2e6270fa32a9
-crates/l2-kingdom/src/tables.rs	C3	5cab149d2244	35bf3a86555f
+crates/l2-kingdom/src/tables/constants.rs	C10	a6c634a96def	68e4eb2d2a1f
+crates/l2-kingdom/src/tables/constants.rs	C16	d8ed617206dd	2e6270fa32a9
+crates/l2-kingdom/src/tables/constants.rs	C16	ee2a3a83524e	2e6270fa32a9
+crates/l2-kingdom/src/tables/methods.rs	C3	5cab149d2244	35bf3a86555f
+crates/l2-kingdom/src/tables/mod.rs	C11	3dce2a33c715	07dfad15821c
+crates/l2-kingdom/src/tables/mod.rs	C11	dd0ab25a802a	07dfad15821c
 crates/l2-kingdom/src/tax.rs	C149	7ceb97ebaf2f	138117948441
 crates/l2-kingdom/src/tax.rs	C26	03649751764a	e8179d1f76a8
 crates/l2-kingdom/src/tax.rs	C26	2b481fbbd074	e8179d1f76a8
@@ -1018,7 +1018,7 @@ docs/method.md	C38	5300e90cb318	cd66a8ec76e7
 docs/method.md	C5	e3631c7b8cfd	5751c743a83c
 docs/modding.md	C10	1d29a6081c1f	68e4eb2d2a1f
 docs/modding.md	C11	8097d9e237c2	07dfad15821c
-docs/modding.md	C12	39f1298e9b9a	bb0dd488f9d2
+docs/modding.md	C12	5762a180e8bc	bb0dd488f9d2
 docs/modding.md	C36	8b047a707272	4367c93c1b02
 docs/modding.md	C36	a32887af7e67	4367c93c1b02
 docs/name-leads.json	C3	68e063e42e2c	35bf3a86555f
