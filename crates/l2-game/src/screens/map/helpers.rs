@@ -37,7 +37,7 @@ use paint::*;
 /// farm arm is the pasture herd and nothing else.
 /// artwork (`Terrain_Set`, which [`MapScreen::field_graphics`] reproduces) — so
 /// they are drawn only with [`crate::game::Prefs::debug_overlay`] on.
-mod brush {
+pub(super) mod brush {
     /// Half-width of a field marker. **Ours**, debug overlay only.
     pub const FIELD_MARKER: i32 = 3;
 }

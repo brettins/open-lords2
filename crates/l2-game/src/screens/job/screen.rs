@@ -141,7 +141,7 @@ impl Screen for JobScreen {
         core::mem::take(&mut self.redraw)
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let pen = Pen {
             assets: &ctx.assets.shell,

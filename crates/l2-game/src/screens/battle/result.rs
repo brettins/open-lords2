@@ -76,7 +76,7 @@ impl Screen for BattleResultScreen {
         }
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let Some(r) = turn::pending_report(ctx.game) else { return };
         let p = pen(ctx);
         draw_frame(ctx, canvas, r.county, r.attacker_owner, r.defender_owner, r.is_siege);

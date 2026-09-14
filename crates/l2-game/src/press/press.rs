@@ -172,7 +172,7 @@ impl Press {
 /// all, so this is called from [`Press::press`] and
     /// [`Press::press_delayed`] and **not** from [`Press::press_held`] or
     /// [`Press::tick`].
-    fn click(&mut self) {
+    pub(crate) fn click(&mut self) {
         self.clicks = self.clicks.saturating_add(1);
     }
 

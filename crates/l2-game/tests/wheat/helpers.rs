@@ -77,7 +77,7 @@ fn c124_variant(season: u8, crop: [i32; 3], fields_grain: i32) -> u8 {
     }
 }
 
-fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) -> Canvas {
+pub(crate) fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
     let ctx = Ctx { game, assets };
     screen.draw(&ctx, &mut canvas);

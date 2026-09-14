@@ -284,7 +284,7 @@ impl Screen for CastleScreen {
     /// coordinate, through the original's fonts and sheets. Nothing on this
     /// screen is a caption of ours: the words it shows are `L2.eng` group 71
     /// and the pictures are `cas_back.pl8`, `caspics.pl8` and `cas_bits.pl8`.
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let a = &ctx.assets.shell;
         let ink = &ctx.assets.ink;
         let pen = Pen {

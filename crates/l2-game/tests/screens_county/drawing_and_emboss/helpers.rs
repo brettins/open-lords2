@@ -57,7 +57,7 @@ fn body_mask(assets: &Assets, s: &str) -> Vec<(i32, i32)> {
 /// every pixel of each set has to agree or this returns `None`. The two shadow
 /// colours come out as palette indices, which is the form the binary states
 /// them in.
-fn emboss_at(canvas: &Canvas, assets: &Assets, s: &str, colour: u8) -> Option<(u8, u8)> {
+pub(crate) fn emboss_at(canvas: &Canvas, assets: &Assets, s: &str, colour: u8) -> Option<(u8, u8)> {
     let mask = body_mask(assets, s);
     let (ox, oy) = find_body(canvas, assets, s, colour)?;
     let inside = |dx: i32, dy: i32| mask.contains(&(dx, dy));

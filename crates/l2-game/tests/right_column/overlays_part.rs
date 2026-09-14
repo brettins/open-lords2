@@ -9,7 +9,7 @@ use l2_game::screens::{county, divide, info, map};
 use l2_game::Game;
 
 /// A world with one county owned, enough to build any of these screens.
-fn world() -> (Game, Assets) {
+pub(super) fn world() -> (Game, Assets) {
     // `Game::new` takes a SEED, not a realm count.
     let mut g = Game::new(7);
     g.player = 1;

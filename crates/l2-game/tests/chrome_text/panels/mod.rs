@@ -32,7 +32,7 @@ use l2_view::Canvas;
 /// did not have it, on the strength of a patch of sea. A negative assertion is
 /// only worth what its positive twin is, so this pins the colour the line it is
 /// about
-fn debug_font_absent(canvas: &Canvas, s: &str, colour: u8) -> bool {
+pub(super) fn debug_font_absent(canvas: &Canvas, s: &str, colour: u8) -> bool {
     let w = l2_view::text::width(s).max(1);
     let h = l2_view::text::GLYPH_H;
     let mut probe = Canvas::new(w as usize, h as usize);

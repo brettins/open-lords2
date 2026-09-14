@@ -2,7 +2,7 @@
 
 mod render_helpers;
 pub use render_helpers::*;
-mod draw;
+pub(crate) mod draw;
 pub use draw::*;
 
 use super::*;

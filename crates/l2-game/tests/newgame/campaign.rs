@@ -25,7 +25,7 @@ use l2_kingdom::realm::MAX_REALMS;
 /// readings agree: the table in the executable, and an autosave the *original*
 /// wrote eight turns into a campaign, which carries `g_scenarioIndex` 17 and
 /// four counties.
-const QUAINTVILLE: usize = 17;
+pub(super) const QUAINTVILLE: usize = 17;
 /// The second campaign opens on Australia — `g_campaignTableB` row **2**, which
 /// is where `Setup_ChooseCampaign` starts that track's counter.
 const AUSTRALIA: usize = 52;

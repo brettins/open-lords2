@@ -158,7 +158,7 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
 
 /// Play `turns` turns, checking the invariant after each and censusing what
 /// fired. Returns the census, or panics naming the turn that broke.
-fn play(game: &mut Game, turns: usize, label: &str) -> Census {
+pub(crate) fn play(game: &mut Game, turns: usize, label: &str) -> Census {
     let mut census = Census::default();
     if let Err(why) = invariant(&game.kingdom) {
         panic!("{label}: broken before a single turn was played: {why}");
@@ -190,7 +190,7 @@ fn play(game: &mut Game, turns: usize, label: &str) -> Census {
     census
 }
 
-fn scoreline(k: &Kingdom, label: &str) {
+pub(crate) fn scoreline(k: &Kingdom, label: &str) {
     eprintln!("--- {label}, year {} ---", k.year);
     for r in 1..l2_kingdom::MAX_REALMS {
         let realm = &k.realms[r];
@@ -246,7 +246,7 @@ fn scoreline(k: &Kingdom, label: &str) {
 /// `Territory_ExtendBlock` joins through `County_IsNeighbour` (`0x00467E2C`) on
 /// **same-owner** adjacency,
 /// kept depends on populations the season moves, so nothing below names one.
-fn england_cut_in_two() -> Option<Game> {
+pub(super) fn england_cut_in_two() -> Option<Game> {
     let save = match l2_testkit::england_turn1() {
         l2_testkit::FixtureState::Ready(s) => *s,
         _ => return None,
@@ -268,7 +268,7 @@ fn england_cut_in_two() -> Option<Game> {
 /// person takes four — and then the rules run. **Nothing here asserts a value**,
 /// because a dealt board is not an oracle for anything; what it does is make
 /// the multi-county rules *reachable*, which is what §2.5 asks for.
-fn england_with_an_empire() -> Option<Game> {
+pub(super) fn england_with_an_empire() -> Option<Game> {
     let save = match l2_testkit::england_turn1() {
         l2_testkit::FixtureState::Ready(s) => *s,
         _ => return None,

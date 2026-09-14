@@ -42,7 +42,7 @@ use l2_kingdom::{Kingdom, Options};
 ///
 /// And forgetting this is loud: see
 /// [`an_unscoped_save_is_refused`].
-struct Saves {
+pub(crate) struct Saves {
     path: PathBuf,
     _scope: saves::ScopedDir,
 }
@@ -92,7 +92,7 @@ fn file(name: &str) -> String {
 ///
 /// Set once and never changed, which is the only safe way to use a
 /// process-global: no test ever needs a *different* value.
-fn an_unscoped_save_is_refused() -> PathBuf {
+pub(super) fn an_unscoped_save_is_refused() -> PathBuf {
     use std::sync::Once;
     static ONCE: Once = Once::new();
     let plug = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))

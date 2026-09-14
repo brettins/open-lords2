@@ -100,7 +100,7 @@ fn cells_of(live: &LiveBattle, side: u8) -> Vec<(u8, u8)> {
 /// banner keeps its 5000 frames. Casualties are therefore counted while there
 /// is still a battle to count them from, and the per-tick equality below is
 /// what holds the two copies to the same end.
-fn played(assets: &Assets, ticks: u32) -> (Game, Game, u32) {
+pub(crate) fn played(assets: &Assets, ticks: u32) -> (Game, Game, u32) {
     let human = [(Troop::Swordsmen, 3), (Troop::Archers, 3)];
     let ai = [(Troop::Crossbowmen, 3), (Troop::Macemen, 3)];
     let cam = |_: (u8, u8)| (33, 33);

@@ -291,7 +291,7 @@ impl Screen for ComposeScreen {
         Transition::Stay
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let a = &ctx.assets.shell;
         let me = ctx.game.player;

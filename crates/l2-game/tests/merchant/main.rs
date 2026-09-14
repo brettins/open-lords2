@@ -52,7 +52,7 @@ fn send<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets, e: Event) -
     screen.handle(e, &mut ctx)
 }
 
-fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) -> Canvas {
+pub(crate) fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
     let ctx = Ctx { game, assets };
     screen.draw(&ctx, &mut canvas);

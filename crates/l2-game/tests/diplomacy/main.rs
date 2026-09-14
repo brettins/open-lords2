@@ -31,7 +31,7 @@ use l2_view::Canvas;
 /// Realm 1 is the person, realms 2 and 3 are the Knight and the Baron, and
 /// county 3 has an enemy standing in it so that *ask for help* has something to
 /// be about.
-fn world() -> (Game, Assets) {
+pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(5);
     g.kingdom.set_county_count(4);
     for realm in 1..=3usize {

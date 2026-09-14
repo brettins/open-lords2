@@ -70,7 +70,7 @@ fn row_showing(columns: &[u8]) -> u8 {
 /// share and `g_countyCount − 1` are not the same number. Realm 1 is the player
 /// and holds county 1; realm 2, the Countess's lord 3, holds county 3; county
 /// 2's owner is the test's.
-fn world(county_2: u8) -> (Game, Assets, Machine) {
+pub(crate) fn world(county_2: u8) -> (Game, Assets, Machine) {
     let mut g = Game::new(0xA441);
     g.prefs.tip_screens = false;
     g.prefs.animations = false;

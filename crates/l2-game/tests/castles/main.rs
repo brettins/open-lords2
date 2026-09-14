@@ -59,7 +59,7 @@ fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     m.update(&mut ctx);
 }
 
-fn click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
+pub(crate) fn click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
     send(m, g, a, Event::Click { x: at.0, y: at.1 });
 }
 
@@ -169,7 +169,7 @@ fn plot(g: &mut Game, county: u8, at: (u8, u8)) -> (u8, u8) {
 /// which is walkable. The opponent holds two counties so that losing one does
 /// not eliminate it and end the game — `tests/military.rs` learned that the
 /// hard way and it is the same trap here.
-fn world() -> (Game, Assets) {
+pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(11);
     // **Tip screens: No**, the player's own switch. A new game's three tips
     // open on the campaign map and hold its input on screen `0x27`, which is

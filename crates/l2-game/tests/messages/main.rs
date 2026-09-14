@@ -61,7 +61,7 @@ fn on(at: (i32, i32)) -> Event {
 }
 
 /// Five realms on a small map, realm 1 the human, nothing owned yet.
-fn world() -> (Game, Assets, Machine) {
+pub(crate) fn world() -> (Game, Assets, Machine) {
     let mut g = Game::new(0xB0A7);
     g.player = 1;
     g.kingdom.set_county_count(6);

@@ -115,7 +115,7 @@ fn the_treasury_names_crowns_out_of_the_game_s_own_strings() {
 /// short number is often a digit inside some *other* number higher up the
 /// screen. Pinning the row turns "is this string anywhere" into "is this string
 /// at this call site", which is the claim a position test makes.
-fn find_on_row(canvas: &Canvas, f: &Font, s: &str, colour: u8, y: i32) -> Option<i32> {
+pub(crate) fn find_on_row(canvas: &Canvas, f: &Font, s: &str, colour: u8, y: i32) -> Option<i32> {
     let style = Style { colour, shadow: None, caps: None };
     let w = f.width(s).max(1);
     let h = f.height(s).max(1) + 2;

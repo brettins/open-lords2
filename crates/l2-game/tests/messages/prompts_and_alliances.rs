@@ -12,7 +12,7 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::Game;
 use l2_kingdom::victory::Outcome;
 
-fn alliance_offer(from: u8) -> Record {
+pub(crate) fn alliance_offer(from: u8) -> Record {
     Record {
         to: 1,
         from,

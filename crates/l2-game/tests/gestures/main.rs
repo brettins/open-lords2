@@ -28,7 +28,7 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::county::{self, Panel};
 use l2_game::Game;
 
-fn world() -> (Game, Assets) {
+pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(4);
     g.kingdom.set_county_count(2);
     for id in 1..=2usize {

@@ -322,7 +322,7 @@ impl Screen for BattlefieldScreen {
         std::mem::take(&mut self.redraw) | self.press.take_redraw()
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         self.note_ground(ctx);
         let banner = self.banner_of(ctx);
         // `Screen_DrawBattlefield` (`0x004233F7`) opens the screen with

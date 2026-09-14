@@ -22,7 +22,7 @@ use l2_view::Canvas;
 /// `E` sends the map screen to the conquest interstitial instead of leaving the
 /// map on top. That is the original's behaviour too — it is the fixture that was
 /// unreal. `crates/l2-game/tests/ending.rs` is where a game is *meant* to end.
-fn world() -> (Game, Assets) {
+pub(super) fn world() -> (Game, Assets) {
     let mut g = Game::new(5);
     // **Tip screens: No.** A new game's tips hold the campaign map's input on
     // screen `0x27`; that is `tests/tips.rs`'s subject, not this file's.
@@ -81,7 +81,7 @@ fn run_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) -> u32 {
     panic!("the turn never came round");
 }
 
-fn draw(machine: &mut Machine, game: &mut Game, assets: &Assets) -> Canvas {
+pub(crate) fn draw(machine: &mut Machine, game: &mut Game, assets: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
     let ctx = Ctx { game, assets };
     machine.draw(&ctx, &mut canvas);

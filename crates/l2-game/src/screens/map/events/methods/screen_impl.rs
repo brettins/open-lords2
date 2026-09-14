@@ -871,7 +871,7 @@ impl Screen for MapScreen {
         core::mem::take(&mut self.autosave)
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         self.ensure(ctx);
         self.ensure_minimap(ctx);
         let ink = &ctx.assets.ink;

@@ -161,7 +161,7 @@ impl Screen for SetupScreen {
         Transition::Stay
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let a = &ctx.assets.shell;
         // **[D]** The front end's own text flags. `DAT_005AEA40` is set around
         // every menu item, button caption and body line and cleared for the

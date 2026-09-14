@@ -25,7 +25,7 @@ use l2_kingdom::{Kingdom, Options};
 /// without a `Game`
 /// forgot its [`Saves`] meets [`an_unscoped_save_is_refused`] before it can
 /// write — whatever order the harness happens to run the tests in.
-fn furnished(seed: u64) -> Game {
+pub(crate) fn furnished(seed: u64) -> Game {
     an_unscoped_save_is_refused();
     let mut game = Game::new(seed);
     let k = &mut game.kingdom;
@@ -97,12 +97,12 @@ fn furnished(seed: u64) -> Game {
 
 /// The lockstep digest of a kingdom — the number a peer would exchange
 /// one this file compares two timelines with.
-fn digest(k: &Kingdom) -> u64 {
+pub(crate) fn digest(k: &Kingdom) -> u64 {
     l2_kingdom::save::checksum(k)
 }
 
 /// A game with `n` turns played through the phase machine.
-fn played(n: usize) -> Game {
+pub(crate) fn played(n: usize) -> Game {
     let mut game = furnished(0x51A_7E5);
     for i in 0..n {
         assert!(turn::end_turn(&mut game).is_some(), "turn {i} did not come round");

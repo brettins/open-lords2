@@ -32,7 +32,7 @@ use l2_game::screens::options::{self, OptionsScreen, Page, Setting};
 use l2_game::Game;
 use l2_kingdom::{Quirk, Quirks};
 
-fn world() -> (Game, Assets) {
+pub(crate) fn world() -> (Game, Assets) {
     (Game::new(1), Assets::placeholder())
 }
 
@@ -40,7 +40,7 @@ fn world() -> (Game, Assets) {
 const ORIGINALS: [Page; 4] = [Page::Advanced, Page::Sound, Page::Display, Page::Help];
 
 /// Click at a point and return what the screen asked the machine to do.
-fn click(screen: &mut OptionsScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
+pub(crate) fn click(screen: &mut OptionsScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
     let mut ctx = Ctx { game, assets };
     screen.handle(Event::Click { x, y }, &mut ctx)
 }

@@ -68,7 +68,7 @@ let rgb: Vec<u8> = rgba.chunks(4).flat_map(|p| [p[0], p[1], p[2]]).collect();
 /// A stored-block PNG encoder with no dependency — the same forty lines
 /// `tests/screens_shoot.rs` carries, and for the same reason: a `.rgb` dump needs a
 /// converter and a remembered width before anyone glances at it.
-mod png {
+pub(super) mod png {
     fn crc32(data: &[u8]) -> u32 {
         let mut table = [0u32; 256];
         for (i, e) in table.iter_mut().enumerate() {

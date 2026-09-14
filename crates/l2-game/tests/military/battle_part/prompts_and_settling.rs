@@ -21,7 +21,7 @@ use l2_view::campaign;
 
 /// Put the player's army next to an enemy's and march it in, so the turn's unit
 /// sweep raises a battle.
-fn a_battle_is_about_to_happen() -> (Game, Assets, Machine, usize, usize) {
+pub(crate) fn a_battle_is_about_to_happen() -> (Game, Assets, Machine, usize, usize) {
     let (mut g, a, m) = on_the_map();
     let (mine, theirs) = adjacent_pair(|x| x as usize == BORDER_1_2 - 1);
     let attacker = army_at(&mut g, 1, 1, 400, mine);

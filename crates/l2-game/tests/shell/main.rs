@@ -53,7 +53,7 @@ fn eng() -> Option<Eng> {
 /// A world and assets with no game behind them. Every structural test below
 /// runs against this, which is what proves the layout does not depend on the
 /// install being present.
-fn bare() -> (Game, Assets) {
+pub(crate) fn bare() -> (Game, Assets) {
     (Game::new(1), Assets::placeholder())
 }
 

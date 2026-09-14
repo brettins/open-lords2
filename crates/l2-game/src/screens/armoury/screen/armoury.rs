@@ -174,7 +174,7 @@ impl Screen for ArmouryScreen {
         core::mem::take(&mut self.redraw)
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         page(ctx, canvas, true);
         overlay(ctx, canvas, &ctx.game.levy.anim);
         let ink = &ctx.assets.ink;

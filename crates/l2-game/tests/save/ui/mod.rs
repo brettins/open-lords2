@@ -22,13 +22,13 @@ use l2_kingdom::{Kingdom, Options};
 
 // --- the two screens -------------------------------------------------------
 
-fn bare() -> (Game, Assets) {
+pub(super) fn bare() -> (Game, Assets) {
     (played(1), Assets::placeholder())
 }
 
 /// Deliver events to a screen through the machine, so that the transitions are
 /// the ones the application would apply.
-fn drive(m: &mut Machine, game: &mut Game, assets: &Assets, events: &[Event]) {
+pub(super) fn drive(m: &mut Machine, game: &mut Game, assets: &Assets, events: &[Event]) {
     for e in events {
         let mut ctx = Ctx { game, assets };
         m.handle(*e, &mut ctx);

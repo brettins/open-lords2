@@ -221,7 +221,7 @@ impl Screen for MovieScreen {
         std::mem::take(&mut self.redraw)
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         if !self.film.is_over_a_screen() {
             // `FUN_004B11CE` → `FUN_004B1867`: the back buffer cleared.
             canvas.clear(0);

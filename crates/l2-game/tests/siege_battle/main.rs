@@ -65,7 +65,7 @@ fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     m.update(&mut ctx);
 }
 
-fn click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
+pub(crate) fn click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
     send(m, g, a, Event::Click { x: at.0, y: at.1 });
 }
 
@@ -110,7 +110,7 @@ fn run_until(
 
 /// Two counties, one each. **Realm 1 is the human and realm 2 the AI**, and
 /// which of them is besieged is what each test below chooses.
-fn world() -> (Game, Assets) {
+pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(11);
     g.kingdom.set_county_count(2);
     for id in 1..=2usize {

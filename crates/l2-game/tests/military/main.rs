@@ -77,7 +77,7 @@ const BORDER_2_3: usize = 48;
 /// neighbours is a realm holding two **blocks** —
 ///   no adjacency seceded again at the end of the same turn it was taken. The
 /// rule is right and the fixture was unreal.
-fn world() -> (Game, Assets) {
+pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(11);
     // **Tip screens: No.** A new game's tips hold the campaign map's input on
     // screen `0x27` — and the first time an army is picked up, *"Army
@@ -143,7 +143,7 @@ fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     m.update(&mut ctx);
 }
 
-fn click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
+pub(crate) fn click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
     send(m, g, a, Event::Click { x: at.0, y: at.1 });
 }
 

@@ -188,7 +188,7 @@ impl Screen for DiplomacyScreen {
     /// filling the card painted a hole in the window's parchment — invisible
     /// under our palette, where `ink.panel` *is* the parchment colour, and
     /// black under a real one.
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let a = &ctx.assets.shell;
         // `Diplo_DrawScreen` sets neither `DAT_0058FE2C` (drop capitals) nor

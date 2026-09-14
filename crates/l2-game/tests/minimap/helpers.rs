@@ -20,7 +20,7 @@ use l2_view::chrome::{
 };
 use l2_view::Canvas;
 
-fn draw(screen: &mut MapScreen, game: &mut Game, assets: &Assets) -> Canvas {
+pub(crate) fn draw(screen: &mut MapScreen, game: &mut Game, assets: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
     let ctx = Ctx { game, assets };
     screen.draw(&ctx, &mut canvas);
@@ -28,7 +28,7 @@ fn draw(screen: &mut MapScreen, game: &mut Game, assets: &Assets) -> Canvas {
 }
 
 /// Click one of the four buttons in the strip beside the minimap.
-fn click(screen: &mut MapScreen, game: &mut Game, assets: &Assets, button: usize) {
+pub(crate) fn click(screen: &mut MapScreen, game: &mut Game, assets: &Assets, button: usize) {
     let r = MINIMAP_MODE_BUTTONS[button];
     let mut ctx = Ctx { game, assets };
     screen.handle(Event::Click { x: r.x + 2, y: r.y + 2 }, &mut ctx);
@@ -36,7 +36,7 @@ fn click(screen: &mut MapScreen, game: &mut Game, assets: &Assets, button: usize
 
 /// The distinct colours drawn over the land pixels of the counties in `want` —
 /// shades 11..=13 only, so the selected county's `0x20` never enters.
-fn land_colours(canvas: &Canvas, m: &Minimap, want: &BTreeSet<u8>) -> BTreeSet<u8> {
+pub(crate) fn land_colours(canvas: &Canvas, m: &Minimap, want: &BTreeSet<u8>) -> BTreeSet<u8> {
     let mut seen = BTreeSet::new();
     for y in 0..MINIMAP_DIM {
         for x in 0..MINIMAP_DIM {
@@ -51,7 +51,7 @@ fn land_colours(canvas: &Canvas, m: &Minimap, want: &BTreeSet<u8>) -> BTreeSet<u
 }
 
 /// The counties in the raster whose `band` — one of the three ratings — is `b`.
-fn with_band(
+pub(crate) fn with_band(
     game: &Game,
     m: &Minimap,
     band: fn(l2_kingdom::county::MinimapBands) -> u8,
@@ -64,7 +64,7 @@ fn with_band(
 }
 
 /// Every county id that has land pixels in this raster.
-fn counties_in_raster(m: &Minimap) -> Vec<u8> {
+pub(crate) fn counties_in_raster(m: &Minimap) -> Vec<u8> {
     let mut ids: Vec<u8> = m
         .counties
         .iter()
@@ -80,7 +80,7 @@ fn counties_in_raster(m: &Minimap) -> Vec<u8> {
 
 /// Give the local player every county, and put each one in a known state so a
 /// band is reached on purpose.
-fn hand_the_player_everything(game: &mut Game) -> Vec<usize> {
+pub(crate) fn hand_the_player_everything(game: &mut Game) -> Vec<usize> {
     let ids: Vec<usize> = (1..=game.kingdom.county_count as usize).collect();
     for &id in &ids {
         let player = game.player;

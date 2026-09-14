@@ -61,7 +61,7 @@ use l2_view::Canvas;
 /// refuse it by name, because `docs/agents.md` records that every campaign-map
 /// test ran on the placeholder, the one configuration where a broken hit test
 /// and the picture agree.
-fn bare() -> (Game, Assets) {
+pub(crate) fn bare() -> (Game, Assets) {
     (Game::new(1), Assets::placeholder())
 }
 

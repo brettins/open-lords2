@@ -54,7 +54,7 @@ fn send(m: &mut Machine, game: &mut Game, assets: &Assets, e: Event) {
 
 const APP_ROOT: ScreenId = ScreenId::Setup(SetupPage::Title);
 
-fn world() -> Game {
+pub(crate) fn world() -> Game {
     let mut g = Game::new(5);
     g.kingdom.set_county_count(14);
     g.kingdom.realms[1].in_play = true;

@@ -56,7 +56,7 @@ fn send(machine: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
 
 /// A world with a realm holding one county of fourteen, which is what the
 /// England start is and what `Scroll1` is the answer to.
-fn world() -> Game {
+pub(crate) fn world() -> Game {
     let mut g = Game::new(5);
     // **Tip screens: No.** A tip posted twenty frames in queues ahead of the
     // messages these tests post and speaks first, which is right; the tips'

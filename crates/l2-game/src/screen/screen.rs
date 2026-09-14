@@ -195,6 +195,6 @@ pub trait Screen {
         false
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas);
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas);
 }
 

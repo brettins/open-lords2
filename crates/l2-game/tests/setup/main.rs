@@ -56,7 +56,7 @@ macro_rules! world {
 }
 
 /// Click the middle of a rectangle.
-fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
+pub(crate) fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
     let mut ctx = Ctx { game, assets };
     screen.handle(Event::Click { x, y }, &mut ctx)
 }

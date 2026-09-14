@@ -169,7 +169,7 @@ mod tests {
     use crate::game::{Assets, Game};
     use l2_kingdom::tables::{JOB_CATTLE_FARMING, JOB_WOOD_CUTTING};
 
-    fn world() -> (Game, Assets) {
+    pub(super) fn world() -> (Game, Assets) {
         let mut g = Game::new(7);
         g.kingdom.set_county_count(2);
         g.kingdom.counties[1].owner = 1;

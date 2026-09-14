@@ -59,7 +59,7 @@ fn point(m: &mut Machine, g: &mut Game, a: &Assets, x: i32, y: i32) {
     send(m, g, a, Event::Pointer { x, y });
 }
 
-fn world() -> Game {
+pub(crate) fn world() -> Game {
     let mut g = Game::new(0x7195);
     g.player = 1;
     // **Tip screens: No.** See the module header.

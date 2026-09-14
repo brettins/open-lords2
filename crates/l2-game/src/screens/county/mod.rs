@@ -269,7 +269,7 @@ use crate::widget;
 
 mod layout;
 pub use layout::*;
-mod draw;
+pub(crate) mod draw;
 pub use draw::*;
 mod strip;
 pub use strip::*;

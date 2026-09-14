@@ -172,7 +172,7 @@ impl Screen for DropdownScreen {
         Transition::Stay
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let t = titles(ctx);
         let pen = crate::shell::Pen {

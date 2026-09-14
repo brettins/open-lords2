@@ -249,7 +249,7 @@ impl Screen for OptionsScreen {
         }
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    pub(crate) fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let a = &ctx.assets.shell;
         let pen = Pen {
             assets: a,

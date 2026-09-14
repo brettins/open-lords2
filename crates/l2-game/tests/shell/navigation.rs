@@ -210,7 +210,7 @@ fn custom_button(i: usize) -> (i32, i32) {
     ([0xA5, 0xF3, 0x141, 399][i] + 8, 0xC6 + 4)
 }
 
-fn click((x, y): (i32, i32)) -> Event {
+pub(crate) fn click((x, y): (i32, i32)) -> Event {
     Event::Click { x, y }
 }
 

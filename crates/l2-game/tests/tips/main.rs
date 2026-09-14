@@ -43,7 +43,7 @@ fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
     m.handle(e, &mut ctx);
 }
 
-fn world() -> Game {
+pub(crate) fn world() -> Game {
     let mut g = Game::new(0x7195);
     g.player = 1;
     g.kingdom.set_county_count(6);

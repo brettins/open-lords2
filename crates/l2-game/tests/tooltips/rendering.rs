@@ -15,7 +15,7 @@ use l2_view::Canvas;
 
 // ------------------------------------------------------------------ the box
 
-fn draw(m: &mut Machine, g: &mut Game, a: &Assets) -> Canvas {
+pub(crate) fn draw(m: &mut Machine, g: &mut Game, a: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
     let ctx = Ctx { game: g, assets: a };
     m.draw(&ctx, &mut canvas);

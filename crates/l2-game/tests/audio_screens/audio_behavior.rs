@@ -12,7 +12,7 @@ use l2_game::screen::Ctx;
 use l2_game::Game;
 
 /// Mix until `name` has stopped sounding.
-fn drain(audio: &mut Audio, name: &str) {
+pub(crate) fn drain(audio: &mut Audio, name: &str) {
     let mut buf = vec![0.0f32; 2 * 4096];
     for _ in 0..2_000 {
         if !audio.is_playing(name) {
