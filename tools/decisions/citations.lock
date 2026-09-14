@@ -357,9 +357,9 @@ crates/l2-scenario/src/newgame/build_part.rs	C25	5198b008d5c4	5d466f0cb89c
 crates/l2-scenario/src/newgame/mod.rs	C25	f78fd48882c8	5d466f0cb89c
 crates/l2-scenario/src/newgame/mod.rs	C41	b844f3c01eef	df664f2e9ea9
 crates/l2-scenario/src/newgame/setup.rs	C130	7cf6d3d1dcc2	055c6c022450
-crates/l2-scenario/tests/import/economy.rs	C128	d02d558f4289	3a8c5dae41c2
-crates/l2-scenario/tests/import/economy.rs	C169	67a53e948bbb	4f087d2d4d89
-crates/l2-scenario/tests/import/economy.rs	C26	6f02cf9f01c0	e8179d1f76a8
+crates/l2-scenario/tests/import/economy/main.rs	C128	d02d558f4289	3a8c5dae41c2
+crates/l2-scenario/tests/import/economy/main.rs	C169	67a53e948bbb	4f087d2d4d89
+crates/l2-scenario/tests/import/economy/main.rs	C26	6f02cf9f01c0	e8179d1f76a8
 crates/l2-scenario/tests/newgame/diff.rs	C142	690b3d3b4d32	d13324698105
 crates/l2-scenario/tests/newgame/main.rs	C23	4b471e07b88e	6ac2f322c3bd
 crates/l2-sim/src/ai/handlers/siege_att.rs	C71	9915cb152745	3d674af30522
