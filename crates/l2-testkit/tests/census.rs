@@ -118,7 +118,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/chrome_text/main.rs", "england", 17),
     ("crates/l2-game/tests/cursor.rs", "england", 3),
     ("crates/l2-game/tests/differential.rs", "fixture", 3),
-    ("crates/l2-game/tests/ground.rs", "install", 7),
+    ("crates/l2-game/tests/ground/main.rs", "install", 7),
     ("crates/l2-game/tests/industry.rs", "england", 5),
     ("crates/l2-game/tests/job_bodies/main.rs", "england", 10),
     ("crates/l2-game/tests/job_bodies/main.rs", "executable", 1),
