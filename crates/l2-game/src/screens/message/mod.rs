@@ -90,6 +90,25 @@ const FACE_WELL: (i32, i32, i32, i32) = (0xF, 0x11, 0x52, 0x4E);
 /// `Pl8_DrawFrame(g_panelsSheet, shieldIndex + 0xFF, x + w - 0x1E, y + 0x12)`.
 const SHIELD_BASE: usize = 0xFF;
 
+/// **The peasants' own face**, for the county greeting — `Msg_DrawWindow`'s
+/// category-`0x02` arm (`0x0047309E`):
+///
+/// ```c
+/// if (*(int *)(&DAT_0053F9D4 + county * 0x300) < 0xF0) FUN_00475d73(6);
+/// else                                                 FUN_00475d73(0);
+/// ```
+///
+/// `DAT_0053F9D4` is the county's **population** (`g_levyMen = Pct(*(int
+/// *)(&DAT_0053F9D4 + county * 0x300), pct)`, `0x00430BA2`), and neither
+/// argument is a realm: they are the two ends of [`face_frame`]'s ladder, so
+/// `6` lands on frame `0x11` and `0` on frame `0x10`. The letter carries one of
+/// the two non-lord faces in `Faces.pl8`, picked by how many peasants wrote it.
+/// **[V]** — from the decompiled arm; *which* of the two pictures is the fuller
+/// county is inferred from the comparison alone.
+pub fn peasant_face_frame(population: i32) -> usize {
+    if population < 0xF0 { face_frame(0, false, 6) } else { face_frame(0, false, 0) }
+}
+
 /// `FUN_00475D73`'s frame ladder.
 pub fn face_frame(lord: u8, is_human: bool, realm: u8) -> usize {
     if realm < 1 {
