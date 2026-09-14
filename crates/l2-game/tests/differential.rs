@@ -51,7 +51,7 @@
 //! **They are not a turn apart.** `battle-before`, `battle-during` and
 //! `battle-after` all read `g_turnCount = 5`, `g_season = 4`, `g_year = 1269`.
 //! They are **one battle caught at three moments inside one turn**, which is
-//! what `crates/l2-game/tests/seam.rs` already uses them for. The same is true
+//! what `crates/l2-game/tests/seam/main.rs` already uses them for. The same is true
 //! of `siege-lastturn` / `siege-sieging` / `siege-aftersie`, all turn 14.
 //! [`the_named_before_and_after_saves_are_the_same_turn`] asserts that rather
 //! than leaving it as prose.
@@ -845,7 +845,7 @@ fn the_named_before_and_after_saves_are_the_same_turn() {
                 *c, first,
                 "{name} reads turn/season/year {c:?} where {} reads {first:?} - if these three \
                  have stopped being one moment caught three times, PAIRS and \
-                 crates/l2-game/tests/seam.rs both want re-reading",
+                 crates/l2-game/tests/seam/main.rs both want re-reading",
                 seen[0].0
             );
         }

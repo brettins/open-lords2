@@ -1568,7 +1568,7 @@ Reproduced, not tidied.
 `docs/mechanics.md` listed this as ❓. **The whole path is now implemented** — the campaign
 half in `crates/l2-kingdom/src/battle/mod.rs`, the hand-off to the simulation in
 `crates/l2-game/src/engagement/mod.rs` — and it is checked end to end against the battle fixture
-triple in `crates/l2-game/tests/seam.rs`. This section is rewritten from the four functions
+triple in `crates/l2-game/tests/seam/main.rs`. This section is rewritten from the four functions
 that make it up, not from `Battle_ReturnToCampaign` alone, because
 `Battle_ReturnToCampaign` is only the third of them.
 
@@ -1783,7 +1783,7 @@ left with one move; a winning human keeps everything but the 8. And when B wins,
 **That is not an omission
 in the reading — `g_battleArmyB` is the *defender* at all three call sites, so a defender
 that wins keeps a county it already had, or leaves a neutral county neutral. It is the half
-of this section that was inverted, and `crates/l2-game/tests/seam.rs` asserts it against
+of this section that was inverted, and `crates/l2-game/tests/seam/main.rs` asserts it against
 `battle-after.sav`, where the player lost and county 3 is still owner 0.
 
 Also, and easy to miss: `Army_AttackCounty` has *already* charged the attacker 8 moves

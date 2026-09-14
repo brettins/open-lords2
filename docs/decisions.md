@@ -2098,7 +2098,7 @@ rule**: every impact test is gated on `ttl == 0`, and a hit sets `ttl = 2`.
 eleven counts a side: the fought battle used to be **won by the player with 56 men of 178**
 against a saved game in which he lost and both armies were destroyed. It is now lost by him,
 the militia holding the field with 8 men of 182 where the autocalc's ladder walks 36 home.
-`crates/l2-game/tests/seam.rs` asserts the verdict now, and the caveat is gone with the gap
+`crates/l2-game/tests/seam/main.rs` asserts the verdict now, and the caveat is gone with the gap
 it described.
 
 **Two things the brief and this tree had wrong, found on the way.** `Missile_Step` does not
@@ -6363,7 +6363,7 @@ through `l2_formats::save::{County, Realm, DiploPair, Globals}`.
 **The pair it was briefed to use is not a pair.** `battle-before.sav`, `battle-during.sav`
 and `battle-after.sav` all read `g_turnCount = 5`, `g_season = 4`, `g_year = 1269`: they are
 one battle caught at three moments inside **one** turn, which is exactly what
-`crates/l2-game/tests/seam.rs` uses them for. `siege-lastturn` / `siege-sieging` /
+`crates/l2-game/tests/seam/main.rs` uses them for. `siege-lastturn` / `siege-sieging` /
 `siege-aftersie` are the same, all turn 14. A differential built on the filenames would have
 run a season into a kingdom and compared it against *the same turn*, and every number it
 produced would have been wrong in a direction nobody could have guessed from the output.
@@ -12126,7 +12126,7 @@ moved; realm 2's siege: 100 maces at 10 + Pct(10,100) = 20 each = 2,000; gold +2
 called from engagement's battle path after the return and before `Defence_Disband`, as in
 `Battle_ReturnToCampaign` (`0x004AB383`). Every battle re-farms every AI realm, not the two
 that fought. Test `a_battle_re_manages_every_ai_realms_farms_and_nobody_elses` (seam.rs,
-battle-before.sav, probe county +0x1FE), ablation red; `crates/l2-game/tests/seam.rs`.
+battle-before.sav, probe county +0x1FE), ablation red; `crates/l2-game/tests/seam/main.rs`.
 
 Lost-rule-inputs blocker: +0x15A is the round-robin cursor of `FUN_0046958F` and `FUN_0046965A`
 under `County_EnsurePasture` (`0x0046921D`); +0x15B the same sweep in `FUN_00469A9C` twice from

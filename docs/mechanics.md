@@ -537,7 +537,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   `docs/armies.md` §7.2
 - ✅ **The campaign–battle seam** — an army that reaches an enemy county now fights and hands
   the result back: `crates/l2-kingdom/src/battle/mod.rs` and `crates/l2-game/src/engagement/mod.rs`,
-  checked end to end against the battle fixture triple in `crates/l2-game/tests/seam.rs`.
+  checked end to end against the battle fixture triple in `crates/l2-game/tests/seam/main.rs`.
   **`g_battleLoser` holds the winner**; four sites say so and `docs/armies.md` §7 lists them.
   Implementing it on the name destroys the winner and hands the county to the corpse
 - ✅ **"Will you take the field?"** — screens `0x12` and `0x13`
