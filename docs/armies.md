@@ -1296,7 +1296,7 @@ per-troop-type recruitment price anywhere on this path.
 > **The screen this section describes is now read end to end**, and its shape was not what
 > §6 assumed. Raising an army is **three** `g_screenId` values, not one, and the button that
 > raises it is on the second of them. `docs/decisions.md` C61; §6.2a below is the walk, and
-> `crates/l2-game/src/screens/armoury.rs` carries the layout tables address by address.
+> `crates/l2-game/src/screens/armoury/mod.rs` carries the layout tables address by address.
 
 `Levy_Init` (`0x004AAA80`) builds a per-realm scratch buffer, `g_levyBasket` (`0x0053F6A0`,
 stride `0x80`, **8 slots of `0x10` bytes**):

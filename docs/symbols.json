@@ -989,7 +989,7 @@
       "name": "Armoury_DrawRacks",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Screen 0x0A: the eight troop portraits along the bottom of the armoury and the count under each, from g_armouryRacks (0x004D2CE8), 8 records of {frame, spriteX, spriteY, numberX, numberY}. Slot 0 is the unequipped peasants, 1..6 the weapon types, 7 the total. A rack is drawn for slot t when g_levyBasket[t].available > 0 OR when the county mercenary offer is of that troop type, in which case the band men are ADDED to the printed count. [V] The loop guard is `if (6 < i) return`, so slot 7's arm - including its `frame 13 + shieldIndex - 1` tint - is DEAD CODE and the total is never drawn. docs/armies.md 6.2; crates/l2-game/src/screens/armoury.rs."
+      "comment": "Screen 0x0A: the eight troop portraits along the bottom of the armoury and the count under each, from g_armouryRacks (0x004D2CE8), 8 records of {frame, spriteX, spriteY, numberX, numberY}. Slot 0 is the unequipped peasants, 1..6 the weapon types, 7 the total. A rack is drawn for slot t when g_levyBasket[t].available > 0 OR when the county mercenary offer is of that troop type, in which case the band men are ADDED to the printed count. [V] The loop guard is `if (6 < i) return`, so slot 7's arm - including its `frame 13 + shieldIndex - 1` tint - is DEAD CODE and the total is never drawn. docs/armies.md 6.2; crates/l2-game/src/screens/armoury/mod.rs."
     },
     {
       "addr": "0x00418426",

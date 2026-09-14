@@ -1728,7 +1728,7 @@
       "addr": "0x004358B0",
       "what": "CLICKING A WEAPON OPENS ITS RACK -- AND SENDS A SOLDIER TO FETCH THE LAST ONE. Armoury_ClickRack refuses when g_levyBasket[id].available <= 0, so an empty rack is inert; otherwise its FIRST statement is FUN_004AABD8(county, g_armourySelectedType), which is the rack being LEFT, before the assignment that overwrites it. FUN_004AABD8 then walks a soldier only when latch[t] < chosen[t], the latch being what this same function wrote at +0x0C when rack t was opened. So the animation fires on leaving a rack the player assigned somebody to, and the man is of that type. Two consequences, both [V]: the FIRST pick after any door into the armoury never walks, because Levy_Seed (0x004AA90A) zeroes g_armourySelectedType and FUN_004AABD8 refuses type 0; and picking the rack that is ALREADY open runs this again for it -- 0x0D's arm tests no selected type -- so equipping men and picking the same weapon sends one of them.",
       "note": "The row is live on BOTH screens -- Screen_FrameInput tests nine hotspot records on 0x0A and the first seven on 0x0D -- so this is one record and one function, per the file's counted-per-implementation rule. It was reached by two call sites of ours before this branch and neither did the latch or the walk.",
-      "ours": "crates/l2-game/src/screens/armoury.rs",
+      "ours": "crates/l2-game/src/screens/armoury/mod.rs",
       "evidence": "V"
     },
     {
