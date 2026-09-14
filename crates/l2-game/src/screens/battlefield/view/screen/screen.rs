@@ -328,6 +328,22 @@ impl Screen for BattlefieldScreen {
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        // **The repaint opens black, and that is the bottom band's only
+        // painter.** `Screen_DrawBattlefield` (`0x004233F7`) calls
+        // `Gfx_ClearScreen` (`0x004B1867`) before its first blit;
+        // `Gfx_ClearScreen` is `FUN_004B3E51(DAT_004EA1A8, 0x4B000)`, and
+        // `FUN_004B3E51` (`0x004B3E51`) is a `memset` to **0** — 640 × 480
+        // bytes, the whole frame. **[V]**
+        //
+        // Nothing repaints x < `0x1E0`, y ≥ `0x1D8` afterwards: every blit in
+        // `Screen_DrawBattlefield` and `FUN_00423530` (`0x00423530`) starts at
+        // x `0x1E0`, and every sprite is clipped to `Clip_Vertical(0x18,
+        // 0x1D8)`. So the eight rows 472 … 479 left of the column are the
+        // clear and nothing else — the 480-line frame's unpainted remainder,
+        // not a chrome strip and not the map's last row. The one thing that
+        // ever draws into them is the multiplayer heartbeat `FUN_0041A844`
+        // (`0x0041A844`), a bar at (2, 476), which is not ported.
+        canvas.clear(0);
         self.note_ground(ctx);
         let banner = self.banner_of(ctx);
         // `Screen_DrawBattlefield` (`0x004233F7`) opens the screen with

@@ -39,6 +39,9 @@ mod motion;
 pub use motion::*;
 mod column;
 
+mod band;
+pub use band::*;
+
 mod plates;
 pub use column::*;
 mod panel;
