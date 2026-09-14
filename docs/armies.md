@@ -1012,7 +1012,7 @@ set. Two consequences follow and both are worth having:
 
 The cost of each doctrine, with the cumulative rule applied: the Knight 800 man-seasons, the
 Baron 800, the Countess and the Bishop **1,000** — or 1,400 against a big castle late in the
-year, when the ram is added. `crates/l2-kingdom/src/tables.rs` carries the four as
+year, when the ram is added. `crates/l2-kingdom/src/tables/mod.rs` carries the four as
 `AI_PERSONALITY_SIEGE_DOCTRINE` and the core ruleset exposes them as
 `kingdom.ai.personality.N.siege_doctrine`.
 

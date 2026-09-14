@@ -67,7 +67,7 @@ sunny field reaps 150 % of the whole crop. The labour cap, which is the entire p
 
 **Evidence.** **[V]** on the reading. `kingdom.md` §7.1.
 
-**Reproduced.** `crates/l2-kingdom/src/land.rs:485` — `harvest` computes `reaped` and then
+**Reproduced.** `crates/l2-kingdom/src/land/mod.rs:485` — `harvest` computes `reaped` and then
 deliberately ignores it for four of six bands.
 
 **Reachability, which matters here.** It only bites with **Advanced Farming on**:
@@ -205,7 +205,7 @@ same overwrite pattern appears harmlessly in `FUN_00496768`.
 **Evidence.** **[D]** — stated flatly as an original bug in `battle-ai.md` §10, from the
 decompiled body and its sibling.
 
-**Reproduced.** `crates/l2-sim/src/ai.rs:909` — *"Reproduces an original bug… Left as
+**Reproduced.** `crates/l2-sim/src/ai/mod.rs:909` — *"Reproduces an original bug… Left as
 written."*
 
 ### B8 — A thirteenth unit deploys on the enemy's first slot
@@ -234,7 +234,7 @@ strength ratio by `(rand & 0x1F) - 10`, which is **−10 … +21**, not ±10.
 
 **Evidence.** **[D]**.
 
-**Reproduced.** `crates/l2-sim/src/ai.rs:430` — the bias is a real behaviour.
+**Reproduced.** `crates/l2-sim/src/ai/mod.rs:430` — the bias is a real behaviour.
 is a real behaviour."*
 
 ## 2.2 The county economy

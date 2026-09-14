@@ -326,7 +326,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   halves the workforce under it, so the effective rate is one and a half sacks a reaper
   against two without it; industry efficiency has a separate without-Advanced-Farming table.
   It also flips the **AI's** planting ladder — with the option *off* an AI plants far more
-  grain, not less (`crates/l2-kingdom/src/ai_farm.rs`, and [`bugs.md`](bugs.md) §4).
+  grain, not less (`crates/l2-kingdom/src/ai_farm/mod.rs`, and [`bugs.md`](bugs.md) §4).
 - ✅ **Foraging** (`g_optArmiesEat`). An army eats county stores only while the option is on,
   and `Readme.txt` adds the consequence in the game's own words: *"Armies in castles forage
   for themselves, and therefore do not eat from county stores. When foraging is on, building

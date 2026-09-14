@@ -145,9 +145,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         ),
     ),
     ("B6", Unwired("crates/l2-kingdom/src/units_tick.rs")),
-    ("B7", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
+    ("B7", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
     ("B8", Unwired("crates/l2-sim/src/runner/mod.rs — l2-sim takes no Quirks value yet")),
-    ("B9", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
+    ("B9", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
     // 2.2 — the county economy
     ("B10", Switchable(Behavioural)),
     ("B11", Retracted),
@@ -158,10 +158,10 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B15", Switchable(Behavioural)),
     ("B16", Switchable(Behavioural)),
     ("B17", Switchable(Behavioural)),
-    ("B18", Unwired("crates/l2-kingdom/src/land.rs")),
-    ("B98", Unwired("crates/l2-kingdom/src/land.rs")),
-    ("B19", Unwired("crates/l2-kingdom/src/land.rs")),
-    ("B20", Unwired("crates/l2-kingdom/src/land.rs")),
+    ("B18", Unwired("crates/l2-kingdom/src/land/mod.rs")),
+    ("B98", Unwired("crates/l2-kingdom/src/land/mod.rs")),
+    ("B19", Unwired("crates/l2-kingdom/src/land/mod.rs")),
+    ("B20", Unwired("crates/l2-kingdom/src/land/mod.rs")),
     (
         "B21",
         Unswitchable("invisible: nothing a player can see turns on it; bugs.md §6.4"),
@@ -189,14 +189,14 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B24", Unwired("crates/l2-kingdom/src/ai.rs")),
     ("B25", Unwired("crates/l2-kingdom/src/ai.rs")),
     ("B26", Unwired("crates/l2-kingdom/src/ai.rs")),
-    ("B27", Unwired("crates/l2-kingdom/src/ai_farm.rs")),
-    ("B28", Unwired("crates/l2-kingdom/src/ai_farm.rs")),
-    ("B29", Unwired("crates/l2-kingdom/src/ai_farm.rs")),
-    ("B30", Unwired("crates/l2-kingdom/src/ai_farm.rs")),
-    ("B31", Unwired("crates/l2-kingdom/src/ai_farm.rs")),
-    ("B32", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
-    ("B33", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
-    ("B34", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
+    ("B27", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
+    ("B28", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
+    ("B29", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
+    ("B30", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
+    ("B31", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
+    ("B32", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
+    ("B33", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
+    ("B34", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
     ("B35", Unwired("crates/l2-sim — the two siege attack scripts")),
     // 2.4 — things that move
     (
@@ -801,13 +801,13 @@ fn every_switch_is_read_by_the_simulation() {
 #[test]
 fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     let root = repo_root();
-    let tables = read(&root, "crates/l2-kingdom/src/tables.rs");
+    let tables = read(&root, "crates/l2-kingdom/src/tables/mod.rs");
     // Everything from `pub struct Tables` to the end of its `Encode` impl is
     // what the fingerprint covers.
     for needle in ["Quirk", "quirks"] {
         assert!(
             !tables.contains(needle),
-            "crates/l2-kingdom/src/tables.rs names `{needle}`. A quirk on `Tables` is hashed \
+            "crates/l2-kingdom/src/tables/mod.rs names `{needle}`. A quirk on `Tables` is hashed \
              into the save header (`ruleset_fingerprint`), so adding one invalidates every \
              existing save — and it frames a quirk as a rule. Put it on \
              `l2_kingdom::kingdom::Options::quirks`, which is in the save body and in the \
@@ -816,13 +816,13 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     }
     // And the other direction: `Options` really is the home,
     // cannot pass by the field having quietly gone away.
-    let kingdom = read(&root, "crates/l2-kingdom/src/kingdom.rs");
+    let kingdom = read(&root, "crates/l2-kingdom/src/kingdom/mod.rs");
     assert!(
         kingdom.contains("pub quirks: l2_net::Quirks"),
         "l2_kingdom::kingdom::Options::quirks has moved. It is where the quirk set lives; \
          docs/decisions.md C62."
     );
-    let save = read(&root, "crates/l2-kingdom/src/save.rs");
+    let save = read(&root, "crates/l2-kingdom/src/save/mod.rs");
     assert!(
         save.contains("out.encode(&self.options.quirks)"),
         "the quirk set is not encoded into the save body any more. That body IS the per-tick \

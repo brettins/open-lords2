@@ -838,7 +838,7 @@ document is described as taking effect unless the simulation reads a different
 answer with it changed** — `docs/decisions.md` C12.
 
 `Tables::DEFAULT` is assembled *from* the constants in
-`crates/l2-kingdom/src/tables.rs`, which remain the source of truth and keep
+`crates/l2-kingdom/src/tables/mod.rs`, which remain the source of truth and keep
 their addresses and their evidence beside them, and a test checks the gathered
 value against the free functions over their whole domain — so the document and
 the constants cannot drift. `tools/oracle/kingdom.ps1` then checks 25 of those

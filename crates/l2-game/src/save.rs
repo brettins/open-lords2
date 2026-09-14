@@ -2,7 +2,7 @@
 //!
 //! # It is `l2_kingdom::save` plus ten fields, and that is the whole design
 //!
-//! `crates/l2-kingdom/src/save.rs` already encodes a [`Kingdom`] through
+//! `crates/l2-kingdom/src/save/mod.rs` already encodes a [`Kingdom`] through
 //! `l2_net::Canonical`, the deterministic encoder `docs/netcode.md` §5 demands
 //! for the per-tick checksum and the late-join snapshot. It refuses an unknown
 //! version, it fingerprints the ruleset, and it has no
