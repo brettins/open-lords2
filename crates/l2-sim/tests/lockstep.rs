@@ -1082,7 +1082,7 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
     // The third column is the fewest fields the struct is known to have: a
     // parser that silently returns nothing is what this catches.
     for (file, want, least) in [
-        ("src/missile.rs", "Missile", 5),
+        ("src/missile/mod.rs", "Missile", 5),
         ("src/runner/mod.rs", "Fighter", 5),
         ("src/siege/mod.rs", "SiegeState", 5),
         // **Nested structs were outside the walk.** `Fighter::progress` is one
