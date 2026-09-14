@@ -27,7 +27,7 @@ const EAST: usize = 34;
 /// neighbours`: `County_BordersRealm` reads `county.neighbours`, and without
 /// the two lines of adjacency below the capture is the ungovernable `else`
 /// branch — letter 129, category `NOTICE`, and no film.
-fn capture_world() -> (Game, Assets, Machine) {
+pub fn capture_world() -> (Game, Assets, Machine) {
     let mut g = realms();
     g.prefs.tip_screens = false;
     for id in 1..=3usize {
@@ -64,7 +64,7 @@ fn capture_world() -> (Game, Assets, Machine) {
 }
 
 /// The player's army, marched at the enemy town as `Unit_OrderMove` marches it.
-fn march_on_the_town(g: &mut Game) -> usize {
+pub fn march_on_the_town(g: &mut Game) -> usize {
     let mut u = Unit::new(UnitKind::Army, 1, 31, 20);
     u.men = 600;
     u.troops[TroopType::Peasant.index()] = 600;

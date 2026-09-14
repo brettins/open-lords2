@@ -433,10 +433,10 @@ impl Director {
                     // reads the capture or the fall over the film's opening,
                     // and he reads it whether or not the film opened.
                     //
-                    // `#16`, the capture's copy of the same line, is served by
-                    // this code and is not claimed: no capture letter is ever
-                    // posted here — see the `Scene::Film` arm of `Audio::follow`.
-                    // sfx: Msg_DrawWindow#21
+                    // `#16` is the capture branch's copy of the same line and
+                    // this is the same code: `arrival::capture_record` posts
+                    // the category-`0x0D` letter, so both are reachable.
+                    // sfx: Msg_DrawWindow#16,Msg_DrawWindow#21
                     if let Some((group, variant)) = film.voice() {
                         if let Some(name) = names::message_voice(group, variant) {
                             audio.stop_and_play_file(&name, true);
@@ -490,7 +490,7 @@ impl Director {
         // **The lines a screen decided on and could not play.** Six of the
         // original's `Sound_PlayFile` sites are inside a screen's own handler,
         // guarded by state that screen keeps to itself and that is gone by the
-        // next tick — so there is nothing here to diff and the screen reports
+        // next tick —
         // the line instead. See [`crate::game::Game::spoken`] for why the
         // count is the edge.
         //

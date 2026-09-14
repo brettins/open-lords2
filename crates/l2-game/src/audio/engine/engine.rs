@@ -215,15 +215,15 @@ impl Audio {
             // that fails to open is held on the stack for one tick
             // (`crate::screens::movie`) holds it for one tick so this arm sees it.
             //
-            // **Two of the eight such sites are not claimed, and not for want
-            // of this line.** `Msg_DrawWindow#15` is the capture film's fail
-            // arm, and nothing in this engine posts a category-`0x0D` letter:
-            // `County_ChangeOwner` raises groups `0x75`…`0x7E` with it and
-            // `l2_kingdom::conquest::change_owner` leaves them to a caller that
-            // does not exist yet. `Msg_DrawWindow#19` is the ending's
-            // *fast-media* fail arm, a layout this install never takes. Both
-            // would sound through this arm unchanged; neither can be reached.
-            // sfx: Smk_OnFinished#1,Smk_OnFinished#2,CastleBuild_Confirm#1,Msg_DrawWindow#20
+            // **`Msg_DrawWindow#15`** is the capture film's fail arm and is
+            // claimed here now: `l2_game::arrival::capture_record` posts the
+            // category-`0x0D` letter `County_ChangeOwner` (`0x004A72FE`) raises
+            // with groups `0x75`…`0x7E`, and a county taken on the map reaches
+            // this arm — `tests/movies` *the_narrator_reads_a_capture…*.
+            // **`Msg_DrawWindow#19`**, the ending's *fast-media* fail arm,
+            // stays unclaimed: it would sound through this arm unchanged, but
+            // a hard-disk install never takes that layout.
+            // sfx: Smk_OnFinished#1,Smk_OnFinished#2,CastleBuild_Confirm#1,Msg_DrawWindow#15,Msg_DrawWindow#20
             Scene::Film { .. } => None,
         };
         self.scene = Some(scene);
