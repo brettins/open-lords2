@@ -1,45 +1,7 @@
-//! **The England turn-one fixture**, read against itself.
-//!
-//! ```text
-//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-formats --test save_england_turn1
-//! ```
-//!
-//! # What this file is for
-//!
-//! `tests/save.rs` asserts what is true of *any* save. This file asserts one
-//! particular saved game: the England map at the start of turn one, Winter
-//! 1268. Every test here is gated on `l2_testkit::england_turn1`, which finds
-//! `%LORDS2_FIXTURES%\england-turn1.sav` and **checks it is that game** before
-//! handing it over. Absent, the tests skip and say so; present and wrong, they
-//! fail with a message naming the fixture.
-//!
-//! # Why the file is called a fixture and not "the shipped save"
-//!
-//! A clean GOG install ships no saves at all — verified by diffing a pristine
-//! copy of the install against a played one: six files differ and five of them
-//! are saves. This save was produced by someone in an earlier session of this
-//! project starting a campaign. The old name said "shipped", the old code read
-//! it out of the game directory, and the game rewrites that file every turn
-//! somebody plays. Ten minutes of play turned nine tests red, and the fix that
-//! matters is not the path — it is that a fixture is now a name with a
-//! fingerprint behind it.
-//!
-//! # Three assertions that were accidents
-//!
-//! Comparing two independently created England turn-one saves settled what is
-//! scenario and what is per-game noise. Three of the nine tests below were
-//! asserting noise, and each one is called out where it now stands:
-//!
-//! * the **realm→county assignment** is rolled per game; only the set of five
-//!   counties is fixed;
-//! * `g_weatherCounty` is a per-game roll;
-//! * "county 1 is the odd one out on food" is really **"realm 5's starting
-//!   county begins on Half rations"** — a genuine mechanic that had been pinned
-//!   to a county index by coincidence.
-//!
-//! All three passed against the original file. They would have passed forever,
-//! for the wrong reason, which is `docs/decisions.md` C12's shape.
-
+#![allow(unused_imports)]
+use super::*;
+use super::globals::*;
+use super::merchants::*;
 use l2_formats::save::COUNTY_RECORDS;
 use l2_testkit::{england, england_county_of_realm, ENGLAND_TURN1_COUNTIES};
 
@@ -188,39 +150,6 @@ fn five_realms_are_in_play_and_each_owns_exactly_one_county() {
     assert_eq!(lords, [0, 1, 2, 3, 4], "five distinct lords, one apiece");
 }
 
-/// The clock, the options and who is playing — the scalars outside the two
-/// arrays.
-///
-/// **Corrected.** This used to assert `g_weatherCounty == 2` and that the
-/// person holds county 8. Both are per-game rolls: the second England save
-/// gives weather county 10 and puts the person on county 13. What survives is
-/// that the weather county is a real county and that the person holds exactly
-/// one of the five starting counties.
-#[test]
-fn the_globals_are_a_turn_one_winter_game_driven_by_realm_one() {
-    let save = england!();
-    let g = save.globals().unwrap();
-    assert_eq!(g.county_count, 14);
-    assert_eq!(g.scenario_index, 0, "the England map");
-    assert_eq!(g.local_player, 1);
-    assert_eq!((g.season, g.season_next, g.year, g.turn_count), (4, 1, 1268, 1));
-    assert_eq!((g.turn_phase, g.turn_phase_step), (1, 0), "parked at the start of phase 1");
-    assert_eq!((g.opt_difficulty, g.opt_advanced_farming, g.opt_armies_eat), (0, 0, 0));
-    assert_eq!(g.merchant_count, 6);
-    assert!(
-        (1..=g.county_count).contains(&g.weather_county),
-        "g_weatherCounty {} is a real county (which one is rolled per game)",
-        g.weather_county
-    );
-
-    let mine = england_county_of_realm(&save, g.local_player as u8);
-    assert!(
-        ENGLAND_TURN1_COUNTIES.contains(&mine),
-        "the person holds county {mine}, one of the five starting counties"
-    );
-    assert_eq!(save.counties().unwrap()[mine].owner as i32, g.local_player);
-}
-
 /// The map is one piece and its shape is the England map's: fourteen counties,
 /// twenty-seven borders, and county 1 the dead end with a single neighbour.
 ///
@@ -320,87 +249,3 @@ fn the_recorded_available_food_is_the_food_still_in_store() {
     }
 }
 
-/// The fixture is what it says it is. Runs the fingerprint explicitly so a
-/// green run has said, out loud, which game it asserted against.
-#[test]
-fn the_fixture_is_the_england_turn_one_position() {
-    let save = england!();
-    l2_testkit::england_turn1_fingerprint(&save).expect("the gate already checked this");
-    let g = save.globals().unwrap();
-    eprintln!(
-        "england-turn1: scenario {}, {} counties, turn {}, season {}, year {}, realm {} is the person",
-        g.scenario_index, g.county_count, g.turn_count, g.season, g.year, g.local_player
-    );
-    for r in 1..=5u8 {
-        eprintln!("  realm {r} holds county {}", england_county_of_realm(&save, r));
-    }
-}
-
-/// **The falsifiable prediction in `docs/formats/plane4.md` §2.2, checked.**
-///
-/// That document simulated `Merchant_PickStartCounties` over `L2_maps.dat` and
-/// predicted that England's six merchants start in counties **14, 5, 13, 11, 12
-/// and 4** — marked `[I]`, "the specific county list, which was not recorded in
-/// that run". It is in the save, and it is those six, in that order.
-///
-/// The routes come with it: row 1 is `14 → 4 → 7 → 8 → 2`, which is the scan
-/// order the same document derives from castle geography
-/// author wrote. Two files produced by different code — `L2_maps.dat` shipped
-/// with the game, `england-turn1.sav` written by the running engine — agreeing
-/// on 41 numbers.
-#[test]
-fn england_ships_six_merchants_on_the_six_routes_plane4_predicted() {
-    let save = england!();
-    assert_eq!(save.merchant_start_counties().unwrap(), [14, 5, 13, 11, 12, 4]);
-    assert_eq!(save.globals().unwrap().merchant_count, 6);
-
-    let rows = save.merchant_routes().unwrap();
-    let live = |r: usize| -> Vec<u8> { rows[r].iter().copied().take_while(|&c| c != 0).collect() };
-    assert_eq!(live(0), vec![14, 4, 7, 8, 2]);
-    assert_eq!(live(1), vec![5, 12, 6, 3, 8, 2, 1]);
-    assert_eq!(live(2), vec![14, 11, 13, 5, 10, 9, 7, 3, 1]);
-    assert_eq!(live(3), vec![11, 12, 6, 10, 4, 9, 3, 1]);
-    assert_eq!(live(4), vec![14, 11, 5, 13, 12, 10, 2]);
-    assert_eq!(live(5), vec![13, 6, 4, 9, 7, 8]);
-
-    // §1.1's invariant, on this map: every county is on at least one route.
-    let mut seen = [false; 15];
-    for r in 0..6 {
-        for c in live(r) {
-            seen[c as usize] = true;
-        }
-    }
-    assert!(seen[1..=14].iter().all(|&s| s), "a county on no route");
-}
-
-/// The six units the England position holds are **six merchants and nothing
-/// else** — no armies, no mobs, no transports — each owned by nobody, standing
-/// in its own start county, with its route number and a route cursor of 1.
-///
-/// **The cursor is 1, not 0**,
-/// the *second* county on its list. And every one of them carries
-/// `moveAllowance = 0`: the field is written by `Merchant_Tick` and turn one has
-/// not ticked them yet, so an importer that filled in 10 there would be
-/// inventing a number the game had not reached.
-#[test]
-fn the_six_units_are_merchants_waiting_in_their_start_counties() {
-    let save = england!();
-    let start = save.merchant_start_counties().unwrap();
-    let units: Vec<_> = save.units().unwrap().into_iter().filter(|u| u.is_live()).collect();
-    assert_eq!(units.len(), 6, "the England position holds six units");
-
-    for (n, u) in units.iter().enumerate() {
-        assert_eq!(u.index, n + 1, "merchants take slots 1..6");
-        assert_eq!(u.kind, 3, "unit {} is not a merchant", u.index);
-        assert_eq!(u.owner, 6, "a merchant belongs to nobody");
-        assert_eq!(u.county, start[n], "merchant {} is not in its start county", u.index);
-        assert_eq!(u.role, start[n], "+0x167 is the start county");
-        assert_eq!(u.name_index as usize, n, "the route number is the slot, zero-based");
-        assert_eq!(u.route_cursor(), 1, "the cursor starts at 1");
-        assert_eq!(u.morale, 100, "Merchant_SpawnAll writes 100 to +0x166");
-        assert_eq!(u.move_allowance, 0, "tick-maintained, and turn one has not ticked");
-        assert_eq!(u.men, 0, "a merchant is not troops");
-        assert!(u.needs_destination, "and none of them has been given anywhere to go");
-        assert_eq!(u.path_len, 0);
-    }
-}

@@ -12,7 +12,7 @@
 //!
 //! The file holds **five owned counties, one for each of realms 1 to 5**, at
 //! indices 1, 4, 8, 11 and 13; nine unowned; fourteen counties in seventeen
-//! slots. `crates/l2-formats/tests/save_england_turn1.rs` asserts all of that
+//! slots. `crates/l2-formats/tests/save_england_turn1/main.rs` asserts all of that
 //! against the bytes.
 //!
 //! # "Shipped" was the wrong word, and it cost the suite a day
