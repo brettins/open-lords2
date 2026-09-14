@@ -281,7 +281,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     (
         "B63",
         Unwired(
-            "crates/l2-game/src/screen.rs — one flag in `Machine::apply_at`, and then a pass \
+            "crates/l2-game/src/screen/mod.rs — one flag in `Machine::apply_at`, and then a pass \
              over 49 of the original's arms, which is the part that is not one flag",
         ),
     ),

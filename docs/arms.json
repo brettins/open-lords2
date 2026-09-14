@@ -833,7 +833,7 @@
       "what": "TWENTY-NINE arms open with `if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))` and force-close. DAT_0055403C is what Turn_End writes, DAT_00553FC8 is the multiplayer sync-wait latch and DAT_00553018 is the F12 debug override. A THIRD OF THIS FUNCTION'S JOB is tearing every open panel down when the turn ends or the network blocks, with no user input involved at all.",
       "note": "Not a gesture, and it is in this file because it is the guard that runs before every gesture in the group. COUNTED AGAIN while building the turn timer: 27 sites of this guard in Screen_FrameInput's body, not 29, and every one but 0x00's closes -- nine test the guard and close at once (0x02, 0x04, 0x05, 0x06, 0x10, 0x11, 0x1D, 0x26, 0x39), eighteen test its negation around the arm's input and close in the else (read for 0x09, 0x13, 0x14 and 0x35/0x36; the other thirteen share the shape). BUILT NOW, as the LATCH rather than as the timer's request: DAT_0055403C is what Turn_End (0x0043AC23) writes -- 2 in single player, whichever door the turn was ended through -- and Turn_Tick's restart clears it on the first frame of the person's next live turn, so the guard stands for the WHOLE TURN THAT FOLLOWS. TurnClock::force_close is that field and Machine::run_turn_clock pops on it. It tested end_turn_pending, which is the clock's own request and is taken by the map the moment the map is on top: a panel opened during the turn that followed stayed open, and ending the turn by hand with one up closed nothing. The other two clauses are not ours and are named in the code rather than folded away: DAT_00553FC8 is the multiplayer sync-wait latch, which nothing in this engine sets (docs/netcode.md), and DAT_00553018 is the F12 debug override, whose one setter is App_WndProc's VK_F12 arm.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x0042FF10/info-edge-scroll-closes",
@@ -2713,7 +2713,7 @@
       "what": "Msg_Pump’s FIRST test, inside the screen ladder rather than beside it: `if (g_battlePhase == 2 && g_messageGroup != 0) Msg_Dismiss(); else { pull, count down, draw }`. It closes the OPEN window and does not stop the pull -- the record’s old wording said it skipped the pull too, and the guard on g_messageGroup is what makes that wrong: with nothing up, the else arm runs, the next record is drawn, and this test dismisses it on the following frame. A battle therefore DRAINS the ring at one letter per two frames rather than holding it, and each letter flashes for a frame.",
       "note": "Built in Machine::pump_messages, ahead of the ladder, where g_battlePhase == 2 is the battlefield anywhere in our stack -- the same reading crate::audio::scene takes, since the original’s 0x29, 0x2A and 0x2B are one screen of ours. It sits beside 0x0047685D/message-scroll-dismiss, recorded under the battlefield group because a battle raises messages (the siege gate button enqueues three): those go into the ring during phase 2 and are now pulled and swallowed there, not held until the phase leaves 2. Still not driven against the original, so what a player sees of the one-frame flash is unobserved.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x00472E46/pump-screen-ladder",
@@ -2725,7 +2725,7 @@
       "what": "Msg_Pump runs only on g_screenId 0x00, 0x27, 0x29 and 0x0F-with-g_jobPanelJob-8; on ANY OTHER SCREEN its else branch is `if (g_messageGroup != 0) Msg_Dismiss();`. Opening the village, a county panel or the armoury with a letter on screen throws the letter away unread.",
       "note": "A frame arm rather than a gesture, and recorded because it is what makes the scroll behave like part of the map rather than part of the interface: it is why walking into a screen loses a message. Msg_Pump has ONE caller, Battle_Frame (0x004B99C0), so this belongs to the frame driver and to no screen -- which is why it is reproduced in Machine::update rather than in a screen module.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x0047309E/alliance-offer-lapses",
@@ -2844,7 +2844,7 @@
       "what": "Tip_Update, once a frame immediately before Msg_Pump, gated on g_optTipScreens and g_appPhase == 3. With the DAT_004F0358 delay at zero it hands Tip_Show one group: on the campaign map 206 (zoomed out), then 200, 201, 202; with a battle live and g_screenId still 0, 212 or 214 then 215, skipped in a skirmish; then an else-if chain -- 0x17 raise army 209, 0x0F with job 8 the blacksmith 208, 0x02 the village 207, 0x39 advanced options 218, 0x1B castle building 217, 0x10 move-order mode 210 -- and last the invasion flag DAT_00553210, cleared before 211's shown byte is tested. Tip_Show saves g_screenId, writes 0x27, marks g_tipShown and posts the group with g_tipCategory's category.",
       "note": "A frame arm, not a gesture: it is what turns a screen opening into a tip window. Two corrections to the symbol's comment: the twenty frames are a re-arm after start-up, the toggle and every dismissal on 0x27 (DAT_004F0358 has exactly two writers), not a delay after a screen opens; and 'once per game' is once per run, because FUN_00476A5D's only callers are App_WinMain and Opt_ToggleTipScreens. The battle arms' guard g_screenId == 0 && g_battlePhase == 2 was not found to hold across any frame (every phase-2 write sets 0x29 beside it, and Msg_Pump dismisses any message in phase 2) -- built as written and unreachable here too. The invasion arm's clear-before-test loses the tip on screen 0x27: docs/bugs.md B101.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x00476E21/tip-restores-its-screen",
@@ -2856,7 +2856,7 @@
       "what": "Msg_Dismiss calls FUN_00476E21 on every dismissal: if g_screenId is 0x27 it writes back the screen Tip_Show saved (0 if that was 0x27) and re-arms DAT_004F0358 = 0x14. So the screen under a tip comes back when ANY message is dismissed on 0x27 -- including one that was queued ahead of the tip, which leaves the tip's own record in the ring to open later on the campaign map -- and a tip window dismissed after its screen was already restored re-arms nothing.",
       "note": "Screen 0x27 has no input arm and no painter that a comparison shows (the decompilation compares g_screenId with 0x27 only in Msg_Pump, Tip_Show and here), so while it is up the screen underneath is drawn and does not answer. Ours is ScreenId::Tip, seated and unseated by Machine::seat_tip_host from Tips::hosting; Msg_Pump's timeout reaches the restore too. Not offered on 0x27 and not driven against the original: Screen_HandleInput's widget pass and Screen_FrameInput's minimap epilogue, which would drop the byte to 0 without the re-arm.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x00476E95/tool-tip-rest",
@@ -2880,7 +2880,7 @@
       "what": "FUN_0047703A: if a tip is up, clear it and restore its backdrop, leaving the stamp alone. Called first by Screen_Draw, and by Screen_SiegePrep, Screen_BattlePrompt, Screen_BattleResult, Screen_BattleOutcome's animated arm and Smk_PlayThenClose. So opening a screen takes the tip away, and it returns by the ordinary rule - at once if its stamp is already a second old.",
       "note": "Ours drops the tip when the screens on the stack change, looking through the message scroll, which is not a screen id. A repaint that changes no screen is not modelled; every one found follows a click, which has already hidden the tip. Inferred.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x00477320/campaign-sidebar-tips",
@@ -2963,7 +2963,7 @@
       "what": "Turn_Tick's phase-4 arm counts DAT_005440C8 = g_optTimeLimit - (timeGetTime() - _DAT_00568D9C) / 1000 and, below zero, writes -1 and calls Turn_End (0x0043AC23) -- the End Turn button's handler, ending the LOCAL player's turn with nobody pressing anything. Then 1 < DAT_0055403C && aiStep != 999 restarts the count for the next turn. The limit is the custom game's Time limit drop-down, single-player page included; the campaign forces it to 0.",
       "note": "Not a gesture: a timer, counted in Turn_Tick from Battle_Frame's loop on whatever screen is up, which is why ours is in Machine::update rather than in a screen. Its consequences are reproduced with it -- Turn_End's Msg_Dismiss, and the 0x0042FF10 guard's screens closed until the map is on top to start the turn. The draw, FUN_0041A639, is docs/draws-map.md's. The countdown running before the restart in one frame is docs/bugs.md B99 and is reproduced. crates/l2-game/src/turn_clock.rs has what is not.",
       "evidence": "D",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x0049BAE9/name-to-playernames",
@@ -3117,7 +3117,7 @@
       "what": "The SAME if/else on g_battlePhase, other side: `else if ((g_battlePhase == 2) && (ticksDue != 0)) { ...the battle's passes... }`, and it has no g_screenId test either. A battle steps under whatever is on top of it exactly as a turn steps under whatever is on top of the map.",
       "note": "Invisible until 0x0040DECA/battle-menu-bar was built: the drop-down is screen 0x32, a push here, and Screen::update is the top screen's alone, so opening File over a battle froze the fight until the menu closed. Machine::wind_battle runs the battlefield's tick at whatever depth it sits, and only when something is over it -- on top it is Machine::update's job and running both would step the simulation twice a frame. The turn's half of the same absence is docs/decisions.md C197.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x004B99C0/frame-winds-the-turn",
@@ -3129,7 +3129,7 @@
       "what": "Battle_Frame's inner loop ends `if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }` and there is NO g_screenId test on it. The campaign winds on under a county panel, a village, an open menu and the message scroll alike; the only thing that suspends it is a battle. Everything in the loop's tail that does dispatch on the screen -- Screen_Draw, Screen_FrameInput, the cursor ladder -- is drawing and input.",
       "note": "A frame arm rather than a gesture. Ours ran the turn out of MapScreen::update, which the machine gives only to the TOP screen, so an open letter -- which is not a screen in the original at all -- stopped the turn underneath it, and so did walking into a county panel. Machine::wind_turn calls the campaign map's Screen::wind_turn every frame at whatever depth it sits.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "0x004BA9C8/blacksmith-weapon-choice",
@@ -3322,7 +3322,7 @@
       "gesture": "key",
       "what": "Ctrl+D flips Prefs::debug_overlay, which gates every marker, outline and line of our own 5 x 7 text the original does not draw: the owner squares on the town square, the field squares, the garrison marker, the selection ring, the besieger dot, the unit banner, TURN and COUNTIES, the sidebar's status line and its hover outline and caption, End Turn's hover colour, and the status lines, stubs and captions of the tile panel, armoury, army, battle prompt, court, county strip and history graph, division, job popup, drop-down, merchant and trade, options, ratings, save/load, setup and village. Off by default. Taken in Machine::handle before any screen sees the key.",
       "why": "A player: 'also debug text everywhere, i'd like a toggle or hotkey'. The original has no such key and none of this to hide. Ctrl+D collides with nothing: the window procedure (0x004B29BE) has WM_KEYDOWN arms for no letter at all, and the WM_CHAR it produces, 0x04, is rejected by Edit_TypeChar (0x00401A20). F5 is main.rs's window snap. Not in the save and not in the digest -- it is a Prefs field. docs/environment.md names the key for players.",
-      "ours": "crates/l2-game/src/screen.rs"
+      "ours": "crates/l2-game/src/screen/mod.rs"
     },
     {
       "id": "ours/divide-cancel-button",

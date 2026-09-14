@@ -299,7 +299,7 @@ impl Screen for MessageScreen {
     ///
     /// **In the original all of this is in the draw.** It cannot be here:
     /// [`Screen::draw`] takes a `&Ctx`, which is the compiler enforcing that
-    /// painting a frame cannot change the world (`crates/l2-game/src/screen.rs`,
+    /// painting a frame cannot change the world (`crates/l2-game/src/screen/mod.rs`,
     /// *Draw cannot mutate*). The original's draw and input run once each per
     /// frame in a fixed order, so moving these three arms into `update` changes
     /// nothing about when they fire; it is recorded because it is a difference.

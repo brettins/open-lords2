@@ -448,7 +448,7 @@ pub fn rearm_events(game: &mut Game, report: &l2_kingdom::report::SeasonReport) 
 /// Returns whether the window is still up. It is called from the message
 /// screen's `update`, because [`crate::screen::Screen`]
 /// hands `draw` a `&Ctx` on purpose and this changes the world — see
-/// `crates/l2-game/src/screen.rs`, *Draw cannot mutate*. The original runs it in
+/// `crates/l2-game/src/screen/mod.rs`, *Draw cannot mutate*. The original runs it in
 /// the draw; the effect is identical because the original's draw and input both
 /// run once per frame, and the difference is recorded here.
 pub fn show(game: &mut Game) -> bool {
