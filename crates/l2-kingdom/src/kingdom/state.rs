@@ -288,13 +288,13 @@ impl Kingdom {
     pub fn run_ai_tax_rates(&mut self, realm: u8) {
         let Some(r) = self.realms.get(realm as usize) else { return };
         let lord = r.lord;
-        crate::ai_tax::set_tax_rates(&self.tables, &mut self.counties, self.county_count, realm, lord);
+        ai::set_tax_rates(&self.tables, &mut self.counties, self.county_count, realm, lord);
     }
 
     /// `AI_SetTaxRates`' resource grants, which run in the AI's turn rather
     /// than in `Season_Advance`. Exposed separately for that reason.
     pub fn run_ai_grants(&mut self) {
-        crate::ai_tax::grant_resources(
+        ai::grant_resources(
             &self.tables,
             &mut self.counties,
             &mut self.realms,
@@ -487,7 +487,7 @@ impl Kingdom {
 
     /// AI step 6 — `AI_BuildCastles`.
     pub fn run_ai_castles(&mut self, realm: u8) -> Vec<u8> {
-        crate::ai_build::build_castles(
+        ai::build_castles(
             &self.tables,
             &mut self.counties,
             self.county_count,
@@ -502,7 +502,7 @@ impl Kingdom {
     pub fn run_ai_industry(&mut self, realm_id: u8) {
         let Some(realm) = self.realms.get(realm_id as usize) else { return };
         let mut realm = realm.clone();
-        crate::ai_industry::choose_industry(&self.tables, &mut self.counties, self.county_count, &mut realm, realm_id);
+        ai::choose_industry(&self.tables, &mut self.counties, self.county_count, &mut realm, realm_id);
         self.realms[realm_id as usize] = realm;
         let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
         for id in 1..=self.county_count {
@@ -598,12 +598,11 @@ impl Kingdom {
     }
 
     /// AI step 13 — `AI_Taunt`. Returns the letters the realm sent.
-    /// AI step 13 — `AI_Taunt`. Returns the letters the realm sent.
-    pub fn run_ai_taunt(&mut self, realm_id: u8) -> Vec<crate::ai_taunt::Taunt> {
+    pub fn run_ai_taunt(&mut self, realm_id: u8) -> Vec<ai::Taunt> {
         let trailer = ai::rank_trailer(&self.realms);
         let snapshot = self.realms.clone();
         let Some(realm) = self.realms.get_mut(realm_id as usize) else { return Vec::new() };
-        crate::ai_taunt::taunt(realm, realm_id, &snapshot, trailer)
+        ai::taunt(realm, realm_id, &snapshot, trailer)
     }
 }
 
