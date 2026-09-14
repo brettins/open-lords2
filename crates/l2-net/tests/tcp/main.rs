@@ -23,7 +23,7 @@
 //! # Why there is a clock in this file and nowhere else
 //!
 //! `std::time` and `std::thread::sleep` appear below, and they appear
-//! in `src/tcp.rs`'s neighbourhood and nowhere else in the crate. That
+//! in `src/tcp/mod.rs`'s neighbourhood and nowhere else in the crate. That
 //! boundary is the point.
 //!
 //! Delivery is the kernel's business: when a byte written on one socket
