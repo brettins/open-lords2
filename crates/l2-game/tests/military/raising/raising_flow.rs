@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+use super::armoury_controls::*;
+use super::*;
 use super::battle_part::*;
 use super::marching::*;
 use super::division::*;
@@ -14,10 +16,6 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_kingdom::MercenaryBands;
 use l2_view::campaign;
 
-// ---------------------------------------------------------------------------
-// 1. Raise
-// ---------------------------------------------------------------------------
-
 #[test]
 fn r_on_the_map_opens_the_raise_army_screen_for_the_selected_county() {
     let (mut g, a, mut m) = on_the_map();
@@ -28,13 +26,6 @@ fn r_on_the_map_opens_the_raise_army_screen_for_the_selected_county() {
     g.selected = 2;
     press(&mut m, &mut g, &a, 'r');
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "county 2 is not yours");
-}
-
-/// Set the levy slider on the raise-army screen. With no band on offer the
-/// layout's base is 0xA0, and `Levy_SliderClick`'s track is `x - 0xC4` over the
-/// row `base + 0x10 ..< base + 0x40`.
-fn set_levy(m: &mut Machine, g: &mut Game, a: &Assets, percent: i32) {
-    click(m, g, a, (army::SLIDER_X + percent, army::base(false) + 0x20));
 }
 
 /// **`Levy_SliderClick` (`0x00435CEF`) is a drag on its track and a press on
@@ -106,29 +97,6 @@ fn the_levy_slider_follows_a_drag_and_steps_only_on_an_arrow_press() {
     send(&mut m, &mut g, &a, Event::Release { x: 256, y });
     send(&mut m, &mut g, &a, Event::RightClick { x: 256, y });
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)), "and with the button up it goes on");
-}
-
-/// From the map to the crossbow rack with one man given a crossbow — through
-/// the screens, a key and five clicks. Returns where the rack is clicked.
-fn one_crossbowman(m: &mut Machine, g: &mut Game, a: &Assets) -> (i32, i32) {
-    press(m, g, a, 'r');
-    tick(m, g, a);
-    set_levy(m, g, a, 30);
-    press_and_wait(m, g, a, on(army::continue_button(false)));
-    assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
-    let rack = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 1).expect("the crossbow rack");
-    let at = ((rack.0 + rack.2) / 2, (rack.1 + rack.3) / 2);
-    click(m, g, a, at);
-    assert_eq!(m.top_id(), Some(ScreenId::Rack(1, 1)));
-    assert!(
-        !g.levy.anim.walker.active,
-        "the first pick after a door sends nobody: Levy_Seed zeroed g_armourySelectedType, \
-         so FUN_004AABD8 is handed type 0 and `0 < type` refuses"
-    );
-    click(m, g, a, on(armoury::button_box(0)));
-    assert_eq!(g.levy.basket.troops()[TroopType::Crossbowman.index()], 1);
-    assert!(!g.levy.anim.walker.active, "equipping sends nobody: FUN_004AABD8 has one caller");
-    at
 }
 
 /// **Which pick sends a soldier**,
@@ -394,94 +362,5 @@ fn cancel_on_the_armoury_leaves_for_the_map_and_raises_nothing() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign));
     assert_eq!(g.kingdom.campaign.units.len(), 0, "nothing was raised");
     assert_eq!(g.kingdom.counties[1].population, 1_000, "and nobody left the county");
-}
-
-/// The `+` and `−` move **one man**, which is the granularity the original's
-/// two smallest buttons have and the thing our screen used to get wrong by
-/// moving ten. The arrow keys are ours and do the same.
-#[test]
-fn the_plus_and_minus_on_a_rack_move_exactly_one_man() {
-    let (mut g, a, mut m) = on_the_map();
-    press(&mut m, &mut g, &a, 'r');
-    tick(&mut m, &mut g, &a);
-    set_levy(&mut m, &mut g, &a, 30);
-    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
-    let bows = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 5).expect("a bow rack");
-    click(&mut m, &mut g, &a, ((bows.0 + bows.2) / 2, (bows.1 + bows.3) / 2));
-
-    let archer = TroopType::Archer.index();
-    for expected in 1..=3 {
-        click(&mut m, &mut g, &a, on(armoury::button_box(0)));
-        assert_eq!(g.levy.basket.troops()[archer], expected, "+ moves one man");
-    }
-    click(&mut m, &mut g, &a, on(armoury::button_box(1)));
-    assert_eq!(g.levy.basket.troops()[archer], 2, "- moves one back");
-    click(&mut m, &mut g, &a, on(armoury::button_box(2)));
-    assert_eq!(g.levy.basket.troops()[archer], 0, "NONE empties the rack");
-    assert_eq!(g.levy.basket.unequipped(), 300);
-}
-
-/// **`Create` works from inside a rack, and `Change` and `Cancel` do not** —
-/// `Hotspot_Test(0, 0, &g_armouryHotspots, 7)` on screen `0x0D` against the
-/// armoury's own 9, so record 6 is reached and records 7 and 8 are not.
-///
-/// It is the one place [`Transition::Pass`] earns its keep in this file: the
-/// button belongs to the armoury, the rack declines the click,
-/// underneath acts — **at its own depth**, so the rack goes with it
-/// being left on a stack above a screen that has closed.
-#[test]
-fn create_reaches_through_an_open_rack_and_the_other_two_buttons_do_not() {
-    let (mut g, a, mut m) = on_the_map();
-    press(&mut m, &mut g, &a, 'r');
-    tick(&mut m, &mut g, &a);
-    set_levy(&mut m, &mut g, &a, 30);
-    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
-    let swords = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 3).expect("a sword rack");
-    let sword_click = ((swords.0 + swords.2) / 2, (swords.1 + swords.3) / 2);
-
-    // Change and Cancel are dead on 0x0D: the screen stays exactly where it is.
-    click(&mut m, &mut g, &a, sword_click);
-    for dead in [armoury::CHANGE_BOX, armoury::CANCEL_BOX] {
-        click(&mut m, &mut g, &a, on(dead));
-        assert_eq!(m.top_id(), Some(ScreenId::Rack(1, 3)), "{dead:?} acted on 0x0D");
-        assert_eq!(m.depth(), 3, "and it did not disturb the stack either");
-    }
-
-    click(&mut m, &mut g, &a, on(armoury::button_box(3)));
-    click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
-    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "Create is live, and it closed both");
-    assert_eq!(m.depth(), 1, "the rack did not survive the armoury it was opened from");
-    assert_eq!(g.kingdom.campaign.units.len(), 1);
-    let (_, unit) = g.kingdom.campaign.units.iter().next().expect("the army");
-    assert_eq!(unit.troops[TroopType::Swordsman.index()], 200);
-}
-
-/// **A hit box that misses.** Every pixel of every rack hotspot opens that rack
-/// and no other, and no pixel of the three right-hand buttons opens any rack.
-/// `docs/decisions.md` C58: three wrong-screen bugs have reached this player
-/// through a near-miss, so the boxes are walked.
-#[test]
-fn no_pixel_of_the_armoury_opens_the_wrong_thing() {
-    let (mut g, a, mut m) = on_the_map();
-    press(&mut m, &mut g, &a, 'r');
-    tick(&mut m, &mut g, &a);
-    set_levy(&mut m, &mut g, &a, 30);
-    press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
-
-    for &(x0, y0, x1, y1, troop) in &armoury::RACK_HOTSPOTS {
-        for (x, y) in [(x0, y0), (x1 - 1, y0), (x0, y1 - 1), (x1 - 1, y1 - 1)] {
-            click(&mut m, &mut g, &a, (x, y));
-            assert_eq!(
-                m.top_id(),
-                Some(ScreenId::Rack(1, troop)),
-                "({x}, {y}) is rack {troop}'s corner and opened something else",
-            );
-            click(&mut m, &mut g, &a, on(armoury::RACK_OK));
-        }
-    }
-    // The three buttons are outside every rack, and Change is the one that goes
-// back.
-    click(&mut m, &mut g, &a, on(armoury::CHANGE_BOX));
-    assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
 }
 
