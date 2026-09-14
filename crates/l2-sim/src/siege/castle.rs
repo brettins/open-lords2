@@ -253,7 +253,7 @@ pub fn our_castle(level: u8) -> Battlefield {
 /// 5…12 for a structure, which the builder then expands into a surface, flags
 /// and a real elevation — [`code`] lists them. The second is passability.
 /// **[V]**, read out of `Lords2.exe` at file offsets `0xD5D80` and `0xD5F80`;
-/// `crates/l2-game/tests/siege_picture.rs` re-reads the player's own copy and
+/// `crates/l2-game/tests/siege_picture/main.rs` re-reads the player's own copy and
 /// fails if these bytes drift.
 ///
 /// **Which castle gets which is `DAT_0057C910`**, `(uint)(1 < g_castleLevel)`

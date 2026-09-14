@@ -1345,7 +1345,7 @@ wooden table files **none** — which is `Readme.txt`'s *"only the Stone and
 Royal castles have drawbridges"* from inside the art.
 
 Both tables are in-tree (`l2_sim::siege::STRUCTURE_STONE` / `_WOOD`) and
-`crates/l2-game/tests/siege_picture.rs` re-reads the player's own `Lords2.exe`
+`crates/l2-game/tests/siege_picture/main.rs` re-reads the player's own `Lords2.exe`
 at file offsets `0xD5D80` and `0xD5F80` to hold them there.
 
 **The "directory" is an ordinary PL8 directory**, and that is what makes the
