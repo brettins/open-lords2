@@ -371,10 +371,10 @@ crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab	bb0dd488f9d2
 crates/l2-sim/src/movement.rs	C200	56b5e9488de3	264da18555bd
 crates/l2-sim/src/pathfind.rs	C103	62f78ee316b4	7f535dce1087
 crates/l2-sim/src/pathfind.rs	C103	82fc499e9bf3	7f535dce1087
-crates/l2-sim/src/runner.rs	C100	0b67e8835502	c490b4875689
-crates/l2-sim/src/runner.rs	C200	a0976d2da606	264da18555bd
-crates/l2-sim/src/runner.rs	C203	d54d449778b9	a885abd5494f
-crates/l2-sim/src/runner.rs	C81	195b94310c14	3f7941714d12
+crates/l2-sim/src/runner/combat.rs	C100	0b67e8835502	c490b4875689
+crates/l2-sim/src/runner/conclusion.rs	C203	d54d449778b9	a885abd5494f
+crates/l2-sim/src/runner/orders.rs	C200	a0976d2da606	264da18555bd
+crates/l2-sim/src/runner/orders.rs	C81	195b94310c14	3f7941714d12
 crates/l2-sim/src/siege.rs	C3	858d58b4a3a4	35bf3a86555f
 crates/l2-sim/src/siege.rs	C82	d23ec5eae8d5	0eb5947031fe
 crates/l2-sim/src/siege.rs	C99	b31d647a1682	b890db1f6d4a

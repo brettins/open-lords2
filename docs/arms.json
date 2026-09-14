@@ -2950,7 +2950,7 @@
       "addr": "0x00496B9F",
       "what": "Scans the 80x80 field row-major for the first cell flagged 0x40, then writes a 7-row by 4-column patch running south and east from it: flags = 0, surface = 3, frame from DAT_004D9E18[i], flags2 |= 1 then &= 0xE3. Sets _DAT_00569588 (the gate is open) and DAT_0052AF9C (the latch), adds 4 to both g_siegeApproachScore and g_siegeBreachScore, and rebuilds the terrain template and the elevation plane.",
       "note": "Sets exactly the globals the twenty-thousandth ram hit sets, so the garrison opening its own gate is indistinguishable to the besieger's AI from the besieger breaking it -- which is why the Readme says a drawbridge cannot be closed again. The 28 frame indices were read out of Lords2.exe at file offset 0xD8018, not out of a listing. The original's scan is missing a break on its outer loop; the answer is unaffected but g_foundTileX/Y are left at (0, 0x50). The patch's flags2 write is not reproduced: no BattleCell field in this engine carries byte +2.",
-      "ours": "crates/l2-sim/src/runner.rs",
+      "ours": "crates/l2-sim/src/runner/mod.rs",
       "evidence": "V"
     },
     {

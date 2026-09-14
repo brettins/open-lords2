@@ -1,32 +1,76 @@
-// split-llm.js - one Gemini Flash call splits a large Rust file into a directory module.
+// split-llm.js - split a large Rust file into a directory module: Flash plans the cut as
+// line ranges (a few hundred tokens out), the script moves the text losslessly.
 //
 //   node tools/review/split-llm.js crates/l2-sim/src/runner.rs
 //
-// Sends the whole file, asks for {"files": {"<path>": "<content>"}} with mod.rs
-// plus submodules, pure moves only, and writes them. cargo check is the caller's.
+// The model sees the file's outline (item starts with line numbers) and returns
+// {"<name>": [[start, end], ...]} covering every line once; "mod" is the file that keeps
+// the module doc, the types and the `mod x;` declarations. Each submodule gets
+// `use super::*;` prepended; nothing else is rewritten. cargo check is the caller's:
+// visibility errors (`pub(super)`) are the one thing a move cannot decide.
 const fs = require("fs"), path = require("path");
 const root = path.resolve(__dirname, "..", "..");
 const MODEL = process.env.PROSE_MODEL || "gemini-3.6-flash";
 const KEY = process.env.GEMINI_API_KEY; if (!KEY) { console.error("split-llm: GEMINI_API_KEY unset"); process.exit(2); }
 const file = process.argv[2]; if (!file) { console.error("split-llm: <file>"); process.exit(2); }
-const src = fs.readFileSync(path.join(root, file), "utf8");
+const src = fs.readFileSync(path.join(root, file), "utf8").replace(/\r/g, "");
+const lines = src.split("\n"); const N = lines.length;
 const dir = file.replace(/\.rs$/, "");
-const RULES = `You are splitting one Rust source file into a directory module. The file is ${file}, ${src.split("\n").length} lines.
-Produce ${dir}/mod.rs plus submodule files ${dir}/<name>.rs grouped by concern, each under 900 lines. Pure moves: every item keeps its name, signature, body, attributes and doc comments byte for byte. mod.rs declares each submodule (\`mod name;\` or \`pub mod name;\`), keeps the module doc comment, the struct and enum definitions, and re-exports with \`pub use\` whatever the old file exported. Add \`use super::*;\` at the top of each submodule and widen private items to \`pub(super)\` only where a moved item is used from another file of the split. Nothing else changes.
-Output every file as plain text, one after another, each introduced by a line that is exactly "==== <path> ====" (four equals signs, a space, the path, a space, four equals signs), followed by the file's content verbatim. No JSON, no code fences, nothing else.`;
+const outline = lines.map((l, i) => [i + 1, l]).filter(([, l]) => /^(pub(\([a-z]+\))? |)(fn|impl|struct|enum|const|static|type|mod|trait|macro_rules!|use )|^#\[|^\/\/! |^}/.test(l)).map(([n, l]) => `${n}: ${l.slice(0, 110)}`).join("\n");
+const RULES = `Below is the outline of ${file} (${N} lines): the line number and text of every top-level item start, attribute, closing brace and module doc line. Plan a split of this file into a directory module ${dir}/ with a mod file and submodule files grouped by concern, each under 900 lines. Top-level items must not be cut in the middle: a range starts at an item's first line (its doc comment or attribute, if any) and ends at its closing brace. \`impl\` blocks may be split only at method boundaries if you also assign the impl header line to each part (the script re-opens the block).
+Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ...} where every line 1..${N} belongs to exactly one range and names are lowercase identifiers. "mod" holds the module doc, the \`use\` lines, the types, constants and any \`#[cfg(test)] mod\` declarations.`;
 (async () => {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${KEY}`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: RULES + "\n\n```rust\n" + src + "\n```" }] }],
-      generationConfig: { temperature: 0, maxOutputTokens: 120000, thinkingConfig: { thinkingLevel: "minimal" } } }) });
+    body: JSON.stringify({ contents: [{ parts: [{ text: RULES + "\n\n" + outline }] }],
+      generationConfig: { responseMimeType: "application/json", temperature: 0, thinkingConfig: { thinkingLevel: "minimal" } } }) });
   if (!r.ok) { console.error(`split-llm: ${r.status} ${(await r.text()).slice(0, 300)}`); process.exit(1); }
-  const j = await r.json(); const t = (j.candidates?.[0]?.content?.parts?.[0]?.text || "").replace(/\r/g, "");
-  fs.writeFileSync(path.join(root, "split-llm.raw.txt"), t);
-  const out = {}; const parts = t.split(/^==== (\S+) ====\n/m);
-  for (let i = 1; i < parts.length; i += 2) out[parts[i]] = parts[i + 1].replace(/^```\w*\n/, "").replace(/\n```\s*$/, "\n");
-  if (!Object.keys(out).length) { console.error("split-llm: no ==== path ==== sections in the reply (" + t.length + " chars); finish " + (j.candidates?.[0]?.finishReason)); process.exit(1); }
-  let total = 0;
-  for (const [p, c] of Object.entries(out)) { fs.mkdirSync(path.dirname(path.join(root, p)), { recursive: true }); fs.writeFileSync(path.join(root, p), c.endsWith("\n") ? c : c + "\n"); const n = c.split("\n").length; total += n; console.log(String(n).padStart(6), p); }
+  const j = await r.json(); const t = j.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  let plan; try { plan = JSON.parse(t); } catch { console.error("split-llm: plan is not JSON: " + t.slice(0, 200)); process.exit(1); }
+  // Coverage: every line once.
+  const owner = new Array(N + 1).fill(null);
+  for (const [name, ranges] of Object.entries(plan)) for (const [a, b] of ranges) for (let i = a; i <= b; i++) if (!owner[i]) owner[i] = name; // an overlap keeps the first owner
+  // A line the plan skipped (a comment between items, a blank) goes with the next assigned line.
+  let gaps = 0; for (let i = N; i >= 1; i--) if (!owner[i]) { owner[i] = owner[i + 1] || "mod"; if (lines[i - 1].trim() !== "") gaps++; }
+  if (gaps) console.log(`split-llm: ${gaps} non-blank lines the plan skipped go with the item below them`);
+  // No boundary inside an item: every line takes the owner of the item start above it,
+  // where an item starts at a depth-0 line or a depth-1 method/const line in an impl.
+  { let d = 0, cur = 1; for (let i = 1; i <= N; i++) { const l = lines[i - 1]; const code = l.replace(/\/\/.*$/, "").replace(/'(\\.|[^'\\])'/g, "''").replace(/"([^"\\]|\\.)*"/g, '""'); const starts = (d === 0 && /^\S/.test(l) && !/^}/.test(l)) || (d === 1 && /^    (pub(\([a-z]+\))? )?(fn|const|type|static)\b/.test(l)); if (starts) cur = i; if (!(d === 0 && /^}/.test(l))) owner[i] = owner[cur]; d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
+  // A doc comment or attribute belongs to the item under it: a boundary that falls
+  // between them moves up so they travel together.
+  for (let i = N - 1; i >= 1; i--) if (owner[i] !== owner[i + 1] && /^\s*(\/\/\/|\/\/!|#\[)/.test(lines[i - 1])) owner[i] = owner[i + 1];
+  // Brace depth per line, so an impl block split across files is re-opened and closed
+  // in each file that holds a piece of it. Braces inside line comments are ignored.
+  const header = new Array(N + 2).fill(0), closes = new Array(N + 2).fill(0); let depth = 0, open = 0;
+  for (let i = 1; i <= N; i++) {
+    const code = lines[i - 1].replace(/\/\/.*$/, "").replace(/'(\\.|[^'\\])'/g, "''").replace(/"([^"\\]|\\.)*"/g, '""');
+    const o = (code.match(/{/g) || []).length, c = (code.match(/}/g) || []).length;
+    if (depth === 0 && o > c && /^(pub(\([a-z]+\))? )?(impl|trait|mod)\b/.test(lines[i - 1])) { open = i; header[i] = -i; }
+    else if (depth > 0 && open) header[i] = open;
+    depth += o - c;
+    if (depth === 0 && open && header[i] === open && c > o) { closes[i] = open; open = 0; }
+    if (depth === 0 && !header[i]) open = 0;
+  }
+  const files = {}; const opened = {};
+  for (let i = 1; i <= N; i++) {
+    const o = owner[i] || "mod"; const f = (files[o] = files[o] || []);
+    const h = header[i] < 0 ? -header[i] : header[i];
+    if (closes[i]) { if (opened[o] === closes[i]) { f.push(lines[i - 1]); opened[o] = 0; } continue; }
+    if (h && opened[o] !== h) { if (opened[o]) f.push("}"); if (header[i] > 0) f.push(lines[h - 1]); opened[o] = h; }
+    if (!h && opened[o]) { f.push("}"); opened[o] = 0; }
+    f.push(lines[i - 1]);
+  }
+  for (const o of Object.keys(files)) if (opened[o]) files[o].push("}");
+  const names = Object.keys(files).filter(n => n !== "mod");
+  fs.mkdirSync(path.join(root, dir), { recursive: true });
+  const modBody = files.mod.join("\n");
+  const decl = names.map(n => `mod ${n};\npub use ${n}::*;`).join("\n") + "\n";
+  // The mod declarations go after the module doc (`//!` lines) and before the first item.
+  const docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && l.trim() !== "");
+  const modLines = files.mod.slice(); modLines.splice(docEnd < 0 ? 0 : docEnd, 0, "", decl);
+  fs.writeFileSync(path.join(root, dir, "mod.rs"), modLines.join("\n").replace(/\n{3,}/g, "\n\n") + "\n");
+  for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), "use super::*;\n\n" + files[n].join("\n") + "\n");
   fs.unlinkSync(path.join(root, file));
-  console.log(`split-llm: ${Object.keys(out).length} files, ${total} lines from ${src.split("\n").length} (${j.usageMetadata?.totalTokenCount} tokens, finish ${j.candidates?.[0]?.finishReason})`);
+  console.log(`${String(files.mod.length + 2).padStart(6)} ${dir}/mod.rs`); for (const n of names) console.log(`${String(files[n].length + 2).padStart(6)} ${dir}/${n}.rs`);
+  console.log(`split-llm: ${names.length + 1} files from ${N} lines, every line kept (${j.usageMetadata?.totalTokenCount} tokens)`);
 })();

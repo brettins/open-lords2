@@ -435,7 +435,7 @@
       "notDoneBecause": "Either the battlefield honours a rotation nothing else implements, or this is a paste from the campaign renderer whose three extra branches never run. Both stories are coherent and neither is anchored. Deciding it needs a live battle or the 16-pixel renderer read."
     },
     {
-      "target": "crates/l2-sim/src/runner.rs, Fighter::target",
+      "target": "crates/l2-sim/src/runner/mod.rs, Fighter::target",
       "claim": "The doc comment named a field that does not exist. Figure +0x144/+0x146 fall inside the 300-byte path array at +0x38, no instruction in the binary references either offset, and the field is tg x / tg y at +0x24/+0x26. \"Written by Formation_SendFigure and by nothing else\" is also wrong: eleven functions write it.",
       "evidence": [
         "docs/records.json gives BattleMan +0x38 as u8[300], which runs to +0x164.",
