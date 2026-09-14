@@ -1,4 +1,4 @@
-﻿//! **The right column's chrome, `Misc_bat.PL8`** â€” the five blits
+//! **The right column's chrome, `Misc_bat.PL8`** — the five blits
 //! `Screen_DrawBattlefield` (`0x004233F7`) and `FUN_00423530` (`0x00423530`)
 //! make and this engine did not.
 //!
@@ -39,7 +39,7 @@ pub(crate) fn sheet(platform: &l2_mods::Platform) -> Sheet {
     Sheet::new(bytes(platform)).expect("a PL8")
 }
 
-/// Where a frame's own record says it goes â€” record bytes `0x08`/`0x0A`.
+/// Where a frame's own record says it goes — record bytes `0x08`/`0x0A`.
 fn header(raw: &[u8], index: usize) -> (i32, i32) {
     let pl8 = l2_formats::Pl8::parse(raw).expect("a PL8");
     let f = &pl8.frames[index];
@@ -68,8 +68,8 @@ fn column(paused: bool, shields: (u8, u8)) -> (Game, Machine, Canvas, Assets, l2
 /// buttons are drawn over the last two, so those are asserted as *most of*
 /// their pixels
 ///
-/// Ablation: drop the `COLUMN` blit â€” red, 0% of a 160 Ã— 228 frame at
-/// (480, 184). Move any of the three by one pixel â€” red, the exact match on
+/// Ablation: drop the `COLUMN` blit — red, 0% of a 160 × 228 frame at
+/// (480, 184). Move any of the three by one pixel — red, the exact match on
 /// frame 0 and the majority matches on 1 and 2 all fail.
 #[test]
 fn the_right_columns_three_plates_are_misc_bats_own_frames_at_their_own_positions() {
@@ -94,15 +94,15 @@ fn the_right_columns_three_plates_are_misc_bats_own_frames_at_their_own_position
 /// **A side's shield plate is its realm's, and the left one is side 4.**
 ///
 /// `Screen_DrawBattlefield` draws `DAT_00568934 + 6` at `(0x1E2, 0x19D)` and
-/// `DAT_00568938 + 6` at `(0x230, 0x19D)`, and `g_battleArmyB` â€” the
-/// right-hand one â€” is the **side-0** army (`l2_view::scene`'s
+/// `DAT_00568938 + 6` at `(0x230, 0x19D)`, and `g_battleArmyB` — the
+/// right-hand one — is the **side-0** army (`l2_view::scene`'s
 /// `BattleBanner_Draw` note). So a battle whose sides hold different realms
 /// puts the *attacker's* plate on the left, which is the way round the names
 /// argue against.
 ///
-/// Ablation: swap the pair in `side_shields` â€” red, each plate is found
-/// carrying the other realm's frame. Drop the `+ SHIELD` â€” red, frame 1 (the
-/// 160 Ã— 32 strip) does not fit a 28 Ã— 35 recess.
+/// Ablation: swap the pair in `side_shields` — red, each plate is found
+/// carrying the other realm's frame. Drop the `+ SHIELD` — red, frame 1 (the
+/// 160 × 32 strip) does not fit a 28 × 35 recess.
 #[test]
 fn each_sides_shield_plate_is_its_realms_and_the_left_plate_is_side_four() {
     if install().is_none() {
@@ -129,11 +129,11 @@ fn each_sides_shield_plate_is_its_realms_and_the_left_plate_is_side_four() {
     );
 }
 
-/// **An ownerless side's plate is frame 12, not frame 6** â€” the seeder's
+/// **An ownerless side's plate is frame 12, not frame 6** — the seeder's
 /// `if (DAT_00568934 == 0) DAT_00568934 = 6;`, and frame 6 is the lit retreat
 /// button, so without the clamp the recess would hold a button.
 ///
-/// Ablation: drop the clamp in `side_shield` â€” red, frame 6 is found in the
+/// Ablation: drop the clamp in `side_shield` — red, frame 6 is found in the
 /// left recess and frame 12 is not.
 #[test]
 fn a_shieldless_realms_plate_is_clamped_to_the_sixth_and_not_to_a_button() {
@@ -160,11 +160,11 @@ fn a_shieldless_realms_plate_is_clamped_to_the_sixth_and_not_to_a_button() {
 ///
 /// `FUN_00423530` puts frame 5 at `(0x1E1, 0x1C1)` under
 /// `if (DAT_0053F238 != 0)` and frame 6 at `(0x201, 0x1C1)` under
-/// `if (DAT_00568964 == 1)` â€” input armed, which `Battle_Start` sets before the
+/// `if (DAT_00568964 == 1)` — input armed, which `Battle_Start` sets before the
 /// screen is raised and nothing on it clears.
 ///
-/// Ablation: make the lamp unconditional â€” red, it is found on an unpaused
-/// battle. Drop it â€” red, it is absent on a paused one.
+/// Ablation: make the lamp unconditional — red, it is found on an unpaused
+/// battle. Drop it — red, it is absent on a paused one.
 #[test]
 fn the_pause_lamp_is_drawn_only_while_the_battle_is_paused() {
     if install().is_none() {
@@ -192,7 +192,7 @@ fn the_pause_lamp_is_drawn_only_while_the_battle_is_paused() {
 /// **Our own five buttons are not drawn over the artwork.** Frame 1 carries
 /// the button pictures; a `widget::button` box a slot would hide one.
 ///
-/// Ablation: draw the boxes unconditionally â€” red, slot 2's 32 Ã— 32 patch
+/// Ablation: draw the boxes unconditionally — red, slot 2's 32 × 32 patch
 /// no longer matches the strip.
 #[test]
 fn our_placeholder_buttons_give_way_to_the_strips_own_pictures() {
