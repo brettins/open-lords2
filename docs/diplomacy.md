@@ -843,7 +843,7 @@ Stated plainly, because a wrong map is worse than a small one.
 * ~~**`Msg_DrawWindow` is 10,915 bytes and was read only for its text and voice lookups.**~~
   **Closed** — §11. Twenty category arms, the five widget tables that answer them, and three
   arms that are not drawing at all. The two prompts a person answers a lord with are reachable
-  now; `crates/l2-game/tests/messages.rs` accepts an alliance and pays for help by clicking.
+  now; `crates/l2-game/tests/messages/main.rs` accepts an alliance and pays for help by clicking.
 * ~~**The AI-to-AI half is unobservable and untested.**~~ It is observable now, in *our*
   engine — §10.8 is forty turns of it — but that is our arithmetic agreeing with itself and
   not evidence about the original. It remains unobserved **in the game**.
@@ -1058,6 +1058,6 @@ the same way.
 ### 11.5 Where it is
 
 `crates/l2-game/src/message/mod.rs` is the ring and the rules; `crates/l2-game/src/screens/message.rs`
-is the window and the arms; `crates/l2-game/tests/messages.rs` plays every route above with
+is the window and the arms; `crates/l2-game/tests/messages/main.rs` plays every route above with
 `Event` values. `docs/arms.json`'s `messages` group has one record per arm, including the four
 that are not built and why.

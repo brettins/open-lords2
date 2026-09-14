@@ -176,7 +176,7 @@ crates/l2-game/tests/long_game.rs	C27	8bcc6dd9bca3	1db64332cb22
 crates/l2-game/tests/long_game.rs	C27	b651893267c8	1db64332cb22
 crates/l2-game/tests/merchant.rs	C50	444a9e4940bc	85416be0b69b
 crates/l2-game/tests/merchant.rs	C53	7cd616c516aa	cad36ab11dbf
-crates/l2-game/tests/messages.rs	C210	0a9c731f6422	38024f0b559c
+crates/l2-game/tests/messages/main.rs	C210	0a9c731f6422	38024f0b559c
 crates/l2-game/tests/military/main.rs	C35	0578d12796f0	193a1920e229
 crates/l2-game/tests/military/main.rs	C58	5c599d9423e7	2a1ff4d5966d
 crates/l2-game/tests/military/main.rs	C61	db2d2b21a1c9	60611046b40d
