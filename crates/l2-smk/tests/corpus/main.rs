@@ -28,8 +28,6 @@
 //! update desynchronises the very first film so badly that it overruns a
 //! chunk, so every test in this file fails together on the shared decode.
 
-mod corpus_tests;
-pub use corpus_tests::*;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -151,4 +149,7 @@ macro_rules! films {
         }
     };
 }
+
+mod corpus_tests;
+pub use corpus_tests::*;
 

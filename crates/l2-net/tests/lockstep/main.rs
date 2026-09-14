@@ -56,7 +56,7 @@ struct Table {
 impl Table {
     /// `players` peers, all in one session, each with its own
     /// simulation seeded identically.
-    pub(super) fn new(config: Config, players: u8, seed: u64) -> Table {
+    pub(crate) fn new(config: Config, players: u8, seed: u64) -> Table {
         let slots: Vec<PlayerSlot> = (0..players).map(PlayerSlot::new).collect();
         let ids: Vec<PeerId> = (0..players as u32).map(PeerId).collect();
         let net = Loopback::with_peers(&ids);

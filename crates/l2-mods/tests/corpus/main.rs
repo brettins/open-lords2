@@ -9,12 +9,6 @@
 //! mounted as a read-only layer and every file this test creates goes in a
 //! temporary directory.
 
-mod indexing;
-pub use indexing::*;
-mod seeding;
-pub use seeding::*;
-mod difficulty;
-pub use difficulty::*;
 
 #[path = "../common/mod.rs"]
 mod common;
@@ -38,4 +32,11 @@ macro_rules! skip_without_install {
         }
     };
 }
+
+mod indexing;
+pub use indexing::*;
+mod seeding;
+pub use seeding::*;
+mod difficulty;
+pub use difficulty::*;
 
