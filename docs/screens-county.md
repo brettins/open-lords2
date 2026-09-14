@@ -465,7 +465,7 @@ record 5, `(0, 30) … (161, 49)` — **161 × 19**, so its last column (x 639) 
 (y 479) are dead too.
 above it really is 162 × 30; the hotspots are one smaller in each direction, and deriving
 the hit box from the plate is what put a live pixel where the game has none.
-`crates/l2-game/tests/right_column.rs` reads both tables out of the player's own
+`crates/l2-game/tests/right_column/main.rs` reads both tables out of the player's own
 `Lords2.exe` and asserts our constants against them. `docs/decisions.md` C97.
 
 Screen `0x17` is the **raise-army** screen: `L2.eng` group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads

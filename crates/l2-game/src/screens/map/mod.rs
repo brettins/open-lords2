@@ -197,7 +197,7 @@ pub const PANEL: Rect = Rect::new(PANEL_X, TOP_BAR, PANEL_W, 480 - TOP_BAR);
 /// (x 639) and last row (y 479) are dead in the original, exactly like the
 /// one-pixel dead columns between the five icons above it, and ours had them
 /// live. Read out of the player's `Lords2.exe` in
-/// `crates/l2-game/tests/right_column.rs`; the artwork is 162 × 20
+/// `crates/l2-game/tests/right_column/main.rs`; the artwork is 162 × 20
 /// hotspot is not.
 pub const END_TURN_BUTTON: Rect =
     Rect::new(PANEL_X, chrome::PANEL_END_TURN_Y, PANEL_W - 1, 19);
@@ -273,7 +273,7 @@ pub struct SidebarButton {
 /// between each pair of icons horizontally, once, horizontally across the whole
 /// strip. This used to be `PANEL_END_TURN_Y − PANEL_STATUS_Y`, which is the
 /// distance between two *plates* and not the height of a *hotspot*, and it made
-/// the dead row live. See `crates/l2-game/tests/right_column.rs`, which reads
+/// the dead row live. See `crates/l2-game/tests/right_column/main.rs`, which reads
 /// the table out of the player's own copy.
 pub const SIDEBAR_H: i32 = 29;
 

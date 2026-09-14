@@ -564,7 +564,7 @@ pub struct Game {
     /// **One authority, one projection**, the same shape as
     /// [`Game::presentation_quirks`] → [`Assets::quirks`]: `MapScreen::zoom` is
     /// the authority and every write mirrors into this, so nothing reads a
-    /// second copy that drifted. `crates/l2-game/tests/right_column.rs` asserts
+    /// second copy that drifted. `crates/l2-game/tests/right_column/main.rs` asserts
     /// the projection holds, which is what stops it becoming a field the map
     /// forgets to write.
     ///

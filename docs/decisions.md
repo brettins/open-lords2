@@ -4299,7 +4299,7 @@ accurate about the rectangle it named, the name was wrong, and it passed. That i
 sharpest one yet, because unlike the build-stamp test it was written *specifically* to
 prevent this and still did not.
 
-The replacement names no rectangle. `crates/l2-game/tests/right_column.rs` and
+The replacement names no rectangle. `crates/l2-game/tests/right_column/main.rs` and
 `divide.rs`'s `no_two_hotspots_on_this_screen_overlap` enumerate every box the screen tests
 and compare them pairwise, and the geometry is asserted against the **player's own
 `Lords2.exe`** rather than against our reading of a painter. A check that has to name a
