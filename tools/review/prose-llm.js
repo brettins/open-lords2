@@ -57,6 +57,7 @@ async function symbols() {
       const indent = src[n - 1].match(/^\s*/)[0];
       const pre = src[n - 1].match(/^\s*(\/\/[!/]?)/); // a comment line keeps its prefix
       if (pre && !/^\s*\/\//.test(v)) v = pre[1] + " " + v.trim();
+      if (/^\s*\|.*\|\s*$/.test(src[n - 1]) && !/\|\s*$/.test(v)) v = v.trimEnd() + " |"; // a table row keeps its closing pipe
       res.map[n] = indent + v.trimStart().replace(/ +([.,;:)])/g, "$1").replace(/  +/g, " ").replace(/\*\*\s*\*\*/g, "").trimEnd();
     }
     const tmp = path.join(os.tmpdir(), "prose-llm.json"); fs.writeFileSync(tmp, JSON.stringify(res.map));
