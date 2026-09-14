@@ -9,9 +9,11 @@
 //! * anything else: `Cursor_Set(g_cursorByScreen[g_screenId])`, a lookup in a
 //!   table of 64 dwords at `0x004E3098` of which **five** rows are non-zero.
 //!
-//! `docs/screens.md` §9. The pictures are seven `RT_GROUP_CURSOR` resources
-//! inside `Lords2.exe`; we do not read them yet, and the shell maps a kind onto
-//! the nearest system cursor — `crates/l2-game/src/mod.rs`.
+//! `docs/screens.md` §9. The pictures are the seven `RT_GROUP_CURSOR`
+//! resources `App_InitWindow` (`0x004B2258`) loads out of `Lords2.exe`:
+//! `l2_formats::cursors` reads them and the shell draws them at the canvas's
+//! own whole scale, falling back to the nearest system cursor when the
+//! executable is absent — `crates/l2-game/src/main.rs`, `App::apply_pointer`.
 
 /// The eight `HCURSOR`s `Cursor_Set` switches on, **by its kind number**.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,7 +43,25 @@ impl Pointer {
     pub fn kind(self) -> u8 {
         self as u8
     }
+
+    /// The `RT_GROUP_CURSOR` id `App_InitWindow` (`0x004B2258`) loaded this
+    /// kind's `HCURSOR` from — the picture, in the player's own `Lords2.exe`.
+    /// 105 twice, into `g_cursorArrow` and `g_cursorArrowAlt`.
+    pub fn resource(self) -> u16 {
+        match self {
+            Pointer::Arrow | Pointer::ArrowAlt => 105,
+            Pointer::Question => 110,
+            Pointer::Cross => 102,
+            Pointer::CrossTarget => 103,
+            Pointer::Ring => 104,
+            Pointer::Peasant => 111,
+            Pointer::Scythe => 113,
+        }
+    }
 }
+
+/// The seven `RT_GROUP_CURSOR` ids `App_InitWindow` loads, in id order.
+pub const RESOURCES: [u16; 7] = [102, 103, 104, 105, 110, 111, 113];
 
 /// **`g_cursorByScreen` (`0x004E3098`)** — the kind for a `g_screenId`.
 ///
