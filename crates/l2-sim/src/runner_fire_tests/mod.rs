@@ -57,7 +57,6 @@ fn stand(r: &mut BattleRunner, troop: Troop, side: Side, owner: u8, human: bool,
         moat_load: 0,
         polar: 0,
         corpse: 0,
-        delay: 0,
     });
     let i = r.fighters.len() - 1;
     r.occupant[cell(at.0, at.1)] = Some(i as u16);
