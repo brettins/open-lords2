@@ -996,7 +996,7 @@
       "name": "Armoury_DrawWallItems",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Screen 0x0A: the six weapons hanging on the armoury walls, from g_armouryWallItems (0x004D2D88), 6 records of {frame, x, y} indexed by weapon slot. Each is drawn only when g_realms[player].weapons[t-1] > 0, so the picture is an inventory of what the realm owns - which is the 'listing of their tools' a player said was missing. [V] The six positions agree cell for cell with arm_grid.pl8's six hit regions, two tables that know nothing about each other; asserted in crates/l2-game/tests/armoury.rs."
+      "comment": "Screen 0x0A: the six weapons hanging on the armoury walls, from g_armouryWallItems (0x004D2D88), 6 records of {frame, x, y} indexed by weapon slot. Each is drawn only when g_realms[player].weapons[t-1] > 0, so the picture is an inventory of what the realm owns - which is the 'listing of their tools' a player said was missing. [V] The six positions agree cell for cell with arm_grid.pl8's six hit regions, two tables that know nothing about each other; asserted in crates/l2-game/tests/armoury/main.rs."
     },
     {
       "addr": "0x004184C6",

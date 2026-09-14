@@ -45,7 +45,7 @@
     {"id": "revolts", "area": "people", "name": "Unrest and peasant revolts", "status": "done", "evidence": ["C90","crates/l2-game/tests/long_game.rs"], "gap": "", "rows": []},
     {"id": "secession", "area": "people", "name": "Cut-off counties break away", "status": "done", "evidence": ["C34","crates/l2-kingdom/tests/secession.rs"], "gap": "", "rows": []},
     {"id": "raise-army", "area": "armies", "name": "Raising an army", "status": "done", "evidence": ["C45","C66","C179","crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
-    {"id": "armoury", "area": "armies", "name": "Arming men at the armoury", "status": "done", "evidence": ["C61","C66","C179","crates/l2-game/tests/armoury.rs"], "gap": "", "rows": []},
+    {"id": "armoury", "area": "armies", "name": "Arming men at the armoury", "status": "done", "evidence": ["C61","C66","C179","crates/l2-game/tests/armoury/main.rs"], "gap": "", "rows": []},
     {"id": "mercenaries", "area": "armies", "name": "Hiring mercenaries", "status": "done", "evidence": ["C150","C164"], "gap": "", "rows": []},
     {"id": "marching", "area": "armies", "name": "Marching armies", "status": "done", "evidence": ["C35","C60","C134","C184","C224","crates/l2-game/tests/military/main.rs","crates/l2-game/tests/arrival.rs","crates/l2-game/tests/screens_map/main.rs"], "gap": "", "rows": []},
     {"id": "taking-counties", "area": "armies", "name": "Taking a county", "status": "done", "evidence": ["crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
