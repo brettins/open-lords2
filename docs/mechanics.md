@@ -536,7 +536,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   ten-rung ladder; an evenly matched fight leaves the winner **a tenth of its army**.
   `docs/armies.md` §7.2
 - ✅ **The campaign–battle seam** — an army that reaches an enemy county now fights and hands
-  the result back: `crates/l2-kingdom/src/battle.rs` and `crates/l2-game/src/engagement.rs`,
+  the result back: `crates/l2-kingdom/src/battle.rs` and `crates/l2-game/src/engagement/mod.rs`,
   checked end to end against the battle fixture triple in `crates/l2-game/tests/seam.rs`.
   **`g_battleLoser` holds the winner**; four sites say so and `docs/armies.md` §7 lists them.
   Implementing it on the name destroys the winner and hands the county to the corpse

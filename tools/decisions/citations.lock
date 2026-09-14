@@ -31,7 +31,7 @@ crates/l2-game/src/battlefield.rs	C61	e5b8ebac6d3d	60611046b40d
 crates/l2-game/src/battlefield.rs	C79	76ceb5b70be2	7dc379494ecf
 crates/l2-game/src/build_id.rs	C107	357dac9ad6ce	eb231bef7ee5
 crates/l2-game/src/clock.rs	C193	076d615bd546	ded1409ebea0
-crates/l2-game/src/engagement.rs	C186	8ffe828ee44a	e4c22886df5f
+crates/l2-game/src/engagement/fight.rs	C186	8ffe828ee44a	e4c22886df5f
 crates/l2-game/src/game/game_methods.rs	C180	9808d1a148fa	fea6f0ec7284
 crates/l2-game/src/game/mod.rs	C125	0acc6b430574	6084e87aec70
 crates/l2-game/src/game/mod.rs	C27	89e1a09cb732	1db64332cb22

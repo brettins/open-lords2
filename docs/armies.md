@@ -1567,7 +1567,7 @@ Reproduced, not tidied.
 
 `docs/mechanics.md` listed this as ❓. **The whole path is now implemented** — the campaign
 half in `crates/l2-kingdom/src/battle.rs`, the hand-off to the simulation in
-`crates/l2-game/src/engagement.rs` — and it is checked end to end against the battle fixture
+`crates/l2-game/src/engagement/mod.rs` — and it is checked end to end against the battle fixture
 triple in `crates/l2-game/tests/seam.rs`. This section is rewritten from the four functions
 that make it up, not from `Battle_ReturnToCampaign` alone, because
 `Battle_ReturnToCampaign` is only the third of them.
