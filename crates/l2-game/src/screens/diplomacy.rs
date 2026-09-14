@@ -822,6 +822,63 @@ pub const LETTER_DRAFT: Rect = Rect::new(0x20, 0xC0, 0x1A0, 0x60);
 /// wrapped at 384 pixels from (48, 200).
 pub const LETTER_DRAFT_TEXT: (i32, i32, i32) = (0x30, 200, 0x180);
 
+/// `Edit_Begin(&g_diploLetterDraft + (kind - 1) * 200, 200, 10000, 0)` —
+/// `Diplo_OpenCompliment` (`0x0043618B`) and its three siblings. The character
+/// limit is **200**, the pixel limit 10,000, which no draft box reaches, so
+/// only the character limit bites. **[V]**
+pub const LETTER_MAX_LEN: usize = 200;
+pub const LETTER_MAX_PIXELS: i32 = 10_000;
+
+/// `Edit_Commit(g_diploLetterDraft + (kind - 1) * 200, 199)` — the harvest in
+/// `Screen_HandleInput`'s `0x1A` arm. **199, one less than the field takes**,
+/// so the two-hundredth character a person may type is the one a send drops.
+/// **[V]**
+pub const LETTER_COMMIT: usize = 199;
+
+/// `Eng_CopyString(g_diploLetterDraft + k * 200, 0xE2, k, 200)` in
+/// `Options_SetDefaults` (`0x004AE310`): the four drafts a game starts with,
+/// **`L2.eng` group 226 indices 0…3**, each cut at the first character below
+/// `0x20`. One consumer, so `CLAUDE.md` rule 6 makes it this screen's
+/// vocabulary. **[V]**
+pub const LETTER_DEFAULT_GROUP: usize = 226;
+
+/// The same four transcribed, for an install with no `L2.eng`.
+const LETTER_DEFAULT_OURS: [&str; 4] = [
+    "Verily, your oppression of the weak and your flattery of the strong are worthy of emulation.  Pray, teach me more.",
+    "You are ugly, and your mother dresses you funny.",
+    "Sire, these are troubled times, I ask you to forget our past differences. We needs must fight together, to see off those that would do us harm.",
+    "It pleases me to report that happier times seem to be upon us now my friend. We now no longer have need for our pact. I shall remember your loyalty ere I lift the crown.",
+];
+
+/// Where the caret lands inside the wrapped draft — the pen position
+/// `FUN_0040352F` hands back to `FUN_00417BD3` as `g_caretX`, `g_caretY`.
+///
+/// **[I] on the column.** Our wrap splits on whitespace and drops it, so a
+/// caret standing on a run of spaces is drawn at the end of the word before
+/// them; the original measures the spaces. Elsewhere the two agree.
+fn caret_pen(pen: &Pen, text: &str, caret: usize, x: i32, y: i32, width: i32) -> (i32, i32) {
+    use crate::text::Metrics;
+    let m = crate::text::FontMetrics::of(pen.assets);
+    let line_h = pen.assets.body.as_ref().map_or(16, |f| f.line);
+    let head: String = text.chars().take(caret).collect();
+    let rows = pen.wrap(&head, width);
+    let row = rows.len().saturating_sub(1) as i32;
+    let last: Vec<char> = rows.last().map_or_else(Vec::new, |s| s.chars().collect());
+    (x + m.width(&last), y + row * line_h)
+}
+
+/// The draft a letter of `kind` (1…4) opens with.
+///
+/// The cut at the first control character is `Options_SetDefaults`' own loop,
+/// and it **latches**: everything from the first byte under `0x20` onwards is
+/// zeroed, not only that byte.
+pub fn letter_default(ctx: &Ctx, kind: Kind) -> String {
+    let k = (kind.byte() as usize).saturating_sub(1).min(3);
+    let from_eng = ctx.assets.shell.text(LETTER_DEFAULT_GROUP, k);
+    let s = if from_eng.is_empty() { LETTER_DEFAULT_OURS[k] } else { from_eng };
+    s.split(|c: char| (c as u32) < 0x20).next().unwrap_or("").to_string()
+}
+
 /// `FUN_00410C71(county, 0x60, 0xB0)` blits the raster at `(x − 2, y + 3)`.
 /// [`PICKER`] is the rectangle the hit test uses, which is the unadjusted one.
 pub const PICKER_DRAW: (i32, i32) = (PICKER.x - 2, PICKER.y + 3);
@@ -944,11 +1001,21 @@ pub struct ComposeScreen {
     pub gold: i32,
     /// `g_pickedCounty`, for kinds 5 and 6. `Diplo_OpenAskHelp` clears it.
     pub county: u8,
-    /// One of the four 200-byte buffers at `g_diploLetterDraft` (`0x0053F2B8`).
-    /// **Nothing here fills it** — the original's arm calls the keyboard entry
-    /// field, which is a different branch's work. Carried so that the branch
-    /// has somewhere to write and so that a send copies something.
-    pub draft: String,
+    /// One of the four 200-byte buffers at `g_diploLetterDraft`
+    /// (`0x0053F2B8`), as the editor that fills it.
+    ///
+    /// **`None` until the first frame with a [`Ctx`]**: `Edit_Begin` takes the
+    /// buffer's current contents, and ours come from `L2.eng` group 226
+    /// through [`letter_default`], which needs assets
+    /// [`ComposeScreen::new`] has not got.
+    ///
+    /// **One divergence, stated.** The original's four buffers are globals
+    /// seeded once by `Options_SetDefaults` and edited in place, so a letter
+    /// half-written to the Knight is still there when the Baron's is opened
+    /// (`docs/diplomacy.md` §10.10). Ours is per-screen and reseeds on every
+    /// open: the buffer has no home in `Game`, and presentation state put
+    /// there would enter the digest — `docs/netcode.md`.
+    letter: Option<crate::text::TextField>,
     /// What the tick did, for the caller.
     pub sent: Option<Result<Kind, Refusal>>,
     /// The dialog's press timer and repeat counter. See [`ComposeScreen::widgets`].
@@ -962,7 +1029,7 @@ impl ComposeScreen {
             kind: Kind::from_byte(kind).unwrap_or(Kind::Gift),
             gold: 0,
             county: 0,
-            draft: String::new(),
+            letter: None,
             sent: None,
             press: Press::new(),
         }
@@ -1016,6 +1083,37 @@ impl ComposeScreen {
 
     pub fn kind(&self) -> Kind {
         self.kind
+    }
+
+    /// Whether this shape has a letter in it: `g_diploKind` 1…4, which is the
+    /// `else if (g_diploKind < 5)` rung of the `0x1A` arm.
+    pub fn is_letter(&self) -> bool {
+        matches!(self.kind, Kind::Compliment | Kind::Insult | Kind::OfferAlliance | Kind::EndAlliance)
+    }
+
+    /// The draft editor, seeded on first use — `Edit_Begin` (`0x00402009`) as
+    /// `Diplo_OpenCompliment` (`0x0043618B`) calls it.
+    fn field(&mut self, ctx: &Ctx) -> &mut crate::text::TextField {
+        let kind = self.kind;
+        self.letter.get_or_insert_with(|| {
+            crate::text::TextField::begin(
+                &letter_default(ctx, kind),
+                LETTER_MAX_LEN,
+                LETTER_MAX_PIXELS,
+                crate::text::Kind::Text,
+            )
+        })
+    }
+
+    /// What is in the draft box now. Empty for the three shapes that have none.
+    pub fn draft(&self) -> String {
+        self.letter.as_ref().map_or(String::new(), |f| f.text())
+    }
+
+    /// `Edit_Commit(…, 199)` — what a send copies into
+    /// `g_diploLetter + localPlayer * 0xCA`.
+    pub fn committed(&self) -> String {
+        self.letter.as_ref().map_or(String::new(), |f| f.commit(LETTER_COMMIT))
     }
 
     pub fn target(&self) -> u8 {
@@ -1112,6 +1210,22 @@ impl Screen for ComposeScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        // arm: 0x0042FF10/compose-letter-text type
+        //
+        // `Screen_HandleInput`'s `0x1A` arm, the `else if (g_diploKind < 5)`
+        // rung: `Widget_Test(0x004DDA30, 2)` first, and **only when it
+        // declines** `g_editActive = 1; Edit_Recount(); Edit_Commit(draft +
+        // (kind - 1) * 200, 199)`. A click on send or cancel therefore never
+        // reaches the field
+        // takes keys alone. `Edit_Commit` is the harvest out of the one shared
+        // editor at `0x005CD550`, not the entry — `docs/diplomacy.md` §10.10.
+        if self.is_letter() {
+            let assets = ctx.assets;
+            let m = crate::text::FontMetrics::of(&assets.shell);
+            if self.field(ctx).event(event, &m) {
+                return Transition::Stay;
+            }
+        }
         let Event::Click { x, y } = event else {
             return match event {
                 // arm: 0x0042FF10/compose-right-exit right-release
@@ -1170,6 +1284,12 @@ impl Screen for ComposeScreen {
     /// `Widget_Test`'s per-frame pass: the gauntlets' countdown
     /// stepper's ramp.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        // The caret's blink. `Edit_DrawCaret` counts frames in itself; ours
+        // steps on a tick, because nothing below the renderer reads a clock.
+        // See [`crate::text`].
+        if let Some(f) = self.letter.as_mut() {
+            f.tick();
+        }
         for i in self.press.tick() {
             let t = self.fire(ctx, i);
             if t != Transition::Stay {
@@ -1294,11 +1414,22 @@ impl Screen for ComposeScreen {
                 // `0x1A` arm, so the draft repaints without the dialog being
                 // repainted. Parchment first, then the recess over it, then the
                 // wrapped text — the original's order
-                // is not a hole in the window.
                 pen.box_interior(canvas, LETTER_DRAFT.x, LETTER_DRAFT.y, 0x1A, 6);
                 pen.inset(canvas, LETTER_DRAFT);
                 let (dx, dy, dw) = LETTER_DRAFT_TEXT;
-                pen.body_wrapped(canvas, dx, dy, dw, &self.draft, font::TEXT);
+                let draft = self.draft();
+                pen.body_wrapped(canvas, dx, dy, dw, &draft, font::TEXT);
+                // `FUN_00417BD3` ends `Edit_DrawCaret(0x005AF8F0, 0x3F)` at the
+                // pen position `FUN_0040352F` left — `g_caretX + 0x30`,
+                // `g_caretY + 200` — so the caret of a *wrapped* field is an
+                // absolute point, not the anchor plus the field's own width.
+                // [`crate::text::TextField::draw_caret`] adds that width back,
+                // so the anchor handed to it is the point less `caret_x`.
+                if let Some(f) = self.letter.as_ref() {
+                    let m = crate::text::FontMetrics::of(a);
+                    let (cx, cy) = caret_pen(&pen, &draft, f.caret(), dx, dy, dw);
+                    f.draw_caret(canvas, cx - f.caret_x(&m), cy, font::TEXT, &m);
+                }
                 pen.eng(canvas, GROUP, DISPATCH, 0x70, 0x130, font::TEXT);
             }
         }

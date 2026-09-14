@@ -680,12 +680,13 @@
       "group": "diplomacy",
       "evidence": "V",
       "id": "0x0042FF10/compose-letter-text",
-      "status": "missing",
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs",
       "screen": "0x1A",
       "gesture": "type",
       "addr": "0x0042FF10",
       "what": "Screen_HandleInput's 0x1A arm, when the widget test declines and g_diploKind is 1..4, sets DAT_005AEB78 = 1 and calls FUN_0040210C(g_diploLetterDraft + (kind - 1) * 200, 199). FUN_0040210C is a bounded copy OUT OF DAT_005CD550, the game's one shared text-edit buffer that FUN_00401D26(ch) inserts typed characters into at cursor DAT_005BB4A8 -- so the four 200-byte buffers at 0x0053F2B8 are snapshots harvested from a single editor once a frame, not four independent fields. Diplo_OpenCompliment and its three siblings run the copy the other way (FUN_00402009) when the dialog opens, and Diplo_SendClicked copies the finished one into g_diploLetter + localPlayer * 0xCA, which is saved with the game and drawn to the recipient by Msg_DrawWindow.",
-      "note": "Not built here: text entry is a separate branch's. ComposeScreen carries the draft as a String so that branch has somewhere to write, and the send already copies it. The `what` above was corrected after the decompilation corpus was rebuilt with 211 more names: the first reading called FUN_0040210C 'the keyboard entry field', which is the harvest rather than the entry."
+      "note": "Built over crate::text::TextField, the editor the save-name box already uses. Two facts the build needed and neither was in this record: Edit_Begin's limits are (200, 10000, kind 0) from Diplo_OpenCompliment, so the field takes 200 characters and the harvest keeps 199 -- the two-hundredth is dropped by the send; and the four drafts a game starts with are L2.eng GROUP 226 indices 0..3, copied by Options_SetDefaults (0x004AE310) with Eng_CopyString and cut at the first character below 0x20. One divergence, stated in the code: the original's buffers are globals edited in place, ours is per-screen and reseeds on every open, because a draft has no home in Game and presentation state there would enter the digest. THE AI NEVER READS THE TEXT: every reader of g_diploLetter in the image is a drawer (Msg_DrawDiplomacy, Msg_DrawBeyondLetter) or a net field, and the seven Diplo_Reply* handlers switch on the kind and the pair counters alone. The `what` above was corrected after the decompilation corpus was rebuilt with 211 more names: the first reading called FUN_0040210C 'the keyboard entry field', which is the harvest rather than the entry."
     },
     {
       "group": "diplomacy",
