@@ -437,7 +437,7 @@ in branch structure rather than in data. **"Where is the table?" is the wrong fi
 when the answer may be "there isn't one".**
 
 **C20 — C12 had a second instance, in the test named after the save it never opened.**
-`crates/l2-kingdom/tests/reproduction.rs` was headed *"The reproduction from the shipped
+`crates/l2-kingdom/tests/reproduction/main.rs` was headed *"The reproduction from the shipped
 save"*, declared `const OWNED: usize = 4`, handed counties 1–4 to the human realm, and
 asserted numbers quoted out of `docs/kingdom.md` against rules built from the same
 document. It could not fail, and its scenario was invented: the file holds **five owned
@@ -12053,7 +12053,7 @@ Mid-battle save is refused: `Menu_SaveGame` (`0x00433F49`) does not test `g_batt
 
 Animations option: five reads in four functions, each now tested. `Screen_BattleOutcome` (`0x00423241`) chooses the tall box with film recess (ablation `the_outcome_box_is_the_tall_one_only_when_animations_are_on` red, y band 48-144). `CastleBuild_Confirm` (`0x00436B59`) plays Castle1..5.smk over chooser. `Msg_DrawWindow` (`0x0047309E`) twice: capture films and ending films, each dismissing its letter (ablation `a_capture_letter_would_play_the_capture_films_in_rotation` off half red). `Battle_CheckOutcome` (`0x00477DFC`) plays outcome film. `Map_ClampScroll` (`0x00429B1D`) does not read the flag; doc now names the four. `docs/arms.json` 0x00434AD5/opt-animations note corrected.
 
-New game runs no phase-7 pass: `Game_NewGame` (`0x00497CED`) calls `Season_Advance` (`0x00448440`) and `Score_RankRealms`, not `Mercenary_AdvanceAll`, `Units_ResetMoves` (`0x004651B9`), or `Diplo_ReconcileAlliances` (`0x004A1847`). Those three are `Turn_Tick`'s phase-7 arm. Skipped in `start_new_game`, not removed from `SEASON_PIPELINE`, so no pass index or save version moves. End Turn still runs all three. Tests `a_new_game_runs_no_phase_seven_pass_and_a_season_end_runs_all_three` (ablation either name red) and `the_pipeline_reaches_the_files_clock` lands on england-turn1.sav's clock and stored fields with the two passes gone (crates/l2-kingdom/tests/reproduction.rs).
+New game runs no phase-7 pass: `Game_NewGame` (`0x00497CED`) calls `Season_Advance` (`0x00448440`) and `Score_RankRealms`, not `Mercenary_AdvanceAll`, `Units_ResetMoves` (`0x004651B9`), or `Diplo_ReconcileAlliances` (`0x004A1847`). Those three are `Turn_Tick`'s phase-7 arm. Skipped in `start_new_game`, not removed from `SEASON_PIPELINE`, so no pass index or save version moves. End Turn still runs all three. Tests `a_new_game_runs_no_phase_seven_pass_and_a_season_end_runs_all_three` (ablation either name red) and `the_pipeline_reaches_the_files_clock` lands on england-turn1.sav's clock and stored fields with the two passes gone (crates/l2-kingdom/tests/reproduction/main.rs).
 
 ---
 

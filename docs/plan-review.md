@@ -99,7 +99,7 @@ needs; the import half of it is the first.**
 
 This is the sharpest finding, and it is C12 again in a different subsystem.
 
-`crates/l2-kingdom/tests/reproduction.rs` is headed *"**The reproduction from the shipped
+`crates/l2-kingdom/tests/reproduction/main.rs` is headed *"**The reproduction from the shipped
 save.**"* Its model is *"fourteen counties, four owned by the human realm and ten
 unowned"* (`OWNED: usize = 4`, owners assigned to ids 1..4), and it asserts happiness 72 for
 ids 1–4 and 77 for ids 5–14.

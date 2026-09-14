@@ -1112,7 +1112,7 @@ impl Scenario {
     /// > found them, copied before the season's food is taken out, and
     /// > `Game_SetupRealmsAndCounties` (`0x0049BD99`) writes the new-game stores
     /// > into the same two fields. Starting from them reproduces the whole
-    /// > England turn-one map — `crates/l2-kingdom/tests/reproduction.rs`,
+    /// > England turn-one map — `crates/l2-kingdom/tests/reproduction/main.rs`,
     /// > `every_county_reproduces_from_the_stores_the_season_found`. This
     /// > function still does not read them; that is a change to what a rewound
     /// > position *is*, and it is left for whoever owns the importer.

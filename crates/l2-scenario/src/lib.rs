@@ -41,7 +41,7 @@
 //! some of both and only the result survives. [`Scenario::starting_kingdom`]
 //! therefore carries the stored stores forward unchanged and says so, rather
 //! than inverting the rules to manufacture a number that would make the
-//! reproduction come out right. `crates/l2-kingdom/tests/reproduction.rs`
+//! reproduction come out right. `crates/l2-kingdom/tests/reproduction/main.rs`
 //! measures exactly what that costs: one county of fourteen.
 
 //!
@@ -404,7 +404,7 @@ mod stored {
 /// those five turn up in `lastturn.sav` unchanged — `popLast` is 417 in all
 /// fourteen counties and `+0x254` is 95 in all fourteen — so the row the
 /// England turn-one scenario used is not in doubt. `tools/oracle/kingdom.ps1` checks the
-/// table; `crates/l2-kingdom/tests/reproduction.rs` checks the save against it.
+/// table; `crates/l2-kingdom/tests/reproduction/main.rs` checks the save against it.
 pub const STARTING_HEALTH_METER: i32 = 65;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -683,7 +683,7 @@ what the county can feed, then spends, in order:
 > the 3 is `rationAchieved` at `+0x15D`, one field along.
 >
 > Read correctly, **every county in the file reproduces**, and
-> `crates/l2-kingdom/tests/reproduction.rs` asserts it for all fourteen:
+> `crates/l2-kingdom/tests/reproduction/main.rs` asserts it for all fourteen:
 >
 > | | population | herd | grain | split | achieved | `+0x178` | `+0x17C` |
 > |---|---:|---:|---:|---:|---:|---:|---:|
@@ -726,7 +726,7 @@ what the county can feed, then spends, in order:
 > on the cheese of 95 head (475 ≥ 417) and ate no grain; nothing was debited by
 727: > `Ration_Apply` (`0x0044DF5F`), which has no store subtraction (C149), and the first call
 > did not have to debit anything. Started from `+0x228`/`+0x254`, all fourteen counties
-> reproduce twenty-five fields each with no inversion — `crates/l2-kingdom/tests/reproduction.rs`.
+> reproduce twenty-five fields each with no inversion — `crates/l2-kingdom/tests/reproduction/main.rs`.
 > "One lord always begins short of food" is not established by this: the county that goes
 731: > short is the one whose herd the season took below 84 head. **[V]** on the offsets and the
 > reproduction; **[I]** on why realm 5's herd fell furthest.
@@ -2262,7 +2262,7 @@ Eight independent predictions land:
    2262: 13 — one county for each of realms 1 … 5, nine unowned, and the realm records agree
    from the other side with `+0x29 = 1` apiece. The person is realm 1 and holds county 8
    alone. An earlier revision of this section said *"four counties owned by the human
-   realm, ten unowned"*, and `crates/l2-kingdom/tests/reproduction.rs` was built on that
+   realm, ten unowned"*, and `crates/l2-kingdom/tests/reproduction/main.rs` was built on that
    invented scenario, not on the file — `docs/decisions.md` C12 a second time. Both
    are fixed: the test now imports the save through `crates/l2-scenario` and compares
    against the stored bytes.
@@ -2294,7 +2294,7 @@ population — reproducing on live data from a real game, with no free parameter
 **And it is now a test, not a paragraph.** `crates/l2-scenario` imports
 `lastturn.sav` into a live `l2_kingdom::Kingdom` — the seam exists because `l2-kingdom` may
 not know what a file is and `l2-formats` may not know what a county is — and
-`crates/l2-kingdom/tests/reproduction.rs` rewinds it one season, runs `Season_Advance`, and
+`crates/l2-kingdom/tests/reproduction/main.rs` rewinds it one season, runs `Season_Advance`, and
 compares **twenty-six stored fields across all fourteen counties**. Nothing in that file is
 quoted from this document any more.
 
@@ -2674,7 +2674,7 @@ sixth of his herd die a season with the milkmaid count drawn in black. **`[V]` o
 words against every `.sav` on the machine**, not the two counties quoted here:
 `crates/l2-kingdom/tests/cattle.rs`.
 
-**What it cost.** `crates/l2-kingdom/tests/reproduction.rs` used to reproduce `herd` and
+**What it cost.** `crates/l2-kingdom/tests/reproduction/main.rs` used to reproduce `herd` and
 2678: `herd_eaten` and no longer does, and the reason is worth stating plainly: *they reproduced
 because the rule was missing.* With the herd moving only on this map's neutral weather,
 "put back what the ration pass ate" was the whole of it. The file disagrees — `+0x254` is
@@ -2875,7 +2875,7 @@ started field by a flat quarter. Reclamation labour now does something, so alloc
 means something.
 
 **The invariant closes.** A county's nine job records sum to its population, exactly, in
-every season — `crates/l2-kingdom/tests/reproduction.rs`, all fourteen counties of the
+every season — `crates/l2-kingdom/tests/reproduction/main.rs`, all fourteen counties of the
 England position, ten seasons. That assertion used to read *"labour is frozen at the
 import's allocation, because the allocator does not rerun"*.
 

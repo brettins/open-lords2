@@ -576,7 +576,7 @@ pub struct County {
     /// `+0x268`, `+0x26C` and `+0x258` — next season's forecast: group 77's
     /// *"Calf births expected"*, *"Cow deaths expected"* and *"Change due to
     /// farming"*. Written by [`crate::land::herd_preview`]
-    /// numbers `crates/l2-kingdom/tests/reproduction.rs` holds against the
+    /// numbers `crates/l2-kingdom/tests/reproduction/main.rs` holds against the
     /// England turn-one save.
     pub herd_births_expected: i32,
     pub herd_deaths_expected: i32,
