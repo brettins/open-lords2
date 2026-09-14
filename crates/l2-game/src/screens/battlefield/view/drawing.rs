@@ -122,15 +122,24 @@ pub(super) fn draw_overview(
 /// `0x230` — is the side-0 army, `l2_view::scene`'s `BattleBanner_Draw` note.
 /// So the left plate is [`l2_sim::SIDE_B`]. **[V]**
 ///
-/// Not built here: `FUN_00423530`'s two
-/// `Ui_DrawNumberRight(g_battleMenA/B, ' ', …, 0x1FA / 0x24A, 0x1A6, 0x38,
-/// &g_fontBody, 0x20)` put the counts on frame 2's plate, and
-/// `FUN_004238B8` / `FUN_004239D5` draw the banner plates over frame 0 out of
-/// the same sheet — the ledger's other row.
+/// `FUN_00423530` ends with the two living-men counts on frame 2's plate:
+///
+/// ```c
+/// Ui_DrawNumberRight(g_battleMenA,' ',&DAT_004d4448,0x1fa,0x1a6,0x38,&g_fontBody,0x20);
+/// Ui_DrawNumberRight(g_battleMenB,' ',&DAT_004d444c,0x24a,0x1a6,0x38,&g_fontBody,0x20);
+/// ```
+///
+/// `Ui_DrawNumberRight` **centres** in the width (C119), so each count sits in
+/// the middle of a 0x38 box. **[V]**. That the left box is the left shield's
+/// side is **[I]** from the geometry: `g_battleMenB` is drawn at `0x24A`,
+/// inside the right shield's plate at `0x230`, and `g_battleArmyB` is the
+/// side-0 army, so `men.1` here is [`l2_sim::SIDE_A`] as `shields.1` is.
 pub(super) fn draw_column_chrome(
     canvas: &mut Canvas,
+    p: &Pen,
     chrome: Option<&l2_view::chrome::Chrome>,
     shields: (u8, u8),
+    men: (u32, u32),
     paused: bool,
 ) -> bool {
     use l2_view::chrome::misc_bat as mb;
@@ -144,10 +153,68 @@ pub(super) fn draw_column_chrome(
         c.draw_misc_bat(canvas, mb::PAUSE_LIT, 0x1E1, 0x1C1);
     }
     c.draw_misc_bat(canvas, mb::RETREAT_LIT, 0x201, 0x1C1);
+    // Colour 0x20, not the 0x3F the rest of the column writes in.
+    p.body_centred(canvas, 0x1FA, 0x1A6, 0x38, &men.0.to_string(), 0x20);
+    p.body_centred(canvas, 0x24A, 0x1A6, 0x38, &men.1.to_string(), 0x20);
     true
 }
 
-/// One banner per figure the player holds, in the layout the count picks.
+/// **The banner plates, `FUN_004238B8` (`0x004238B8`), and their counts,
+/// `FUN_004239D5` (`0x004239D5`)** — the right column's other tenant of
+/// `Misc_bat.PL8`, laid over frame 0 by `FUN_00423739` whenever the held count
+/// changes bands.
+///
+/// ```c
+/// Pl8_DrawFrameHere(g_miscCtySheet, rec.frame + man.troopType, rec.x, rec.y);
+/// /* then, only while DAT_00553220 < 0x1e: */
+/// Ui_DrawNumber(man.men,' ',…, rec.x + (man.men < 0x65 ? 0x14 : 0xc), rec.y + 2, &g_fontBody, 0x3f);
+/// ```
+///
+/// Two rules out of that, both **[V]**: a figure with **no men is skipped and
+/// takes no slot**, and **the fifty-slot layout carries no numbers at all** —
+/// `DAT_00553220` *is* 0x1E there, so `FUN_004239D5` returns at its first
+/// test. The `0x14` / `0xC` step left is room for a third digit.
+///
+/// **Nothing outlines the picked figure on the field.**
+/// `Ui_DrawRectOutline` (`0x00403CF4`) has fourteen callers; the only one on a
+/// battle screen is `Battlefield_DrawBand` (`0x0041298A`), the rubber band,
+/// which draws the *drag* box in colour `0x20` and is gated on
+/// `g_screenId == 0x2A`. Being held shows in this column and nowhere else.
+/// **[V]** on the caller set.
+pub(super) fn draw_banner_plates(
+    canvas: &mut Canvas,
+    p: &Pen,
+    chrome: Option<&l2_view::chrome::Chrome>,
+    live: &LiveBattle,
+    ink: &l2_view::Ink,
+) -> bool {
+    let Some(c) = chrome.filter(|c| c.misc_bat().is_some()) else {
+        draw_banners(canvas, live, ink);
+        return false;
+    };
+    let picked = live.runner.selected_fighters(live.owner);
+    let layout = BannerLayout::for_count(picked.len());
+    for (slot, &f) in picked.iter().enumerate() {
+        if slot >= layout.slots {
+            break;
+        }
+        let r = layout.rect(slot);
+        let fighter = &live.runner.fighters[f];
+        let men = live.runner.sim.figures[fighter.sim].men;
+        if men == 0 {
+            continue;
+        }
+        c.draw_misc_bat(canvas, layout.frame + fighter.troop.index(), r.x, r.y);
+        if layout.slots < crate::battlefield::BANNERS_MANY.slots {
+            let dx = if men < 0x65 { 0x14 } else { 0xC };
+            p.body(canvas, r.x + dx, r.y + 2, &men.to_string(), font::TEXT);
+        }
+    }
+    true
+}
+
+/// One banner per figure the player holds, in the layout the count picks —
+/// **ours**, and only where `Misc_bat.PL8` is not: see [`draw_banner_plates`].
 pub(super) fn draw_banners(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
     let picked = live.runner.selected_fighters(live.owner);
     let layout = BannerLayout::for_count(picked.len());

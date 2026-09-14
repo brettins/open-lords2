@@ -134,27 +134,50 @@ impl Button {
 /// player holds — `FUN_0043C2A9`'s ladder: under 13 takes the first, under 19
 /// the second, otherwise the third. **[V]**, read out of the table.
 ///
-/// Each entry of the table is 28 bytes and its first four `i32`s are
-/// `(x, y, w, h)` for `FUN_004B1DEB`, which is a plain
-/// `x ≤ mx < x + w, y ≤ my < y + h`.
+/// The record is 28 bytes from `DAT_004D31F0`: `frame, x, y, w, h` and two
+/// zeroes. `FUN_004B1DEB` hit-tests `(x, y, w, h)`, a plain
+/// `x ≤ mx < x + w, y ≤ my < y + h`; `FUN_004238B8` (`0x004238B8`) blits
+/// `Misc_bat` frame `record.frame + troopType` at `(x, y)`. **[V]**, the 80
+/// records read out of `Lords2.exe` at file offset `0xD13F0`.
 pub struct BannerLayout {
     pub origin: (i32, i32),
     pub size: (i32, i32),
     pub pitch: (i32, i32),
     pub cols: usize,
     pub slots: usize,
+    /// `record[0]` — the plate for troop type 0. Eleven troops a band, so the
+    /// three bases are 11 apart and the sheet holds 13 … 45.
+    pub frame: usize,
 }
 
 /// Twelve big banners, 3 × 4 at (488, 189), 45 × 50, pitched 53 × 55.
-pub const BANNERS_FEW: BannerLayout =
-    BannerLayout { origin: (488, 189), size: (45, 50), pitch: (53, 55), cols: 3, slots: 12 };
+pub const BANNERS_FEW: BannerLayout = BannerLayout {
+    origin: (488, 189),
+    size: (45, 50),
+    pitch: (53, 55),
+    cols: 3,
+    slots: 12,
+    frame: 13,
+};
 /// Eighteen medium banners, 3 × 6 at (488, 186), 45 × 35, pitched 53 × 37.
-pub const BANNERS_SOME: BannerLayout =
-    BannerLayout { origin: (488, 186), size: (45, 35), pitch: (53, 37), cols: 3, slots: 18 };
+pub const BANNERS_SOME: BannerLayout = BannerLayout {
+    origin: (488, 186),
+    size: (45, 35),
+    pitch: (53, 37),
+    cols: 3,
+    slots: 18,
+    frame: 24,
+};
 /// Fifty small banners, 6 × 9 at (484, 185), 22 × 18, pitched 26 × 19 — and
 /// **fifty is the click loop's own bound**, `if (0x31 < local_c) break`.
-pub const BANNERS_MANY: BannerLayout =
-    BannerLayout { origin: (484, 185), size: (22, 18), pitch: (26, 19), cols: 6, slots: 50 };
+pub const BANNERS_MANY: BannerLayout = BannerLayout {
+    origin: (484, 185),
+    size: (22, 18),
+    pitch: (26, 19),
+    cols: 6,
+    slots: 50,
+    frame: 35,
+};
 
 impl BannerLayout {
     /// `FUN_0043C2A9`'s three-way choice.

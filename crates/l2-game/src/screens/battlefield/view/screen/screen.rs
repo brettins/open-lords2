@@ -393,11 +393,13 @@ impl Screen for BattlefieldScreen {
         // `Screen_DrawBattlefield` lays it: frame 0 is the ground they sit on.
         let art_column = draw_column_chrome(
             canvas,
+            &p,
             ctx.assets.chrome.as_ref(),
             side_shields(ctx.game, live),
+            side_men(live),
             live.paused,
         );
-        draw_banners(canvas, live, ink);
+        draw_banner_plates(canvas, &p, ctx.assets.chrome.as_ref(), live, ink);
         // Ours, and only where the sheet is not: frame 1's own strip carries
         // the five button pictures, so drawing boxes over it would hide them.
         if !art_column {
