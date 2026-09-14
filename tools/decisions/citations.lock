@@ -431,8 +431,8 @@ crates/l2-testkit/tests/quirks_catalogue/main.rs	C62	0139b3d61739	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue/quirks.rs	C62	0b7844c1b356	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue/quirks.rs	C62	43b8c59061c1	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue/quirks.rs	C62	6e16796702fc	ebb6a7ec3711
-crates/l2-testkit/tests/work_ledger/ledger_tests.rs	C1	3f8c8bf0f873	6b7e8edb019e
-crates/l2-testkit/tests/work_ledger/ledger_tests.rs	C1	d0ededac0b63	6b7e8edb019e
+crates/l2-testkit/tests/work_ledger/ledger_tests/main.rs	C1	3f8c8bf0f873	6b7e8edb019e
+crates/l2-testkit/tests/work_ledger/ledger_tests/main.rs	C1	d0ededac0b63	6b7e8edb019e
 crates/l2-view/src/campaign/render/markers.rs	C49	38f05e43397f	4ce32e6c42e0
 crates/l2-view/src/campaign/render/units.rs	C134	86e184016770	d12cd2f96f79
 crates/l2-view/src/campaign/render/units.rs	C57	cc211f4ea532	3b42b65157bf
