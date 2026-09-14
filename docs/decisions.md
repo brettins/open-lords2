@@ -9395,7 +9395,7 @@ ceiling before the opening season's `Labour_AllocateAll`, for two reasons, both 
 With both, **a new England's four AI start counties match `england-turn1.sav` exactly** for the
 same realm, and the person's county matches the save's person's county job for job, ceiling for
 ceiling and forecast for forecast, on a different seat. The four tests in
-`crates/l2-game/tests/labour_move.rs` drive all of this through the village, End Turn, the setup
+`crates/l2-game/tests/labour_move/main.rs` drive all of this through the village, End Turn, the setup
 page and the map. Six ablations were run and each was red at its own assertion.
 
 **One order is not the original's, `[D]`:** our industry passes run iron and stone over every

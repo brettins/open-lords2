@@ -462,7 +462,7 @@ fn every_used_map_slot_has_a_minimap_and_every_empty_one_does_not() {
 /// men are dropped on a site whose resource the county has. Ours did not, so it
 /// reached a picture the original only ever shows for a county that has.
 /// resource at all. It does now — `l2_kingdom::Kingdom::move_labour`, and
-/// `crates/l2-game/tests/labour_move.rs` drives it through the village. (This
+/// `crates/l2-game/tests/labour_move/main.rs` drives it through the village. (This
 /// comment named a `docs/arms.json` row for it: it is not
 /// an input arm but a call inside the drop's.) This pins the drawing half so
 /// that the input half cannot quietly change what the icons mean.
