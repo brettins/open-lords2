@@ -1,84 +1,10 @@
 #![allow(unused_imports)]
 use super::*;
-
+use super::validation_tests::*;
+use super::driver_helpers::*;
+use super::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
-/// Every file `.gitattributes` hands to the driver is in [`KEYED`], and every
-/// file in [`KEYED`] is handed to the driver.
-///
-/// The two lists are maintained by different work — one by whoever adds a file
-/// to the driver, one by whoever adds a test — so they must agree, which is the
-/// only shape of check that has ever caught anything here. Adding
-/// `docs/arms.json` to `.gitattributes` and forgetting it here would have left
-/// the file this test exists for outside the test.
-#[test]
-fn the_attributes_file_and_this_test_name_the_same_keyed_files() {
-    let text = std::fs::read_to_string(root().join(".gitattributes")).expect(".gitattributes");
-    let mut declared: Vec<String> = text
-        .lines()
-        .filter(|l| l.contains("merge=l2json") && !l.trim_start().starts_with('#'))
-        .filter_map(|l| l.split_whitespace().next())
-        .map(|s| s.to_string())
-        .collect();
-    declared.sort();
-    let mut expected: Vec<String> = KEYED.iter().map(|s| s.to_string()).collect();
-    expected.sort();
-    assert_eq!(
-        declared, expected,
-        "The .gitattributes file and KEYED disagree about which files merge by key. \
-         A file in one and not the other is either merged by a driver nothing \
-         checks, or checked by a test no merge will ever use."
-    );
-}
-
-/// **Every keyed array is in its own key's order**, asked of the driver.
-///
-/// This test used to scan for `"addr"` lines itself and require them to
-/// ascend. That was right for `symbols.json` and **wrong for `arms.json`**,
-/// which carries both `id` and `addr` and is keyed by `id` because one address
-/// holds several arms — so sorting it correctly, by `id`, made this test fail.
-///
-/// The rule about what a file's key IS now lives in exactly one place,
-/// `KEY_FIELDS` in `merge-json.js`
-/// check ask it. A Rust copy of that rule was a second list that could disagree
-/// with the first, which is the failure this whole area is about — and it did
-/// disagree, within a day of being written.
-///
-/// Why order matters at all: two branches that both keep a file in key order
-/// cannot produce a misaligned diff, whatever git does and whether or not the
-/// driver is registered. That is the half of the fix that removes the failure
-///
-
-/// **Every keyed array's key is
-///
-/// This is the invariant a keyed merge silently depends on: if the key the
-/// driver picks is not unique, merging *deletes* one entry per collision, and
-/// the result parses and reads plausibly. `arms.json` is exactly that trap —
-/// `addr` looks like the key and is not.
-///
-/// It shells out to `merge-json.js --check`
-/// `KEY_FIELDS` here **on purpose**. A Rust copy of the key rule would be a
-/// second list that can drift from the first, which is the failure this whole
-/// area is about; the driver's own logic is what a merge will use, so the
-/// driver's own logic is what has to be asked.
-#[test]
-fn every_keyed_arrays_key_is_unique() {
-    let root = root();
-    let mut cmd = Command::new("node");
-    cmd.arg("tools/symbols/merge-json.js").arg("--check");
-    for rel in KEYED {
-        cmd.arg(rel);
-    }
-    let Ok(out) = cmd.current_dir(&root).output() else {
-        return; // no node on this machine; the CI job has one
-    };
-    assert!(
-        out.status.success(),
-        "a keyed array has a non-unique key, so merging it would delete entries:\n{}",
-        String::from_utf8_lossy(&out.stderr),
-    );
-}
 
 /// **The ledger merges by id, and keeps its order and its shape.**
 ///
@@ -169,47 +95,6 @@ fn the_ledger_merges_by_id_and_keeps_its_order_and_its_shape() {
          FILE_POLICY's order is not being honoured; if they came out one field per \
          line, its rows shape is not; if a change is missing, the merge itself is wrong."
     );
-}
-
-/// A one-row-per-line file as (the lines before the first row, the rows without
-/// their trailing commas, the lines after the last row).
-fn split_rows(text: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
-    let lines: Vec<&str> = text.lines().collect();
-    let is_row = |l: &str| l.trim_start().starts_with("{\"id\": ");
-    let first = lines.iter().position(|l| is_row(l)).expect("a one-line row");
-    let last = lines.iter().rposition(|l| is_row(l)).expect("a one-line row");
-    let own = |s: &[&str]| s.iter().map(|l| l.to_string()).collect::<Vec<_>>();
-    let rows = lines[first..=last].iter().map(|l| l.trim_end_matches(',').to_string()).collect();
-    (own(&lines[..first]), rows, own(&lines[last + 1..]))
-}
-
-fn join_rows(head: &[String], rows: &[String], tail: &[String]) -> String {
-    format!("{}\n{}\n{}\n", head.join("\n"), rows.join(",\n"), tail.join("\n"))
-}
-
-/// Runs the driver on three texts under a registered path, returning whether it
-/// reported success, what it left in the `ours` file, and what it said.
-fn drive(label: &str, base: &str, ours: &str, theirs: &str) -> Option<(bool, String, String)> {
-    let dir = std::env::temp_dir().join(format!(
-        "l2-drive-{}-{}",
-        std::process::id(),
-        label.replace(['/', '.'], "-")
-    ));
-    std::fs::create_dir_all(&dir).expect("temp dir");
-    let (b, o, t) = (dir.join("base.json"), dir.join("ours.json"), dir.join("theirs.json"));
-    std::fs::write(&b, base).unwrap();
-    std::fs::write(&o, ours).unwrap();
-    std::fs::write(&t, theirs).unwrap();
-    let out = Command::new("node")
-        .arg("tools/symbols/merge-json.js")
-        .args([&b, &o, &t])
-        .arg(label)
-        .current_dir(root())
-        .output();
-    let left = std::fs::read_to_string(&o).unwrap_or_default();
-    let _ = std::fs::remove_dir_all(&dir);
-    let out = out.ok()?;
-    Some((out.status.success(), left, String::from_utf8_lossy(&out.stderr).to_string()))
 }
 
 /// **`docs/stored-fields.json` merges by id and stays one row per line.**
@@ -332,4 +217,5 @@ fn the_keyed_json_merge_driver_is_registered() {
         KEYED.join(", "),
     );
 }
+
 
