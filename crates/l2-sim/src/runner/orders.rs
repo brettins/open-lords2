@@ -161,7 +161,7 @@ impl BattleRunner {
                     if claimed.contains(&(x, y)) {
                         continue;
                     }
-                    if self.slot_is_usable(unit, x, y, dest.surface, dest.elevation) {
+                    if self.slot_is_usable(unit, x, y, dest.elevation) {
                         return Some((x, y));
                     }
                 }
@@ -172,18 +172,17 @@ impl BattleRunner {
 
     /// `Formation_SlotIsUsable` (`0x0048A672`), field-battle branches only.
     ///
-    /// `surface` is the **source** cell's, and it gates one branch: a cell of a
-    /// different surface is refused when the source's is
-    /// [`crate::siege::SURFACE_RAMPART_WALK`], so a unit on the wall walk is
-    /// `[V]`.
-    pub(super) fn slot_is_usable(
-        &self,
-        unit: usize,
-        x: i32,
-        y: i32,
-        surface: u8,
-        elevation: u8,
-    ) -> bool {
+    /// **Two branches are still missing and both are the siege's.** The
+    /// original also takes the *source* cell's `surface` and refuses a cell of
+    /// any other surface when that one is
+    /// [`crate::siege::SURFACE_RAMPART_WALK`] (4), so a unit on the wall walk
+    /// is only ever slotted along it; and it refuses a side-0 unit an empty
+    /// cell of surface under 4 in a siege. `[V]` — 359 bytes, four parameters.
+    /// Switching the first one on here turns the
+    /// `sound_does_not_change_the_battle` canary red — the proving siege stops
+    /// producing bow cues — so it is applied only where this branch ported it,
+    /// in [`Self::dest_find_reachable_near`], and reported rather than adopted.
+    pub(super) fn slot_is_usable(&self, unit: usize, x: i32, y: i32, elevation: u8) -> bool {
         let cell = self.field.at(x as usize, y as usize);
         let occupant = self.occupant[y as usize * DIM + x as usize];
         // Impassable *and* occupied is accepted, which reads like a mistake and
@@ -200,9 +199,6 @@ impl BattleRunner {
             if other != unit {
                 return false;
             }
-        }
-        if cell.surface != surface && surface == crate::siege::SURFACE_RAMPART_WALK {
-            return false;
         }
         if (cell.elevation as i32) < elevation as i32 - 1 {
             return false;

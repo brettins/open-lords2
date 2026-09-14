@@ -64,9 +64,10 @@ impl BattleRunner {
     /// > touches those two globals. Ported for the ladder's shape and kept
     /// > callable
     ///
-    /// The siege arm of `Formation_SlotIsUsable` — a side-0 unit refused an
-    /// empty cell of surface under 4 — is still unported, in this caller and in
-    /// [`Self::slot_is_usable`]; it could only change the discarded answer.
+    /// The source-surface branch is applied here inline, because
+    /// [`Self::slot_is_usable`] does not carry it — its comment says why. The
+    /// siege branch, a side-0 unit refused an empty cell of surface under 4, is
+    /// unported in both; here it could only change the answer nothing reads.
     pub fn dest_find_reachable_near(&self, from: (i32, i32), at: (i32, i32), unit: usize) -> bool {
         let src = self.field.at(
             from.0.clamp(0, DIM as i32 - 1) as usize,
@@ -100,7 +101,9 @@ impl BattleRunner {
                         && x < DIM as i32 - 1
                         && y > 0
                         && y < DIM as i32 - 1
-                        && self.slot_is_usable(unit, x, y, surface, elevation)
+                        && !(surface == crate::siege::SURFACE_RAMPART_WALK
+                            && self.field.at(x as usize, y as usize).surface != surface)
+                        && self.slot_is_usable(unit, x, y, elevation)
                     {
                         return true;
                     }
