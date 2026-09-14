@@ -24,7 +24,6 @@ crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609	bb0dd488f9d2
 crates/l2-game/build.rs	C154	344919686118	4f820bfd08c8
 crates/l2-game/build.rs	C154	f9de42bc3129	4f820bfd08c8
 crates/l2-game/src/audio/director.rs	C133	15d1b1c19eb7	91fcca97cc98
-crates/l2-game/src/audio/mod.rs	C133	15d1b1c19eb7	91fcca97cc98
 crates/l2-game/src/audio/names.rs	C133	cdef544c10db	91fcca97cc98
 crates/l2-game/src/battlefield.rs	C60	3ab509e4145a	2f31848557d2
 crates/l2-game/src/battlefield.rs	C61	9fa3719be417	60611046b40d
@@ -358,14 +357,6 @@ crates/l2-scenario/src/newgame.rs	C130	7cf6d3d1dcc2	055c6c022450
 crates/l2-scenario/src/newgame.rs	C25	5198b008d5c4	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C25	f78fd48882c8	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C41	b844f3c01eef	df664f2e9ea9
-crates/l2-scenario/src/realm.rs	C161	212bae4f6963	8b6af36909ef
-crates/l2-scenario/src/realm.rs	C83	273a57cbe1a5	88ac11ea6de0
-crates/l2-scenario/src/save_reader.rs	C134	55ce9f5adbe9	d12cd2f96f79
-crates/l2-scenario/src/scenario_impl.rs	C142	cae249d7b506	d13324698105
-crates/l2-scenario/src/scenario_impl.rs	C62	1dc2aa475593	ebb6a7ec3711
-crates/l2-scenario/src/scenario_impl.rs	C62	94a85e9708ab	ebb6a7ec3711
-crates/l2-scenario/src/scenario_impl.rs	C62	c1277f214127	ebb6a7ec3711
-crates/l2-scenario/src/scenario_impl.rs	C83	c2c1a137a34e	88ac11ea6de0
 crates/l2-scenario/tests/import.rs	C128	d02d558f4289	3a8c5dae41c2
 crates/l2-scenario/tests/import.rs	C169	67a53e948bbb	4f087d2d4d89
 crates/l2-scenario/tests/import.rs	C26	6f02cf9f01c0	e8179d1f76a8
