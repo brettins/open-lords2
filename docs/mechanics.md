@@ -516,7 +516,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege.rs`,
   checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege.rs`).
   Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
-  the way in — `crates/l2-sim/src/siege.rs`.
+  the way in — `crates/l2-sim/src/siege/mod.rs`.
 - ⚠ **The castle's layout on the battlefield is ours, not the original's.**
   `Battlefield_BuildCastle`'s cell *translation* is read (`docs/battle.md` §3.0.1); the
   layout **rasters** it translates are not. `l2_sim::siege::our_castle` is a plain concentric
