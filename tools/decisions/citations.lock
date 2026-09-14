@@ -84,9 +84,9 @@ crates/l2-game/src/screens/job/blacksmith_part.rs	C61	304bbda5317e	60611046b40d
 crates/l2-game/src/screens/job/mod.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/job/mod.rs	C61	e18410735c96	60611046b40d
 crates/l2-game/src/screens/map/camera.rs	C22	9269ad59f313	0364b53a921d
-crates/l2-game/src/screens/map/events.rs	C199	63aaf6fc1069	f4bda256f5f1
-crates/l2-game/src/screens/map/events.rs	C61	56e0155cb915	60611046b40d
-crates/l2-game/src/screens/map/events.rs	C61	8273bcd877f2	60611046b40d
+crates/l2-game/src/screens/map/events/mod.rs	C199	63aaf6fc1069	f4bda256f5f1
+crates/l2-game/src/screens/map/events/mod.rs	C61	56e0155cb915	60611046b40d
+crates/l2-game/src/screens/map/events/mod.rs	C61	8273bcd877f2	60611046b40d
 crates/l2-game/src/screens/map/mod.rs	C132	aa0ff8e77982	84bc50c0ddbe
 crates/l2-game/src/screens/map/mod.rs	C138	ae48e804abf4	7724e6665b90
 crates/l2-game/src/screens/map/mod.rs	C45	eb687238ab2a	4d770bef92bd

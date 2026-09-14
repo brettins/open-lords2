@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+use super::*;
+
 use super::*;
 
 impl Screen for MapScreen {
@@ -1066,3 +1069,4 @@ impl Screen for MapScreen {
         draw_combine_box(self, canvas, ctx);
     }
 }
+
