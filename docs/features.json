@@ -94,7 +94,7 @@
     {"id": "sidebar", "area": "screens", "name": "County sidebar and forecasts", "status": "done", "evidence": ["C123","C151","C180","C218","crates/l2-game/tests/right_column.rs"], "gap": "", "rows": []},
     {"id": "county-panels", "area": "screens", "name": "Population, tax, happiness, ration panels", "status": "done", "evidence": ["C133","C142"], "gap": "", "rows": []},
     {"id": "village", "area": "screens", "name": "The village", "status": "done", "evidence": ["C22","C63"], "gap": "", "rows": []},
-    {"id": "crop-pictures", "area": "screens", "name": "Crops growing on the map", "status": "done", "evidence": ["C77","C124","C180","C195","crates/l2-game/tests/wheat.rs"], "gap": "", "rows": []},
+    {"id": "crop-pictures", "area": "screens", "name": "Crops growing on the map", "status": "done", "evidence": ["C77","C124","C180","C195","crates/l2-game/tests/wheat/main.rs"], "gap": "", "rows": []},
     {"id": "job-popups", "area": "screens", "name": "Job popups", "status": "done", "evidence": ["C177","C191","crates/l2-game/tests/job_bodies/main.rs","arms:0x004BA9C8/blacksmith-weapon-choice"], "gap": "", "rows": []},
     {"id": "field-info", "area": "screens", "name": "Clicking a field for its details", "status": "done", "evidence": ["C173","C174","C199","C204","crates/l2-game/tests/job_bodies/main.rs","crates/l2-game/tests/screens_info/main.rs","crates/l2-game/src/screens/info/mod.rs","C228"], "gap": "", "rows": []},
     {"id": "messages", "area": "screens", "name": "Letters and announcements", "status": "done", "evidence": ["C126","C197","C210","C223","crates/l2-game/tests/messages/main.rs","crates/l2-game/tests/arrival.rs","crates/l2-game/tests/pacing/main.rs","crates/l2-game/tests/arms.rs"], "gap": "", "rows": []},

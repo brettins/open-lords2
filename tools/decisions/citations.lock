@@ -216,7 +216,7 @@ crates/l2-game/tests/turn/main.rs	C134	e56871c4814a	d12cd2f96f79
 crates/l2-game/tests/turn/main.rs	C134	f5c6ceb24b23	d12cd2f96f79
 crates/l2-game/tests/turn/main.rs	C19	2b27ff0ebcc9	ce538fe9a9e8
 crates/l2-game/tests/turn/main.rs	C195	180d825dddf5	f0bf50bfaad1
-crates/l2-game/tests/wheat.rs	C195	94f02be180b9	f0bf50bfaad1
+crates/l2-game/tests/wheat/main.rs	C195	94f02be180b9	f0bf50bfaad1
 crates/l2-kingdom/src/ai/mod.rs	C13	b6951068455b	006e7d0b71a7
 crates/l2-kingdom/src/ai_farm/market.rs	C149	0a8478ac5c2d	138117948441
 crates/l2-kingdom/src/ai_farm/market.rs	C149	ab2aebf82e2c	138117948441

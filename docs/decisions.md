@@ -10566,7 +10566,7 @@ harvest moves the crop per field.
   the next estimate round — `Field_SetType`'s own `Labour_Allocate` sizes the grain ceiling
   from the store. Both are the original's.
 
-**The test is a year, through the screens.** `crates/l2-game/tests/wheat.rs` sows with the
+**The test is a year, through the screens.** `crates/l2-game/tests/wheat/main.rs` sows with the
 brush's handler, presses End Turn four times through the machine with the fog on, and after
 each turn paints the campaign map and requires the inner diamond of a lit field to equal the
 terrain pass drawn with the **literal** frame `0x58 + (stored & 3) + 4v` — `v` transcribed from
