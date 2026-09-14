@@ -29,6 +29,8 @@ for (let round = 0; round < 8; round++) {
   for (const m of text.matchAll(/error\[E04(?:22|25)\]: cannot find (?:value|function|type|struct, variant or union type) `(\w+)` in this scope/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E04(?:12|33)\]: cannot find type `(\w+)` in this scope/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E0433\]: cannot find module or crate `(\w+)` in this scope/g)) names.add(["mod", m[1]]);
+  // A private sibling fn hidden behind a builtin macro of the same name (`file`).
+  for (const m of text.matchAll(/error\[E0423\]: expected function, found macro `(\w+)`/g)) names.add(["fn", m[1]]);
   // A qualifier that landed on a trait method (E0449) comes off again.
   for (const m of text.matchAll(/^(crates[^:\n]+\.rs):(\d+):\d+: error\[E0449\]/gm)) names.add(["unqualify", m[1].replace(/\\/g, "/") + ":" + m[2]]);
   // `super::x` from a file that moved one level deeper: the path gains a `super::`.
@@ -63,7 +65,7 @@ for (let round = 0; round < 8; round++) {
     let s = fs.readFileSync(f, "utf8"), t = s;
     // A name already pub(super) that rustc still calls private is used by a cousin: pub(crate).
     // A crate root (main.rs, lib.rs) has no super: pub(crate) from the start.
-    const rootFile = /^(main|lib)\.rs$/.test(path.basename(f));
+    const rootFile = /^(main|lib)\.rs$/.test(path.basename(f)) || /[\\/]tests[\\/][^\\/]+\.rs$/.test(f);
     const vis = ps => (ps || rootFile) ? "pub(crate)" : "pub(super)";
     if (kind === "mod") t = s.replace(new RegExp(`^(\\s*)(pub\\(super\\) )?mod ${name}\\b`, "m"), (m, ind, ps) => `${ind}${vis(ps)} mod ${name}`);
     else if (kind === "fn") t = s.replace(new RegExp(`^(\\s*)(pub\\(super\\) )?fn ${name}\\b`, "m"), (m, ind, ps) => `${ind}${vis(ps)} fn ${name}`);

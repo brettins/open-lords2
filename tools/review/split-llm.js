@@ -98,7 +98,9 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   // The declarations go after the module doc, and after any `macro_rules!` the parts use:
   // a macro by example is textually scoped, so it must precede the `mod x;` that needs it.
   let docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && !/^#!\[/.test(l) && l.trim() !== "");
-  { let d = 0, inMacro = false; for (let i = 0; i < files.mod.length; i++) { const l = files.mod[i]; if (d === 0 && /^macro_rules!/.test(l)) inMacro = true; const code = l.replace(/\/\/.*$/, ""); d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; if (inMacro && d === 0) { inMacro = false; docEnd = Math.max(docEnd, i + 1); } } }
+  { let d = 0, inMacro = false; for (let i = 0; i < files.mod.length; i++) { const l = files.mod[i]; if (d === 0 && /^macro_rules!/.test(l)) inMacro = true; const code = l.replace(/\/\/.*$/, ""); d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; if (inMacro && d === 0) { inMacro = false; docEnd = Math.max(docEnd, i + 1); }
+      // `#[macro_use] mod x;` likewise: its macros reach only what is declared after it.
+      if (d === 0 && /^(pub(\([a-z]+\))? )?mod \w+;$/.test(l) && files.mod.slice(Math.max(0, i - 3), i).some(a => /^#\[macro_use\]/.test(a))) docEnd = Math.max(docEnd, i + 1); } }
   // `use` lines the plan sent to a submodule still serve the items that stayed.
   const lost = uses.filter(u => !files.mod.includes(u) && !files.mod.includes("pub " + u));
   const modLines = files.mod.slice(); modLines.splice(docEnd < 0 ? 0 : docEnd, 0, "", decl, ...(lost.length ? [...lost, ""] : []));
