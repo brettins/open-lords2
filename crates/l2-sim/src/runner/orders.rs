@@ -25,12 +25,12 @@ impl BattleRunner {
         // `Formation_RectIsClear` caches it off the *unit's destination* and
         // then rejects the rectangle for the same reason, so every figure of a
         // unit sent at the moat enters state 9 while walking to a **dry** slot
-// beside it. Passed down, but it has to be
+        // beside it. Passed down, but it has to be
         // the destination's surface and not the slot's — see
         // [`Self::send_figure`], where reading the slot's is what made state 9
         // unreachable.
-        let dest_is_water =
-            self.field.at(target.0 as usize, target.1 as usize).surface == crate::siege::SURFACE_WATER;
+        let dest_is_water = self.field.at(target.0 as usize, target.1 as usize).surface
+            == crate::siege::SURFACE_WATER;
         if self.rect_is_clear(unit, target, members.len(), footprint, cols) {
             let rect = formation::compute_rect(target, members.len(), footprint, cols);
             let mut assigned = vec![false; members.len()];
@@ -161,7 +161,7 @@ impl BattleRunner {
                     if claimed.contains(&(x, y)) {
                         continue;
                     }
-                    if self.slot_is_usable(unit, x, y, dest.elevation) {
+                    if self.slot_is_usable(unit, x, y, dest.surface, dest.elevation) {
                         return Some((x, y));
                     }
                 }
@@ -171,7 +171,19 @@ impl BattleRunner {
     }
 
     /// `Formation_SlotIsUsable` (`0x0048A672`), field-battle branches only.
-    fn slot_is_usable(&self, unit: usize, x: i32, y: i32, elevation: u8) -> bool {
+    ///
+    /// `surface` is the **source** cell's, and it gates one branch: a cell of a
+    /// different surface is refused when the source's is
+    /// [`crate::siege::SURFACE_RAMPART_WALK`], so a unit on the wall walk is
+    /// `[V]`.
+    pub(super) fn slot_is_usable(
+        &self,
+        unit: usize,
+        x: i32,
+        y: i32,
+        surface: u8,
+        elevation: u8,
+    ) -> bool {
         let cell = self.field.at(x as usize, y as usize);
         let occupant = self.occupant[y as usize * DIM + x as usize];
         // Impassable *and* occupied is accepted, which reads like a mistake and
@@ -189,6 +201,9 @@ impl BattleRunner {
                 return false;
             }
         }
+        if cell.surface != surface && surface == crate::siege::SURFACE_RAMPART_WALK {
+            return false;
+        }
         if (cell.elevation as i32) < elevation as i32 - 1 {
             return false;
         }
@@ -204,7 +219,7 @@ impl BattleRunner {
     /// > **That distinction is the whole of why the moat had never once been
     /// > filled in.** This function used to read `cell.surface == 2` off the
     /// > slot it was sending the figure to, which reads like the same thing and
-/// > a slot is only ever chosen by `Formation_SlotIsUsable` or by
+    /// > a slot is or by
     /// > the formation rectangle, and **both of them reject an impassable empty
     /// > cell** — which every moat cell is. So the water branch could not be
     /// > reached from any order, by the player or by the AI, and
@@ -262,9 +277,20 @@ impl BattleRunner {
         }
 
         let weapon = WEAPON_CLASS[troop.index()];
-        if (1..3).contains(&weapon) && enemy_there.is_some() {
+        // **`|| target_cell != 0` is the other half of the original's test**,
+        // and without it the player's fire arrow needed an enemy standing on
+        // the destination to fire at all. `Formation_SendFigure`
+        // (`0x00489B8D`) reads the unit's `targetCell` into `iVar1` before the
+        // loop and its state-17 arm is `weaponClass in 1..3 &&
+        // (g_otherBattleMan != 0 || iVar1 != 0)`. `[V]`. It matters now that
+        // `Order_StopShortOfTarget` pulls the destination back: the click that
+        // sets `targetCell` is on an *empty* woodland cell, and the unit's
+        // pulled-back destination has nobody on it.
+        if (1..3).contains(&weapon)
+            && (enemy_there.is_some() || self.units.get(unit).target_cell != 0)
+        {
             // A bow or a crossbow with somebody on the destination closes to
-            // shoot instead of walking on: its destination becomes its own cell.
+            // shoot: its destination becomes its own cell.
             self.sim.figures[sim].target = enemy_there.map(|o| self.fighters[o].sim);
             new_state = State::Shooting;
             dest = (self.fighters[fighter].x, self.fighters[fighter].y);
@@ -387,7 +413,7 @@ impl BattleRunner {
             return;
         }
 
-// Not fighting: look for somebody adjacent, as the original's
+        // Not fighting: look for somebody adjacent, as the original's
         // melee search does — eight neighbours, first live enemy wins.
         if let Some(enemy) = self.adjacent_enemy(i) {
             let (ex, ey) = (self.fighters[enemy].x as i32, self.fighters[enemy].y as i32);
@@ -399,10 +425,10 @@ impl BattleRunner {
                 f.anim = Motion::Attacking;
                 f.progress = Progress::default();
             }
-// Contact, by standing next to somebody
+            // Contact, by standing next to somebody
             // into them. The original raises the join from the *mover*
             // (`Cell_TryEnter` returning 999), and tells both units either way
-// — this adjacency check gets there first when the enemy is
+            // — this adjacency check gets there first when the enemy is
             // the one who walked up.
             let (ua, ub) = (self.unit_of(i), self.unit_of(enemy));
             self.join_melee(ua);
@@ -456,7 +482,7 @@ impl BattleRunner {
     }
 
     /// A figure in free pursuit or closing to shoot follows its own target
-/// — `docs/battle-ai.md` §3.3 and §4.1.
+    /// — `docs/battle-ai.md` §3.3 and §4.1.
     fn retarget(&mut self, i: usize) {
         let sim = self.fighters[i].sim;
         match self.sim.figures[sim].state {
@@ -496,7 +522,9 @@ impl BattleRunner {
                 // target was chosen when the state was entered. It also sets
                 // unit `+0x0F` to 0x78 and the unit's destination to the
                 // shooter's own cell; neither is built.
-                let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else { return };
+                let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else {
+                    return;
+                };
                 let counter = {
                     let f = &mut self.sim.figures[sim];
                     f.reload_counter = f.reload_counter.saturating_add(1);
@@ -506,8 +534,12 @@ impl BattleRunner {
                     return;
                 }
                 self.sim.figures[sim].reload_counter = 0;
-                let Some(t) = self.sim.figures[sim].target else { return };
-                let Some(t) = self.fighters.iter().position(|f| f.sim == t) else { return };
+                let Some(t) = self.sim.figures[sim].target else {
+                    return;
+                };
+                let Some(t) = self.fighters.iter().position(|f| f.sim == t) else {
+                    return;
+                };
                 self.loose(i, class, (self.fighters[t].x, self.fighters[t].y));
             }
             _ => {}
@@ -528,8 +560,8 @@ impl BattleRunner {
     /// Two details that look like slips and are not. The target is acquired
     /// **ten ticks early**,
     /// does not shoot at all. And a failed acquisition resets the counter to
-/// [`NO_TARGET_RESET`],
-    /// shoot at looks again almost immediately instead of once a cycle.
+    /// [`NO_TARGET_RESET`],
+    /// shoot at looks again almost immediately.
     ///
     /// **Where it is called from is ours, and it is the one inference in the
     /// missile path.** The original fires from figure **state 5**, and what puts
@@ -538,7 +570,9 @@ impl BattleRunner {
     /// what an archer that has been ordered somewhere and arrived is doing.
     /// Marked `[I]`; the mechanism it drives is `[V]` throughout.
     fn fire_tick(&mut self, i: usize) {
-        let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else { return };
+        let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else {
+            return;
+        };
         let stats = class.stats();
         let sim = self.fighters[i].sim;
         let counter = {
@@ -563,13 +597,17 @@ impl BattleRunner {
         }
         self.sim.figures[sim].reload_counter = 0;
         // The target may have died in the ten ticks since it was chosen. The
-// original checks `other.owner == 0` and does not shoot — the
+        // original checks `other.owner == 0` and does not shoot — the
         // reload is spent either way.
-        let Some(target) = self.sim.figures[sim].target else { return };
+        let Some(target) = self.sim.figures[sim].target else {
+            return;
+        };
         if !self.sim.figures[target].is_alive() {
             return;
         }
-        let Some(t) = self.fighters.iter().position(|f| f.sim == target) else { return };
+        let Some(t) = self.fighters.iter().position(|f| f.sim == target) else {
+            return;
+        };
         self.loose(i, class, (self.fighters[t].x, self.fighters[t].y));
     }
 
@@ -660,8 +698,10 @@ impl BattleRunner {
             if !f.is_alive() || f.owner == mine || f.owner == 0 {
                 continue;
             }
-            let (dx, dy) =
-                ((self.fighters[j].x as i32 - sx).abs(), (self.fighters[j].y as i32 - sy).abs());
+            let (dx, dy) = (
+                (self.fighters[j].x as i32 - sx).abs(),
+                (self.fighters[j].y as i32 - sy).abs(),
+            );
             if dx > range || dy > range {
                 continue;
             }
@@ -745,7 +785,11 @@ impl BattleRunner {
         {
             let m = *self.missiles.get(slot);
             let cell = m.cell_y as usize * DIM + m.cell_x as usize;
-            let human = self.sim.figures.get(m.shooter as usize).is_some_and(|f| f.owner_is_human);
+            let human = self
+                .sim
+                .figures
+                .get(m.shooter as usize)
+                .is_some_and(|f| f.owner_is_human);
             let here = fire::cell_byte_offset(m.cell_x as i32, m.cell_y as i32);
             if m.fire_arrow != 0
                 && (!human || here == m.fire_arrow)
@@ -757,7 +801,11 @@ impl BattleRunner {
                 }
                 self.wood_fire = true;
                 self.missiles.free(slot);
-                let unit = self.sim.figures.get(m.shooter as usize).map_or(0, |f| f.unit as usize);
+                let unit = self
+                    .sim
+                    .figures
+                    .get(m.shooter as usize)
+                    .map_or(0, |f| f.unit as usize);
                 if (1..=MAX_UNITS).contains(&unit) {
                     self.units.get_mut(unit).target_cell = 0;
                 }
@@ -836,9 +884,7 @@ impl BattleRunner {
                 m.blocked_ticks = m.blocked_ticks.saturating_add(1);
                 // Given up on — either after long enough, or the moment the
                 // ground comes back down to where it was fired from.
-                if m.blocked_ticks > missile::BLOCKED_LIMIT
-                    || m.launch_elevation == elevation
-                {
+                if m.blocked_ticks > missile::BLOCKED_LIMIT || m.launch_elevation == elevation {
                     self.missiles.free(slot);
                     return false;
                 }
@@ -849,7 +895,7 @@ impl BattleRunner {
         // this is the only thing it can hurt.
         // The original's gate is `elevation != 0 && surface == 4 && frame > 2`
         // — the rampart walk, drawn as wall — and ours is the wall flag, which
-        // is what our castle has instead of the frames.
+        // is what our castle has.
         // the original's and is kept.
         if self.missiles.get(slot).class == WeaponClass::Catapult.index()
             && self.field.cells[cell].flags & crate::siege::FLAG_WALL != 0
@@ -864,7 +910,9 @@ impl BattleRunner {
         if self.missiles.get(slot).class >= 3 {
             return true;
         }
-        let Some(victim) = self.occupant[cell] else { return true };
+        let Some(victim) = self.occupant[cell] else {
+            return true;
+        };
         let victim = victim as usize;
         let vsim = self.fighters[victim].sim;
         if !self.sim.figures[vsim].is_alive() {
@@ -911,5 +959,4 @@ impl BattleRunner {
         self.missiles.get_mut(slot).ttl = missile::HIT_TTL;
         true
     }
-
 }

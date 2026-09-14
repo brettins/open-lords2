@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
-use super::*;
 use super::movement::*;
+use super::*;
 use super::*;
 
 impl BattleRunner {
@@ -32,14 +32,16 @@ impl BattleRunner {
     ///   nothing in the rules reads it.
     ///
     /// **It does not clear first.** `FUN_0043C247` clears and then boxes, in
-/// that order, so the box is always a fresh selection
+    /// that order, so the box is always a fresh selection
     /// addition — see [`Self::pick_box`].
     pub fn select_box(&mut self, owner: u8, a: (u8, u8), b: (u8, u8)) {
         let (x0, x1) = (a.0.min(b.0), a.0.max(b.0));
         let (y0, y1) = (a.1.min(b.1), a.1.max(b.1));
         for y in y0..=y1.min(DIM as u8 - 1) {
             for x in x0..=x1.min(DIM as u8 - 1) {
-                let Some(o) = self.occupant[y as usize * DIM + x as usize] else { continue };
+                let Some(o) = self.occupant[y as usize * DIM + x as usize] else {
+                    continue;
+                };
                 let sim = self.fighters[o as usize].sim;
                 if self.sim.figures[sim].owner == owner {
                     self.sim.figures[sim].selected = owner;
@@ -55,7 +57,9 @@ impl BattleRunner {
     /// recall, restores a *stored selection* by copying ten bytes back over the
     /// live one, which is this, applied to a list.
     pub fn select_figure(&mut self, fighter: usize, owner: u8) {
-        let Some(f) = self.fighters.get(fighter) else { return };
+        let Some(f) = self.fighters.get(fighter) else {
+            return;
+        };
         let sim = f.sim;
         if self.sim.figures[sim].is_alive() && self.sim.figures[sim].owner == owner {
             self.sim.figures[sim].selected = owner;
@@ -111,24 +115,26 @@ impl BattleRunner {
     /// Not "select this unit": the panel is a grid of the figures you already
     /// hold, and clicking one drops it.
     pub fn deselect_figure(&mut self, fighter: usize) {
-        let Some(f) = self.fighters.get(fighter) else { return };
+        let Some(f) = self.fighters.get(fighter) else {
+            return;
+        };
         let sim = f.sim;
         let owner = self.sim.figures[sim].owner;
         self.sim.figures[sim].selected = 0;
         self.regroup_selection(owner);
     }
 
-    /// `FUN_00478987` (`0x00478987`) — **the regroup, and the reason selection
+    /// `FUN_00478987` (`0x00478987`) — **the regroup
     /// is simulation state**.
     ///
     /// It asks one question: *is the selection exactly one whole unit?* If it
     /// is, nothing happens beyond resetting that unit's reform timer. If it is
     /// not — the player boxed half a unit, or figures from two — it **allocates
     /// a new unit** and moves every selected figure into it. From then on the
-/// selection *is* a unit
+    /// selection *is* a unit
     /// orders one.
     ///
-/// Two details reproduced:
+    /// Two details reproduced:
     ///
     /// * the new unit's category is written **inside** the move loop, so the
     ///   **last** selected figure decides whether the whole new unit is treated
@@ -175,7 +181,9 @@ impl BattleRunner {
 
         let human = self.units.get(base).human;
         let side = self.units.get(base).side;
-        let Some(new) = self.units.create(owner, human, side, 3) else { return base };
+        let Some(new) = self.units.create(owner, human, side, 3) else {
+            return base;
+        };
         self.units.get_mut(new).reform = crate::unit::REFORM_ON_ORDER;
         let mut first_fig = 0u16;
         let mut last_fig = 0u16;
@@ -190,7 +198,11 @@ impl BattleRunner {
             }
             last_fig = i as u16;
             // The original writes this per figure, so the last one wins.
-            category = if WEAPON_CLASS[self.fighters[i].troop.index()] == 0 { 3 } else { 1 };
+            category = if WEAPON_CLASS[self.fighters[i].troop.index()] == 0 {
+                3
+            } else {
+                1
+            };
             self.sim.figures[sim].unit = new as u16;
         }
         {
@@ -233,7 +245,9 @@ impl BattleRunner {
 
     /// Which player, if any, has this figure — for the renderer.
     pub fn selected_by(&self, fighter: usize) -> u8 {
-        self.fighters.get(fighter).map_or(0, |f| self.sim.figures[f.sim].selected)
+        self.fighters
+            .get(fighter)
+            .map_or(0, |f| self.sim.figures[f.sim].selected)
     }
 
     /// `FUN_0043C634` (`0x0043C634`) → `BattleUnit_Order` — **the click that
@@ -276,7 +290,10 @@ impl BattleRunner {
         }
         let (x, y) = {
             let u = self.units.get(unit);
-            (u.x.clamp(0, DIM as i16 - 1) as u8, u.y.clamp(0, DIM as i16 - 1) as u8)
+            (
+                u.x.clamp(0, DIM as i16 - 1) as u8,
+                u.y.clamp(0, DIM as i16 - 1) as u8,
+            )
         };
         self.order_full(unit, x, y, None, false, formation);
     }
@@ -288,7 +305,7 @@ impl BattleRunner {
     ///
     /// * **`attackTarget`** — the enemy figure under the cursor. It is stored in
     ///   unit `+0x2C` and read by the order handlers; when the unit mixes
-///   missile and melee figures the original *splits it*
+    ///   missile and melee figures the original *splits it*
     ///   it, which [`Self::regroup_selection`] already models on the selection
     ///   side.
     /// * **`woodland`** — `DAT_0053E874`, and the name in `docs/symbols.json`
@@ -296,7 +313,7 @@ impl BattleRunner {
     ///   the hovered cell's **surface byte is 15** and clears it otherwise, and
     ///   every AI call site passes a literal 0. Its effect is that a missile
     ///   unit of **side 0** ordered onto woodland has `Order_StopShortOfTarget`
-///   applied. Reported as a correction.
+    ///   applied. Reported as a correction.
     /// * **`facing`** — [`Formation`].
     pub fn order_full(
         &mut self,
@@ -312,16 +329,19 @@ impl BattleRunner {
         }
         {
             let u = self.units.get_mut(unit);
-            u.target_x = x as i16;
-            u.target_y = y as i16;
             u.withdrawing = false;
             if u.in_melee {
                 u.order_lock = crate::unit::ORDER_LOCK;
             }
             u.reform = crate::unit::REFORM_ON_ORDER;
+            // Cleared up front only when `woodland` is clear — a woodland click
+            // that reaches neither arm below leaves the old cell standing.
+            if !woodland {
+                u.target_cell = 0;
+            }
         }
         // `unit.orderedTarget`, `+0x2C`: the enemy figure the player pointed at.
-// Carried on the figures here, because that is
+        // Carried on the figures here, because that is
         // where this crate's handlers already look for a chased man.
         if let Some(t) = target {
             let members = self.members(unit);
@@ -329,6 +349,46 @@ impl BattleRunner {
                 let sim = self.fighters[m].sim;
                 self.sim.figures[sim].target = Some(self.fighters[t].sim);
             }
+        }
+        // **The two arms that pull a missile unit's destination back**, and
+        // `targetCell`, `+0x30` — the player's fire arrow. `BattleUnit_Order`
+        // (`0x00479E90`) writes `targetCell` only when the hovered cell is
+        // woodland, the unit has a live missile figure, it is of side 0, no
+        // enemy is under the cursor, and `BattleUnit_Classify` leaves
+        // `+0x08 < 5`. `[V]`. Either arm then runs
+        // [`Self::pull_back_to_range`] — `Order_StopShortOfTarget` and
+        // `Dest_FindReachableNear`. The mixed missile-and-melee unit the
+        // original splits here is already split by
+        // [`Self::regroup_selection`], so the enemy-under-cursor arm needs no
+        // melee test.
+        let missiles_here = self
+            .members(unit)
+            .into_iter()
+            .any(|m| WEAPON_CLASS[self.fighters[m].troop.index()] != 0);
+        let (side, category) = {
+            let u = self.units.get(unit);
+            (u.side, u.category)
+        };
+        let mut dest = (x as i32, y as i32);
+        if target.is_some() && missiles_here {
+            self.units.get_mut(unit).target_cell = 0;
+            if category < 5 {
+                dest = self.pull_back_to_range(unit, dest);
+            }
+        } else if woodland && missiles_here && side == SIDE_A {
+            self.units.get_mut(unit).target_cell = 0;
+            if category < 5 {
+                self.units.get_mut(unit).target_cell = fire::cell_byte_offset(x as i32, y as i32);
+                dest = self.pull_back_to_range(unit, dest);
+            }
+        }
+        // The oil loop takes the pulled-back destination, and runs before the
+        // formation arm puts the destination back at the unit's own cell.
+        self.pour_on_order(unit, dest.0 as i16, dest.1 as i16);
+        {
+            let u = self.units.get_mut(unit);
+            u.target_x = dest.0 as i16;
+            u.target_y = dest.1 as i16;
         }
         if let Some(o) = formation.orientation() {
             self.units.get_mut(unit).orientation = o;
@@ -341,24 +401,6 @@ impl BattleRunner {
             u.target_x = hx;
             u.target_y = hy;
         }
-        // **`targetCell`, `+0x30` — the player's fire arrow.**
-        // `BattleUnit_Order` (`0x00479E90`) clears it whenever `woodland` is
-        // clear, and writes it only when the hovered cell is woodland, the unit
-        // has a live missile figure, it is of side 0, no enemy is under the
-        // cursor, and `BattleUnit_Classify` leaves `+0x08 < 5`. `[V]`.
-        // `Order_StopShortOfTarget` and `Dest_FindReachableNear`, which the
-        // same arm applies to the destination, are not built.
-        let missiles_here = self
-            .members(unit)
-            .into_iter()
-            .any(|m| WEAPON_CLASS[self.fighters[m].troop.index()] != 0);
-        let u = self.units.get_mut(unit);
-        u.target_cell = 0;
-        if woodland && missiles_here && target.is_none() && u.side == SIDE_A && u.category < 5 {
-            u.target_cell = fire::cell_byte_offset(x as i32, y as i32);
-        }
-        let (tx, ty) = (self.units.get(unit).target_x, self.units.get(unit).target_y);
-        self.pour_on_order(unit, tx, ty);
         self.reform_unit(unit);
     }
 
@@ -403,5 +445,3 @@ impl BattleRunner {
         self.units.rebuild_from_figures(&mut self.sim.figures);
     }
 }
-
-

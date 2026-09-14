@@ -77,6 +77,8 @@ mod simulation;
 pub use simulation::*;
 mod orders;
 pub use orders::*;
+mod stop_short;
+pub use stop_short::*;
 mod combat;
 pub use combat::*;
 mod movement;

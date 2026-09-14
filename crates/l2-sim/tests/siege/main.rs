@@ -20,6 +20,8 @@ mod outcomes;
 pub use outcomes::*;
 mod player_tactics;
 pub use player_tactics::*;
+mod order_pullback;
+pub use order_pullback::*;
 
 use l2_sim::ai::{handler_for, TABLE_FIELD, TABLE_SIEGE_ATT, TABLE_SIEGE_DEF};
 use l2_sim::runner::{ASSAULT_REPEATS_BELOW_LEVEL, ASSAULT_REPEAT_SCORE};
@@ -53,9 +55,16 @@ fn siege_battle(level: u8, seed: u64) -> BattleRunner {
     BattleRunner::deploy_siege(
         siege::our_castle(level),
         seed,
-        Muster { troops: &attacker, owner: 1, human: false },
-        Muster { troops: &defender, owner: 2, human: false },
+        Muster {
+            troops: &attacker,
+            owner: 1,
+            human: false,
+        },
+        Muster {
+            troops: &defender,
+            owner: 2,
+            human: false,
+        },
         level,
     )
 }
-
