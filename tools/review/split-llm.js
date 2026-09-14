@@ -15,7 +15,8 @@ const KEY = process.env.GEMINI_API_KEY; if (!KEY) { console.error("split-llm: GE
 const file = process.argv[2]; if (!file) { console.error("split-llm: <file>"); process.exit(2); }
 const src = fs.readFileSync(path.join(root, file), "utf8").replace(/\r/g, "");
 const lines = src.split("\n"); const N = lines.length;
-const dir = file.replace(/\.rs$/, "");
+const isModRs = /\/mod\.rs$/.test(file);
+const dir = isModRs ? path.dirname(file) : file.replace(/\.rs$/, "");
 const outline = lines.map((l, i) => [i + 1, l]).filter(([, l]) => /^(pub(\([a-z]+\))? |)(fn|impl|struct|enum|const|static|type|mod|trait|macro_rules!|use )|^#\[|^\/\/! |^}/.test(l)).map(([n, l]) => `${n}: ${l.slice(0, 110)}`).join("\n");
 const RULES = `Below is the outline of ${file} (${N} lines): the line number and text of every top-level item start, attribute, closing brace and module doc line. Plan a split of this file into a directory module ${dir}/ with a mod file and submodule files grouped by concern, each under 900 lines. Top-level items must not be cut in the middle: a range starts at an item's first line (its doc comment or attribute, if any) and ends at its closing brace. \`impl\` blocks may be split only at method boundaries if you also assign the impl header line to each part (the script re-opens the block).
 Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ...} where every line 1..${N} belongs to exactly one range and names are lowercase identifiers. "mod" holds the module doc, the \`use\` lines, the types, constants and any \`#[cfg(test)] mod\` declarations.`;
@@ -35,7 +36,8 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   if (gaps) console.log(`split-llm: ${gaps} non-blank lines the plan skipped go with the item below them`);
   // No boundary inside an item: every line takes the owner of the item start above it,
   // where an item starts at a depth-0 line or a depth-1 method/const line in an impl.
-  { let d = 0, cur = 1; for (let i = 1; i <= N; i++) { const l = lines[i - 1]; const code = l.replace(/\/\/.*$/, "").replace(/'(\\.|[^'\\])'/g, "''").replace(/"([^"\\]|\\.)*"/g, '""'); const starts = (d === 0 && /^\S/.test(l) && !/^}/.test(l)) || (d === 1 && /^    (pub(\([a-z]+\))? )?(fn|const|type|static)\b/.test(l)); if (starts) cur = i; if (!(d === 0 && /^}/.test(l))) owner[i] = owner[cur]; d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
+  // A `mod x { ... }` block is one unit: its items must stay together, in one file.
+  { let d = 0, cur = 1, inMod = false; for (let i = 1; i <= N; i++) { const l = lines[i - 1]; const code = l.replace(/\/\/.*$/, "").replace(/'(\\.|[^'\\])'/g, "''").replace(/"([^"\\]|\\.)*"/g, '""'); const top = d === 0 && /^\S/.test(l) && !/^}/.test(l); if (top) inMod = /^(pub(\([a-z]+\))? )?mod\b/.test(l); const starts = top || (d === 1 && !inMod && /^    (pub(\([a-z]+\))? )?(fn|const|type|static)\b/.test(l)); if (starts) cur = i; if (!(d === 0 && /^}/.test(l))) owner[i] = owner[cur]; d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
   // A doc comment or attribute belongs to the item under it: a boundary that falls
   // between them moves up so they travel together.
   for (let i = N - 1; i >= 1; i--) if (owner[i] !== owner[i + 1] && /^\s*(\/\/\/|\/\/!|#\[)/.test(lines[i - 1])) owner[i] = owner[i + 1];
@@ -62,6 +64,10 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   }
   for (const o of Object.keys(files)) if (opened[o]) files[o].push("}");
   const names = Object.keys(files).filter(n => n !== "mod");
+  // The parent's own `use` lines (multi-line ones too): a glob of `super` does not carry
+  // imports, so each submodule repeats them.
+  const uses = []; { let d = 0, inUse = false; for (const l of lines) { if (d === 0 && /^(pub )?use /.test(l)) inUse = true; if (inUse) uses.push(l.replace(/^pub /, "")); if (inUse && /;\s*$/.test(l)) inUse = false; const code = l.replace(/\/\/.*$/, ""); d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
+  const prelude = "#![allow(unused_imports)]\nuse super::*;\n" + uses.join("\n") + "\n\n";
   fs.mkdirSync(path.join(root, dir), { recursive: true });
   const modBody = files.mod.join("\n");
   const decl = names.map(n => `mod ${n};\npub use ${n}::*;`).join("\n") + "\n";
@@ -69,8 +75,8 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   const docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && l.trim() !== "");
   const modLines = files.mod.slice(); modLines.splice(docEnd < 0 ? 0 : docEnd, 0, "", decl);
   fs.writeFileSync(path.join(root, dir, "mod.rs"), modLines.join("\n").replace(/\n{3,}/g, "\n\n") + "\n");
-  for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), "use super::*;\n\n" + files[n].join("\n") + "\n");
-  fs.unlinkSync(path.join(root, file));
+  for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), prelude + files[n].join("\n") + "\n");
+  if (!isModRs) fs.unlinkSync(path.join(root, file));
   console.log(`${String(files.mod.length + 2).padStart(6)} ${dir}/mod.rs`); for (const n of names) console.log(`${String(files[n].length + 2).padStart(6)} ${dir}/${n}.rs`);
   console.log(`split-llm: ${names.length + 1} files from ${N} lines, every line kept (${j.usageMetadata?.totalTokenCount} tokens)`);
 })();
