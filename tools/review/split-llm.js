@@ -50,6 +50,8 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   // A `mod x;` declaration (and its `pub use x::*;`) stays in the root file: the module
   // it names lives beside the root, not beside a part.
   for (let i = 1; i <= N; i++) if (/^(pub(\([a-z]+\))? )?mod \w+;$/.test(lines[i - 1]) || /^pub use \w+::\*;$/.test(lines[i - 1])) owner[i] = "mod";
+  // `fn main` is the binary's entry and stays in the crate root with any attributes on it.
+  for (let i = 1; i <= N; i++) if (/^fn main\b/.test(lines[i - 1])) { let d = 0; for (let j = i; j <= N; j++) { const l = lines[j - 1]; owner[j] = "mod"; d += (l.match(/{/g) || []).length - (l.match(/}/g) || []).length; if (d === 0 && j > i && /^}/.test(l)) break; } }
   // A doc comment or attribute belongs to the item under it: a boundary that falls
   // between them moves up so they travel together.
   for (let i = N - 1; i >= 1; i--) if (owner[i] !== owner[i + 1] && /^\s*(\/\/\/|\/\/!|#\[)/.test(lines[i - 1])) owner[i] = owner[i + 1];
