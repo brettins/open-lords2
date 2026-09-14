@@ -86,9 +86,14 @@ pub fn draw_terrain(
 /// jumps of half a cell or more over a 42-figure battle; 0 once
 /// `BattleRunner::step_one` took `BattleMan_Step`'s order. `docs/battle.md`
 /// §13.6, `docs/decisions.md` C200.
+/// **The trail is the mover's, not the pose's.** `BattleFigure_Draw` indexes
+/// `g_walkOffset32[dirc][walking]` with the figure's own crossing counter; no
+/// `Anim_*` handler touches it. Ours read `anim == Walking`, so a man the
+/// melee arm re-posed mid-crossing — `BattleMan_StateMelee`'s `Anim_Strike` at
+/// the top of the tick that drops him out (`00480000.c:1384`) — snapped 30 px
+/// onto the cell he was still entering.
 pub fn drawn_cell(f: &Fighter) -> ((i32, i32), u8) {
-    let s = f.progress.substep;
-    let walking = if f.anim == Anim::Walking { s.min(16) as u8 } else { 0 };
+    let walking = if f.progress.free { 0 } else { f.progress.substep.min(16) as u8 };
     ((f.x as i32, f.y as i32), walking)
 }
 
@@ -150,7 +155,7 @@ pub fn draw_figures(
         // the same clip.
         if f.troop == Troop::Knights {
             if let Some(horse) = &assets.horse {
-                if let Some(frame) = horse.frame(figures::horse_frame(f.facing, f.phase)) {
+                if let Some(frame) = horse.frame(figures::horse_frame(f.facing, f.anim, f.phase)) {
                     let w = frame.width as i32;
                     canvas.blit_clipped(
                         &frame,
@@ -167,7 +172,22 @@ pub fn draw_figures(
                 Some(i) => i,
                 None => continue,
             },
-            false => figures::frame(f.troop, f.anim, f.facing, f.phase),
+            // **Two facings, and which one is read is part of the pose.**
+            // `docs/battle.md` §13.8: `dirc` (`+0x18`) drives the sub-cell
+            // offset and the **walk** frame; `dirc2` (`+0x19`), copied to
+            // `facingDrawn` (`+0x0D`) at the end of every handler, drives the
+            // **strike** frame and is what `Anim_StandA2`'s fidget turns.
+            false => {
+                let facing = match f.anim {
+                    Anim::Walking => f.facing,
+                    _ => f.facing_drawn,
+                };
+                // The three fields the handlers read besides the phase: the
+                // figure's index (`Anim_StandA2`'s pose), its reload counter
+                // (`Anim_DrawBowA2`'s `swingTimer`) and its melee role
+                // (`Anim_StrikeA2` swings only under `role == 1`).
+                figures::frame(f.troop, f.anim, facing, figures::pose_of(runner, i))
+            }
         };
         let Some(frame) = sheet.frame(index) else { continue };
         // `BattleFigure_Draw` centres on the cell using the sprite *width* for

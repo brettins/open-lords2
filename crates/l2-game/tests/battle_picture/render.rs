@@ -295,7 +295,8 @@ fn a_walking_man_is_drawn_advancing_every_tick_and_never_back_on_his_old_square(
             frame(&mut m, &mut g, &assets, &mut canvas);
         }
         let f = &live(&g).runner.fighters[man];
-        let index = l2_view::figures::frame(f.troop, f.anim, f.facing, f.phase);
+        let pose = l2_view::figures::pose_of(&live(&g).runner, man);
+        let index = l2_view::figures::frame(f.troop, f.anim, f.facing, pose);
         let pic = sheet.frame(index).expect("the frame the man is showing");
         let hits = locate(&canvas, &pic, -48..FIELD_X1, row_y - 48..row_y + 16);
         assert_eq!(hits.len(), 1, "tick {t}: the man's frame {index} was found at {hits:?}");

@@ -175,13 +175,13 @@ impl BattleRunner {
     /// **Two branches are still missing and both are the siege's.** The
     /// original also takes the *source* cell's `surface` and refuses a cell of
     /// any other surface when that one is
-    /// [`crate::siege::SURFACE_RAMPART_WALK`] (4), so a unit on the wall walk
+    /// [`crate::siege::SURFACE_RAMPART_WALK`] (4)
     /// is only ever slotted along it; and it refuses a side-0 unit an empty
     /// cell of surface under 4 in a siege. `[V]` — 359 bytes, four parameters.
     /// Switching the first one on here turns the
     /// `sound_does_not_change_the_battle` canary red — the proving siege stops
     /// producing bow cues — so it is applied only where this branch ported it,
-    /// in [`Self::dest_find_reachable_near`], and reported rather than adopted.
+    /// in [`Self::dest_find_reachable_near`].
     pub(super) fn slot_is_usable(&self, unit: usize, x: i32, y: i32, elevation: u8) -> bool {
         let cell = self.field.at(x as usize, y as usize);
         let occupant = self.occupant[y as usize * DIM + x as usize];
@@ -319,7 +319,12 @@ impl BattleRunner {
             return;
         }
 
-        self.fighters[i].phase = self.fighters[i].phase.wrapping_add(1);
+        // **The phase is the animation handlers', not this loop's.**
+        // `Anim_WalkA2` steps it (wrapping at 0x17) and `Anim_StrikeA2` steps
+        // it for the swinging man only (0x27); `Anim_StandA2` and
+        // `Anim_DrawBowA2` never do — `00480000.c:2509`, `super::anim`. Ours
+        // advanced it once per figure per tick here, which un-froze the
+        // defender's strike cycle and made the role swap invisible.
         if self.fighters[i].hold > 0 {
             self.fighters[i].hold -= 1;
         }
@@ -351,6 +356,37 @@ impl BattleRunner {
             if !mutual {
                 self.sim.figures[sim].state = State::Idle;
                 self.sim.figures[sim].opponent = None;
+                // **And he stops swinging.** `BattleMan_StateMelee`
+                // (`0x004831D8`) runs `Anim_Strike` at its *top*, so the tick
+                // that drops a figure back to state 0 is the last tick that
+                // draws him striking; the state-0 handler then stands him.
+                // Ours left `anim` at `Motion::Attacking` and every later arm
+                // that returns early — the mover's mid-crossing return, the
+                // shooter's — left it there
+                // somewhere else went on hacking at nothing for the rest of
+                // the battle. The player's *"some men stay in the attacking
+                // animation after the fight"*.
+                //
+                // **The dropping tick is a striking tick.**
+                // `00480000.c:1384`: `BattleMan_StateMelee` calls `Anim_Strike`
+                // at its *top* and only then writes the new state, so the last
+                // tick of a duel is drawn swinging and the figure reaches state
+                // 8 on the next one. Ours stood him here.
+                //
+                // **[D]** The original *returns* from the handler here, giving
+                // the figure a tick in which he only swings. Ours writes the
+                // pose and falls through to the arms below, so an arm that acts
+                // this tick overwrites it. Returning costs both of the gates
+                // that measure this seam: a figure dropped mid-crossing has his
+                // `walking` counter frozen while the trail is drawn from it,
+                // eight jumps of a whole cell over a 42-figure battle
+                // (`battle_picture`'s
+                // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`), and the
+                // skipped melee search turns the seam's militia from 6 of 8
+                // into 8 of 8. The order of the writes is the original's; the
+                // skipped tick is not.
+                let facing = self.fighters[i].facing;
+                self.strike(i, facing);
             }
         }
 
@@ -373,17 +409,27 @@ impl BattleRunner {
             if !self.fighters[i].progress.free {
                 let troop = self.fighters[i].troop;
                 self.fighters[i].progress.tick(troop);
-                self.fighters[i].anim = Motion::Walking;
+                // `BattleMan_Step(1)` returns 1 both mid-crossing and at the
+                // landing, so the strike arm's `&& BattleMan_Step(1)` always
+                // takes `Anim_Walk` here: he is crossing, so he marches.
+                self.march(i, true);
                 return;
             }
-            if let Some(op) = self.opponent_of(i) {
-                let (ox, oy) = (self.fighters[op].x as i32, self.fighters[op].y as i32);
-                let f = &mut self.fighters[i];
-                if let Some(fc) = facing_from_delta(ox - f.x as i32, oy - f.y as i32) {
-                    f.facing = fc;
+            match self.opponent_of(i) {
+                Some(op) => {
+                    let (ox, oy) = (self.fighters[op].x as i32, self.fighters[op].y as i32);
+                    let f = &mut self.fighters[i];
+                    if let Some(fc) = facing_from_delta(ox - f.x as i32, oy - f.y as i32) {
+                        f.facing = fc;
+                    }
+                    let facing = f.facing;
+                    f.progress = Progress::default();
+                    self.strike(i, facing);
                 }
-                f.anim = Motion::Attacking;
-                f.progress = Progress::default();
+                // State 4 with nobody to hit. The mutual check above normally
+                // takes this figure out of melee first; if anything ever leaves
+                // it here, it stands.
+                None => self.stand(i),
             }
             return;
         }
@@ -405,7 +451,7 @@ impl BattleRunner {
         // C200.
         let troop = self.fighters[i].troop;
         if !self.fighters[i].progress.tick(troop) {
-            self.fighters[i].anim = Motion::Walking;
+            self.march(i, true);
             return;
         }
 
@@ -418,9 +464,10 @@ impl BattleRunner {
                 if let Some(fc) = facing_from_delta(ex - f.x as i32, ey - f.y as i32) {
                     f.facing = fc;
                 }
-                f.anim = Motion::Attacking;
                 f.progress = Progress::default();
             }
+            let facing = self.fighters[i].facing;
+            self.strike(i, facing);
             // Contact, by standing next to somebody
             // into them. The original raises the join from the *mover*
             // (`Cell_TryEnter` returning 999), and tells both units either way
@@ -435,17 +482,23 @@ impl BattleRunner {
         }
 
         if self.fighters[i].at_target() {
-            self.fighters[i].anim = Motion::Idle;
+            self.stand(i);
             self.fighters[i].progress = Progress::default();
             // **A standing armed man shoots.** See [`Self::fire_tick`] for why
-            // this is the gate and what is inferred about it.
+            // this is the gate and what is inferred about it. It runs after
+            // `stand` because the bow draw is the one thing that overrides the
+            // standing pose from inside state 5.
             self.fire_tick(i);
             return;
         }
 
-        self.fighters[i].anim = Motion::Walking;
+        // **The pose is not set until the step is.** §14.5: `Anim_Walk` is
+        // called only when `BattleMan_Step` reports the figure moved, and
+        // `Anim_Stand` when it did not. This used to write `Motion::Walking`
+        // here, so a man with no route and
+        // a man whose step was refused both marched on the spot.
         let Some(next) = self.next_step(i) else {
-            self.fighters[i].anim = Motion::Idle;
+            self.stand(i);
             return;
         };
         {
@@ -474,6 +527,11 @@ impl BattleRunner {
                 return;
             }
         }
+        // **He stands until the mover says otherwise.** The free-cell arm of
+        // [`Self::enter`] plays `Anim_WalkA2`; the wall and the contact arms
+        // play `Anim_StrikeA2`; every refusal leaves this. Writing the walk
+        // here instead is what marched a barred man on the spot.
+        self.stand(i);
         self.enter(i, next);
     }
 
@@ -513,7 +571,7 @@ impl BattleRunner {
                 // `other.owner == 0 && unit.targetCell == 0`, and that arm is
                 // the one that *leaves* state 17 — by writing **state 5**,
                 // which answers [`Self::fire_tick`]'s open question about what
-                // puts a figure into the firing state. So a unit carrying a
+                // puts a figure into the firing state.
                 // fire-arrow cell holds its bowmen in 17 with no live target,
                 // and they acquire one there. `[V]`.
                 let cell = {
@@ -589,6 +647,20 @@ impl BattleRunner {
     /// what an archer that has been ordered somewhere and arrived is doing.
     /// Marked `[I]`; the mechanism it drives is `[V]` throughout.
     fn fire_tick(&mut self, i: usize) {
+        self.reload_tick(i);
+        // **The draw is held for the whole reload.** `BattleMan_FireMissile`
+        // ends `if (target != 0) Anim_DrawBow();` — the last thing it does,
+        // every tick it runs, not the tick the target was found. See
+        // [`Self::shoot`]; the pose itself comes from `swingTimer`, which is
+        // `Figure::reload_counter`.
+        let sim = self.fighters[i].sim;
+        if self.sim.figures[sim].target.is_some() {
+            self.shoot(i);
+        }
+    }
+
+    /// The reload counter and the shot — `BattleMan_FireMissile` up to its tail.
+    fn reload_tick(&mut self, i: usize) {
         let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else {
             return;
         };
@@ -602,6 +674,8 @@ impl BattleRunner {
 
         if counter + missile::ACQUIRE_LEAD == stats.reload {
             match self.missile_target(i, stats.range as i32) {
+                // The bow is not raised here: the tail of [`Self::fire_tick`]
+                // raises it, on this tick and on every tick the target lives.
                 Some(t) => self.sim.figures[sim].target = Some(t),
                 None => {
                     let f = &mut self.sim.figures[sim];
