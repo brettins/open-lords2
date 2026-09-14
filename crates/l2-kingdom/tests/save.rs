@@ -1257,12 +1257,15 @@ mod census {
     /// save can drop, only a tag it can misread.
     pub fn structs_of(dir: &Path) -> Structs {
         let mut out = Structs::new();
-        let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
-            .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| p.extension().is_some_and(|x| x == "rs"))
-            .collect();
+        // Recursive: a split module (kingdom/mod.rs, kingdom/*.rs) keeps its structs in the census.
+        fn walk(dir: &Path, files: &mut Vec<PathBuf>) {
+            for e in std::fs::read_dir(dir).unwrap_or_else(|e| panic!("{}: {e}", dir.display())).filter_map(|e| e.ok()) {
+                let p = e.path();
+                if p.is_dir() { walk(&p, files); } else if p.extension().is_some_and(|x| x == "rs") { files.push(p); }
+            }
+        }
+        let mut files: Vec<PathBuf> = Vec::new();
+        walk(dir, &mut files);
         files.sort();
         for file in files {
             let src = std::fs::read_to_string(&file).expect("a source file");
