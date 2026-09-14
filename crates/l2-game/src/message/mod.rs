@@ -69,6 +69,7 @@
 //! selected, no village opened, no army ordered. See
 //! [`MessageQueue::dismiss_unless_question`].
 
+pub mod help;
 mod layout;
 pub use layout::*;
 mod queue;

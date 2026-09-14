@@ -87,7 +87,7 @@
 //! variable widget count — and it is the only one of the four where a screen's
 //! whole appearance lives in a function no dispatch table mentions.
 //!
-//! (`0x004B99C0` is named `Battle_Frame` in `docs/symbols.json` and is not a
+//! (`0x004B99C0` is named `Battle_Frame` in `docs/symbols.json`
 //! battle function: it calls `Screen_Draw`, `Screen_DrawWidgets`,
 //! `Screen_DrawMenuBar`, `CountyStrip_Draw`, `Smk_PlayLoop`, `Msg_Pump` and
 //! `Cursor_Set`. It is *the* frame. Reported, not renamed here.)
@@ -170,8 +170,9 @@
 //!   Quit leaves at once; both say so below.
 //! * **The five help topics go on the message ring.** `Menu_HelpHowDoI` and its four
 //!   siblings are `Msg_Enqueue(…, 0x123 … 0x127, …)`, five consecutive message
-//!   ids, category 0x13, and they now go on the ring: the window is drawn by
-//!   the notice layout, not yet by g_helpWindowGeom (0x004D6EB8).
+//!   ids, category 0x13, and they go on the ring; the window is
+//!   `g_helpWindowGeom`'s (`0x004D6EB8`) —
+//!   [`crate::screens::message`]'s category-0x13 arm.
 
 mod items;
 pub use items::*;

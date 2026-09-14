@@ -56,7 +56,7 @@ impl Record {
     }
 
     /// Whether this record carries a question — the four categories
-    /// `Msg_DismissUnlessQuestion` (`0x00476710`) refuses to close, and the four
+    /// `Msg_DismissUnlessQuestion` (`0x00476710`) refuses to close
     /// `Msg_HandleInput` runs a `Widget_Test` for.
     ///
     /// **The two lists are the same four and that is checkable
@@ -148,10 +148,11 @@ impl Record {
 /// Where each category's window goes, read off `Msg_DrawWindow`'s
 /// `FUN_004093E0` calls one arm at a time.
 ///
-/// Three categories are not here
-/// [`category::TIP`] follows the cursor, [`category::HELP`] and the two
-/// letter categories index tables in `.rdata`, and the paragraph stack computes
-/// its height from how many paragraphs it drew.
+/// Two categories are not here
+/// [`category::TIP`] follows the cursor and the paragraph stack computes its
+/// height from how many paragraphs it drew. [`category::HELP`] is here but its
+/// geometry is not: it reads `g_helpWindowGeom` (`0x004D6EB8`), six records
+/// indexed by group — [`crate::message::help::frame`].
 pub fn frame_of(record: &Record) -> Option<Frame> {
     let f = match record.category {
         category::NOTICE => Frame::new(0x20, 0xA0, 0x1A0, 0xE0),
@@ -177,6 +178,12 @@ pub fn frame_of(record: &Record) -> Option<Frame> {
         //
         // The id is the group, so the record carries it.
         category::EVENT => Frame::new(0x20, 0xA0, 0x1A0, event_height(record.group)),
+        // `Msg_DrawWindow`'s category-0x13 arm, whose four numbers come out of
+        // `g_helpWindowGeom` (`0x004D6EB8`) at `(group - 0x123) * 0x10`. A
+        // category 0x13 record with a group outside 291..=296 indexes past the
+        // table in the original; here it is `None`, and nothing posts one --
+        // the five topics are `Menu_HelpHowDoI` (`0x0043480C`) and siblings.
+        category::HELP => return help::frame(record.group),
         _ => return None,
     };
     Some(f)
@@ -233,10 +240,10 @@ pub struct Paragraphs {
 ///   paragraph at one fixed height before the box exists, and only the running
 ///   total survives; the box then paints over the lot. It is not reproduced as
 ///   paint, because nothing of it is visible.
-/// * **the box's height includes its own top.** `height = h + y`, so a window
+/// * **the box's height includes its own top.** `height = h + y`
 ///   moved down by the short-text rule also grows by the same 64 pixels.
 /// * **a short tip is pushed down 64 pixels** when the measured height is below
-/// `0x61`, and the
+/// `0x61`
 ///   one-sentence tips.
 pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
     const X: i32 = 0x10;
@@ -262,7 +269,7 @@ pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
 /// (`0x004036F9`) as the word measure. `glyph` is `FUN_004015B9`'s width of one
 /// non-space character in the font the text is drawn in.
 ///
-/// Not [`crate::shell::Pen::wrap`], and the difference is the OK button:
+/// Not [`crate::shell::Pen::wrap`]
 ///
 /// * **a space is four pixels, whatever the font**, and it is measured as part
 /// of the word *after* it — so a word fits only if it fits with its leading
@@ -271,7 +278,7 @@ pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
 ///   breaks;
 /// * **`$` separates words and has no width**; a character below `0x20` has no
 ///   width and does not separate;
-/// * a word wider than a whole line is never placed, and the function draws
+/// * a word wider than a whole line is never placed
 ///   empty lines until its own guard of 99 gives out.
 ///
 /// Always at least one line, because the draw is inside the loop.
