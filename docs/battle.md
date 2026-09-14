@@ -112,7 +112,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x12` | u8 | troopType | [V] | 0 … 10, the `TROOPS*.ENG` column order: peasant, crossbowman, maceman, swordsman, pikeman, archer, knight, catapult, siege tower, ram, oil. |
 | `+0x13` | u8 | ownerIsHuman | [I] | 1 when the owning realm's byte `+0x05` is set. Same source as unit `+0x01`. **This byte changes the damage this figure takes** — §6.2. |
 | `+0x14` | u8 | mercenary | [D] | set for the mercenary contingent of an army. |
-| `+0x18` | u8 | **dirc** | [V] | facing, 0 … 7. **0 = N (−y), 1 NE, 2 E (+x), 3 SE, 4 S, 5 SW, 6 W, 7 NW**
+| `+0x18` | u8 | **dirc** | [V] | facing, 0 … 7. **0 = N (−y), 1 NE, 2 E (+x), 3 SE, 4 S, 5 SW, 6 W, 7 NW** |
 | `+0x1C` | i32 | cellOffset | [V] | `(y*80 + x) * 8`, kept in step with x and y. |
 | `+0x20` `+0x22` | i16 | **map x**, **map y** | [V] | cell coordinates. |
 | `+0x24` `+0x26` | i16 | **tg x**, **tg y** | [V] | where this figure is walking to. |
@@ -153,7 +153,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x184` | i8 | exchange | [D] | ticks left holding the attacker role in a duel. |
 | `+0x185` | u8 | role | [D] | 1 = attacker this exchange, 2 = defender. |
 | `+0x18C` | u8 | blowUsed | [D] | set once the heavy-blow bonus has been spent. |
-| `+0x194` | u8 | isSiegeEngine | [V] | 1 for troop types 7, 8, 9 — **not 10**. `BattleUnit_Create` writes it as `6 < troopType && troopType < 10`, beside the call that stamps `0x80` on the engine's 3 × 3.
+| `+0x194` | u8 | isSiegeEngine | [V] | 1 for troop types 7, 8, 9 — **not 10**. `BattleUnit_Create` writes it as `6 < troopType && troopType < 10`, beside the call that stamps `0x80` on the engine's 3 × 3. |
 | `+0x197` | u8 | band | [V] | strength band 0 … 3 from the men left (§5.3). Scales melee attack and missile damage. |
 | `+0x198` | i16 | heavyBlow | [V] | extra hits landed **once per figure for the whole battle** (§6.1): maceman 300, knight 200, swordsman 100, everyone else 0. |
 | `+0x19A` | i16 | **hits** | [V] | accumulated damage. **100 hits kills one man** (160 for a siege engine). |
@@ -164,14 +164,14 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x16A` | u8 | weaponClass | [V] | 0 melee, 1 bow, 2 crossbow, 3 catapult. |
 | `+0x16B` | i8 | reloadTicks | [V] | `g_missileStats[class][1]`. |
 | `+0x16C` | u8 | missileSubSteps | [V] | `g_missileStats[class][2]`, always 4. |
-| `+0x16E` | i16 | missileSprite | [V] | `g_missileStats[class][4]` — **0 bow, 8 crossbow, 16 catapult**
+| `+0x16E` | i16 | missileSprite | [V] | `g_missileStats[class][4]` — **0 bow, 8 crossbow, 16 catapult** |
 | `+0x170` | i16 | range | [V] | `g_missileStats[class][0]`, in **eighths of a cell** — every consumer computes `range >> 3`. |
 
 ### 2.4 Movement and routing
 
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
-| `+0x164` | u8 | **on route** | [V] | 1 while the figure is following a stored path instead of walking straight at its target.
+| `+0x164` | u8 | **on route** | [V] | 1 while the figure is following a stored path instead of walking straight at its target. |
 | `+0x165` | u8 | **hold it** | [V] | ticks to wait before asking the pathfinder again; set to 64 after each attempt. |
 | `+0x166` | i16 | **routed** | [V] | how many times this figure has been **re-routed**. Not morale — §8.3. |
 | `+0x168` | u8 | **polar dirc** | [V] | facing chosen when knocked back or thrown. |
