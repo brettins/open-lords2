@@ -476,7 +476,7 @@ pub struct Game {
     ///
     /// So the setting lives here, where the page can write it, and `main.rs`
     /// pushes it into [`Assets`] before each frame. **One authority, one
-    /// projection** — and `crates/l2-game/tests/options.rs` asserts the
+    /// projection** — and `crates/l2-game/tests/options/main.rs` asserts the
     /// projection happens, so this cannot become a field the drawing code never
     /// sees, which is the failure `docs/decisions.md` C30 records five of.
     ///

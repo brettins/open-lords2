@@ -181,8 +181,8 @@ crates/l2-game/tests/military/main.rs	C35	0578d12796f0	193a1920e229
 crates/l2-game/tests/military/main.rs	C58	5c599d9423e7	2a1ff4d5966d
 crates/l2-game/tests/military/main.rs	C61	db2d2b21a1c9	60611046b40d
 crates/l2-game/tests/military/main.rs	C67	bba176fa8c3d	0319331e470e
-crates/l2-game/tests/options.rs	C26	7899982bcf4c	e8179d1f76a8
-crates/l2-game/tests/options.rs	C30	716f251c5193	50fdf5e17ba0
+crates/l2-game/tests/options/main.rs	C26	7899982bcf4c	e8179d1f76a8
+crates/l2-game/tests/options/main.rs	C30	716f251c5193	50fdf5e17ba0
 crates/l2-game/tests/scenario.rs	C83	18e9dfa98edd	88ac11ea6de0
 crates/l2-game/tests/screens_county/main.rs	C112	a5a80ad18330	0dbcd00423ed
 crates/l2-game/tests/screens_county/main.rs	C118	3de9b4c34a46	cd0e7b0adc57

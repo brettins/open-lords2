@@ -51,7 +51,7 @@
     {"id": "taking-counties", "area": "armies", "name": "Taking a county", "status": "done", "evidence": ["crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
     {"id": "splitting", "area": "armies", "name": "Splitting and merging armies", "status": "done", "evidence": ["C93","arms:army-division","C224","C226","crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
     {"id": "garrisons", "area": "armies", "name": "Garrisons in castles", "status": "done", "evidence": ["crates/l2-game/tests/castles.rs","C224","C226","crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
-    {"id": "foraging", "area": "armies", "name": "Armies eating (Foraging option)", "status": "done", "evidence": ["C223","crates/l2-game/tests/options.rs","crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
+    {"id": "foraging", "area": "armies", "name": "Armies eating (Foraging option)", "status": "done", "evidence": ["C223","crates/l2-game/tests/options/main.rs","crates/l2-kingdom/tests/campaign.rs"], "gap": "", "rows": []},
     {"id": "trampling", "area": "armies", "name": "Armies trampling fields", "status": "done", "evidence": ["C134","C229"], "gap": "", "rows": []},
     {"id": "fog", "area": "armies", "name": "Fog of war (Exploration option)", "status": "done", "evidence": ["C21","C172","C184","crates/l2-game/tests/screens_map/main.rs"], "gap": "", "rows": []},
     {"id": "take-field", "area": "battles", "name": "Choosing to take the field", "status": "done", "evidence": ["C115","crates/l2-game/tests/seam.rs","crates/l2-game/tests/military/main.rs"], "gap": "", "rows": []},
