@@ -608,7 +608,6 @@ mod tests {
                 moat_load: 0,
                 polar: 0,
                 corpse: 0,
-                delay: 0,
             });
             r.occupant[40 * DIM + x as usize] = Some((r.fighters.len() - 1) as u16);
         }
@@ -684,7 +683,6 @@ mod tests {
             moat_load: 0,
             polar: 0,
             corpse: 0,
-            delay: 0,
         });
         r.occupant[40 * DIM + 24] = Some((r.fighters.len() - 1) as u16);
         let before = r.sim.figures[screen].hits;
@@ -756,7 +754,6 @@ mod tests {
             moat_load: 0,
             polar: 0,
             corpse: 0,
-            delay: 0,
         });
         r.occupant[40 * DIM + 22] = Some((r.fighters.len() - 1) as u16);
         r.run(600);

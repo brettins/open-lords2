@@ -324,15 +324,6 @@ impl BattleRunner {
             self.fighters[i].hold -= 1;
         }
 
-        // **State 1 stands and counts.** The original's delay is a whole slot
-        // of `g_manStateTable`, so a delayed man reaches neither the melee
-        // search nor the mover; see [`Fighter::delay`] for its one writer.
-        if self.fighters[i].delay > 0 {
-            self.fighters[i].delay -= 1;
-            self.fighters[i].anim = Motion::Idle;
-            return;
-        }
-
         // **The moat, before anything else.** State 9 is a whole slot of
         // `g_manStateTable`, so the original never reaches the melee search or
         // the mover while a figure is tipping earth; only when it has nothing
