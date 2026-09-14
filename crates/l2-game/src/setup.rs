@@ -36,7 +36,7 @@
 //! | 8 | Crowns | `0x0053F2A8` | `0x0053F278` | through [`STARTING_GOLD`] |
 //! | 9 | County Status | `0x0053F2AC` | `0x0053F27C` | a row of [`COUNTY_STATUS`] |
 //! | 10 | Time limit | `0x0053F28C` | `g_optTimeLimit` `0x0053F26C` | through [`TIME_LIMIT_SECONDS`] |
-//! | 11 | Fight? | `0x0053F2B4` | `g_optFightHumansOnly` `0x0053F284` | as is, and the byte is **inverted** — 0 shows *humans* |
+//! | 11 | Fight? | `0x0053F2B4` | `g_optFightHumansOnly` `0x0053F284` | as is
 //!
 //! Five of the twelve go through a table and one is arithmetic; only six are the
 //! direct copies the screen makes them look like.
@@ -106,7 +106,7 @@ pub const VALUE_COUNT: [usize; OPTION_COUNT] = [2, 2, 4, 2, 4, 4, 6, 4, 5, 3, 7,
 pub const DEFAULTS: [u8; OPTION_COUNT] = [0, 0, 3, 0, 0, 0, 3, 2, 2, 1, 6, 1];
 
 /// The same function's other branch, for a network game: a four-minute turn
-/// limit instead of none, and *humans* instead of *all*.
+/// limit instead of none
 ///
 /// `DAT_0053F28C = g_multiplayer ? 3 : 6` and
 /// `DAT_0053F2B4 = (g_multiplayer == 0)`.
@@ -116,7 +116,7 @@ pub const DEFAULTS_MULTIPLAYER: [u8; OPTION_COUNT] = [0, 0, 3, 0, 0, 0, 3, 2, 2,
 /// in seconds. The last is 0, which is *"no limit"*.
 pub const TIME_LIMIT_SECONDS: [i32; 7] = [30, 60, 120, 240, 480, 600, 0];
 
-/// `g_startingGold` (`0x004DBC18`) — *Crowns*, and the numbers are the strings:
+/// `g_startingGold` (`0x004DBC18`) — *Crowns*
 /// group 103's five entries here are literally *"100"*, *"500"*, *"1000"*,
 /// *"2500"*, *"5000"*.
 ///
@@ -170,7 +170,7 @@ pub struct CountyStart {
 ///
 /// **`medium` really does start with no grain at all.** It is 0 in the image
 /// where `weak` is 10, and it is reproduced: the two numbers
-/// are both far below a county's appetite and the herd, which triples from
+/// are both far below a county's appetite and the herd
 /// 40 to 95 to 330, is what the setting.
 pub const COUNTY_STATUS: [CountyStart; 3] = [
     CountyStart { grain: 10, herd: 40, population: 167, health_meter: 45, happiness: 41 },
@@ -179,7 +179,7 @@ pub const COUNTY_STATUS: [CountyStart; 3] = [
 ];
 
 /// An unowned county gets a hundred sacks on top of whatever
-/// [`COUNTY_STATUS`] gave it — the last loop of `FUN_0049BD99`, and the only
+/// [`COUNTY_STATUS`] gave it — the last loop of `FUN_0049BD99`
 /// place the neutral counties are treated differently at setup.
 pub const UNOWNED_COUNTY_GRAIN_BONUS: i32 = 100;
 
@@ -279,7 +279,7 @@ impl SetupOptions {
         }
     }
 
-    /// How many lords are in the game — the *Nobles* label's own numbers, *two*
+    /// How many lords are in the game — the *Nobles* label's own numbers
     /// through *five*. `L2.eng` group 103 index 4 is *"one"* and nothing
     /// reaches it, which is the string the twelve runs leave over.
     pub fn lords(&self) -> usize {
@@ -380,15 +380,8 @@ impl Settings {
     /// | `realm.weapons` from the armoury row, `+ difficulty * 20` mail for an AI | yes |
     /// | the start county's `castleType` from the castle row | yes |
     /// | realms past the lord count get `strength = 0` and no county | yes |
-    /// | `Army_Create` for the starting garrison | **no** — see below |
+    /// | `Army_Create` for the starting garrison | yes — see the arm below |
     /// | seating the realms from the map's player-start table | **no** — the save already seats them |
-    ///
-    /// **The garrison is the one that is missing and it is marked.** Raising it
-    /// is `l2_kingdom::levy::create_army`, which needs a muster tile, a levy
-    /// basket and the county's food passes re-run around it; doing that here
-    /// would be a second army-raising path beside the one the levy screen
-    /// already owns, and the option is reported by
-    /// [`Settings::unhonoured`].
     pub fn apply_to(&self, game: &mut Game) {
         game.kingdom.options = self.kingdom_options();
 
@@ -467,6 +460,85 @@ impl Settings {
             }
         }
 
+        // **The starting garrison** — `FUN_0049BD99`'s `g_startArmySize` arm
+        // (`0x0049BF9E`), between the county-status row and the two food rounds:
+        //
+        // ```c
+        // if (g_startArmySize != 0) {
+        //     basket[7].chosen = 0;
+        //     for (t = 0; t < 7; t++) {
+        //         basket[t].chosen  = g_startTroops[row][t];
+        //         basket[7].chosen += g_startTroops[row][t];
+        //         county.population += g_startTroops[row][t];   /* pre-credit */
+        //     }
+        //     Army_Create(realm, county, 0, 0);
+        //     county.levySurcharge = 0;
+        //     realm.gold += g_units[g_lastUnitIndex].wages;
+        // }
+        // ```
+        //
+        // Row 0 of `g_startTroops` is all zeroes — *no army* raises nothing. The
+        // pre-credit cancels `Levy_DebitPopulation` exactly
+        // the county no people; happiness costs 0, no mercenaries
+        // surcharge `Army_Create` writes is undone. `l2_kingdom::levy::create_army`
+        // is the levy screen's own path, entered here with a basket built from
+        // the table instead of from the slider.
+        //
+        // `FUN_0049BD99` runs the two lines after `Army_Create` unconditionally,
+        // so a failed spawn adds a stale `g_lastUnitIndex`' wages; ours runs them
+        // only on success. [I]
+        if self.garrison.iter().any(|&n| n != 0) {
+            for id in 1..MAX_REALMS {
+                if dropped[id] {
+                    continue;
+                }
+                let realm = &game.kingdom.realms[id];
+                if !realm.in_play && !realm.is_human {
+                    continue;
+                }
+                let Some(county) =
+                    game.kingdom.county_ids().find(|&c| game.kingdom.counties[c].owner as usize == id)
+                else {
+                    continue;
+                };
+                let mut basket = l2_kingdom::LevyBasket::default();
+                for t in 0..TROOP_TYPES {
+                    basket.slots[t].chosen = self.garrison[t];
+                    basket.slots[l2_kingdom::levy::BASKET_TOTAL].chosen += self.garrison[t];
+                }
+                let k = &mut game.kingdom;
+                k.counties[county].population += basket.total();
+                let muster = l2_kingdom::levy::Muster {
+                    realm: id as u8,
+                    county: county as u8,
+                    happiness_cost: 0,
+                    year: k.year,
+                };
+                // `Levy_ConsumeWeapons` debits an armoury that is still zero at
+                // this line — `FUN_0049BD99` writes the `g_startArmoury` row
+                // *after* the garrison (`0x0049C15B`) — so the garrison's
+                // weapons are free. Ours has already written the row, so it is
+                // put back. [V]
+                let armoury = k.realms[id].weapons;
+                let raised = l2_kingdom::levy::create_army(
+                    &k.tables,
+                    &k.campaign.map,
+                    &mut k.counties,
+                    &mut k.realms,
+                    &mut k.campaign.units,
+                    &mut k.campaign.names,
+                    &basket,
+                    muster,
+                    &mut k.campaign.explored,
+                );
+                k.realms[id].weapons = armoury;
+                if let Ok(unit) = raised {
+                    k.counties[county].levy_surcharge = 0;
+                    k.realms[id].gold += k.campaign.units.get(unit).map_or(0, |u| u.wages);
+                }
+            }
+        }
+
         // **`FUN_0049BD99`'s two `Labour_Allocate / Ration_Apply /
         // County_RefreshEstimates` rounds, per start county** — after the
         // county-status row has given it people, and with its switches off as
@@ -502,19 +574,14 @@ impl Settings {
     /// **What this build cannot honour**, as `L2.eng` group 102 labels.
     ///
     /// `docs/decisions.md` C21: an option wired to nothing must say so where
-    /// somebody can see it, and the setup screen draws this list under the
-    /// grid. Empty is the goal and it is not empty yet.
+    /// somebody can see it
+    /// grid. **It is empty**: all twelve are honoured.
+    ///
+    /// The two that used to be here: *Exploration* (`l2_kingdom::explore`,
+    /// C172) and *Army Size* (`FUN_0049BD99`'s `Army_Create` arm, in
+    /// [`Settings::apply_to`]).
     pub fn unhonoured(&self) -> Vec<usize> {
-        let mut v = Vec::new();
-        // **Exploration used to be first in this list** — the switch reached
-        // `Options::exploration` and the save, and the fog did not exist. It
-        // does: `l2_kingdom::explore` keeps the seen bits and the campaign map
-        // honours them. `docs/decisions.md` C172.
-        if self.garrison.iter().any(|&n| n != 0) {
-            // `Army_Create` at setup — see `apply_to`.
-            v.push(option::ARMY_SIZE);
-        }
-        v
+        Vec::new()
     }
 }
 
@@ -594,7 +661,7 @@ mod tests {
         // weapons is a hundred of each of the five real types — 500 — while
         // *large* is a hundred each of only swords, pikes and bows: 300 men and
         // 200 weapons left over in the armoury. So picking both does not give
-        // you five hundred armed men, and the two tables are chosen
+        // you five hundred armed men
         // independently.
         assert_eq!(START_ARMOURY[3], [100, 100, 100, 100, 100, 0]);
         assert_eq!(START_TROOPS[3], [0, 0, 0, 100, 100, 100, 0]);
