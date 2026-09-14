@@ -3147,7 +3147,7 @@ handlers can therefore never fire.**
 
 Asked directly — *for every field these handlers read, what writes it in a real game?* — the
 answer for `crates/l2-kingdom/src/ai_army/mod.rs` is that four fields have exactly one writer and
-that writer is `l2_kingdom::diplomacy`, which is not a module. `crates/l2-kingdom/src/realm.rs`
+that writer is `l2_kingdom::diplomacy`, which is not a module. `crates/l2-kingdom/src/realm/mod.rs`
 links to seven of its functions in doc comments and every link is dangling.
 
 | field | its only writer | what is unreachable without it |

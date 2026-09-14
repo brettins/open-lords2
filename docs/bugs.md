@@ -131,7 +131,7 @@ been tested** — `kingdom.md` §4.1 says so.
 **Evidence.** **[V]** on both byte widths; **[D]** on the consequence.
 
 **Reproduced.** `Realm::tax_hap_empire` is an `i8` deliberately
-(`crates/l2-kingdom/src/realm.rs:181`) and `add_empire_tax_happiness` uses `wrapping_add`
+(`crates/l2-kingdom/src/realm/mod.rs:181`) and `add_empire_tax_happiness` uses `wrapping_add`
 (`realm.rs:407`). The field width is kept intentionally.
 kept.
 
