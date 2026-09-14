@@ -878,7 +878,7 @@ rest are copies. Names go into the database with
 
 ## 12. Corrections to this document
 
-Found by implementing it in `crates/l2-sim/src/ai.rs` and re-reading the
+Found by implementing it in `crates/l2-sim/src/ai/mod.rs` and re-reading the
 seventeen decompiled bodies against each claim. Implementing a document is the
 only way to find out whether it is true; these are the places it was not.
 

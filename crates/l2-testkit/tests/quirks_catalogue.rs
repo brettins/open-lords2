@@ -145,9 +145,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         ),
     ),
     ("B6", Unwired("crates/l2-kingdom/src/units_tick.rs")),
-    ("B7", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
+    ("B7", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
     ("B8", Unwired("crates/l2-sim/src/runner/mod.rs — l2-sim takes no Quirks value yet")),
-    ("B9", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
+    ("B9", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
     // 2.2 — the county economy
     ("B10", Switchable(Behavioural)),
     ("B11", Retracted),
@@ -194,9 +194,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B29", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
     ("B30", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
     ("B31", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
-    ("B32", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
-    ("B33", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
-    ("B34", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
+    ("B32", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
+    ("B33", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
+    ("B34", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
     ("B35", Unwired("crates/l2-sim — the two siege attack scripts")),
     // 2.4 — things that move
     (

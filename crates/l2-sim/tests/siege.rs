@@ -1,7 +1,7 @@
 //! **A siege that
 //!
 //! `docs/battle-ai.md` has held all seventeen handlers since it was written and
-//! `crates/l2-sim/src/ai.rs` has implemented all eighteen slots. **Fourteen of
+//! `crates/l2-sim/src/ai/mod.rs` has implemented all eighteen slots. **Fourteen of
 //! them had never been dispatched even once**, because nothing in this crate
 //! could produce a siege: no castle, no `is_siege`, and no way for a figure to
 //! attack a wall.
