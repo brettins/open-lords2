@@ -253,6 +253,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/seam/realm.rs", "fixture", 1),
     ("crates/l2-game/tests/setup/setup_tests.rs", "england", 7),
     ("crates/l2-game/tests/setup/setup_tests.rs", "install", 1),
+    ("crates/l2-game/tests/setup/skirmish_tests.rs", "england", 7),
     ("crates/l2-game/tests/setup/title_tests/build_stamp_tests.rs", "england", 2),
     ("crates/l2-game/tests/setup/title_tests/clock_tests.rs", "england", 6),
     ("crates/l2-game/tests/shell/font_part/baseline.rs", "install", 1),
@@ -328,7 +329,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 600;
+pub(crate) const GATED_TOTAL: usize = 606;
 
 /// The needles that name a gate, strongest first. A body containing several is
 /// counted against the first that matches.

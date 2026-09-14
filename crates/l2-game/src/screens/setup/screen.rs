@@ -95,7 +95,7 @@ pub struct SetupScreen {
     /// to **0**. [`SetupScreen::continue_pressed`] is what reads it.
     ///
     /// Without it, our page 4 started the map list's slot whichever way the
-    /// person had arrived — so *Play Now!* built England instead of
+    /// person had arrived —
     /// Quaintville. `docs/decisions.md` C117.
     pub(crate) campaign: bool,
     /// **A `Save_RotateAndWrite` is owed** — `Game_NewGame`'s own call to it
@@ -122,6 +122,14 @@ pub struct SetupScreen {
     /// *picture* fact, not a clock — the reading itself is handed in through
     /// `Assets` and is never read from the system by anything in this crate.
     pub(crate) clock_minute: Option<i64>,
+    /// Page 12's state — every field of it one of the original's globals.
+    pub(crate) skirmish: skirmish::Skirmish,
+    /// `g_troopsTable`, as `Troops_Load` (`0x0042AC0C`) would have filled it.
+    /// Empty on a checkout with no install, and then both armies are empty.
+    pub(crate) troops: skirmish::TroopsTable,
+    /// The `.skr` files page 13 lists — `DAT_004E8790`, 0x41 bytes a name,
+    /// counted by `DAT_004EB25C`. Nothing scans a directory for them yet.
+    pub(crate) skirmish_files: Vec<String>,
     /// Whether the minute turned since the last paint.
     pub(crate) clock_redraw: bool,
 }

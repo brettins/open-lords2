@@ -288,6 +288,7 @@ mod constants_part;
 pub use constants_part::*;
 mod ui_part;
 pub use ui_part::*;
+pub mod skirmish;
 mod page;
 pub use page::*;
 mod screen;

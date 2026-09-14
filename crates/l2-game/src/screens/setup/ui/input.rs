@@ -389,7 +389,7 @@ impl SetupScreen {
     /// **What this build cannot honour, said on the page.**
     ///
     /// `docs/decisions.md` C21: a switch wired to nothing must not look
-    /// finished. Two things go here — an option whose behaviour does not exist
+    /// finished. Two things go here — an option, and the map, which the list can select and the world
     /// (*Exploration*), and the map, which the list can select and the world
     /// builder cannot yet build.
     ///
@@ -449,6 +449,9 @@ impl SetupScreen {
         };
         for (i, x) in [0x1CD, 0x207, 0x241].iter().enumerate() {
             pen.eng_centred(canvas, GROUP, items[i], *x, 0x1B8, 0x38, self.colour(i));
+        }
+        if page == SetupPage::Skirmish {
+            self.paint_skirmish_page(canvas, pen);
         }
         if page == SetupPage::SkirmishFile {
             // `FUN_0042150B` opens `Ui_DrawBox(0x60, 100, 0x1C, 0x12)` — border
