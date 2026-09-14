@@ -216,3 +216,37 @@ fn a_short_detour_is_not_too_long() {
     );
     assert!(!r.fighters[a[0]].path.is_empty());
 }
+
+/// **A comrade of the figure's own unit is waited for, not walked around.**
+/// `BattleMan_Step` returns at `SwapPlaces() == 0` with a 1–2 frame delay and
+/// never reaches `FUN_004904EC`; only a blocker from another unit — or a corpse
+/// — falls through to `local_10 = 3`.
+///
+/// **The ablation.** Pass `true` instead of `!comrade` in
+/// [`BattleRunner::enter_cell`]'s friendly arm and this figure shuffles off its
+/// slot. It is worth a test of its own: without the guard the side-step lets a
+/// whole unit scatter out of formation to reach contact, and
+/// `l2-game`'s `seam` battle swung from 4 attacker wins in 12 seeds to 10.
+#[test]
+fn a_comrade_of_the_same_unit_is_not_side_stepped_around() {
+    let mut r = BattleRunner::deploy(
+        blank_field(),
+        &[(Troop::Swordsmen, 2)],
+        &[(Troop::Pikemen, 1)],
+    );
+    let two: Vec<usize> =
+        (0..r.fighters.len()).filter(|&i| r.fighters[i].troop == Troop::Swordsmen).collect();
+    let (a, b) = (two[0], two[1]);
+    assert_eq!(r.unit_of(a), r.unit_of(b), "one unit of swordsmen");
+    place(&mut r, a, 10, 10);
+    place(&mut r, b, 10, 9);
+    r.fighters[a].target = (10, 9);
+    // Different targets, so `BattleMen_SwapPlaces` refuses and the original
+    // takes its `return 0` — the wait.
+    r.fighters[b].target = (40, 40);
+
+    // Through the mover, since the guard is in `enter_cell`'s friendly arm.
+    r.enter(a, Pos::new(10, 9));
+
+    assert_eq!((r.fighters[a].x, r.fighters[a].y), (10, 10), "he waits for his own man");
+}

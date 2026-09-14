@@ -55,7 +55,6 @@ impl BattleRunner {
             if !self.side_step_cell_is_free(i, nx as usize, ny as usize) {
                 continue;
             }
-            // `local_10 == 1`'s tail: `dirc = dir` and then the move.
             self.fighters[i].facing = d;
             self.enter(i, Pos::new(nx as u8, ny as u8));
             return true;
@@ -91,10 +90,18 @@ impl BattleRunner {
     /// throttles: a cooldown after each attempt, and a hard stop after four
     /// consecutive failures.
     pub(crate) fn request_path(&mut self, i: usize) {
+        self.request_path_with(i, true)
+    }
+
+    /// As above, with `local_10`'s two blocked values told apart:
+    /// `may_side_step` is false for the one blocker the original never
+    /// side-steps around, a living comrade of the figure's own unit. See
+    /// [`Self::enter_cell`]'s friendly arm.
+    pub(crate) fn request_path_with(&mut self, i: usize, may_side_step: bool) {
         // **The side-step comes first** — before the cooldown, before `barred`,
         // before any search: `DAT_00554474 = FUN_004904EC(); if (DAT_00554474
         // != 8) local_10 = 1;`, and `local_10 == 1` is the tail that moves him.
-        if self.side_step(i) {
+        if may_side_step && self.side_step(i) {
             return;
         }
         {

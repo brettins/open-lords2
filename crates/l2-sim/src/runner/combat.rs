@@ -482,7 +482,29 @@ impl BattleRunner {
                     {
                         self.swap_places(i, other);
                     } else {
-                        self.request_path(i);
+                        // **A living comrade of the same unit is never
+                        // side-stepped around.** `BattleMan_Step`'s
+                        // `local_10 == 0` arm reaches `FUN_004904EC` only via
+                        // `local_10 = 3`, and a same-unit blocker that is not a
+                        // corpse never gets there:
+                        //
+                        // ```c
+                        // if (other.state != 2 && unit == other.unit) {
+                        //     if (SwapPlaces() == 2) { …swap…     return 0; }
+                        //     if (SwapPlaces() == 0) { state = 1;
+                        //         delay = (other & 1) + 1;        return 0; }  /* he waits */
+                        // }
+                        // local_10 = 3;                          /* only then, the side-step */
+                        // ```
+                        //
+                        // A refused swap inside a unit is a **wait**: the men
+                        // hold their formation instead of scattering into
+                        // whatever cell is free. Ours still asks for a route,
+                        // which is C103's fix for a deadlock the original does
+                        // not have; only the side-step is withheld.
+                        let comrade =
+                            self.unit_of(other) == self.unit_of(i) && self.is_alive(other);
+                        self.request_path_with(i, !comrade);
                     }
                 } else if self.is_alive(other) {
                     // Contact. Both units are told before the two figures are
