@@ -138,7 +138,8 @@ Nothing between those dates re-read the arm, because every later agent took the
 existing order as established.
 
 So every delivery that touches behaviour gets a **read-only oracle check** before it
-merges: a fresh Opus agent, 25-call budget, given the branch diff and nothing else.
+merges: the `oracle-check` agent (`.claude/agents/oracle-check.md`, Opus, 25-call
+budget, read-only tools), given the branch name and nothing else.
 For each behaviour in the diff it: names the function and address the code cites (rule
 5), reads that function in `tools/oracle/decomp/` (dossier.js first), and answers three
 questions: *same order of operations, same guards, same constants?* A behaviour with no
