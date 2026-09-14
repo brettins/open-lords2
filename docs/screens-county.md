@@ -1242,7 +1242,7 @@ there are **three** of them, not the two that share a spot:
 
 The mine overwriting the quarry is safe because no county has both: over the England
 turn-one fixture the two are complementary in thirteen of the fourteen counties and absent in
-the fourteenth (`crates/l2-scenario/tests/import.rs`).
+the fourteenth (`crates/l2-scenario/tests/import/main.rs`).
 
 ### 6.3a `Village_Animate`'s six overlays, and its clock **[V]**
 

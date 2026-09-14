@@ -207,7 +207,7 @@ const MERCHANT_UNIT: u32 = 0x1A5;
 /// both stand in county 1 and the cache holds **2**, the lower-numbered one.
 ///   And **one season of `Mercenary_AdvanceAll` over each of the four one-turn
 ///   pairs on disk lands on the next save's table exactly.**
-///   `crates/l2-scenario/tests/import.rs` asserts all of it.
+///   `crates/l2-scenario/tests/import/main.rs` asserts all of it.
 ///
 /// What no save settles: `+0x00`, the hiring unit, is **zero in every band of
 /// every save** — nobody on this machine ever hired one — so the importer's
@@ -236,7 +236,7 @@ const MERCENARY_BANDS_IN_PLAY: u32 = 0x0055_4030;
 /// `Map_Click`'s ladder (0…3 iron, 4…6 stone, 7…9 weapons, 10…12 wood). Over the
 /// England turn-one fixture that is **56 of 56** — fourteen counties, four
 /// industries each — with iron and stone complementary in thirteen of the
-/// fourteen and county 5 having neither. `crates/l2-scenario/tests/import.rs`
+/// fourteen and county 5 having neither. `crates/l2-scenario/tests/import/main.rs`
 /// asserts it.
 ///
 /// Until this was read, every county arrived with [`Industry::has_resource`] and

@@ -7413,7 +7413,7 @@ without ever saying that is what they are. **A Ghidra field name is not evidence
 The instruction's operand is.**
 
 **A fourth reading is the original's own saves, and it is the one that runs.**
-`crates/l2-scenario/tests/import.rs` computes, for every county of every save on
+`crates/l2-scenario/tests/import/main.rs` computes, for every county of every save on
 this machine, the number `Industry_LabourEstimate` writes from **record `c`'s**
 guards and workers, and requires county `+0x2A8 + c*0x18` to hold exactly it:
 **1,152 forecasts, 81 non-zero, and 343 where record `c + 1` would have given a
@@ -8246,7 +8246,7 @@ crop; and on the realm, the ally byte the diplomacy screen draws, the score
 screen's totals and the AI's standing orders.
 
 **Self-verifying invariants, all `[V]` across every save** and each asserted in
-`crates/l2-scenario/tests/import.rs`:
+`crates/l2-scenario/tests/import/main.rs`:
 
 * `+0x258 == +0x268 − +0x26C − herdEaten` — one relation pinning three offsets.
 * `+0x22C` is `Grain_LabourEstimate`'s tail. **Corpus limit, stated:** `+0x230`
@@ -8822,7 +8822,7 @@ events — county 3 holds Wedding fever's id `0x8E` in `siege-safeturn`, `siege-
 swing bytes and `+0x1A8` every season and never `eventId` or `eventFired` (only a failed guard
 and `FUN_00448D7E`'s enqueue clear those), and the saved births reproduce with no swing in them.
 So the rule is pinned by hand-worked numbers, and the import by
-`crates/l2-scenario/tests/import.rs`'s `the_plague_letters_figure_survives_a_load`, which
+`crates/l2-scenario/tests/import/main.rs`'s `the_plague_letters_figure_survives_a_load`, which
 patches the figure into a real save's bytes — **ablated: deleting the importer's assignment
 turns it red and leaves `tests/stored_fields.rs` green**, because a row that is zero in every
 save is compared with zero.

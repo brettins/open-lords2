@@ -505,7 +505,7 @@ than arithmetic: every raw county address the decompilation uses with a `*0x18` 
 `+0x294 … +0x2AB`, which is **exactly one stride**; `+0x294` ends the array on the next named
 field where `+0x290` leaves a four-byte hole that is the stone row's word; and every
 fixture save on this machine stores, at `+0x2A8 + c*0x18`, the forecast its own record `c`'s
-workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import.rs`).
+workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import/main.rs`).
 
 ### 5.6 Three widgets are drawn over the map from `Battle_Frame` and are in no document
 

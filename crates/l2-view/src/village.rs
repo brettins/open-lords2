@@ -436,7 +436,7 @@ fn fill_two(
 ///   was documented was only the two that share a spot.
 /// * **The mine is drawn *after* the quarry at the same position.** A county
 ///   holding both would show the mine, and no county on any shipped map holds
-///   both — see `crates/l2-scenario/tests/import.rs`, where iron and stone come
+///   both — see `crates/l2-scenario/tests/import/main.rs`, where iron and stone come
 ///   out complementary in thirteen of England's fourteen counties and absent in
 ///   the fourteenth.
 pub const RESOURCE_BUILDINGS: [(usize, usize, i32, i32); 3] = [

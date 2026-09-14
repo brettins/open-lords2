@@ -80,7 +80,7 @@ pub struct County {
     /// this said *engine state* for that reason: `Unrest_UpdateAll`
     /// (`0x0044AA41`) is the only reader and writer of `+0x21`, sets it under
     /// `0x1E`, and every save on this machine carries it set only in counties
-    /// below thirty. `[V]`, `crates/l2-scenario/tests/import.rs`;
+    /// below thirty. `[V]`, `crates/l2-scenario/tests/import/main.rs`;
     /// `docs/decisions.md` C161.
     pub unrest_warned: bool,
 

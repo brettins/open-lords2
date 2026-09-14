@@ -18,7 +18,7 @@ use l2_kingdom::{field, land, CampaignMap, Kingdom, Options};
 /// An offset that is not a multiple of eight, or that lands outside the
 /// 64 × 64 plane, is a misread and not a field: it becomes an **empty slot**
 /// Nothing in the fixture takes that path
-/// — `crates/l2-scenario/tests/import.rs` asserts every populated slot is a
+/// — `crates/l2-scenario/tests/import/main.rs` asserts every populated slot is a
 /// real tile —
 /// panicking somewhere else later.
 fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_FIELDS], SaveError> {

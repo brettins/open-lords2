@@ -1353,7 +1353,7 @@
           "off": "0x14",
           "type": "i32",
           "name": "nextSeason",
-          "comment": "What the campaign sidebar's industry row forecasts for next season, drawn by Ui_DrawDelta: FUN_0041062E wood, FUN_00410502 iron, FUN_004106C4 weapons, FUN_00410598 stone, each reading its own record's word. Written by Industry_LabourEstimate's tail (0x0044F318) as min(limit, Pct(workers / divisor, ramp)), zeroed before its first guard. [V] against the original's saves: at county +0x2A8 + c*0x18 every save on this machine stores the number record c's own workers produce, where the two readings differ (crates/l2-scenario/tests/import.rs)."
+          "comment": "What the campaign sidebar's industry row forecasts for next season, drawn by Ui_DrawDelta: FUN_0041062E wood, FUN_00410502 iron, FUN_004106C4 weapons, FUN_00410598 stone, each reading its own record's word. Written by Industry_LabourEstimate's tail (0x0044F318) as min(limit, Pct(workers / divisor, ramp)), zeroed before its first guard. [V] against the original's saves: at county +0x2A8 + c*0x18 every save on this machine stores the number record c's own workers produce, where the two readings differ (crates/l2-scenario/tests/import/main.rs)."
         }
       ]
     },
