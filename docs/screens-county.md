@@ -1966,7 +1966,7 @@ nothing here only because §1 of this document already had the right ids to disa
 
 Read out of `Screen_SaveLoad` (`0x00414819`) and `SaveLoad_DrawStatus` (`0x004149EC`) while
 wiring them up; both screens are implemented now, not shelled
-(`crates/l2-game/src/screens/saveload.rs`).
+(`crates/l2-game/src/screens/saveload/mod.rs`).
 
 **One painter, one flag.** `Screen_SaveLoad(saving)` uses its argument as the `L2.eng`
 group 40 string index, so `0x35` draws index 0 *"Loading a conquest."* and `0x36` index 1

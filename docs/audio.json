@@ -645,7 +645,7 @@
       "class": "file",
       "arg": "s_s040_02_wav_004df074,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "sound": "s040_02.wav",
       "note": "SaveLoad_Tick's two: g_screenId == 0x36 (the save box) speaks S040_02, anything else S040_01. Decided in SaveLoadScreen::begin and reported on Game::spoken, because a screen cannot reach Audio."
     },
@@ -656,7 +656,7 @@
       "class": "file",
       "arg": "s_s040_01_wav_004df080,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "sound": "s040_01.wav",
       "note": "SaveLoad_Tick's two: g_screenId == 0x36 (the save box) speaks S040_02, anything else S040_01. Decided in SaveLoadScreen::begin and reported on Game::spoken, because a screen cannot reach Audio."
     },

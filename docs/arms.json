@@ -262,7 +262,7 @@
       "addr": "0x00401C5B",
       "what": "VK_RETURN IS THE SAVE/LOAD BOX'S CONFIRM BUTTON. Edit_Confirm's whole body is `g_saveLoadConfirm = 100`, which is the IDENTICAL assignment the confirm widget's own handler FUN_004342F3 makes, and SaveLoad_Tick (0x004AD9F0) reads that latch, builds the path and does the load or the save.",
       "note": "Ours had Enter confirm this box as a convenience, unattributed. Reading the keyboard path turned it into an arm -- the one case in this group where a guess happened to be right, and it is worth as much as the ones that were wrong.",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "evidence": "V"
     },
     {
@@ -431,7 +431,7 @@
       "screen": "0x32",
       "gesture": "left-press",
       "addr": "0x0040DECA",
-      "what": "L2.eng 1.2: Menu_LoadGame globs *.sav and sets g_screenId = 0x35. Ours reaches crates/l2-game/src/screens/saveload.rs, which was previously reachable only by the L key -- a key of ours standing in for this item.",
+      "what": "L2.eng 1.2: Menu_LoadGame globs *.sav and sets g_screenId = 0x35. Ours reaches crates/l2-game/src/screens/saveload/mod.rs, which was previously reachable only by the L key -- a key of ours standing in for this item.",
       "ours": "crates/l2-game/src/screens/menubar.rs",
       "evidence": "V"
     },
@@ -1401,7 +1401,7 @@
       "addr": "0x004342F3",
       "what": "The thumb up of g_saveLoadWidgets (0x004DDD78, record 0, frame 29). Its handler is one statement, DAT_005CD41C = 100 -- the latch Enter's Edit_Confirm also sets -- and SaveLoad_Tick (0x004AD9F0) turns it into DAT_0057D3C4 = 0x96 frames of 'Saving game. Please wait.' before Save_Write or the loader runs. A press during the wait re-arms the latch and starts the count again.",
       "note": "Kind 4 (tools/oracle/kinds.js, widget 4), so the press acts, clicks and shows base + 1. Ours answered a raw click and saved on the spot: no click, no picture, no wait. A player reported it twice, as 'no sound on clicking the yes/no on save, and it is still on mousedown instead of mouseup' -- the press IS the original's edge; the 150 frames are what he remembered.",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "evidence": "V"
     },
     {
@@ -1412,7 +1412,7 @@
       "gesture": "left-press-repeat",
       "addr": "0x00434308",
       "what": "The thumb down of g_saveLoadWidgets (0x004DDD90, record 1, frame 31): SaveLoad_Cancel restores g_screenIdSaved, or g_setupPage on the front end. During SaveLoad_Tick's wait it is how a save is abandoned -- the count ends on a screen that is no longer 0x35 or 0x36 and nothing is written.",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "evidence": "V"
     },
     {
@@ -1424,7 +1424,7 @@
       "addr": "0x00434346",
       "what": "The two list arrows of g_saveLoadWidgets (0x004DDDA8 and 0x004DDDC0, records 2 and 3): SaveLoad_Scroll with hotspot id -3 and +3 and list 1, then g_redrawRequest = 2. Kind 4, so holding one scrolls on the repeat ramp.",
       "note": "One record for two widgets because they are one handler told apart by the hotspot id. The clamp is ours and is recorded in the screen's module docs.",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "evidence": "V"
     },
     {
@@ -3209,7 +3209,7 @@
       "addr": "0x004BA9C8",
       "what": "FIELD 2 OF 7 -- THE SAVED GAME'S FILE NAME. Screen_HandleInput's arm is `else if (g_screenId == '5' || g_screenId == '6')`, ONE arm for both screens, so the original lets a person type the name of the game they want to LOAD as well as the one they want to save. SaveLoad_Tick builds the path out of the edit buffer either way -- `Str_Copy(0x4EA130, 0x4EAD60, 0xC); Path_AddExtension(...)` -- and never out of the highlighted row; clicking a row is what puts a name INTO the buffer.\n\nEdit_Begin's limits here are EIGHT characters, 160 pixels, KIND 1 -- a DOS 8.3 name, so A-Z is lower-cased and , . ? ! are refused, the game supplying .sav, .svb or .sva itself.",
       "note": "Two of the three limits are reproduced and the eight is not: our saves are .l2sav files in %APPDATA% and saves::MAX_NAME is 64. Holding a person to eight characters on a filesystem that has not had that limit since 1995 is superstition rather than fidelity -- the same line this module already draws about the scroll clamp. The 160-pixel limit still bites first.",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "evidence": "V"
     },
     {
@@ -3533,7 +3533,7 @@
       "gesture": "left-press",
       "what": "File > Save from the battlefield opens the save box, and the box then refuses, through Status::Failed -- whose first line is the game's own sentence, Eng_DrawString(40, ERROR_INDEX).",
       "why": "The original does NOT refuse. Menu_SaveGame (0x00433F49) is reachable from 0x29 and does not test g_battlePhase, and its .sav is a memory dump, so the battle goes into it; Screen_FrameInput even exempts 0x35 and 0x36 from the multiplayer force-close while g_battlePhase != 0, which is the save box being deliberately kept alive in a battle. Ours is a versioned format that does not encode LiveBattle and crate::save::decode puts battle: None back, so the file would quietly lose the fight a player was in the middle of. A refusal he can read beats a save that is wrong, and it is counted here rather than left as a comment admitting a choice.",
-      "ours": "crates/l2-game/src/screens/saveload.rs"
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs"
     },
     {
       "id": "ours/saveload-key-escape",
@@ -3544,7 +3544,7 @@
       "gesture": "key",
       "what": "Escape closes the save/load box.",
       "why": "SaveLoad_Cancel (0x00434308) is the cross widget and nothing reaches it from the keyboard.",
-      "ours": "crates/l2-game/src/screens/saveload.rs"
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs"
     },
     {
       "id": "ours/saveload-key-scroll",
@@ -3555,7 +3555,7 @@
       "gesture": "key",
       "what": "Up and Down scroll the file list by one row of three.",
       "why": "The original scrolls that list from the two arrow widgets and from nothing else. KEPT because a thirty-name list with no keyboard is awkward; note that Left and Right, which this screen also spent on the list, have been GIVEN BACK -- they are Edit_Left and Edit_Right, and a screen that spent them on a list left a person unable to move the caret in the one place the game has one.",
-      "ours": "crates/l2-game/src/screens/saveload.rs"
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs"
     },
     {
       "id": "ours/setup-key-activate",
