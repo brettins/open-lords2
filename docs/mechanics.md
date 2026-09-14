@@ -73,7 +73,7 @@ Legend:
   is the only thing that moves a good: positive quantity buys, negative sells, no partial
   fills, and an unowned county trades out of a purse of its own at `+0x1F4`. Which good goes
   where, and what that says about the armoury and about sheep, is `docs/kingdom.md` §7.6.
-  `crates/l2-kingdom/src/trade.rs` is the rule and `crates/l2-game/src/screens/merchant/mod.rs`
+  `crates/l2-kingdom/src/trade/mod.rs` is the rule and `crates/l2-game/src/screens/merchant/mod.rs`
   the two screens; a player reaches it by clicking a merchant standing in a county he owns.
 
   **[V] The price is the base table plus the clicked merchant's own morale as a percentage

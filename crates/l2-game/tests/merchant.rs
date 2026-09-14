@@ -5,7 +5,7 @@
 //! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test merchant
 //! ```
 //!
-//! `crates/l2-kingdom/src/trade.rs` tests the rule; this tests that a *player*
+//! `crates/l2-kingdom/src/trade/mod.rs` tests the rule; this tests that a *player*
 //! can reach it — the clicks land on the original's own widget rectangles, and
 //! what changes is the county's store and the realm's treasury.
 
