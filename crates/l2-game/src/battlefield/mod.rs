@@ -397,6 +397,14 @@ pub struct LiveBattle {
     pub current_unit: usize,
     /// `DAT_00568470`.
     pub outcome_ticks: u32,
+    /// **`DAT_0057A0F0` — this battle is a skirmish.** `Skirmish_Setup`
+    /// (`0x0042B7F7`) raises it and `FUN_0043D649` (*Back*) lowers it. The end
+    /// of a battle reads it three times, to skip the castle-damage record, the
+    /// casualty write-back and the return to the campaign — there is no
+    /// campaign behind a skirmish for any of the three to reach. Ours is
+    /// raised by `SetupScreen::go_skirmish` and **read nowhere yet**: none of
+    /// the three ends of a battle is built.
+    pub skirmish: bool,
     /// Set once `Battle_CheckOutcome` would have raised `0x2B`.
     pub conclusion: Option<Conclusion>,
     /// The player asked for the rest of the battle to be calculated — the

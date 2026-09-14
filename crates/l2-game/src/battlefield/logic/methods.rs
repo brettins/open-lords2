@@ -42,6 +42,7 @@ impl LiveBattle {
             sallied: false,
             current_unit: 0,
             outcome_ticks: 0,
+            skirmish: false,
             conclusion: None,
             autocalc: false,
             scroll_speed: DEFAULT_SCROLL_SPEED,
@@ -151,7 +152,7 @@ impl LiveBattle {
 
     /// `Battle_UpdateHover` (`0x0047ED9B`), once a frame.
     ///
-    /// One clause is reproduced *corrected*
+    /// One clause is reproduced *corrected* rather than faithfully, and it is
     /// flagged here because it is the only place in this file that departs from
     /// the binary. The original's count of selected non-siege figures indexes
     /// the figure array by `g_curBattleMan` — a **different global**, left over
@@ -548,8 +549,8 @@ impl LiveBattle {
     /// `g_mouseLeftDoubleClick` was false.
     ///
     /// The test is `(g_mouseLeftReleased || g_mouseLeftDoubleClick) &&
-    /// g_screenId == 0x2A`, so a double click **commits an open drag
-    /// a release would**. It exists because Windows
+    /// g_screenId == 0x2A`, so a double click **commits an open drag exactly
+    /// as a release would**. It exists because Windows
     /// sends `WM_LBUTTONDBLCLK` instead of the second `WM_LBUTTONDOWN`, so
     /// without this clause the second click of a fast double click would leave
     /// the drag open for ever.

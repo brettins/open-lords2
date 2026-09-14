@@ -122,6 +122,16 @@ pub struct SetupScreen {
     /// *picture* fact, not a clock — the reading itself is handed in through
     /// `Assets` and is never read from the system by anything in this crate.
     pub(crate) clock_minute: Option<i64>,
+    /// Page 12's state — every field of it one of the original's globals.
+    pub(crate) skirmish: skirmish::Skirmish,
+    /// `g_troopsTable`, as `Troops_Load` (`0x0042AC0C`) would have filled it.
+    /// Empty on a checkout with no install, and then both armies are empty.
+    pub(crate) troops: skirmish::TroopsTable,
+    /// The `.skr` files page 13 lists — `DAT_004E8790`, 0x41 bytes a name,
+    /// counted by `DAT_004EB25C`. Nothing scans a directory for them yet.
+    pub(crate) skirmish_files: Vec<String>,
+    /// `g_fileListTop` (`0x004EA1A0`) — the index page 13's ten rows start at.
+    pub(crate) skirmish_file_top: usize,
     /// Whether the minute turned since the last paint.
     pub(crate) clock_redraw: bool,
 }
