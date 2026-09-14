@@ -5635,7 +5635,7 @@ fires exactly once, and there is no memo to keep and nothing to reset when a win
 dismissed early.
 
 **Two artefacts said this was already recorded and neither was.**
-`crates/l2-game/src/screens/message.rs` lists the five constants and says they are
+`crates/l2-game/src/screens/message/mod.rs` lists the five constants and says they are
 *"recorded in `crate::message`"*. They had never been written there — a citation that does
 not resolve, which is a rule with no way in wearing a doc comment, and it survived because
 the sentence reads like a hand-off. And **which category takes which constant** was not

@@ -101,8 +101,8 @@ crates/l2-game/src/screens/map/paint.rs	C61	bbce73dd6cb2	60611046b40d
 crates/l2-game/src/screens/map/panel.rs	C48	5ed2d9912e7f	9e81512f4c0d
 crates/l2-game/src/screens/map/terrain.rs	C25	23e8c28769c0	5d466f0cb89c
 crates/l2-game/src/screens/map/units.rs	C57	9fd010b0fd49	3b42b65157bf
-crates/l2-game/src/screens/message.rs	C126	15170181ab5e	1b2c97c7731a
-crates/l2-game/src/screens/message.rs	C189	83743da87d1f	a640e552a733
+crates/l2-game/src/screens/message/mod.rs	C126	15170181ab5e	1b2c97c7731a
+crates/l2-game/src/screens/message/mod.rs	C189	83743da87d1f	a640e552a733
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28	37ab8ac1a2fc

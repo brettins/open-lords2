@@ -1860,19 +1860,19 @@
       "evidence": "V",
       "id": "0x004367FF/pay-for-help-prompt",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/message.rs",
+      "ours": "crates/l2-game/src/screens/message/mod.rs",
       "screen": "0x00",
       "gesture": "left-press-repeat",
       "addr": "0x004367FF",
       "what": "Diplo_PayHelpClicked -- the accept button on the category-10 message window an ally raises when it answers a help or attack request with Pay -. It calls Diplo_PayForHelp(myAlly, me, g_diploHelpCounty, g_diploHelpPrice), which moves the gold, increments the multiple and points the ally's targetCounty at the county.",
-      "note": "The RULE was built first -- l2_kingdom::diplomacy::pay_for_help, with the price and county on Kingdom::diplomacy -- and the PROMPT is now built too: Msg_DrawWindow category 10 is crates/l2-game/src/screens/message.rs. This and 0x00436872 are the only two places a person answers a lord rather than writing to one, and both are now reachable as Event values: raise the letter, Machine::update pumps it, and Event::Click on the thumb-up at (352, 184) pays. The widget positions came out of the TABLE at 0x004DDA90 rather than out of any painter -- tools/oracle/widgets.js -- because a function pointer at +0x08 is invisible to a caller-graph search and this handler has no named caller at all."
+      "note": "The RULE was built first -- l2_kingdom::diplomacy::pay_for_help, with the price and county on Kingdom::diplomacy -- and the PROMPT is now built too: Msg_DrawWindow category 10 is crates/l2-game/src/screens/message/mod.rs. This and 0x00436872 are the only two places a person answers a lord rather than writing to one, and both are now reachable as Event values: raise the letter, Machine::update pumps it, and Event::Click on the thumb-up at (352, 184) pays. The widget positions came out of the TABLE at 0x004DDA90 rather than out of any painter -- tools/oracle/widgets.js -- because a function pointer at +0x08 is invisible to a caller-graph search and this handler has no named caller at all."
     },
     {
       "group": "diplomacy",
       "evidence": "V",
       "id": "0x00436872/accept-alliance-prompt",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/message.rs",
+      "ours": "crates/l2-game/src/screens/message/mod.rs",
       "screen": "0x00",
       "gesture": "left-press-repeat",
       "addr": "0x00436872",
@@ -1889,7 +1889,7 @@
       "what": "The reply widgets on a diplomatic letter of group 0xFA (`Plea for help`, table 0x004DDAF0) and 0xFB (`Launch an attack.`, table 0x004DDB20), handlers FUN_004368FD and FUN_0043695D. Each dismisses, copies the letter's sender and county into g_diploTarget / g_pickedCounty, zeroes g_diploGold, sets g_diploKind to one of two values by hotspot -- 7/8 for help, 9/10 for attack -- and posts Net_SendCommand(0x49).",
       "note": "ONE RECORD FOR TWO HANDLERS, per this file's per-implementation rule; they differ only in the two kind bytes. AND THE KINDS ARE NOT COMPOSER KINDS: l2_kingdom::diplomacy::Kind stops at 6 and these are 7..10, whose only consumer is Net_SendCommand -- so in a SINGLE-PLAYER game both handlers do nothing but dismiss the letter, which is what ours does. That is not a gap in the reproduction; it is the branch the original takes with g_multiplayer clear.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/message.rs"
+      "ours": "crates/l2-game/src/screens/message/mod.rs"
     },
     {
       "id": "0x004369BD/diplo-pick-lord",
@@ -1983,7 +1983,7 @@
       "what": "The two widgets of table 0x004DDB50, on message category 0x11 -- L2.eng group 166, `Cannot garrison castle.`, raised when an army is ordered into a castle that cannot hold it. Yes seeds the levy basket from the army and opens screen 0x11, the divide screen; No returns to the campaign map.",
       "note": "NO IS NOT A DISMISSAL, and that is the finding. The handler's first two statements run before the hotspot test -- `g_screenId = 0; g_redrawRequest = 2;` -- and Msg_Dismiss is INSIDE the `if (hotspot != 0)`. So pressing the thumb-down puts you back on the map with the prompt still up, and it has to be closed with the corner button or the right button. Reproduced deliberately; docs/bugs.md B94.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/message.rs"
+      "ours": "crates/l2-game/src/screens/message/mod.rs"
     },
     {
       "id": "0x004378B3/info-split",
@@ -2749,7 +2749,7 @@
       "what": "Categories 0x0D and 0x0E, when g_optAnimations is 1 and the timer is above 0x7C6: the window draws once, calls Msg_Dismiss ON ITSELF, stops the music and plays a Smacker -- cap_cty1/2/3.smk in rotation for a captured county, 0x004F0340 for an ending -- then restarts the campaign music if the video did not play and finally calls Msg_PlayVoice with the group and variant it saved off at the top of the function.",
       "note": "Built: crate::message::animate is the branch and crate::screens::movie draws the taller window once and plays the film in its well. REACHABLE FOR ENDINGS ONLY: nothing in this engine posts a category-0x0D record -- County_ChangeOwner's nine capture letters (groups 0x75..0x7E) have no poster, l2_kingdom::conquest::change_owner leaves them to a caller -- so the capture half is exercised by a test that posts one and by no player. Worth recording as an arm rather than as a drawing gap because it is a THIRD dismissal inside the draw and because the outcome ladder is duplicated inside it -- an ending with animations on sets DAT_0053F0C4 from the animated branch, not the timer-2000 one; ours runs the shared ladder in `show` first, which is the same eleven lines. The ending film is FUN_00475B41's: win_game.smk for group 0xE1, else by lord and years since 1267 -- cart, pillory, jail, gallows, axe for a computer lord; jail, gallows, axe for a human.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/message.rs"
+      "ours": "crates/l2-game/src/screens/message/mod.rs"
     },
     {
       "id": "0x0047309E/ending-sets-outcome",
@@ -2820,7 +2820,7 @@
       "what": "A LEFT PRESS in a 48x48 box round the corner button closes the message: `Rect_Contains(DAT_005681DC - 0xC, DAT_0056950C - 0xC, 0x30, 0x30)`, then FUN_004B18E3 to consume the click, then Msg_Dismiss. The box is TWICE the 24x24 picture Ui_OkButton drew, where every other screen in the game hit-tests the picture itself through Ui_OkButtonClicked (0x0040E7E4).",
       "note": "THE DRAW CREATES THIS HOTSPOT AND THE INPUT ARM CANNOT SEE WHERE. Ui_OkButton stashes its own x and y into DAT_0055CE78/DAT_0057C8A0, Msg_DrawWindow's last two statements copy those into DAT_005681DC/DAT_0056950C, and this tests the copy. Two consequences fall straight out of that and neither is visible from the input side: a category that draws no Ui_OkButton has NO left-click target at all (category 0x04, the floating tip, is one and a category byte with no arm is the other), and the hotspot survives one frame after the layout changes because it is last frame's copy.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/message.rs"
+      "ours": "crates/l2-game/src/screens/message/mod.rs"
     },
     {
       "id": "0x0047685D/message-scroll-dismiss",
@@ -2832,7 +2832,7 @@
       "what": "The first thing Screen_FrameInput does on EVERY screen: a right release with a message scroll up dismisses it and SWALLOWS THE CLICK, so it never reaches the screen's own arms. A battle can raise messages (the siege gate button enqueues three of them), so this is reachable here.",
       "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed. CORRECTED WHEN IT WAS BUILT: this record used to say `a right release INSIDE A 48x48 BOX round the message scroll`. There is no box on this arm. Msg_HandleInput's right-button branch is `else { Msg_Dismiss(); return 1; }` with no rectangle and no category test in front of it -- the 48x48 box belongs to the LEFT press, and is 0x0047685D/message-ok-dismiss. The consequence is a behaviour the wrong reading hides: a right click ANYWHERE closes an unanswered alliance offer, and closing it is neither yes nor no.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/message.rs"
+      "ours": "crates/l2-game/src/screens/message/mod.rs"
     },
     {
       "id": "0x00476AA7/tip-screen-ladder",
@@ -3437,7 +3437,7 @@
       "gesture": "key",
       "what": "Escape or Enter closes the message scroll.",
       "why": "Msg_HandleInput tests no key, and the window procedure (0x004B29BE) has no arm that reaches the message system either -- its WM_KEYDOWN cases are the seven editing keys and the control-group digits. KEPT rather than removed, on the same argument as the front end's keyboard: a modal window a person cannot leave without a mouse is worse, not more faithful. Counted here so the number of inventions stays honest.",
-      "ours": "crates/l2-game/src/screens/message.rs"
+      "ours": "crates/l2-game/src/screens/message/mod.rs"
     },
     {
       "id": "ours/options-keyboard-close",

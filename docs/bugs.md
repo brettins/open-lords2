@@ -1691,7 +1691,7 @@ inside the branch it should be above. The sibling prompts do it the other way ro
 `Diplo_PayHelpClicked` and `FUN_00436872` both open with `Msg_Dismiss()` before they look at
 the hotspot at all — which is what makes this look like a slip, not a design.
 
-**Reproduced**, in `crates/l2-game/src/screens/message.rs`: the `Prompt::Garrison` arm returns
+**Reproduced**, in `crates/l2-game/src/screens/message/mod.rs`: the `Prompt::Garrison` arm returns
 `Transition::Pass` for the thumb-down, leaving the scroll up. A switch would go on `Options`
 it changes which screen is on top and whether a later click lands on it.
 the map or on the scroll, and the divide screen it leads to spends men.
