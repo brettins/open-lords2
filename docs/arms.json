@@ -1044,7 +1044,7 @@
       "what": "A press in the minimap raster with this screen open drops it and selects the county.",
       "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12: a press inside the raster selects that county, recentres the map and sets g_screenId = 0. The shell wrapper reproduced it once for all seven shells; graduating them lost it, so it is per screen now because the screens are. Only the raster is passed, not the whole column -- see screens/job.rs at the same arm.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/ratings.rs"
+      "ours": "crates/l2-game/src/screens/ratings/mod.rs"
     },
     {
       "id": "0x0042FF10/minimap-under-the-standings",
@@ -1158,7 +1158,7 @@
       "addr": "0x0042FF10",
       "what": "EITHER button, PRESSED, ANYWHERE -> g_screenId = 0x2F. Three unusual things in three lines: the Ui_OkButton drawn at (516, 390) is never tested and is decorative; it fires on press rather than release, unlike essentially every other arm in the function; and it goes FORWARD to the rank screen rather than back, so 0x2E has no back door at all. The chain is 0x2E -> 0x2F -> 0x1F.",
       "note": "One record for both buttons: the two lines are byte-identical and a player cannot tell the outcomes apart. 0x2F is not built, so ours pops - which is where 0x2F eventually returns to.",
-      "ours": "crates/l2-game/src/screens/ratings.rs",
+      "ours": "crates/l2-game/src/screens/ratings/mod.rs",
       "evidence": "V"
     },
     {
@@ -3512,7 +3512,7 @@
       "gesture": "key",
       "what": "Escape and Enter leave the ratings screen.",
       "why": "The 0x2E arm has no keyboard test. Same reason as ours/info-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/ratings.rs"
+      "ours": "crates/l2-game/src/screens/ratings/mod.rs"
     },
     {
       "id": "ours/report-escape-or-enter-dismisses",

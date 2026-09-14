@@ -11885,7 +11885,7 @@ whichever one the human is.
 Ours had drawn the local block as "PLAYER". **`L2.eng` group 37 has no word for
 a player** — the group is the sheet's own vocabulary (CLAUDE.md rule 6) and its
 317-group map in `docs/formats/eng.md` §5 gives it no such string — so there is
-nothing to draw but the lord's name. `crates/l2-game/src/screens/ratings.rs`
+nothing to draw but the lord's name. `crates/l2-game/src/screens/ratings/mod.rs`
 takes it from the realm, with `REALM {n}` as the fallback for a realm with no
 name rather than a literal invented here.
 
