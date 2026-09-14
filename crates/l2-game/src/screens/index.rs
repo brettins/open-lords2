@@ -136,7 +136,7 @@ impl IndexScreen {
         Rect::new(LEFT + col as i32 * COL_W, TOP + row as i32 * ROW_H, COL_W - 8, ROW_H)
     }
 
-    pub(super) fn at(&self, x: i32, y: i32) -> Option<usize> {
+    pub(crate) fn at(&self, x: i32, y: i32) -> Option<usize> {
         (0..self.rows.len())
             .find(|&i| self.rows[i].to.is_some() && self.rect(i).contains(x, y))
     }
@@ -153,7 +153,7 @@ impl IndexScreen {
         }
     }
 
-    fn activate(&self) -> Transition {
+    pub(crate) fn activate(&self) -> Transition {
         match self.rows.get(self.selected).and_then(|r| r.to) {
             Some(id) => Transition::Push(id),
             None => Transition::Stay,

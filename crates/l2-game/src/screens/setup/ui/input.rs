@@ -43,7 +43,7 @@ impl SetupScreen {
         );
     }
 
-    fn paint(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen, head: &Pen, page: SetupPage) {
+    pub(super) fn paint(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen, head: &Pen, page: SetupPage) {
         match page {
             SetupPage::Title => {
                 pen.window_from(canvas, BOX_SHEET, 0xA0, 10, 0x14, 0xF);
@@ -420,7 +420,7 @@ impl SetupScreen {
     }
 
     /// Page 9: the box the option opens, over the page underneath.
-    fn paint_dropdown(&self, canvas: &mut Canvas, pen: &Pen, _ctx: &Ctx) {
+    pub(super) fn paint_dropdown(&self, canvas: &mut Canvas, pen: &Pen, _ctx: &Ctx) {
         // `DAT_00553FB4` is the item count and the box is that plus the two
         // border cells — the painter and the hit test read the one number, so a
         // *Nobles* list shortened to the map cannot draw four rows and accept

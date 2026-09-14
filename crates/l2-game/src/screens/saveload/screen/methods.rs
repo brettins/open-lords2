@@ -89,7 +89,7 @@ impl SaveLoadScreen {
     }
 
     /// Which entry a click landed on, if any.
-    pub(super) fn at(&self, x: i32, y: i32) -> Option<usize> {
+    pub(crate) fn at(&self, x: i32, y: i32) -> Option<usize> {
         (0..PAGE)
             .find(|&i| Self::row_rect(i).contains(x, y))
             .map(|i| self.top + i)

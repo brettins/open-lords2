@@ -76,7 +76,7 @@ fn staged(castle_level: Option<u8>) -> (Game, Machine) {
     (g, Machine::new(ScreenId::Battlefield))
 }
 
-fn paint(m: &mut Machine, g: &mut Game, a: &Assets) -> Canvas {
+pub(crate) fn paint(m: &mut Machine, g: &mut Game, a: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
     {
         let mut ctx = Ctx { game: g, assets: a };

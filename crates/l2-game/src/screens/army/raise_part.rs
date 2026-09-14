@@ -119,9 +119,9 @@ pub fn hire_readout(offer: bool) -> Rect {
 /// 0x17` destroys and rebuilds this screen twice and the original's globals
 /// survive that.
 pub struct RaiseArmyScreen {
-    county: u8,
+    pub(crate) county: u8,
     /// One line of feedback. **Ours.**
-    status: String,
+    pub(crate) status: String,
     /// **`g_mouseLeftDown`, as this screen has heard it** — set by a press,
     /// cleared by a release.
     ///
@@ -142,8 +142,8 @@ pub struct RaiseArmyScreen {
     ///
     /// What ours cannot see: a button that went down on the screen that opened
     /// this one. The original's flag is global; ours starts clear.
-    left_down: bool,
+    pub(crate) left_down: bool,
     /// `DAT_004DD340`'s press timers. See [`widgets`].
-    press: Press,
+    pub(crate) press: Press,
 }
 

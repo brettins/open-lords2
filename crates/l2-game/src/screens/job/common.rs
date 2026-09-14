@@ -214,7 +214,7 @@ pub(super) fn say(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, group: usize, index
 
 /// `Ui_DrawCount(value, noun, x, y, &g_fontBody, 0x3F)`.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn count(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, value: i32, noun: usize, x: i32, y: i32) -> i32 {
+pub(crate) fn count(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, value: i32, noun: usize, x: i32, y: i32) -> i32 {
     let index = count_noun(value, noun);
     let s = eng(ctx, COUNT_NOUN_GROUP, index, ours(COUNT_NOUN_GROUP, index));
     pen.count_with_noun(Face::Body, canvas, x, y, value, &s, BODY_INK)

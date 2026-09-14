@@ -74,11 +74,11 @@ impl MenuScreen {
         Rect::new(ITEM_X, ITEM_Y + index as i32 * ITEM_GAP, ITEM_W, ITEM_H)
     }
 
-    pub(super) fn at(x: i32, y: i32) -> Option<usize> {
+    pub(crate) fn at(x: i32, y: i32) -> Option<usize> {
         (0..ITEMS.len()).find(|&i| MenuScreen::item_rect(i).contains(x, y))
     }
 
-    fn activate(&self) -> Transition {
+    pub(crate) fn activate(&self) -> Transition {
         match self.selected {
             START => Transition::Push(ScreenId::Campaign),
             QUIT => Transition::Quit,

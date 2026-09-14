@@ -39,7 +39,7 @@ impl RaiseArmyScreen {
     /// nothing, and [`Screen::update`] runs the handler twenty ticks later.
     /// That distinction is the reason this is a hit test and not the
     /// `Option<usize>` [`Press::event`] returns.
-    fn widget_press(&mut self, ctx: &mut Ctx, event: Event) -> bool {
+    pub(crate) fn widget_press(&mut self, ctx: &mut Ctx, event: Event) -> bool {
         let table = self.table(&Ctx { game: ctx.game, assets: ctx.assets });
         let fired = self.press.event(&table, event);
         debug_assert!(fired.is_none(), "every DAT_004DD340 record is kind 5");
@@ -103,7 +103,7 @@ impl RaiseArmyScreen {
     /// equipment does get thrown away, but by the *door into the armoury*,
     /// which re-seeds on every entry — so the visible effect survives the
     /// correction and the mechanism does not.
-    fn slider_click(&mut self, ctx: &mut Ctx, x: i32, y: i32, pressed: bool, down: bool) -> bool {
+    pub(crate) fn slider_click(&mut self, ctx: &mut Ctx, x: i32, y: i32, pressed: bool, down: bool) -> bool {
         let b = base(self.offer(&Ctx { game: ctx.game, assets: ctx.assets }) != 0);
         if !(SLIDER_HIT_X.0..SLIDER_HIT_X.1).contains(&x)
             || !((b + SLIDER_HIT_DY.0)..(b + SLIDER_HIT_DY.1)).contains(&y)
@@ -137,7 +137,7 @@ impl RaiseArmyScreen {
     /// `FUN_00435CBF` — *Continue*: `g_screenId = 0x0A` and
     /// `FUN_004AA90A(g_selectedCounty, g_levyMen)`, in that order. The re-seed
     /// is why walking back and forth strips the levy.
-    fn open_armoury(&mut self, ctx: &mut Ctx) -> Transition {
+    pub(crate) fn open_armoury(&mut self, ctx: &mut Ctx) -> Transition {
         ctx.game.seed_levy_basket();
         Transition::Replace(ScreenId::Armoury(self.county))
     }
@@ -146,7 +146,7 @@ impl RaiseArmyScreen {
     /// this twice — once to pick `DAT_00522F58` and once to choose between
     /// `69/3` and the *"Hire mercenaries ?"* block — and both times against
     /// `g_realms[g_localPlayer].gold`.
-    fn affordable(&self, ctx: &Ctx) -> bool {
+    pub(super) fn affordable(&self, ctx: &Ctx) -> bool {
         let band = self.offer(ctx) as usize;
         band != 0 && ctx.game.gold() >= ROSTER[band].price
     }

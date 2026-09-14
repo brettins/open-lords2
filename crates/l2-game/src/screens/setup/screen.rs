@@ -17,14 +17,14 @@ use crate::text::{self, TextField};
 // --------------------------------------------------------------- the screen
 
 pub struct SetupScreen {
-    page: SetupPage,
+    pub(crate) page: SetupPage,
     /// Which item the pointer or the keyboard is on — `DAT_00553114`, the
     /// global the painters compare against to pick `0xF9` over `0x3F`.
-    selected: usize,
+    pub(crate) selected: usize,
     /// Which page the drop-down is open over: `DAT_00553E5C`.
-    under: SetupPage,
+    pub(crate) under: SetupPage,
     /// Which of the twelve options is open: `DAT_0055306C`.
-    open: usize,
+    pub(crate) open: usize,
     /// **The twelve settings, and they now reach the game.**
     ///
     /// This used to be a bare `[usize; 12]` with a comment saying nothing read
@@ -32,11 +32,11 @@ pub struct SetupScreen {
     /// `Setup_SetOption` writes — and pressing *Start* puts it through
     /// [`SetupOptions::commit`] and applies the result. `crate::setup` is what
     /// each of the twelve does.
-    options: SetupOptions,
+    pub(crate) options: SetupOptions,
     /// Which of the five shields page 4 has picked. Realm `+0x0A` in the
     /// original, one-based there and zero-based here because this is an index
     /// into the five frame pairs and nothing else yet.
-    shield: usize,
+    pub(crate) shield: usize,
     /// The top row of the map list, and the selected map — `g_scenarioIndex`,
     /// which *is* the map slot (`Game::map_slot`).
     ///
@@ -45,8 +45,8 @@ pub struct SetupScreen {
     /// *writes* it, from the campaign row, the same way it writes the global —
 /// so [`SetupScreen::start_campaign`] sets it
     /// slot beside the world it just built.
-    map_top: usize,
-    map: usize,
+    pub(crate) map_top: usize,
+    pub(crate) map: usize,
     /// `g_playerStartCount` for [`SetupScreen::map`] — how many lords that map
     /// seats. `Map_LoadPlanes` recomputes it every time the scenario changes
     /// and three call sites then push it into the *Nobles* drop-down, so it is
@@ -55,21 +55,21 @@ pub struct SetupScreen {
     /// **Five until a map has been read**, which is what an install without
     /// `L2_maps.dat` leaves it at: the full drop-down, and no seat count
     /// invented from nothing.
-    player_starts: usize,
+    pub(crate) player_starts: usize,
     /// Whether [`SetupScreen::player_starts`] has been read for
     /// [`SetupScreen::map`] yet. The file is [`Ctx`]'s and the constructor has
     /// no `Ctx`, so the first read happens on the first tick.
-    map_read: bool,
+    pub(crate) map_read: bool,
     /// What the last *Start* could not honour, as `L2.eng` group 102 indices —
     /// [`crate::setup::Settings::unhonoured`]. Drawn under the grid, in our own
     /// font. `docs/decisions.md` C21.
-    unhonoured: Vec<usize>,
+    pub(crate) unhonoured: Vec<usize>,
     /// **Why the last *Start* did not start**, if it did not.
     ///
     /// A slot that will not build a world — no `L2_maps.dat`, an empty
     /// template, more lords than seats — leaves the game untouched and says so
     /// under the grid. Silence would look exactly like a button that works.
-    failure: Option<String>,
+    pub(crate) failure: Option<String>,
     /// **The lord's name, being typed.** `g_editBuffer` while page 4 is up.
     ///
     /// A player reported *"I can't type my name in the start menu?"*, and this
@@ -84,7 +84,7 @@ pub struct SetupScreen {
     /// reachable from three places and a field rebuilt on each of them would
     /// lose what was typed; [`SetupScreen::go`] does the `Edit_Begin` at
     /// exactly the moments the original does.
-    name: crate::text::TextField,
+    pub(crate) name: crate::text::TextField,
     /// **`DAT_0057D320` — whether *Continue* on page 4 starts a campaign.**
     ///
     /// Page 4 is reached from four places and the button at the bottom of it
@@ -97,14 +97,14 @@ pub struct SetupScreen {
     /// Without it, our page 4 started the map list's slot whichever way the
     /// person had arrived — so *Play Now!* built England instead of
     /// Quaintville. `docs/decisions.md` C117.
-    campaign: bool,
+    pub(crate) campaign: bool,
     /// **A `Save_RotateAndWrite` is owed** — `Game_NewGame`'s own call to it
     /// (`0x00497E2B`), raised when *Start* has built a world. See
     /// [`crate::screen::Screen::take_autosave`].
-    autosave: bool,
+    pub(crate) autosave: bool,
     /// `g_campaignTrack` (`DAT_0053F640`) — which of the two campaigns page 5
     /// chose. `Setup_ChooseCampaign` stores the hotspot here.
-    track: crate::victory::Track,
+    pub(crate) track: crate::victory::Track,
     /// The persisted `g_options` name — what the field is seeded *from*, and
     /// where a commit goes back to.
     ///
@@ -112,7 +112,7 @@ pub struct SetupScreen {
     /// whole, and byte 0 begins a 31-byte name. We have no settings file yet,
     /// so this is that byte run and nothing else, defaulted the way
     /// `Options_SetDefaults` defaults it.
-    saved_name: String,
+    pub(crate) saved_name: String,
     /// **Which minute the drawn clock says** — [`crate::wallclock::minute`] of
     /// the reading the last tick saw, or `None` before the first.
     ///
@@ -121,8 +121,8 @@ pub struct SetupScreen {
 /// **once a minute**. It is a cached
     /// *picture* fact, not a clock — the reading itself is handed in through
     /// `Assets` and is never read from the system by anything in this crate.
-    clock_minute: Option<i64>,
+    pub(crate) clock_minute: Option<i64>,
     /// Whether the minute turned since the last paint.
-    clock_redraw: bool,
+    pub(crate) clock_redraw: bool,
 }
 

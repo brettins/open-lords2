@@ -134,7 +134,7 @@ fn frame(m: &mut Machine, g: &mut Game, a: &Assets, canvas: &mut Canvas) {
     m.draw(&ctx, canvas);
 }
 
-fn paint(m: &mut Machine, g: &mut Game, a: &Assets, canvas: &mut Canvas) {
+pub(crate) fn paint(m: &mut Machine, g: &mut Game, a: &Assets, canvas: &mut Canvas) {
     let ctx = Ctx { game: g, assets: a };
     m.draw(&ctx, canvas);
 }

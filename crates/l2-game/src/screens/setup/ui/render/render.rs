@@ -85,7 +85,7 @@ impl SetupScreen {
     /// **Both halves, or neither.** A map whose planes cannot be read leaves
 /// the seat count alone, because zero
     /// would silently drive the lord count to two.
-    fn read_map(&mut self, ctx: &Ctx) {
+    pub(crate) fn read_map(&mut self, ctx: &Ctx) {
         self.map_read = true;
         let Some(slot) = ctx.assets.slot(self.map) else { return };
         let seats = slot.player_start_count();
@@ -112,7 +112,7 @@ impl SetupScreen {
     /// g_playerStartCount - 1` when the map seats fewer than five — which is
     /// how the original stops a person asking for more lords than the map has
     /// castles for.
-    fn rows(&self, i: usize) -> usize {
+    pub(crate) fn rows(&self, i: usize) -> usize {
         if i == crate::setup::option::NOBLES {
             SetupOptions::nobles_rows_for_map(self.player_starts)
         } else {
@@ -207,7 +207,7 @@ impl SetupScreen {
     /// matters now that the count can be shortened: on a map that seats three
     /// lords the list is two rows and rides two rows lower
     /// original's does, because both read the one variable.
-    fn dropdown_y(&self, y: i32, rows: usize) -> i32 {
+    pub(crate) fn dropdown_y(&self, y: i32, rows: usize) -> i32 {
         if self.open == crate::setup::option::NOBLES {
             y - (rows as i32 - 1) * 16
         } else {
@@ -215,7 +215,7 @@ impl SetupScreen {
         }
     }
 
-    pub(super) fn at(&self, x: i32, y: i32) -> Option<(usize, Action)> {
+    pub(crate) fn at(&self, x: i32, y: i32) -> Option<(usize, Action)> {
         self.hotspots()
             .into_iter()
             .enumerate()
@@ -223,11 +223,11 @@ impl SetupScreen {
             .map(|(i, (_, a))| (i, a))
     }
 
-    pub(super) fn count(&self) -> usize {
+    pub(crate) fn count(&self) -> usize {
         self.hotspots().len()
     }
 
-    fn activate(&mut self, ctx: &mut Ctx) -> Transition {
+    pub(crate) fn activate(&mut self, ctx: &mut Ctx) -> Transition {
         let Some(&(_, action)) = self.hotspots().get(self.selected) else {
             return Transition::Stay;
         };
@@ -247,7 +247,7 @@ impl SetupScreen {
     /// ids are not, and both readings were right. The
     /// destinations below are keyed to the **captions**, which are [V], not to
     /// the ids.
-    fn act(&mut self, action: Action, ctx: &mut Ctx) -> Transition {
+    pub(crate) fn act(&mut self, action: Action, ctx: &mut Ctx) -> Transition {
         match action {
             Action::Item(i) => self.item(i, ctx),
             Action::Open(i) => {
@@ -420,7 +420,7 @@ impl SetupScreen {
     /// re-seed, which is what the code below has always done, so the code was
     /// right and the sentence describing it was not.
     /// `docs/decisions.md` C117.
-    fn go(&mut self, page: SetupPage) -> Transition {
+    pub(crate) fn go(&mut self, page: SetupPage) -> Transition {
         if page == SetupPage::Shield && self.page != SetupPage::Shield {
             // arm: 0x00432B05/name-field-open left-release
             self.name = begin_name(&self.saved_name);
