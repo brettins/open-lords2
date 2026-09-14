@@ -23,7 +23,7 @@ impl Scenario {
     /// Everything it produces is the same plain data
     /// [`Scenario::from_save`] produces, so
     /// [`Scenario::starting_kingdom`] takes either without knowing which — and
-    /// `crates/l2-scenario/tests/newgame.rs` builds England both ways and
+    /// `crates/l2-scenario/tests/newgame/main.rs` builds England both ways and
     /// diffs them field by field.
     ///
     /// The clock is `Game_NewGame`'s: **Autumn 1267, with Winter next.**

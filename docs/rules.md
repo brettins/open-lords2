@@ -781,7 +781,7 @@ What *can* be checked, and now is, is the road: four tests in
 `crates/l2-game/tests/newgame.rs` drive page 4 with real coordinates, take each of the five
 colours in turn, press *Continue* and then *Start*, and compare the realms against this
 table typed out by hand. The one row a save can confirm — the default — is checked against
-`england-turn1.sav` in `crates/l2-scenario/tests/newgame.rs`, which now diffs both the
+`england-turn1.sav` in `crates/l2-scenario/tests/newgame/main.rs`, which now diffs both the
 shields and the lords of the world built from `L2_maps.dat` against the world the original
 program wrote.
 

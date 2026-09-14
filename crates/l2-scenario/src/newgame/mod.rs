@@ -7,7 +7,7 @@
 //! built. This module *builds* one, from the six 64 × 64 planes of a map slot
 //! and nothing else, and hands back the same [`crate::Scenario`] — so
 //! [`crate::Scenario::starting_kingdom`] does not learn which of the two it
-//! got, and `crates/l2-scenario/tests/newgame.rs` can diff them field by field.
+//! got, and `crates/l2-scenario/tests/newgame/main.rs` can diff them field by field.
 //!
 //! # What the original does, in its own order
 //!

@@ -6430,7 +6430,7 @@
       "section": "map",
       "confidence": "verified",
       "signature": "void County_CollectFieldTiles(int clearProgress)",
-      "comment": "Fills g_countyFieldTiles - 17 rows of twenty i32 byte offsets - from the map, at the end of Map_InitScenario, and clears the twenty u16 at county +0x90 when the argument is 1. Sweeps tiles in ascending byte-offset order and puts each farmland tile (plane-0 bit 0x20) of a county in 1..17 in that county first free slot. [V] AND THE TWENTY-SLOT TABLE RAZES WHAT WILL NOT FIT: a county twenty-first farm tile takes content 0, frame 6, flags 0 and its bank cleared back to base - it stops being farmland at all, before the first season runs. So twenty fields per county is a fact about the map rather than a cap on a counter. No shipped map exercises the razing branch; crates/l2-scenario/tests/newgame.rs exercises it on a synthetic slot. See decisions.md C62."
+      "comment": "Fills g_countyFieldTiles - 17 rows of twenty i32 byte offsets - from the map, at the end of Map_InitScenario, and clears the twenty u16 at county +0x90 when the argument is 1. Sweeps tiles in ascending byte-offset order and puts each farmland tile (plane-0 bit 0x20) of a county in 1..17 in that county first free slot. [V] AND THE TWENTY-SLOT TABLE RAZES WHAT WILL NOT FIT: a county twenty-first farm tile takes content 0, frame 6, flags 0 and its bank cleared back to base - it stops being farmland at all, before the first season runs. So twenty fields per county is a fact about the map rather than a cap on a counter. No shipped map exercises the razing branch; crates/l2-scenario/tests/newgame/main.rs exercises it on a synthetic slot. See decisions.md C62."
     },
     {
       "addr": "0x0046E1B0",

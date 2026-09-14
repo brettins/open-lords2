@@ -52,7 +52,7 @@
 //! `L2_maps.dat` slot and the twelve custom-game settings.
 //! *New Game* button needs. Both produce the same plain data, so
 //! [`Scenario::starting_kingdom`] cannot tell them apart and
-//! `crates/l2-scenario/tests/newgame.rs` can diff England built both ways.
+//! `crates/l2-scenario/tests/newgame/main.rs` can diff England built both ways.
 
 mod loader;
 pub use loader::*;

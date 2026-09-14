@@ -6063,7 +6063,7 @@ asking **who supplies it**. Same asymmetry, other end.
   and the reader absent.
 
 And one measurement worth keeping, because it is the strongest evidence the walk is right and
-it is not one of the new tests: `crates/l2-scenario/tests/newgame.rs` builds England from
+it is not one of the new tests: `crates/l2-scenario/tests/newgame/main.rs` builds England from
 `L2_maps.dat` and from `england-turn1.sav` and now diffs the **shields and the lords** as well
 as the land. That is `Realms_AssignLords` checked against a game the original program set up,
 rather than against our own reading of the same two tables. It can only confirm the default
