@@ -12,7 +12,7 @@
 //! week — the code compiles either way.
 //!
 //! So this test **reads both files as text** and asserts they agree. It follows
-//! `crates/l2-testkit/tests/census.rs`, including the habit worth copying: when
+//! `crates/l2-testkit/tests/census/main.rs`, including the habit worth copying: when
 //! it fails it prints the corrected inventory, so accepting a deliberate change
 //! is a paste.
 //!

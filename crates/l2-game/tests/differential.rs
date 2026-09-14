@@ -38,7 +38,7 @@
 //! on a recorded baseline ([`BASELINE`] and four totals).
 //! *improves* agreement fails just as loudly as one that worsens it and forces
 //! somebody to move the number deliberately. That is `GATED_TOTAL`'s contract
-//! in `crates/l2-testkit/tests/census.rs`, and the totals are stated separately
+//! in `crates/l2-testkit/tests/census/main.rs`, and the totals are stated separately
 //! from the per-field list for the same reason they are there: a change that
 //! moves a divergence from one field to another still has to be acknowledged.
 //!
@@ -756,7 +756,7 @@ const BASELINE: &[(&str, &str, usize)] = &[
 /// separately from [`BASELINE`] so that a change which moves a divergence from
 /// one field to another still has to be acknowledged as a change — the reason
 /// `GATED_TOTAL` is stated apart from `INVENTORY` in
-/// `crates/l2-testkit/tests/census.rs`.
+/// `crates/l2-testkit/tests/census/main.rs`.
 const COMPARED_TOTAL: usize = 932;
 
 /// How many of them agree. **Read [`MOVED_AGREE_TOTAL`] before quoting this

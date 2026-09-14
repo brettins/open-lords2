@@ -940,7 +940,7 @@ files. C28 is why: an inferred global name reached the corpus 155 times with not
 a guess. **Nothing in this plan may be cited from `hypotheses.json` as a finding.**
 
 **And fixtures no longer skip silently.** C23: a fixture is a name plus a fingerprint, and
-`crates/l2-testkit/tests/census.rs` reads the source, works out which gate each `#[test]` sits
+`crates/l2-testkit/tests/census/main.rs` reads the source, works out which gate each `#[test]` sits
 behind and asserts the count against a written-down inventory. Before that, `cargo test
 --workspace` printed the same green number with the game present and absent, and **116 tests
 did not exist on CI and nothing said so.**

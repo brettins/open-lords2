@@ -1232,7 +1232,7 @@ fn trailing_bytes_are_refused() {
 /// The alternative is a derive macro, which means `syn` — and `l2-kingdom` is
 /// dependency-free on purpose (`docs/netcode.md` D-3: every third-party crate
 /// is a place bit-identical behaviour can quietly break). Reading source in a
-/// test is already how `crates/l2-testkit/tests/census.rs` counts install-gated
+/// test is already how `crates/l2-testkit/tests/census/main.rs` counts install-gated
 /// tests, so this is the house style.
 ///
 /// The scan is deliberately fragile in the safe direction: it asserts the shape

@@ -156,7 +156,7 @@ struct Sheets {
 macro_rules! world {
     () => {{
         // `install_dir` is named here
-        // `crates/l2-testkit/tests/census.rs` files these seven under "install"
+        // `crates/l2-testkit/tests/census/main.rs` files these seven under "install"
         // and not under the catch-all gate.
         let Some(dir) = l2_testkit::install_dir() else {
             l2_testkit::skip!("no game install, so there is no artwork to sit a window on");

@@ -76,7 +76,7 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
         "{\"fields\": [{\"id\": \"County+0x000\", \"status\": \"imported\"}, {\"id\": \"County+0x001\", \"status\": \"excluded\"}]}\n",
     );
     put("crates/l2-game/tests/differential.rs", &differential(900, 258));
-    put("crates/l2-testkit/tests/census.rs", &census(412));
+    put("crates/l2-testkit/tests/census/main.rs", &census(412));
     put("docs/work.json", &ledger("as committed"));
 
     let files = [
@@ -86,7 +86,7 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
         "docs/audio.json",
         "docs/stored-fields.json",
         "crates/l2-game/tests/differential.rs",
-        "crates/l2-testkit/tests/census.rs",
+        "crates/l2-testkit/tests/census/main.rs",
         "docs/work.json",
     ];
     let git = |args: &[&str]| scratch_git(&repo, &config, args);
@@ -110,7 +110,7 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
     put("docs/audio.json", &audio(&["reproduced", "reproduced", "reproduced"]));
     std::fs::remove_file(repo.join("docs/stored-fields.json")).unwrap();
     put("crates/l2-game/tests/differential.rs", &differential(1, 2));
-    put("crates/l2-testkit/tests/census.rs", &census(7));
+    put("crates/l2-testkit/tests/census/main.rs", &census(7));
     put("docs/work.json", &ledger("edited and not committed"));
 
     let out = Command::new("node")
@@ -396,7 +396,7 @@ fn the_players_page_shows_every_feature_and_every_open_row_once_and_no_prose() {
             "crates/l2-game/tests/differential.rs",
             "const COMPARED_TOTAL: usize = 10;\nconst AGREE_TOTAL: usize = 9;\nconst MOVED_TOTAL: usize = 4;\nconst MOVED_AGREE_TOTAL: usize = 3;\n".into(),
         ),
-        ("crates/l2-testkit/tests/census.rs", "    (\"crates/x/tests/y.rs\", \"install\", 1),\nconst GATED_TOTAL: usize = 1;\n".into()),
+        ("crates/l2-testkit/tests/census/main.rs", "    (\"crates/x/tests/y.rs\", \"install\", 1),\nconst GATED_TOTAL: usize = 1;\n".into()),
         ("docs/decisions.md", "**C1 — a fixture correction.**\n".into()),
         ("docs/features.json", PAGE_FEATURES.into()),
     ];

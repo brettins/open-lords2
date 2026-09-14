@@ -639,7 +639,7 @@ tests had never run on any machine that did not export `LORDS2_DIR`; twelve of t
 the moment they were made to run, because they took the *assets* and the *position* from
 the same directory.
 
-`crates/l2-testkit/tests/census.rs` now reads the source, works out which gate each
+`crates/l2-testkit/tests/census/main.rs` now reads the source, works out which gate each
 `#[test]` sits behind, and asserts the count against a written-down inventory. Adding a
 gate fails the build until the inventory is updated. It also prints what the current
 environment satisfies, so a run that asserted an eighth of what it looks like it asserted
@@ -1332,7 +1332,7 @@ remembered.** Whenever a test enumerates what to check, the enumeration is the t
 will be wrong, and it will be wrong silently and in the safe-looking direction. C25, C29 and
 C30 are the same shape. Where a derive macro is unavailable — `l2-kingdom` is
 dependency-free on purpose — reading the source in a test is the available substitute, and
-`crates/l2-testkit/tests/census.rs` had already established it as the house style.
+`crates/l2-testkit/tests/census/main.rs` had already established it as the house style.
 
 **The same disease one file over, and two branches independently caught it.**
 `l2_kingdom::save::VERSION` collided in four consecutive merges: two branches bumped 5 → 6
