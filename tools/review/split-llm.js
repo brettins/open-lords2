@@ -102,7 +102,7 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
     const up = path.join(root, path.dirname(file)); const rel = fs.existsSync(path.join(up, m[3] + ".rs")) ? `../${m[3]}.rs` : fs.existsSync(path.join(up, m[3], "mod.rs")) ? `../${m[3]}/mod.rs` : null;
     if (rel) modLines.splice(i, 0, `#[path = "${rel}"]`), i++; }
   // `#[path = "x.rs"]` inside a file that moved one directory deeper points one level up.
-  const deeper = s => isModRs ? s : s.replace(/^(\s*#\[path = ")(?!\.\.\/|\/)/gm, "$1../");
+  const deeper = s => isModRs ? s : s.replace(/^(\s*#\[path = ")(?!\/)/gm, "$1../").replace(/(include_(?:str|bytes)!\(")(?!\/)/g, "$1../");
   fs.writeFileSync(path.join(root, modPath), deeper(modLines.join("\n").replace(/\n{3,}/g, "\n\n")) + "\n");
   for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), prelude(n) + deeper(files[n].join("\n")) + "\n");
   if (!isModRs) fs.unlinkSync(path.join(root, file));
