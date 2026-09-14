@@ -53,7 +53,7 @@ impl BattleRunner {
         f.anim = Motion::Idle;
         // **A siege engine never reaches the body of it.** `Anim_StandA2`
         // opens `if (troopType < 7)` and hands everything above to
-        // [`Self::siege_pose`] (`00480000.c:2828`).
+        // [`Self::siege_pose`] (gate `00480000.c:2855`, hand-off `2908`).
         if f.troop.index() >= 7 {
             return self.siege_pose(i);
         }
@@ -100,11 +100,21 @@ impl BattleRunner {
         // calls `Anim_StandA2` on a refused step whatever the troop is.
         if f.troop.index() < 7 {
             f.facing_drawn = f.facing;
-            // `animPhase` wraps at 0x17 here — six poses of four ticks. The
-            // **frame is read before this step** (`00480000.c:2754`, the
-            // `animPhase >> 2` sits above the `+ 1`); `l2_view::figures::pose_of`
-            // takes the step back off for the drawn pose.
-            f.phase = (f.phase + 1) % 24;
+            // `animPhase += 1; if (0x17 < animPhase) animPhase = 0` (`00480000.c:2756`):
+            // a clamp, not a modulo, so a seed above the wrap (the `& 0x3F` seed
+            // reaches 63) drops to 0 on the first step. The **frame is read before
+            // this step** (`2754`); `l2_view::figures::pose_of` takes the step back off.
+            f.phase += 1;
+            if f.phase > 0x17 {
+                f.phase = 0;
+            }
+        } else if f.troop.index() == 10 {
+            // `FUN_00488436` (`00480000.c:3327`): the siege walk steps the oil pot's
+            // counter too, clamped at 0x2F like `FUN_00488793`.
+            f.phase += 1;
+            if f.phase > 0x2F {
+                f.phase = 0;
+            }
         }
         if !moved {
             self.stand(i);
@@ -139,12 +149,17 @@ impl BattleRunner {
         }
         f.facing_drawn = facing % 8;
         if swinging {
-            f.phase = (f.phase + 1) % 40;
+            // `animPhase += 1; if (0x27 < animPhase) animPhase = 0` (`00480000.c:2510`):
+            // a clamp; a seed above the wrap drops to 0 on the first swing.
+            f.phase += 1;
+            if f.phase > 0x27 {
+                f.phase = 0;
+            }
         }
     }
 
     /// `FUN_00488793` (`0x00488793`, `00480000.c:3363`) — **the engine's
-    /// standing pose**, where `Anim_StandA2` (`2828`) and `Anim_StrikeA2`
+    /// standing pose**, where `Anim_StandA2` (`2908`) and `Anim_StrikeA2`
     /// (`2578`) send every `troopType >= 7`.
     ///
     /// Only the oil pot counts: `animPhase += 1; if (0x2F < animPhase)
