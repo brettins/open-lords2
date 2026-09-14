@@ -883,7 +883,7 @@ a field, `0x004DC530` two (begin reclaiming `0x19`, abandon `0`) for waste; all 
 
 ## 7. What our engine does, and what it does not
 
-Implemented, in `crates/l2-view/src/campaign/mod.rs`, `crates/l2-view/src/chrome.rs` and
+Implemented, in `crates/l2-view/src/campaign/mod.rs`, `crates/l2-view/src/chrome/mod.rs` and
 `crates/l2-game/src/screens/map/mod.rs`:
 
 * both real zooms and their tile art, the real pitches, the scrolling window, `Map_ClampScroll`'s
