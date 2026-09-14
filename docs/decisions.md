@@ -12373,7 +12373,7 @@ Floods and droughts were already built (Weather_UpdateAll 0x00449889, FUN_00469A
 The fought seam verdict (crates/l2-game/tests/seam/battle.rs) is held over eight seeds, the militia holding most (6 of 8 on main), after the side-step branch showed one seed is a coin flip. The side-step branch (FUN_004904EC, Path_DetourTooLong 0x00472227, BattleMen_SwapPlaces 0x0049005F, Fighter::delay) is held unmerged: with it the militia holds 2 of 8.
 ---
 
-**C233 - Peasant mobs, battlefield plates, the new game's herd and labour, the side-step, adjacency in test worlds, the job panel's dirty marks, capture sound sites.**
+**C233 — Peasant mobs, battlefield plates, the new game's herd and labour, the side-step, adjacency in test worlds, the job panel's dirty marks, capture sound sites.**
 
 Peasant mob crossing a border: FUN_004ABD0F; owned county by happiness, under 10 letter 154 and a County_RaiseRevolt attempt, under 30 letter 155 and unrest 1 from 0, else 156; all Msg_Enqueue category 3; toll on re-read happiness, under 10 floors it, else minus 10 on both; unowned county byte only. crates/l2-kingdom/src/mob.rs, tests mob/tests.rs and mob/tick_tests.rs.
 
