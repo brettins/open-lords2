@@ -72,7 +72,7 @@ crates/l2-game/src/screens/county/strip/mod.rs	C42	8b7388d80e13	a2ac3547bb32
 crates/l2-game/src/screens/court.rs	C110	4001eefdd973	a4ab43902f60
 crates/l2-game/src/screens/court.rs	C140	0f96dbb1757f	e3a1ede42a95
 crates/l2-game/src/screens/diplomacy/compose/mod.rs	C26	d7d30139b2b8	e8179d1f76a8
-crates/l2-game/src/screens/diplomacy/main.rs	C61	6fa4824ae72f	60611046b40d
+crates/l2-game/src/screens/diplomacy/mod.rs	C61	6fa4824ae72f	60611046b40d
 crates/l2-game/src/screens/diplomacy/mod.rs	C189	cd522ae61df6	a640e552a733
 crates/l2-game/src/screens/divide/mod.rs	C61	e4415da101c2	60611046b40d
 crates/l2-game/src/screens/info/constants/mod.rs	C204	52bfa03d28f3	37a4a7aaee75
