@@ -863,7 +863,7 @@ turn into a refused session, or worse, a session that starts and desyncs an
 hour later.
 
 Three things could break it,
-`crates/l2-mods/tests/determinism.rs`:
+`crates/l2-mods/tests/determinism/main.rs`:
 
 - **Iteration in hash order.** The value tree is `BTreeMap` throughout, and a
   test reads the crate's own source and fails if a `HashMap` or `HashSet`
