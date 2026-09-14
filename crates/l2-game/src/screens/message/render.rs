@@ -178,8 +178,16 @@ pub(super) fn draw_county_portrait(
 /// **Category `0x0E`, the ending.** The name at the top is the *local player's*
 /// for group 225 and the *sender's* for everything else —
 /// one layout serve *"Victory!"*, *"Defeat!"* and an AI's obituary.
+///
+/// The well is **not** empty: the arm calls `FUN_00475D73(DAT_00553EE0)` and
+/// blits the frame like every other portrait layout. `DAT_00553EE0` is
+/// `g_messageFrom`, so the face is the **sender's**, whoever the heading names
+/// — the dead lord for an obituary, the player himself for group 224 *Defeat!*
+/// (`from == g_localPlayer` is what makes it his), and the realm-0 end of the
+/// ladder for group 225, which `Msg_Enqueue(0, g_localPlayer, 0xE1, …)` posts
+/// with `from = 0`.
 pub(super) fn draw_ending(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
-    draw_portrait_well(pen, canvas, f);
+    draw_face(pen, canvas, realm_face_frame(ctx, record.from), f);
     let who = if record.group == l2_kingdom::victory::MSG_VICTORY {
         ctx.game.player
     } else {
@@ -387,12 +395,14 @@ fn draw_portrait(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, realm: u8, f: messag
         let shield = SHIELD_BASE + r.shield_index.clamp(0, 5) as usize;
         chrome.draw_panel_frame(canvas, shield, f.x + f.w - 0x1E, f.y + 0x12);
     }
-    let frame = face_frame(
-        r.map_or(0, |r| r.lord),
-        r.is_some_and(|r| r.is_human),
-        realm,
-    );
-    draw_face(pen, canvas, frame, f);
+    draw_face(pen, canvas, realm_face_frame(ctx, realm), f);
+}
+
+/// `FUN_00475D73(realm)` — the argument every portrait arm passes is a realm,
+/// and the ladder reads that realm's lord and whether a person plays him.
+fn realm_face_frame(ctx: &Ctx, realm: u8) -> usize {
+    let r = ctx.game.kingdom.realms.get(realm as usize);
+    face_frame(r.map_or(0, |r| r.lord), r.is_some_and(|r| r.is_human), realm)
 }
 
 /// **Draw the scroll's two clickable pictures again, and nothing else.**
