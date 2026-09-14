@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+
+use super::*;
 use super::strip_and_sidebar::*;
 use super::panels::*;
 use super::drawing_and_emboss::*;
@@ -583,4 +585,5 @@ fn a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame() {
         );
     }
 }
+
 
