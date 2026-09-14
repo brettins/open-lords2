@@ -28,6 +28,8 @@ pub struct Picture {
 impl Picture {
     /// The same picture with every pixel `n` times as wide and as tall, which
     /// is how a 1996 32×32 cursor keeps its size against a canvas the shell
+    /// [D] The original never scales a pointer (640x480 fullscreen, one HCURSOR per
+    /// kind); ours scales the bitmap and hotspot with the canvas.
     /// draws at a whole scale of `n` (`crate::input::window::scale` in
     /// `l2-game`). Nearest neighbour, because the art is.
     pub fn scaled(&self, n: u32) -> Picture {
@@ -230,7 +232,7 @@ fn decode(id: u16, b: &[u8]) -> Result<Picture, CursorError> {
             };
             let c = palette + index * 4;
             let px = (y * w + x) * 4;
-            // AND 1 with XOR 1 is the inverting pixel, which no display server
+            // [D] AND 1 with XOR 1 is the inverting pixel, which no display server
             // outside Windows can draw: we make it the ink colour, black.
             if !opaque {
                 if index != 0 {

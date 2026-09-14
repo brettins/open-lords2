@@ -339,9 +339,8 @@ impl App {
     /// One fixed simulation tick.
     fn tick(&mut self) {
         // Sampled here as well as in [`Self::redraw`], and it has to be: the
-        // redraw only happens when something is already dirty
-        // taken there alone
-        // clock would stop at the minute the page opened. The tick is what
+        // redraw only happens when something is already dirty, so a sample
+        // taken there alone would stop the clock at the minute the page opened. The tick is what
         // notices the minute turning; nothing under the shell may notice it.
         self.sample_wall_clock();
         let App { game, assets, machine, .. } = self;

@@ -367,8 +367,8 @@ pub(super) fn draw_tip(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Recor
 // ------------------------------------------------------------------ the parts
 
 /// `Ui_DrawInsetRect(x + 0xF, y + 0x11, 0x52, 0x4E)` — the recess the portrait
-/// sits in. Drawn by every layout that has a portrait, including the two that
-/// then blit nothing into it.
+/// sits in. Drawn by `draw_face` for every layout that has a portrait; no
+/// layout leaves it empty since the ending got its face.
 fn draw_portrait_well(pen: &Pen, canvas: &mut Canvas, f: message::Frame) {
     let (dx, dy, w, h) = FACE_WELL;
     pen.inset(canvas, Rect::new(f.x + dx, f.y + dy, w, h));
