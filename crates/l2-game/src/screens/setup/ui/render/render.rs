@@ -219,6 +219,12 @@ impl SetupScreen {
                 for (i, x) in [461, 519, 577].iter().enumerate() {
                     v.push((Rect::new(*x, 422, 56, 52), Action::Item(i)));
                 }
+                // Page 11 is the multiplayer skirmish and keeps only those
+                // three. Its own arms — the lobby list and `FUN_0043DBAC`'s
+                // 0…4 difficulty cycle, which is the other difficulty arm —
+                // are **out of scope**, `docs/plan.md` 0.1 *Multiplayer is
+                // excluded, deliberately and not by omission*. Uncited on
+                // purpose: the widget table is read, the arms are not ported.
                 if self.page == SetupPage::SkirmishMulti {
                     return v;
                 }

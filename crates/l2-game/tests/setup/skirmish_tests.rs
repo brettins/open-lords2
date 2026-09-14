@@ -5,7 +5,9 @@
 //! rectangle that moves breaks these and a method rename does not.
 #![allow(unused_imports)]
 use super::*;
-use l2_game::screens::setup::skirmish::{Skirmish, SkirmishArmy, TroopsTable, ROW_BASE};
+use l2_game::screens::setup::skirmish::{
+    Skirmish, SkirmishArmy, TroopsTable, CASTLE_LEVEL, ROW_BASE,
+};
 use l2_game::screens::setup::{SetupPage, SetupScreen};
 use l2_game::screen::{ScreenId, Transition};
 
@@ -245,7 +247,7 @@ fn the_castle_category_raises_a_siege_of_the_chosen_row() {
     let t = click(&mut s, &mut game, &assets, 600, 440);
     assert_eq!(t, Transition::Push(ScreenId::Battlefield));
     let b = game.battle.as_ref().expect("the skirmish raised a battle");
-    assert_eq!(b.castle_level, Some(2), "the row is the castle level");
+    assert_eq!(b.castle_level, Some(0), "`DAT_004D4B58[2]`, not the row");
 }
 
 #[test]
@@ -266,4 +268,30 @@ fn page_13_reads_its_rows_through_the_scroll_base() {
     click(&mut s, &mut game, &assets, 560, 399);
     click(&mut s, &mut game, &assets, 200, 0xB0 + 8);
     assert_eq!(s.skirmish().file.as_deref(), Some("A.SKR"), "DAT_004EB25C < 10");
+}
+
+#[test]
+fn the_castle_level_is_the_table_and_not_the_row() {
+    // `FUN_0043D929` (`00430000.c:7950`): `DAT_0057C910 = DAT_004D4B58[row]`,
+    // and only when the category is 2.
+    let mut s = Skirmish::default();
+    s.choose_kind(2);
+    let got: Vec<u8> = (0..15usize)
+        .map(|r| {
+            s.row = r;
+            s.castle_level().expect("category 2 keys a level")
+        })
+        .collect();
+    assert_eq!(got, CASTLE_LEVEL, "DAT_004D4B58");
+    s.choose_kind(0);
+    assert_eq!(s.castle_level(), None, "no other category writes DAT_0057C910");
+}
+
+#[test]
+fn a_row_past_the_six_shown_is_still_a_row() {
+    // `FUN_0043D929` (`00430000.c:7942`) guards on
+    // `g_uiHotspotId != DAT_0053E9A8` and on nothing else: no bound.
+    let mut s = Skirmish::default();
+    assert!(s.pick_row(7));
+    assert_eq!((s.slot, s.row), (7, 7));
 }

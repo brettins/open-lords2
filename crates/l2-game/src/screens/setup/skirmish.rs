@@ -26,7 +26,8 @@ use l2_sim::Troop;
 /// `g_troopsRowBase` (`0x004D49B8`) — the first table row of each category,
 /// and with it the row counts `FUN_0043DC1D` sets `DAT_0053F0D4` to: ten
 /// random field battles, ten more, fifteen castles, twenty from a `.skr`.
-/// **[V]** from the exe.
+/// **[V]** — read out of `Lords2.exe` at `0x004D49B8` (file offset
+/// `0xD2BB8`); `docs/symbols.md` still calls the four inferred.
 pub const ROW_BASE: [usize; 4] = [0, 10, 20, 35];
 
 /// `g_troopStrengthWeight` (`0x004D4B98`) — **eleven** entries, not seven.
@@ -35,6 +36,26 @@ pub const ROW_BASE: [usize; 4] = [0, 10, 20, 35];
 /// the four engines at 100, 100, 100 and 150. **[V]**, read out of the exe;
 /// `l2_kingdom::unit::TROOP_STRENGTH_WEIGHT` is the first seven of it.
 pub const STRENGTH_WEIGHT: [i32; 11] = [2, 16, 8, 13, 9, 13, 22, 100, 100, 100, 150];
+
+/// `DAT_004D4B58` — the castle level of each of the fifteen castle battles.
+/// `FUN_0043D929` (`00430000.c:7950`) reads it by the chosen row into
+/// `DAT_0057C910` (`g_castleLevel`) whenever the category is 2, and
+/// `FUN_0043DC1D` (`00430000.c:8098`) puts entry 0 back when the category is
+/// picked. **[V]**, fifteen `int`s read out of `Lords2.exe` at `0x004D4B58`
+/// (file offset `0xD2D58`); the sixteenth is padding before
+/// `g_troopStrengthWeight`.
+pub const CASTLE_LEVEL: [u8; 15] = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+
+/// `DAT_004D4B18` — which of the same fifteen has a drawbridge.
+/// `Siege_LowerDrawbridge` (`0x00496B9F`, `00490000.c:2672`) reads it by the
+/// same row in place of its `g_castleLevel >= 3` guard once `DAT_0057A0F0` is
+/// up. **[V]** from `Lords2.exe` at `0x004D4B18` (file offset `0xD2D18`): 1 at
+/// rows 5, 6 and 9…13, where `docs/symbols.md` 0x00496B9F names 5, 6 and 9
+/// only. Nothing of ours reads it yet.
+pub const CASTLE_DRAWBRIDGE: [bool; 15] = [
+    false, false, false, false, false, true, true, false, false, true, true, true, true, true,
+    false,
+];
 
 /// How many of the list's rows are on screen at once — `FUN_00421005`'s loop.
 pub const ROWS_SHOWN: usize = 6;
@@ -164,7 +185,7 @@ impl Skirmish {
     /// **One of the six rows** — `FUN_0043D929`, whose whole body is guarded by
     /// `g_uiHotspotId != DAT_0053E9A8`: clicking the lit row is not a click.
     pub fn pick_row(&mut self, slot: usize) -> bool {
-        if slot == self.slot || slot >= ROWS_SHOWN {
+        if slot == self.slot {
             return false;
         }
         self.slot = slot;
@@ -261,6 +282,20 @@ impl Skirmish {
     /// moves it between `g_localPlayer` and `DAT_0056D5CC`, so on this page,
     /// where the local player is realm 1 and the opponent is not, the two
     /// tests coincide. **Inferred** — nothing here reads a realm number.
+    pub fn local_realm(&self) -> u8 {
+        1
+    }
+
+    /// `DAT_0057C910` for the chosen row — `FUN_0043D929`
+    /// (`00430000.c:7949-7952`) writes it out of [`CASTLE_LEVEL`], and only
+    /// for category 2. The row indexes the table; it is not the level.
+    pub fn castle_level(&self) -> Option<u8> {
+        (self.kind == 2).then(|| CASTLE_LEVEL.get(self.row).copied().unwrap_or(0))
+    }
+
+    /// `g_localPlayer` as this page has it: realm **1**. `Skirmish_Setup`
+    /// (`0x0042B7F7`) pairs it against `DAT_0056D5CC` and nothing on page 12
+    /// moves it. **Inferred** — no realm number is stored here.
     pub fn realm1_attacks(&self) -> bool {
         self.local_attacks
     }

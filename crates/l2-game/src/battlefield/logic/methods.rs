@@ -57,7 +57,7 @@ impl LiveBattle {
     ///
     /// `Battle_CountMenByType` (`0x00481B9A`) zeroes eleven counts, adds one per
     /// figure whose `selected == g_localPlayer`, and keeps the first troop whose
-    /// count is **strictly** greater than the best so far —, so a tie goes to the
+    /// count is **strictly** greater than the best so far — so a tie goes to the
     /// lower troop index and nobody picked is 0, peasants. `[V]`. It is rerun by
     /// `Battle_Frame` every frame and by the commit, so the value a cry reads is
     /// the current selection's.
@@ -157,7 +157,7 @@ impl LiveBattle {
     /// the binary. The original's count of selected non-siege figures indexes
     /// the figure array by `g_curBattleMan` — a **different global**, left over
     /// from whatever sweep ran last and normally sitting one record past the end
-    /// of the array —, instead of by its own loop variable. Verified at the
+    /// of the array — instead of by its own loop variable. Verified at the
     /// instruction level (`a1 f8 e8 53 00` = `mov eax,[g_curBattleMan]` where
     /// the two clauses either side use `mov eax,[ebp-4]`). `docs/bugs.md` B100
     /// records it; the byte it reads is in zeroed BSS, so the clause is true in
@@ -502,7 +502,7 @@ impl LiveBattle {
     /// `FUN_0043C57D`. The third case returns `false` — `FUN_0043BF07` falls
     /// through to `uVar1 = 0` — and *that is how a click on empty ground with a
     /// selection becomes an order*: the press opened the drag, the release moved
-    /// nothing, the drag arm declined, and the order arm behind it
+    /// nothing and hit nobody, the drag arm declined, and the order arm behind it
     /// fired. Getting this backwards would make a finished box also issue an
     /// order at the corner it was released on.
     ///

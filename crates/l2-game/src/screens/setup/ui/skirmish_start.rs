@@ -43,9 +43,13 @@ impl SetupScreen {
         self.skirmish_file_top = top.max(0) as usize;
     }
 
-    /// ***Go*** — `FUN_0043D5B7`, whose body is `FUN_0043F304`, `Msg_Reset`,
-    /// `FUN_0042BA40`, `FUN_0042C5AD`, `Battle_Start` (`0x004778A0`) and
-    /// `g_battleState = 3`.
+    /// ***Go*** — `FUN_0043D5B7` (`00430000.c:7781-7788`), whose body is
+    /// `FUN_0043F304`, `Msg_Reset`, `FUN_0042BA40`, `FUN_0042C5AD`,
+    /// `g_battleChoiceOwner = 1`, `DAT_0053F018 = 0`, `Battle_Start`
+    /// (`0x004778A0`) and `g_appPhase = 3` — the phase word, not
+    /// `g_battleState`. The choice owner is the `1` this function hands
+    /// `LiveBattle::new`; `DAT_0053F018` is unnamed and nothing of ours reads
+    /// it, so the zeroing has nowhere to land.
     ///
     /// What arrives at `Battle_Start` was put there on the way **in**:
     /// `Skirmish_Setup` (`0x0042B7F7`) runs when page 12 opens, not when this
@@ -91,10 +95,11 @@ impl SetupScreen {
         // `Battlefield_BuildRandom`, 2 `Battlefield_BuildCastle(DAT_0056D590)`
         // with `g_battleIsSiege = 1` (`00430000.c:8090`), 3
         // `Battlefield_BuildFromSkr`.
-        let level = match self.skirmish.kind {
-            2 => Some(self.skirmish.row as u8),
-            _ => None,
-        };
+        // The list row is **not** the castle level: `FUN_0043D929`
+        // (`00430000.c:7950`) reads `DAT_004D4B58[row]` into `DAT_0057C910`,
+        // and the level-keyed siege guards — `Siege_LowerDrawbridge`
+        // (`0x00496B9F`) among them — read that.
+        let level = self.skirmish.castle_level();
         let runner = match level {
             // `Battlefield_BuildCastle`, through the same two paths
             // `crate::engagement` takes: the install's layout, or the
