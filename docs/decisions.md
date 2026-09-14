@@ -12339,6 +12339,9 @@ Battle_CheckOutcome 0x00477DFC plays timed by Smk_OnFinished's 5001st frame; gap
 (push film before banner paints), a fix reverted because gating push on draw flag lets picture
 decide battle (painting_the_battlefield_with_its_artwork_does_not_change_the_battle red at 620).
 
+---
+
+**C232 — Help window, garrison hand-off, tips right press, Misc_bat blits, standings to the map, siege stop-short, wall damage as a count.**
 
 Wall damage is a count, not a flag: Missile_Step 0x00492C8B gates its class-3 arm on
 `elevation != 0 && surface == 4 && frame > 2` and adds the hit to the cell's byte +0;
@@ -12352,3 +12355,19 @@ still leaves byte +0 alone, as Wall_Smash 0x0049694F does. Tests
 a_shot_counts_on_masonry_by_elevation_and_not_on_the_wall_flag and
 a_catapult_raises_the_cell_byte_of_the_wall_it_is_aimed_at; ablating the gate back to
 the flag turns the second red (walk cells 0) and leaves the curtain's count standing.
+
+Help window: Msg_DrawWindow's category-0x13 arm built (g_helpWindowGeom 0x004D6EB8, six {x,y,w,h} in 16-pixel cells, groups 291..296; paragraph counts DAT_004D6A8C + group*4; heading Ui_DrawCentred at y+0x16 in g_fontHeading); tests crates/l2-game/tests/messages/help_window.rs; L2help.hlp stays out of scope.
+
+Garrison hand-off on capture: County_ChangeOwner 0x004A72FE has no garrison statement; County_MakeIndependent 0x004AC3C6 ends with FUN_00437535(garrisonUnit, county), the loser keeps the men out on Map_FindFreeTileNear's tile, Army_Destroy when nowhere to stand; ours hands the garrison to leave_castle on both branches, Capture::garrison carries the sortie; tests crates/l2-kingdom/tests/garrison_handoff.rs.
+
+Tips: a right press under a tip drops g_screenId to 0 like the left (Screen_FrameInput's epilogue, g_mouseRightPressed 0x004EABE0); Event::RightPress added; arm 0x0042FF10/minimap-under-a-tip now both edges.
+
+Misc_bat.pl8 on the battlefield: Screen_DrawBattlefield 0x004233F7 frames 0, 1, 2 and shield+6 plates, FUN_00423530 frames 5 and 6; Chrome::draw_misc_bat; the plate counts and banner plates (FUN_004238B8, FUN_004239D5) still undrawn; tests crates/l2-game/tests/battle_picture/column.rs.
+
+Standings: Ui_OkButtonClicked 0x0040E7E4 and the right release write g_screenId = 0, so OK, right release and keyboard close are Transition::Goto(ScreenId::Campaign) (C190's road); arms 0x0042FF10/standings-ok and standings-right.
+
+Siege orders: Order_StopShortOfTarget 0x00497437 keeps range-3 per axis from the unit's own cell (stop_short_of_target, both arms of order_full); Dest_FindReachableNear 0x0048A7D9 cannot move the destination and is ported as such; Formation_SendFigure 0x00489B8D enters state 17 on enemy || targetCell != 0 and leaves it to state 5; Formation_SlotIsUsable 0x0048A672's two siege branches are a ledger row; tests crates/l2-sim/tests/siege/order_pullback.rs. Two content guards (audio determinism, battle_picture) now count missile deaths because missile units halt at range.
+
+Floods and droughts were already built (Weather_UpdateAll 0x00449889, FUN_00469A9C writes 0x17/0x18, FUN_0046942C clears last season's ruin, cursor +0x15B saved at VERSION 27); the ledger row was stale; tests crates/l2-kingdom/tests/fields/blight.rs.
+
+The fought seam verdict (crates/l2-game/tests/seam/battle.rs) is held over eight seeds, the militia holding most (6 of 8 on main), after the side-step branch showed one seed is a coin flip. The side-step branch (FUN_004904EC, Path_DetourTooLong 0x00472227, BattleMen_SwapPlaces 0x0049005F, Fighter::delay) is held unmerged: with it the militia holds 2 of 8.
