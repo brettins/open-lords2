@@ -16,7 +16,7 @@ use l2_game::Game;
 /// constants are not importable from an integration test.
 #[test]
 fn the_root_is_the_one_the_application_starts_on() {
-    let src = include_str!("../src/main/mod.rs");
+    let src = include_str!("../../src/main.rs");
     assert!(
         src.contains("Machine::new(ScreenId::Setup(SetupPage::Title))"),
         "main.rs no longer starts on {APP_ROOT:?}; every test in this file is now \
@@ -35,7 +35,7 @@ fn the_root_is_the_one_the_application_starts_on() {
 /// C27, nine instances, and this was the tenth.
 #[test]
 fn the_application_calls_the_director() {
-    let src = include_str!("../src/main/mod.rs");
+    let src = include_str!("../../src/main.rs");
     assert!(
         src.contains("self.director.listen(&mut self.audio, &self.machine, &self.game)"),
         "main.rs no longer calls Director::listen, so nothing drives the audio layer \

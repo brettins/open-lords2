@@ -229,7 +229,7 @@ const JUDGED: &[&str] = &[
 /// itself is fixture-gated and this is the half of it that is not.
 #[test]
 fn every_county_field_is_accounted_for() {
-    let src = include_str!("../src/lib.rs");
+    let src = include_str!("../../src/lib.rs");
     let start = src.find("pub struct CountyState {").expect("the struct is still called that");
     let body = &src[start..];
     let end = body.find("\n}").expect("the struct closes");
