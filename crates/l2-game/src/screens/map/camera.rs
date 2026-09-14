@@ -158,6 +158,10 @@ impl MapScreen {
         // clicks. The unit *selection* is kept: an order placed and then
         // silently cancelled by the turn ending would be a surprise.
         self.slider_held = false;
+        // `Turn_End` (`0x0043AC23`): 999 into the person's own `aiStep`, which
+        // is the last thing phase 4's wait needs once the AI realms have taken
+        // their steps on the frames before this one.
+        turn::end_players_turn(ctx.game);
         let step = turn::begin_turn(ctx.game);
         self.status = "ENDING THE TURN...".into();
         self.scrolled = true;

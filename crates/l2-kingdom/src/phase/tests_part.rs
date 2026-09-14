@@ -49,7 +49,7 @@ mod tests {
 
     #[test]
     fn a_unit_phase_starts_its_work_before_it_can_end() {
-        let mut m = TurnMachine { phase: Phase::ArmyMovement, step: 0 };
+        let mut m = TurnMachine { phase: Phase::ArmyMovement, step: 0, ..TurnMachine::new() };
         // Even with the units already settled, the first call is the one that
         // kicks off the work.
         let first = m.tick(true);
@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn a_unit_phase_waits_indefinitely_while_units_are_moving() {
-        let mut m = TurnMachine { phase: Phase::Merchants, step: 0 };
+        let mut m = TurnMachine { phase: Phase::Merchants, step: 0, ..TurnMachine::new() };
         for _ in 0..1000 {
             assert_eq!(m.tick(false).advanced_to, None);
         }
@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn the_end_of_season_phase_runs_once_and_goes_straight_to_phase_one() {
-        let mut m = TurnMachine { phase: Phase::SeasonEnd, step: 0 };
+        let mut m = TurnMachine { phase: Phase::SeasonEnd, step: 0, ..TurnMachine::new() };
         let t = m.tick(false);
         assert!(t.started);
         assert_eq!(t.advanced_to, Some(Phase::NeutralCounties));

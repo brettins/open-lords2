@@ -424,6 +424,10 @@ pub struct Game {
     /// game's own counter and starts at 1 in the England turn-one fixture; this one counts
     /// what the player did.
     pub turns_played: u32,
+    /// **The AI's one grant of the turn has been made**, for the phase-4 arm
+    /// the interactive frames run. [`crate::turn::open_players_turn`] clears it;
+    /// `TurnProgress::granted` is the same latch for a wind-on.
+    pub ai_granted: bool,
     /// **Whether this game is over, and where it sits in its campaign.**
     ///
     /// The three globals a campaign is made of — `DAT_0053F258`, `DAT_0053F640`

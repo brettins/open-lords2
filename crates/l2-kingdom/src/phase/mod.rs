@@ -183,6 +183,15 @@ pub struct TurnMachine {
     /// `g_turnPhaseStep` (`0x0053F658`), counted up on every call and reset on
     /// every phase change.
     pub step: u32,
+    /// **Phase 4 has already been opened and run for this turn.** No original
+    /// field: the original is in phase 4 *while the person deliberates*, so
+    /// `Turn_BeginPlayersTurn` (`0x0049B6D3`) and `AI_RunTurnStep`
+    /// (`0x0049A581`) both run on the frames before End Turn. Our phase machine
+    /// parks between turns instead — `g_turnPhase = 1`, where the original's
+    /// autosave is taken — so the interactive frames run phase 4's arm ahead of
+    /// the machine and this says so, and `Kingdom::tick` then does not open the
+    /// phase a second time when the wind-on reaches it.
+    pub players_turn_open: bool,
 }
 
 impl Default for TurnMachine {
@@ -195,7 +204,7 @@ impl TurnMachine {
     /// A machine sitting at the start of phase 1 — which is where a freshly
     /// loaded `lastturn.sav` sits: `g_turnPhase = 1` (`docs/kingdom.md` §9).
     pub fn new() -> TurnMachine {
-        TurnMachine { phase: Phase::NeutralCounties, step: 0 }
+        TurnMachine { phase: Phase::NeutralCounties, step: 0, players_turn_open: false }
     }
 
     /// One call of `Turn_Tick`.
