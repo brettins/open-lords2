@@ -15,6 +15,7 @@ for (let round = 0; round < 8; round++) {
   const text = (out.stdout || "") + (out.stderr || "");
   const names = new Set();
   for (const m of text.matchAll(/error\[E0624\]: (?:method|associated function) `(\w+)` is private/g)) names.add(["fn", m[1]]);
+  for (const m of text.matchAll(/error\[E0624\]: associated (?:constant|type) `(\w+)` is private/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E0603\]: (?:function|struct|enum|constant|type alias|module|static) `(\w+)` is private/g)) names.add(["item", m[1]]);
   for (const m of text.matchAll(/error\[E0616\]: field `(\w+)` of struct `([\w:]+)` is private/g)) names.add(["field", m[2].split("::").pop() + "." + m[1]]);
   // A struct literal naming private fields: every backticked name before "of struct".

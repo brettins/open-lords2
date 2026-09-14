@@ -112,4 +112,5 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
       if (t !== s) fs.writeFileSync(p, t); } } }; walk(crateDir); }
   console.log(`${String(files.mod.length + 2).padStart(6)} ${modPath}`); for (const n of names) console.log(`${String(files[n].length + 2).padStart(6)} ${dir}/${n}.rs`);
   console.log(`split-llm: ${names.length + 1} files from ${N} lines, every line kept (${j.usageMetadata?.totalTokenCount} tokens)`);
+  process.exit(0); // node 24 on Windows can assert in libuv while closing the fetch handle at exit
 })();
