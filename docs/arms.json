@@ -997,7 +997,7 @@
       "what": "A press in the minimap raster with this screen open drops it and selects the county.",
       "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12: a press inside the raster selects that county, recentres the map and sets g_screenId = 0. The shell wrapper reproduced it once for all seven shells; graduating them lost it, so it is per screen now because the screens are. Only the raster is passed, not the whole column -- see screens/job.rs at the same arm.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/supplies.rs"
+      "ours": "crates/l2-game/src/screens/supplies/mod.rs"
     },
     {
       "id": "0x0042FF10/minimap-under-the-court",
@@ -1203,7 +1203,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "A right release leaves. There is NO Ui_OkButton on this screen: the two thumbs and the right button are the only ways out.",
-      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "ours": "crates/l2-game/src/screens/supplies/mod.rs",
       "evidence": "V"
     },
     {
@@ -2358,7 +2358,7 @@
       "gesture": "left-press-delayed",
       "addr": "0x0043B04C",
       "what": "The thumb-down at (360, 346): g_screenId = 0, send nothing.",
-      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "ours": "crates/l2-game/src/screens/supplies/mod.rs",
       "evidence": "V"
     },
     {
@@ -2370,7 +2370,7 @@
       "addr": "0x0043B04C",
       "what": "The thumb-up at (320, 342). With a real destination: FUN_0043B145 -> Transport_Spawn, then the source county ration/labour/crowding/estimate passes twice. With the destination still equal to the source: Ui_OpenConfirm(0xE) - L2.eng 10/14, \"Quit? (no destination).\" - whose YES leaves without sending.",
       "note": "Transport_Spawn drops the shipment SILENTLY if no free road or open tile exists near the county anchor: nothing spawns and nothing is deducted, and the screen has already closed.",
-      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "ours": "crates/l2-game/src/screens/supplies/mod.rs",
       "evidence": "V"
     },
     {
@@ -2393,7 +2393,7 @@
       "gesture": "left-press-repeat",
       "addr": "0x0043B27A",
       "what": "Put into the cart, the same rule mirrored: if (left < 11) move one, else move ten.",
-      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "ours": "crates/l2-game/src/screens/supplies/mod.rs",
       "evidence": "V"
     },
     {
@@ -2404,7 +2404,7 @@
       "gesture": "left-press",
       "addr": "0x0043B32A",
       "what": "Hotspot_Test(0x40, 0x30, 0x004DC7E8, 2) - the two commodity ICONS at (254,264)-(284,293) and (254,294)-(284,323). An empty cart takes everything; a loaded one is emptied.",
-      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "ours": "crates/l2-game/src/screens/supplies/mod.rs",
       "evidence": "V"
     },
     {
@@ -2415,7 +2415,7 @@
       "gesture": "left-press",
       "addr": "0x0043B412",
       "what": "A press inside (96, 104)-(224, 232) reads g_minimapCounty and sets the destination county. The picture is blitted at (94, 107), so the hit test is two and three pixels off its own image - the same disagreement Minimap_Draw has on the campaign sidebar, from the same pair of constants.",
-      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "ours": "crates/l2-game/src/screens/supplies/mod.rs",
       "evidence": "V",
       "merged": "0x0043B412/supplies-county-picker (management-screens) was a second record for this arm and was folded in here. Its text: Send supplies is a MINIMAP: FUN_0043B412(0x60, 0x68) reads g_minimapCounty over a 128x128 box at (96, 104) and writes the county under the pointer into DAT_00553C78, which is the destination. A press on a blank pixel returns 0 and the arm's right-release close runs instead."
     },
@@ -3642,7 +3642,7 @@
       "gesture": "key",
       "what": "Escape leaves without sending.",
       "why": "The 0x18 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/supplies.rs"
+      "ours": "crates/l2-game/src/screens/supplies/mod.rs"
     },
     {
       "id": "ours/village-keyboard",
