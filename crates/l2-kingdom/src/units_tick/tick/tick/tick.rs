@@ -116,7 +116,7 @@ impl Kingdom {
             if !self.campaign.units.get(id).is_some_and(|u| u.moving) {
                 continue;
             }
-            // **`Unit_StepOnce`'s other arm**, and the one that decides how
+            // **`Unit_StepOnce`'s other arm**
             // fast anything on the campaign map goes. See [`cross_sub_tile`].
             if !cross_sub_tile(&mut self.campaign.units, id) {
                 continue;
@@ -217,7 +217,18 @@ impl Kingdom {
             }
         }
 
-        // **Two branches implemented this rule and the other one is kept.**
+        // `PeasantMob_Tick`'s own crossing call, `FUN_004ABD0F` (`0x004ABD0F`)
+        // — the mob carries its revolution over the border. The original calls
+        // it every tick with the tile's county byte and does the `!=` test
+        // inside; `movement::step` has already made that test and written the
+        // byte, so `entered_county` is that branch. [`crate::mob`].
+        if let (Some(county), Some(u)) = (step.entered_county, self.campaign.units.get(id)) {
+            if u.kind == UnitKind::PeasantMob {
+                self.mob_crossed_border(county, out);
+            }
+        }
+
+        // **Two branches implemented this rule
         // `ai-lords-play` added a garrison-only handler here; the castles
         // branch added `conquest::reach_castle_building` below, which covers
         // the siege half too and is traced statement by statement to
@@ -229,7 +240,7 @@ impl Kingdom {
         // it *before* `Army_AttackCounty`, and its tail is `FUN_0046F0A9`, the
         // slot free `Army_Destroy` also uses: a transport that reaches its
         // cargo county's town unloads and is gone. `[V]` from the
-        // decompilation. Non-matching county: nothing at all, and the unit
+        // decompilation. Non-matching county: nothing at all
         // stands. `attack_county` would refuse either way (`NotAnArmy`).
         if let Some(county) = step.reached_castle {
             if let Some(u) = self.campaign.units.get(id) {
@@ -425,10 +436,10 @@ impl Kingdom {
     /// `FUN_004A4F5B(kind)` answers for phases 3 and 6, and
     /// `FUN_004A4E3D(2, 6)` for phase 5.
     ///
-    /// **Phase 5's is narrower and the difference is real**: it counts only
+    /// **Phase 5's is narrower
     /// mobs owned by realm **6** whose `ownerIsHuman` byte is clear — the
     /// ownerless rabble —
-    /// the phase open. Nothing creates one, and the guard is reproduced anyway
+    /// the phase open. Nothing creates one
     /// because a rule that only matters in a case that cannot arise is exactly
     /// the kind that stops being true later.
     pub fn units_moving(&self, kind: UnitKind) -> bool {
@@ -465,7 +476,7 @@ impl Kingdom {
     /// could not finish last season.
     ///
     /// The destination is the anchor itself, not a free tile near it — that is
-    /// the merchant's rule, and the two are different. See
+    /// the merchant's rule
     /// [`crate::merchant::advance_all`].
     fn retarget_transports(&mut self) -> usize {
         let mut started = 0;
@@ -510,14 +521,14 @@ impl Kingdom {
     /// }
     /// ```
     ///
-    /// Three things, and the third is a bug worth keeping:
+    /// Three things
     ///
     /// * **the cursor is one counter for the whole map**, not one per mob, so
     ///   consecutive mobs are sent to consecutive counties;
     /// * a mob is never sent to the county it is standing in — the second bump
     ///   is that guard, and note it can only skip **one**, so on a one-county
     ///   map it lands back where it started;
-    /// * **the coordinates come from the cursor and the county id from
+    /// * **the coordinates come from the cursor
     ///   `destCounty`, and outside spring those are not the same county.** A mob
     ///   that kept last season's `destCounty` walks to *this* season's cursor
     ///   county's anchor while believing it is going somewhere else. Reproduced,

@@ -382,3 +382,40 @@ fn cross_sub_tile(units: &mut Units, id: usize) -> bool {
     true
 }
 
+
+impl Kingdom {
+    /// **`FUN_004ABD0F` (`0x004ABD0F`)** — a peasant mob has crossed into
+    /// `county`. Posts one of `L2.eng` 154…156 to its owner, may raise that
+    /// county too, and takes ten off its happiness. [`crate::mob`] holds the
+    /// decompilation and the four things its shape decides.
+    ///
+    /// The revolt is `County_RaiseRevolt` (`0x004AC185`) itself, so it carries
+    /// the same three writes the season pass makes around
+    /// [`crate::unrest::raise_revolt`]: the county goes independent, the
+    /// population loses the men who left, and the unrest counter clears —
+    /// the last of which [`crate::mob::settle`] does.
+    fn mob_crossed_border(&mut self, county: u8, out: &mut UnitsTick) {
+        let id = county as usize;
+        let Some(c) = self.counties.get(id) else { return };
+        let Some(crossing) = crate::mob::crossing(c, county) else { return };
+        out.posted.push(Posted::Letter(crossing.letter));
+
+        let mut revolted = false;
+        if crossing.raise_revolt {
+            if let Some((_slot, men)) = crate::unrest::raise_revolt(
+                &self.campaign.map,
+                &self.counties[id],
+                &mut self.campaign.units,
+                id,
+                self.year,
+            ) {
+                // `County_MakeIndependent` first — its `Labour_Allocate` deals
+                // the population the mob is not yet out of — then the debit.
+                self.make_county_independent(id);
+                self.counties[id].population -= men;
+                revolted = true;
+            }
+        }
+        crate::mob::settle(&mut self.counties[id], &crossing, revolted);
+    }
+}

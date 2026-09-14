@@ -241,6 +241,7 @@ pub mod map;
 pub mod math;
 pub mod merchant;
 pub mod mercenary;
+pub mod mob;
 pub mod movement;
 pub mod phase;
 pub mod population;
