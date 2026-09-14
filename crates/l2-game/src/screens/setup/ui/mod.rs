@@ -4,6 +4,10 @@ mod render;
 pub use render::*;
 mod screen;
 pub use screen::*;
+mod skirmish_page;
+pub use skirmish_page::*;
+mod skirmish_start;
+pub use skirmish_start::*;
 mod input;
 pub use input::*;
 

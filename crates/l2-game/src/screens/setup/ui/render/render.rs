@@ -13,6 +13,7 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::setup::SetupOptions;
 use crate::shell::{self, font, Pen};
 use crate::text::{self, TextField};
+use crate::screens::setup::skirmish::ROWS_SHOWN;
 
 impl SetupScreen {
     pub fn new(page: SetupPage) -> SetupScreen {
@@ -34,6 +35,10 @@ impl SetupScreen {
             track: crate::victory::Track::First,
             name: begin_name(text::DEFAULT_PLAYER_NAME),
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
+            skirmish: Default::default(),
+            troops: Default::default(),
+            skirmish_files: Vec::new(),
+            skirmish_file_top: 0,
             clock_minute: None,
             clock_redraw: false,
         }
@@ -185,13 +190,72 @@ impl SetupScreen {
                     ));
                 }
             }
-            SetupPage::NoCd | SetupPage::Load | SetupPage::SkirmishFile => {
+            SetupPage::SkirmishFile => {
+                // **`FUN_00434174`** tests the pointer itself, not a widget
+                // record: `0x80 ≤ x ≤ 0x1DF` and `0xB0 ≤ y ≤ 0x14F`, ten rows
+                // of sixteen. The row is `DAT_004EA1A0 + (y - 0xB0) / 16`
+                // (`00430000.c:1358`) — the scroll base, not the slot.
+                // Everything outside the ten rows is `SaveLoad_Cancel`
+                // (`0x00434308`), the *OK* cross, which is the page's one way
+                // back.
+                for r in 0..10 {
+                    v.push((
+                        Rect::new(0x80, 0xB0 + r as i32 * 0x10, 0x160, 0x10),
+                        Action::Skirmish(SkirmishArm::File(r)),
+                    ));
+                }
+                v.push((Rect::new(0, 0, 640, 480), Action::Item(0)));
+            }
+            SetupPage::NoCd | SetupPage::Load => {
                 // One way out, and the whole page is it.
                 v.push((Rect::new(0, 0, 640, 480), Action::Item(0)));
             }
             SetupPage::Skirmish | SetupPage::SkirmishMulti => {
-                for (i, x) in [0x1CD, 0x207, 0x241].iter().enumerate() {
-                    v.push((Rect::new(*x, 0x1B8 - 4, 0x38, ITEM_H), Action::Item(i)));
+                // The widget table at `0x004DCF68`, in its order and with its
+                // own rectangles — `node tools/oracle/widgets.js widgets
+                // 4dcf68 22`. The three buttons are `FUN_0043D649` (*Back*),
+                // `FUN_0043DA9E` (*Cust.*) and `FUN_0043D5B7` (*Go*), and the
+                // painter's caption boxes are not what is clickable.
+                for (i, x) in [461, 519, 577].iter().enumerate() {
+                    v.push((Rect::new(*x, 422, 56, 52), Action::Item(i)));
+                }
+                if self.page == SetupPage::SkirmishMulti {
+                    return v;
+                }
+                for r in 0..ROWS_SHOWN {
+                    let y = 185 + r as i32 * 16;
+                    v.push((
+                        Rect::new(468, y, 133, 15),
+                        Action::Skirmish(SkirmishArm::Row(r)),
+                    ));
+                }
+                for (y, d) in [(181, -1), (266, 1)] {
+                    v.push((
+                        Rect::new(604, y, 20, 20),
+                        Action::Skirmish(SkirmishArm::Scroll(d)),
+                    ));
+                }
+                for x in [11, 278] {
+                    v.push((
+                        Rect::new(x, 259, 158, 45),
+                        Action::Skirmish(SkirmishArm::Sides),
+                    ));
+                }
+                for (kind, y) in [(2usize, 291), (0, 322), (1, 353), (3, 384)] {
+                    v.push((
+                        Rect::new(463, y, 30, 30),
+                        Action::Skirmish(SkirmishArm::Kind(kind)),
+                    ));
+                }
+                v.push((
+                    Rect::new(495, 384, 141, 30),
+                    Action::Skirmish(SkirmishArm::OpenFiles),
+                ));
+                for (i, x) in [20, 275].iter().enumerate() {
+                    v.push((
+                        Rect::new(*x, 350, 160, 125),
+                        Action::Skirmish(SkirmishArm::Handicap(i + 1)),
+                    ));
                 }
             }
         }
@@ -274,7 +338,46 @@ impl SetupScreen {
                 self.read_map(ctx);
                 Transition::Stay
             }
+            Action::Skirmish(arm) => self.skirmish_arm(arm),
         }
+    }
+
+    /// Page 12's five arms and page 13's one, each of which ends the same way
+    /// in the original: `Skirmish_FillArmies` (`0x0042BF46`) and a redraw.
+    /// The fill is a pure function of the state here, so it is not run — the
+    /// painter and [`SetupScreen::go_skirmish`] both ask for it.
+    fn skirmish_arm(&mut self, arm: SkirmishArm) -> Transition {
+        match arm {
+            SkirmishArm::Row(r) => {
+                self.skirmish.pick_row(r);
+            }
+            SkirmishArm::Scroll(d) => self.skirmish.scroll(d),
+            SkirmishArm::Kind(k) => self.skirmish.choose_kind(k),
+            SkirmishArm::Sides => self.skirmish.swap_sides(),
+            SkirmishArm::Handicap(h) => self.skirmish.handicap(h),
+            // `FUN_0043DDF4` opens page 13 only on `0 < DAT_005653E8`
+            // (`00430000.c:8140`) — the count of `.skr` files found. With
+            // none, the field is not a button.
+            SkirmishArm::OpenFiles => {
+                if self.skirmish_files.is_empty() {
+                    return Transition::Stay;
+                }
+                return self.go(SetupPage::SkirmishFile);
+            }
+            SkirmishArm::File(r) => {
+                // `FUN_00434174` ignores a row past the end of the list, and
+                // the row that is the name already chosen **returns 0 and
+                // stays on page 13** (`00430000.c:1364-1367`) — only a new
+                // name writes `g_setupPage`.
+                let name = self.skirmish_files.get(self.skirmish_file_top + r).cloned();
+                if let Some(name) = name {
+                    if self.skirmish.choose_file(&name) {
+                        return self.go(SetupPage::Skirmish);
+                    }
+                }
+            }
+        }
+        Transition::Stay
     }
 
     fn item(&mut self, i: usize, ctx: &mut Ctx) -> Transition {
@@ -394,9 +497,22 @@ impl SetupScreen {
             }
             (SetupPage::Custom | SetupPage::CustomMulti, _) => self.go(SetupPage::Load),
             // Pages 11 and 12: "Back", "Cust."/"Norm.", "Go".
-            (SetupPage::Skirmish | SetupPage::SkirmishMulti, 0) => self.go(SetupPage::Options),
-            (SetupPage::Skirmish | SetupPage::SkirmishMulti, 2) => self.go(SetupPage::Skirmish),
-            (SetupPage::Skirmish | SetupPage::SkirmishMulti, _) => Transition::Stay,
+            //
+            // ***Back* is `FUN_0043D649` and it goes to page 1**, not page 2:
+            // `g_setupPage = 1`, `DAT_0057A0F0 = 0` — the skirmish flag down
+            // again — `g_battlePhase = 0` and the campaign's button set back.
+            // Ours went to page 2, which is the page *Skirmish!* is on.
+            (SetupPage::Skirmish | SetupPage::SkirmishMulti, 0) => self.go(SetupPage::Title),
+            // ***Cust.*** — `FUN_0043DA9E`. The flag flips and both handicaps
+            // go back to 2; the two custom musters it draws instead
+            // (`FUN_0042130F`, `FUN_00420DE4`) are not built.
+            (SetupPage::Skirmish | SetupPage::SkirmishMulti, 1) => {
+                self.skirmish.toggle_custom();
+                Transition::Stay
+            }
+            (SetupPage::Skirmish, 2) => self.go_skirmish(ctx),
+            (SetupPage::SkirmishMulti, _) => Transition::Stay,
+            (SetupPage::Skirmish, _) => Transition::Stay,
             // The three pages with one way out.
             (SetupPage::NoCd, _) => self.go(SetupPage::Title),
             (SetupPage::Load, _) => self.go(SetupPage::Options),
