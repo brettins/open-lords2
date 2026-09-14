@@ -101,7 +101,23 @@ fn walk_off(assets: &Assets, at: (i32, i32), (dx, dy): (i32, i32)) {
         // frame, which is our `Battlefield_Draw32` dirty-cell restore.
         let f = &live(&g).runner.fighters[man];
         let away = (f.x as i32 - start.0 as i32).abs().max((f.y as i32 - start.1 as i32).abs());
-        if away >= 2 {
+        // **Nobody else may be standing on it.** The claim is that *he* leaves
+        // nothing behind; the AI's own men close on the square he left, and a
+        // 48-pixel sprite two cells away still reaches it. This used to pass by
+        // luck — a refused step drew the closing figure trailing 30 pixels into
+        // the next cell, and now it stands on its own cell, where it belongs.
+        let others = live(&g).runner.fighters.iter().enumerate().any(|(i, o)| {
+            i != man
+                && live(&g).runner.is_alive(i)
+                && (o.x as i32 - start.0 as i32).abs().max((o.y as i32 - start.1 as i32).abs()) <= 2
+        });
+        // **Three cells, not two.** `BattleFigure_Draw` trails a committed man
+        // `32 − 2·walking` pixels behind the cell he is entering — 30 on the
+        // commit tick — and centres a 48-pixel sprite on that, so his own
+        // picture legitimately reaches 38 pixels back: six pixels into the cell
+        // two behind him. Two was inside his own trail and passed only while
+        // the commit tick happened to be drawn standing.
+        if away >= 3 && !others {
             let cam = l2_view::scene::Camera::clamped(live(&g).cam.0, live(&g).cam.1);
             let mut ground = Canvas::screen();
             l2_view::scene::draw_terrain(
@@ -174,6 +190,44 @@ fn painting_the_battlefield_does_not_change_the_battle() {
     let assets = Assets::placeholder();
     let (drawn, blind, killed) = played(&assets, 3_000);
     same_battle(&drawn, &blind, "placeholder", killed);
+}
+
+/// **An archer drawing his bow decodes to a picture nobody else has.**
+///
+/// `Anim_DrawBowA2` (`0x0048804A`) is `facing * N + 10 + pose`, poses 10 … 12,
+/// and only crossbowmen and archers have the N = 13 that leaves room for it.
+/// The shipped `A2*_arch.pl8` is the check the decompiler cannot give: the
+/// three frames must exist, must decode, and must not be the standing pose or a
+/// walk pose — which is what *"archers do not use their shooting animation"*
+/// looked like from the player's chair.
+///
+/// **Ablation**: put `DRAW_BOW_BASE` back to 6 (the old `WALK_BASE`) and the
+/// draw collides with the strike band; drop the `Shooting` arm and it returns
+/// the standing frame, which the last assertion catches.
+#[test]
+fn an_archer_drawing_a_bow_is_three_frames_of_its_own() {
+    let Some((_assets, platform)) = install() else {
+        eprintln!("no install; skipped");
+        return;
+    };
+    let file = l2_view::figures::sprite_file(l2_view::figures::Colour::Red, Troop::Archers).expect("archers");
+    let sheet = Sheet::new(platform.vfs.read(&file).expect("the archer sheet")).expect("a PL8");
+    let stride = l2_view::figures::poses_per_facing(Troop::Archers) as usize;
+    assert_eq!(stride, 13, "only N = 13 leaves room for the bow band");
+
+    for facing in 0..8u8 {
+        let stand = l2_view::figures::frame(Troop::Archers, Motion::Idle, facing, 0);
+        let mut drawn = std::collections::BTreeSet::new();
+        for phase in 0..12u8 {
+            let i = l2_view::figures::frame(Troop::Archers, Motion::Shooting, facing, phase);
+            let pose = i - facing as usize * stride;
+            assert!((10..13).contains(&pose), "facing {facing} phase {phase} pose {pose}");
+            assert_ne!(i, stand, "the bow draw is not the standing pose");
+            assert!(sheet.frame(i).is_some(), "frame {i} does not decode");
+            drawn.insert(i);
+        }
+        assert_eq!(drawn.len(), 3, "the draw is three frames, facing {facing}");
+    }
 }
 
 

@@ -167,7 +167,18 @@ pub fn draw_figures(
                 Some(i) => i,
                 None => continue,
             },
-            false => figures::frame(f.troop, f.anim, f.facing, f.phase),
+            // **Two facings, and which one is read is part of the pose.**
+            // `docs/battle.md` §13.8: `dirc` (`+0x18`) drives the sub-cell
+            // offset and the **walk** frame; `dirc2` (`+0x19`), copied to
+            // `facingDrawn` (`+0x0D`) at the end of every handler, drives the
+            // **strike** frame and is what `Anim_StandA2`'s fidget turns.
+            false => {
+                let facing = match f.anim {
+                    Anim::Walking => f.facing,
+                    _ => f.facing_drawn,
+                };
+                figures::frame(f.troop, f.anim, facing, f.phase)
+            }
         };
         let Some(frame) = sheet.frame(index) else { continue };
         // `BattleFigure_Draw` centres on the cell using the sprite *width* for

@@ -67,6 +67,9 @@
 //! * The original's figure states 10 (siege engine moving) and 12 (catapult
 //!   aiming) are not modelled; those figures walk.
 
+mod anim;
+#[cfg(test)]
+mod anim_tests;
 mod fighter;
 pub use fighter::*;
 mod muster;
@@ -126,9 +129,29 @@ pub struct Fighter {
     /// Sub-cell progress, 0 … 16 in twos, from [`crate::movement`].
     pub progress: Progress,
     pub anim: Motion,
-    /// The figure's own animation counter. Seeded per figure so that identical
-    /// men do not march in lockstep — the original seeds `+0x0E` the same way.
+    /// The figure's own animation counter — figure `+0x0E`, which every
+    /// `Anim_*` handler steps. Seeded per figure so that identical men do not
+    /// march in lockstep.
     pub phase: u8,
+    /// **The drawn facing** — figure `+0x0D`, written at the end of every
+    /// animation handler as a copy of `dirc2` (`+0x19`).
+    ///
+    /// `docs/battle.md` §13.8: `+0x18` drives the sub-cell offset and the
+    /// **walk** frame, `+0x19` the **strike** frame. We carry one facing for
+    /// the simulation and this one for the pictures, because
+    /// [`Self::fidget`] turns it and must not turn a man's step. **[V]**
+    pub facing_drawn: u8,
+    /// **The fidget counter** — figure `+0x0B`, `docs/battle.md` §14.6.
+    ///
+    /// `Anim_StandA2` (`0x004872AE`) counts it up each frame and, when it
+    /// passes [`Self::fidget_period`], resets it and turns `facing_drawn` one
+    /// step — left on an even map x, right on an odd one. A rank of men
+    /// standing still shuffles, and no two neighbours shuffle together. **[V]**
+    /// — one writer (`BattleMan_Create`), two readers, both `Anim_Stand*`.
+    pub fidget: u8,
+    /// **The fidget period** — figure `+0x0C`, seeded once as
+    /// `((index * 9 + x * 16) & 0x3F) + 0xB4`, so 180 … 243 frames. **[V]**
+    pub fidget_period: u8,
     /// Waypoints from the pathfinder, consumed from the end.
     pub path: Vec<Pos>,
     /// Consecutive pathfinding failures. At four the figure stops trying —

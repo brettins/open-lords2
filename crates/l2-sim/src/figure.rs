@@ -38,24 +38,40 @@ pub enum State {
     FillingMoat,
 }
 
-/// What a figure is *visibly* doing this tick: standing, walking, swinging, or
-/// falling.
+/// What a figure is *visibly* doing this tick: standing, walking, swinging,
+/// drawing a bow, or falling.
 ///
 /// [`State`] is the original's state byte and decides what the figure will do
-/// next; this is the four-way reduction of it that the original's animation
-/// handlers key off (`0x00486249` idle/walk, `0x00486D83` attacking,
-/// `0x00487908` dying). It lives here because the
-/// simulation is what *chooses* it — the renderer only turns it into a frame
-/// index, and two peers that disagree about it would draw different battles
-/// from the same state.
+/// next; this is the reduction of it that the original's animation handlers key
+/// off — one handler per variant, and each writes the frame index to figure
+/// `+0x10`:
 ///
-/// The original has more animation handlers than these four — firing, siege
-/// engines, siege walls — and they are not modelled.
+/// | variant | handler | poses |
+/// |---|---|---|
+/// | `Idle` | `Anim_StandA2` `0x004872AE` | `N-1`, plus the fidget |
+/// | `Walking` | `Anim_WalkA2` `0x00486D83` | 0 … 5, one every 4 ticks over 24 |
+/// | `Attacking` | `Anim_StrikeA2` `0x00486249` | 6 …, from the strike cycle |
+/// | `Shooting` | `Anim_DrawBowA2` `0x0048804A` | 10 … 12, archers and crossbowmen |
+/// | `Dying` | `Anim_CollapseA2` `0x00487CE4`, `Anim_DyingA2` `0x00487908` | `8N+0 …` |
+///
+/// **Corrected.** This comment had `0x00486249` as idle/walk and `0x00486D83`
+/// as attacking; `docs/battle.md` §14.5 has the five agreements that put them
+/// the other way round, and `l2_view::figures` drew the two bands swapped
+/// because of it — a fighting man marched and a marching man swung.
+///
+/// It lives here because the simulation is what *chooses* it — the renderer
+/// only turns it into a frame index, and two peers that disagree about it would
+/// draw different battles from the same state. It is presentation all the same
+/// and stays out of the lockstep digest (`docs/netcode.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Motion {
     Idle,
     Walking,
     Attacking,
+    /// Drawing a bow — the ten ticks `BattleMan_FireMissile` (state 5) spends
+    /// between acquiring a target and loosing at it. Troops with no bow never
+    /// enter it, and the renderer falls back to the standing pose if one does.
+    Shooting,
     Dying,
 }
 

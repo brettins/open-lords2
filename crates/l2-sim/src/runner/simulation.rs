@@ -29,7 +29,7 @@ impl BattleRunner {
     /// campaign battle **army B is the defender** (§4.3).
     ///
     /// Unlike [`Self::deploy_armies`], every figure carries its real share of
-    /// men and the **last figure of each unit carries the remainder**, which is
+    /// men and the **last figure of each unit carries the remainder**
     /// `BattleUnit_Create`'s own rounding. That is what makes the survivors
     /// readable back out as campaign troop counts: the totals start exactly at
     /// the counts that went in.
@@ -235,7 +235,7 @@ impl BattleRunner {
     }
 
     /// Order every unit of a side at a cell. What a player would do with a
-    /// select-all and a click, and what the viewer does so a skirmish is
+    /// select-all and a click
     /// watchable from the first frame.
     pub fn order_side(&mut self, side: Side, x: u8, y: u8) {
         for u in 1..=MAX_UNITS {
@@ -392,8 +392,12 @@ impl BattleRunner {
                         facing,
                         progress: Progress::default(),
                         anim: Motion::Idle,
-                        // The original's seed is `(index * 9 + x * 16) & 0x3F`.
                         phase: ((sim as u32 * 9 + x as u32 * 16) & 0x3F) as u8,
+                        facing_drawn: facing,
+                        fidget: 0,
+                        // `BattleMan_Create`: `((index * 9 + x * 16) & 0x3F) +
+                        // 0xB4` — 180 … 243 frames. §14.6.
+                        fidget_period: (((sim as u32 * 9 + x as u32 * 16) & 0x3F) + 0xB4) as u8,
                         path: Vec::new(),
                         barred: 0,
                         hold: 0,
