@@ -221,11 +221,11 @@ crates/l2-kingdom/src/ai/mod.rs	C13	b6951068455b	006e7d0b71a7
 crates/l2-kingdom/src/ai_farm/market.rs	C149	0a8478ac5c2d	138117948441
 crates/l2-kingdom/src/ai_farm/market.rs	C149	ab2aebf82e2c	138117948441
 crates/l2-kingdom/src/ai_farm/policy.rs	C3	5a9c96365a5c	35bf3a86555f
-crates/l2-kingdom/src/battle.rs	C31	595fe1623cf7	1d151b02cb56
-crates/l2-kingdom/src/battle.rs	C31	6b32e180f17e	1d151b02cb56
-crates/l2-kingdom/src/battle.rs	C31	8d915a69b7d9	1d151b02cb56
-crates/l2-kingdom/src/battle.rs	C38	0e75ae65c153	cd66a8ec76e7
-crates/l2-kingdom/src/battle.rs	C71	0c621cbb0ebd	3d674af30522
+crates/l2-kingdom/src/battle/campaign.rs	C31	595fe1623cf7	1d151b02cb56
+crates/l2-kingdom/src/battle/campaign.rs	C31	6b32e180f17e	1d151b02cb56
+crates/l2-kingdom/src/battle/campaign.rs	C31	8d915a69b7d9	1d151b02cb56
+crates/l2-kingdom/src/battle/campaign.rs	C38	0e75ae65c153	cd66a8ec76e7
+crates/l2-kingdom/src/battle/mod.rs	C71	0c621cbb0ebd	3d674af30522
 crates/l2-kingdom/src/conquest/mod.rs	C21	0fc3f0194453	f7bf296341ff
 crates/l2-kingdom/src/conquest/ownership.rs	C197	86cb9ace4b06	e7abe71da733
 crates/l2-kingdom/src/county.rs	C149	053b8d59f74a	138117948441
