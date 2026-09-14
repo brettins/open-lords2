@@ -165,6 +165,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/industry/wheel_rates.rs", "england", 2),
     ("crates/l2-game/tests/job_bodies/events_and_letters.rs", "england", 2),
     ("crates/l2-game/tests/job_bodies/events_and_letters.rs", "fixture", 1),
+    ("crates/l2-game/tests/job_bodies/job_popups/dirty.rs", "england", 3),
     ("crates/l2-game/tests/job_bodies/job_popups/grain_and_cattle.rs", "england", 3),
     ("crates/l2-game/tests/job_bodies/job_popups/grain_and_cattle.rs", "fixture", 1),
     ("crates/l2-game/tests/job_bodies/job_popups/industry_and_building.rs", "england", 2),

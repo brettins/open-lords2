@@ -130,7 +130,7 @@ const FLOOR_BAND: Rect = Rect::new(0, HEARTH_FLOOR, 0x1E * 16, 0x38);
 ///
 /// `scratch` still holds `Hearth.pl8` from the painter's second read, which is
 pub const FORGE_FRAMES: usize = 11;
-const FORGE_AT: (i32, i32) = (0x58, 0x9D);
+pub(super) const FORGE_AT: (i32, i32) = (0x58, 0x9D);
 
 /// `Ui_DrawBox(0, 0x180, 0x1E, 6)` — the footer, 480 × 96 at the foot of the page.
 const FOOTER_X: i32 = 0;
