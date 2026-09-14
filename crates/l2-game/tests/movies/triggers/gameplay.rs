@@ -136,7 +136,7 @@ fn an_ending_with_animations_on_is_a_film_and_the_victory_after_it_is_another() 
 /// The record here is **posted by hand**, which is what keeps this test on the
 /// rotation alone. A player does reach it now — `l2_game::arrival::capture_record`
 /// posts the category-`0x0D` letter and `triggers::capture` walks an army onto a
-/// town to get one; `docs/audio.json` still keeps the two sound sites `blocked`.
+/// town to get one, and `audio_part` listens to the two sound sites it reaches.
 #[test]
 fn a_capture_letter_would_play_the_capture_films_in_rotation() {
     let a = Assets::placeholder();
