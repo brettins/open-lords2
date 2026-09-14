@@ -264,6 +264,10 @@ pub fn herd_preview(t: &Tables, county: &mut County, season_next: u8) {
 /// run on the season now beginning and the forecast on the one after it,
 /// `Herd_SeasonTick` passes `g_season` and `g_seasonNext`.
 pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next: u8) {
+    // The season's third line, and the only place the herd is ever eaten:
+    // `herd = herd - +0x190`, the shadow `Ration_ApplyAll` (`0x0044BF04`) left.
+    // Before `Herd_BirthsAndDeaths`, so the survivors are what breeds.
+    county.herd -= county.herd_eaten_shadow;
     let growth = herd_growth(
         t,
         county.herd,
@@ -369,7 +373,7 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
 /// reaches 200 %, and the strict `<` takes the *first* argmax. A herd of five
 /// tops out at **15** milkmaids and a herd of one at **1** — which is the whole
 /// of a player's *"if I added more milk maids they were idle"*. That truncation
-/// is exactly why the original searches instead of dividing, and why this does
+///
 /// too.
 ///
 /// A county with no people leaves the ceiling at

@@ -277,6 +277,11 @@ fn furnished(seed: u64) -> Kingdom {
         c.herd_eaten = 28 + n;
         c.grain_available = 29 + n;
         c.herd_available = 30 + n;
+        // `+0x18C`/`+0x190`, `VERSION` 30 — deliberately unequal to
+        // `grain_eaten`/`herd_eaten` above: the shadow is what the season's
+        // ration pass priced, those two are next season's forecast (C20).
+        c.grain_eaten_shadow = 33 + n;
+        c.herd_eaten_shadow = 34 + n;
         c.friendly_troops = 31 + n;
         c.enemy_troops = 32 + n;
 
@@ -715,7 +720,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +4,096 at version 28 for the map's bank plane, tile `+2` — one byte a
     // tile. `Map_ResolvePick` reads `bank & 0x1C` and nothing else answers
     // mountain from wood.
-    assert_eq!(c.finish().len, 67_434, "the state encoding changed - bump VERSION?");
+    // +136 at version 30 for the ration shadow pair, county `+0x18C` and
+    // `+0x190`: four bytes each over 17 county slots. `Ration_ApplyAll` writes
+    // it and the two season ticks spend it.
+    assert_eq!(c.finish().len, 67_570, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

@@ -98,6 +98,8 @@ impl Encode for County {
         out.i32(self.herd_eaten);
         out.i32(self.grain_available);
         out.i32(self.herd_available);
+        out.i32(self.grain_eaten_shadow);
+        out.i32(self.herd_eaten_shadow);
         out.i32(self.friendly_troops);
         out.i32(self.enemy_troops);
         out.u8(self.mercenary_offer);
@@ -256,6 +258,8 @@ impl Decode for County {
         c.herd_eaten = input.i32()?;
         c.grain_available = input.i32()?;
         c.herd_available = input.i32()?;
+        c.grain_eaten_shadow = input.i32()?;
+        c.herd_eaten_shadow = input.i32()?;
         c.friendly_troops = input.i32()?;
         c.enemy_troops = input.i32()?;
         c.mercenary_offer = input.u8()?;

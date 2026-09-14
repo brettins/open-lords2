@@ -286,6 +286,16 @@ pub struct County {
     /// `+0x180`, `+0x184` — the caps applied to the two above.
     pub grain_available: i32,
     pub herd_available: i32,
+    /// `+0x18C`, `+0x190` — **what the season's ration pass priced, held until
+    /// the store is actually debited.** `Ration_Apply` (`0x0044DF5F`) never
+    /// touches a store; `Ration_ApplyAll` (`0x0044BF04`) copies `+0x178` here
+    /// and `+0x17C` here, and `Grain_SeasonTick` (`0x0044C8AE`) opens
+    /// `grain -= +0x18C` while `Herd_SeasonTick` (`0x0044D60D`) opens
+    /// `herd -= +0x190`. `+0x178`/`+0x17C` are overwritten by the *next*
+    /// season's preview before either tick runs, which is why the shadow pair
+    /// exists at all (`docs/decisions.md` C20).
+    pub grain_eaten_shadow: i32,
+    pub herd_eaten_shadow: i32,
     /// `+0x198`, `+0x19C` — troops standing in the county; added to the food
     /// requirement when *Armies Eat* is on. Rebuilt from the unit array by
     /// [`crate::unit::Units::recount_county_troops`].

@@ -556,7 +556,26 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   inserted into [`crate::phase::SEASON_PIPELINE`] before
 ///   `LabourAllocateAgain`, so every later pass *index* shifted and a season
 ///   report written by 28 would name the wrong passes.
-pub const VERSION: u32 = 29;
+/// * 30 — **the ration shadow pair**,
+///   [`crate::county::County::grain_eaten_shadow`] (`+0x18C`) and
+///   [`crate::county::County::herd_eaten_shadow`] (`+0x190`): four bytes each a
+///   county over 17 slots, **+136**.
+///
+///   `Ration_Apply` (`0x0044DF5F`) does not debit a store; `Ration_ApplyAll`
+/// (`0x0044BF04`) copies `+0x178`/`+0x17C` into this pair, and the debit is
+/// the opening line of `Grain_SeasonTick` (`0x0044C8AE`) and the third of
+///   `Herd_SeasonTick` (`0x0044D60D`), eleven and twelve passes later.
+///
+///   **Refusal**, under entry 16's rule: a defaulted load feeds the simulation.
+///   A save taken between `RationApply` and `GrainSeasonTick` — every autosave
+///   inside a season advance — would reload with the season's food never paid
+/// for, and the pair is not derivable from `+0x178`/`+0x17C`, which
+///   [`crate::ration::preview`] has by then overwritten with next season's
+///   forecast (`docs/decisions.md` C20).
+///
+///   *Written as 30 with `VERSION` at 29 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 30;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
