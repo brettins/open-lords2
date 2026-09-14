@@ -20,7 +20,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// never reinterpret an unknown one.
 ///
 /// * 1 — the first layout.
-/// * 2 — the county grew four herd fields (`docs/kingdom.md` §13), and the
+/// * 2 — the county grew four herd fields (`docs/kingdom.md` §13)
 /// ruleset fingerprint grew the tax-happiness table, the herd table and the
 /// cattle-farming job slot. Both halves of the file moved,
 ///   save is refused.
@@ -48,7 +48,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// `l2-game`'s `engagement::resolve` while the save and the battle seam were
 ///   being written in parallel branches; now that both have landed it is where
 ///   it belongs, in the kingdom's own options, and therefore in the save and in
-/// the lockstep checksum. A version 5 save does not carry it, and the option
+/// the lockstep checksum. A version 5 save does not carry it
 ///   changes whether a battle is fought or auto-resolved — so this is a refusal
 ///   on the same grounds as version 5.
 /// * 7 — **the grain year got a memory**: `fields_grain_sown` (county `+0x202`)
@@ -106,7 +106,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   number that means two different layouts.
 /// * 10 — **sieges** (`crate::siege`). The unit grew the three siege-engine
 /// build records and the seasons countdown; `County::castle_degraded` grew
-/// from a `bool` to the three-valued byte it always was, and the county grew
+/// from a `bool` to the three-valued byte it always was
 ///   `castle_ruined` and `castle_level_left` beside it. `Unit::defence_mark`
 ///   joins them: it existed before and was in neither the save nor the
 ///   checksum, which is C30's shape exactly, and it is the byte that decides
@@ -190,7 +190,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   **Refusal**, on the same reasoning as entry 12: a
 ///   version 12 save was written by a build that could not trade, so all five
 ///   really are zero in it — but a save is not the place to be right by
-/// accident, and the next version that widens this file would inherit a
+/// accident
 ///   default nobody checked.
 ///
 ///   *This entry was written as 13 with `VERSION` at 12 on `main`. Per the
@@ -469,7 +469,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// every county it has held and the one it started in. `docs/decisions.md`
 ///   C172.
 ///
-/// **Refusal**, and the default here would be visibly
+/// **Refusal**
 ///   wrong: a version 19 save loaded with no tile seen and
 ///   the option on is a player's own county blacked out. A default of *every*
 ///   tile seen is the other wrong answer — a fog that lifted over a load.
@@ -551,7 +551,12 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 28 with `VERSION` at 27 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
-pub const VERSION: u32 = 28;
+///
+/// * 29 — **no field moved**: [`crate::phase::Pass::ArmyRecountTroops`] was
+///   inserted into [`crate::phase::SEASON_PIPELINE`] before
+///   `LabourAllocateAgain`, so every later pass *index* shifted and a season
+///   report written by 28 would name the wrong passes.
+pub const VERSION: u32 = 29;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;

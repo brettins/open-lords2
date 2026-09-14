@@ -151,7 +151,7 @@ impl Kingdom {
         Season::from_index(self.season)
     }
 
-    /// Whether a realm index is a person. Realm 0 is not a realm
+    /// Whether a realm index is a person. Realm 0 is
     /// unowned county's "owner" is never human.
     pub fn owner_is_human(&self, owner: u8) -> bool {
         owner != 0 && (owner as usize) < MAX_REALMS && self.realms[owner as usize].is_human
@@ -197,7 +197,7 @@ impl Kingdom {
         report
     }
 
-    /// One pass of the pipeline. Split out so a test can run a single pass
+    /// One pass of the pipeline. Split out
     /// against a hand-built kingdom.
     pub fn run_pass(&mut self, pass: Pass, report: &mut SeasonReport) {
         match pass {
@@ -234,6 +234,7 @@ impl Kingdom {
                 &self.campaign.units,
             ),
             Pass::ScoreRank => ai::rank_realms(&self.tables, &mut self.realms),
+            Pass::ArmyRecountTroops => self.army_recount_troops(),
             Pass::History => self.history(),
             Pass::RationPreview => self.ration_apply(true),
             Pass::RefreshEstimates => self.refresh_estimates_all(),
@@ -616,6 +617,41 @@ impl Kingdom {
 
     /// `Labour_AllocateAll` (`0x0044F699`) — [`crate::labour::allocate`] for
     /// counties 1..=`county_count`, in index order.
+    /// `Army_RecountCountyTroops` (`0x004AD6C0`) — the recount, then its own
+    /// tail: `Ration_Apply(c, g_seasonNext); Grain_LabourEstimate(c,
+    /// g_seasonNext); Herd_LabourEstimate(c, g_seasonNext)` for counties
+    /// `1 ..= 16`. See [`Pass::ArmyRecountTroops`] for why the tail is the
+    /// pass's point.
+    ///
+    /// The `Ration_Apply` here is [`crate::ration::preview`]: the original's
+    /// never debits a store — `Ration_ApplyAll` shadows what it priced into
+    /// `+0x18C`/`+0x190` and `Herd_SeasonTick` (`0x0044D60D`) spends the shadow.
+    /// Were this the debiting twin the season would be paid for twice.
+    fn army_recount_troops(&mut self) {
+        self.campaign.units.recount_county_troops(&mut self.counties, &self.realms);
+        let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
+        let advanced = self.options.advanced_farming;
+        let armies_eat = self.options.armies_eat;
+        for id in 1..=self.county_count {
+            ration::preview(&self.tables, &mut self.counties[id], armies_eat);
+            if let Some(grain) =
+                land::grain_labour_estimate(&self.tables, &self.counties[id], season_next, advanced)
+            {
+                self.counties[id].labour_wanted[crate::tables::JOB_GRAIN_FARMING] = grain.wanted;
+                self.counties[id].labour_useful[crate::tables::JOB_GRAIN_FARMING] = grain.useful;
+            }
+            if self.counties[id].pop_band != 0 {
+                let herd = land::herd_labour_estimate(
+                    &self.tables,
+                    &self.counties[id],
+                    self.season_next,
+                );
+                self.counties[id].labour_wanted[crate::tables::JOB_CATTLE_FARMING] = herd.wanted;
+                self.counties[id].labour_useful[crate::tables::JOB_CATTLE_FARMING] = herd.useful;
+            }
+        }
+    }
+
     fn labour_allocate_all(&mut self) {
         for id in 1..=self.county_count {
             crate::labour::allocate(&mut self.counties[id]);
@@ -803,7 +839,7 @@ impl Kingdom {
         // `crate::tables::SCORE_INPUT_OFFSETS` has read `+0x4C` as *castles
         // held* for as long as it has existed, with the C for it in the doc
         // comment — and **nothing in this workspace ever wrote it**, so
-        // `score_inputs[5]` was zero for every realm for the whole game and the
+        // `score_inputs[5]`
         // heaviest-weighted of the six terms (x50, more than the other five
         // combined) contributed nothing to anybody's score. That is
         // `docs/agents.md`'s *a correct explanation sitting directly above the

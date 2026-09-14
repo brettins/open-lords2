@@ -82,9 +82,10 @@ fn the_season_pipeline_allocates_twice_and_recounts_the_fields() {
     let joined = names.join(" ");
     assert!(joined.contains("LabourAllocate"), "{joined}");
     assert!(joined.contains("CountyRecountFields"), "{joined}");
-    // 33 since `Pass::AiManageFarms` — `Season_Advance`'s own first call,
-    // `Ai_ManageFarmsAll` — went in at position 0.
-    assert_eq!(SEASON_PIPELINE.len(), 33, "and the length is written down too");
+    // 34 since `Pass::ArmyRecountTroops` — `Army_RecountCountyTroops`
+    // (`0x004AD6C0`), whose tail re-prices the ration and the two farm ceilings
+    // — went in before the second allocation.
+    assert_eq!(SEASON_PIPELINE.len(), 34, "and the length is written down too");
 
     // The order is the rule, and it is this: everything that moves a ceiling
     // runs before the first allocation.
