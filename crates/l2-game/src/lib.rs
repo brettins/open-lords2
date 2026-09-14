@@ -52,6 +52,7 @@ pub const TICK_MS: u32 = 16;
 
 pub mod arrival;
 pub mod audio;
+pub mod batfield;
 pub mod battlefield;
 pub mod build_id;
 pub mod castle;

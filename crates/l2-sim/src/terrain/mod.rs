@@ -62,6 +62,8 @@
 
 mod builder;
 pub use builder::*;
+mod field;
+pub use field::*;
 
 /// The battlefield is 80 x 80. Both binaries walk it as `for (y < 0x50)`.
 pub const DIM: usize = 80;

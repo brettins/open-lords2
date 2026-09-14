@@ -116,6 +116,10 @@ impl Assets {
         // all. `crate::castle` is that global; this is the one place with a
         // `Vfs` to fill it from.
         crate::castle::publish_from(|name| vfs.read(name).ok());
+        // And `batfield.pl8` beside it, for the same reason:
+        // `Battlefield_BuildRandom` reads the open field out of a process
+        // global too. `crate::batfield`.
+        crate::batfield::publish_from(|name| vfs.read(name).ok());
         Ok(Assets {
             ink: Ink::for_palette(&palette),
             quirks: Quirks::default(),
