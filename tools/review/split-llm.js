@@ -83,7 +83,8 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   const uses = []; { let d = 0, inUse = false; for (const l of lines) { if (d === 0 && /^(pub )?use /.test(l)) inUse = true; if (inUse) uses.push(l.replace(/^pub /, "")); if (inUse && /;\s*$/.test(l)) inUse = false; const code = l.replace(/\/\/.*$/, ""); d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
   // Each submodule sees the parent and every sibling: private items a sibling holds are
   // not re-exported by the parent's `pub use`, so the globs go sideways too.
-  const prelude = n => "#![allow(unused_imports)]\nuse super::*;\n" + names.filter(s => s !== n).map(s => `use super::${s}::*;`).join("\n") + "\n" + uses.join("\n") + "\n\n";
+  // The parent's own `super::` is the part's `super::super::`.
+  const prelude = n => "#![allow(unused_imports)]\nuse super::*;\n" + names.filter(s => s !== n).map(s => `use super::${s}::*;`).join("\n") + "\n" + uses.map(u => u.replace(/^use super::/, "use super::super::")).join("\n") + "\n\n";
   fs.mkdirSync(path.join(root, dir), { recursive: true });
   const modBody = files.mod.join("\n");
   const decl = names.map(n => `mod ${n};\npub use ${n}::*;`).join("\n") + "\n";
