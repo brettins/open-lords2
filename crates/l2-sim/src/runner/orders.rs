@@ -319,7 +319,12 @@ impl BattleRunner {
             return;
         }
 
-        self.fighters[i].phase = self.fighters[i].phase.wrapping_add(1);
+        // **The phase is the animation handlers', not this loop's.**
+        // `Anim_WalkA2` steps it (wrapping at 0x17) and `Anim_StrikeA2` steps
+        // it for the swinging man only (0x27); `Anim_StandA2` and
+        // `Anim_DrawBowA2` never do — `00480000.c:2509`, `super::anim`. Ours
+        // advanced it once per figure per tick here, which un-froze the
+        // defender's strike cycle and made the role swap invisible.
         if self.fighters[i].hold > 0 {
             self.fighters[i].hold -= 1;
         }
@@ -361,7 +366,27 @@ impl BattleRunner {
                 // somewhere else went on hacking at nothing for the rest of
                 // the battle. The player's *"some men stay in the attacking
                 // animation after the fight"*.
-                self.stand(i);
+                //
+                // **The dropping tick is a striking tick.**
+                // `00480000.c:1384`: `BattleMan_StateMelee` calls `Anim_Strike`
+                // at its *top* and only then writes the new state, so the last
+                // tick of a duel is drawn swinging and the figure reaches state
+                // 8 on the next one. Ours stood him here.
+                //
+                // **[D]** The original *returns* from the handler here, giving
+                // the figure a tick in which he only swings. Ours writes the
+                // pose and falls through to the arms below, so an arm that acts
+                // this tick overwrites it. Returning costs both of the gates
+                // that measure this seam: a figure dropped mid-crossing has his
+                // `walking` counter frozen while the trail is drawn from it,
+                // eight jumps of a whole cell over a 42-figure battle
+                // (`battle_picture`'s
+                // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`), and the
+                // skipped melee search turns the seam's militia from 6 of 8
+                // into 8 of 8. The order of the writes is the original's; the
+                // skipped tick is not.
+                let facing = self.fighters[i].facing;
+                self.strike(i, facing);
             }
         }
 

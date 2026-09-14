@@ -48,7 +48,7 @@ pub enum State {
 ///
 /// | variant | handler | poses |
 /// |---|---|---|
-/// | `Idle` | `Anim_StandA2` `0x004872AE` | `N-1`, plus the fidget |
+/// | `Idle` | `Anim_StandA2` `0x004872AE` | the figure index `& 7`, with 6 → 1 and 7 → 2 (`00480000.c:2873`), plus the fidget |
 /// | `Walking` | `Anim_WalkA2` `0x00486D83` | 0 … 5, one every 4 ticks over 24 |
 /// | `Attacking` | `Anim_StrikeA2` `0x00486249` | 6 …, from the strike cycle |
 /// | `Shooting` | `Anim_DrawBowA2` `0x0048804A` | 10 … 12, archers and crossbowmen |
@@ -68,9 +68,16 @@ pub enum Motion {
     Idle,
     Walking,
     Attacking,
-    /// Drawing a bow — the ten ticks `BattleMan_FireMissile` (state 5) spends
-    /// between acquiring a target and loosing at it. Troops with no bow never
-    /// enter it, and the renderer falls back to the standing pose if one does.
+    /// Drawing a bow. **The whole reload, not a window before the shot:**
+    /// `BattleMan_FireMissile` ends `if (target != 0) Anim_DrawBow();`
+    /// (`00480000.c:1531`), so the draw is held every tick a target is held,
+    /// and the pose comes from a curve indexed by `reload_counter`.
+    ///
+    /// Troops with no bow never enter it, and there is no fallback if one
+    /// does: `Anim_DrawBowA2` has one formula for every `troopType < 7` — no
+    /// per-troop stride and no knight arm — and `l2_view::figures` returns
+    /// `drawbow::frame` for every troop to match, past the end of a pikeman's
+    /// sheet exactly as the binary does.
     Shooting,
     Dying,
 }

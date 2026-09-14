@@ -538,7 +538,7 @@ impl BattleRunner {
     /// `0x20` or `0x40` cell, and **only when `troopType == 9`**.
     /// the only figure in the game that reaches state 14,
 /// engine is stopped by a wall.
-    fn strike_castle(&mut self, i: usize, dst: usize) -> bool {
+    pub(super) fn strike_castle(&mut self, i: usize, dst: usize) -> bool {
         use crate::siege::{FLAG_DRAWBRIDGE, FLAG_KEEP, FLAG_WALL};
         let flags = self.field.cells[dst].flags;
         let side = self.fighters[i].side;
@@ -575,6 +575,13 @@ impl BattleRunner {
             // `Cell_NeighbourHasSurface(.., 8)` finds no wall left, so the pose
             // ends with the wall: the tick after it is gone this arm answers
             // false and the mover stands him.
+            // **And it sets `role = 1` first** (`00480000.c:1556`), the line
+            // before the call: `Anim_StrikeA2` runs its cycle only for the
+            // swinging man, so a wall-batterer with the default
+            // [`Role::Defending`] was drawn in the defender's standing pose,
+            // hammering a gate without moving his arms.
+            let sim = self.fighters[i].sim;
+            self.sim.figures[sim].role = crate::Role::Attacking;
             let facing = self.fighters[i].facing;
             self.strike(i, facing);
             // **Both thresholds open a 9 × 9, and it is the same call.**

@@ -261,17 +261,25 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
     }
 
     if troop == Troop::Knights {
-        // A knight's body facing snaps to whichever of the eight rows has
-        // artwork for the facing it wants, searching outward from its current
-        // one.
-        let base = knight_base(facing, facing);
-        let step = strike_cycle(troop)[((phase % 40) / 4) as usize];
+        // **Only `Anim_StrikeA2` has the knight arm with the table.**
+        // `00480000.c:2565`: a knight's body facing snaps to whichever of the
+        // eight `DAT_004D9C30` rows has artwork for the facing it wants,
+        // searching outward from its current one, and the strike cycle rides
+        // on top — for the defender too, whose phase is merely frozen.
+        //
+        // `Anim_WalkA2` (`00480000.c:2896`) and `Anim_StandA2` (`2873`) have
+        // their own, much shorter knight arm: the **rider** frame is the bare
+        // facing 0 … 7 and the cadence goes on the horse sheet
+        // ([`horse_frame`]). Ours put walk and stand on the strike formula, so
+        // a riding knight's body flickered through the swing.
+        let base = knight_base(facing, facing) as usize;
         return match anim {
-            Anim::Walking | Anim::Idle | Anim::Attacking | Anim::Shooting => {
-                base as usize + step as usize
-            }
+            Anim::Attacking => base + strike_cycle(troop)[((phase % 40) / 4) as usize] as usize,
+            Anim::Walking | Anim::Idle => facing,
             // Knights have no separate dying block in this table.
-            Anim::Dying => base as usize,
+            Anim::Dying => base,
+            // Handled above: `Anim_DrawBowA2` has no knight arm either.
+            Anim::Shooting => drawbow::frame(troop, facing as u8, pose.swing),
         };
     }
 
@@ -324,9 +332,19 @@ fn knight_base(body: usize, target: usize) -> u8 {
 }
 
 /// The horse frame under a knight: eight facings of six poses.
-pub fn horse_frame(facing: u8, phase: u8) -> usize {
+///
+/// `horseFrame = |dirc| * 6 + (animPhase >> 2)` in `Anim_WalkA2`
+/// (`0x00486D83`, `00480000.c:2762`), over that handler's 24-tick loop — so
+/// the six poses are exactly covered. `Anim_StandA2` (`0x004872AE`) and
+/// `Anim_StrikeA2` write `|dirc| * 6` with no phase term: a standing or
+/// swinging knight sits a still horse. **[V]**
+pub fn horse_frame(facing: u8, anim: Anim, phase: u8) -> usize {
     let facing = (facing % FACINGS as u8) as usize;
-    facing * HORSE_POSES as usize + (((phase % 40) / 4) as usize).min(HORSE_POSES as usize - 1)
+    let step = match anim {
+        Anim::Walking => ((phase % 24) / 4) as usize,
+        _ => 0,
+    };
+    facing * HORSE_POSES as usize + step
 }
 
 /// Where a figure is drawn while it is between cells.

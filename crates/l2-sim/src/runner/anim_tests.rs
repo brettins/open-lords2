@@ -211,3 +211,69 @@ fn a_man_on_his_destination_never_marches() {
         );
     }
 }
+
+/// **A barred man stands where he wanted to go.** `BattleMan_StateWalk`
+/// (`0x0048314E`, `00480000.c:1359`) runs `Anim_Walk` before it knows the step
+/// was refused, so `facingDrawn` and the walk phase have already moved;
+/// `Anim_StandA2` only takes the frame back.
+///
+/// **Ablation**: returning early from `march` when `!moved`, as this used to,
+/// leaves both behind.
+#[test]
+fn a_refused_step_still_turns_the_drawn_facing() {
+    let mut r = pair(Troop::Peasants, Troop::Peasants, 30);
+    r.fighters[0].facing_drawn = 7;
+    r.fighters[0].facing = 3;
+    r.fighters[0].phase = 0;
+    r.march(0, false);
+    assert_eq!(r.fighters[0].anim, Motion::Idle, "a refused step stands");
+    assert_eq!(r.fighters[0].facing_drawn, 3, "Anim_Walk wrote the facing first");
+    assert_eq!(r.fighters[0].phase, 1, "and stepped the walk phase");
+}
+
+/// **Only the swinging man's phase moves** — `Anim_StrikeA2`'s `animPhase + 1`
+/// sits inside `if (role == 1)` (`00480000.c:2509`), and `Anim_StandA2` and
+/// `Anim_DrawBowA2` never touch it.
+///
+/// **Ablation**: the unconditional `phase += 1` this used to have at the top of
+/// `step_one` moves the defender's counter and the stander's alike.
+#[test]
+fn the_defenders_strike_phase_is_frozen_and_a_stander_never_steps_it() {
+    let mut r = pair(Troop::Swordsmen, Troop::Swordsmen, 1);
+    let (a, b) = (r.fighters[0].sim, r.fighters[1].sim);
+    r.sim.figures[a].role = crate::Role::Attacking;
+    r.sim.figures[b].role = crate::Role::Defending;
+    r.fighters[0].phase = 4;
+    r.fighters[1].phase = 4;
+    for _ in 0..6 {
+        r.strike(0, 2);
+        r.strike(1, 6);
+    }
+    assert_eq!(r.fighters[0].phase, 10, "the attacker swings");
+    assert_eq!(r.fighters[1].phase, 4, "the defender's cycle is frozen");
+    r.fighters[0].phase = 7;
+    for _ in 0..6 {
+        r.stand(0);
+        r.shoot(0);
+    }
+    assert_eq!(r.fighters[0].phase, 7, "standing and drawing leave it alone");
+}
+
+/// **A wall-batterer swings.** `BattleMan_StateAttackWall` (`0x00483A88`) sets
+/// `role = 1` on the line before `Anim_Strike` (`00480000.c:1556`).
+///
+/// **Ablation**: dropping that line leaves him at the default
+/// [`crate::Role::Defending`], which the renderer draws standing.
+#[test]
+fn a_man_hitting_a_wall_takes_the_attacking_role() {
+    let mut r = pair(Troop::Swordsmen, Troop::Swordsmen, 30);
+    let sim = r.fighters[1].sim;
+    r.sim.figures[sim].role = crate::Role::Defending;
+    let (x, y) = (r.fighters[1].x, r.fighters[1].y);
+    let dst = y as usize * DIM + (x as usize + 1);
+    r.field.cells[dst].flags |= crate::siege::FLAG_WALL;
+    r.field.cells[y as usize * DIM + x as usize].surface = crate::siege::SURFACE_BAILEY;
+    assert!(r.strike_castle(1, dst), "the wall arm did not run");
+    assert_eq!(r.sim.figures[sim].role, crate::Role::Attacking);
+    assert_eq!(r.fighters[1].anim, Motion::Attacking);
+}

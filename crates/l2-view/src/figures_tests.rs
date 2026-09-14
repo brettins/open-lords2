@@ -141,14 +141,43 @@
         );
     }
 
+    /// **Three knight arms, not one.** `Anim_StrikeA2` (`00480000.c:2565`) is
+    /// the only handler that reads `DAT_004D9C30`; `Anim_WalkA2` (`2896`) and
+    /// `Anim_StandA2` (`2873`) set the rider frame to the bare facing and put
+    /// the cadence on the horse.
+    ///
+    /// **Ablation**: putting walk and stand back on the strike formula gives a
+    /// riding knight the swing frames and breaks the `< 8` bound below.
     #[test]
-    fn a_knight_always_finds_artwork_and_never_leaves_its_sheet() {
+    fn a_knight_rides_on_the_bare_facing_and_swings_from_the_table() {
         for facing in 0..8u8 {
             for phase in 0..=120u8 {
-                let f = frame(Troop::Knights, Anim::Walking, facing, phase);
-                assert!(f >= 8, "facing {facing} fell through to the unused low frames");
+                for anim in [Anim::Walking, Anim::Idle] {
+                    let f = frame(Troop::Knights, anim, facing, phase);
+                    assert_eq!(f, facing as usize, "the rider is the bare facing");
+                }
+                let f = frame(Troop::Knights, Anim::Attacking, facing, phase);
+                assert!(f >= 8, "facing {facing} fell through to the rider-only frames");
                 assert!(f < 56, "facing {facing} phase {phase} -> {f}, past the 56 real frames");
             }
+        }
+    }
+
+    /// The horse carries the walk's six-pose cadence and stands still under a
+    /// knight who is not walking — `horseFrame` in `00480000.c:2762` / `2896`.
+    #[test]
+    fn the_horse_walks_and_the_standing_horse_does_not() {
+        for facing in 0..8u8 {
+            let base = facing as usize * HORSE_POSES as usize;
+            let mut seen = std::collections::HashSet::new();
+            for phase in 0..24u8 {
+                let f = horse_frame(facing, Anim::Walking, phase);
+                assert!((base..base + HORSE_POSES as usize).contains(&f));
+                seen.insert(f);
+                assert_eq!(horse_frame(facing, Anim::Idle, phase), base, "a still horse");
+                assert_eq!(horse_frame(facing, Anim::Attacking, phase), base);
+            }
+            assert_eq!(seen.len(), HORSE_POSES as usize, "all six walk poses reached");
         }
     }
 

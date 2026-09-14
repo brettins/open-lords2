@@ -149,10 +149,11 @@ fn the_ok_button_frames_are_a_hole_rather_than_a_tick() {
     );
 }
 
-/// Knights come off an 8 x 8 `(body, target)` table whose live entries are
-/// spaced three apart and top out at 53. With the walk cycle's maximum of 2
-/// that reaches frame 55 — and `A2*_knig.pl8` holds exactly 56 real frames
-/// plus four 2x2 stubs.
+/// Knights **strike** off an 8 x 8 `(body, target)` table whose live entries
+/// are spaced three apart and top out at 53. With the strike cycle's maximum of
+/// 2 that reaches frame 55 — and `A2*_knig.pl8` holds exactly 56 real frames
+/// plus four 2x2 stubs. Walking and standing use the bare facing 0 … 7 instead
+/// (`00480000.c:2896`, `2873`), the eight frames below the table.
 #[test]
 fn the_knight_frame_table_fits_the_knight_sheets() {
     let Some(dir) = asset_dir() else {
@@ -164,9 +165,12 @@ fn the_knight_frame_table_fits_the_knight_sheets() {
         assert_eq!(sheet.frame_count(), 60, "{name}");
         for facing in 0..8u8 {
             for phase in 0..40u8 {
-                let f = figures::frame(Troop::Knights, Anim::Walking, facing, phase);
+                let f = figures::frame(Troop::Knights, Anim::Attacking, facing, phase);
                 assert!((8..56).contains(&f), "{name}: facing {facing} -> frame {f}");
                 assert!(sheet.frame(f).is_some(), "{name}: frame {f} does not decode");
+                let r = figures::frame(Troop::Knights, Anim::Walking, facing, phase);
+                assert_eq!(r, facing as usize, "{name}: the rider is the bare facing");
+                assert!(sheet.frame(r).is_some(), "{name}: rider frame {r} does not decode");
             }
         }
     }
@@ -175,7 +179,9 @@ fn the_knight_frame_table_fits_the_knight_sheets() {
     assert_eq!(horse.frame_count(), 48, "A2_horse.pl8 should be 8 x 6");
     for facing in 0..8u8 {
         for phase in 0..40u8 {
-            assert!(figures::horse_frame(facing, phase) < 48);
+            for anim in [Anim::Idle, Anim::Walking, Anim::Attacking, Anim::Dying] {
+                assert!(figures::horse_frame(facing, anim, phase) < 48);
+            }
         }
     }
 }

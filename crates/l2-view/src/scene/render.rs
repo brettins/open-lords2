@@ -86,9 +86,14 @@ pub fn draw_terrain(
 /// jumps of half a cell or more over a 42-figure battle; 0 once
 /// `BattleRunner::step_one` took `BattleMan_Step`'s order. `docs/battle.md`
 /// §13.6, `docs/decisions.md` C200.
+/// **The trail is the mover's, not the pose's.** `BattleFigure_Draw` indexes
+/// `g_walkOffset32[dirc][walking]` with the figure's own crossing counter; no
+/// `Anim_*` handler touches it. Ours read `anim == Walking`, so a man the
+/// melee arm re-posed mid-crossing — `BattleMan_StateMelee`'s `Anim_Strike` at
+/// the top of the tick that drops him out (`00480000.c:1384`) — snapped 30 px
+/// onto the cell he was still entering.
 pub fn drawn_cell(f: &Fighter) -> ((i32, i32), u8) {
-    let s = f.progress.substep;
-    let walking = if f.anim == Anim::Walking { s.min(16) as u8 } else { 0 };
+    let walking = if f.progress.free { 0 } else { f.progress.substep.min(16) as u8 };
     ((f.x as i32, f.y as i32), walking)
 }
 
@@ -150,7 +155,7 @@ pub fn draw_figures(
         // the same clip.
         if f.troop == Troop::Knights {
             if let Some(horse) = &assets.horse {
-                if let Some(frame) = horse.frame(figures::horse_frame(f.facing, f.phase)) {
+                if let Some(frame) = horse.frame(figures::horse_frame(f.facing, f.anim, f.phase)) {
                     let w = frame.width as i32;
                     canvas.blit_clipped(
                         &frame,

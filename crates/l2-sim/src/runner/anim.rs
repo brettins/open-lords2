@@ -26,7 +26,7 @@
 //! renderer reads it to pick a frame.
 
 use super::BattleRunner;
-use crate::Motion;
+use crate::{Motion, Role};
 
 impl BattleRunner {
     /// `Anim_StandA2` (`0x004872AE`) — **stand, and fidget.**
@@ -51,6 +51,18 @@ impl BattleRunner {
     pub(super) fn stand(&mut self, i: usize) {
         let f = &mut self.fighters[i];
         f.anim = Motion::Idle;
+        // **A siege engine never reaches the body of it.** `Anim_StandA2`
+        // opens `if (troopType < 7)` and hands everything above to
+        // `FUN_00488793` (`0x00488793`, `00480000.c:3356`), which steps
+        // `animPhase` and wraps it at 0x2F for `troopType == 10` alone — the
+        // oil pot's six bubbling pictures, `(animPhase >> 3) + 0x23`. The ram,
+        // the ladder and the catapult read a facing and no counter.
+        if f.troop.index() >= 7 {
+            if f.troop.index() == 10 {
+                f.phase = (f.phase + 1) % 48;
+            }
+            return;
+        }
         f.fidget = f.fidget.wrapping_add(1);
         if f.fidget > f.fidget_period {
             f.fidget = 0;
@@ -74,14 +86,23 @@ impl BattleRunner {
     ///
     /// `moved` is `BattleMan_Step`'s own return: true while a crossing is
     /// running or a step has just been committed.
+    /// **It runs either way, and `Anim_StandA2` only takes the frame back.**
+    /// `BattleMan_StateWalk` (`0x0048314E`, `00480000.c:1359`) is
+    /// `Anim_Walk(); if (BattleMan_Step(0) == 0) Anim_Stand();` — the walk
+    /// handler has already written `facingDrawn = dirc` and stepped
+    /// `animPhase` by the time the refusal is known, and `Anim_StandA2` writes
+    /// neither. So a barred man stands *at the facing he wanted*, and his walk
+    /// cycle keeps turning under the standing pose. Ours skipped the handler
+    /// and left him standing at a stale `facing_drawn`.
     pub(super) fn march(&mut self, i: usize, moved: bool) {
-        if !moved {
-            self.stand(i);
-            return;
-        }
         let f = &mut self.fighters[i];
         f.anim = Motion::Walking;
         f.facing_drawn = f.facing;
+        // `animPhase` wraps at 0x17 here — six poses of four ticks.
+        f.phase = (f.phase + 1) % 24;
+        if !moved {
+            self.stand(i);
+        }
     }
 
     /// `Anim_StrikeA2` (`0x00486249`) — **strike**, base 6 plus the per-troop
@@ -90,10 +111,22 @@ impl BattleRunner {
     /// `facing` is the strike facing: the melee arm aims it at the opponent and
     /// leaves `dirc` — the crossing's — alone,
     /// apart. `docs/battle.md` §13.8.
+    ///
+    /// **Only the swinging man's phase moves.** `00480000.c:2509`: the
+    /// `animPhase + 1` and its 0x27 wrap sit inside `if (role == 1)`, and
+    /// `Anim_StandA2` and `Anim_DrawBowA2` never touch the counter at all. The
+    /// defender of a pair is drawn by this same handler with his cycle frozen,
+    /// and it resumes where it stopped when [`crate::melee`] swaps the roles.
+    /// Ours stepped every figure's phase once a tick from `step_one`, so a
+    /// defender's frozen pose crept and the swap was invisible.
     pub(super) fn strike(&mut self, i: usize, facing: u8) {
+        let swinging = self.sim.figures[self.fighters[i].sim].role == Role::Attacking;
         let f = &mut self.fighters[i];
         f.anim = Motion::Attacking;
         f.facing_drawn = facing % 8;
+        if swinging {
+            f.phase = (f.phase + 1) % 40;
+        }
     }
 
     /// `Anim_DrawBowA2` (`0x0048804A`) — **draw a bow**, poses 10 … 12.
