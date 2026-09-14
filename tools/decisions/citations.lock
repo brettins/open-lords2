@@ -234,7 +234,7 @@ crates/l2-kingdom/src/county.rs	C153	b560005ada6f	c724d7afe0dd
 crates/l2-kingdom/src/county.rs	C161	0315734afd48	8b6af36909ef
 crates/l2-kingdom/src/county.rs	C195	99f62b410c6c	f0bf50bfaad1
 crates/l2-kingdom/src/county.rs	C53	e8fb6191353a	cad36ab11dbf
-crates/l2-kingdom/src/diplomacy.rs	C62	8f8a093f4110	ebb6a7ec3711
+crates/l2-kingdom/src/diplomacy/mod.rs	C62	8f8a093f4110	ebb6a7ec3711
 crates/l2-kingdom/src/event.rs	C13	2d8bbc27f266	006e7d0b71a7
 crates/l2-kingdom/src/event.rs	C210	d9591e0fa28a	38024f0b559c
 crates/l2-kingdom/src/field.rs	C123	7fa38a6ec634	3a5cc2fec37d

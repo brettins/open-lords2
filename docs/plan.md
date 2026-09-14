@@ -770,7 +770,7 @@ is diplomacy.** So AI step 10, the raid, is implemented, dispatched, tested and 
 missing writer is an unbuilt *subsystem*. A test holds both halves and
 goes red the day it changes.
 
-**And diplomacy is built** — `crates/l2-kingdom/src/diplomacy.rs`, AI turn steps 1 and 2, and
+**And diplomacy is built** — `crates/l2-kingdom/src/diplomacy/mod.rs`, AI turn steps 1 and 2, and
 the player's side on screens `0x0B` and `0x1A`. **The measurement above was right and
 incomplete**, which is the part worth carrying: with the module built and nothing else, forty
 turns of England still produced *no standing below −10 anywhere on the map*, because
