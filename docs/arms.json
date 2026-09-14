@@ -2701,7 +2701,7 @@
       "what": "THE ONLY THING IN THE BINARY THAT POSTS A COUNTY'S RANDOM-EVENT LETTER, and it is a frame arm on the SELECTED county: `if (eventFired != 0 && g_mouseRightDown == 0 && (eventFired = 0, owner == g_localPlayer)) Msg_Enqueue(0, g_localPlayer, eventId, 0, 0x0F, county, 0, 0);`. Battle_Frame is its only caller, once a frame, as FUN_00448d7e(g_selectedCounty) at 0x004BA187 -- between Msg_Pump (line 107) and Turn_Tick (262), with no g_screenId test. Event_RollAll clears the three modifiers and NOT this latch, so an event in a county nobody looks at waits, for seasons if need be, and arrives the frame that county is picked.",
       "note": "A whole mechanic was invisible without it: the rule rolled, the county's fields moved, the painter existed, and no function of ours posted the record -- twenty turns of play and no event letter. The clear sits OUTSIDE the owner test (one comma expression), so a county that changed hands between the roll and the click swallows its letter. g_mouseRightDown is NOT reproduced and cannot be: our Event has no right PRESS -- RightClick is the release, because the original's fifty-odd right-button arms all read DAT_004E6900 -- so there is no frame here during which the button is held and the guard would be false on every one of them.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/message.rs"
+      "ours": "crates/l2-game/src/message/mod.rs"
     },
     {
       "id": "0x00472E46/battle-phase-swallows-messages",
@@ -2737,7 +2737,7 @@
       "what": "Msg_DrawWindow's category-0x0B arm opens `if (g_realms[g_localPlayer].ally != 0) { Msg_Dismiss(); DAT_0058FE2C = 0; return; }` -- an Accept alliance ? prompt that arrives when you already have an ally closes ITSELF, before it is drawn and before the player sees it.",
       "note": "A DISMISSAL INSIDE A DRAW FUNCTION. It matters because two AI realms can both offer in the same season: the second offer is silently swallowed rather than queued behind the first, so accepting one really does end the round of courtship. Msg_DrawDiplomacy carries the same guard for its own alliance arm; that is the separate record 0x00475E07/letter-alliance-lapses.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/message.rs"
+      "ours": "crates/l2-game/src/message/mod.rs"
     },
     {
       "id": "0x0047309E/capture-smacker",
@@ -2761,7 +2761,7 @@
       "what": "Msg_DrawWindow's category-0x0E arm, at g_messageTimer == 2000 -- the frame the window opens. It clears DAT_0053F0C4, then: group 0xE1 sets 10; otherwise, with opponents left and the message about me, 11; otherwise, with NO opponents left, it calls Msg_Enqueue(0, g_localPlayer, 0xE1, 0, 0x0E, ...) -- IT PUSHES A MESSAGE ONTO THE RING IT IS BEING DRAWN FROM. Msg_Dismiss then reads the outcome and enters screen 0x1C.",
       "note": "THE MAINLINE WIN IS AN ARM OF THE DRAW. docs/plan.md states it as `any ending message displayed while g_opponentsRemaining is zero enqueues group 225, and the game is won when THAT is dismissed`, and this is that sentence: displayed sets the outcome, dismissed acts on it. It is the only writer of DAT_0053F0C4 during play, it is written out TWICE in the function (once in the animated branch and once in the unanimated one, identically), and nothing about the category switch suggests an arm of it can end the game. Ours runs in the message screen's `update` rather than its `draw`, because Screen::draw takes &Ctx and cannot mutate; the ordering is unchanged.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/message.rs"
+      "ours": "crates/l2-game/src/message/mod.rs"
     },
     {
       "id": "0x0047309E/tip-timer-clamp",
@@ -2773,7 +2773,7 @@
       "what": "Msg_DrawWindow's category-0x04 arm ends `if (999 < g_messageTimer) g_messageTimer = 100;` -- the floating tip is the only message whose life is set by the DRAW rather than by Msg_Pump, and it is the only one with no Ui_OkButton, so it is the only message a player cannot close.",
       "note": "The clamp is in the draw and not in the pull, which has a visible consequence: a tip enqueued on a screen Msg_Pump does not run on keeps its full 2000 and is dismissed by the screen ladder instead. Reproduced; nothing in this workspace enqueues a category-4 message yet. This note used to blame that on Tip_Update (0x00476AA7) not being built; it is built now, and it posts categories 0x05..0x09 from g_tipCategory, never 0x04 -- the floating tip is somebody else's.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/message.rs"
+      "ours": "crates/l2-game/src/message/mod.rs"
     },
     {
       "id": "0x00475E07/letter-alliance-lapses",
@@ -2785,7 +2785,7 @@
       "what": "The same guard on the diplomatic letter: Msg_DrawDiplomacy dismisses without drawing when the letter is group 0xF8 (arm 3, `Offer of alliance.`) and the local player already has an ally.",
       "note": "The decompilation of this one reads `if ((local_c == 3) && (g_realms[g_localPlayer].ally != 0))` with local_c UNINITIALISED -- a decompiler artefact: the arm index is `g_messageGroup - 0xF5`, computed lower down and hoisted above its own assignment. Read as the group test, which is what the eleven-arm switch below it uses the same value for. Recorded because reading it literally would make this look like undefined behaviour rather than a guard.",
       "evidence": "I",
-      "ours": "crates/l2-game/src/message.rs"
+      "ours": "crates/l2-game/src/message/mod.rs"
     },
     {
       "id": "0x00476710/map-click-dismiss",
@@ -3082,7 +3082,7 @@
       "gesture": "draw",
       "addr": "0x004B35C1",
       "what": "Msg_PlayVoice(group, variant) on the frame the timer hits a per-category value: 0x7C6 for most, 0x776 for a plain notice and a lord's letter, 0x708 for the two prompts, 0x76C for an ending, 0x5A for a tip. Groups 170..197 index g_msgVoiceLord by (group - 170) * 0x100 + variant * 0x10 into Kt/Bn/Ct/Bp <group>_<1..4>.wav; everything else has one file.",
-      "note": "Missing because audio is another branch's. The trigger timers are the interesting half and are recorded in crates/l2-game/src/message.rs so that branch does not have to re-read the function: they are five different values in one function and they are what makes a lord speak AFTER his letter has been on screen for a moment rather than as it opens.",
+      "note": "Missing because audio is another branch's. The trigger timers are the interesting half and are recorded in crates/l2-game/src/message/mod.rs so that branch does not have to re-read the function: they are five different values in one function and they are what makes a lord speak AFTER his letter has been on screen for a moment rather than as it opens.",
       "evidence": "V"
     },
     {

@@ -1566,8 +1566,8 @@ Reproduced, not tidied.
 ## 7. How a battle result returns
 
 `docs/mechanics.md` listed this as ❓. **The whole path is now implemented** — the campaign
-half in `crates/l2-kingdom/src/battle.rs`, the hand-off to the simulation in
-`crates/l2-game/src/engagement.rs` — and it is checked end to end against the battle fixture
+half in `crates/l2-kingdom/src/battle/mod.rs`, the hand-off to the simulation in
+`crates/l2-game/src/engagement/mod.rs` — and it is checked end to end against the battle fixture
 triple in `crates/l2-game/tests/seam.rs`. This section is rewritten from the four functions
 that make it up, not from `Battle_ReturnToCampaign` alone, because
 `Battle_ReturnToCampaign` is only the third of them.
@@ -2094,7 +2094,7 @@ in `+0x13`. **Anybody else** gets a category-0 notice from the taker: 115 if he 
 if the county was neutral, 114 otherwise. Group 124 is never posted. An **ungovernable** county —
 not bordering the taker's lands, taken by a realm that already holds one — is not taken at all: its
 taker is sent 129 and it is made independent. That branch is **not built**:
-`crates/l2-kingdom/src/conquest.rs` still hands the county over, and so posts no letter for it.
+`crates/l2-kingdom/src/conquest/mod.rs` still hands the county over, and so posts no letter for it.
 The rest are built (`crates/l2-game/src/arrival.rs`), including the second letter a
 defence-marked garrison's defeat posts through `Battle_ReturnToCampaign`'s second call.
 

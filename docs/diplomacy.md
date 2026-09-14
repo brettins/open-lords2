@@ -848,14 +848,14 @@ Stated plainly, because a wrong map is worse than a small one.
   engine — §10.8 is forty turns of it — but that is our arithmetic agreeing with itself and
   not evidence about the original. It remains unobserved **in the game**.
 * ~~**Nothing here has been run.**~~ Nothing here has been run *in the original*, which is
-  still true and still the limit on everything above. `crates/l2-kingdom/src/diplomacy.rs`
+  still true and still the limit on everything above. `crates/l2-kingdom/src/diplomacy/mod.rs`
   runs all of it in ours; §10 is what that produced.
 
 ---
 
 ## 10. What happened when it was implemented
 
-`crates/l2-kingdom/src/diplomacy.rs`, `crates/l2-game/src/screens/diplomacy.rs`. Implementing
+`crates/l2-kingdom/src/diplomacy/mod.rs`, `crates/l2-game/src/screens/diplomacy.rs`. Implementing
 a document is the only way to find out whether it is true, and this one was right about
 almost everything and wrong in nine places that each change behaviour. Seven are corrections
 to sections above and are marked there; two are new.
@@ -1057,7 +1057,7 @@ the same way.
 
 ### 11.5 Where it is
 
-`crates/l2-game/src/message.rs` is the ring and the rules; `crates/l2-game/src/screens/message.rs`
+`crates/l2-game/src/message/mod.rs` is the ring and the rules; `crates/l2-game/src/screens/message.rs`
 is the window and the arms; `crates/l2-game/tests/messages.rs` plays every route above with
 `Event` values. `docs/arms.json`'s `messages` group has one record per arm, including the four
 that are not built and why.

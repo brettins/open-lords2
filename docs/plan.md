@@ -396,7 +396,7 @@ The game ends, and somebody wins it.
 396: right outcome byte and the right sentence of screen `0x1C`, and a campaign steps map to map.
 What is missing: the way a person gets to that position on the board.
 
-**Sieges are on the critical path.** `crates/l2-kingdom/src/conquest.rs:114` implements the
+**Sieges are on the critical path.** `crates/l2-kingdom/src/conquest/mod.rs:114` implements the
 gate, and it is one `if`: a county with a castle *and* a garrison that is not yours cannot be
 entered at all — `Refusal::Garrisoned`. It is correct and it is tested at all four corners.
 Its consequence is that **without sieges the map stops moving and a game cannot be won.** Any
@@ -504,7 +504,7 @@ count, how retreat and surrender are commanded, and how the seven outcomes are c
 > type-7 unit"* was copied into `ai.rs` as *"needs the unit mission byte"* and neither reader
 > noticed they were the same wrong claim.
 
-`crates/l2-kingdom/src/ai.rs` names all fourteen handlers with addresses — real progress;
+`crates/l2-kingdom/src/ai/mod.rs` names all fourteen handlers with addresses — real progress;
 `docs/kingdom.md` §12 used to call them *"the single largest remaining piece of the kingdom
 layer"*. **Four are implemented.** The AI sets tax rates, takes its resource grants, adds
 fallow fields and recomputes its own totals. It raises no armies, moves nothing, builds no
@@ -770,7 +770,7 @@ is diplomacy.** So AI step 10, the raid, is implemented, dispatched, tested and 
 missing writer is an unbuilt *subsystem*. A test holds both halves and
 goes red the day it changes.
 
-**And diplomacy is built** — `crates/l2-kingdom/src/diplomacy.rs`, AI turn steps 1 and 2, and
+**And diplomacy is built** — `crates/l2-kingdom/src/diplomacy/mod.rs`, AI turn steps 1 and 2, and
 the player's side on screens `0x0B` and `0x1A`. **The measurement above was right and
 incomplete**, which is the part worth carrying: with the module built and nothing else, forty
 turns of England still produced *no standing below −10 anywhere on the map*, because

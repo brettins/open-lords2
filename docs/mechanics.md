@@ -516,7 +516,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege.rs`,
   checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege.rs`).
   Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
-  the way in — `crates/l2-sim/src/siege.rs`.
+  the way in — `crates/l2-sim/src/siege/mod.rs`.
 - ⚠ **The castle's layout on the battlefield is ours, not the original's.**
   `Battlefield_BuildCastle`'s cell *translation* is read (`docs/battle.md` §3.0.1); the
   layout **rasters** it translates are not. `l2_sim::siege::our_castle` is a plain concentric
@@ -536,7 +536,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   ten-rung ladder; an evenly matched fight leaves the winner **a tenth of its army**.
   `docs/armies.md` §7.2
 - ✅ **The campaign–battle seam** — an army that reaches an enemy county now fights and hands
-  the result back: `crates/l2-kingdom/src/battle.rs` and `crates/l2-game/src/engagement.rs`,
+  the result back: `crates/l2-kingdom/src/battle/mod.rs` and `crates/l2-game/src/engagement/mod.rs`,
   checked end to end against the battle fixture triple in `crates/l2-game/tests/seam.rs`.
   **`g_battleLoser` holds the winner**; four sites say so and `docs/armies.md` §7 lists them.
   Implementing it on the name destroys the winner and hands the county to the corpse

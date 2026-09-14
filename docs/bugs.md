@@ -187,7 +187,7 @@ bugs — but they are the same three lines.)
 
 **Evidence.** **[D]**.
 
-**Reproduced.** `crates/l2-kingdom/src/units_tick.rs:422`, with
+**Reproduced.** `crates/l2-kingdom/src/units_tick/mod.rs:422`, with
 `phase_five_walks_one_cursor_for_every_mob`. The comment gives the second reason for keeping
 it: *"a lockstep peer that 'fixed' it would desync."*
 

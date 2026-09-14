@@ -1139,7 +1139,7 @@ involve a phase at all, because `Unit_OrderMove` sets the unit walking directly.
 This is a structural fact rather than a detail, and building the mover as a phase handler —
 which is what §3.1 invited, and what this work started out doing — would have produced a
 game where an army ordered during the player's turn stood still until the phase came round
-again. `crates/l2-kingdom/src/units_tick.rs` is the reading, `kingdom.md` §3.1 is corrected,
+again. `crates/l2-kingdom/src/units_tick/mod.rs` is the reading, `kingdom.md` §3.1 is corrected,
 and `PhaseWait::Sieges` replaces the unit wait on phase 2.
 
 **What made it findable.** The phase-2 row carried **[D]**, derived from "the unit type each
@@ -1154,7 +1154,7 @@ one hid two of the five farming styles and left the AI's field expansion doing n
 all.**
 
 C28's shape again, and this time the collapsed name reached the code rather than a document.
-`crates/l2-kingdom/src/ai.rs` gave AI turn step 5 as *"`AI_ManageFields` (`0x0049DD01`)"*,
+`crates/l2-kingdom/src/ai/mod.rs` gave AI turn step 5 as *"`AI_ManageFields` (`0x0049DD01`)"*,
 dispatching into *"one of three labour allocators"* that *"were not traced"*. Every clause is
 wrong in a different way:
 
@@ -3913,7 +3913,7 @@ independent sources say so:
   opening its own gate is indistinguishable, to the besieger's AI, from the besieger breaking
   it — which is what makes the Readme's sentence a rule rather than an interface quirk.
 
-`crates/l2-sim/src/siege.rs` already read `0x40` as the drawbridge and cited the Readme for
+`crates/l2-sim/src/siege/mod.rs` already read `0x40` as the drawbridge and cited the Readme for
 it; the hand-off and the code disagreed and nothing compared them. The lesson is not that a
 decompiler reading was wrong — it was right about every byte — but that **naming a verb from
 what a function writes, without asking what the game calls it, is a different act from
@@ -3955,7 +3955,7 @@ that watched one for sixty thousand frames found all three in an afternoon, plus
 **C82 — the third way a siege can end could not be reached, and the
 elevation was ours.**
 
-`crates/l2-sim/src/siege.rs`'s `our_castle` put the `FLAG_KEEP` cell at elevation 3 in a
+`crates/l2-sim/src/siege/mod.rs`'s `our_castle` put the `FLAG_KEEP` cell at elevation 3 in a
 bailey of elevation 1. `Formation_RectIsClear` rejects a rectangle whose slots are not *at*
 the destination's elevation and `Formation_SlotIsUsable` rejects a slot more than one below
 it, so an order onto that cell was an order no figure was ever given: the besiegers walked
@@ -4490,7 +4490,7 @@ stale and a quantifier is not.
 
 **C99 — The castle's surface model was inverted, and a besieger could not win because of it.**
 
-`crates/l2-sim/src/siege.rs` carried `SURFACE_RAMPART = 5` and `SURFACE_BREACH = 4`, described as
+`crates/l2-sim/src/siege/mod.rs` carried `SURFACE_RAMPART = 5` and `SURFACE_BREACH = 4`, described as
 *"the rampart"* and *"what a breached rampart patch becomes, and what `Siege_FindCellSurface4`
 hunts for"*. An exhaustive search for **writers** of cell byte `+7` — 36 of them in the corpus —
 settles all of it, and the second half of that sentence is false.
@@ -12240,7 +12240,7 @@ the plane-1 flags with group 30 words; mountain against woodland needs
 
 `Wages_PayAll` (`0x004ACBD4`) stages 0–5: Realm_ReleaseMercenaries `0x004AD230` (hire slots), Realm_DesertArmies `0x004AD0E8` (stages 1–4), Realm_DestroyArmies `0x004AD316` (stage 5). Ours ran desertions 0–2 and never destroyed because apply_bankruptcy keyed on realm.bankrupt_stage (next stage); pay wraps it to 0 after mutiny, so two rungs hit empty arms. Re-keyed on BankruptcyAction. A 400-man army over six unpaid seasons was 400/360/324/292/292/292, is now 400/360/324/292/263/gone. Test six_unpaid_seasons_desert_four_times_and_then_disband_every_army (crates/l2-kingdom/tests/campaign.rs); ablation re-measured 292/292.
 
-Supply transport: Screen_SendSupplies `0x0041AD5D`, NetAct_SendSupplies `0x00447DB6`, Transport_Spawn `0x004292AF`, Transport_RetargetAll `0x00429418` (phase 3), Transport_Deliver `0x004296B5`. Ours had all but the last; supply::deliver had zero callers, so shipments deducted and stood for ever. `0x004296B5` guards cargo_county == county, troops[0] to grain, troops[2] to herd, Herd_UpdateCrowding, tail FUN_0046F0A9 frees the slot as Army_Destroy does. Wired into units_tick::step_one ahead of attack_county. Tests a_transport_reaching_its_cargo_countys_town_unloads_and_is_gone and a_transport_passing_a_town_that_is_not_its_destination_unloads_nothing (crates/l2-kingdom/src/units_tick.rs); ablation red.
+Supply transport: Screen_SendSupplies `0x0041AD5D`, NetAct_SendSupplies `0x00447DB6`, Transport_Spawn `0x004292AF`, Transport_RetargetAll `0x00429418` (phase 3), Transport_Deliver `0x004296B5`. Ours had all but the last; supply::deliver had zero callers, so shipments deducted and stood for ever. `0x004296B5` guards cargo_county == county, troops[0] to grain, troops[2] to herd, Herd_UpdateCrowding, tail FUN_0046F0A9 frees the slot as Army_Destroy does. Wired into units_tick::step_one ahead of attack_county. Tests a_transport_reaching_its_cargo_countys_town_unloads_and_is_gone and a_transport_passing_a_town_that_is_not_its_destination_unloads_nothing (crates/l2-kingdom/src/units_tick/mod.rs); ablation red.
 
 Start options: Game_NewGame `0x00497CED`, Setup_CommitOptions `0x00499DC3`, Game_SetupRealmsAndCounties `0x0049BD99`. Settings::apply_to reproduces 6 of 7 effects (gold 100/500/1000/2500/5000, iron/wood/stone 50 each, armour row plus difficulty×20 to slot 4 for AI, castle, county status, +100 grain to unowned) and 11 of 12 drop-downs; missing the starting garrison from g_startTroops[g_startArmySize] (row 3 = 300 men, row 0 = none), declared by Settings::unhonoured (option 5, L2.eng 102); not built.
 

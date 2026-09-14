@@ -144,7 +144,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
              searches ran before it, so a per-entry toggle has no meaning; bugs.md §6.4",
         ),
     ),
-    ("B6", Unwired("crates/l2-kingdom/src/units_tick.rs")),
+    ("B6", Unwired("crates/l2-kingdom/src/units_tick/mod.rs")),
     ("B7", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
     ("B8", Unwired("crates/l2-sim/src/runner/mod.rs — l2-sim takes no Quirks value yet")),
     ("B9", Unwired("crates/l2-sim/src/ai/mod.rs — l2-sim takes no Quirks value yet")),
@@ -154,7 +154,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B11a", Switchable(Behavioural)),
     ("B12", Switchable(Behavioural)),
     ("B13", Unwired("crates/l2-kingdom/src/levy.rs")),
-    ("B14", Unwired("crates/l2-kingdom/src/industry.rs")),
+    ("B14", Unwired("crates/l2-kingdom/src/industry/mod.rs")),
     ("B15", Switchable(Behavioural)),
     ("B16", Switchable(Behavioural)),
     ("B17", Switchable(Behavioural)),
@@ -186,9 +186,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ),
     // 2.3 — the AI
     ("B23", Unswitchable("invisible: every reader tests `< 999`, so the stored 1000 changes nothing")),
-    ("B24", Unwired("crates/l2-kingdom/src/ai.rs")),
-    ("B25", Unwired("crates/l2-kingdom/src/ai.rs")),
-    ("B26", Unwired("crates/l2-kingdom/src/ai.rs")),
+    ("B24", Unwired("crates/l2-kingdom/src/ai/mod.rs")),
+    ("B25", Unwired("crates/l2-kingdom/src/ai/mod.rs")),
+    ("B26", Unwired("crates/l2-kingdom/src/ai/mod.rs")),
     ("B27", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
     ("B28", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
     ("B29", Unwired("crates/l2-kingdom/src/ai_farm/mod.rs")),
@@ -211,9 +211,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         "B38",
         Unswitchable("the campaign flood fill: see B36, and its cursors are shared between both distance fields"),
     ),
-    ("B39", Unwired("crates/l2-kingdom/src/movement.rs")),
-    ("B40", Unwired("crates/l2-kingdom/src/movement.rs")),
-    ("B41", Unwired("crates/l2-kingdom/src/units_tick.rs")),
+    ("B39", Unwired("crates/l2-kingdom/src/movement/mod.rs")),
+    ("B40", Unwired("crates/l2-kingdom/src/movement/mod.rs")),
+    ("B41", Unwired("crates/l2-kingdom/src/units_tick/mod.rs")),
     ("B42", Switchable(Behavioural)),
     ("B43", Unwired("the merchant route script and crates/l2-kingdom/src/merchant.rs")),
     (
@@ -242,7 +242,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B51", Switchable(Behavioural)),
     ("B52", Switchable(Behavioural)),
     ("B53", Switchable(Behavioural)),
-    ("B54", Unwired("crates/l2-kingdom/src/conquest.rs and its caller")),
+    ("B54", Unwired("crates/l2-kingdom/src/conquest/mod.rs and its caller")),
     ("B55", Unswitchable("invisible: a wrapping subtraction on a message variant; bugs.md §6.4")),
     (
         "B55a",
@@ -346,9 +346,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // The five diplomacy defects. Four are reproduced in l2_kingdom::diplomacy
     // or the screen and none is wired to a switch; the fifth cannot be
     // reproduced because the prompt it lives in is not built.
-    ("B86", Unwired("crates/l2-kingdom/src/diplomacy.rs::ai_diplomacy")),
-    ("B87", Unwired("crates/l2-kingdom/src/diplomacy.rs::reconcile_alliances")),
-    ("B88", Unwired("crates/l2-kingdom/src/diplomacy.rs::reconcile_alliances")),
+    ("B86", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::ai_diplomacy")),
+    ("B87", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::reconcile_alliances")),
+    ("B88", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::reconcile_alliances")),
     ("B89", Unwired("crates/l2-game/src/screens/diplomacy.rs::refusal")),
     // Not reproduced and not switchable: the accept-alliance prompt is not
     // built, because Msg_DrawWindow window layouts have never been read.
@@ -524,7 +524,7 @@ fn sources(root: &Path) -> Vec<(String, String)> {
 /// reason the behavioural half is: a textual join cannot be satisfied by code
 /// that compiles.
 fn presentation(root: &Path) -> (Vec<(String, String)>, Vec<String>) {
-    let src = read(root, "crates/l2-game/src/game.rs");
+    let src = read(root, "crates/l2-game/src/game/mod.rs");
 
     let table = src
         .split("pub const PRESENTATION: &[(&str, &str)] = &[")

@@ -1084,7 +1084,7 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
     for (file, want, least) in [
         ("src/missile.rs", "Missile", 5),
         ("src/runner/mod.rs", "Fighter", 5),
-        ("src/siege.rs", "SiegeState", 5),
+        ("src/siege/mod.rs", "SiegeState", 5),
         // **Nested structs were outside the walk.** `Fighter::progress` is one
         // name in the census and three fields in the digest, so `free` could
         // have been added and hashed by nobody with this test green — which is
