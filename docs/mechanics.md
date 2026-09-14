@@ -444,7 +444,7 @@ committed and a plot on the ground.
 - ✅ **Winning and losing.** `strength = 3 × counties + armies`, recounted at the top of every
   realm's turn including the human's; the last opponent's death notice is what raises
   *"Victory!"*; the outcome byte is 10 won / 11 lost and screen `0x1C` reads it.
-  `docs/kingdom.md` §8.4, `crates/l2-kingdom/src/victory.rs`
+  `docs/kingdom.md` §8.4, `crates/l2-kingdom/src/victory/mod.rs`
 - ✅ **The campaign** — eight maps, both tables read out of the executable, and **nothing
   carries between them**: the next map is a whole new game. `docs/kingdom.md` §8.5
 - ✅ **Diplomacy — traced end to end and implemented.** `l2_kingdom::diplomacy` and
