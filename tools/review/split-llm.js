@@ -18,7 +18,8 @@ const lines = src.split("\n"); const N = lines.length;
 // A mod.rs, lib.rs or main.rs is a module root already: it splits in place, siblings beside it.
 const isModRs = /\/(mod|lib|main)\.rs$/.test(file);
 const dir = isModRs ? path.dirname(file) : file.replace(/\.rs$/, "");
-const modPath = isModRs ? file : dir + "/mod.rs";
+// An integration test `tests/x.rs` becomes the target `tests/x/main.rs`.
+const modPath = isModRs ? file : dir + (/\/tests\/[^/]+\.rs$/.test(file) ? "/main.rs" : "/mod.rs");
 const outline = lines.map((l, i) => [i + 1, l]).filter(([, l]) => /^(pub(\([a-z]+\))? |)(fn|impl|struct|enum|const|static|type|mod|trait|macro_rules!|use )|^#\[|^\/\/! |^}/.test(l)).map(([n, l]) => `${n}: ${l.slice(0, 110)}`).join("\n");
 const RULES = `Below is the outline of ${file} (${N} lines): the line number and text of every top-level item start, attribute, closing brace and module doc line. Plan a split of this file into a directory module ${dir}/ with a mod file and submodule files grouped by concern, each under 900 lines. Top-level items must not be cut in the middle: a range starts at an item's first line (its doc comment or attribute, if any) and ends at its closing brace. \`impl\` blocks may be split only at method boundaries if you also assign the impl header line to each part (the script re-opens the block).
 Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ...} where every line 1..${N} belongs to exactly one range and names are lowercase identifiers. "mod" holds the module doc, the \`use\` lines, the types, constants and any \`#[cfg(test)] mod\` declarations.`;
