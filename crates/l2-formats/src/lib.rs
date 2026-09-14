@@ -3,6 +3,7 @@
 //! Deliberately dependency-free: this crate turns bytes into pixels and
 //! nothing else. No I/O, no rendering, no game logic.
 
+pub mod cursors;
 pub mod maps;
 pub mod palette;
 pub mod pl8;

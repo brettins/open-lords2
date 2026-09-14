@@ -51,7 +51,7 @@ use winit::application::ApplicationHandler;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key as WinitKey, NamedKey};
-use winit::window::{CursorIcon, Window, WindowId};
+use winit::window::{Cursor, CursorIcon, CustomCursor, Window, WindowId};
 
 const CANVAS_W: u32 = l2_view::canvas::WIDTH as u32;
 const CANVAS_H: u32 = l2_view::canvas::HEIGHT as u32;
@@ -124,6 +124,16 @@ struct App {
     /// `Cursor_Set` the answer regardless; `SetCursor` on an unchanged
     /// `HCURSOR` is free and `winit`'s is not.
     pointer: l2_game::cursor::Pointer,
+    /// **The original's own pointer pictures**, read out of the player's
+    /// `Lords2.exe` the way `App_InitWindow` (`0x004B2258`) reads them —
+    /// `RT_GROUP_CURSOR` 102, 103, 104, 105, 110, 111, 113. Empty when the
+    /// executable is absent or unreadable, and then the system cursors below
+    /// stand in.
+    pictures: Vec<l2_formats::cursors::Picture>,
+    /// [`App::pictures`] built for the window's current whole scale, by
+    /// resource id, and the scale they were built at.
+    cursors: Vec<(u16, CustomCursor)>,
+    cursor_scale: u32,
 }
 
 impl App {
@@ -179,13 +189,16 @@ impl App {
     /// [`l2_game::screen::Machine::pointer`] and is entirely in the library;
     /// what is here is the one thing that cannot be, the window call.
     ///
-    /// **The pictures are the system's, not the original's.** The seven the
-    /// game draws live as `RT_GROUP_CURSOR` resources inside the player's own
-    /// `Lords2.exe` and nothing in the workspace reads them yet
-    /// (`docs/screens.md` §9.8). The mapping below is **ours**: `Help` is
-    /// Windows' arrow-plus-question-mark, which is the same picture resource
-    /// 110 holds; the other three are the nearest system cursor to a kind, and
-    /// they are a stand-in, not a reproduction.
+    /// **The pictures are the original's** — the seven `RT_GROUP_CURSOR`
+    /// resources `App_InitWindow` (`0x004B2258`) loads from the player's own
+    /// `Lords2.exe`, at [`App::cursor_scale`], which is the scale the canvas
+    /// itself is drawn at. A system cursor keeps the size the desktop gives it
+    /// however far the 640 × 480 picture is blown up, so against a 3× canvas
+    /// the pointer is a third of the size the original drew — the town
+    /// square's question mark, resource 110, being where a player noticed it.
+    ///
+    /// With no executable to read, the fall-back is the nearest system cursor
+    /// to a kind, which is a stand-in and not a reproduction.
     fn apply_pointer(&mut self) {
         let want = self.machine.pointer(&self.game);
         if want == self.pointer {
@@ -194,6 +207,10 @@ impl App {
         self.pointer = want;
         let Some(w) = &self.window else { return };
         use l2_game::cursor::Pointer;
+        if let Some((_, c)) = self.cursors.iter().find(|(id, _)| *id == want.resource()) {
+            w.set_cursor(Cursor::Custom(c.clone()));
+            return;
+        }
         w.set_cursor(match want {
             Pointer::Arrow | Pointer::ArrowAlt => CursorIcon::Default,
             Pointer::Question => CursorIcon::Help,
@@ -202,6 +219,37 @@ impl App {
             Pointer::Peasant => CursorIcon::Grabbing,
             Pointer::Scythe => CursorIcon::Move,
         });
+    }
+
+    /// Build every picture at the window's current whole scale. Called on the
+    /// first window and again whenever the scale changes, because a
+    /// `CustomCursor` is a fixed bitmap and the canvas's scale is not.
+    fn build_cursors(&mut self, event_loop: &ActiveEventLoop) {
+        let Some(w) = &self.window else { return };
+        let size = w.inner_size();
+        let scale = window::scale(size.width.max(1), size.height.max(1));
+        if self.pictures.is_empty() || (scale == self.cursor_scale && !self.cursors.is_empty()) {
+            return;
+        }
+        self.cursor_scale = scale;
+        self.cursors = self
+            .pictures
+            .iter()
+            .filter_map(|p| {
+                let p = p.scaled(scale);
+                let src =
+                    CustomCursor::from_rgba(p.rgba, p.width, p.height, p.hot_x, p.hot_y).ok()?;
+                Some((p.id, event_loop.create_custom_cursor(src)))
+            })
+            .collect();
+        // The pointer on screen is still one of the old bitmaps, and
+        // `apply_pointer` only acts on a change of kind: re-set it here.
+        let want = self.pointer.resource();
+        if let (Some(w), Some((_, c))) =
+            (&self.window, self.cursors.iter().find(|(id, _)| *id == want))
+        {
+            w.set_cursor(Cursor::Custom(c.clone()));
+        }
     }
 
     /// **The only wall clock in the program, and it is in the shell.**
@@ -292,7 +340,7 @@ impl App {
     fn tick(&mut self) {
         // Sampled here as well as in [`Self::redraw`], and it has to be: the
         // redraw only happens when something is already dirty
-        // taken there alone could never *become* stale and the title screen's
+        // taken there alone
         // clock would stop at the minute the page opened. The tick is what
         // notices the minute turning; nothing under the shell may notice it.
         self.sample_wall_clock();
@@ -344,6 +392,7 @@ impl ApplicationHandler for App {
         let pixels = Pixels::new(CANVAS_W, CANVAS_H, surface).expect("create pixels");
         self.window = Some(window);
         self.pixels = Some(pixels);
+        self.build_cursors(event_loop);
         self.redraw();
     }
 
@@ -390,6 +439,9 @@ impl ApplicationHandler for App {
                         eprintln!("resize failed: {e}");
                     }
                 }
+                // A whole scale is what both the canvas and the pointer are
+                // drawn at, so a resize can change the cursor bitmaps.
+                self.build_cursors(event_loop);
                 self.machine.mark_dirty();
             }
             WindowEvent::RedrawRequested => self.present(),
@@ -609,6 +661,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         last_press: None,
         left: l2_game::input::LeftButton::new(),
         pointer: l2_game::cursor::Pointer::Arrow,
+        // `App_InitWindow` (`0x004B2258`) loads the seven cursors from the
+        // executable's own resources. Ours are read through the same overlay
+        // every other asset comes through, and a missing or unreadable
+        // `Lords2.exe` simply leaves the system cursors in place.
+        pictures: platform
+            .vfs
+            .read(scenario::EXECUTABLE)
+            .ok()
+            .and_then(|b| l2_formats::cursors::read(&b).ok())
+            .unwrap_or_default(),
+        cursors: Vec::new(),
+        cursor_scale: 0,
     };
 
     let event_loop = EventLoop::new()?;

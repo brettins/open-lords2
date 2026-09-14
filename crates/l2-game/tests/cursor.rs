@@ -79,6 +79,69 @@ fn the_table_is_its_five_non_zero_rows() {
     assert_eq!(Pointer::Scythe.kind(), 14);
 }
 
+/// `App_InitWindow` (`0x004B2258`) loads eight `HCURSOR`s from seven
+/// `RT_GROUP_CURSOR` resources — 105 twice, into `g_cursorArrow` and
+/// `g_cursorArrowAlt`.
+#[test]
+fn every_kind_names_one_of_the_seven_pictures() {
+    let kinds = [
+        (Pointer::Arrow, 105),
+        (Pointer::ArrowAlt, 105),
+        (Pointer::Question, 110),
+        (Pointer::Cross, 102),
+        (Pointer::CrossTarget, 103),
+        (Pointer::Ring, 104),
+        (Pointer::Peasant, 111),
+        (Pointer::Scythe, 113),
+    ];
+    for (k, id) in kinds {
+        assert_eq!(k.resource(), id, "{k:?}");
+        assert!(l2_game::cursor::RESOURCES.contains(&id), "{id} is one App_InitWindow loads");
+    }
+}
+
+/// **The pictures themselves**, out of the player's own executable.
+///
+/// Seven groups, every one of them 32 × 32 — the size the original drew a
+/// pointer at, and the size the shell now scales with the canvas instead of
+/// leaving to the desktop.
+#[test]
+fn the_executable_holds_seven_cursors() {
+    let Some(dir) = install() else {
+        l2_testkit::skip!("no game install, so there is no Lords2.exe to read cursors from");
+    };
+    let exe = std::fs::read(dir.join("Lords2.exe")).expect("the executable reads");
+    let pics = l2_formats::cursors::read(&exe).expect("the resource directory walks");
+    assert_eq!(
+        pics.iter().map(|p| p.id).collect::<Vec<_>>(),
+        l2_game::cursor::RESOURCES.to_vec(),
+        "the seven RT_GROUP_CURSOR resources App_InitWindow loads"
+    );
+    for p in &pics {
+        assert_eq!((p.width, p.height), (32, 32), "cursor {}", p.id);
+        assert_eq!(p.rgba.len(), 32 * 32 * 4, "cursor {}", p.id);
+        let drawn = p.rgba.chunks(4).filter(|px| px[3] != 0).count();
+        assert!(drawn > 20, "cursor {} draws {drawn} pixels", p.id);
+        // `g_cursorCross` and `g_cursorCrossTarget` are hotspot (10, 10),
+        // `g_cursorRing` (9, 9), and the three arrow-cornered ones (0, 0).
+        let hot = match p.id {
+            102 | 103 => (10, 10),
+            104 => (9, 9),
+            _ => (0, 0),
+        };
+        assert_eq!((p.hot_x, p.hot_y), hot, "cursor {}", p.id);
+        // Rows come out of the DIB bottom-up and go back top-down: the four
+        // arrow-cornered pictures have their tip ON their (0, 0) hotspot, so
+        // that pixel is drawn and a flipped decode would show it clear.
+        if hot == (0, 0) {
+            assert_ne!(p.rgba[3], 0, "cursor {} draws its own hotspot", p.id);
+        }
+    }
+    // Scaled with the canvas: 3× is 96 × 96 with the hotspot carried along.
+    let ring = pics.iter().find(|p| p.id == 104).expect("g_cursorRing").scaled(3);
+    assert_eq!((ring.width, ring.height, ring.hot_x, ring.hot_y), (96, 96, 27, 27));
+}
+
 /// **The pointer over the town square, and off it again.**
 #[test]
 fn the_village_is_the_question_mark_and_the_map_is_not() {
