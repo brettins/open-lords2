@@ -12305,7 +12305,7 @@ Tests a_letter_opens_on_its_default_and_the_first_key_types_over_it,
 the_four_letter_kinds_open_on_four_different_drafts,
 the_field_holds_two_hundred_characters_and_the_send_keeps_one_less,
 the_gift_and_the_two_county_requests_have_no_draft,
-a_letter_open_does_not_stop_the_cancel_button in crates/l2-game/tests/diplomacy.rs;
+a_letter_open_does_not_stop_the_cancel_button in crates/l2-game/tests/diplomacy/main.rs;
 ablation 3 red.
 
 Help: Opt_GameHelpContents 0x00434942 is WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1),
