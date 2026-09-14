@@ -57,11 +57,6 @@ impl BattleRunner {
             }
             self.fighters[i].facing = d;
             self.enter(i, Pos::new(nx as u8, ny as u8));
-            // **`onRoute = 0`.** The blocked arm clears it before it
-            // side-steps, and it has to: the man has just left his route, so a
-            // kept waypoint is two cells away and the mover would walk him
-            // straight to it in one tick.
-            self.fighters[i].path.clear();
             return true;
         }
         false
@@ -103,6 +98,14 @@ impl BattleRunner {
     /// side-steps around, a living comrade of the figure's own unit. See
     /// [`Self::enter_cell`]'s friendly arm.
     pub(crate) fn request_path_with(&mut self, i: usize, may_side_step: bool) {
+        // **`onRoute = 0`, at the head of the arm.** `BattleMan_Step`
+        // (`0x0048F1DD`) clears it as the first statement under `local_10 == 2
+        // || local_10 == 3`, *before* `FUN_004904EC` — and again before
+        // `BattleMen_SwapPlaces` in the friendly arm, which is the other way
+        // into here. A man whose step was refused is off his route either way.
+        // Not clearing it left the side-stepped man walking waypoints he had
+        // stepped away from. **[V]**, decompiled.
+        self.fighters[i].path.clear();
         // **The side-step comes first** — before the cooldown, before `barred`,
         // before any search: `DAT_00554474 = FUN_004904EC(); if (DAT_00554474
         // != 8) local_10 = 1;`, and `local_10 == 1` is the tail that moves him.

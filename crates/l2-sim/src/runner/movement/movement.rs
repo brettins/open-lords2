@@ -13,11 +13,18 @@ impl BattleRunner {
     /// at all — the pathfinder is what happens when that fails.
     pub(crate) fn next_step(&self, i: usize) -> Option<Pos> {
         let f = &self.fighters[i];
-        if let Some(&wp) = f.path.last() {
-            return Some(wp);
-        }
-        let dx = f.target.0 as i32 - f.x as i32;
-        let dy = f.target.1 as i32 - f.y as i32;
+        // **A waypoint is a direction, not a destination.**
+        // `BattleMan_NextPathDir` (`0x00491A34`) reads the waypoint and returns
+        // `Dir_FromDelta(mapX, mapY, wpX, wpY)`; `FUN_00491B1F` then moves the
+        // man **one cell** in that direction. So a waypoint two cells away —
+        // which is what the man has the frame he is pushed or side-stepped off
+        // his route — costs him a step toward it, never a jump to it. Ours
+        // returned the waypoint itself, and that was the 32 and 64 px
+        // teleports `no_drawn_man_ever_jumps_half_a_cell_in_one_tick` sees.
+        let (dx, dy) = match f.path.last() {
+            Some(&wp) => (wp.x as i32 - f.x as i32, wp.y as i32 - f.y as i32),
+            None => (f.target.0 as i32 - f.x as i32, f.target.1 as i32 - f.y as i32),
+        };
         let facing = facing_from_delta(dx, dy)?;
         let (sx, sy) = FACING_DELTA[facing as usize];
         let nx = f.x as i32 + sx;
