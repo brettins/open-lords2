@@ -530,7 +530,7 @@ impl Screen for BattlefieldScreen {
                     live.drag_to(x, y);
                     // `0x2A`'s last clause: the pointer leaving the field ends
                     // the drag. It is tested *after* the two selection guards,
-                    // so a release on the very frame the pointer leaves still
+                    //
                     // commits.
                     //
                     // // arm: 0x0042FF10/drag-leaves-field hover
@@ -723,6 +723,17 @@ impl Screen for BattlefieldScreen {
             // decides whether there is a banner at all, and this engine has no
             // count of the turn's sieges to put in it.
             // arm: 0x00477DFC/outcome-film frame
+            //
+            // **The push happens on the frame the banner is raised, not after
+            // it is painted**, and that is deliberate. `Screen_BattleOutcome`
+            // paints the recess and `Battle_CheckOutcome` plays into it in one
+            // pass; here `draw` is a frame behind `update`, so the film starts
+            // over whatever the last paint left. Holding the push until a flag
+            // `draw` sets makes the picture decide the battle — measured:
+            // `painting_the_battlefield_with_its_artwork_does_not_change_the_battle`
+            // goes red at tick 620. `docs/netcode.md` — presentation state stays
+            // out. The film's ground is [`crate::movie::Film::is_over_a_screen`]'s
+            // to keep, not this arm's.
             if ctx.game.prefs.animations && decides {
                 if let Some(banner) = ctx.game.battle.as_deref().map(|l| outcome_banner(ctx.game, l)) {
                     let take = ctx.game.films.next_battle() as usize;
@@ -1027,7 +1038,7 @@ fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view:
 
 /// **Cell byte `+5`, as `FUN_004BC51A` reads it, already turned into the
 /// `t2_spri.pl8` frame it picks.** One byte a cell: the man's owning realm's
-/// `shieldIndex`, `6` for the ownerless, `0` where there is no man —
+/// `shieldIndex`, `6` for the ownerless, `0` —
 /// also the value the original's `if (DAT_005C9288 != 0)` guard drops.
 ///
 /// ```c
