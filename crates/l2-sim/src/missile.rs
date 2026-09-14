@@ -283,13 +283,20 @@ pub struct Missile {
     /// [`CLASS_FIRE`] record writes back when its countdown reaches 2.
     /// `Missile_UpdateAll`'s class-5 arm, `[V]`. Zero on every other class.
     pub saved_surface: u8,
-    /// Record `+0x44`, non-zero — **a fire arrow**. `BattleMan_FireMissile`
-    /// sets it for an AI unit of side 0 while more than three of a human's
-    /// figures stand in woodland, and `Missile_Step`'s first test then sets the
-    /// wood alight under it. `[V]`. The player's variant, where `+0x44` holds a
-    /// unit's `targetCell` and only that one cell catches, is written by
-    /// `BattleMan_StateCloseToAttack`, whose loose is not built.
-    pub fire_arrow: bool,
+    /// Record `+0x44`, non-zero — **a fire arrow**, and the original's own
+    /// two values, not a flag. `[V]` on both writers.
+    ///
+    /// * **1** — `BattleMan_FireMissile` (`0x00483337`) sets it for a unit of
+    /// side 0 that is not a human's while more than three of a human's
+    ///   figures stand in woodland. That arrow lights **any** woodland cell it
+    ///   crosses.
+    /// * **a cell byte offset** — `BattleMan_StateCloseToAttack`
+    ///   (`0x00484BF9`) copies the unit's `targetCell` (`+0x30`) onto every
+    ///   arrow it looses. **The player's fire arrow**: `Missile_Step`'s first
+    ///   test lights only the one cell `+0x44` names.
+    ///
+    /// The offset is `(y * 80 + x) * 8` — [`crate::fire::cell_byte_offset`].
+    pub fire_arrow: i32,
 }
 
 impl Missile {

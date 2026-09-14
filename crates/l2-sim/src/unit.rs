@@ -116,6 +116,14 @@ pub struct BattleUnit {
     /// in the AI's vocabulary is a way of choosing these two numbers.
     pub target_x: i16,
     pub target_y: i16,
+    /// `+0x30` **`targetCell`** — the cell the player ordered this unit onto,
+    /// as a byte offset `(y * 80 + x) * 8`, or 0. `BattleUnit_Order`
+    /// (`0x00479E90`) clears it on every order and writes it only under its
+    /// fifth argument, `DAT_0053E874` — *the hovered cell is woodland*. Every
+    /// arrow `BattleMan_StateCloseToAttack` (`0x00484BF9`) looses carries it in
+    /// `+0x44`, and `Missile_Step` lights that one cell. **The player's fire
+    /// arrow.** `docs/battle.md` §17.5.
+    pub target_cell: i32,
     /// `+0x2A` halted, set by `Order_ChargeNearest`. It switches the
 /// every-500-frame reform off, so *a charged unit stops being a
     /// formation*.
@@ -152,6 +160,7 @@ impl BattleUnit {
         y: 0,
         target_x: 0,
         target_y: 0,
+        target_cell: 0,
         halted: false,
         withdrawals: 0,
     };
@@ -374,7 +383,7 @@ pub fn chebyshev(ax: i16, ay: i16, bx: i16, by: i16) -> i32 {
 
 /// `PctOf` (`0x00404DC1`): `a * 100 / b`, and **0 when `b` is 0**. **[D]**
 ///
-/// The zero case is not a guard we added. It is why a side with no living
+/// The zero case is not a guard we added. It is
 /// enemy reads a strength advantage of `-100`.
 pub fn pct_of(a: i32, b: i32) -> i32 {
     if b == 0 {

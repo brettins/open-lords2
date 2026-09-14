@@ -530,6 +530,10 @@ impl Simulation for AiNetBattle {
             out.i32(u.y as i32);
             out.i32(u.target_x as i32);
             out.i32(u.target_y as i32);
+            // `targetCell` decides whether this unit's next volley burns a
+            // wood, so two peers that disagreed about it would burn different
+            // battlefields.
+            out.i32(u.target_cell);
             out.bool(u.halted);
             out.u8(u.withdrawals);
         }
@@ -839,7 +843,7 @@ impl Simulation for RunnerNetBattle {
             // A fire's remembered surface is what the cell becomes when it
             // goes out; a fire arrow is a wood that is about to burn.
             out.u8(m.saved_surface);
-            out.bool(m.fire_arrow);
+            out.i32(m.fire_arrow);
         }
         out.end_section();
 
@@ -855,6 +859,10 @@ impl Simulation for RunnerNetBattle {
             out.i32(u.y as i32);
             out.i32(u.target_x as i32);
             out.i32(u.target_y as i32);
+            // `targetCell` decides whether this unit's next volley burns a
+            // wood, so two peers that disagreed about it would burn different
+            // battlefields.
+            out.i32(u.target_cell);
             out.bool(u.halted);
         }
         out.end_section();

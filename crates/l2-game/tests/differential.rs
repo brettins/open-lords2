@@ -35,7 +35,7 @@
 //!
 //! **This is a measuring instrument, not a passing test.** Nothing here was
 //! tuned to agree and no comparison was weakened to go green. The assertion is
-//! on a recorded baseline ([`BASELINE`] and four totals), so a change that
+//! on a recorded baseline ([`BASELINE`] and four totals).
 //! *improves* agreement fails just as loudly as one that worsens it and forces
 //! somebody to move the number deliberately. That is `GATED_TOTAL`'s contract
 //! in `crates/l2-testkit/tests/census.rs`, and the totals are stated separately
@@ -76,7 +76,7 @@
 //! # Read the second column, not the percentage
 //!
 //! **A field neither side moved agrees for free.** Most of a county record is
-//! carried straight through the import and is not touched by a season, so a
+//! carried straight through the import and is not touched by a season.
 //! raw agreement percentage over every field is a statement about how much of
 //! the record is inert. This report therefore counts twice:
 //!
@@ -105,7 +105,7 @@
 //! * [`Kind::Simulated`] — we compute it, and a divergence is **ours to
 //!   explain**;
 //! * [`Kind::PlayerInput`] — a person or an AI lord set it during the turn we
-//! cannot replay, so a divergence is a **missing input**
+//! cannot replay.
 //! * [`Kind::Unsimulated`] — nothing of ours ever writes it. A field we never
 //!   write is a different fact from a field we write differently, and lumping
 //!   them produces a number that means nothing;
@@ -123,7 +123,7 @@
 //!
 //! **`g_units` is not compared**, and that is a scope decision.
 //! oversight: a unit's tile, path and orders are almost entirely the player's
-//! turn, so a unit diff over this pair would measure the missing input and
+//! turn.
 //! nothing else. The county, realm and global records are where a season's
 //! arithmetic lands.
 //!
@@ -218,7 +218,7 @@
 //!    explains itself is asserting a finding, and nothing checks it.**
 //!
 //!    The 50 is a *computation*, not a constant: grain's base price is 2 and
-//! every merchant's morale is 100, so a sack costs 4 crowns, and
+//! every merchant's morale is 100.
 //!    `Ai_BuyGood` (`0x004A4B12`) takes the first of 400/200/100/50 whose whole
 //!    bill the purse covers. The control is in the same fixture — at 186 and 195
 //!    crowns one turn earlier the 200-crown rung is unaffordable and nothing is
@@ -231,7 +231,7 @@
 //!    doing it.** `County_RecountMerchants` (`0x00451061`) was in the printed
 //!    season-pass list and in no pipeline.
 //! 3. **`g_optAiLords` is read by the save reader and dropped by the
-//! importer**, so a loaded game does not know how many lords it was started
+//! importer**.
 //!    with. [V] — `grep -rn ai_lords crates/` puts it in `l2-formats`, in
 //!    `l2_game::setup` (which *starts* a game) and nowhere on the load path.
 //!
@@ -292,7 +292,7 @@ enum Kind {
     /// We compute it. A divergence is ours to explain.
     Simulated,
     /// A person or an AI lord set it during the turn between the two saves.
-    /// The pair carries the *result* and not the *action*, so a divergence
+    /// The pair carries the *result* and not the *action*.
 /// here is a missing input.
     PlayerInput,
     /// Nothing in our tree writes it.
@@ -349,7 +349,7 @@ struct GlobalField {
 ///
 /// The list is the **save's** vocabulary, on purpose:
 /// `l2_kingdom::county::County` has 101 fields and some seventy of them are
-/// derived, computed later, or absent from the file, so a list over
+/// derived, computed later, or absent from the file.
 /// that struct would be mostly filler — and noise is where an omission hides
 /// (`docs/agents.md`, *choose the smaller list*).
 #[rustfmt::skip]
@@ -490,7 +490,7 @@ const GLOBAL_FIELDS: &[GlobalField] = &[
     // `l2_formats::save::Globals`; `l2_scenario::Scenario::from_save` does not
     // carry it into `Options` and nothing after a load reads it. `grep -rn
     // ai_lords crates/` finds it in the save reader, in `l2_game::setup` (which
-    // *starts* a game) and nowhere on the load path. So a loaded game does not
+    // *starts* a game) and nowhere on the load path.
     // know how many lords it was started with, and this row says so with a
 // number.
     GlobalField { path: "global.ai_lords", kind: Kind::Unsimulated, ours: |_| 0, theirs: |g| g.ai_lords as i64 },
@@ -611,6 +611,14 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
     // --- realms and the diplomatic matrix --------------------------------
     let was_realms = before.realms().map_err(|e| e.to_string())?;
     let realms = after.realms().map_err(|e| e.to_string())?;
+    // **Realms 3, 4 and 5 are out of play in all four pairs**, so nothing here
+    // ever farmed or compared them: measured off this test's own printout,
+    // which names realms 1 and 2 and no other. A ledger row claiming AI realm 3
+    // never plants where the original does cannot be seen from here, and the
+    // behaviour behind it is not a defect: realm 3's lord is 2, whose style
+    // byte is 1 — `Ai_FarmStyleGrazing` (`0x004A42E3`), which clears grain in
+    // every season. `county.fields_grain` is compared and agrees everywhere.
+    // `l2_kingdom::ai_farm`'s `two_of_the_four_lords_graze_so_their_realms_never_sow`.
     for (id, theirs) in realms.iter().enumerate() {
         if !theirs.in_play() {
             continue;
@@ -752,7 +760,7 @@ const BASELINE: &[(&str, &str, usize)] = &[
 const COMPARED_TOTAL: usize = 932;
 
 /// How many of them agree. **Read [`MOVED_AGREE_TOTAL`] before quoting this
-/// one**: most of a county record is inert across a season, so a field neither
+/// one**: most of a county record is inert across a season.
 /// side touched agrees for free and this number is mostly a measure of how much
 /// of the record the import carried unchanged.
 const AGREE_TOTAL: usize = 914;
@@ -816,7 +824,7 @@ fn the_pairs_are_one_end_turn_apart() {
 }
 
 /// **The finding that is worth the job on its own**: the two saves named as a
-/// before/after pair are the same turn, so a differential built on them would
+/// before/after pair are the same turn.
 /// have compared a kingdom against itself with a season run into it.
 #[test]
 fn the_named_before_and_after_saves_are_the_same_turn() {
