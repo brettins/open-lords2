@@ -335,8 +335,8 @@ crates/l2-mods/src/kingdom/render.rs	C10	4eca0cb3e865	68e4eb2d2a1f
 crates/l2-mods/src/kingdom/render.rs	C11	5269ee40f876	07dfad15821c
 crates/l2-mods/src/units.rs	C11	1f34a41c4bbb	07dfad15821c
 crates/l2-mods/src/units.rs	C11	82a3e3450631	07dfad15821c
-crates/l2-mods/tests/simulation.rs	C11	865f0a2676e0	07dfad15821c
-crates/l2-mods/tests/simulation.rs	C12	e215c3572884	bb0dd488f9d2
+crates/l2-mods/tests/simulation/main.rs	C11	865f0a2676e0	07dfad15821c
+crates/l2-mods/tests/simulation/main.rs	C12	e215c3572884	bb0dd488f9d2
 crates/l2-net/src/quirks.rs	C26	3666e846a6ab	e8179d1f76a8
 crates/l2-net/src/quirks.rs	C26	e75f82770f0b	e8179d1f76a8
 crates/l2-net/src/quirks.rs	C62	e187f3a3e544	ebb6a7ec3711

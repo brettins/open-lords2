@@ -45,7 +45,7 @@ pub fn render_toml(t: &Tables) -> String {
          #\n\
          # HONEST SCOPE: every rule in this file is read by the simulation. A\n\
          # mod that changes one changes what a county harvests, mines, pays or\n\
-         # feels, and crates/l2-mods/tests/simulation.rs proves that rule by\n\
+         # feels, and crates/l2-mods/tests/simulation/main.rs proves that rule by\n\
          # rule by running the season pipeline twice. The one exception is\n\
          # named where it appears: kingdom.ai.personality.*.farm_style loads\n\
          # and nothing reads it. See docs/modding.md sec 11.\n",

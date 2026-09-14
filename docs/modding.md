@@ -510,7 +510,7 @@ Three things worth knowing before you rebalance:
   farmhands and the county sows less of it; the crop is then capped twice more
   by the growing and harvesting rates. Quadrupling the file's number roughly
   doubles what reaches the barn
-  (`crates/l2-mods/tests/simulation.rs`, `the_last_kingdom_mod_in_the_load_order_...`).
+  (`crates/l2-mods/tests/simulation/main.rs`, `the_last_kingdom_mod_in_the_load_order_...`).
 - **`kingdom.ai.gold_grant` rows 1–3 are all zeros and that is a gap, not a
   rule.** Only the endpoints are documented. Row 0 being zeros *is* a rule: the
   human's lord byte is 0, so the human gets nothing.
@@ -788,7 +788,7 @@ gold brackets.
 
 The five in bold were the last rules with no field in `Tables` at all, and this
 section used to list them as unreachable. They are reachable now, and each is
-proved by a test in `crates/l2-mods/tests/simulation.rs` that starts at a
+proved by a test in `crates/l2-mods/tests/simulation/main.rs` that starts at a
 `.toml` and ends at a different number out of the season pipeline — not at a
 field read back:
 
