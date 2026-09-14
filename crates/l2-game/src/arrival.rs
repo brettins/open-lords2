@@ -376,7 +376,7 @@ mod tests {
     use super::*;
 
     fn taken(new_owner: u8, old_owner: u8, held_before: u8, peak_before: u8) -> Capture {
-        Capture { new_owner, old_owner, county: 5, held_before, peak_before, governable: true, penalty: 10 }
+        Capture { new_owner, old_owner, county: 5, held_before, peak_before, governable: true, penalty: 10, garrison: None }
     }
 
     /// **Every rung of the taker's ladder, and both edges of each share band.**

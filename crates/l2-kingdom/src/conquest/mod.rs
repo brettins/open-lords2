@@ -163,6 +163,10 @@ pub struct Capture {
     pub governable: bool,
     /// The happiness the county lost.
     pub penalty: i32,
+    /// What became of the castle's garrison — `FUN_00437535`, reached from
+    /// `County_MakeIndependent`'s tail. `None` when the castle was empty or
+    /// the garrison already belonged to the taker. See [`change_owner`].
+    pub garrison: Option<LeftCastle>,
 }
 
 impl Capture {
@@ -547,9 +551,9 @@ mod tests {
     #[test]
     fn a_captured_county_loses_happiness_on_the_events_line() {
         let (mut counties, mut realms) = world();
-        let units = Units::new();
+        let mut units = Units::new();
         counties[2].happiness = 77;
-        let lost = change_owner(T, &mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL).penalty;
+        let lost = change_owner(T, &mut counties, &mut realms, &mut units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL).penalty;
         assert_eq!(lost, 10, "a human at difficulty 0");
         assert_eq!(counties[2].happiness, 67);
         assert_eq!(counties[2].shown_events, -10);
@@ -571,9 +575,9 @@ mod tests {
     #[test]
     fn a_county_that_cannot_pay_the_penalty_goes_to_zero_and_the_panel_agrees() {
         let (mut counties, mut realms) = world();
-        let units = Units::new();
+        let mut units = Units::new();
         counties[2].happiness = 4;
-        assert_eq!(change_owner(T, &mut counties, &mut realms, &units, 1, 2, 2, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL).penalty, 50);
+        assert_eq!(change_owner(T, &mut counties, &mut realms, &mut units, 1, 2, 2, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL).penalty, 50);
         assert_eq!(counties[2].happiness, 0);
         assert_eq!(counties[2].shown_events, -4, "what was taken, not the fifty");
     }
@@ -581,12 +585,12 @@ mod tests {
     #[test]
     fn changing_hands_moves_the_county_between_the_two_realms_counts() {
         let (mut counties, mut realms) = world();
-        let units = Units::new();
+        let mut units = Units::new();
         counties[2].owner = 2;
         recount_realm_counties(&counties, &mut realms);
         assert_eq!((realms[1].county_count, realms[2].county_count), (1, 1));
 
-        change_owner(T, &mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        change_owner(T, &mut counties, &mut realms, &mut units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
         assert_eq!((realms[1].county_count, realms[2].county_count), (2, 0));
     }
 
@@ -673,11 +677,11 @@ mod tests {
     fn a_capture_reports_the_takers_holding_and_peak_from_before_the_write() {
         let (mut counties, mut realms) = world();
         bordering(&mut counties);
-        let units = Units::new();
+        let mut units = Units::new();
         counties[2].owner = 2;
         realms[1].peak_counties = 1;
 
-        let c = change_owner(T, &mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        let c = change_owner(T, &mut counties, &mut realms, &mut units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
         assert_eq!((c.new_owner, c.old_owner, c.county), (1, 2, 2));
         assert_eq!(c.held_before, 1, "county 1, and not the county being taken");
         assert_eq!(c.held_after(), 2);
@@ -696,16 +700,16 @@ mod tests {
     fn the_peak_remembers_ground_lost_and_retaking_it_is_not_a_new_high() {
         let (mut counties, mut realms) = world();
         bordering(&mut counties);
-        let units = Units::new();
+        let mut units = Units::new();
         counties[2].owner = 1;
         realms[1].peak_counties = 2;
 
-        let lost = change_owner(T, &mut counties, &mut realms, &units, 2, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        let lost = change_owner(T, &mut counties, &mut realms, &mut units, 2, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
         assert_eq!(lost.held_before, 0, "realm 2 held nothing, so it may take anything");
         assert!(lost.governable);
         assert_eq!(realms[1].peak_counties, 2, "the loser's peak stands");
 
-        let back = change_owner(T, &mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        let back = change_owner(T, &mut counties, &mut realms, &mut units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
         assert_eq!((back.held_after(), back.peak_before), (2, 2), "back to the peak, not past it");
         assert_eq!(realms[1].peak_counties, 2);
     }
@@ -731,7 +735,7 @@ mod tests {
     fn a_county_far_from_the_takers_lands_declares_independence_instead() {
         let (mut counties, mut realms) = world();
         bordering(&mut counties);
-        let units = Units::new();
+        let mut units = Units::new();
         realms[1].peak_counties = 1;
         counties[3].population = 500;
         counties[3].happiness = 77;
@@ -739,7 +743,7 @@ mod tests {
         counties[3].industry[0].enabled = true;
         counties[3].castle_switch = true;
 
-        let far = change_owner(T, &mut counties, &mut realms, &units, 1, 3, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        let far = change_owner(T, &mut counties, &mut realms, &mut units, 1, 3, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
 
         assert!(!far.governable, "county 3 has no neighbours at all");
         assert_eq!(far.old_owner, 2, "the letter still knows who lost it");
@@ -760,11 +764,11 @@ mod tests {
     fn a_realm_that_holds_nothing_keeps_a_county_it_cannot_reach() {
         let (mut counties, mut realms) = world();
         bordering(&mut counties);
-        let units = Units::new();
+        let mut units = Units::new();
         counties[3].population = 500;
         counties[3].happiness = 77;
 
-        let first = change_owner(T, &mut counties, &mut realms, &units, 2, 3, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        let first = change_owner(T, &mut counties, &mut realms, &mut units, 2, 3, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
         assert!(first.governable, "realm 2 held nothing");
         assert_eq!(counties[3].owner, 2);
     }
@@ -777,10 +781,10 @@ mod tests {
     fn a_second_change_owner_on_a_county_already_held_counts_it_twice() {
         let (mut counties, mut realms) = world();
         bordering(&mut counties);
-        let units = Units::new();
+        let mut units = Units::new();
         realms[1].peak_counties = 1;
-        change_owner(T, &mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
-        let again = change_owner(T, &mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        change_owner(T, &mut counties, &mut realms, &mut units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        let again = change_owner(T, &mut counties, &mut realms, &mut units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
         assert_eq!(again.old_owner, 1, "nothing changes hands the second time");
         assert_eq!(again.held_before, 2, "the county is counted as already held");
         assert_eq!(realms[1].peak_counties, 3, "and the peak is one past the truth");
@@ -794,8 +798,15 @@ mod tests {
         let g = units.spawn(Unit::new(UnitKind::Army, 2, 0, 0)).unwrap();
         counties[2].owner = 2;
         counties[2].garrison_unit = g;
-        change_owner(T, &mut counties, &mut realms, &units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
+        // Both halves of the link, which is the only state `Army_GarrisonApply`
+        // can leave: `FUN_00437535` clears the pair and tests neither.
+        units.get_mut(g).unwrap().garrison_county = 2;
+        let taken = change_owner(T, &mut counties, &mut realms, &mut units, 1, 2, 0, &CampaignMap::empty(), &mut Explored::new(), Restore::NEUTRAL);
         assert_eq!(counties[2].garrison_unit, 0);
+        assert!(matches!(taken.garrison, Some(LeftCastle::Marched { .. })));
+        // The loser keeps the men: `FUN_00437535` writes no owner byte.
+        // `tests/garrison_handoff.rs` walks the tile and the `Army_Destroy` arm.
+        assert_eq!(units.get(g).map(|u| (u.owner, u.garrison_county)), Some((2, 0)));
     }
 }
 

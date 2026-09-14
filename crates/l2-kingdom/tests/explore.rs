@@ -163,7 +163,7 @@ fn taking_a_county_shows_the_taker_the_county_and_a_border_round_it() {
 
     let restore = k.restore();
     change_owner(
-        &k.tables, &mut k.counties, &mut k.realms, &k.campaign.units, 1, 2, 0, &map,
+        &k.tables, &mut k.counties, &mut k.realms, &mut k.campaign.units, 1, 2, 0, &map,
         &mut explored, restore,
     );
 

@@ -70,6 +70,30 @@ pub fn make_independent(
     crate::tax::recompute_preview(t, &mut counties[id]);
 }
 
+/// `FUN_00437535` (`0x00437535`) for a capture — [`leave_castle`], plus the
+/// county link when the pair was half-written.
+///
+/// `FUN_00437535` tests neither half: `Army_GarrisonApply` writes county
+/// `+0x1BC` and unit `+0x198` together, so the original can never hold a county
+/// pointing at an army that does not point back. [`leave_castle`] does test,
+/// and a half-link would otherwise survive the capture.
+fn hand_off(
+    map: &CampaignMap,
+    counties: &mut [County; MAX_COUNTIES],
+    realms: &[Realm; MAX_REALMS],
+    units: &mut Units,
+    garrison: usize,
+    county: u8,
+) -> LeftCastle {
+    let out = leave_castle(map, counties, realms, units, garrison, county);
+    if out == LeftCastle::NotAGarrison {
+        if let Some(c) = counties.get_mut(county as usize) {
+            c.garrison_unit = 0;
+        }
+    }
+    out
+}
+
 /// `County_ChangeOwner` (`FUN_004A72FE`, `0x004A72FE`) — the county changes
 /// hands.
 ///
@@ -149,7 +173,7 @@ pub fn change_owner(
     t: &Tables,
     counties: &mut [County; MAX_COUNTIES],
     realms: &mut [Realm; MAX_REALMS],
-    units: &Units,
+    units: &mut Units,
     new_owner: u8,
     county: u8,
     difficulty: u8,
@@ -178,6 +202,7 @@ pub fn change_owner(
         peak_before,
         governable,
         penalty: 0,
+        garrison: None,
     };
     let Some(c) = counties.get_mut(county as usize) else { return capture };
     capture.old_owner = c.owner;
@@ -190,10 +215,14 @@ pub fn change_owner(
         let garrison = c.garrison_unit;
         make_independent(t, counties, realms, county, map, restore);
         // `County_MakeIndependent`'s last statement, `FUN_00437535(garrison,
-        // county)` — the castle is nobody's, so neither is its garrison. Same
-        // clearing the governable path does below, and for the same reason.
+        // county)` (`0x004AC3C6` tail, `0x00437535`) — **the hand-off**, `[V]`
+        // from both bodies. The castle is nobody's, so its garrison marches
+        // out: the *old* owner keeps the men as a field army on the nearest
+        // free tile, the new owner gets no garrison at all, and nowhere to
+        // stand is `Army_Destroy` — the men are lost. Only `FUN_00437535`
+        // clears county `+0x1BC`; `0x004AC3C6` does not touch it itself.
         if garrison != 0 {
-            counties[county as usize].garrison_unit = 0;
+            capture.garrison = Some(hand_off(map, counties, realms, units, garrison, county));
         }
         recount_realm_counties(counties, realms);
         return capture;
@@ -214,13 +243,21 @@ pub fn change_owner(
     // presentation,
     // would read it from.
 
-    // The castle, if any, is no longer garrisoned by the loser. The original
-// clears `+0x1BC` on the battle path; doing it here as
-    // well is the same state and keeps a walk-in capture from leaving a
-    // garrison pointing at a county its owner no longer holds.
+    // The castle, if any, is no longer garrisoned by the loser. **`[V]` that
+    // `County_ChangeOwner` (`0x004A72FE`) has no garrison statement of its own
+    // in this branch** — read end to end, it writes owner, happiness, shield
+    // and peak and never touches county `+0x1BC` or calls `FUN_00437535`; only
+    // the `else` branch hands the garrison off, through
+    // `County_MakeIndependent`. `[I]` that the eviction belongs here too: the
+    // original reaches this branch with a foreign garrison only from
+    // `Battle_ReturnToCampaign`, which has already cleared `+0x1BC` and
+    // destroyed the loser, so its own state is never the dangling one. A
+    // walk-in capture can reach it here, and `FUN_00437535` (`0x00437535`) is
+    // the original's answer everywhere else it is asked — the men march out
+    // under their old flag
     let garrison = c.garrison_unit;
     if garrison != 0 && units.get(garrison).map(|u| u.owner) != Some(new_owner) {
-        counties[county as usize].garrison_unit = 0;
+        capture.garrison = Some(hand_off(map, counties, realms, units, garrison, county));
     }
 
     // `if (peak < countyCount) peak = countyCount` — the function's last
