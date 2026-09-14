@@ -2,6 +2,7 @@
 use super::*;
 
 use super::*;
+use super::*;
 
 impl Screen for MapScreen {
     fn id(&self) -> ScreenId {
@@ -1069,4 +1070,5 @@ impl Screen for MapScreen {
         draw_combine_box(self, canvas, ctx);
     }
 }
+
 
