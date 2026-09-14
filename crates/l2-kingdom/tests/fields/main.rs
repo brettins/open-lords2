@@ -36,6 +36,8 @@ mod herd_vis;
 pub use herd_vis::*;
 mod economy;
 pub use economy::*;
+mod blight;
+pub use blight::*;
 
 use l2_kingdom::field::FieldType;
 use l2_kingdom::{Kingdom, MAX_FIELDS};
