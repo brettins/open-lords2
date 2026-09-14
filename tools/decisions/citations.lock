@@ -32,7 +32,7 @@ crates/l2-game/src/battlefield/mod.rs	C61	e5b8ebac6d3d	60611046b40d
 crates/l2-game/src/battlefield/tests.rs	C61	9fa3719be417	60611046b40d
 crates/l2-game/src/build_id.rs	C107	357dac9ad6ce	eb231bef7ee5
 crates/l2-game/src/clock.rs	C193	076d615bd546	ded1409ebea0
-crates/l2-game/src/engagement/fight/fight_session.rs	C186	8ffe828ee44a	e4c22886df5f
+crates/l2-game/src/engagement/fight/fight_session.rs	C186	1149801a6d8c	e4c22886df5f
 crates/l2-game/src/game/assets.rs	C61	243e22401be3	60611046b40d
 crates/l2-game/src/game/game_methods/game_methods/game_methods.rs	C180	9808d1a148fa	fea6f0ec7284
 crates/l2-game/src/game/mod.rs	C125	0acc6b430574	6084e87aec70
@@ -67,8 +67,8 @@ crates/l2-game/src/screens/county/draw/screen/screen_impl.rs	C61	835ec1cbf9ae	60
 crates/l2-game/src/screens/county/mod.rs	C22	f88818d7df89	0364b53a921d
 crates/l2-game/src/screens/county/strip/draw/main.rs	C112	f88ab6b616c3	0dbcd00423ed
 crates/l2-game/src/screens/county/strip/draw/main.rs	C42	8b7388d80e13	a2ac3547bb32
-crates/l2-game/src/screens/county/strip/draw/rows.rs	C135	a8a8cbf37bb0	39859e3b9368
-crates/l2-game/src/screens/county/strip/draw/rows.rs	C153	a1c8941ae6ab	c724d7afe0dd
+crates/l2-game/src/screens/county/strip/draw/rows.rs	C135	7a10f970906e	39859e3b9368
+crates/l2-game/src/screens/county/strip/draw/rows.rs	C153	a15117547d32	c724d7afe0dd
 crates/l2-game/src/screens/court.rs	C110	4001eefdd973	a4ab43902f60
 crates/l2-game/src/screens/court.rs	C140	0f96dbb1757f	e3a1ede42a95
 crates/l2-game/src/screens/diplomacy/compose/helper.rs	C26	d7d30139b2b8	e8179d1f76a8
@@ -135,7 +135,7 @@ crates/l2-game/src/turn/battle.rs	C149	101237d06443	138117948441
 crates/l2-game/src/turn/battle.rs	C35	90db6b8f5bcd	193a1920e229
 crates/l2-game/src/turn/battle.rs	C35	dcd60927a9fb	193a1920e229
 crates/l2-game/src/turn/engine/battle.rs	C27	c7f2d16a69e2	1db64332cb22
-crates/l2-game/src/turn/engine/battle.rs	C71	ca57dc01d653	3d674af30522
+crates/l2-game/src/turn/engine/battle.rs	C71	4a426b1bfe04	3d674af30522
 crates/l2-game/src/turn/engine/battle.rs	C80	a56b43c8f6c4	c26c30b0d0d8
 crates/l2-game/src/turn/engine/control.rs	C115	42714a7de34c	085c9b771281
 crates/l2-game/src/turn/engine/control.rs	C35	8ab6891ab38f	193a1920e229
