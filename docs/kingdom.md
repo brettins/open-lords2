@@ -2476,7 +2476,7 @@ reproduced, for the reason each line gives.
   branches at sowing and growing are not. *Reproduced.* This line said *"not reproduced,
   because the crate does not model the labour limit on growing and harvesting at all"*; both
   2478: halves closed when `grow_step` and `harvest_step` landed, and the line went stale rather
-  than wrong. `crates/l2-kingdom/src/land.rs::harvest`, and [`bugs.md`](bugs.md) B1.
+  than wrong. `crates/l2-kingdom/src/land/mod.rs::harvest`, and [`bugs.md`](bugs.md) B1.
 2480: * **The migration inflow list is written without a `break`**, so it holds one repeated
   value (§5.3). **[D]**
 2482: * **`dryness` is a signed byte that nothing clamps** (§7.3), so a long enough dry run wraps

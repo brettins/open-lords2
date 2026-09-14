@@ -67,7 +67,7 @@ sunny field reaps 150 % of the whole crop. The labour cap, which is the entire p
 
 **Evidence.** **[V]** on the reading. `kingdom.md` §7.1.
 
-**Reproduced.** `crates/l2-kingdom/src/land.rs:485` — `harvest` computes `reaped` and then
+**Reproduced.** `crates/l2-kingdom/src/land/mod.rs:485` — `harvest` computes `reaped` and then
 deliberately ignores it for four of six bands.
 
 **Reachability, which matters here.** It only bites with **Advanced Farming on**:
