@@ -421,7 +421,7 @@
       "addr": "0x0040DECA",
       "what": "Menu_OpenDropdown(&g_menuBarItems, 3) -- GUARD 1 of the 0x29 ladder, ahead of Map_EdgeScroll, Battle_ButtonClicked, Battle_DragSelect, Battle_OrderClicked and Battle_UnitPanelClicked, and nothing gates it: not g_battlePhase, not the pause word, not g_battleChoiceOwner. File, Options and Help are live through a battle and all sixteen rows dispatch, so a player can save, load, start a new game, quit or open any options page from the battlefield. 0x2A and 0x2B do NOT have this arm.",
       "note": "NOTHING IS GREYED, because there is nothing to grey with. FUN_0040C725 paints each row 0x18 under the pointer and 0x3F otherwise -- no third colour, no skip -- and not one of the sixteen handlers reads g_battlePhase. The game does ship a greyed-item widget (FUN_0040CB7C's colour 1 on FUN_0040CB4E(DAT_0058FCC0[id]), over 20-byte records with a visible short at +0x0E) and it is DEAD CODE: FUN_0040E12E, its only entry point, has no callers anywhere in the binary. What the player saw was the bar not being DRAWN: Screen_DrawMenuBar (0x00419C78) refuses 0x08..0x0D, 0x17, 0x1B..0x20, 0x22 and 0x2C..0x2F, and 0x29, 0x2A and 0x2B are in none of them, so the original paints it through a battle while ours left the 640x24 band above VIEW.y == 24 empty. An empty bar and a dead bar look the same.",
-      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "ours": "crates/l2-game/src/screens/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -650,7 +650,7 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "A right release goes back to 0x29. It does NOT undo the box -- the live selection is left exactly as the last pointer motion made it, because the cancel is a screen change and nothing else.",
-      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "ours": "crates/l2-game/src/screens/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -762,7 +762,7 @@
       "gesture": "hover",
       "addr": "0x0042FF10",
       "what": "`if (g_battleHoverOnField == 0) g_screenId = 0x29` -- the pointer leaving the viewport ends the drag. Tested AFTER the two selection guards, so a release on the very frame the pointer leaves still commits.",
-      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "ours": "crates/l2-game/src/screens/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -1317,7 +1317,7 @@
       "gesture": "left-press",
       "addr": "0x004329A4",
       "what": "Hotspot_Test(0x1E0, 0x1C0, &DAT_004DC710, 5) -- the five 32x32 buttons in a row at (480, 448). This record is the hit test; the five actions are five records of their own.",
-      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "ours": "crates/l2-game/src/screens/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -1590,7 +1590,7 @@
       "addr": "0x00434E1F",
       "what": "g_confirmWidgets record 1 (0x004DD328) -- THE YES/NO BOX'S THUMB-DOWN, at (g_confirmX + 112, g_confirmY + 50), System.pl8 frame 31, hotspot id 0. Ui_ConfirmClicked is `g_confirmAnswer = g_uiHotspotId; (*g_confirmCallback)();`, so the answer IS the hotspot id. Kind 5: the press puts the gauntlet down and sets rec[0x0D] = 0x14, and the handler runs twenty frames later out of Widget_Test's countdown loop.",
       "note": "THE ARM A PLAYER REPORTED, and it was in no inventory at all -- neither this file nor a marker. 'Clicking yes/no (gauntlet thumbs up and down) is instant, whereas the game waited on mouse-up, and the gauntlet would go down slightly when clicked.' Both halves of that sentence are kind 5: the twenty-frame delay reads as waiting for the release, and 'goes down slightly' is Widget_Draw's base + 1. There is ONE confirm box in the game -- Ui_OpenConfirm (0x0040E6F2) is screen 0x1E with thirteen literal call sites over L2.eng group 10 -- and ours is drawn by the battlefield screen rather than by a screen of its own, which is recorded in that module's header. docs/decisions.md C148.",
-      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "ours": "crates/l2-game/src/screens/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -1602,7 +1602,7 @@
       "addr": "0x00434E1F",
       "what": "g_confirmWidgets record 0 (0x004DD310) -- the thumb-UP, at (g_confirmX + 64, g_confirmY + 46), System.pl8 frame 29, hotspot id 1. Same handler, same kind; the id is the whole difference and it is what g_confirmAnswer becomes.",
       "note": "0x004DD310 is also the first record of the widget region, which is why the exe-gated check in crates/l2-game/tests/arms.rs uses this handler as its spot check on the scan's base: a wrong base decodes plausible rubbish rather than nothing.",
-      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "ours": "crates/l2-game/src/screens/battlefield/mod.rs",
       "evidence": "V"
     },
     {
@@ -2916,7 +2916,7 @@
       "what": "Battle_CheckOutcome, the frame it raises 0x2B: with g_optAnimations and g_battleChoiceOwner both set, Music_Stop and Smk_Play(bat_win1.smk + (g_battleOutcome * 4 + DAT_0053F084) * 0x10, 0x27, 0x49) over the animated banner, stepping DAT_0053F084 through 0..3. When the film ends Smk_OnFinished sets DAT_00568470 = 5001, so the banner leaves with it.",
       "note": "Behaviour rather than input, filed beside 0x00477DFC/outcome-timer because it replaces that timer. The siege-count guard around the banner is not modelled.",
       "evidence": "V",
-      "ours": "crates/l2-game/src/screens/battlefield.rs"
+      "ours": "crates/l2-game/src/screens/battlefield/mod.rs"
     },
     {
       "id": "0x00477DFC/outcome-timer",
