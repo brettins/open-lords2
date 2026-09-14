@@ -673,7 +673,7 @@ the front end is pushed under the campaign, so it answered
   as they open were wired, then 573 with the pointer click — then **560**, when thirteen tip clips
 turned out to be counted because their names resolved
   game could ask for them — then **595**, when the tip screens were built
-  (`crates/l2-game/src/tip.rs`) and 35 of their 40 files could be asked for — and then
+  (`crates/l2-game/src/tip/mod.rs`) and 35 of their 40 files could be asked for — and then
   **674**, when the battlefield got an event stream — and then **678**, when a siege could
   pour oil, dock a tower, burn a bridge and bounce a shot off a wall four high
   (`docs/battle.md` §17). Everything below this paragraph is

@@ -600,7 +600,7 @@ clear on show"*.
 **Reproduced.** Not switchable — it changes which advice a player sees and when, never a number
 in the world.
 
-**Where:** `crates/l2-game/src/tip.rs`, `update`; `docs/arms.json`
+**Where:** `crates/l2-game/src/tip/mod.rs`, `update`; `docs/arms.json`
 `0x00476AA7/tip-screen-ladder`; tested in `crates/l2-game/tests/tips.rs`.
 
 ### B80 — The End key cancels a save you have just confirmed

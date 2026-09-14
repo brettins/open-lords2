@@ -192,7 +192,7 @@ the tower half of `siege.rs`; `docs/battle.md` §17 is what was read to build th
 **The tip screens left this table**, and they were the row a player would have heard
 most of: two sites and forty files by name — 13 first lines and 27 chained takes, the
 largest files-per-site ratio in the inventory. They are fired now
-(`crates/l2-game/src/tip.rs`), and **35 of the 40 can sound**: tips 212, 214
+(`crates/l2-game/src/tip/mod.rs`), and **35 of the 40 can sound**: tips 212, 214
 and 215 are guarded on `g_screenId == 0` during a battle, which no path was found to
 hold, so `S212_01`, `S212_02`, `S214_01`, `S214_02` and `S214_03` ship silent in the
 original as well as here. `[I]` on *"no path"*.

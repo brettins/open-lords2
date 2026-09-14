@@ -1179,7 +1179,7 @@ Three separate mechanisms could have owned a question-mark pointer, and none of 
 * the **tip screens** (`L2.eng` groups 200–219, one per screen, once per *run*, gated on
   `g_optTipScreens`) run through `Tip_Update`, whose 20-frame delay is re-armed after each
   dismissal, and `Tip_Show`, which switches `g_screenId` to `0x27`. `0x27`'s row is **0** as
-  well, and the tip driver never touches a cursor. Built: `crates/l2-game/src/tip.rs`;
+  well, and the tip driver never touches a cursor. Built: `crates/l2-game/src/tip/mod.rs`;
 * **`Ui_OpenConfirm`, the message scroll and the drop-down menus** likewise leave the row at 0.
 
 The question mark is a **static property of the village screen**, evaluated fresh every frame

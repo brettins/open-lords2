@@ -8128,7 +8128,7 @@ for those sections to join.
 
 ---
 
-**C160 — The tip screens are built — `crates/l2-game/src/tip.rs` — and four things on file
+**C160 — The tip screens are built — `crates/l2-game/src/tip/mod.rs` — and four things on file
 about them were wrong.** Each was a sentence a careful person would have built from.
 
 **One: the twenty frames are not "after a screen is first opened".** `docs/symbols.md`
