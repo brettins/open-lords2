@@ -122,8 +122,7 @@ crates/l2-game/src/screens/siege.rs	C61	c5060d93d70d	60611046b40d
 crates/l2-game/src/screens/supplies.rs	C148	e6078ab15510	d3efa7d90685
 crates/l2-game/src/screens/village.rs	C22	81b65db0836a	0364b53a921d
 crates/l2-game/src/screens/village.rs	C76	0b92c09bfc27	53e207ae069e
-crates/l2-game/src/setup.rs	C172	8e1a6de54816	0bbb117a9f49
-crates/l2-game/src/setup.rs	C21	1a85f7a2d857	f7bf296341ff
+crates/l2-game/src/setup.rs	C21	67cbc3ad95cc	f7bf296341ff
 crates/l2-game/src/setup.rs	C62	a935365ea2c1	ebb6a7ec3711
 crates/l2-game/src/shell/font.rs	C155	b2daf0637f13	03caee7e7f69
 crates/l2-game/src/shell/mod.rs	C140	ac3b5990aa16	e3a1ede42a95
@@ -770,6 +769,7 @@ docs/decisions.md	C21	e643c79f1b0f	f7bf296341ff
 docs/decisions.md	C213	3f788329cda3	39c3c5a8963d
 docs/decisions.md	C214	8c1f759b3212	90f835ed14b3
 docs/decisions.md	C214	8c927f7df17e	90f835ed14b3
+docs/decisions.md	C218	276b070a2d1c	2f6b48841826
 docs/decisions.md	C22	516958f577ba	0364b53a921d
 docs/decisions.md	C22	d5fb664c5a6b	0364b53a921d
 docs/decisions.md	C22	e2c2d7647114	0364b53a921d
