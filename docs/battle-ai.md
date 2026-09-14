@@ -956,7 +956,7 @@ those tables as data supplied by the caller
 ## 13. What wiring it into a running battle found
 
 §12 came from implementing the seventeen handlers. This comes from *calling*
-them: `crates/l2-sim/src/runner.rs` now raises units, dispatches
+them: `crates/l2-sim/src/runner/mod.rs` now raises units, dispatches
 `Battle_UpdateAllUnits` every frame and reforms what it orders. Running a
 battle exercises the parts a unit test of a handler cannot.
 

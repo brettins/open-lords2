@@ -472,7 +472,7 @@ the most gameplay-critical shell in the table.
 
 This is the sharpest of the eight, because work is in flight on the seam *into* a battle.
 
-`crates/l2-sim/src/runner.rs` is a frame loop — rebuild, update units, reform, update men,
+`crates/l2-sim/src/runner/mod.rs` is a frame loop — rebuild, update units, reform, update men,
 melee tick — with **no victory test, no retreat, no surrender, no outcome and no return to the
 campaign.** Wiring the seam without an end condition builds a one-way door: you can enter a
 478: battle and the campaign never resumes.

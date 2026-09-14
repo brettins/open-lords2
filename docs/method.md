@@ -422,7 +422,7 @@ its boundary, and none is.
   takes the unit's `+0x16`/`+0x18` — the pair `docs/battle-ai.md` §7 calls the catapult aim
   point — and the three other writers only zero it. `records.json` names it the figure's own
   aim point on that evidence.
-* `crates/l2-sim/src/runner.rs` calls figure `+0x144`/`+0x146` "where this figure is walking
+* `crates/l2-sim/src/runner/mod.rs` calls figure `+0x144`/`+0x146` "where this figure is walking
   to … written by `Formation_SendFigure` and by nothing else". **No instruction in
   `Lords2.exe` references either offset**, and both fall inside the 150-pair path array at
   `+0x38`. `docs/battle.md` §2.1 and `docs/battle-ai.md` §7 agree with each other that the

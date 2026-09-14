@@ -221,7 +221,7 @@ so inflates the unit count cheaply.
 **Evidence.** **[V]**-grade — asserted from the two table addresses and `Battle_RaiseSide`
 (`0x0047FEA7`). `battle-ai.md` §11.
 
-**Reproduced.** `crates/l2-sim/src/runner.rs:455`. Past the twenty-fourth entry the original
+**Reproduced.** `crates/l2-sim/src/runner/mod.rs:455`. Past the twenty-fourth entry the original
 reads unidentified bytes and we clamp instead, and say so — see §3.
 
 ### B9 — The battle AI's attack jitter is not centred

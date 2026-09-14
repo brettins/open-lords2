@@ -1083,7 +1083,7 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
     // parser that silently returns nothing is what this catches.
     for (file, want, least) in [
         ("src/missile.rs", "Missile", 5),
-        ("src/runner.rs", "Fighter", 5),
+        ("src/runner/mod.rs", "Fighter", 5),
         ("src/siege.rs", "SiegeState", 5),
         // **Nested structs were outside the walk.** `Fighter::progress` is one
         // name in the census and three fields in the digest, so `free` could

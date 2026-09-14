@@ -146,7 +146,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ),
     ("B6", Unwired("crates/l2-kingdom/src/units_tick.rs")),
     ("B7", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
-    ("B8", Unwired("crates/l2-sim/src/runner.rs — l2-sim takes no Quirks value yet")),
+    ("B8", Unwired("crates/l2-sim/src/runner/mod.rs — l2-sim takes no Quirks value yet")),
     ("B9", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
     // 2.2 — the county economy
     ("B10", Switchable(Behavioural)),
@@ -224,7 +224,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B45", Unwired("crates/l2-sim/src/unit.rs — l2-sim takes no Quirks value yet")),
     ("B46", Unwired("crates/l2-sim/src/formation.rs")),
     ("B47", Unwired("crates/l2-sim/src/formation.rs")),
-    ("B48", Unwired("crates/l2-sim/src/runner.rs")),
+    ("B48", Unwired("crates/l2-sim/src/runner/mod.rs")),
     ("B49", Unwired("crates/l2-sim/src/terrain.rs")),
     ("B50", Unwired("crates/l2-view/src/scene.rs")),
     ("B102", Unwired("crates/l2-sim/src/fire.rs — l2-sim takes no Quirks value yet")),
@@ -341,7 +341,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // switching it would change what a siege costs; the drawbridge search
     // missing a break is a defect with no observable consequence, because the
     // scan finds the same cell either way.
-    ("B84", Unwired("crates/l2-sim/src/runner.rs, the repair bill")),
+    ("B84", Unwired("crates/l2-sim/src/runner/mod.rs, the repair bill")),
     ("B85", Unswitchable("no observable difference: the scan finds the same cell")),
     // The five diplomacy defects. Four are reproduced in l2_kingdom::diplomacy
     // or the screen and none is wired to a switch; the fifth cannot be
