@@ -209,7 +209,7 @@ crates/l2-game/tests/screens_shoot.rs	C21	1523306009a2	f7bf296341ff
 crates/l2-game/tests/screens_village/interaction/job_popups.rs	C180	7ba053c3b72d	fea6f0ec7284
 crates/l2-game/tests/screens_village/render/render_tests.rs	C22	1d39d618c245	0364b53a921d
 crates/l2-game/tests/seam/realm.rs	C170	f927f45cf447	2bbb0887e7d4
-crates/l2-game/tests/shell/navigation.rs	C22	21e39e71ac79	0364b53a921d
+crates/l2-game/tests/shell/navigation.rs	C22	f7b656d8e8f5	0364b53a921d
 crates/l2-game/tests/siege_battle/main.rs	C35	b760daabde99	193a1920e229
 crates/l2-game/tests/standings/interaction.rs	C190	32b665bc7de6	036491ce2ede
 crates/l2-game/tests/standings/main.rs	C26	dfae3b8af92f	e8179d1f76a8
@@ -235,6 +235,7 @@ crates/l2-kingdom/src/conquest/ownership.rs	C197	86cb9ace4b06	e7abe71da733
 crates/l2-kingdom/src/county/county/mod.rs	C149	053b8d59f74a	138117948441
 crates/l2-kingdom/src/county/county/mod.rs	C161	56aad68cb697	8b6af36909ef
 crates/l2-kingdom/src/county/county/mod.rs	C195	99f62b410c6c	f0bf50bfaad1
+crates/l2-kingdom/src/county/county/mod.rs	C20	0e95077ec89b	0ec8eeb4f874
 crates/l2-kingdom/src/county/county/mod.rs	C53	e8fb6191353a	cad36ab11dbf
 crates/l2-kingdom/src/county/mod.rs	C153	a1b629145fa4	c724d7afe0dd
 crates/l2-kingdom/src/county/mod.rs	C153	b560005ada6f	c724d7afe0dd
@@ -270,14 +271,16 @@ crates/l2-kingdom/src/movement/stepper.rs	C40	87816e7f9e43	d344563abef8
 crates/l2-kingdom/src/phase/mod.rs	C134	3232abf25d99	d12cd2f96f79
 crates/l2-kingdom/src/phase/mod.rs	C35	234e7ea17154	193a1920e229
 crates/l2-kingdom/src/population/tests_part.rs	C20	11223ff82fe2	0ec8eeb4f874
+crates/l2-kingdom/src/ration.rs	C20	d5db8ec761cf	0ec8eeb4f874
 crates/l2-kingdom/src/ration.rs	C3	808f2d1a80d3	35bf3a86555f
 crates/l2-kingdom/src/save/codec_part.rs	C123	763bc3ea2e6d	3a5cc2fec37d
 crates/l2-kingdom/src/save/codec_part.rs	C134	038e2fcfc4d1	d12cd2f96f79
 crates/l2-kingdom/src/save/codec_part.rs	C136	4b1a368ec9ad	724c11b1e475
 crates/l2-kingdom/src/save/codec_part.rs	C149	47e6a1be6570	138117948441
 crates/l2-kingdom/src/save/codec_part.rs	C169	c88dac1c6857	4f087d2d4d89
-crates/l2-kingdom/src/save/codec_part.rs	C172	b7aa01d666f9	0bbb117a9f49
+crates/l2-kingdom/src/save/codec_part.rs	C172	e263434c6a23	0bbb117a9f49
 crates/l2-kingdom/src/save/codec_part.rs	C195	9d5ecaaad554	f0bf50bfaad1
+crates/l2-kingdom/src/save/codec_part.rs	C20	25e48ff4004b	0ec8eeb4f874
 crates/l2-kingdom/src/save/codec_part.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege/mod.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	061a96a14194	ed7ea7df1f23
@@ -325,11 +328,11 @@ crates/l2-kingdom/tests/reproduction/reproduction/scenarios.rs	C12	d076297559db	
 crates/l2-kingdom/tests/reproduction/simulation.rs	C12	40909731b47f	bb0dd488f9d2
 crates/l2-kingdom/tests/reproduction/simulation.rs	C12	7bfb2efd8284	bb0dd488f9d2
 crates/l2-kingdom/tests/save.rs	C30	58b3a28bdf98	50fdf5e17ba0
-crates/l2-kingdom/tests/save.rs	C30	5ad359f51a2a	50fdf5e17ba0
 crates/l2-kingdom/tests/save.rs	C30	6095e16450b4	50fdf5e17ba0
 crates/l2-kingdom/tests/save.rs	C30	e28121881c7d	50fdf5e17ba0
+crates/l2-kingdom/tests/save.rs	C30	f1c308407510	50fdf5e17ba0
+crates/l2-kingdom/tests/save.rs	C39	5fd4db24b53f	9a04e88ad74b
 crates/l2-kingdom/tests/save.rs	C39	68a534ebe490	9a04e88ad74b
-crates/l2-kingdom/tests/save.rs	C39	c8cec0dddda7	9a04e88ad74b
 crates/l2-kingdom/tests/save.rs	C39	f2c662b609bb	9a04e88ad74b
 crates/l2-mods/rulesets/core/rules/kingdom.toml	C10	0b6d21a76fea	68e4eb2d2a1f
 crates/l2-mods/rulesets/core/rules/kingdom.toml	C11	f607cac3e195	07dfad15821c
@@ -377,7 +380,7 @@ crates/l2-sim/src/pathfind/grid.rs	C103	62f78ee316b4	7f535dce1087
 crates/l2-sim/src/pathfind/grid.rs	C103	82fc499e9bf3	7f535dce1087
 crates/l2-sim/src/runner/combat.rs	C100	0b67e8835502	c490b4875689
 crates/l2-sim/src/runner/conclusion.rs	C203	d54d449778b9	a885abd5494f
-crates/l2-sim/src/runner/orders.rs	C200	a0976d2da606	264da18555bd
+crates/l2-sim/src/runner/orders.rs	C200	84655119e58a	264da18555bd
 crates/l2-sim/src/runner/orders.rs	C81	195b94310c14	3f7941714d12
 crates/l2-sim/src/siege/castle.rs	C82	d23ec5eae8d5	0eb5947031fe
 crates/l2-sim/src/siege/mod.rs	C3	858d58b4a3a4	35bf3a86555f
@@ -448,7 +451,7 @@ crates/l2-view/src/chrome/mod.rs	C50	d9471b57f9d8	85416be0b69b
 crates/l2-view/src/engines.rs	C202	7ffd413ea28d	1e1898bc86a5
 crates/l2-view/src/ink.rs	C112	b767057058d1	0dbcd00423ed
 crates/l2-view/src/missiles.rs	C202	8c6c9cd6adaf	1e1898bc86a5
-crates/l2-view/src/scene/render.rs	C200	19239c5a5be7	264da18555bd
+crates/l2-view/src/scene/render.rs	C200	90dcb22e249f	264da18555bd
 crates/l2-view/src/text.rs	C107	b6697db1fac7	eb231bef7ee5
 crates/l2-view/src/village/art.rs	C57	969de6d967c3	3b42b65157bf
 crates/l2-view/src/village/mod.rs	C179	96b4d8239d02	852ec3e69f4e
@@ -1195,7 +1198,7 @@ docs/symbols.json	C99	ed259f31a361	b890db1f6d4a
 docs/symbols.md	C100	3cede658071f	c490b4875689
 docs/symbols.md	C101	2d4307e2edc7	fb385b3247be
 docs/symbols.md	C102	36cc489ab4e3	e01ce233d22a
-docs/symbols.md	C102	5f63b7e4c754	e01ce233d22a
+docs/symbols.md	C102	f486efe87030	e01ce233d22a
 docs/symbols.md	C105	c425aadeeece	c2e0145299b3
 docs/symbols.md	C105	f7e7849dbc51	c2e0145299b3
 docs/symbols.md	C119	2f30d338494e	306c4c740506

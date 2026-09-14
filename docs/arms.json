@@ -250,6 +250,11 @@
       "what": "g_screenId 0x20 -- the standings, the court button that opens it, and its seven category tabs",
       "complete": true,
       "note": "Enumerated from all three passes at once: Screen_FrameInput's 0x20 arm (the turn-end force-close, the right release and Ui_OkButtonClicked, and nothing else), Screen_HandleInput's Hotspot_Test(0, 0, &g_nobleTabs, 7), and Screen_DrawWidgets, which has NO 0x20 arm -- so the seven tabs are drawn by grtnoble.pl8 and hit-tested by records that are never painted. The table at 0x004DC890 was decoded out of the player's own Lords2.exe: seven 24-byte records, all kind 1, all handler FUN_0043524E, ids 0..6."
+    },
+    "front-end": {
+      "what": "g_screenId 0x1F pages 12 and 13 -- the skirmish setup and its .skr file box",
+      "complete": false,
+      "note": "The ten arms the two pages answer, read out of the widget table 0x004DCF68 and FUN_0043D929..FUN_0043DDF4. Page 13 scroll arrows are the open part: their widget record is not in any table read so far. FIVE OF THE TEN ARE KIND 2, left-press-held, and the exe said so: the gesture check read the kind byte at +0x0F of each record and contradicted the left-press this was filed under -- the scroll arrows, the seesaw, the categories, the side swap and the file field. All five answer the down edge and none answers the 320 ms pulse, so they are missing and the other five, kind 1, are reproduced."
     }
   },
   "arms": [
@@ -1393,6 +1398,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x00434174/skirmish-pick-file",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x00434174",
+      "what": "A ROW OF PAGE 13'S FILE LIST -- FUN_00434174 (00430000.c:1371-1376). Taking a name writes DAT_0053F5FC and the category, loads the file and returns to page 12. It writes NOTHING ELSE: DAT_0053F64C, DAT_0053E9A8, DAT_0056D590 and DAT_0053F0D4 all keep the previous category's values, so the list is still scrolled where it was and still as long as it was.",
+      "note": "Choosing the name ALREADY chosen returns 0 and stays on page 13 (00430000.c:1364-1367), and a row past the end of the list is ignored.",
+      "ours": "crates/l2-game/src/screens/setup/skirmish.rs",
+      "evidence": "D"
+    },
+    {
       "id": "0x004342F3/saveload-confirm",
       "status": "reproduced",
       "group": "panels",
@@ -1788,6 +1805,109 @@
       "note": "FOUND WRONG in its gesture: ours answered the track on Event::Click alone, so the knob jumped to the press and then ignored the pointer. A player: \"Slider bar in army recruitment cant be dragged.\"",
       "ours": "crates/l2-game/src/screens/army/mod.rs",
       "evidence": "V"
+    },
+    {
+      "id": "0x0043D5B7/skirmish-go",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x0043D5B7",
+      "what": "PAGE 12'S *Go* -- FUN_0043D5B7 (00430000.c:7781-7788): FUN_0043F304, Msg_Reset, FUN_0042BA40, FUN_0042C5AD, g_battleChoiceOwner = 1, DAT_0053F018 = 0, Battle_Start (0x004778A0) and g_appPhase = 3 -- the phase word, not g_battleState. Which field is raised is FUN_0042B9C4's (0x0042B9C4, 00420000.c:4608-4619) by category: 0 and 1 Battlefield_BuildRandom, 2 Battlefield_BuildCastle(DAT_0056D590) with g_battleIsSiege = 1, 3 Battlefield_BuildFromSkr.",
+      "note": "What arrives at Battle_Start was put there on the way IN: Skirmish_Setup (0x0042B7F7) runs when page 12 opens, not on this button. DAT_0053F018 is unnamed and nothing of ours reads it. Category 3's .skr parse is not built and the open field stands in; two empty musters return Stay rather than panicking, and the original tests only the multiplayer condition.",
+      "ours": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+      "evidence": "D"
+    },
+    {
+      "id": "0x0043D649/skirmish-back",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x0043D649",
+      "what": "PAGE 12'S *Back* -- FUN_0043D649, and it goes to PAGE 1, not page 2: g_setupPage = 1, DAT_0057A0F0 = 0 (the skirmish flag down again), g_battlePhase = 0 and the campaign's button set back.",
+      "note": "Ours went to page 2, which is the page *Skirmish!* is on -- the plausible destination rather than the one the function writes.",
+      "ours": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "evidence": "D"
+    },
+    {
+      "id": "0x0043D929/skirmish-pick-row",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x0043D929",
+      "what": "ONE OF THE SIX VISIBLE BATTLE ROWS -- FUN_0043D929 (00430000.c:7950), whose whole body is guarded by g_uiHotspotId != DAT_0053E9A8: clicking the LIT row is not a click. The lit slot becomes the hotspot and DAT_0056D590, the row that will be fought, becomes slot + top. DAT_004D4B58 is the per-row flag it copies.",
+      "note": "The row is also the castle level in category 2 -- Battlefield_BuildCastle(DAT_0056D590), 00420000.c:4615 -- so this arm picks the siege's castle as well as the battle.",
+      "ours": "crates/l2-game/src/screens/setup/skirmish.rs",
+      "evidence": "D"
+    },
+    {
+      "id": "0x0043D9CD/skirmish-scroll",
+      "status": "missing",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press-held",
+      "addr": "0x0043D9CD",
+      "what": "THE LIST'S TWO ARROWS -- FUN_0043D9CD, hotspot id -1 and +1 on the six-row window.",
+      "note": "THE CLAMP IS AN else: when the scroll runs off either end the original stops at the end and DOES NOT RECOMPUTE DAT_0056D590, so the lit row and the row that will be fought disagree until the next click. Kept, because it is what the game does. THE HELD HALF IS NOT ANSWERED: our handler runs on the down edge and there is no 320 ms pulse, so this is filed missing rather than reproduced -- an arm answered with the wrong kind is not reproduced. The press half is crates/l2-game/src/screens/setup/skirmish.rs (crates/l2-game/src/screens/setup/ui/render/render.rs for the file field), which cites the function; nothing in this engine answers Kind::Held yet, and the arm! declaration is what a marker for one would have to be.",
+      "evidence": "D"
+    },
+    {
+      "id": "0x0043DA9E/skirmish-custom",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x0043DA9E",
+      "what": "*Cust.* / *Norm.* -- FUN_0043DA9E, which flips DAT_0056899C and puts BOTH handicaps back to 2.",
+      "note": "The two custom musters the flag draws instead (FUN_0042130F, FUN_00420DE4) are not built, so the flag flips and the handicaps reset and nothing else on the page changes.",
+      "ours": "crates/l2-game/src/screens/setup/skirmish.rs",
+      "evidence": "D"
+    },
+    {
+      "id": "0x0043DAF3/skirmish-handicap",
+      "status": "missing",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press-held",
+      "addr": "0x0043DAF3",
+      "what": "THE HANDICAP SEESAW -- FUN_0043DAF3. Hotspot 1 takes one column off realm 1 and gives one to realm 2, hotspot 2 the other way, and BOTH are clamped to 1..3 -- so the outer columns 0 and 4 of the strength table are unreachable from this page.",
+      "note": "FUN_0043DBAC is the other difficulty arm and it cycles ONE realm 0..4; it belongs to page 11, the multiplayer skirmish, and is a different arm. The caption over realm 1's column is L2.eng 11/0x29 on the middle and 11/0x28 off it. THE HELD HALF IS NOT ANSWERED: our handler runs on the down edge and there is no 320 ms pulse, so this is filed missing rather than reproduced -- an arm answered with the wrong kind is not reproduced. The press half is crates/l2-game/src/screens/setup/skirmish.rs (crates/l2-game/src/screens/setup/ui/render/render.rs for the file field), which cites the function; nothing in this engine answers Kind::Held yet, and the arm! declaration is what a marker for one would have to be.",
+      "evidence": "D"
+    },
+    {
+      "id": "0x0043DC1D/skirmish-category",
+      "status": "missing",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press-held",
+      "addr": "0x0043DC1D",
+      "what": "ONE OF THE FOUR CATEGORIES -- FUN_0043DC1D (00430000.c:8081-8089), where the hotspot id IS the category. It writes the row count into DAT_0053F0D4 and puts the row, the slot and the scroll back to 0; hotspot 3 with no .skr loaded falls back to category 0. Category 2 also raises g_battleIsSiege (00430000.c:8090).",
+      "note": "Top to bottom the captions are categories 2, 0, 1, 3, so L2.eng 11/0x14..0x16 are NOT in category order, and the fourth caption is the .skr file's own name or 11/0x23 when there is none. THE HELD HALF IS NOT ANSWERED: our handler runs on the down edge and there is no 320 ms pulse, so this is filed missing rather than reproduced -- an arm answered with the wrong kind is not reproduced. The press half is crates/l2-game/src/screens/setup/skirmish.rs (crates/l2-game/src/screens/setup/ui/render/render.rs for the file field), which cites the function; nothing in this engine answers Kind::Held yet, and the arm! declaration is what a marker for one would have to be.",
+      "evidence": "D"
+    },
+    {
+      "id": "0x0043DD83/skirmish-swap-sides",
+      "status": "missing",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press-held",
+      "addr": "0x0043DD83",
+      "what": "SWAP ATTACKER AND DEFENDER -- FUN_0043DD83, which moves DAT_0053EF5C between g_localPlayer and DAT_0056D5CC (00430000.c:8120-8126) and then calls Troops_Load (0x0042AC0C), because which side the local player is on picks the FILE: TROOPS2.ENG attacking, TROOPS3.ENG defending.",
+      "note": "[D] the parse is not built and the table is handed in, so ours cannot reload: the sides swap and the counts stay whichever file the caller supplied. The two name boxes above do not move either way -- they are realm 1's and realm 2's, keyed to the realm and not to the side. THE HELD HALF IS NOT ANSWERED: our handler runs on the down edge and there is no 320 ms pulse, so this is filed missing rather than reproduced -- an arm answered with the wrong kind is not reproduced. The press half is crates/l2-game/src/screens/setup/skirmish.rs (crates/l2-game/src/screens/setup/ui/render/render.rs for the file field), which cites the function; nothing in this engine answers Kind::Held yet, and the arm! declaration is what a marker for one would have to be.",
+      "evidence": "D"
+    },
+    {
+      "id": "0x0043DDF4/skirmish-open-files",
+      "status": "missing",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press-held",
+      "addr": "0x0043DDF4",
+      "what": "THE .skr NAME FIELD, which opens page 13 -- FUN_0043DDF4, and only on 0 < DAT_005653E8 (00430000.c:8140), the count of .skr files the directory scan found. With none, the field is not a button.",
+      "note": "Page 13's file box is the save/load box's twin with its own scroll base DAT_004EA1A0; its arrows' widget record is not in any table read so far, so the arrows are not wired and SetupScreen::scroll_skirmish_files is public and unreached. THE HELD HALF IS NOT ANSWERED: our handler runs on the down edge and there is no 320 ms pulse, so this is filed missing rather than reproduced -- an arm answered with the wrong kind is not reproduced. The press half is crates/l2-game/src/screens/setup/skirmish.rs (crates/l2-game/src/screens/setup/ui/render/render.rs for the file field), which cites the function; nothing in this engine answers Kind::Held yet, and the arm! declaration is what a marker for one would have to be.",
+      "evidence": "D"
     },
     {
       "id": "0x0043600C/chat-toggle",

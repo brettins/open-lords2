@@ -508,6 +508,8 @@ impl SetupScreen {
             // `g_setupPage = 1`, `DAT_0057A0F0 = 0` — the skirmish flag down
             // again — `g_battlePhase = 0` and the campaign's button set back.
             // Ours went to page 2, which is the page *Skirmish!* is on.
+            //
+            // arm: 0x0043D649/skirmish-back left-press
             (SetupPage::Skirmish | SetupPage::SkirmishMulti, 0) => self.go(SetupPage::Title),
             // ***Cust.*** — `FUN_0043DA9E`. The flag flips and both handicaps
             // go back to 2; the two custom musters it draws instead

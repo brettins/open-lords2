@@ -184,6 +184,7 @@ impl Default for Skirmish {
 impl Skirmish {
     /// **One of the six rows** — `FUN_0043D929`, whose whole body is guarded by
     /// `g_uiHotspotId != DAT_0053E9A8`: clicking the lit row is not a click.
+    // arm: 0x0043D929/skirmish-pick-row left-press
     pub fn pick_row(&mut self, slot: usize) -> bool {
         if slot == self.slot {
             return false;
@@ -253,6 +254,7 @@ impl Skirmish {
 
     /// ***Cust.*** — `FUN_0043DA9E`, which flips the flag and puts both
     /// handicaps back to 2.
+    // arm: 0x0043DA9E/skirmish-custom left-press
     pub fn toggle_custom(&mut self) {
         self.custom = !self.custom;
         self.difficulty = [2, 2];
@@ -267,6 +269,7 @@ impl Skirmish {
     ///
     /// Returns whether the page changed — choosing the name already chosen
     /// returns 0 and stays on page 13 (`00430000.c:1364-1367`).
+    // arm: 0x00434174/skirmish-pick-file left-press
     pub fn choose_file(&mut self, name: &str) -> bool {
         if self.file.as_deref() == Some(name) {
             return false;

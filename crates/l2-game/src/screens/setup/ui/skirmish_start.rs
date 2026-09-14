@@ -64,6 +64,7 @@ impl SetupScreen {
     /// no campaign unit stands behind either: the skirmish flag is what stops
     /// the end of the battle writing casualties back to units 1 and 2 of a
     /// kingdom that is not playing.
+    // arm: 0x0043D5B7/skirmish-go left-press
     pub(crate) fn go_skirmish(&mut self, ctx: &mut Ctx) -> Transition {
         let (mine, theirs) = self.skirmish.fill_armies(&self.troops);
         if mine.men == 0 || theirs.men == 0 {
