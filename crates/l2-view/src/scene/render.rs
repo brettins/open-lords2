@@ -180,6 +180,16 @@ pub fn draw_figures(
             false => {
                 let facing = match f.anim {
                     Anim::Walking => f.facing,
+                    // `Anim_DyingA2` (`00480000.c:3009`) takes the half-facing
+                    // band from `dirc` as well — `(dirc & 6) >> 1` — and only
+                    // then copies it into `facingDrawn` (`3017`).
+                    Anim::Dying => f.facing,
+                    // **A knight stands at `dirc`.** `Anim_StandA2`'s knight
+                    // arm (`00480000.c:2896-2900`) overwrites the frame the
+                    // fidget just computed with the bare `dirc`, so a standing
+                    // knight's body never follows the shuffle — only the men
+                    // on foot do. The horse sheet reads `dirc` too.
+                    Anim::Idle if f.troop == Troop::Knights => f.facing,
                     _ => f.facing_drawn,
                 };
                 // The three fields the handlers read besides the phase: the

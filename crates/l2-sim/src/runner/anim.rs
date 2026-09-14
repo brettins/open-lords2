@@ -53,15 +53,9 @@ impl BattleRunner {
         f.anim = Motion::Idle;
         // **A siege engine never reaches the body of it.** `Anim_StandA2`
         // opens `if (troopType < 7)` and hands everything above to
-        // `FUN_00488793` (`0x00488793`, `00480000.c:3356`), which steps
-        // `animPhase` and wraps it at 0x2F for `troopType == 10` alone — the
-        // oil pot's six bubbling pictures, `(animPhase >> 3) + 0x23`. The ram,
-        // the ladder and the catapult read a facing and no counter.
+        // [`Self::siege_pose`] (`00480000.c:2828`).
         if f.troop.index() >= 7 {
-            if f.troop.index() == 10 {
-                f.phase = (f.phase + 1) % 48;
-            }
-            return;
+            return self.siege_pose(i);
         }
         f.fidget = f.fidget.wrapping_add(1);
         if f.fidget > f.fidget_period {
@@ -97,9 +91,21 @@ impl BattleRunner {
     pub(super) fn march(&mut self, i: usize, moved: bool) {
         let f = &mut self.fighters[i];
         f.anim = Motion::Walking;
-        f.facing_drawn = f.facing;
-        // `animPhase` wraps at 0x17 here — six poses of four ticks.
-        f.phase = (f.phase + 1) % 24;
+        // **A siege engine walks by another handler.** `Anim_WalkA2` gates on
+        // `troopType < 7` too and sends the rest to `FUN_00488436`
+        // (`0x00488436`, `00480000.c:2773`) — the siege engine walk, a frame
+        // read from `dirc` and `polarDirc` with **no `animPhase` step and no
+        // `facingDrawn` write**. `l2_view::engines` is that frame; there is no
+        // counter here to keep. The stand below still runs: the state handler
+        // calls `Anim_StandA2` on a refused step whatever the troop is.
+        if f.troop.index() < 7 {
+            f.facing_drawn = f.facing;
+            // `animPhase` wraps at 0x17 here — six poses of four ticks. The
+            // **frame is read before this step** (`00480000.c:2754`, the
+            // `animPhase >> 2` sits above the `+ 1`); `l2_view::figures::pose_of`
+            // takes the step back off for the drawn pose.
+            f.phase = (f.phase + 1) % 24;
+        }
         if !moved {
             self.stand(i);
         }
@@ -123,9 +129,37 @@ impl BattleRunner {
         let swinging = self.sim.figures[self.fighters[i].sim].role == Role::Attacking;
         let f = &mut self.fighters[i];
         f.anim = Motion::Attacking;
+        // **No engine swings.** `Anim_StrikeA2` opens on `troopType < 7`
+        // (`00480000.c:2477`) and its else is [`Self::siege_pose`] (`2578`):
+        // a ram (9) or a ladder (8) reaching here through `strike_castle`
+        // gets the engine's own frame, not the strike cycle, and no
+        // `facingDrawn` write either.
+        if f.troop.index() >= 7 {
+            return self.siege_pose(i);
+        }
         f.facing_drawn = facing % 8;
         if swinging {
             f.phase = (f.phase + 1) % 40;
+        }
+    }
+
+    /// `FUN_00488793` (`0x00488793`, `00480000.c:3363`) — **the engine's
+    /// standing pose**, where `Anim_StandA2` (`2828`) and `Anim_StrikeA2`
+    /// (`2578`) send every `troopType >= 7`.
+    ///
+    /// Only the oil pot counts: `animPhase += 1; if (0x2F < animPhase)
+    /// animPhase = 0` (`3364-3367`) — the six bubbling pictures,
+    /// `(animPhase >> 3) + 0x23`. A **clamp, not a modulo**: the seed
+    /// `((index * 9 + x * 16) & 0x3F)` reaches 63, which `% 48` would leave
+    /// walking 16 … 63 → 0 … 15 while the clamp drops it to 0 at once. The
+    /// ram, the ladder and the catapult read a facing and no counter.
+    fn siege_pose(&mut self, i: usize) {
+        let f = &mut self.fighters[i];
+        if f.troop.index() == 10 {
+            f.phase += 1;
+            if f.phase > 0x2F {
+                f.phase = 0;
+            }
         }
     }
 

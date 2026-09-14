@@ -166,7 +166,17 @@ pub fn pose_of(runner: &l2_sim::runner::BattleRunner, i: usize) -> Pose {
     let f = &runner.fighters[i];
     let sim = &runner.sim.figures[f.sim];
     Pose {
-        phase: f.phase,
+        // **The walk frame is read before the step.** `Anim_WalkA2`
+        // (`00480000.c:2754-2756`) computes `dirc * stride + (animPhase >> 2)`
+        // and *then* does `animPhase += 1`; `BattleRunner::march` has already
+        // stepped it by the time we look, so the drawn pose is one behind —
+        // exact, because that step wraps at 24. `Anim_StrikeA2` (`2509`) and
+        // `Anim_DyingA2` (`3010`) step first and read after, so they take the
+        // counter as it stands. Ours drew the walk a tick ahead of the binary.
+        phase: match f.anim {
+            l2_sim::Motion::Walking => (f.phase + 23) % 24,
+            _ => f.phase,
+        },
         index: i,
         swing: sim.reload_counter,
         defending: sim.role == l2_sim::Role::Defending,
@@ -272,6 +282,11 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
         // facing 0 … 7 and the cadence goes on the horse sheet
         // ([`horse_frame`]). Ours put walk and stand on the strike formula, so
         // a riding knight's body flickered through the swing.
+        //
+        // Both of those arms read `dirc`, not `facingDrawn`: `2896-2900` is
+        // `frame = dirc & 7` written *over* the fidget's frame. The caller
+        // hands `facing` in — `l2_view::scene::render` picks `dirc` for a
+        // standing knight for this reason.
         let base = knight_base(facing, facing) as usize;
         return match anim {
             Anim::Attacking => base + strike_cycle(troop)[((phase % 40) / 4) as usize] as usize,

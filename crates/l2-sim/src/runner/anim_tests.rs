@@ -277,3 +277,27 @@ fn a_man_hitting_a_wall_takes_the_attacking_role() {
     assert_eq!(r.sim.figures[sim].role, crate::Role::Attacking);
     assert_eq!(r.fighters[1].anim, Motion::Attacking);
 }
+
+/// **No engine runs a man's cycle.** `Anim_StrikeA2` (`00480000.c:2477`) and
+/// `Anim_WalkA2` (`2773`) gate on `troopType < 7`; over 7 they call
+/// `FUN_00488793` / `FUN_00488436`, which write no `facingDrawn` and step
+/// `animPhase` for the oil pot alone — `+= 1` **clamped** at 0x2F (`3364`),
+/// not `% 48`, and the seed `(index * 9 + x * 16) & 0x3F` reaches 63.
+#[test]
+fn a_siege_engine_keeps_its_counter_out_of_the_walk_and_strike_arms() {
+    let mut r = pair(Troop::BatteringRams, Troop::Oil, 4);
+    for i in [0, 1] {
+        r.fighters[i].phase = 7;
+        r.fighters[i].facing_drawn = 2;
+    }
+    r.strike(0, 5);
+    r.march(1, true);
+    assert_eq!((r.fighters[0].anim, r.fighters[0].phase), (Motion::Attacking, 7));
+    assert_eq!((r.fighters[1].anim, r.fighters[1].phase), (Motion::Walking, 7));
+    assert_eq!((r.fighters[0].facing_drawn, r.fighters[1].facing_drawn), (2, 2));
+    r.fighters[1].phase = 63;
+    r.stand(1);
+    assert_eq!(r.fighters[1].phase, 0, "0x2F is a clamp, not a wrap");
+    r.stand(1);
+    assert_eq!(r.fighters[1].phase, 1);
+}

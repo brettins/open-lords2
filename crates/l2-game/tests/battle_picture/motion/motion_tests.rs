@@ -70,6 +70,37 @@ fn no_drawn_man_ever_jumps_half_a_cell_in_one_tick() {
     assert_eq!(jumps, 0, "{jumps} drawn jumps of 16 px or more; worst {}", worst.1);
 }
 
+/// **The walk frame is the phase before the step.** `Anim_WalkA2`
+/// (`00480000.c:2754-2756`) reads `animPhase >> 2` and increments after, so the
+/// pose drawn this tick is the counter the figure ended the last tick with.
+/// `Anim_StrikeA2` (`2509`) increments first — only the walk is offset.
+///
+/// Ablation: drop the `- 1` in `l2_view::figures::pose_of` and every marching
+/// man is drawn one pose ahead of the binary.
+#[test]
+fn a_marching_man_is_drawn_at_the_phase_he_ended_the_last_tick_with() {
+    let mut r = march();
+    let mut carried: Vec<Option<u8>> = vec![None; r.fighters.len()];
+    let mut checked = 0usize;
+    for _ in 0..200 {
+        r.step();
+        for i in 0..r.fighters.len() {
+            let f = &r.fighters[i];
+            if f.anim != Motion::Walking {
+                carried[i] = None;
+                continue;
+            }
+            if let Some(before) = carried[i] {
+                assert_eq!(l2_view::figures::pose_of(&r, i).phase, before, "figure {i}");
+                checked += 1;
+            }
+            carried[i] = Some(f.phase);
+        }
+    }
+    println!("{checked} consecutive marching ticks compared");
+    assert!(checked > 100, "only {checked} marching ticks compared");
+}
+
 /// Walk one man off the field in direction `(dx, dy)` from a camera that puts
 /// him at view cell `at`, and hold every frame to two claims.
 fn walk_off(assets: &Assets, at: (i32, i32), (dx, dy): (i32, i32)) {
