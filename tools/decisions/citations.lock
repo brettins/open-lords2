@@ -149,7 +149,7 @@ crates/l2-game/src/victory.rs	C44	81209403d144	caaab37ee8ce
 crates/l2-game/src/victory.rs	C44	eb2da78efce9	caaab37ee8ce
 crates/l2-game/src/victory.rs	C44	fa73148cbb7c	caaab37ee8ce
 crates/l2-game/src/wallclock.rs	C206	4847f2d0176e	ec1965fdc6d6
-crates/l2-game/tests/ai_war.rs	C26	1e92346b988f	e8179d1f76a8
+crates/l2-game/tests/ai_war/main.rs	C26	1e92346b988f	e8179d1f76a8
 crates/l2-game/tests/armoury/main.rs	C21	7b180bf100d0	f7bf296341ff
 crates/l2-game/tests/armoury/main.rs	C58	b9ae26438b9f	2a1ff4d5966d
 crates/l2-game/tests/arms.rs	C61	6bc2bab5881e	60611046b40d

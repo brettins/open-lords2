@@ -76,7 +76,7 @@
     {"id": "castle-layout", "area": "sieges", "name": "The castle's shape in battle", "status": "done", "evidence": ["C203","crates/l2-sim/tests/castle_layout.rs","crates/l2-game/tests/siege_picture.rs"], "gap": "", "rows": []},
     {"id": "castle-designer", "area": "sieges", "name": "Castle designer", "status": "done", "evidence": ["C230","crates/l2-game/tests/castles.rs"], "gap": "", "rows": []},
     {"id": "ai-farming", "area": "ai", "name": "AI lords farming their land", "status": "done", "evidence": ["C36","C149","C168","C222","crates/l2-game/tests/seam.rs","C231"], "gap": "", "rows": []},
-    {"id": "ai-war", "area": "ai", "name": "AI lords raising armies and attacking", "status": "partial", "evidence": ["C67","C68","crates/l2-game/tests/ai_war.rs"], "gap": "one attack differs from the original", "rows": ["siege-army-divergence"]},
+    {"id": "ai-war", "area": "ai", "name": "AI lords raising armies and attacking", "status": "partial", "evidence": ["C67","C68","crates/l2-game/tests/ai_war/main.rs"], "gap": "one attack differs from the original", "rows": ["siege-army-divergence"]},
     {"id": "ai-sieges", "area": "ai", "name": "AI lords besieging castles", "status": "done", "evidence": ["C106","crates/l2-kingdom/tests/ai_siege.rs"], "gap": "", "rows": []},
     {"id": "diplomacy", "area": "ai", "name": "Gifts, insults and alliance offers", "status": "done", "evidence": ["C84","crates/l2-game/tests/diplomacy.rs","crates/l2-game/tests/screens_diplomacy.rs"], "gap": "", "rows": []},
     {"id": "alliances", "area": "ai", "name": "Standing and alliances", "status": "done", "evidence": ["C83","C85"], "gap": "", "rows": []},

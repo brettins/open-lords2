@@ -3162,7 +3162,7 @@ dispatched, unit-tested and **can never fire in a played game**. That is C27 res
 AI's war, and it is written down here rather than left to be discovered because the suite is
 green either way.
 
-`crates/l2-game/tests/ai_war.rs` holds both halves as one test: nothing moves a standing off
+`crates/l2-game/tests/ai_war/main.rs` holds both halves as one test: nothing moves a standing off
 zero in forty turns, *and* the raid goes out the moment something does. The first assertion is
 designed to **go red when diplomacy lands**, which is the only way a gap like this announces
 that it has closed.

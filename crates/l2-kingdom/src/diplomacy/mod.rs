@@ -19,7 +19,7 @@
 //! So AI step 10 — the raid — was implemented, dispatched, tested and could
 //! never fire in a played game, because `pick_raid_victim` wants a standing
 //! below −10 and nothing could ever put one there. `docs/decisions.md` C62
-//! stated it and `crates/l2-game/tests/ai_war.rs` held a test written to go red
+//! stated it and `crates/l2-game/tests/ai_war/main.rs` held a test written to go red
 //! the day it stopped being true. This module is that day.
 //!
 //! # The two AI turn steps
