@@ -311,7 +311,7 @@ table for every screen we invent.**
 Walking "move an army into a neighbouring county, fight the battle, get the result back":
 
 * **County adjacency** — exists. `County::neighbours` / `add_neighbour`
-  (`crates/l2-kingdom/src/county.rs:217`), and the save carries real neighbour counts.
+  (`crates/l2-kingdom/src/county/mod.rs:217`), and the save carries real neighbour counts.
 * **The turn seam** — exists and is the right shape. `Phase::ArmyMovement = 2` is documented
   as *"Army movement, including battle resolution"*, and `PhaseWait::Units(UnitKind)` is
   answered by the caller because *"phases 2, 3, 5 and 6 move units, which are not this
