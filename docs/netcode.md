@@ -7,7 +7,7 @@ state on every tick.
 
 ## The lobby, and an honest account of what "beyond loopback" is worth
 
-`crates/l2-net/src/lobby.rs` handles everything before tick 0: host, join, roster, readiness,
+`crates/l2-net/src/lobby/mod.rs` handles everything before tick 0: host, join, roster, readiness,
 start. The host is authoritative — clients never invent a slot, choose the seed, or decide
 who else is present.
 
