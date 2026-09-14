@@ -218,9 +218,9 @@ crates/l2-game/tests/turn.rs	C19	2b27ff0ebcc9	ce538fe9a9e8
 crates/l2-game/tests/turn.rs	C195	180d825dddf5	f0bf50bfaad1
 crates/l2-game/tests/wheat.rs	C195	94f02be180b9	f0bf50bfaad1
 crates/l2-kingdom/src/ai.rs	C13	b6951068455b	006e7d0b71a7
-crates/l2-kingdom/src/ai_farm.rs	C149	0a8478ac5c2d	138117948441
-crates/l2-kingdom/src/ai_farm.rs	C149	ab2aebf82e2c	138117948441
-crates/l2-kingdom/src/ai_farm.rs	C3	5a9c96365a5c	35bf3a86555f
+crates/l2-kingdom/src/ai_farm/market.rs	C149	0a8478ac5c2d	138117948441
+crates/l2-kingdom/src/ai_farm/market.rs	C149	ab2aebf82e2c	138117948441
+crates/l2-kingdom/src/ai_farm/policy.rs	C3	5a9c96365a5c	35bf3a86555f
 crates/l2-kingdom/src/battle.rs	C31	595fe1623cf7	1d151b02cb56
 crates/l2-kingdom/src/battle.rs	C31	6b32e180f17e	1d151b02cb56
 crates/l2-kingdom/src/battle.rs	C31	8d915a69b7d9	1d151b02cb56
@@ -985,8 +985,8 @@ docs/kingdom.md	C33	b9ec6f2c7beb	564cc48dd837
 docs/kingdom.md	C34	ae3f23a92839	be3b535841d7
 docs/kingdom.md	C35	6dd99c189d2c	193a1920e229
 docs/kingdom.md	C36	20f9abde8feb	4367c93c1b02
-docs/kingdom.md	C36	4f5705e1dfb0	4367c93c1b02
 docs/kingdom.md	C36	74334a3867c1	4367c93c1b02
+docs/kingdom.md	C36	ebf7c7d47a87	4367c93c1b02
 docs/kingdom.md	C4	7e5078901b50	0543d23a0503
 docs/kingdom.md	C44	1116d13898b2	caaab37ee8ce
 docs/kingdom.md	C44	a2de7d3fedbe	caaab37ee8ce

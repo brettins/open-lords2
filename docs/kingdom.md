@@ -2184,7 +2184,7 @@ campaign map ignores whatever the custom-game screen last set for those five. **
 
 2185: **There are five, not three, and the two names in play are two functions.** This section
 replaces the sentence §3.2 used to carry; `docs/decisions.md` C36 is the correction and
-`crates/l2-kingdom/src/ai_farm.rs` is the implementation.
+`crates/l2-kingdom/src/ai_farm/mod.rs` is the implementation.
 
 | | callers | dispatches county `+0x1FE` | into |
 |---|---|---|---|
