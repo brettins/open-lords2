@@ -294,7 +294,7 @@ crates/l2-kingdom/src/units_tick/mod.rs	C134	d6c4a157708a	d12cd2f96f79
 crates/l2-kingdom/src/units_tick/mod.rs	C35	9d068366d14a	193a1920e229
 crates/l2-kingdom/src/units_tick/tests.rs	C134	2125e205a9f4	d12cd2f96f79
 crates/l2-kingdom/src/units_tick/tests.rs	C40	eef886c1de5d	d344563abef8
-crates/l2-kingdom/src/units_tick/tick.rs	C40	127ebcf1fbc7	d344563abef8
+crates/l2-kingdom/src/units_tick/tick/mod.rs	C40	127ebcf1fbc7	d344563abef8
 crates/l2-kingdom/src/unrest.rs	C3	e8e842b34b46	35bf3a86555f
 crates/l2-kingdom/src/unrest.rs	C90	cd32726caf90	f1599ed23aee
 crates/l2-kingdom/tests/cattle.rs	C1	4cb1f0d38684	6b7e8edb019e

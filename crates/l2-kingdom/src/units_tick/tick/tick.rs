@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
+
+use super::*;
 use super::tests::*;
 use crate::conquest::{self, Attack};
 use crate::kingdom::Kingdom;
@@ -578,4 +580,5 @@ impl Kingdom {
         }
     }
 }
+
 
