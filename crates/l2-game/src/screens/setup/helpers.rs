@@ -41,5 +41,33 @@ pub(super) enum Action {
     Choose(usize),
     /// The n'th visible row of the map list.
     Map(usize),
+    /// Page 12's battle list, category strip, side swap, handicap seesaw and
+    /// scroll arrows — `crate::screens::setup::skirmish`, where each arm's
+    /// address is. `Item` still carries the three buttons along the bottom.
+    Skirmish(SkirmishArm),
+}
+
+/// The five things page 12 answers that are not one of its three buttons, and
+/// the one page 13 answers. The payload is the original's `g_uiHotspotId`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum SkirmishArm {
+    /// `FUN_0043D929`, hotspot 0…5.
+    Row(usize),
+    /// `FUN_0043D9CD`, hotspot −1 and 1.
+    Scroll(i32),
+    /// `FUN_0043DC1D`, hotspot 0…3 — the category itself.
+    Kind(usize),
+    /// `FUN_0043DD83`, either muster.
+    Sides,
+    /// `FUN_0043DAF3`, hotspot 1 and 2.
+    Handicap(usize),
+    /// `FUN_0043DDF4` — the `.skr` field, which opens page 13.
+    OpenFiles,
+    /// `FUN_00434174`, the n'th of page 13's ten visible rows. Page 13's own
+    /// scroll arrows are `SaveLoad_Scroll` (`0x00434346`) under list 2, and
+    /// their widget record is not one we have read — see
+    /// [`SetupScreen::scroll_skirmish_files`], which nothing on the page
+    /// reaches yet.
+    File(usize),
 }
 
