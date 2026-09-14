@@ -73,7 +73,7 @@ Legend:
   is the only thing that moves a good: positive quantity buys, negative sells, no partial
   fills, and an unowned county trades out of a purse of its own at `+0x1F4`. Which good goes
   where, and what that says about the armoury and about sheep, is `docs/kingdom.md` §7.6.
-  `crates/l2-kingdom/src/trade.rs` is the rule and `crates/l2-game/src/screens/merchant.rs`
+  `crates/l2-kingdom/src/trade.rs` is the rule and `crates/l2-game/src/screens/merchant/mod.rs`
   the two screens; a player reaches it by clicking a merchant standing in a county he owns.
 
   **[V] The price is the base table plus the clicked merchant's own morale as a percentage
@@ -513,7 +513,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   produce a siege; `crates/l2-sim/tests/siege.rs` runs one and enumerates every handler it
   reaches. `docs/battle-ai.md` §6
 - ✅ **Sieges, both halves.** Campaign: laying one, the engine order and its ceilings, the
-  build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege.rs`,
+  build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege/mod.rs`,
   checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege.rs`).
   Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
   the way in — `crates/l2-sim/src/siege/mod.rs`.

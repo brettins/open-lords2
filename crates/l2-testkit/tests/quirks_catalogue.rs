@@ -153,7 +153,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B11", Retracted),
     ("B11a", Switchable(Behavioural)),
     ("B12", Switchable(Behavioural)),
-    ("B13", Unwired("crates/l2-kingdom/src/levy.rs")),
+    ("B13", Unwired("crates/l2-kingdom/src/levy/mod.rs")),
     ("B14", Unwired("crates/l2-kingdom/src/industry/mod.rs")),
     ("B15", Switchable(Behavioural)),
     ("B16", Switchable(Behavioural)),
@@ -226,7 +226,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B47", Unwired("crates/l2-sim/src/formation.rs")),
     ("B48", Unwired("crates/l2-sim/src/runner/mod.rs")),
     ("B49", Unwired("crates/l2-sim/src/terrain.rs")),
-    ("B50", Unwired("crates/l2-view/src/scene.rs")),
+    ("B50", Unwired("crates/l2-view/src/scene/mod.rs")),
     ("B102", Unwired("crates/l2-sim/src/fire.rs — l2-sim takes no Quirks value yet")),
     // Numbered B69 until `corrections.js` learned to read `docs/bugs.md`: it
     // shared that number with the siege repair bill below, and this list held
@@ -267,11 +267,11 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         ),
     ),
     // 2.8 — sieges
-    ("B57", Unwired("crates/l2-kingdom/src/siege.rs")),
-    ("B58", Unwired("crates/l2-kingdom/src/siege.rs")),
-    ("B59", Unwired("crates/l2-kingdom/src/siege.rs")),
-    ("B60", Unwired("crates/l2-kingdom/src/siege.rs")),
-    ("B61", Unwired("crates/l2-kingdom/src/siege.rs")),
+    ("B57", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B58", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B59", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B60", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B61", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
     // 2.9 — sound
     (
         "B62",
@@ -281,7 +281,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     (
         "B63",
         Unwired(
-            "crates/l2-game/src/screen.rs — one flag in `Machine::apply_at`, and then a pass \
+            "crates/l2-game/src/screen/mod.rs — one flag in `Machine::apply_at`, and then a pass \
              over 49 of the original's arms, which is the part that is not one flag",
         ),
     ),
@@ -349,7 +349,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B86", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::ai_diplomacy")),
     ("B87", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::reconcile_alliances")),
     ("B88", Unwired("crates/l2-kingdom/src/diplomacy/mod.rs::reconcile_alliances")),
-    ("B89", Unwired("crates/l2-game/src/screens/diplomacy.rs::refusal")),
+    ("B89", Unwired("crates/l2-game/src/screens/diplomacy/mod.rs::refusal")),
     // Not reproduced and not switchable: the accept-alliance prompt is not
     // built, because Msg_DrawWindow window layouts have never been read.
     ("B90", Unswitchable("the prompt it lives in is not built")),

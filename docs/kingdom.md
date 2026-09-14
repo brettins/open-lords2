@@ -353,7 +353,7 @@ kind 7 — [`armies.md`](armies.md) §1 has four and `g_unitTickTable` has four 
 `+0x1A`, the mission byte. [`armies.md`](armies.md) §10 is the whole enum. It is C28's shape
 for the fourth time on this project: a field name in a table read as a fact.
 
-356: **Steps 4, 7, 9, 10 and 11 are implemented**, in `crates/l2-kingdom/src/ai_army.rs`, and the
+356: **Steps 4, 7, 9, 10 and 11 are implemented**, in `crates/l2-kingdom/src/ai_army/mod.rs`, and the
 reason they were not is recorded in `docs/plan.md` §2.4: the module comment said they *"drive
 armies, merchants, diplomacy and map tiles, none of which `l2-kingdom` owns"*, and it had owned
 a unit model since the day that was written. Two of the fourteen are still not run and both are
@@ -1300,7 +1300,7 @@ round is for is the `Herd_UpdateCrowding` between them, which does move an estim
 
 All fourteen counties of the England turn-one position store `fieldsGrain = 0`. That is not
 an artefact of the fixture: **in this game you paint your fields at the start**, and until
-`crates/l2-kingdom/src/field.rs` there was no code path in this tree that could set that
+`crates/l2-kingdom/src/field/mod.rs` there was no code path in this tree that could set that
 1304: number for the human player at all. The AI could not farm either — and the reason was worse
 than it looked. The ladder in `Ai_ManageCountyFarms` does not *add* a field, it orders one
 **reclaimed** (`Field_OrderReclamation`, `0x0044C6C4`, paints terrain `0x19` on a wasteland
@@ -2440,7 +2440,7 @@ Each of those is now written out in the section it belongs to.
 percentage of it, and every merchant in the shipped game has morale 100, so the
   guides' prices are double the table's. The second 15-entry table at `0x004D8950` is
   **read by nothing**: a merchant's stock is infinite. `crates/l2-kingdom/src/trade.rs` and
-  `crates/l2-game/src/screens/merchant.rs`.
+  `crates/l2-game/src/screens/merchant/mod.rs`.
 * **Fertility's effect.** `+0x208` runs −100 … +100 and `L2.eng` group 22 names seven
   levels, but where the crop yield reads it was not found. The yield multipliers in
   `Grain_Grow` and `Grain_Harvest` were not decompiled beyond their weather branches.

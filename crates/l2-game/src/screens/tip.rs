@@ -116,7 +116,7 @@ impl Screen for TipScreen {
     /// than approximated with the release, which would fire on the wrong edge.
     ///
     /// **Only the raster, not the column.** Answering the whole column would
-    /// invent five more arms; see `crates/l2-game/src/screens/job.rs` at the
+    /// invent five more arms; see `crates/l2-game/src/screens/job/mod.rs` at the
     /// same arm.
     // arm: 0x0042FF10/minimap-under-a-tip left-press
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {

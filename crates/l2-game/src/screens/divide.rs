@@ -283,7 +283,7 @@ pub struct DivideScreen {
     unit: usize,
     basket: SplitBasket,
     /// Which row the keyboard is on.
-    row: usize,
+    pub(super) row: usize,
     pub outcome: Divided,
     status: String,
     seeded: bool,

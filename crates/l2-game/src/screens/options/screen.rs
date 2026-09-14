@@ -1,0 +1,405 @@
+#![allow(unused_imports)]
+use super::*;
+use super::page::*;
+use super::words::*;
+use l2_view::Canvas;
+use crate::game::PRESENTATION;
+use crate::input::{Event, Key, Rect};
+use crate::press::{Kind, Press, Widget};
+use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::shell::{self, font, Pen};
+
+// ---------------------------------------------------------------------------
+// The screen
+// ---------------------------------------------------------------------------
+
+/// Row pitch on the quirks page. Ours, not the original's — it has no such page.
+const QUIRK_ROW_H: i32 = 16;
+/// Where the quirks page's list begins, and where its check boxes sit.
+const QUIRK_LIST_X: i32 = 0x30;
+const QUIRK_LIST_Y: i32 = 0x70;
+const QUIRK_BOX_X: i32 = 0x20;
+/// The parent check box, above the list.
+const QUIRK_PARENT: (i32, i32) = (0x20, 0x54);
+/// A check box is 12 x 12 — smaller than the original's 24 x 24 widget, because
+/// this page lists a dozen rows and the original's never lists more than four.
+const QUIRK_BOX: i32 = 12;
+
+/// One of the five options panels.
+pub struct OptionsScreen {
+    page: Page,
+    /// Which quirk row the pointer is over, for the highlight. Purely
+    /// presentational: nothing branches on it but the draw.
+    hover: Option<usize>,
+    /// Whether the pointer is over the parent check box.
+    hover_parent: bool,
+    /// **`Widget_Test`'s per-record state for the page's table** — the press
+    /// timer at `+0x0D` that holds the pressed frame up and fires the handler
+    /// when it runs out. See [`Row::kind`].
+    press: Press,
+}
+
+impl OptionsScreen {
+    pub fn new(page: Page) -> OptionsScreen {
+        OptionsScreen { page, hover: None, hover_parent: false, press: Press::new() }
+    }
+
+    pub fn page(&self) -> Page {
+        self.page
+    }
+
+    /// **Which rows are drawn pressed**, as indices into [`Page::rows`], in
+    /// row order.
+    ///
+    /// `Widget_Draw` adds one to the record's frame while `+0x0D` is non-zero,
+    /// which for a kind-5 row is the whole twenty frames between the press and
+    /// the toggle — and the timer is each record's own, so two rows pressed a
+    /// moment apart are both down.
+    pub fn pressed_rows(&self) -> Vec<usize> {
+        (0..self.page.rows().len()).filter(|&i| self.press.is_pressed(i)).collect()
+    }
+
+    /// **One row's handler, twenty ticks after its press.**
+    fn fire(&mut self, row: usize, ctx: &mut Ctx) -> Transition {
+        let Some(row) = self.page.rows().get(row).copied() else { return Transition::Stay };
+        match row.setting {
+            // **`Opt_ToggleFullScreen` (`0x00434B10`) on the only desktop this
+            // engine runs on.** It leaves the panel before anything else —
+            // `g_screenId = 0` on the campaign, `0x29` in a battle, which is
+            // whatever the panel was opened over — and then, because
+            // `Display_Init` has already forced `g_optFullScreen = 1` on any
+            // desktop that is not 8bpp, takes its first branch:
+            // `Msg_Enqueue(0, g_localPlayer, 0x104, …)`, *"Cannot change
+            // display."*. The mode switch in its third branch is not reachable
+            // from a 32bpp desktop in the original either. Its arm is declared
+            // on its row in [`DISPLAY`].
+            Setting::FullScreen => {
+                let player = ctx.game.player;
+                ctx.game.messages.enqueue(
+                    crate::message::Record {
+                        to: player,
+                        from: 0,
+                        group: FULL_SCREEN_REFUSAL,
+                        variant: 0,
+                        category: crate::message::category::NOTICE,
+                        county: 0,
+                        spare: 0,
+                        payload: 0,
+                    },
+                    player,
+                );
+                Transition::Pop
+            }
+            // `WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1)`. The press and
+            // its twenty frames are the original's; what they open is not
+            // anything this engine can open. `docs/arms.json` files the arm
+            // `missing`.
+            Setting::StartGameHelp => Transition::Stay,
+            other => {
+                toggle(other, ctx);
+                Transition::Stay
+            }
+        }
+    }
+
+    /// The parent check box's hit box.
+    pub fn parent_hit() -> Rect {
+        Rect::new(QUIRK_PARENT.0, QUIRK_PARENT.1, QUIRK_BOX, QUIRK_BOX)
+    }
+
+    /// One quirk row's check box.
+    pub fn quirk_hit(index: usize) -> Rect {
+        Rect::new(QUIRK_BOX_X, QUIRK_LIST_Y + index as i32 * QUIRK_ROW_H, QUIRK_BOX, QUIRK_BOX)
+    }
+
+    /// Which quirk row's box a point is in, if any.
+    ///
+    /// **Boxes only, and no nearest-match.** `map.rs`'s header records what a
+    /// near-miss costs; on a page of a dozen twelve-pixel boxes the answer to
+    /// "close to two of them" has to be *neither*.
+    pub fn quirk_at(count: usize, x: i32, y: i32) -> Option<usize> {
+        (0..count).find(|i| OptionsScreen::quirk_hit(*i).contains(x, y))
+    }
+}
+
+impl Screen for OptionsScreen {
+    fn id(&self) -> ScreenId {
+        ScreenId::Options(self.page)
+    }
+
+    fn title(&self, ctx: &Ctx) -> String {
+        match (self.page.group(), self.page.screen_id()) {
+            (Some(g), Some(id)) => format!("{} — screen 0x{id:02X}", ctx.assets.shell.text(g, 0)),
+            _ => "The original game's bugs — ours".to_string(),
+        }
+    }
+
+    /// Every one of these is a `Ui_DrawBox` window over whatever opened it. The
+    /// four painters clear nothing.
+    fn is_overlay(&self) -> bool {
+        true
+    }
+
+    /// `Widget_Test`'s `Sound_RestartSlot(1)` on a row's press, carried up to
+    /// the audio layer. See [`Screen::take_clicks`].
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
+    /// A row's twentieth frame toggled it with no event. See
+    /// [`Press::take_redraw`].
+    fn take_redraw(&mut self) -> bool {
+        self.press.take_redraw()
+    }
+
+    /// **The countdown loop at the top of `Widget_Test`.** A row's handler runs
+    /// here, on the twentieth tick after its press, and never from `handle`.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        for row in self.press.tick() {
+            let t = self.fire(row, ctx);
+            if t != Transition::Stay {
+                return t;
+            }
+        }
+        Transition::Stay
+    }
+
+    fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        match event {
+            // `Screen_FrameInput` (`0x0042FF10`) tests `g_mouseRightReleased`
+            // first on all four of these ids, and `L2.eng` group 12 index 0
+            // says it in English: *"Click Right to Exit"*.
+            // arm: 0x0042FF10/options-right-close right-release
+            Event::RightClick { .. } => Transition::Pop,
+            // **Ours, and counted.** No key reaches `0x31`, `0x39`, `0x42` or
+            // `0x43` in the original: the window procedure's Escape arm is
+            // `Menu_Quit` or the main-loop exit flag.
+            // arm: ours/options-keyboard-close key
+            Event::KeyDown(Key::Escape) => Transition::Pop,
+
+            Event::Pointer { x, y } => {
+                if self.page.is_ours() {
+                    let count = quirk_rows().len();
+                    self.hover = OptionsScreen::quirk_at(count, x, y);
+                    self.hover_parent = OptionsScreen::parent_hit().contains(x, y);
+                } else {
+                    self.hover = None;
+                    self.hover_parent = false;
+                    self.press.event(&self.page.widgets(), event);
+                }
+                Transition::Stay
+            }
+            Event::PointerLeft => {
+                self.press.event(&self.page.widgets(), event);
+                Transition::Stay
+            }
+
+            // **`Ui_OkButtonClicked` (`0x0040E7E4`), on the RELEASE**, which is
+            // the second test of all four arms: `if (g_mouseLeftReleased == 0)
+            // return 0;` and then the 24 × 24 box. Ours closed on the press.
+            // The quirks page is ours and closes the same way, so that one
+            // corner picture
+            // arm: 0x0040E7E4/options-ok left-release
+            Event::Release { x, y } => {
+                self.press.event(&self.page.widgets(), event);
+                if self.page.close_hit().contains(x, y) {
+                    return Transition::Pop;
+                }
+                Transition::Stay
+            }
+
+            // **A row is `Widget_Test` kind 5**, and a press only puts its
+            // picture down and starts the twenty frames; [`Screen::update`] is
+            // where the toggle happens. `g_mouseLeftDoubleClick` is a press for
+            // kind 5 as well, which [`Press::event`] keeps.
+            Event::Click { .. } | Event::DoubleClick { .. } if !self.page.is_ours() => {
+                let fired = self.press.event(&self.page.widgets(), event);
+                debug_assert!(fired.is_none(), "every options row is kind 5");
+                // **Consumed, never passed.** A press that missed every box
+                // does nothing at all; letting it fall through would land it on
+                // the map underneath, which is the exact fault `map.rs`'s header
+                // records three of.
+                Transition::Stay
+            }
+
+            // **Ours**: the quirks page answers the press, as its own check
+            // boxes always have. The original has no such page.
+            // arm: ours/options-quirks-page left-press
+            Event::Click { x, y } => {
+                if OptionsScreen::parent_hit().contains(x, y) {
+                    // The parent is tri-state to *read* and two-state to
+                    // *click*: it is meaningless to click a control into
+                    // "mixed", so a click from Mixed goes to all-fixed — the
+                    // direction the player asked for by name, *"turn off
+                    // original game's bugs"*.
+                    let reproduced = quirk_group(ctx.game) == l2_net::Group::AllFixed;
+                    set_all_quirks(reproduced, ctx.game);
+                    return Transition::Stay;
+                }
+                let rows = quirk_rows();
+                if let Some(i) = OptionsScreen::quirk_at(rows.len(), x, y) {
+                    let now = quirk_reproduced(rows[i], ctx.game);
+                    set_quirk(rows[i], !now, ctx.game);
+                }
+                // Consumed, never passed — the same rule as the four panels.
+                Transition::Stay
+            }
+
+            _ => Transition::Stay,
+        }
+    }
+
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        let a = &ctx.assets.shell;
+        let pen = Pen {
+            assets: a,
+            ink: &ctx.assets.ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            // The four options painters set neither text flag, so this is the
+            // ordinary emboss with no drop capitals — the same pen every other
+            // management panel uses.
+            shadow: Some(font::SHADOW),
+            caps: None,
+        };
+
+        let (bx, by, cols, rows, set) = self.page.window();
+        pen.window(canvas, bx, by, cols, rows, set);
+
+        if self.page.is_ours() {
+            self.draw_quirks(ctx, canvas, &pen);
+        } else {
+            self.draw_panel(ctx, canvas, &pen);
+        }
+        let _ = (bx, by, cols, rows);
+
+        let (cx, cy) = self.page.close_at();
+        let drawn = ctx
+            .assets
+            .chrome
+            .as_ref()
+            .is_some_and(|c| c.draw_system(canvas, l2_view::chrome::system::OK, cx, cy));
+        if !drawn {
+            shell::button_recess(canvas, cx, cy, WIDGET, WIDGET);
+        }
+    }
+}
+
+impl OptionsScreen {
+    /// One of the original's four, drawn as its painter draws it.
+    fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen) {
+        let a = &ctx.assets.shell;
+        let group = self.page.group().expect("one of the original's four");
+        let (hx, hy) = self.page.heading_at();
+        let heading = a.text(group, 0).to_string();
+        pen.heading(canvas, hx, hy, &heading, font::TEXT);
+
+        let mut unsupported = false;
+        for (i, row) in self.page.rows().iter().enumerate() {
+            let label = a.text(group, row.label).to_string();
+            let colour = if row.supported() { font::TEXT } else { font::DISABLED };
+            pen.body(canvas, row.label_at.0, row.label_at.1, &label, colour);
+
+            // The state word, out of group 18 or 19, at its own x. *Start game
+            // help* is a button and has no state, so it prints none.
+            if row.setting != Setting::StartGameHelp {
+                let on = value(row.setting, ctx);
+                let word = a.text(row.words.group(), row.words.index(on)).to_string();
+                pen.body(canvas, row.state_x, row.label_at.1, &word, colour);
+            }
+
+            // `Widget_Draw`: the record's frame, plus one while `+0x0D` runs.
+            let (wx, wy) = row.widget_at;
+            let frame = WIDGET_FRAME + usize::from(self.press.is_pressed(i));
+            if !pen.system_frame(canvas, frame, wx, wy) {
+                shell::button_recess(canvas, wx, wy, WIDGET, WIDGET);
+            }
+            unsupported |= !row.supported();
+        }
+
+        // Group 52 index 3 — *"(F5 key re-sizes window to 640x480)"* — is drawn
+        // only while the game is windowed (`if (g_optFullScreen == 0)`). We are
+        // always windowed, so it is always drawn.
+        //
+        // **The original draws it in `0x3F` like every other row**; it is dimmed
+        // here because this engine has no F5 resize, and that is a divergence
+        //
+        // &g_fontBody, 0x3F)`.
+        if self.page == Page::Display {
+            let note = a.text(group, DISPLAY_F5_NOTE).to_string();
+            pen.body(
+                canvas,
+                DISPLAY_F5_NOTE_AT.0,
+                DISPLAY_F5_NOTE_AT.1,
+                &note,
+                font::DISABLED,
+            );
+        }
+
+        // Ours, in our own font, so it cannot be mistaken for the game's words.
+        if unsupported {
+            let (x, y, _, rows, _) = self.page.window();
+            // On one line so that `crates/l2-game/tests/draws.rs`' caption
+            // scanner can see it: it reads the first quoted run on the line the
+            // call is on, and a `rustfmt`-split literal is invisible to it.
+            if ctx.game.prefs.debug_overlay {
+            l2_view::text::draw(canvas, x, y + rows * 16 + 6, "GREYED: THIS ENGINE IS A WINDOW, AND L2HELP.HLP IS WIN3.1", ctx.assets.ink.dim);
+            }
+        }
+    }
+
+    /// **Ours.** The quirks page.
+    fn draw_quirks(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen) {
+        let ink = &ctx.assets.ink;
+        let (hx, hy) = self.page.heading_at();
+        // Our words, in the game's font, because the game has none for this.
+        pen.heading(canvas, hx, hy, "The original game's bugs", font::TEXT);
+
+        let group = quirk_group(ctx.game);
+        let (on, total) = quirk_tally(ctx.game);
+        check_box(canvas, QUIRK_PARENT.0, QUIRK_PARENT.1, tri(group), ink, self.hover_parent);
+        let parent = match group {
+            l2_net::Group::AllReproduced => {
+                format!("Reproducing all of them  ({on} of {total})")
+            }
+            l2_net::Group::AllFixed => format!("All turned off  ({on} of {total})"),
+            l2_net::Group::Mixed => format!("Some of them  ({on} of {total})"),
+        };
+        pen.body(canvas, QUIRK_PARENT.0 + 20, QUIRK_PARENT.1 - 2, &parent, font::TEXT);
+
+        for (i, row) in quirk_rows().iter().enumerate() {
+            let y = QUIRK_LIST_Y + i as i32 * QUIRK_ROW_H;
+            let reproduced = quirk_reproduced(*row, ctx.game);
+            check_box(canvas, QUIRK_BOX_X, y, u8::from(reproduced), ink, self.hover == Some(i));
+            let colour = if reproduced { font::TEXT } else { font::DISABLED };
+            let line = format!("{}  {}", row.entry, summary_of(*row));
+            pen.body(canvas, QUIRK_LIST_X, y - 2, &line, colour);
+        }
+
+        // The mark. This page is **ours**, and it says so on itself in our own
+        // font — the rule `crates/l2-game/src/screens/index.rs` already follows.
+        // Debug overlay only.
+        if ctx.game.prefs.debug_overlay {
+        l2_view::text::draw(canvas, QUIRK_PARENT.0, 0x1C4, "OURS: THE ORIGINAL HAS NO SUCH PAGE. SEE DOCS/BUGS.MD", ink.dim);
+        }
+    }
+}
+
+/// A check box: empty, ticked, or **half filled for the mixed state**.
+///
+/// Three appearances, because the parent has three states, and a two-state box
+/// that showed "mixed" as either of the others would be a control that lies
+/// about what is underneath it.
+fn check_box(canvas: &mut Canvas, x: i32, y: i32, state: u8, ink: &l2_view::Ink, hover: bool) {
+    let edge = if hover { ink.highlight } else { ink.dim };
+    canvas.fill_rect(x, y, QUIRK_BOX, QUIRK_BOX, edge);
+    canvas.fill_rect(x + 1, y + 1, QUIRK_BOX - 2, QUIRK_BOX - 2, ink.background);
+    match state {
+        // Reproduced: a full mark.
+        1 => canvas.fill_rect(x + 3, y + 3, QUIRK_BOX - 6, QUIRK_BOX - 6, ink.highlight),
+        // Mixed: a half-height bar, which is neither of the other two at a
+        // glance and is what a tri-state box looks like everywhere else.
+        2 => canvas.fill_rect(x + 3, y + QUIRK_BOX / 2 - 1, QUIRK_BOX - 6, 2, ink.highlight),
+        _ => {}
+    }
+}
+

@@ -253,7 +253,7 @@ pub struct Audio {
     /// each and there are a couple of dozen. Music is megabytes and is held
     /// only while it plays.
     cache: BTreeMap<String, Option<Arc<Sound>>>,
-    battle: BattleCycle,
+    pub(super) battle: BattleCycle,
     /// The last [`Scene`] [`Audio::follow`] acted on.
     /// stepped when the battle *starts*, not once a frame for as long
     /// as it lasts.

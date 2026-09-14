@@ -94,7 +94,7 @@ that do draw behave
 seeds, not sampled. `00448822 MOV EAX,[0x0058FD60] / ADD EAX,EAX` quoted from the
 disassembly, not the decompiler, per `decisions.md` C13. `kingdom.md` §8.1.
 
-**Reproduced.** `crates/l2-kingdom/src/event.rs:998`, with
+**Reproduced.** `crates/l2-kingdom/src/event/mod.rs:998`, with
 `only_odd_numbered_counties_can_ever_draw_an_event` and
 `a_kingdom_of_even_numbered_counties_never_sees_an_event`.
 
@@ -114,7 +114,7 @@ at all** (§5, D6).
 
 **Evidence.** **[D]** — two call sites, no second source.
 
-**Reproduced.** `crates/l2-kingdom/src/event.rs:319` — *"This is a bug and it is reproduced."*
+**Reproduced.** `crates/l2-kingdom/src/event/mod.rs:319` — *"This is a bug and it is reproduced."*
 
 ### B4 — The empire tax happiness term is summed into a signed byte
 
@@ -1437,7 +1437,7 @@ three of them.**
 > `Opt_ToggleFightHumansOnly`. Index 4 is *"Fight humans only?"*, it is on the same panel, and
 > it changes a rule: `FUN_004A6A30` auto-resolves a battle the local player is not in when
 > `g_optFightHumansOnly` (`0x0053F284`) is 0. **[V]** on both counts — the string count out of
-> `L2.eng` and the record count out of `.data`. `crates/l2-game/src/screens/options.rs` draws
+> `L2.eng` and the record count out of `.data`. `crates/l2-game/src/screens/options/mod.rs` draws
 Nothing turned on the number; it was wrong.
 > been discussing that fourth option's *save* behaviour for weeks without either half noticing
 > the other.

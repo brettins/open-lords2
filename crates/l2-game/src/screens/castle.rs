@@ -308,7 +308,7 @@ pub const CANCEL: Rect = Rect::new(472, 444, 32, 32);
 ///
 /// Each `arm!` is the marker and the kind. Index 0 is hotspot 1, index 1
 /// hotspot 0.
-fn widgets() -> [Widget; 2] {
+pub(super) fn widgets() -> [Widget; 2] {
     [
         Widget::new(OK, crate::arm!("0x00436B59/castle-build-confirm", Delayed)),
         Widget::new(CANCEL, crate::arm!("0x00436B59/castle-build-cancel", Delayed)),

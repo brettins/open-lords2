@@ -212,7 +212,7 @@ pub const DEFERRED_FRAMES: u8 = 0x14;
 
 /// `g_courtWidgets` as a table: **one kind-5 record**, hotspot id 1. The
 /// `arm!` is the marker and the kind at once.
-fn widgets() -> [Widget; 1] {
+pub(super) fn widgets() -> [Widget; 1] {
     [Widget::new(NOBLES_BUTTON, crate::arm!("0x004351C4/court-greatest-nobles", Delayed))]
 }
 

@@ -358,7 +358,7 @@ under it.
 
 **Status: yes.** This section used to say *"no"*, and named exactly what was missing: a
 **new game on a chosen scenario**, which is `Map_InitScenario`. It is written —
-`crates/l2-scenario/src/newgame.rs` — and *Start* on the custom page now runs
+`crates/l2-scenario/src/newgame/mod.rs` — and *Start* on the custom page now runs
 `Game_NewGame`'s three steps in its order: the world from the chosen `L2_maps.dat` slot,
 then the twelve options through `Settings::apply_to`, then the one immediate
 `Season_Advance` that begins a game in Winter 1268. **Pick Ireland and you play Ireland**,
@@ -431,7 +431,7 @@ restatement of a known gap.
 
 ### 2.1 Nothing moves during a turn
 
-`crates/l2-game/src/turn.rs` answers the phase 2, 3, 5 and 6 waits `true` the moment they
+`crates/l2-game/src/turn/mod.rs` answers the phase 2, 3, 5 and 6 waits `true` the moment they
 start — *"None of those exist yet"*. Those phases are army movement, peasant mobs, supply
 transports and merchants. The campaign unit layer landed **today**, in `l2-kingdom`, and is
 exercised only by `tests/campaign.rs`. **Armies are done as a library and absent from the game
@@ -457,7 +457,7 @@ is filed under a name that reads as optional content. **A name is a claim** (C25
 three corrections about exactly this), and this one has been quietly setting the priority of
 the most gameplay-critical shell in the table.
 
-> **Closed.** Screen `0x17` is `crates/l2-game/src/screens/army.rs` and screen `0x11` is
+> **Closed.** Screen `0x17` is `crates/l2-game/src/screens/army/mod.rs` and screen `0x11` is
 461: > `screens/divide.rs`; both have left the shell table, and the name is corrected in it, in
 > `docs/screens-county.md` and in `docs/mechanics.md`. `Map_Click`'s army branch is
 463: > `screens/map/mod.rs` — a click on your own army selects it and the next click on the map is the

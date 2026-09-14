@@ -30,6 +30,12 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   if (!r.ok) { console.error(`split-llm: ${r.status} ${(await r.text()).slice(0, 300)}`); process.exit(1); }
   const j = await r.json(); const t = j.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
   let plan; try { plan = JSON.parse(t); } catch { console.error("split-llm: plan is not JSON: " + t.slice(0, 200)); process.exit(1); }
+  // A submodule named like an item or an import of the file would shadow it (`mod trade`
+  // beside `use l2_kingdom::trade::{self}`, `mod blacksmith` beside `fn blacksmith`): _part.
+  { const taken = new Set(); for (const l of lines) { let m;
+      if ((m = l.match(/^(?:pub(?:\([a-z]+\))? )?(?:fn|struct|enum|const|static|type|trait|mod|macro_rules!)\s+(\w+)/))) taken.add(m[1]);
+      if ((m = l.match(/^(?:pub )?use\s+([\w:]+)(?:::\{([^}]*)\})?\s*;/))) { const segs = m[1].split("::"); if (m[2]) for (const p of m[2].split(",")) { const t = p.trim().replace(/^.* as /, ""); taken.add(t === "self" ? segs[segs.length - 1] : t); } else taken.add(segs[segs.length - 1]); } }
+    for (const k of Object.keys(plan)) if (k !== "mod" && taken.has(k)) { plan[k + "_part"] = plan[k]; delete plan[k]; console.log(`split-llm: "${k}" is taken in the file; the submodule is ${k}_part`); } }
   // Coverage: every line once.
   const owner = new Array(N + 1).fill(null);
   for (const [name, ranges] of Object.entries(plan)) for (const [a, b] of ranges) for (let i = a; i <= b; i++) if (!owner[i]) owner[i] = name; // an overlap keeps the first owner
@@ -56,16 +62,21 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
     if (depth === 0 && !header[i]) open = 0;
   }
   const files = {}; const opened = {};
+  // Closing a re-opened block that got no item drops the header instead: an empty
+  // `impl Trait for T {}` beside the real one is a conflicting implementation.
+  const close = (f, o, closer) => { const h = opened[o]; opened[o] = 0; if (f.length && f[f.length - 1] === lines[h - 1]) f.pop(); else f.push(closer); };
   for (let i = 1; i <= N; i++) {
     const o = owner[i] || "mod"; const f = (files[o] = files[o] || []);
     const h = header[i] < 0 ? -header[i] : header[i];
-    if (closes[i]) { if (opened[o] === closes[i]) { f.push(lines[i - 1]); opened[o] = 0; } continue; }
-    if (h && opened[o] !== h) { if (opened[o]) f.push("}"); if (header[i] > 0) f.push(lines[h - 1]); opened[o] = h; }
-    if (!h && opened[o]) { f.push("}"); opened[o] = 0; }
+    if (closes[i]) { if (opened[o] === closes[i]) close(f, o, lines[i - 1]); continue; }
+    if (h && opened[o] !== h) { if (opened[o]) close(f, o, "}"); if (header[i] > 0) f.push(lines[h - 1]); opened[o] = h; }
+    if (!h && opened[o]) close(f, o, "}");
     f.push(lines[i - 1]);
   }
-  for (const o of Object.keys(files)) if (opened[o]) files[o].push("}");
+  for (const o of Object.keys(files)) if (opened[o]) close(files[o], o, "}");
   const names = Object.keys(files).filter(n => n !== "mod");
+  const KEYWORDS = /^(as|break|const|continue|crate|else|enum|extern|false|fn|for|if|impl|in|let|loop|match|mod|move|mut|pub|ref|return|self|static|struct|super|trait|true|type|unsafe|use|where|while|async|await|dyn|abstract|become|box|do|final|macro|override|priv|typeof|unsized|virtual|yield|try|tests)$/;
+  for (const n of names) if (KEYWORDS.test(n) || !/^[a-z][a-z0-9_]*$/.test(n)) { console.error(`split-llm: "${n}" is not a usable module name`); process.exit(1); }
   // The parent's own `use` lines (multi-line ones too): a glob of `super` does not carry
   // imports, so each submodule repeats them.
   const uses = []; { let d = 0, inUse = false; for (const l of lines) { if (d === 0 && /^(pub )?use /.test(l)) inUse = true; if (inUse) uses.push(l.replace(/^pub /, "")); if (inUse && /;\s*$/.test(l)) inUse = false; const code = l.replace(/\/\/.*$/, ""); d += (code.match(/{/g) || []).length - (code.match(/}/g) || []).length; } }
@@ -78,7 +89,9 @@ Return JSON only: {"mod": [[start, end], ...], "<name>": [[start, end], ...], ..
   // The mod declarations go after the module doc (`//!` lines) and before the first item.
   if (!names.length) { console.error("split-llm: the plan put every line in mod; nothing to split"); process.exit(1); }
   const docEnd = files.mod.findIndex(l => !/^\/\/!/.test(l) && !/^#!\[/.test(l) && l.trim() !== "");
-  const modLines = files.mod.slice(); modLines.splice(docEnd < 0 ? 0 : docEnd, 0, "", decl);
+  // `use` lines the plan sent to a submodule still serve the items that stayed.
+  const lost = uses.filter(u => !files.mod.includes(u) && !files.mod.includes("pub " + u));
+  const modLines = files.mod.slice(); modLines.splice(docEnd < 0 ? 0 : docEnd, 0, "", decl, ...(lost.length ? [...lost, ""] : []));
   fs.writeFileSync(path.join(root, modPath), modLines.join("\n").replace(/\n{3,}/g, "\n\n") + "\n");
   for (const n of names) fs.writeFileSync(path.join(root, dir, n + ".rs"), prelude(n) + files[n].join("\n") + "\n");
   if (!isModRs) fs.unlinkSync(path.join(root, file));

@@ -98,7 +98,7 @@ The cases, named from the `L2.eng` groups each painter draws.
 | 0x0B | `Diplo_DrawScreen` `0x00416CF3` | the other lords | `faces.pl8`; group 72 |
 | 0x0C | `Screen_TradeGoods` `0x00416308` | trade goods | group 68; `merchant.pl8` **again** as the background, then `icontrad.pl8` |
 | 0x0D | `Armoury_LoadScreen` `0x004184C6` | **one weapon's rack** — its 24-frame picture, its count and the four buttons that move men one at a time. `Screen_Draw` has **no** arm for it: `Armoury_ClickRack` paints it once on the way in | `arm_<weapon>.pl8`; `g_armouryBuyWidgets`; group 69 index 5, group 8 nouns |
-| 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output; the body is `Panel_JobGrain`, `Panel_JobCattle`, `Panel_JobReclamation`, `Castle_DrawStatusBlock`, `Panel_JobIndustry` or `Panel_JobBlacksmith` (`crates/l2-game/src/screens/job.rs`). **Job 8 is a full-screen page**: `Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)` over the smithy picture, six kind-1 records into `FUN_0043A997` — which weapon the county forges | groups 74 and 8; the bodies 77, 76, 71, 22 and **75**, whose only consumer in the binary is `Panel_JobBlacksmith` |
+| 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output; the body is `Panel_JobGrain`, `Panel_JobCattle`, `Panel_JobReclamation`, `Castle_DrawStatusBlock`, `Panel_JobIndustry` or `Panel_JobBlacksmith` (`crates/l2-game/src/screens/job/mod.rs`). **Job 8 is a full-screen page**: `Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)` over the smithy picture, six kind-1 records into `FUN_0043A997` — which weapon the county forges | groups 74 and 8; the bodies 77, 76, 71, 22 and **75**, whose only consumer in the binary is `Panel_JobBlacksmith` |
 | 0x11 | `Screen_ArmyDivision` `0x004192B1` | **army division** — the levy basket reused, parent from `slot.chosen` and daughter from `slot.available`, row 7 the mercenary band | group 17; `icon_tmp.pl8` |
 | 0x14 | `Panel_Population` `0x004110B1` | **population** | group 73 |
 | 0x15 | `Panel_Tax` `0x0041152F` | **tax** | group 86 |
@@ -1672,7 +1672,7 @@ Named here so nobody mistakes silence for coverage.
   `0x0043611B` are now known to open screens 0x1B and 0x0B — castle building and the other
   lords — but what they do first is not read.*
 * ~~**The field-painting brush** on the campaign map: `Field_SetType` is seen, not
-  understood.~~ *Done — `docs/kingdom.md` §7.2 and `crates/l2-kingdom/src/field.rs`. The
+  understood.~~ *Done — `docs/kingdom.md` §7.2 and `crates/l2-kingdom/src/field/mod.rs`. The
   brush is five 48 × 48 buttons in two hotspot tables at `0x004DC4D0` (three: fallow, grain,
   pasture) and `0x004DC530` (two: begin reclaiming, abandon), all five calling
   `FUN_00438B02`, which passes the button's id to `Field_SetType` as a raw terrain value.
@@ -1966,7 +1966,7 @@ nothing here only because §1 of this document already had the right ids to disa
 
 Read out of `Screen_SaveLoad` (`0x00414819`) and `SaveLoad_DrawStatus` (`0x004149EC`) while
 wiring them up; both screens are implemented now, not shelled
-(`crates/l2-game/src/screens/saveload.rs`).
+(`crates/l2-game/src/screens/saveload/mod.rs`).
 
 **One painter, one flag.** `Screen_SaveLoad(saving)` uses its argument as the `L2.eng`
 group 40 string index, so `0x35` draws index 0 *"Loading a conquest."* and `0x36` index 1

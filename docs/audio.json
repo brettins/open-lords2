@@ -84,7 +84,7 @@
       "class": "cry",
       "arg": "0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][0][take], 66 files",
       "note": "The box commit, guarded on something being held. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -95,7 +95,7 @@
       "class": "cry",
       "arg": "0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][0][take], 66 files",
       "note": "The pick commit, unguarded. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -106,7 +106,7 @@
       "class": "cry",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][1][take], 66 files",
       "note": "H or V, paused or not, and before our no-unit check - the original cries unconditionally. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -117,7 +117,7 @@
       "class": "cry",
       "arg": "3",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][3][take], 66 files",
       "note": "An order with g_battleHoverSurface == 2, the moat. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -128,7 +128,7 @@
       "class": "cry",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][1][take], 66 files",
       "note": "An order onto anything else. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -139,7 +139,7 @@
       "class": "cry",
       "arg": "2",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][2][take], 66 files",
       "note": "An order with an enemy under the pointer. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -359,7 +359,7 @@
       "class": "file",
       "arg": "s_s068_01_wav_004d5760,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "ours": "crates/l2-game/src/screens/merchant/mod.rs",
       "sound": "s068_01.wav",
       "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
@@ -370,7 +370,7 @@
       "class": "file",
       "arg": "s_s068_02_wav_004d576c,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "ours": "crates/l2-game/src/screens/merchant/mod.rs",
       "sound": "s068_02.wav",
       "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
@@ -381,7 +381,7 @@
       "class": "file",
       "arg": "s_s068_02_wav_004d5778,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "ours": "crates/l2-game/src/screens/merchant/mod.rs",
       "sound": "s068_02.wav",
       "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
@@ -392,7 +392,7 @@
       "class": "file",
       "arg": "s_s068_01_wav_004d5784,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/merchant.rs",
+      "ours": "crates/l2-game/src/screens/merchant/mod.rs",
       "sound": "s068_01.wav",
       "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
@@ -645,7 +645,7 @@
       "class": "file",
       "arg": "s_s040_02_wav_004df074,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "sound": "s040_02.wav",
       "note": "SaveLoad_Tick's two: g_screenId == 0x36 (the save box) speaks S040_02, anything else S040_01. Decided in SaveLoadScreen::begin and reported on Game::spoken, because a screen cannot reach Audio."
     },
@@ -656,7 +656,7 @@
       "class": "file",
       "arg": "s_s040_01_wav_004df080,1,0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
       "sound": "s040_01.wav",
       "note": "SaveLoad_Tick's two: g_screenId == 0x36 (the save box) speaks S040_02, anything else S040_01. Decided in SaveLoadScreen::begin and reported on Game::spoken, because a screen cannot reach Audio."
     },

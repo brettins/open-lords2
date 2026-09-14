@@ -1021,7 +1021,7 @@ a struct literal is checked for completeness and a field access never is; the sa
 exists in every language with named construction and free access.
 
 The remedy is to **destructure the source with no `..`** at the point of consumption, which turns
-"did anyone read this?" into a compile error. `crates/l2-scenario/src/lib.rs` does it for
+"did anyone read this?" into a compile error. `crates/l2-scenario/src/mod.rs` does it for
 `CountyState` and `RealmState`.
 
 ### Choose the smaller list, because noise is where an omission hides

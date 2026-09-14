@@ -1686,7 +1686,7 @@ within three tiles of the county's centre, and never looks at the county at all.
 The player: *"I raised an army and nothing appeared on the map."* Two independent faults put
 it out of shot and this is the first of them.
 
-`crates/l2-kingdom/src/levy.rs`'s `muster_tile` scanned all 4,096 tiles row-major for the
+`crates/l2-kingdom/src/levy/mod.rs`'s `muster_tile` scanned all 4,096 tiles row-major for the
 first free road tile **whose county id matched**, and called that `County_FindFreeRoadTile`.
 The real one (`0x00428007`) is four lines:
 
@@ -2708,7 +2708,7 @@ enforcement of the ones that failed, so the proposal for what would check it is 
 **C62 — A person can pick Ireland and play Ireland. Building the second world constructor
 found five things about the first, and the fifth is the one worth keeping.**
 
-`Map_InitScenario` (`0x004676E0`) is written: `crates/l2-scenario/src/newgame.rs`. Pressing
+`Map_InitScenario` (`0x004676E0`) is written: `crates/l2-scenario/src/newgame/mod.rs`. Pressing
 *Start* on the custom page now runs `Game_NewGame`'s own three steps in its own order — the
 world, then the twelve options, then one immediate `Season_Advance` — so the slot the map
 list highlights is the world the campaign screen opens on, from an empty `Game` and with no
@@ -3146,7 +3146,7 @@ this is the same argument with a number on it.
 handlers can therefore never fire.**
 
 Asked directly — *for every field these handlers read, what writes it in a real game?* — the
-answer for `crates/l2-kingdom/src/ai_army.rs` is that four fields have exactly one writer and
+answer for `crates/l2-kingdom/src/ai_army/mod.rs` is that four fields have exactly one writer and
 that writer is `l2_kingdom::diplomacy`, which is not a module. `crates/l2-kingdom/src/realm.rs`
 links to seven of its functions in doc comments and every link is dangling.
 
@@ -8934,7 +8934,7 @@ same call `#24` got for the tip screens. The name of the gap is the letters, not
 
 ### Setup page 1's ids were never contradictory
 
-`crates/l2-game/src/screens/setup.rs` recorded as unresolved that `FUN_00432B05`'s hotspot 4
+`crates/l2-game/src/screens/setup/mod.rs` recorded as unresolved that `FUN_00432B05`'s hotspot 4
 plays `lom.smk` while the painter draws *"Lords of Magic?"* third. `node tools/oracle/widgets.js
 widgets 4dcb48 4` answers it: the table's records are in drawing order and carry ids 1, 2, **4**,
 3 — and the third is the page's only **kind 3** record, so the trailer fires on the release
@@ -12257,7 +12257,7 @@ flags with L2.eng group 30; 0x01 road 1/23/0x18; 0x04 sea 3/24/0x1D; 0x10 plot
 (village 48/49 else ruined 50/51, icon 0x1B); 0x08 rough (mountain 4/25/0x19 by
 bank else woodland 5/26/0x1A); fall-through scrubland 0/22/0x17. Map_ResolvePick
 `0x0046D5FE` blanks flags for town graphic 0x14 and empty plot. Built as picked_flags,
-tile_kind, TILE_LADDER, draw_plain_tile in crates/l2-game/src/screens/info.rs.
+tile_kind, TILE_LADDER, draw_plain_tile in crates/l2-game/src/screens/info/mod.rs.
 
 Tests a_road_tile_says_road, a_sea_tile_says_sea_and_gets_no_head_room,
 a_dwelling_plot_says_village_ruined_village_or_nothing, a_rough_tile_says_mountain_or_woodland_by_its_bank,

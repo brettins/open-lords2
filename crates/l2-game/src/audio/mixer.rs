@@ -49,7 +49,7 @@ struct Voice {
 }
 
 impl Voice {
-    fn new(name: String, sound: Arc<Sound>, out_rate: u32, looping: bool, gain: i32) -> Voice {
+    pub(super) fn new(name: String, sound: Arc<Sound>, out_rate: u32, looping: bool, gain: i32) -> Voice {
         // step = src_rate / out_rate, in 32.32.
         let step = ((sound.rate as u64) << 32) / (out_rate.max(1) as u64);
         Voice { name, sound, pos: 0, step, looping, gain }

@@ -156,7 +156,7 @@ pub struct BattleCycle {
     /// `DAT_00553D28`.
     field: u8,
     /// `DAT_00553540`.
-    siege: u8,
+    pub(super) siege: u8,
 }
 
 impl BattleCycle {

@@ -468,7 +468,7 @@ pub enum Step {
 pub struct Player {
     smk: Smk,
     decoder: Decoder,
-    ticks: u32,
+    pub(super) ticks: u32,
     /// The subtitle cue state; see [`Subtitles`].
     pub subtitles: Subtitles,
 }
