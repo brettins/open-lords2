@@ -137,10 +137,13 @@ pub(crate) fn played(assets: &Assets, ticks: u32) -> (Game, Game, u32) {
         assert!(drawn.battle == blind.battle, "painting changed the battle at tick {t}");
         match drawn.battle.as_deref() {
             Some(live) => {
+                // Melee or missile: missile units halt at range now
+                // (Order_StopShortOfTarget 0x00497437), so a short play may see no melee.
                 killed = l2_sim::ALL_TROOPS
                     .iter()
                     .map(|&troop| live.runner.sim.cues.melee_casualties(troop))
-                    .sum()
+                    .sum::<u32>()
+                    + live.runner.sim.cues.missile_deaths()
             }
             None => handed_back = handed_back.or(Some(t)),
         }
