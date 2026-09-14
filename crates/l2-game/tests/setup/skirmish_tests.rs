@@ -247,7 +247,7 @@ fn the_castle_category_raises_a_siege_of_the_chosen_row() {
     let t = click(&mut s, &mut game, &assets, 600, 440);
     assert_eq!(t, Transition::Push(ScreenId::Battlefield));
     let b = game.battle.as_ref().expect("the skirmish raised a battle");
-    assert_eq!(b.castle_level, Some(0), "`DAT_004D4B58[2]`, not the row");
+    assert_eq!(b.castle_level, Some(2), "`g_castleLevel = DAT_0056D590`, the row (`00470000.c:5060`)");
 }
 
 #[test]
@@ -271,9 +271,10 @@ fn page_13_reads_its_rows_through_the_scroll_base() {
 }
 
 #[test]
-fn the_castle_level_is_the_table_and_not_the_row() {
-    // `FUN_0043D929` (`00430000.c:7950`): `DAT_0057C910 = DAT_004D4B58[row]`,
-    // and only when the category is 2.
+fn the_castle_level_is_the_row_and_the_table_is_the_cost_flag() {
+    // `Battlefield_BuildCastle(DAT_0056D590)` (`00420000.c:4615`) makes the row
+    // the level (`00470000.c:5060`); `DAT_004D4B58[row]` goes to `DAT_0057C910`, the
+    // diagonal-cost flag (`00430000.c:7950`), and only when the category is 2.
     let mut s = Skirmish::default();
     s.choose_kind(2);
     let got: Vec<u8> = (0..15usize)
@@ -282,7 +283,8 @@ fn the_castle_level_is_the_table_and_not_the_row() {
             s.castle_level().expect("category 2 keys a level")
         })
         .collect();
-    assert_eq!(got, CASTLE_LEVEL, "DAT_004D4B58");
+    assert_eq!(got, (0..15u8).collect::<Vec<_>>(), "the row is the level");
+    assert_eq!(CASTLE_LEVEL, [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "DAT_004D4B58");
     s.choose_kind(0);
     assert_eq!(s.castle_level(), None, "no other category writes DAT_0057C910");
 }

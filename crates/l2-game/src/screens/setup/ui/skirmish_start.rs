@@ -95,10 +95,10 @@ impl SetupScreen {
         // `Battlefield_BuildRandom`, 2 `Battlefield_BuildCastle(DAT_0056D590)`
         // with `g_battleIsSiege = 1` (`00430000.c:8090`), 3
         // `Battlefield_BuildFromSkr`.
-        // The list row is **not** the castle level: `FUN_0043D929`
-        // (`00430000.c:7950`) reads `DAT_004D4B58[row]` into `DAT_0057C910`,
-        // and the level-keyed siege guards — `Siege_LowerDrawbridge`
-        // (`0x00496B9F`) among them — read that.
+        // The list row **is** the castle level: `Battlefield_BuildCastle(DAT_0056D590)`
+        // (`00420000.c:4615`) sets `g_castleLevel = DAT_0056D590` (`00470000.c:5060`);
+        // `Siege_LowerDrawbridge` (`0x00496B9F`) reads `DAT_004D4B18[row]` under the
+        // skirmish flag, and nothing in the siege reads `DAT_0057C910`.
         let level = self.skirmish.castle_level();
         let runner = match level {
             // `Battlefield_BuildCastle`, through the same two paths

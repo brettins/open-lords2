@@ -37,9 +37,9 @@ pub const ROW_BASE: [usize; 4] = [0, 10, 20, 35];
 /// `l2_kingdom::unit::TROOP_STRENGTH_WEIGHT` is the first seven of it.
 pub const STRENGTH_WEIGHT: [i32; 11] = [2, 16, 8, 13, 9, 13, 22, 100, 100, 100, 150];
 
-/// `DAT_004D4B58` — the castle level of each of the fifteen castle battles.
-/// `FUN_0043D929` (`00430000.c:7950`) reads it by the chosen row into
-/// `DAT_0057C910` (`g_castleLevel`) whenever the category is 2, and
+/// `DAT_004D4B58` — a per-row flag `FUN_0043D929` (`00430000.c:7950`) copies
+/// into `DAT_0057C910` (the surface-5 diagonal cost flag `Path_BuildStepCost`
+/// reads, docs/symbols.md; **not** the castle level) whenever the category is 2, and
 /// `FUN_0043DC1D` (`00430000.c:8098`) puts entry 0 back when the category is
 /// picked. **[V]**, fifteen `int`s read out of `Lords2.exe` at `0x004D4B58`
 /// (file offset `0xD2D58`); the sixteenth is padding before
@@ -276,26 +276,26 @@ impl Skirmish {
         true
     }
 
+    /// `g_localPlayer` as this page has it: realm **1**. `Skirmish_Setup`
+    /// (`0x0042B7F7`) pairs it against `DAT_0056D5CC` and nothing on page 12
+    /// moves it. **Inferred** — no realm number is stored here.
+    pub fn local_realm(&self) -> u8 {
+        1
+    }
+
+    /// The skirmish castle level **is the row**: `Battlefield_BuildCastle(DAT_0056D590)`
+    /// (`00420000.c:4615`) and its skirmish arm `g_castleLevel = DAT_0056D590`
+    /// (`00470000.c:5060`). [`CASTLE_LEVEL`] is the diagonal-cost flag, not the level.
+    pub fn castle_level(&self) -> Option<u8> {
+        (self.kind == 2).then(|| self.row as u8)
+    }
+
     /// `DAT_0053EF5C == 1`, the test `FUN_004209C1` (`00420000.c:246`) puts
     /// the role captions on — realm 1 attacking, not the local player
     /// attacking. `FUN_0042B919` starts `DAT_0053EF5C` at 1 and `FUN_0043DD83`
     /// moves it between `g_localPlayer` and `DAT_0056D5CC`, so on this page,
     /// where the local player is realm 1 and the opponent is not, the two
     /// tests coincide. **Inferred** — nothing here reads a realm number.
-    pub fn local_realm(&self) -> u8 {
-        1
-    }
-
-    /// `DAT_0057C910` for the chosen row — `FUN_0043D929`
-    /// (`00430000.c:7949-7952`) writes it out of [`CASTLE_LEVEL`], and only
-    /// for category 2. The row indexes the table; it is not the level.
-    pub fn castle_level(&self) -> Option<u8> {
-        (self.kind == 2).then(|| CASTLE_LEVEL.get(self.row).copied().unwrap_or(0))
-    }
-
-    /// `g_localPlayer` as this page has it: realm **1**. `Skirmish_Setup`
-    /// (`0x0042B7F7`) pairs it against `DAT_0056D5CC` and nothing on page 12
-    /// moves it. **Inferred** — no realm number is stored here.
     pub fn realm1_attacks(&self) -> bool {
         self.local_attacks
     }
