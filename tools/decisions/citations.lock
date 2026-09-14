@@ -157,8 +157,8 @@ crates/l2-game/tests/audio_install/main.rs	C1	aeddf65c6545	6b7e8edb019e
 crates/l2-game/tests/audio_install/track_tests.rs	C116	6b5e72a469c5	1c49feddd496
 crates/l2-game/tests/audio_screens/screens.rs	C133	6b579154315d	91fcca97cc98
 crates/l2-game/tests/audio_wiring/main.rs	C116	ca080a64f6a9	1c49feddd496
-crates/l2-game/tests/audio_wiring/ui_and_speech.rs	C116	bd3d5e5ea876	1c49feddd496
-crates/l2-game/tests/audio_wiring/ui_and_speech.rs	C116	d318cacc719d	1c49feddd496
+crates/l2-game/tests/audio_wiring/ui_and_speech/main.rs	C116	bd3d5e5ea876	1c49feddd496
+crates/l2-game/tests/audio_wiring/ui_and_speech/main.rs	C116	d318cacc719d	1c49feddd496
 crates/l2-game/tests/castles/garrison_and_siege.rs	C115	f291bedec323	085c9b771281
 crates/l2-game/tests/castles/main.rs	C115	8abcbf2c939a	085c9b771281
 crates/l2-game/tests/differential.rs	C170	fcf69e74c64c	2bbb0887e7d4
