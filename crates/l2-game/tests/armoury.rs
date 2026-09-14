@@ -5,7 +5,7 @@
 //! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-game --test armoury
 //! ```
 //!
-//! `crates/l2-game/tests/military.rs` walks the whole verb on
+//! `crates/l2-game/tests/military/main.rs` walks the whole verb on
 //! `Assets::placeholder`, picture agree in. This file is the other half: **the hit map and the sprites
 //! picture agree in. This file is the other half: **the hit map and the sprites
 //! it is supposed to sit on, out of the install.** `docs/decisions.md` C58 —

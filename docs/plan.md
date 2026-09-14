@@ -463,7 +463,7 @@ the most gameplay-critical shell in the table.
 463: > `screens/map/mod.rs` — a click on your own army selects it and the next click on the map is the
 > march order, a click on your own *besieging* army opens `0x1D` — and turn phase 2 calls
 > `engagement::run_siege_phase`, which nothing outside its own tests had ever called.
-> `crates/l2-game/tests/military.rs` drives all three verbs as `Event` values through
+> `crates/l2-game/tests/military/main.rs` drives all three verbs as `Event` values through
 > `Machine::handle`: levy, equip, raise, march, take a county, split, disband, assault.
 > `docs/decisions.md` C45 is the correction, and it names the two stale things the name was
 > hiding.
