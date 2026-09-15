@@ -282,13 +282,20 @@ pub struct Audio {
     /// **What the one-shot buffer holds** — `DAT_00522AEC`, the single
     /// DirectSound buffer `Sound_PlayFile` (`0x00427990`) builds every file
     /// into. The original has one, so "is the one-shot busy" is a question about
-    /// whatever was put there last; ours are many voices, so the name is kept
-    /// and the mixer is asked about it. `Sound_OneShotBusy` (`0x00427C9B`) and
+    /// whatever was put there last; ours are many voices, so the **handle** of
+    /// the voice [`Audio::play_file`] started is kept and the mixer is asked
+    /// about that. A name would not do: [`crate::audio::Mixer::play_effect`]
+    /// replaces a voice of the same file and the voice cap evicts the oldest,
+    /// either of which makes a name answer for a clip the buffer does not hold. `Sound_OneShotBusy` (`0x00427C9B`) and
     /// `Sound_PlayFile`'s drop ask the same buffer, so [`Audio::play_file`] is
     /// the only thing that sets it — [`Audio::stop_and_play_file`] through it —
     /// [`Audio::stop_one_shot`] is the only thing that clears it, and
     /// [`Audio::one_shot_busy`] is the only thing that reads it.
-    one_shot: Option<String>,
+    one_shot: Option<u64>,
+    /// Whether the last scene [`Audio::follow`] was given was the battlefield,
+    /// so that `Music_StartBattle` (`0x00477B2F`) fires on the way in and not
+    /// once a frame. Films over the battle keep it set.
+    in_battle: bool,
 }
 
 #[cfg(test)]

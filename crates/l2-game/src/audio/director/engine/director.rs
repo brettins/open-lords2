@@ -380,6 +380,29 @@ impl Director {
                 }
             }
         }
+
+        // **And the buffer is emptied when the popup goes** — `Screen_FrameInput`
+        // (`0x0042FF10`) does it on both routes out of screen `0x0F`, `[V]`:
+        //
+        // ```c
+        // /* the OK button or a right-release: */
+        // g_screenId = (DAT_005533f4 == 0) ? 2 : 0; DAT_005533f4 = 0;
+        // Sound_StopOneShot(); g_redrawRequest = 2; FUN_0041438c();
+        // /* and a press anywhere on the map: */
+        // if (g_screenId == 0x0f) { Sound_StopOneShot(); FUN_0041438c(); }
+        // ```
+        //
+        // The popup loads the buffer with `fire.wav` above and nothing here
+        // used to take it back, so the next bare `Sound_PlayFile` — the
+        // sidebar's `S016` mercenary line, `ff_batl.wav` at the battle
+        // question — was dropped against a blacksmith who had stopped
+        // burning. One arm for the two sites: a director sees the screen
+        // leave, not which click took it.
+        if self.stack.iter().any(|id| matches!(id, ScreenId::Job(..)))
+            && !now.iter().any(|id| matches!(id, ScreenId::Job(..)))
+        {
+            audio.stop_one_shot();
+        }
         // **`TileInfo_Draw` (`0x0041C208`) — the industry sounds a player asked
         // for**, *"when you right click them on the map"*. The information
         // panel is screen `0x04` and its tile half plays the site's work as it

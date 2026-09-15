@@ -33,6 +33,13 @@ use super::wav::Sound;
 
 /// One sound in flight.
 struct Voice {
+    /// **The buffer handle** — `DAT_00522AEC`, the pointer
+    /// `Sound_OneShotBusy` (`0x00427C9B`) asks `GetStatus` of. A name is not a
+    /// handle here: [`Mixer::play_effect`] (`Sound_RestartSlot`) replaces a
+    /// voice of the same file, and the eight-voice cap evicts the oldest, so a
+    /// name can answer *busy* for a clip this mixer no longer holds and *idle*
+    /// for one it does. Minted per voice, never reused.
+    id: u64,
     /// Which file this is, so that [`Mixer::play_effect_if_idle`] can ask
     /// whether it is already sounding. The original asks DirectSound the same
     /// question of the buffer itself.
@@ -52,7 +59,7 @@ impl Voice {
     pub(super) fn new(name: String, sound: Arc<Sound>, out_rate: u32, looping: bool, gain: i32) -> Voice {
         // step = src_rate / out_rate, in 32.32.
         let step = ((sound.rate as u64) << 32) / (out_rate.max(1) as u64);
-        Voice { name, sound, pos: 0, step, looping, gain }
+        Voice { id: 0, name, sound, pos: 0, step, looping, gain }
     }
 
     /// The next output frame, or `None` once a one-shot has run out.
@@ -106,6 +113,8 @@ pub struct Mixer {
     /// idempotent.
     music_name: Option<String>,
     effects: Vec<Voice>,
+    /// Next [`Voice::id`].
+    next_id: u64,
     /// **A film's own sound track**, which is neither music nor an effect.
     ///
     /// `Smk_Open` asks `SmackOpen` for track 0 (flag `0x2000`, `[I]` from RAD's
@@ -125,6 +134,7 @@ impl Mixer {
             music: None,
             music_name: None,
             effects: Vec::new(),
+            next_id: 1,
             film: None,
             music_on: true,
             effects_on: true,
@@ -196,12 +206,31 @@ impl Mixer {
     /// Fire a one-shot, restarting it if it is already sounding —
     /// `Sound_RestartSlot` (`0x00426216`), which does `SetCurrentPosition(0)`
     /// then `Play` unconditionally. This is what a click uses.
-    pub fn play_effect(&mut self, name: String, sound: Arc<Sound>) {
+    ///
+    /// Answers the voice's handle — what `Sound_PlayFile` (`0x00427990`)
+    /// keeps in `DAT_00522AEC` when the one-shot buffer goes through here.
+    pub fn play_effect(&mut self, name: String, sound: Arc<Sound>) -> u64 {
         self.effects.retain(|v| v.name != name);
         if self.effects.len() >= MAX_EFFECTS {
             self.effects.remove(0);
         }
-        self.effects.push(Voice::new(name, sound, self.out_rate, false, 256));
+        let mut voice = Voice::new(name, sound, self.out_rate, false, 256);
+        voice.id = self.next_id;
+        self.next_id += 1;
+        self.effects.push(voice);
+        self.next_id - 1
+    }
+
+    /// **`Sound_OneShotBusy` (`0x00427C9B`)**, asked of the handle:
+    /// `GetStatus(DAT_00522AEC) == 1`.
+    pub fn is_playing_handle(&self, handle: u64) -> bool {
+        self.effects.iter().any(|v| v.id == handle)
+    }
+
+    /// The `Stop`/`Release` half of `Sound_StopOneShot` (`0x00427D19`), of that
+    /// buffer and not of another voice that shares its file.
+    pub fn stop_handle(&mut self, handle: u64) {
+        self.effects.retain(|v| v.id != handle);
     }
 
     /// Fire a one-shot **only if that sound is not already playing** —
