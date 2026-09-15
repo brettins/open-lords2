@@ -75,7 +75,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "ff_batl.wav",
-      "note": "Director::listen, on ScreenId::BattlePrompt arriving."
+      "note": "Director::listen, on ScreenId::BattlePrompt arriving. The player's report of 2026-09-14 - \"no drum roll when I try to attack a country\" - was covered only by a pushed-stack fixture; tests/audio_wiring marching_into_an_enemy_county_sounds_the_battle_fanfare now drives the march and the end of turn through the real Machine and Director and finds it sounding, and still sounding sixty frames on. What that leaves as the suspect is Sound_PlayFile's own drop: a message fanfare or voice still in the one buffer when the question opens swallows it, here as in the original."
     },
     {
       "id": "Battle_DragSelect#1",
