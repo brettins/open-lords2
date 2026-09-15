@@ -214,7 +214,7 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     out.u32(campaign.mob_cursor as u32);
 
     // `Net_WriteField(&DAT_005653F8, 4); Net_WriteField(&DAT_0057CAE0, 0x30);`
-    // — `FUN_00444A2F` sends both halves at every battle start, so both are
+    // — `FUN_00444A2F` (`0x00444A2F`) sends both halves at every battle start, so both are
     // state a peer that loads must agree on. Version 31.
     out.section("field_playlist");
     out.raw(campaign.field_playlist.frames());

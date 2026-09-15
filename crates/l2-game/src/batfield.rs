@@ -53,8 +53,8 @@ pub fn field(seed: u64) -> Battlefield {
 /// the caller already walked to, not a draw.
 /// [`l2_kingdom::field_playlist`] holds the walk.
 ///
-/// The frame is taken modulo the sheet count, because the playlist is dealt
-/// over a fixed 48 and an install's `batfield.pl8` is what it is.
+/// [D] The frame is taken modulo the sheet count; `Battlefield_BuildRandom` (`0x0047AAA3`,
+/// `00470000.c:4501`) indexes the directory with the byte unbounded. Inert on the shipped 48.
 pub fn field_frame(frame: u8, seed: u64) -> Battlefield {
     match SHEETS.get() {
         Some(sheets) if !sheets.is_empty() => {
