@@ -50,20 +50,6 @@ pub const SIDE_STEP_RANGE: i32 = 2;
 
 /// **`FUN_004904EC` (`0x004904EC`) — the directions a blocked man tries**, in
 /// its order:
-///
-/// ```c
-/// local_10 = local_c = Dir_FromDelta(mapX, mapY, tgX, tgY);
-/// for (i = 0; i < 5; i++) {
-///     if (BattleMan_TryStepDir(local_10) == 1) return local_10;   /* clockwise     */
-///     if (BattleMan_TryStepDir(local_c)  == 1) return local_c;    /* anticlockwise */
-///     local_10 = (local_10 + 1) & 7;  local_c = (local_c - 1) & 7;
-/// }
-/// return 8;                                                       /* no side-step  */
-/// ```
-///
-/// Round one tests the straight direction twice, one walker each way; round
-/// five reaches ±4. The duplicate is kept: `BattleMan_TryStepDir` only tests
-/// the cell.
 pub fn side_step_order(dir: u8) -> [u8; 10] {
     let mut out = [0u8; 10];
     for k in 0..5u8 {
@@ -73,11 +59,8 @@ pub fn side_step_order(dir: u8) -> [u8; 10] {
     out
 }
 
-/// `Path_DetourTooLong`'s cap on a field battle — `local_14 = 0x14`.
 pub const DETOUR_CAP_FIELD: u16 = 20;
-/// Its cap in a siege — `local_14 = 0x96`.
 pub const DETOUR_CAP_SIEGE: u16 = 150;
-/// The multiple of the straight line a route may cost — `iVar2 * 5`.
 pub const DETOUR_STRAIGHT_MULTIPLE: i32 = 5;
 
 /// **`Path_DetourTooLong` (`0x00472227`) — the give-up rule.** A route over
@@ -86,10 +69,6 @@ pub const DETOUR_STRAIGHT_MULTIPLE: i32 = 5;
 ///
 /// The routine returns 0 for `ownerIsHuman == 0`, and again for side 0 in a
 /// siege — the garrison. `[V]` on both guards, from the branch.
-///
-/// `cost` is `g_pathCost[tgY * 0x50 + tgX]` after the search: 0 is unvisited,
-/// and the `0x3E5` ceiling excludes 998 (a friendly figure) and 999
-/// (impassable).
 pub fn detour_too_long(
     owner_is_human: bool,
     is_siege: bool,
@@ -238,16 +217,13 @@ mod tests {
 
     #[test]
     fn only_a_human_owner_gives_up_and_only_over_both_caps() {
-        // 21 > 20 and 21 > 5 * 4: over both.
         assert!(detour_too_long(true, false, crate::SIDE_B, 21, 4));
         assert!(!detour_too_long(false, false, crate::SIDE_B, 21, 4), "the AI never gives up");
         assert!(!detour_too_long(true, false, crate::SIDE_B, 20, 4), "the cap is exclusive");
         assert!(!detour_too_long(true, false, crate::SIDE_B, 100, 30), "5 * 30 covers it");
-        // The siege cap, and the garrison's exemption from it.
         assert!(detour_too_long(true, true, crate::SIDE_B, 151, 4));
         assert!(!detour_too_long(true, true, crate::SIDE_B, 150, 4));
         assert!(!detour_too_long(true, true, crate::SIDE_A, 151, 4), "side 0 in a siege");
-        // 998 and 999 are not costs, and 0 is unvisited.
         assert!(!detour_too_long(true, false, crate::SIDE_B, 998, 1));
         assert!(!detour_too_long(true, false, crate::SIDE_B, 999, 1));
         assert!(!detour_too_long(true, false, crate::SIDE_B, 0, 1));

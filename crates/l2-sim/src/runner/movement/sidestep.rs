@@ -2,15 +2,12 @@
 //! `local_10 == 2 || local_10 == 3`): a man whose step was refused side-steps
 //! (`FUN_004904EC`), and only if he cannot, asks the pathfinder — then may
 //! give up on the route he is handed (`Path_DetourTooLong`, `0x00472227`).
-//!
-//! `docs/battle.md` §8.3a.
 
 #![allow(unused_imports)]
 use crate::pathfind::{self, Outcome, Pos};
 use crate::runner::*;
 use crate::*;
 
-/// The side-step and the give-up, tested where they are written.
 #[cfg(test)]
 #[path = "tests_sidestep.rs"]
 mod tests_sidestep;
@@ -21,9 +18,6 @@ impl BattleRunner {
     /// five each way ([`crate::movement::side_step_order`]), taking the first
     /// cell `Cell_TryEnter` would let him into. `true` means he moved and no
     /// search happens.
-    ///
-    /// Guarded by [`crate::movement::SIDE_STEP_RANGE`] — `field_0x169 < 2`, so
-    /// it fires only within one cell of the destination.
     ///
     /// **Siege engines are excluded**: the `isSiegeEngine` arm of
     /// `BattleMan_Step` goes to `FUN_00491492` and `FUN_004912EC` instead, and
@@ -87,9 +81,6 @@ impl BattleRunner {
         !(self.siege.is_siege && self.field.cells[dst].flags & castle != 0)
     }
 
-    /// Ask [`crate::pathfind`] for a route, under the original's two
-    /// throttles: a cooldown after each attempt, a hard stop after four
-    /// consecutive failures.
     pub(crate) fn request_path(&mut self, i: usize) {
         self.request_path_with(i, true)
     }
@@ -126,8 +117,6 @@ impl BattleRunner {
                 grid.blocked[c] = true;
             }
         }
-        // Only *friendly* figures are marked. The original routes through
-        // enemies and leaves contact to the mover.
         for (c, occ) in self.occupant.iter().enumerate() {
             if let Some(o) = occ {
                 if self.fighters[*o as usize].side == side && *o as usize != i {
@@ -143,9 +132,6 @@ impl BattleRunner {
         f.hold = 64;
         f.reroutes = f.reroutes.saturating_add(1);
         // **`Path_DetourTooLong` (`0x00472227`), where the original asks it**:
-        // after the search and the `holdIt` reload, before `Path_Extract`. The
-        // two guards that make it the player's rule only are in
-        // [`crate::movement::detour_too_long`].
         //
         // `Outcome::NoSearchNeeded` returns an empty cost field, and the
         // original's skipped search leaves `g_pathCost` holding the last
@@ -172,15 +158,6 @@ impl BattleRunner {
                     f.barred = 0;
                 }
             }
-            // **The line is clear and the figure still could not move**: a
-            // comrade is in the one cell it wanted. Doing nothing here is a
-            // deadlock — measured at 45 besiegers frozen in a block eight
-            // cells wide for 200,000 frames, every one `Walking`.
-            //
-            // `Path_LineIsClear` is not a predicate: it seeds `g_pathCost`
-            // through `Path_BuildBlockedMap` — which marks friendly figures
-            // 998 — walks two greedy walkers that rotate around whatever is in
-            // the way, and leaves the cost field behind.
             // `BattleMan_Step` runs `Path_Extract` on it whether or not the
             // flood fill ran. [`pathfind::Grid::walk_line`] is that walk, out
             // of `0x004710F2`. Applied only here.
@@ -201,7 +178,6 @@ impl BattleRunner {
         // **`00480000.c:6583-6586`, the tail of the blocked arm**: `local_10`
         // still 2 or 3 — `FUN_004904EC` answered 8 and no route came back — is
         // `delayState = state; state = 1; delay = 100`. **[V]**, decompiled.
-        // Ours retried the search on the next tick.
         //
         // The two early returns above — `hold > 0`, `barred >= 4` — are left
         // out: they stand for `holdIt`'s own cooldown, which the original

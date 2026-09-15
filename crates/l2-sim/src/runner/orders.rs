@@ -348,8 +348,6 @@ impl BattleRunner {
                 // stepped `animPhase` twice in one tick — figure 3, 21 → 23,
                 // read through `(phase + 23) % 24` by `battle_picture`'s
                 // `a_marching_man_is_drawn_at_the_phase_he_ended_the_last_tick_with`.
-                // `facing_drawn` is left written: `Anim_StandA2` does not write
-                // it, so the swing's drawn facing survives a stand.
                 let facing = self.fighters[i].facing;
                 let phase = self.fighters[i].phase;
                 self.strike(i, facing);

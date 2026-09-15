@@ -3,11 +3,9 @@ use super::*;
 use super::pathfinding::*;
 use super::*;
 
-/// [`BattleRunner::request_path`] and the side-step live next door.
 #[path = "sidestep.rs"]
 mod sidestep;
 
-/// The three symptoms the side-step has to stay under.
 #[cfg(test)]
 #[path = "tests_march.rs"]
 mod tests_march;
@@ -15,7 +13,6 @@ mod tests_march;
 impl BattleRunner {
     pub(crate) fn next_step(&self, i: usize) -> Option<Pos> {
         let f = &self.fighters[i];
-        // **A waypoint is a direction, not a destination.**
         // `BattleMan_NextPathDir` (`0x00491A34`) reads the waypoint and returns
         // `Dir_FromDelta(mapX, mapY, wpX, wpY)`; `FUN_00491B1F` then moves the
         // man **one cell** that way. Ours returned the waypoint itself, and
