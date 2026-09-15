@@ -9,6 +9,12 @@ pub const REFORM_INTERVAL: i16 = 500;
 /// The countdown `+0x0C` is set to when a figure of the unit is hit. **[D]**
 pub const HIT_MEMORY: u8 = 50;
 
+/// `+0x0F`, written by all three launch sites as `firing = 0x78` —
+/// `BattleMan_FireMissile` (`00480000.c:1479`),
+/// `BattleMan_StateCloseToAttack` (`:2054`),
+/// `BattleMan_StateEngineFire` (`:1838`). **[V]**
+pub const FIRING: u8 = 0x78;
+
 /// The order lock `BattleUnit_Order` sets when it re-orders a unit that is
 /// already in melee, buying it that many passes of immunity from
 /// `BattleUnit_JoinMelee`. **[D]** `docs/battle-ai.md` §4.2.

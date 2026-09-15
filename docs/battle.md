@@ -82,7 +82,7 @@ contiguous *range* of figure indices.
 | `+0x04` | i16 | firstFigure | [V] | lowest figure index belonging to this unit. |
 | `+0x06` | i16 | lastFigure | [V] | highest. Every sweep over a unit's men is `for (i = first; i <= last; i++)` plus a check that the figure's `+0x178` points back here. |
 | `+0x08` | u8 | category | [V] | 1 missile, 2 peasants/pikemen, 3 macemen/swordsmen, 4 knights, 5 catapult, 6 tower, 7 ram, 8 oil, 9/10 siege-defender specials. Selects the order handler. Recomputed by `BattleUnit_Classify`. |
-| `+0x0F` | u8 | firing | [V] | set to 120 whenever a figure of this unit shoots or strikes; counts down. |
+| `+0x0F` | u8 | firing | [V] | set to 120 when a figure of this unit **looses a missile** — its only three writers are `BattleMan_FireMissile`, `BattleMan_StateCloseToAttack` and `BattleMan_StateEngineFire`, all before their `Missile_Spawn`; no melee site writes it. Counts down once per `BattleUnits_RebuildFromFigures`. |
 | `+0x14` | i16 | reTarg | [V] | re-target countdown, decremented once per frame; at zero it is reset to 500. Initialised to 20, set to 50 when engaged. |
 | `+0x1A` | i16 | orders | [V] | order state within the category handler. |
 | `+0x1E` `+0x20` | i16 | map x, map y | [V] | the unit's own position: the centre of the bounding box of its live figures (`BattleUnit_Recentre`). |

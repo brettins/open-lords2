@@ -498,9 +498,9 @@ impl BattleRunner {
                 // cadence is `BattleMan_FireMissile`'s own pair — swingTimer
                 // `+0xE0` against reloadInterval `+0xCB`, `interval < timer`
                 // shoots and resets — with no ten-tick acquisition, because the
-                // target was chosen when the state was entered. It also sets
-                // unit `+0x0F` to 0x78 and the unit's destination to the
-                // shooter's own cell; neither is built.
+                // target was chosen when the state was entered. It sets unit
+                // `+0x0F` at 2053-54, which [`Self::loose`] does for both
+                // sites; the destination write at 2055-56 is not built.
                 let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else {
                     return;
                 };
@@ -579,6 +579,18 @@ impl BattleRunner {
 
     fn loose(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
         let sim = self.fighters[shooter].sim;
+        // `BattleMan_FireMissile` (`00480000.c:1478-1479`)
+        // `g_battleMen[cur].firing = 0x78; g_battleUnits[sVar2].firing = 0x78;`
+        // — **before** `Missile_Spawn`, so a shot that finds no free slot still
+        // marks the unit. Read by `UnitOrder_FieldMissile` (`:4336`) and
+        // `UnitOrder_SiegeDefMissile` (`:5813`). Figure `+0x182` unported: its
+        // only reader is its own decrement, `Battle_UpdateAllMen` (`:896`).
+        {
+            let u = self.sim.figures[sim].unit as usize;
+            if (1..=MAX_UNITS).contains(&u) {
+                self.units.get_mut(u).firing = crate::unit::FIRING;
+            }
+        }
         let (owner, band) = {
             let f = &self.sim.figures[sim];
             (f.owner, f.strength_band())
@@ -598,7 +610,6 @@ impl BattleRunner {
         ) else {
             return;
         };
-        self.sim.cues.loose(class);
         // **A fire arrow.** `BattleMan_FireMissile` writes `+0x44 = 1` when the
         // shooter's unit is an AI's, of side 0, and more than three of a
         // human's figures are standing in woodland — the garrison sets the
@@ -626,8 +637,19 @@ impl BattleRunner {
         }
         for _ in 0..missile::LAUNCH_STEPS {
             if !self.step_missile(slot) {
-                return;
+                break;
             }
+        }
+        // **The bow sounds after the flight, not before.**
+        // `BattleMan_FireMissile` (`00480000.c:1523-1527`) tests the record's
+        // class `+0x09` *after* the eight steps (`:1516-1518`); a step that
+        // removed the missile ran `FUN_0046EB78`, which zeroes all `0x4C`
+        // bytes, so neither `2` nor `1` matches and the shot is silent. Same
+        // tail at `BattleMan_StateCloseToAttack` (`:2099-2104`).
+        // `BattleMan_StateEngineFire` (`:1861`) plays slot `0xE` with no such
+        // test. `[V]`
+        if class == WeaponClass::Catapult || self.missiles.get(slot).class == class.index() {
+            self.sim.cues.loose(class);
         }
     }
 
