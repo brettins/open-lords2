@@ -33,6 +33,13 @@ use super::wav::Sound;
 
 /// One sound in flight.
 struct Voice {
+    /// **The buffer handle** — `DAT_00522AEC`, the pointer
+    /// `Sound_OneShotBusy` (`0x00427C9B`) asks `GetStatus` of. A name is not a
+    /// handle here: [`Mixer::play_effect`] (`Sound_RestartSlot`) replaces a
+    /// voice of the same file, and the eight-voice cap evicts the oldest, so a
+    /// name can answer *busy* for a clip this mixer no longer holds and *idle*
+    /// for one it does. Minted per voice, never reused.
+    id: u64,
     /// Which file this is, so that [`Mixer::play_effect_if_idle`] can ask
     /// whether it is already sounding. The original asks DirectSound the same
     /// question of the buffer itself.
@@ -52,7 +59,7 @@ impl Voice {
     pub(super) fn new(name: String, sound: Arc<Sound>, out_rate: u32, looping: bool, gain: i32) -> Voice {
         // step = src_rate / out_rate, in 32.32.
         let step = ((sound.rate as u64) << 32) / (out_rate.max(1) as u64);
-        Voice { name, sound, pos: 0, step, looping, gain }
+        Voice { id: 0, name, sound, pos: 0, step, looping, gain }
     }
 
     /// The next output frame, or `None` once a one-shot has run out.
@@ -106,6 +113,15 @@ pub struct Mixer {
     /// idempotent.
     music_name: Option<String>,
     effects: Vec<Voice>,
+    /// **The one-shot buffer** — `DAT_00522AEC`, the buffer `Sound_PlayFile`
+    /// (`0x00427990`) builds every file into. **Its own, as in the original**:
+    /// the slot bank above is `Sound_PlaySlot`/`Sound_RestartSlot`
+    /// (`0x00426120`, `0x00426216`) and never touches it, so a click firing the
+    /// same file neither stops it nor makes `Sound_OneShotBusy` (`0x00427C9B`)
+    /// answer idle, and the eight-slot cap cannot evict it.
+    one_shot: Option<Voice>,
+    /// Next [`Voice::id`].
+    next_id: u64,
     /// **A film's own sound track**, which is neither music nor an effect.
     ///
     /// `Smk_Open` asks `SmackOpen` for track 0 (flag `0x2000`, `[I]` from RAD's
@@ -125,6 +141,8 @@ impl Mixer {
             music: None,
             music_name: None,
             effects: Vec::new(),
+            one_shot: None,
+            next_id: 1,
             film: None,
             music_on: true,
             effects_on: true,
@@ -187,6 +205,15 @@ impl Mixer {
         self.effects.iter().any(|v| v.name == name)
     }
 
+    /// Whether that file is sounding **anywhere** — a slot or the one-shot
+    /// buffer. The observability question; [`Mixer::is_playing`] is the
+    /// `GetStatus` `Sound_PlaySlot` (`0x00426120`) asks of one slot, and
+    /// [`Mixer::is_playing_handle`] the one `Sound_OneShotBusy` (`0x00427C9B`)
+    /// asks of `DAT_00522AEC`.
+    pub fn is_sounding(&self, name: &str) -> bool {
+        self.is_playing(name) || self.one_shot.as_ref().is_some_and(|v| v.name == name)
+    }
+
     /// Stop that effect wherever it is in the mix — the `Stop` half of
     /// `Sound_StopOneShot` (`0x00427D19`). Nothing when it is not sounding.
     pub fn stop_effect(&mut self, name: &str) {
@@ -196,12 +223,43 @@ impl Mixer {
     /// Fire a one-shot, restarting it if it is already sounding —
     /// `Sound_RestartSlot` (`0x00426216`), which does `SetCurrentPosition(0)`
     /// then `Play` unconditionally. This is what a click uses.
+    ///
+    /// A **slot**, so neither the replacement nor the cap here reaches the
+    /// one-shot buffer.
     pub fn play_effect(&mut self, name: String, sound: Arc<Sound>) {
         self.effects.retain(|v| v.name != name);
         if self.effects.len() >= MAX_EFFECTS {
             self.effects.remove(0);
         }
         self.effects.push(Voice::new(name, sound, self.out_rate, false, 256));
+    }
+
+    /// **Load and play the one-shot buffer** — `Sound_PlayFile` (`0x00427990`),
+    /// which owns `DAT_00522AEC` and replaces whatever it held. [`Mixer`]'s
+    /// `one_shot` field says why it is not a slot.
+    ///
+    /// Answers the handle `Sound_OneShotBusy` (`0x00427C9B`) asks `GetStatus`
+    /// of.
+    pub fn play_one_shot(&mut self, name: String, sound: Arc<Sound>) -> u64 {
+        let mut voice = Voice::new(name, sound, self.out_rate, false, 256);
+        voice.id = self.next_id;
+        self.next_id += 1;
+        self.one_shot = Some(voice);
+        self.next_id - 1
+    }
+
+    /// **`Sound_OneShotBusy` (`0x00427C9B`)**, asked of the handle:
+    /// `GetStatus(DAT_00522AEC) == 1`.
+    pub fn is_playing_handle(&self, handle: u64) -> bool {
+        self.one_shot.as_ref().is_some_and(|v| v.id == handle)
+    }
+
+    /// The `Stop`/`Release` half of `Sound_StopOneShot` (`0x00427D19`), of that
+    /// buffer and not of a slot that shares its file.
+    pub fn stop_handle(&mut self, handle: u64) {
+        if self.is_playing_handle(handle) {
+            self.one_shot = None;
+        }
     }
 
     /// Fire a one-shot **only if that sound is not already playing** —
@@ -252,6 +310,15 @@ impl Mixer {
                 }
             }
             if self.effects_on {
+                if let Some(v) = self.one_shot.as_mut() {
+                    match v.next() {
+                        Some((a, b)) => {
+                            l += a;
+                            r += b;
+                        }
+                        None => self.one_shot = None,
+                    }
+                }
                 self.effects.retain_mut(|v| match v.next() {
                     Some((a, b)) => {
                         l += a;
@@ -262,6 +329,7 @@ impl Mixer {
                 });
             } else {
                 self.effects.clear();
+                self.one_shot = None;
             }
             // Clamp
             // past the rail, and a wrap there is a bang, not a loud noise.
@@ -362,6 +430,21 @@ mod tests {
             m.play_effect(format!("{i}"), constant(11025, 100, 1000));
         }
         assert_eq!(m.effects.len(), MAX_EFFECTS);
+    }
+
+    /// `DAT_00522AEC` is not one of the slots: neither `Sound_RestartSlot`'s
+    /// same-file replacement nor the cap can take it.
+    #[test]
+    fn the_slot_cap_cannot_evict_the_one_shot_buffer() {
+        let mut m = Mixer::new(11025);
+        let h = m.play_one_shot("bathit2.wav".into(), constant(11025, 3000, 1000));
+        m.play_effect("bathit2.wav".into(), constant(11025, 3000, 1000));
+        assert!(m.is_playing_handle(h), "a slot of the same file took the buffer");
+        for i in 0..MAX_EFFECTS + 5 {
+            m.play_effect(format!("{i}"), constant(11025, 100, 1000));
+        }
+        assert!(m.is_playing_handle(h), "the cap evicted the buffer");
+        assert_eq!(m.effects.len(), MAX_EFFECTS, "and the cap still holds over the slots");
     }
 
     #[test]
