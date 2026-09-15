@@ -39,6 +39,39 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
     Dismissal::Closed
 }
 
+/// **`Msg_DismissUnlessQuestion` (`FUN_00476710`, `0x00476710`)** — the whole
+/// function:
+///
+/// ```c
+/// if (category != 0x11 && category != 10 && category != 0x0B && category != 0x0C)
+///     Msg_Dismiss();
+/// ```
+///
+/// One caller, and it is the arm nobody had looked for: **`Map_Click`'s entire
+/// body is `if (g_messageGroup == 0) { … } else { this }`**. So with a message
+/// up, a left click on the campaign map closes it and the map does nothing else
+/// at all — no pick, no county selection, no village. A *question* survives the
+/// click, which is what stops a stray click on the map from silently declining
+/// an alliance.
+///
+/// **It calls `Msg_Dismiss`, not the two lines that clear the window**, so this
+/// is a [`dismiss`] like any other: `FUN_00476E21` runs, `g_screenId` goes back
+/// to `_DAT_004F0350` and `DAT_004F0358` is re-armed to `0x14`. Closing the
+/// ring here instead left [`crate::tip::Tips::hosting`] set, the `0x27` host
+/// seated over the map for ever and the delay at zero — and a save box pushed
+/// after it starved.
+///
+/// Returns whether it closed. The marker for this arm is on its CALLER, in
+/// `screens/map/mod.rs`: the gesture is a click on the campaign map and this is
+/// only the four-line helper it reaches.
+pub fn dismiss_unless_question(game: &mut Game) -> bool {
+    if !game.messages.dismissed_by_map_click() {
+        return false;
+    }
+    dismiss(game);
+    true
+}
+
 /// **`Event_Post` (`FUN_00448D7E`, `0x00448D7E`) — the only thing in the binary
 /// that posts a county's random-event letter.** `[V]`, whole body:
 ///

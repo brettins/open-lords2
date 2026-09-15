@@ -139,3 +139,51 @@ fn walking_into_another_screen_loses_the_message() {
 
 // -------------------------------------------------------- 2. answer a lord
 
+
+/// **A letter clicked away on the map is a `Msg_Dismiss` like any other.**
+///
+/// `Map_Click` (`0x0043CE1A`) with a message up is
+/// `Msg_DismissUnlessQuestion` (`0x00476710`), and that calls **`Msg_Dismiss`**
+/// (`0x00476768`) — not the two lines that clear the window. So the click
+/// carries `Msg_Dismiss`'s whole tail: `FUN_00476E21`'s restore of
+/// `_DAT_004F0350` and `DAT_004F0358 = 0x14`, and `Campaign_EnterConquest`
+/// (`0x00497879`) with `g_screenId = 0x1C`. Ours closed the ring alone: the
+/// player who clicked his Victory! away on the map was never told he had won
+/// and the tip host he was clicking through stayed seated.
+#[test]
+fn the_win_letter_clicked_away_on_the_map_still_ends_the_game() {
+    let (mut g, a, mut m) = world();
+    ai_turns_over(&mut g);
+    for id in 1..=6usize {
+        g.kingdom.counties[id].owner = 1;
+    }
+    for realm in 2..=5u8 {
+        dispossess(&mut g, realm, 1);
+        g.recount_realm(realm);
+    }
+
+    // Away from the 48 × 48 corner box at (400, 336), so `Msg_HandleInput`
+    // passes the click down to the map.
+    let mut seen: Vec<u16> = Vec::new();
+    for _ in 0..24 {
+        // A map click leaves the window's screen on the stack to pop itself,
+        // where the corner button's `Transition::Pop` takes it off at once.
+        let Some(group) = g.messages.open().map(|r| r.group) else {
+            tick(&mut m, &mut g, &a);
+            continue;
+        };
+        seen.push(group);
+        send(&mut m, &mut g, &a, Event::Click { x: 8, y: 470 });
+        // The original leaves for `0x1C` on this dismissal and stops taking map
+        // clicks; ours returns `Transition::Stay` from `Map_Click`'s arm, so the
+        // ring goes on serving and every further dismissal would step the
+        // campaign again. Left alone: the screen change is the caller's.
+        if g.outcome().is_over() {
+            break;
+        }
+    }
+
+    assert_eq!(seen.last(), Some(&225), "the last letter shown is Victory!: {seen:?}");
+    assert_eq!(g.outcome(), Outcome::Won);
+    assert_eq!(g.campaign.map, 1, "Campaign_EnterConquest ran on the map's own dismissal");
+}
