@@ -264,8 +264,10 @@ impl BattleRunner {
         }
         // `Anim_Dying` is the animation the original plays here, and this is
         // its only caller in the whole binary — a man bent double over a
-        // shovel, reused.
-        self.fighters[i].anim = Motion::Dying;
+        // shovel, reused. **Not the corpse pose**: state 2 runs
+        // `Anim_Collapse` and nothing else (`00480000.c:1337`), so the two are
+        // different bands of the sheet — [`BattleRunner::shovel`].
+        self.shovel(i);
         if self.field.cells[cell].terrain < crate::siege::MOAT_FILL_STEPS {
             let human = self.sim.figures[self.fighters[i].sim].owner_is_human;
             let per_load = if human {

@@ -152,6 +152,10 @@ pub struct Pose {
     /// melee pair. `Anim_StrikeA2` (`0x00486249`) runs the strike cycle only
     /// under `role == 1` and draws [`defend_pose`] for the other man.
     pub defending: bool,
+    /// `field_0x173` — the **death timer**, the one thing `Anim_CollapseA2`
+    /// (`0x00487CE4`) reads: `frame = base + (timer >> 2)` while that is under
+    /// 6, and the frame is left alone after. [`l2_sim::Fighter::corpse`].
+    pub corpse: u16,
 }
 
 impl From<u8> for Pose {
@@ -180,6 +184,7 @@ pub fn pose_of(runner: &l2_sim::runner::BattleRunner, i: usize) -> Pose {
         index: i,
         swing: sim.reload_counter,
         defending: sim.role == l2_sim::Role::Defending,
+        corpse: f.corpse,
     }
 }
 
@@ -291,8 +296,9 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
         return match anim {
             Anim::Attacking => base + strike_cycle(troop)[((phase % 40) / 4) as usize] as usize,
             Anim::Walking | Anim::Idle => facing,
-            // Knights have no separate dying block in this table.
-            Anim::Dying => base,
+            // Knights have no separate dying block in this table, and
+            // `Anim_CollapseA2` / `Anim_DyingA2` have no knight arm at all.
+            Anim::Dying | Anim::Shovelling => base,
             // Handled above: `Anim_DrawBowA2` has no knight arm either.
             Anim::Shooting => drawbow::frame(troop, facing as u8, pose.swing),
         };
@@ -318,8 +324,19 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
         }
         // Handled above: the bow draw does not use the troop's stride.
         Anim::Shooting => drawbow::frame(troop, facing as u8, pose.swing),
+        // **`Anim_CollapseA2` `0x00487CE4` — falling over, and the only pose
+        // state 2 has.** Six frames at `8N+0`, one every four ticks of the
+        // *death timer* `+0x173`, and **held** once `timer >> 2` reaches 6
+        // (`00480000.c:3112` writes the frame only under that test). No facing
+        // term: the six are shared.
+        //
+        // Ours drew the corpse from `Anim_DyingA2`'s band below, which
+        // `BattleMan_StateFillMoat` (`0x00483FE1`) is the only caller of — so
+        // the man shovelling earth into the moat, who is alive, wore the
+        // frames every dead man wore. The player's 2026-09-14 report.
+        Anim::Dying => FACINGS * stride + ((pose.corpse >> 2) as usize).min(5),
         // `0x00487908`: base + (facing & 6) / 2 * 3 + phase / 32, phase 0..95.
-        Anim::Dying => {
+        Anim::Shovelling => {
             let base = FACINGS * stride + 6;
             base + (facing & 6) / 2 * 3 + ((phase % 96) / 32) as usize
         }

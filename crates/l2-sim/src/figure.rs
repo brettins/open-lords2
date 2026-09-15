@@ -52,7 +52,8 @@ pub enum State {
 /// | `Walking` | `Anim_WalkA2` `0x00486D83` | 0 … 5, one every 4 ticks over 24 |
 /// | `Attacking` | `Anim_StrikeA2` `0x00486249` | 6 …, from the strike cycle |
 /// | `Shooting` | `Anim_DrawBowA2` `0x0048804A` | 10 … 12, archers and crossbowmen |
-/// | `Dying` | `Anim_CollapseA2` `0x00487CE4`, `Anim_DyingA2` `0x00487908` | `8N+0 …` |
+/// | `Dying` | `Anim_CollapseA2` `0x00487CE4` | `8N+0 … 8N+5` |
+/// | `Shovelling` | `Anim_DyingA2` `0x00487908` | `8N+6 …` |
 ///
 /// **Corrected.** This comment had `0x00486249` as idle/walk and `0x00486D83`
 /// as attacking; `docs/battle.md` §14.5 has the five agreements that put them
@@ -79,7 +80,19 @@ pub enum Motion {
     /// `drawbow::frame` for every troop to match, past the end of a pikeman's
     /// sheet exactly as the binary does.
     Shooting,
+    /// **Dead** — state 2, `BattleMan_StateDead` (`0x004830E9`), whose whole
+    /// body is `Anim_Collapse(); if (0x50 < ++field_0x173) Destroy();`. The six
+    /// frames of falling over come off the *death timer*, not `animPhase`.
     Dying,
+    /// **Filling the moat** — state 9, `BattleMan_StateFillMoat`
+    /// (`0x00483FE1`), the **only** caller of `Anim_Dying` → `Anim_DyingA2`
+    /// (`0x00487908`) in the binary: a living man bent double over a shovel,
+    /// twelve frames at `8N+6`.
+    ///
+    /// **It is not the corpse pose**, and collapsing the two is what drew a
+    /// living shoveller in the frames every dead man wears — the player's
+    /// *"a dead sprite but he was still alive"*, 2026-09-14.
+    Shovelling,
 }
 
 /// Sides are numbered 0 and 4 in the original, not 0 and 1 — side 0 deploys at
