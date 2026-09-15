@@ -18,6 +18,7 @@ impl Machine {
             tooltip_screens: Vec::new(),
             tool_tips_seen: None,
             autosave: false,
+            tip_seat: None,
         }
     }
 
@@ -610,17 +611,39 @@ impl Machine {
     /// Keep [`ScreenId::Tip`] on the stack exactly while
     /// [`crate::tip::Tips::hosting`] says `g_screenId` is `0x27`.
     // arm: 0x00476E21/tip-restores-its-screen frame
+    /// **The host is seated over the screen whose byte `Tip_Show` overwrote**,
+    /// and not over the top of the stack.
+    ///
+    /// `Tip_Show` (`0x00476DA9`) writes `_DAT_004F0350 = g_screenId; g_screenId
+    /// = 0x27` — **one** byte, the one that was current when the ladder posted.
+    /// A screen opened afterwards has its own byte, and its own arm in
+    /// `Screen_HandleInput` still runs: the save box's `g_screenId == '5' ||
+    /// '6'` arm, which is the only caller of `SaveLoad_Tick` (`0x004AD9F0`), is
+    /// how `DAT_0057D3C4` counts down. Seating the host at the top instead —
+    /// which this did — put it over the box, whose `update` then never ran and
+    /// whose countdown never reached zero: *"Saving game. Please wait."* for
+    /// ever. [`Machine::tip_seat`] is the screen it was seated over, so a
+    /// re-seat after the host was popped (the turn clock's `force_close`) goes
+    /// back where it was rather than on top of whatever is up now.
     fn seat_tip_host(&mut self, game: &Game) {
         let seated = self.stack.iter().any(|s| s.id() == ScreenId::Tip);
         if game.tips.hosting() && !seated {
-            let at = match self.top_id() {
-                Some(ScreenId::Message) => self.stack.len() - 1,
-                _ => self.stack.len(),
+            let over = self.tip_seat.and_then(|id| self.stack.iter().rposition(|s| s.id() == id));
+            let at = match over {
+                Some(i) => i + 1,
+                // The post's own frame: the top screen is the one whose byte
+                // the ladder read, under a scroll that is not a byte at all.
+                None => match self.top_id() {
+                    Some(ScreenId::Message) => self.stack.len() - 1,
+                    _ => self.stack.len(),
+                },
             };
+            self.tip_seat = at.checked_sub(1).map(|i| self.stack[i].id());
             self.stack.insert(at, ScreenId::Tip.build());
             self.dirty = true;
         } else if !game.tips.hosting() && seated {
             self.stack.retain(|s| s.id() != ScreenId::Tip);
+            self.tip_seat = None;
             self.dirty = true;
         }
     }
