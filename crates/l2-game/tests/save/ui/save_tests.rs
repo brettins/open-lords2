@@ -253,3 +253,53 @@ fn a_save_from_the_menu_bar_over_the_campaign_map_finishes_and_closes() {
     assert_eq!(own.files(), vec![file("overmap")], "the file the player asked for");
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the box is gone");
 }
+
+/// **The same save with the tips on — the setting the player actually has.**
+///
+/// `main.rs` turns nothing off, so `g_optTipScreens` is set and
+/// `Tip_Update` (`0x00476AA7`) runs every frame. Its last rung, the invasion
+/// tip, is the **one arm with no `g_screenId` test**, so it fires over the save
+/// box as readily as over the map; `Tip_Show` (`0x00476DA9`) then saves
+/// `g_screenId` and writes `0x27`.
+///
+/// In the original that pauses the count and nothing more: `SaveLoad_Tick`
+/// (`0x004AD9F0`) is called from `Screen_HandleInput`'s `g_screenId == '5' ||
+/// '6'` arm, so `0x27` stops it, and `FUN_00476E21` puts `0x36` back when the
+/// tip is dismissed and the count goes on. Ours seated the host **on top of the
+/// box** and never took it off, so `DAT_0057D3C4` never reached zero and the
+/// box sat on *"Saving game. Please wait."* for ever.
+#[test]
+fn a_tip_over_the_save_box_pauses_the_count_and_the_save_still_lands() {
+    use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};
+
+    let own = Saves::new("tip-over-save");
+    let (mut game, assets) = bare();
+    game.prefs.tip_screens = true;
+    let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
+    let mut events: Vec<Event> = "TIPPED".chars().map(Event::Text).collect();
+    events.push(click_widget(CONFIRM));
+    events.push(release_widget(CONFIRM));
+    drive(&mut m, &mut game, &assets, &events);
+
+    // Half the wait, then the invasion tip's flag: `Tip_Update`'s last rung.
+    for _ in 0..(WORK_FRAMES / 2) {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    let player = game.player;
+    let crossing = l2_kingdom::units_tick::Incursion { unit: 0, owner: player, county: 1 };
+    game.tips.note_incursions(&[crossing], player);
+    for _ in 0..4 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    assert!(own.files().is_empty(), "the tip pauses SaveLoad_Tick, as 0x27 does");
+
+    // The player reads it and clicks it away, and the count goes on.
+    drive(&mut m, &mut game, &assets, &[Event::Click { x: 320, y: 240 }]);
+    for _ in 0..=WORK_FRAMES {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    assert_eq!(own.files(), vec![file("tipped")], "{:?}", m.ids());
+}
