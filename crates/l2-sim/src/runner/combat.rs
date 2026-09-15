@@ -381,9 +381,11 @@ impl BattleRunner {
                     // That arm, `00480000.c:6560-6567`: `FUN_00491492` (return
                     // if non-zero), `local_10 = FUN_004912EC`, then `if
                     // (field_0x169 < 3) { tgX = mapX; tgY = mapY; return 0; }`.
+                    //
                     // `FUN_004912EC` — the engine's own side-step, three
                     // rotations each way — is not built, so `local_10` is never
                     // 1 here and the tail parks him (`00480000.c:6583-6586`).
+                    //
                     // `[D]` on the missing step; [`Self::tower_step`] is the
                     // same arm reached from [`Self::enter`] for a tower.
                     if self.fighters[i].troop.is_siege() {
