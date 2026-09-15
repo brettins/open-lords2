@@ -26,7 +26,7 @@ use l2_view::campaign;
 /// clicks the overview panel. A test that boxed the opening viewport and found
 /// nothing would be asserting on its own emptiness, which is exactly the failure
 /// `docs/agents.md` names.
-fn look_at_the_players_men(g: &mut Game) {
+pub fn look_at_the_players_men(g: &mut Game) {
     // The local realm is 1 and it owns the attacking army, which
     // `Battle_InitArmies` raises as army A — side 4, the one that is not
     // `SIDE_A` in `l2-sim`'s naming.
