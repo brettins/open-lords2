@@ -194,3 +194,65 @@ fn the_battlefield_opening_releases_the_buffer_and_the_bed_starts() {
     director.listen(&mut audio, &machine, &game);
     assert!(audio.one_shot_busy(), "the stop fired again on a frame that started no battle");
 }
+
+/// **The Music row empties the buffer both ways** — `Opt_ToggleMusic`
+/// (`0x004349A4`): off is `Music_Stop(0); Sound_StopOneShot();` on both
+/// phases, and on during a battle is `Music_StartBattle` (`0x00477B2F`), whose
+/// second statement is the same stop. The battlefield is already up, so the
+/// arrival edge in `Audio::follow` cannot be it.
+///
+/// **Ablation, run:** drop either arm of [`Audio::set_options`]'s stop and one
+/// of the two assertions below goes red.
+#[test]
+fn toggling_music_off_then_on_during_a_battle_empties_the_buffer() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no battle bank");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let game = world();
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    let mut audio = Audio::headless(&platform.vfs);
+    let mut director = audio::Director::new();
+    director.listen(&mut audio, &machine, &game);
+    machine.push(ScreenId::Battlefield);
+    director.listen(&mut audio, &machine, &game);
+
+    // Off, with a cry sounding: `g_battlePhase == 2` is no exemption.
+    assert!(audio.play_file("bathit2.wav", false), "the buffer took the cry");
+    let mut off = audio.options();
+    off.music = false;
+    audio.set_options(off);
+    assert!(!audio.one_shot_busy(), "the off arm stopped the music and left the buffer");
+    assert!(audio.music_name().is_none(), "and it did stop the music");
+
+    // And on again, the field still up.
+    assert!(audio.play_file("bathit2.wav", false), "the buffer took the second cry");
+    let mut on = audio.options();
+    on.music = true;
+    audio.set_options(on);
+    assert!(!audio.one_shot_busy(), "the on arm did not reach `Music_StartBattle`");
+}
+
+/// **The one-shot buffer is its own** — `DAT_00522AEC` is `Sound_PlayFile`'s
+/// (`0x00427990`), and the slot bank `Sound_PlaySlot`/`Sound_RestartSlot`
+/// (`0x00426120`, `0x00426216`) never touches it. So a click firing the same
+/// file leaves `Sound_OneShotBusy` (`0x00427C9B`) answering *busy*, and eight
+/// more slots cannot evict it.
+///
+/// **Ablation, run:** route `Audio::play_file` back through
+/// `Mixer::play_effect` and both assertions go red.
+#[test]
+fn a_slot_firing_the_same_file_leaves_the_one_shot_busy() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no clips");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let mut audio = Audio::headless(&platform.vfs);
+    assert!(audio.play_file("bathit2.wav", false), "the buffer took it");
+
+    audio.play_effect("bathit2.wav");
+    assert!(audio.one_shot_busy(), "a slot of the same file emptied the one-shot buffer");
+    // The eight-slot cap is the other way to lose it; `Mixer`'s own
+    // `the_slot_cap_cannot_evict_the_one_shot_buffer` has that half.
+}

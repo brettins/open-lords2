@@ -286,7 +286,10 @@ pub struct Audio {
     /// the voice [`Audio::play_file`] started is kept and the mixer is asked
     /// about that. A name would not do: [`crate::audio::Mixer::play_effect`]
     /// replaces a voice of the same file and the voice cap evicts the oldest,
-    /// either of which makes a name answer for a clip the buffer does not hold. `Sound_OneShotBusy` (`0x00427C9B`) and
+    /// either of which makes a name answer for a clip the buffer does not hold.
+    /// The buffer is the mixer's own voice, as `DAT_00522AEC` is the original's
+    /// own buffer — [`crate::audio::Mixer::play_one_shot`].
+    /// `Sound_OneShotBusy` (`0x00427C9B`) and
     /// `Sound_PlayFile`'s drop ask the same buffer, so [`Audio::play_file`] is
     /// the only thing that sets it — [`Audio::stop_and_play_file`] through it —
     /// [`Audio::stop_one_shot`] is the only thing that clears it, and

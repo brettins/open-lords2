@@ -129,7 +129,7 @@ impl Audio {
     /// Audio-side only. [`Director`] may branch on it, because what it decides
     /// is also only audio; a screen cannot reach [`Audio`] and so cannot.
     pub fn is_playing(&self, name: &str) -> bool {
-        self.mixer.lock().is_ok_and(|m| m.is_playing(&name.to_ascii_lowercase()))
+        self.mixer.lock().is_ok_and(|m| m.is_sounding(&name.to_ascii_lowercase()))
     }
 
     /// **`Sound_OneShotBusy` (`0x00427C9B`)** — is the narrator still talking?
@@ -140,11 +140,12 @@ impl Audio {
     /// fanfare, `fire.wav` and `bathit2.wav`, since every one of those sites now
     /// goes through it. A request that was dropped never becomes the occupant.
     /// **Asked of the handle, not of the file's name.** `Sound_OneShotBusy` is
-    /// `GetStatus(DAT_00522AEC) == 1` — one buffer, one answer — and the two
-    /// can differ here: the mixer keys voices by file, so a slot firing the
-    /// same file (`Sound_RestartSlot`, [`Audio::play_effect`]) replaces the
-    /// one-shot's voice while the name still answers *busy*, and the
-    /// eight-voice cap can evict it while the name answers *idle*.
+    /// `GetStatus(DAT_00522AEC) == 1` — one buffer, one answer — and a name
+    /// answers for any voice: a slot firing the same file
+    /// (`Sound_RestartSlot`, [`Audio::play_effect`]) would answer *busy* for a
+    /// clip the buffer no longer holds. `DAT_00522AEC` is its own buffer and
+    /// the slot bank never touches it, so it is [`mixer::Mixer`]'s own voice
+    /// too — see [`mixer::Mixer::play_one_shot`].
     pub fn one_shot_busy(&self) -> bool {
         self.one_shot.is_some_and(|h| self.mixer.lock().is_ok_and(|m| m.is_playing_handle(h)))
     }
@@ -152,7 +153,22 @@ impl Audio {
     /// Apply the three switches. Turning music off stops it; turning it back on
     /// leaves [`Audio::follow`] to start the right track on the next tick,
     /// which is how `Opt_ToggleMusic` behaves.
+    /// **`Opt_ToggleMusic` (`0x004349A4`)**, `[V]`, both arms of the Music row:
+    ///
+    /// ```c
+    /// if (g_optMusic == 0)          { Music_Stop(0); Sound_StopOneShot(); }
+    /// else if (g_battlePhase == 0)  Music_StartCampaign();
+    /// else if (g_battlePhase == 2)  Music_StartBattle();
+    /// ```
+    ///
+    /// **The off arm empties the one-shot buffer on both phases** — the row
+    /// labelled *Music* cuts whoever is speaking. **The on arm reaches
+    /// `Music_StartBattle` (`0x00477B2F`) when it is thrown during a battle**,
+    /// whose own second statement is that same `Sound_StopOneShot`, and the
+    /// battlefield is already up so [`Audio::follow`]'s arrival edge is not
+    /// it.
     pub fn set_options(&mut self, options: Options) {
+        let was_music = self.options.music;
         self.options = options;
         if let Ok(mut m) = self.mixer.lock() {
             m.music_on = options.music;
@@ -162,8 +178,11 @@ impl Audio {
             }
         }
         if !options.music {
+            self.stop_one_shot();
             // Forget what was playing so that switching back on re-derives.
             self.scene = None;
+        } else if !was_music && self.in_battle {
+            self.stop_one_shot();
         }
     }
 
@@ -192,6 +211,14 @@ impl Audio {
         //
         // The edge is the battlefield arriving; a film over the battle holds
         // it, so returning from one is not a second entry.
+        //
+        // **`Music_StartBattle` has four callers** and this edge is three of
+        // them: `Battle_Start` (`0x004778A0`), `FUN_00477C89` (the
+        // battle-resume path taken by `FUN_004976A1` after a load, which also
+        // calls the pair itself) and `FUN_004976A1`'s own else-arm — all three
+        // bring the battlefield up, so the arrival is the event. The fourth is
+        // `Opt_ToggleMusic` (`0x004349A4`) with the field **already** up, which
+        // no arrival can see: [`Audio::set_options`] has it.
         let battle_now = match scene {
             Scene::Battle(_) => true,
             Scene::Film { over_battle } => over_battle,
@@ -444,7 +471,7 @@ impl Audio {
         let Some(sound) = self.load(name) else { return false };
         let key = name.to_ascii_lowercase();
         if let Ok(mut m) = self.mixer.lock() {
-            self.one_shot = Some(m.play_effect(key, sound));
+            self.one_shot = Some(m.play_one_shot(key, sound));
         }
         true
     }

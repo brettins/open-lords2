@@ -62,15 +62,12 @@ impl Director {
         //
         // So turning the Music row off **also cuts whoever is speaking**, which
         // is not obvious from the row's label and is the only place in the
-        // binary where one switch reaches another channel. Read before the push
-        // because `audio.options()` is the previous tick's copy of `g_optMusic`
-        // — the push below is what makes it the current one.
-        let music_went_off = audio.options().music && !want.music;
+        // binary where one switch reaches another channel. Both arms of the
+        // stop are in [`Audio::set_options`], which is where `Opt_ToggleMusic`
+        // (`0x004349A4`) is reproduced: off empties the buffer, and on during a
+        // battle empties it through `Music_StartBattle` (`0x00477B2F`).
         if want != audio.options() {
             audio.set_options(want);
-        }
-        if music_went_off {
-            audio.stop_one_shot();
         }
 
         // **`Msg_Dismiss`'s (`0x00476768`) fourth statement** — the half of
@@ -398,6 +395,12 @@ impl Director {
         // question — was dropped against a blacksmith who had stopped
         // burning. One arm for the two sites: a director sees the screen
         // leave, not which click took it.
+        //
+        // `[D]`, twice and narrowly: the map-press route stops the buffer on
+        // the press even when `g_battlePhase != 0` keeps the popup up, and
+        // ours fires only where the popup actually goes; and our Job screen
+        // pops on Escape/Enter — an arm labelled ours — which reaches this
+        // stop as well.
         if self.stack.iter().any(|id| matches!(id, ScreenId::Job(..)))
             && !now.iter().any(|id| matches!(id, ScreenId::Job(..)))
         {
