@@ -374,10 +374,28 @@ impl BattleRunner {
                 if self.fighters[other].side == self.fighters[i].side {
                     // `BattleMan_Step` (`0x0048F1DD`, `00480000.c:6441`): an
                     // engine skips the swap arm, so `local_10` stays 0 and
-                    // `00480000.c:6494` — `if ((local_10 == 1) ||
-                    // (isSiegeEngine == 0))` — skips the side-step and the
-                    // search with it. A blocked engine stands. **[V]**.
+                    // `00480000.c:6495` — `if ((local_10 == 1) ||
+                    // (isSiegeEngine == 0))` — hands it to the engine arm
+                    // instead of the side-step and the search. **[V]**.
+                    //
+                    // That arm, `00480000.c:6560-6567`: `FUN_00491492` (return
+                    // if non-zero), `local_10 = FUN_004912EC`, then `if
+                    // (field_0x169 < 3) { tgX = mapX; tgY = mapY; return 0; }`.
+                    // `FUN_004912EC` — the engine's own side-step, three
+                    // rotations each way — is not built, so `local_10` is never
+                    // 1 here and the tail parks him (`00480000.c:6583-6586`).
+                    // `[D]` on the missing step; [`Self::tower_step`] is the
+                    // same arm reached from [`Self::enter`] for a tower.
                     if self.fighters[i].troop.is_siege() {
+                        let f = &mut self.fighters[i];
+                        if chebyshev(f.x as i16, f.y as i16, f.target.0 as i16, f.target.1 as i16)
+                            < 3
+                        {
+                            f.target = (f.x, f.y);
+                            f.path.clear();
+                            return;
+                        }
+                        f.delay = 100;
                         return;
                     }
                     // `00480000.c:6443`: the swap arm needs `other.state != 2
@@ -582,7 +600,8 @@ impl BattleRunner {
         if !self.fighters[other].progress.free || self.fighters[other].delay != 0 {
             return 0;
         }
-        // `00490000.c:42-51`: `other.state` 4, 9 and 6 answer 1 — stepped
+        // `00490000.c:44-51`: `other.state` 4 (44-45), 9 (47-48) and 6 (50-51)
+        // answer 1 — stepped
         // around, never pulled out of the cell. 9 is `BattleMan_StateFillMoat`
         // (`0x00483FE1`), landed here; **4, melee, is held out** — it turns the
         // seam's militia from 4 of 8 into 1 of 8
@@ -593,7 +612,7 @@ impl BattleRunner {
         if busy == State::FillingMoat {
             return 1;
         }
-        // `00490000.c:52-55`: `if (cur.tgX == other.tgX && cur.tgY ==
+        // `00490000.c:53-55`: `if (cur.tgX == other.tgX && cur.tgY ==
         // other.tgY) return 0` — two men with one destination are never
         // swapped. Ours had that test the other way round, and with the
         // side-step landed it is what two men of a marching unit do instead of
