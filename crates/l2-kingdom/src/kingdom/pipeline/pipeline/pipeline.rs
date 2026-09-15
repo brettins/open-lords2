@@ -43,7 +43,13 @@ impl Kingdom {
             rng: Pcg32::from_seed(seed),
             history: History::new(),
             weather_county: 1,
-            campaign: Campaign::new(),
+            // `Game_NewGame` (`0x00497CED`) calls `PlayerStart_Shuffle`
+            // (`0x00497E65`), whose second half deals `DAT_0057CAE0`.
+            campaign: {
+                let mut campaign = Campaign::new();
+                campaign.field_playlist = crate::field_playlist::FieldPlaylist::deal(seed);
+                campaign
+            },
             diplomacy: crate::diplomacy::Diplomacy::new(seed),
         }
     }

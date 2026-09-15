@@ -437,6 +437,12 @@ fn furnish_campaign(k: &mut Kingdom) {
         k.campaign.routes.set_row(route, row);
     }
     k.campaign.mob_cursor = 7;
+    // `DAT_0057CAE0` dealt, `DAT_005653F8` walked off zero so the round trip
+    // has a cursor to lose.
+    k.campaign.field_playlist = l2_kingdom::field_playlist::FieldPlaylist::deal(0x5EED);
+    for _ in 0..5 {
+        k.campaign.field_playlist.take_next();
+    }
     k.campaign.explored.reveal_square(1, 12, 40, 6);
     k.campaign.explored.reveal_square(4, 16, 44, 3);
 
@@ -575,7 +581,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +136 at version 30 for the ration shadow pair, county `+0x18C` and
     // `+0x190`: four bytes each over 17 county slots. `Ration_ApplyAll` writes
     // it and the two season ticks spend it.
-    assert_eq!(c.finish().len, 67_570, "the state encoding changed - bump VERSION?");
+    //
+    // +52 at version 31 for the field-battle playlist: `DAT_0057CAE0`'s 48
+    // bytes and `DAT_005653F8`'s four, the pair `FUN_00444A2F` net-syncs.
+    assert_eq!(c.finish().len, 67_622, "the state encoding changed - bump VERSION?");
 }
 
 /// The other half of the same property the census covers. A field can go
@@ -706,6 +715,10 @@ const FURNISHED_BY_CALL: &[(&str, &str, &str)] = &[
     ("County", "neighbours", "add_neighbour("),
     ("Unit", "kind", "Unit::new(kind,"),
     ("Explored", "seen", "explored.reveal_square("),
+    // The deal is `PlayerStart_Shuffle` (`0x00497E65`) and the cursor is
+    // `Battlefield_BuildRandom` (`0x0047AAA3`); neither is set field by field.
+    ("FieldPlaylist", "frames", "FieldPlaylist::deal("),
+    ("FieldPlaylist", "cursor", "field_playlist.take_next()"),
 ];
 
 /// This is the guard `docs/decisions.md` C30 said was missing and C39 wrote.

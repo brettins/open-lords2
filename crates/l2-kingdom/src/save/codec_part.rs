@@ -613,7 +613,23 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 30 with `VERSION` at 29 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
-pub const VERSION: u32 = 30;
+/// * 31 — **the field-battle playlist**,
+///   [`crate::field_playlist::FieldPlaylist`]: the 48 `batfield.pl8` frames
+///   `PlayerStart_Shuffle` (`0x00497E65`) deals at new game and the cursor
+///   `Battlefield_BuildRandom` (`0x0047AAA3`) walks them by. 48 bytes + 4.
+///
+///   **Refusal, under entry 16's rule: a defaulted load feeds the
+///   simulation.** The original stores neither global in a `.sav` — no row in
+///   `docs/stored-fields.json` for `0x0057CAE0` or `0x005653F8` — and gets
+///   away with it because the globals survive a load in the same process.
+///   Ours cannot: a peer that joins by loading would deal a fresh order from
+///   its own seed and fight the next battle on a different 80 x 80 raster than
+///   the peer that did not load. `FUN_00444A2F` net-syncs both halves at every
+///   battle start precisely because they are shared state.
+///
+///   *Written as 31 with `VERSION` at 30 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 31;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;

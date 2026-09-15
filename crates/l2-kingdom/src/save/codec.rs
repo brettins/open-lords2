@@ -213,6 +213,13 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     }
     out.u32(campaign.mob_cursor as u32);
 
+    // `Net_WriteField(&DAT_005653F8, 4); Net_WriteField(&DAT_0057CAE0, 0x30);`
+    // — `FUN_00444A2F` sends both halves at every battle start, so both are
+    // state a peer that loads must agree on. Version 31.
+    out.section("field_playlist");
+    out.raw(campaign.field_playlist.frames());
+    out.u32(campaign.field_playlist.cursor() as u32);
+
     out.section("explored");
     campaign.explored.encode(out);
 }
@@ -275,6 +282,12 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, L
         campaign.routes.set_row(route, row);
     }
     campaign.mob_cursor = input.u32()? as usize;
+
+    let frames = input.raw(crate::field_playlist::PLAYLIST_LEN)?;
+    let mut order = [0u8; crate::field_playlist::PLAYLIST_LEN];
+    order.copy_from_slice(frames);
+    let cursor = input.u32()? as usize;
+    campaign.field_playlist = crate::field_playlist::FieldPlaylist::restore(order, cursor);
 
     let seen = input.raw(crate::map::MAP_TILES)?;
     campaign.explored.copy_from_bytes(seen);

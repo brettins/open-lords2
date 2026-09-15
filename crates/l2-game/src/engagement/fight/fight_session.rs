@@ -41,6 +41,16 @@ pub fn begin_fight(
         (u.owner, u.owner_is_human)
     };
 
+    // **The playlist walk, before the field is built.** In
+    // `Battlefield_BuildRandom` (`0x0047AAA3`) the read and the bump of
+    // `DAT_005653F8` are the first two statements of the non-skirmish branch;
+    // a siege takes `Battlefield_BuildCastle` and never reaches them, so this
+    // only steps on the open field.
+    let frame = match castle_level {
+        Some(_) => 0,
+        None => kingdom.campaign.field_playlist.take_next(),
+    };
+
     let a = Muster { troops: &a_troops, owner: a_owner, human: a_human };
     let d = Muster { troops: &d_troops, owner: d_owner, human: d_human };
     let mut runner = match castle_level {
@@ -68,7 +78,7 @@ pub fn begin_fight(
         // `l2_sim::terrain::build_field`. `crate::batfield` is the process
         // global the original reads it out of, and it falls back to
         // [`blank_field`] on a checkout with no install.
-        None => BattleRunner::deploy_muster(crate::batfield::field(seed), seed, a, d),
+        None => BattleRunner::deploy_muster(crate::batfield::field_frame(frame, seed), seed, a, d),
     };
 
     // **What the last siege on this castle left.** `FUN_004787A4` is the last

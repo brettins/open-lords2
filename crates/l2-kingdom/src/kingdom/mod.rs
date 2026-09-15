@@ -149,6 +149,12 @@ pub struct Campaign {
     /// small one that would be easy to leave out of a save and never notice
     /// until two lockstep peers sent their mobs to different counties.
     pub mob_cursor: usize,
+    /// `DAT_0057CAE0` and `DAT_005653F8` — the dealt order of `batfield.pl8`
+    /// frames and the cursor an open-field battle walks it by. Same reason as
+    /// `mob_cursor`: one shared counter for the whole map, and the original
+    /// net-syncs both halves at every battle start
+    /// (`FUN_00444A2F`). [`crate::field_playlist`].
+    pub field_playlist: crate::field_playlist::FieldPlaylist,
     pub explored: crate::explore::Explored,
 }
 
@@ -167,6 +173,10 @@ impl Campaign {
             names: crate::unit::ArmyNames::new(),
             routes: crate::merchant::MerchantRoutes::none(),
             mob_cursor: 0,
+            // Zeros until a new game deals it: `Game_NewGame` (`0x00497CED`)
+            // reaches it through `PlayerStart_Shuffle`, so
+            // `Kingdom::with_tables` is where the deal happens.
+            field_playlist: crate::field_playlist::FieldPlaylist::empty(),
             // `Map_InitScenario` clears every seen bit (`FUN_0046DF51`) straight
             // after the planes are loaded.
             explored: crate::explore::Explored::new(),
