@@ -59,3 +59,20 @@ pub(super) enum SkirmishArm {
     File(usize),
 }
 
+/// The kind byte at `+0x0F` of each record of the widget table at
+/// `0x004DCF68` (`node tools/oracle/widgets.js widgets 4dcf68 22`): five of
+/// page 12's records read **2**, `Hotspot_Test` (`0x0040E3EE`) kind 2 — the
+/// down edge and then a flat pulse while held, `docs/input.md` §2. The other
+/// five are kind 1 and answer the down edge alone.
+pub(super) fn held_kind(arm: SkirmishArm) -> Option<crate::press::Kind> {
+    Some(match arm {
+        SkirmishArm::Scroll(_) => crate::arm!("0x0043D9CD/skirmish-scroll", Held),
+        SkirmishArm::Handicap(_) => crate::arm!("0x0043DAF3/skirmish-handicap", Held),
+        SkirmishArm::Kind(_) => crate::arm!("0x0043DC1D/skirmish-category", Held),
+        SkirmishArm::Sides => crate::arm!("0x0043DD83/skirmish-swap-sides", Held),
+        SkirmishArm::OpenFiles => crate::arm!("0x0043DDF4/skirmish-open-files", Held),
+        // `FUN_0043D929` and `FUN_00434174` are kind 1.
+        SkirmishArm::Row(_) | SkirmishArm::File(_) => return None,
+    })
+}
+

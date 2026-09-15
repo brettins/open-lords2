@@ -41,6 +41,7 @@ impl SetupScreen {
             skirmish_file_top: 0,
             clock_minute: None,
             clock_redraw: false,
+            press: crate::press::Press::new(),
         }
     }
 
@@ -101,7 +102,7 @@ impl SetupScreen {
         }
     }
 
-    fn hotspots(&self) -> Vec<(Rect, Action)> {
+    pub(crate) fn hotspots(&self) -> Vec<(Rect, Action)> {
         let mut v = Vec::new();
         match self.page {
             SetupPage::Title => {
