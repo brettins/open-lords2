@@ -41,6 +41,8 @@ mod skirmish_tests;
 pub use skirmish_tests::*;
 mod title_tests;
 pub use title_tests::*;
+mod held_tests;
+pub use held_tests::*;
 
 pub(crate) fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
     let mut ctx = Ctx { game, assets };

@@ -48,11 +48,12 @@ impl Screen for SetupScreen {
                 self.clock_redraw = true;
             }
         }
-        Transition::Stay
+        self.tick_held(ctx)
     }
 
     fn take_redraw(&mut self) -> bool {
-        core::mem::take(&mut self.clock_redraw)
+        let pulse = self.press.take_redraw();
+        core::mem::take(&mut self.clock_redraw) || pulse
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -68,6 +69,23 @@ impl Screen for SetupScreen {
             if self.name.event(event, &metrics) {
                 self.saved_name = self.name.commit(text::PLAYER_NAME_LEN);
                 return Transition::Stay;
+            }
+        }
+        // `Hotspot_Test` (`0x0040E3EE`) walks its table on every frame of
+        // input: the press, the move off the record and the release are one
+        // call. [`SetupScreen::press_event`] is that call, and the five kind-2
+        // records are the only ones it holds.
+        if matches!(
+            event,
+            Event::Click { .. }
+                | Event::DoubleClick { .. }
+                | Event::Release { .. }
+                | Event::Pointer { .. }
+                | Event::PointerLeft
+        ) {
+            match self.press_event(event, ctx) {
+                Transition::Stay => {}
+                t => return t,
             }
         }
         match event {
