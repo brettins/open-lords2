@@ -61,15 +61,16 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// seated over the map for ever and the delay at zero — and a save box pushed
 /// after it starved.
 ///
-/// Returns whether it closed. The marker for this arm is on its CALLER, in
+/// Returns what `Msg_Dismiss` asked for (`Dismissal::GameOver` carries its last
+/// three lines: `Campaign_EnterConquest(); g_screenId = 0x1C`), or `None` when
+/// the window is a question and stays. The marker for this arm is on its CALLER, in
 /// `screens/map/mod.rs`: the gesture is a click on the campaign map and this is
 /// only the four-line helper it reaches.
-pub fn dismiss_unless_question(game: &mut Game) -> bool {
+pub fn dismiss_unless_question(game: &mut Game) -> Option<Dismissal> {
     if !game.messages.dismissed_by_map_click() {
-        return false;
+        return None;
     }
-    dismiss(game);
-    true
+    Some(dismiss(game))
 }
 
 /// **`Event_Post` (`FUN_00448D7E`, `0x00448D7E`) — the only thing in the binary

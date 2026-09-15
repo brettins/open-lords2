@@ -318,8 +318,14 @@ impl Screen for MapScreen {
                 // let the click through, and this is what the click found.
                 // arm: 0x00476710/map-click-dismiss left-release
                 if ctx.game.messages.is_open() {
-                    crate::message::dismiss_unless_question(ctx.game);
-                    return Transition::Stay;
+                    // `Msg_Dismiss` (`00470000.c:2444`): a game-over letter's
+                    // dismissal is `Campaign_EnterConquest(); g_screenId = 0x1C`.
+                    return match crate::message::dismiss_unless_question(ctx.game) {
+                        Some(crate::message::Dismissal::GameOver(_)) => {
+                            Transition::Replace(ScreenId::Conquest)
+                        }
+                        _ => Transition::Stay,
+                    };
                 }
                 // **`Sidebar_ButtonClicked` is guard 3 and it is OUTSIDE the
                 // turn-ended gate**, which the menu bar below it is inside. So
