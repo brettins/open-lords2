@@ -320,6 +320,25 @@ mod tests {
         assert_eq!(c.shown_army, -10);
     }
 
+    /// **The player's county 4, 2026-09-14.** 435 people, happiness 72; he
+    /// levied 178 men and the county fell to 203 and then 180, starving the
+    /// dairy. Nothing in the season pipeline took them: `Levy_DebitPopulation`
+    /// (`0x004A9F18`) took 178, and `FUN_004A9A9A`'s tail charged the *share*,
+    /// 178/435 = 40, at `ARMY_HAPPINESS_COST[40]` = 64 — which is what left
+    /// happiness at 8 and set `Migration_UpdateAll` emigrating 48 then 32 to
+    /// county 3. The steepness of the table at a 40% levy is the whole story.
+    #[test]
+    fn a_levy_of_two_fifths_of_a_county_costs_it_nearly_all_its_happiness() {
+        let mut c = County::new();
+        c.population = 435;
+        c.happiness = 72;
+        assert_eq!(crate::industry::pct_of(178, c.population), 40);
+        assert_eq!(T.army_happiness_cost(40), 64);
+        assert_eq!(raise_army(T, &mut c, 178), 64);
+        assert_eq!(c.happiness, 8);
+        assert_eq!(c.shown_army, -64);
+    }
+
     /// The season's pass wipes both, so their effect on happiness is permanent
     /// and their effect on the panel lasts one turn.
     #[test]
