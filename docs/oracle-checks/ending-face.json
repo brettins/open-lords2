@@ -1,0 +1,21 @@
+{
+ "reviewed": "d6a2411703c98fd4b4875149faef4bd9cdf0aafe",
+ "date": "2026-09-14",
+ "source": "seeded from the conversation, not the report",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/screens/message/render.rs",
+   "line": 153,
+   "address": "0x00475D73",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/message/render.rs",
+   "line": 153,
+   "address": "0x00553EE0",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}

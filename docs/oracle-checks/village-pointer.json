@@ -1,0 +1,28 @@
+{
+ "reviewed": "0fb71bf787784990ab8d2f78aef5ce20bd0f8d2b",
+ "date": "2026-09-14",
+ "source": "seeded from the conversation, not the report",
+ "behaviours": [
+  {
+   "file": "crates/l2-formats/src/cursors.rs",
+   "line": 1,
+   "address": "0x004B2258",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/cursor.rs",
+   "line": 11,
+   "address": "0x004B2258",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/main.rs",
+   "line": 61,
+   "address": "0x004B2258",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}

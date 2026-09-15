@@ -1,0 +1,84 @@
+{
+ "reviewed": "5348e38bc05bd6adab764915c42fdde2f8f6cecf",
+ "date": "2026-09-14",
+ "source": "seeded from the conversation, not the report",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/audio/director/engine/director.rs",
+   "line": 311,
+   "address": "0x0042FF10",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/audio/director/engine/director.rs",
+   "line": 315,
+   "address": "0x005533F4",
+   "verdict": "departure",
+   "note": "labelled [D] in the cited block"
+  },
+  {
+   "file": "crates/l2-game/src/audio/director/engine/director.rs",
+   "line": 316,
+   "address": "0x0041438C",
+   "verdict": "departure",
+   "note": "labelled [D] in the cited block"
+  },
+  {
+   "file": "crates/l2-game/src/audio/engine/engine.rs",
+   "line": 102,
+   "address": "0x00522AEC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/audio/engine/engine.rs",
+   "line": 116,
+   "address": "0x00477B2F",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/audio/mixer.rs",
+   "line": 7,
+   "address": "0x00522AEC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/audio/mixer.rs",
+   "line": 8,
+   "address": "0x00427C9B",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/audio/mixer.rs",
+   "line": 69,
+   "address": "0x00427990",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/audio/mixer.rs",
+   "line": 158,
+   "address": "0x00427D19",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/audio/mod.rs",
+   "line": 143,
+   "address": "0x00427C9B",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/audio/mod.rs",
+   "line": 150,
+   "address": "0x00477B2F",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}
