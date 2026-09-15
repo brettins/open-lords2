@@ -154,6 +154,11 @@ pub struct Fighter {
     /// moves two cells in one tick. `delayState` is not carried — state 3 is
     /// walking and our mover re-derives `anim` from the target every tick —
     /// and `stepFlags` bit 1 is not modelled. `[D]`, both.
+    ///
+    /// **Three writers**, all in `BattleMan_Step` (`0x0048F1DD`): this swap
+    /// (`00480000.c:6451`), the refused swap's 1-2 frame wait
+    /// (`00480000.c:6461`) and the blocked arm's `delay = 100`
+    /// (`00480000.c:6585`). `BattleMan_StateDelay` (`0x00482F91`) is the reader.
     pub delay: u8,
 }
 

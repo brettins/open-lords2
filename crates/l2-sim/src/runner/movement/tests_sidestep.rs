@@ -222,8 +222,8 @@ fn a_short_detour_is_not_too_long() {
 /// never reaches `FUN_004904EC`; only a blocker from another unit — or a corpse
 /// — falls through to `local_10 = 3`.
 ///
-/// **The ablation.** Pass `true` instead of `!comrade` in
-/// [`BattleRunner::enter_cell`]'s friendly arm and this figure shuffles off its
+/// **The ablation.** Replace the `0` arm of
+/// [`BattleRunner::enter_cell`]'s friendly match with `request_path` and this figure shuffles off its
 /// slot. It is worth a test of its own: without the guard the side-step lets a
 /// whole unit scatter out of formation to reach contact, and
 /// `l2-game`'s `seam` battle swung from 4 attacker wins in 12 seeds to 10.
@@ -242,13 +242,15 @@ fn a_comrade_of_the_same_unit_is_not_side_stepped_around() {
     place(&mut r, b, 10, 9);
     r.fighters[a].target = (10, 9);
     // One destination for the two of them, so `BattleMen_SwapPlaces`
-    // (`0x0049005F`) takes its opening `return 0` — the wait.
+    // (`0x0049005F`) answers 0 at `00490000.c:52-55` — the wait.
     r.fighters[b].target = (10, 9);
 
     // Through the mover, since the guard is in `enter_cell`'s friendly arm.
     r.enter(a, Pos::new(10, 9));
 
     assert_eq!((r.fighters[a].x, r.fighters[a].y), (10, 10), "he waits for his own man");
+    assert_eq!(r.fighters[a].delay, (b & 1) as u8 + 1, "`delay = (other & 1) + 1`");
+    assert!(r.fighters[a].path.is_empty(), "`onRoute = 0`, `00480000.c:6445`");
 }
 
 /// **A man swapped out of his cell stands for a frame or two.**
@@ -271,7 +273,6 @@ fn a_swapped_man_stands_and_does_not_step_in_the_same_tick() {
     place(&mut r, b, 10, 9);
     // Same troop, two destinations: `BattleMen_SwapPlaces` (`0x0049005F`)
     // passes its `cur.tgX == other.tgX && cur.tgY == other.tgY` refusal and
-    // answers 2.
     r.fighters[a].target = (10, 5);
     r.fighters[b].target = (11, 5);
 

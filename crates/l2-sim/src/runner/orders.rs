@@ -293,9 +293,16 @@ impl BattleRunner {
             self.fighters[i].hold -= 1;
         }
 
-        // **State 1 stands and counts.** The original's delay is a whole slot
-        // of `g_manStateTable`, so a delayed man reaches neither the melee
-        // search nor the mover; [`Fighter::delay`] has its one writer.
+        // **State 1 stands and counts.** `BattleMan_StateDelay` (`0x00482F91`)
+        // is slot 1 of `g_manStateTable`: `Anim_Stand()`, then `delay -= 1` and
+        // at zero `state = delayState`, so a delayed man reaches neither the
+        // melee search nor the mover. Three writers put him here —
+        // `BattleMan_Step`'s swap arm ([`BattleRunner::swap_places`]), its
+        // refused-swap wait and the blocked arm's `delay = 100`
+        // ([`BattleRunner::request_path_with`]).
+        //
+        // Its `if (weaponClass != 0 && 5 < delay) BattleMan_FireMissile()` —
+        // a waiting archer still shoots — is not modelled here. `[D]`.
         if self.fighters[i].delay > 0 {
             self.fighters[i].delay -= 1;
             self.fighters[i].anim = Motion::Idle;
@@ -331,9 +338,12 @@ impl BattleRunner {
                 // militia from 4 of 8 into 3 of 8
                 // (`seam::the_same_position_can_be_fought_for_real…`).
                 //
-                // **The counter step stays behind with the return.** A state
-                // handler calls one `Anim_*` per man per tick, and the arm that
-                // acts below calls its own: `Anim_StrikeA2` (`0x00486249`,
+                // **The counter step stays behind with the return.** Not
+                // because a handler animates a man once — `BattleMan_StateMelee`
+                // runs `Anim_Strike` at `00480000.c:1384` and `Anim_Walk` at
+                // `00480000.c:1396` in the one tick whose opponent is in state
+                // 4 — but because this arm and the arm that acts below would
+                // each step `animPhase`: `Anim_StrikeA2` (`0x00486249`,
                 // `00480000.c:2510`) and then `Anim_WalkA2` (`00480000.c:2756`)
                 // stepped `animPhase` twice in one tick — figure 3, 21 → 23,
                 // read through `(phase + 23) % 24` by `battle_picture`'s

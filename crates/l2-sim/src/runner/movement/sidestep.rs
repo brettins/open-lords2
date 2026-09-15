@@ -61,8 +61,11 @@ impl BattleRunner {
         false
     }
 
-    /// `Cell_TryEnter`'s answer 1 — the only answer the side-step accepts —
-    /// with no side effects: in bounds, empty, passable, within one level.
+    /// Answer 1 of **`BattleMan_TryStepDir` (`0x00490616`)** — the only answer
+    /// the side-step accepts (`FUN_004904EC`, `00490000.c:114,118`) — with no
+    /// side effects: in bounds, empty, passable, within one level. It is the
+    /// direction-to-cell wrapper around `Cell_TryEnter` and clamps at the map
+    /// edge.
     ///
     /// **A castle cell is refused.** `Cell_TryEnter` answers 5 or 6 there for
     /// the attacker and 1 for the garrison on its own walls; neither 5 nor 6
@@ -91,10 +94,9 @@ impl BattleRunner {
         self.request_path_with(i, true)
     }
 
-    /// As above, with `local_10`'s two blocked values told apart:
-    /// `may_side_step` is false for a living comrade of the figure's own unit,
-    /// the one blocker the original never side-steps around. See
-    /// [`Self::enter_cell`]'s friendly arm.
+    /// As above, with the side-step withheld when `may_side_step` is false. No
+    /// caller passes `false` now that the swap arm's refusal is the wait
+    /// (`00480000.c:6459-6463`).
     pub(crate) fn request_path_with(&mut self, i: usize, may_side_step: bool) {
         // **`onRoute = 0`, at the head of the arm.** `BattleMan_Step`
         // (`0x0048F1DD`) clears it as the first statement under `local_10 == 2
@@ -154,6 +156,7 @@ impl BattleRunner {
         if crate::movement::detour_too_long(human, is_siege, f.side, cost, straight) {
             f.target = (f.x, f.y);
             f.path.clear();
+            self.fighters[i].delay = PARK;
             return;
         }
         match search.outcome {
@@ -193,5 +196,19 @@ impl BattleRunner {
             }
             Outcome::Unreachable => f.barred = f.barred.saturating_add(1),
         }
+        // **`00480000.c:6583-6586`, the tail of the blocked arm**: `local_10`
+        // still 2 or 3 — `FUN_004904EC` answered 8 and no route came back — is
+        // `delayState = state; state = 1; delay = 100`. **[V]**, decompiled.
+        // Ours retried the search on the next tick.
+        //
+        // The two early returns above — `hold > 0`, `barred >= 4` — are left
+        // out: they stand for `holdIt`'s own cooldown, which the original
+        // reloads on the way through this arm rather than at its tail. `[D]`.
+        if self.fighters[i].path.is_empty() {
+            self.fighters[i].delay = PARK;
+        }
     }
 }
+
+/// `delay = 100`, `00480000.c:6585`.
+const PARK: u8 = 100;
