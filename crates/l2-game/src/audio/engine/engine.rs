@@ -29,6 +29,7 @@ impl Audio {
             decodes: false,
             heard: std::collections::BTreeSet::new(),
             one_shot: None,
+            in_battle: false,
         }
     }
 
@@ -138,8 +139,14 @@ impl Audio {
     /// [`Audio::play_file`] put there — every voice line, every troop cry, every
     /// fanfare, `fire.wav` and `bathit2.wav`, since every one of those sites now
     /// goes through it. A request that was dropped never becomes the occupant.
+    /// **Asked of the handle, not of the file's name.** `Sound_OneShotBusy` is
+    /// `GetStatus(DAT_00522AEC) == 1` — one buffer, one answer — and the two
+    /// can differ here: the mixer keys voices by file, so a slot firing the
+    /// same file (`Sound_RestartSlot`, [`Audio::play_effect`]) replaces the
+    /// one-shot's voice while the name still answers *busy*, and the
+    /// eight-voice cap can evict it while the name answers *idle*.
     pub fn one_shot_busy(&self) -> bool {
-        self.one_shot.as_deref().is_some_and(|n| self.is_playing(n))
+        self.one_shot.is_some_and(|h| self.mixer.lock().is_ok_and(|m| m.is_playing_handle(h)))
     }
 
     /// Apply the three switches. Turning music off stops it; turning it back on
@@ -169,6 +176,31 @@ impl Audio {
     /// what the original does too, since `FUN_00499ACA` is called on every
     /// return to the campaign map.
     pub fn follow(&mut self, scene: Scene) {
+        // **`Music_StartBattle` (`0x00477B2F`), its first two statements:**
+        //
+        // ```c
+        // Music_Stop(0);
+        // Sound_StopOneShot();
+        // ```
+        //
+        // `[V]`. The bed below is the `Music_Stop` and the `Music_Play` after
+        // it; **this is the other one**, and without it the field's own
+        // first sound is dropped by whatever the campaign screen was still
+        // saying — `ff_batl.wav` at the battle question most of all, since
+        // both go through the one buffer. Ahead of the music switch because
+        // the original's stop is not conditional on `g_optMusic`.
+        //
+        // The edge is the battlefield arriving; a film over the battle holds
+        // it, so returning from one is not a second entry.
+        let battle_now = match scene {
+            Scene::Battle(_) => true,
+            Scene::Film { over_battle } => over_battle,
+            _ => false,
+        };
+        if battle_now && !self.in_battle {
+            self.stop_one_shot();
+        }
+        self.in_battle = battle_now;
         if !self.options.music {
             return;
         }
@@ -364,9 +396,9 @@ impl Audio {
     /// zeroed, so `Sound_OneShotBusy` answers 0 until something is put there
     /// again.
     pub fn stop_one_shot(&mut self) {
-        if let Some(name) = self.one_shot.take() {
+        if let Some(handle) = self.one_shot.take() {
             if let Ok(mut m) = self.mixer.lock() {
-                m.stop_effect(&name);
+                m.stop_handle(handle);
             }
         }
     }
@@ -412,9 +444,8 @@ impl Audio {
         let Some(sound) = self.load(name) else { return false };
         let key = name.to_ascii_lowercase();
         if let Ok(mut m) = self.mixer.lock() {
-            m.play_effect(key.clone(), sound);
+            self.one_shot = Some(m.play_effect(key, sound));
         }
-        self.one_shot = Some(key);
         true
     }
 

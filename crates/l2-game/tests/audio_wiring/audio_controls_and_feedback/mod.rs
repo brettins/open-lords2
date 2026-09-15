@@ -8,6 +8,8 @@ mod speech_and_panels;
 pub use speech_and_panels::*;
 mod battle_prompt_fanfare;
 pub use battle_prompt_fanfare::*;
+mod one_shot_stops;
+pub use one_shot_stops::*;
 mod mercenary_offer_voice;
 pub use mercenary_offer_voice::*;
 
