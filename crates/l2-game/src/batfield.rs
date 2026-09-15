@@ -36,13 +36,30 @@ pub fn loaded() -> bool {
     SHEETS.get().is_some()
 }
 
-/// The original takes the map from a 48-entry playlist at `0x0057CAE0` that a
-/// cursor walks one field per battle; we take it from the battle seed, so it
-/// is a pure function of state the digest already carries
-/// (`docs/netcode.md`). Everything downstream of the raster is the original's.
+/// **No playlist.** `Battlefield_BuildRandom` (`0x0047AAA3`) takes this branch
+/// when `DAT_0057A0F0 != 0` — the skirmish flag — and reads `DAT_0056D590`
+/// (+10 for `batfiel2.pl8`) instead of walking `DAT_0057CAE0`. Ours picks from
+/// the seed; that choice is the skirmish screen's and is untouched by the
+/// playlist.
 pub fn field(seed: u64) -> Battlefield {
     match SHEETS.get() {
         Some(sheets) if !sheets.is_empty() => build_field(sheets.pick(seed), seed as u32),
+        _ => l2_sim::runner::blank_field(),
+    }
+}
+
+/// **The campaign branch**, `DAT_00553528 = (&DAT_0057cae0)[DAT_005653F8]` in
+/// `Battlefield_BuildRandom` (`0x0047AAA3`): the frame is the playlist entry
+/// the caller already walked to, not a draw.
+/// [`l2_kingdom::field_playlist`] holds the walk.
+///
+/// The frame is taken modulo the sheet count, because the playlist is dealt
+/// over a fixed 48 and an install's `batfield.pl8` is what it is.
+pub fn field_frame(frame: u8, seed: u64) -> Battlefield {
+    match SHEETS.get() {
+        Some(sheets) if !sheets.is_empty() => {
+            build_field(sheets.pick(frame as u64), seed as u32)
+        }
         _ => l2_sim::runner::blank_field(),
     }
 }

@@ -101,6 +101,7 @@ pub mod divide;
 pub mod event;
 pub mod explore;
 pub mod field;
+pub mod field_playlist;
 pub mod happiness;
 pub mod health;
 pub mod industry;
