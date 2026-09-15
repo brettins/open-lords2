@@ -962,7 +962,7 @@ mod tests {
         let g = herd_growth(T, 100 - 13, 10, 300, c.herd_crowding, SPRING);
         assert_eq!(c.herd_births_expected, g.births);
         assert_eq!(c.herd_deaths_expected, g.deaths);
-        assert_eq!(c.herd_change_expected, g.net() - 13, "and the eating is counted again");
+        assert_eq!(c.herd_change_expected, g.net() - 13, "the coming slaughter, off the net too");
 
         // An empty county forecasts nothing at all: the original guards on
         // popBand, which is zero only where there are no people.

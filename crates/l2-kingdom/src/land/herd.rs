@@ -217,10 +217,17 @@ pub fn herd_growth(
 /// `FUN_0044DD4D`'s second call — next season's *"Calf births expected"*,
 /// *"Cow deaths expected"* and *"Change due to farming"* (`L2.eng` group 77).
 ///
-/// The herd it forecasts from is `herd - herdEaten`: the ration pass has
-/// already taken this season's animals, and the panel assumes next season will
-/// take as many again. That double subtraction is the original's, and it is
-/// what makes `change` the number a player sees.
+/// The herd it forecasts from is `herd - herdEaten`, and `change` is
+/// `net - herdEaten` again — **one slaughter, counted once in each, because
+/// `herdEaten` here is next season's.** `Ration_ApplyAll`'s shadow `+0x190` is
+/// what `Herd_SeasonTick` already spent; `Pass::RationPreview` then prices the
+/// coming season into `+0x17C` before `County_RefreshEstimates` calls this.
+/// Not a double subtraction — the old comment here said it was, from the
+/// retracted rule where the ration pass debited the store (C149).
+///
+/// `[V]` against `england-turn1.sav`: nine unowned counties, herd 67 and
+/// `herdEaten` 13, reproduce the stored `+0x250/+0x254/+0x258` of 22, 0 and 9.
+/// `tests/cattle_thirteen.rs`.
 ///
 /// Guarded on `popBand`, which is the original's guard — an empty county
 /// forecasts nothing. The labour search the same function performs, which
