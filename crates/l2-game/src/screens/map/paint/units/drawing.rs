@@ -337,6 +337,20 @@ pub(crate) fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, cli
 /// perfectly good one all looked the same on screen. The path is the original's
 /// own answer to that, and drawing it is how a player tells our bug from his own
 /// mis-click.
+///
+/// **There is no red X, and the search for one is on file here.** A player:
+/// *"There is no red X when I click to tell an army to move."* `Screen_DrawWidgets`
+/// (`0x004BA26E`) `0x10` arm is one statement, `Map_HoverUnitTarget()`. That calls
+/// `Path_MarkPreviewTiles` (`0x004A91BA`), the binary's only writer of tile bank bit
+/// `0x40`, and `Map_DrawPathMarker` (`0x004081A6`) clears the bit as it draws
+/// (`bank = bank & 0xbf`), so the trail is one frame and only on screen `0x10`.
+/// Every `g_flagsSheet` frame the binary names: `shield * 8 - 8 + phase` (`0x00 … 0x27`,
+/// `Map_DrawArmies` `0x00408438`), `0x38 + cost` and `0x4E` (`Map_DrawPathMarker`),
+/// `DAT_0057D390 + 0x79` (the merchant, `Map_DrawArmies`), `0x81`
+/// (`Pl8_DrawFrameClipped(g_flagsSheet, 0x81, …)`), `0x82` (`FUN_00407F82`). `FUN_00407E38`
+/// takes a frame parameter and has 0 callers. No cross, no destination marker, and
+/// `g_cursorByScreen[0x10]` (`0x004E3098`) is kind 14, `g_cursorScythe` (`0x004EABE4`) —
+/// not `g_cursorCross` (`0x004E659C`). **[V]**, rule 5: we could not find it.
 pub(crate) fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
     let Some(sel) = screen.move_order.as_ref() else { return };
