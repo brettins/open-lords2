@@ -192,3 +192,100 @@ fn the_selection_band_highlights_live_and_regroups_only_on_the_release() {
     assert!(live.runner.selected_count(1) > 0);
     assert_ne!(live.current_unit, 0, "the release did not commit the band");
 }
+
+/// A camera position whose viewport holds none of the living.
+fn look_at_empty_field(g: &mut Game) {
+    let live = g.battle.as_mut().expect("a live battle");
+    let men: Vec<(u8, u8)> = (0..live.runner.fighters.len())
+        .filter(|&i| live.runner.is_alive(i))
+        .map(|i| (live.runner.fighters[i].x, live.runner.fighters[i].y))
+        .collect();
+    for cy in 0..=(80 - bf::VIEW_ROWS) {
+        for cx in 0..=(80 - bf::VIEW_COLS) {
+            let clear = men.iter().all(|&(x, y)| {
+                (x as i32) < cx
+                    || (x as i32) >= cx + bf::VIEW_COLS
+                    || (y as i32) < cy
+                    || (y as i32) >= cy + bf::VIEW_ROWS
+            });
+            if clear {
+                live.cam = (cx, cy);
+                return;
+            }
+        }
+    }
+    panic!("the field has no empty viewport");
+}
+
+/// Box the whole viewport and commit it, which is how a unit gets held.
+fn band_the_whole_viewport(m: &mut Machine, g: &mut Game, a: &l2_game::game::Assets) {
+    let start = (bf::VIEW.x + 4, bf::VIEW.y + 4);
+    let end = (bf::VIEW.x + bf::VIEW.w - 4, bf::VIEW.y + bf::VIEW.h - 4);
+    send(m, g, a, Event::Pointer { x: start.0, y: start.1 });
+    send(m, g, a, Event::Click { x: start.0, y: start.1 });
+    send(m, g, a, Event::Pointer { x: end.0, y: end.1 });
+    send(m, g, a, Event::Release { x: end.0, y: end.1 });
+}
+
+/// **A release that boxed nobody commits nothing.** `Battle_DragSelect`
+/// (`0x0043BF07`, `00430000.c:6906`) wraps the whole kind-1 commit in
+/// `if (DAT_00553078 != 0)` — the men held *at the release*, which the live
+/// re-box has already recomputed. Box over empty field and that count is zero,
+/// so the clear, the re-box and the regroup inside `Battle_CommitSelection`'s
+/// `commit == 1` (`00430000.c:7009`) all stay unrun, and `DAT_0053E984` — our
+/// `current_unit` — keeps the unit it had. The clear is the unobservable half:
+/// the live re-box emptied the selection a frame earlier either way.
+///
+/// **Ablated**: dropping the gate regroups an empty selection and turns
+/// `current_unit` to 0.
+#[test]
+fn a_release_that_boxed_nobody_leaves_the_unit_standing() {
+    let (mut g, a, mut m) = a_paused_battlefield();
+    band_the_whole_viewport(&mut m, &mut g, &a);
+    let unit = g.battle.as_ref().expect("a live battle").current_unit;
+    assert_ne!(unit, 0, "the band did not hold a unit");
+
+    look_at_empty_field(&mut g);
+    let units_before = a_snapshot(&g).1;
+    band_the_whole_viewport(&mut m, &mut g, &a);
+    let live = g.battle.as_ref().expect("a live battle");
+    assert_eq!(live.runner.selected_count(1), 0, "the empty field selected somebody");
+    assert_eq!(live.current_unit, unit, "the release regrouped with nobody boxed");
+    assert_eq!(a_snapshot(&g).1, units_before, "the release issued an order");
+}
+
+/// **The overview panel refuses to order a pot of oil.** `BattleMap_Click`
+/// (`0x00432443`, `00430000.c:239`) orders only when `DAT_0053E8BC == 0`, the
+/// picked-oil count `BattleUnits_RegroupSelection` (`0x00478987`) writes — one
+/// of five buckets, all zeroed when more than one is filled, so non-zero only
+/// for a selection that is nothing but troop type 10. With a pot held the
+/// click **looks** there instead: a pot is ordered by pouring downhill.
+///
+/// **Ablated**: dropping the `oil_selected` clause orders the pot and leaves
+/// the camera where it was.
+#[test]
+fn the_overview_looks_rather_than_orders_a_pot_of_oil() {
+    let (mut g, a, mut m) = a_paused_battlefield();
+    band_the_whole_viewport(&mut m, &mut g, &a);
+    let cell = |c: (i32, i32)| (bf::OVERVIEW.x + c.0 * 2, bf::OVERVIEW.y + c.1 * 2);
+
+    // The control: men, so the click is an order and the camera stands still.
+    let cam_before = g.battle.as_ref().expect("a live battle").cam;
+    let units_before = a_snapshot(&g).1;
+    click(&mut m, &mut g, &a, cell((60, 60)));
+    assert_eq!(g.battle.as_ref().expect("a live battle").cam, cam_before, "the order looked");
+    assert_ne!(a_snapshot(&g).1, units_before, "the overview click gave no order");
+
+    // Now the selection is a pot.
+    {
+        let live = g.battle.as_mut().expect("a live battle");
+        for i in live.runner.selected_fighters(1) {
+            live.runner.fighters[i].troop = l2_sim::Troop::Oil;
+        }
+    }
+    let units_before = a_snapshot(&g).1;
+    click(&mut m, &mut g, &a, cell((10, 10)));
+    let live = g.battle.as_ref().expect("a live battle");
+    assert_eq!(live.cam, (3, 3), "the pot's click did not look at the cell");
+    assert_eq!(a_snapshot(&g).1, units_before, "the pot took an order from the overview");
+}

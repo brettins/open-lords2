@@ -79,6 +79,24 @@ impl LiveBattle {
         best as u8
     }
 
+    /// **`DAT_0053E8BC`** — the fourth of the five panel counters
+    /// `BattleUnits_RegroupSelection` (`0x00478987`) writes: how many picked
+    /// figures are **boiling oil**, troop type 10. The five buckets are types
+    /// 7, 8, 9, 10 and *everything else*, and **all five are zeroed when more
+    /// than one bucket is non-empty** — so the counter is non-zero only for a
+    /// selection that is nothing but oil. That is what makes the overview
+    /// panel's "no oil selected" guard (`BattleMap_Click`, `0x00432443`) mean
+    /// *this selection is a pot*: a pot is ordered by pouring downhill, not by
+    /// a click on a map two pixels to the cell. `[V]`
+    fn oil_selected(&self) -> bool {
+        let mut bucket = [false; 5];
+        for f in self.runner.selected_fighters(self.owner) {
+            let i = self.runner.fighters[f].troop.index();
+            bucket[if (7..=10).contains(&i) { i - 7 } else { 4 }] = true;
+        }
+        bucket[3] && bucket.iter().filter(|&&b| b).count() == 1
+    }
+
     /// Append one [`Cry`] for the current selection.
     fn cry(&mut self, class: u8) {
         let troop = self.cry_troop();
@@ -475,8 +493,16 @@ impl LiveBattle {
         let moved = d.px != (x, y);
         d.px = (x, y);
         self.drag = Some(d);
-        if self.drag_kind(d, x, y) == DragKind::Nothing || !moved {
+        // The two declines differ in the original (`00430000.c:6944-6951`) and
+        // ours must too: kind 0 returns **0**, so the arm behind gets the
+        // motion; an unchanged input returns **1**, consumed and uncommitted.
+        // `!moved` stands in for `g_mouseInputChanged`, which is any input at
+        // all and not only the pointer. `[D]`
+        if self.drag_kind(d, x, y) == DragKind::Nothing {
             return false;
+        }
+        if !moved {
+            return true;
         }
         let (a, b) = (d.anchor_px, d.px);
         let (lo, hi) = self.box_corners(a, b);
@@ -526,6 +552,19 @@ impl LiveBattle {
         self.redraw = true;
         let picked = match self.drag_kind(d, x, y) {
             DragKind::Box => {
+                // **`if (DAT_00553078 != 0)` wraps the whole kind-1 commit** —
+                // `Battle_DragSelect` (`0x00430000`, `00430000.c:6906`). With
+                // nothing held at the release the box commits **nothing**: no
+                // clear, no re-box, and (the regroup living inside
+                // `Battle_CommitSelection`'s `commit == 1`,
+                // `00430000.c:7009`) no regroup, no narrow, no recount. It
+                // still returns 1, so the order arm behind never sees it. The
+                // count is the one standing at the release — the held branch
+                // re-boxes live, but only for a gesture that already classified
+                // as something. `[V]`
+                if self.runner.selected_count(self.owner) == 0 {
+                    return true;
+                }
                 let (lo, hi) = self.box_corners(d.anchor_px, (x, y));
                 self.runner.pick_box(self.owner, lo, hi, true);
                 false
@@ -685,7 +724,10 @@ impl LiveBattle {
             return false;
         }
         let cell = (((x - OVERVIEW.x) / 2) as u8, ((y - OVERVIEW.y) / 2) as u8);
-        let orderable = !right && self.runner.selected_count(self.owner) > 0 && !self.paused;
+        let orderable = !right
+            && self.runner.selected_count(self.owner) > 0
+            && !self.oil_selected()
+            && !self.paused;
         if orderable {
             self.runner.order_selected(self.owner, cell.0, cell.1, None, false);
             self.current_unit = self.runner.regroup_selection(self.owner);
