@@ -3,14 +3,28 @@ use super::*;
 use super::pathfinding::*;
 use super::*;
 
+/// [`BattleRunner::request_path`] and the side-step live next door.
+#[path = "sidestep.rs"]
+mod sidestep;
+
+/// The three symptoms the side-step has to stay under.
+#[cfg(test)]
+#[path = "tests_march.rs"]
+mod tests_march;
+
 impl BattleRunner {
     pub(crate) fn next_step(&self, i: usize) -> Option<Pos> {
         let f = &self.fighters[i];
-        if let Some(&wp) = f.path.last() {
-            return Some(wp);
-        }
-        let dx = f.target.0 as i32 - f.x as i32;
-        let dy = f.target.1 as i32 - f.y as i32;
+        // **A waypoint is a direction, not a destination.**
+        // `BattleMan_NextPathDir` (`0x00491A34`) reads the waypoint and returns
+        // `Dir_FromDelta(mapX, mapY, wpX, wpY)`; `FUN_00491B1F` then moves the
+        // man **one cell** that way. Ours returned the waypoint itself, and
+        // that was the 32 and 64 px teleports
+        // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick` sees.
+        let (dx, dy) = match f.path.last() {
+            Some(&wp) => (wp.x as i32 - f.x as i32, wp.y as i32 - f.y as i32),
+            None => (f.target.0 as i32 - f.x as i32, f.target.1 as i32 - f.y as i32),
+        };
         let facing = facing_from_delta(dx, dy)?;
         let (sx, sy) = FACING_DELTA[facing as usize];
         let nx = f.x as i32 + sx;
@@ -19,72 +33,6 @@ impl BattleRunner {
             return None;
         }
         Some(Pos::new(nx as u8, ny as u8))
-    }
-
-    pub(crate) fn request_path(&mut self, i: usize) {
-        {
-            let f = &self.fighters[i];
-            if f.hold > 0 || f.barred >= 4 {
-                return;
-            }
-        }
-        let (start, dest, side) = {
-            let f = &self.fighters[i];
-            (f.pos(), Pos::new(f.target.0, f.target.1), f.side)
-        };
-
-        let mut grid = Grid::open();
-        for (c, blocked) in self.blocked.iter().enumerate() {
-            if *blocked {
-                grid.blocked[c] = true;
-            }
-        }
-        for (c, occ) in self.occupant.iter().enumerate() {
-            if let Some(o) = occ {
-                if self.fighters[*o as usize].side == side && *o as usize != i {
-                    grid.occupied[c] = true;
-                }
-            }
-        }
-
-        let search = pathfind::search(&grid, start, dest);
-        let f = &mut self.fighters[i];
-        f.hold = 64;
-        f.reroutes = f.reroutes.saturating_add(1);
-        match search.outcome {
-            Outcome::Found => {
-                let mut path = pathfind::extract(&grid, &search, start, dest);
-                path.reverse(); // consumed from the end
-                if path.is_empty() {
-                    f.barred = f.barred.saturating_add(1);
-                } else {
-                    f.path = path;
-                    f.barred = 0;
-                }
-            }
-            // The original has no such hole, because **`Path_LineIsClear` is
-            // not a predicate**: it seeds `g_pathCost` through
-            // `Path_BuildBlockedMap` — which marks friendly figures 998 — walks
-            // two greedy walkers that *rotate around* whatever is in the way,
-            // and **leaves the cost field behind**. `BattleMan_Step` then runs
-            // `Path_Extract` on it whether or not the flood fill ran, so the
-            // figure comes away with the walked route, comrade-avoiding
-            // detours and all. [`pathfind::Grid::walk_line`] is that walk, read
-            // out of `0x004710F2`.
-            Outcome::NoSearchNeeded => {
-                if let Some(cost) = grid.walk_line(start, dest) {
-                    let walked = pathfind::Search { outcome: Outcome::Found, cost };
-                    let mut path = pathfind::extract(&grid, &walked, start, dest);
-                    path.reverse();
-                    let f = &mut self.fighters[i];
-                    if !path.is_empty() {
-                        f.path = path;
-                        f.barred = 0;
-                    }
-                }
-            }
-            Outcome::Unreachable => f.barred = f.barred.saturating_add(1),
-        }
     }
 
 

@@ -134,6 +134,32 @@ pub struct Fighter {
     /// key here and is not in the original — so the count is what says the body
     /// is gone, and [`BattleRunner::corpse_gone`] is what the renderer asks.
     pub corpse: u16,
+    /// **Frames this man must stand still** — figure record `+0x172`, the
+    /// original's `delay`, counted down by its state 1 handler.
+    ///
+    /// `BattleMan_Step` (`0x0048F1DD`) puts the man swapped out of his cell
+    /// into it:
+    ///
+    /// ```c
+    /// if (BattleMen_SwapPlaces() == 2) {            /* 0x0049005F */
+    ///     other.state = 1;  other.delayState = 3;
+    ///     other.stepFlags &= 0xFD;
+    ///     other.delay = (other & 1) + 1;            /* 1 or 2 frames */
+    ///     other.barred = 0;  cur.barred = 0;
+    ///     return 0;
+    /// }
+    /// ```
+    ///
+    /// so a pushed man takes no step of his own that frame; without it he
+    /// moves two cells in one tick. `delayState` is not carried — state 3 is
+    /// walking and our mover re-derives `anim` from the target every tick —
+    /// and `stepFlags` bit 1 is not modelled. `[D]`, both.
+    ///
+    /// **Three writers**, all in `BattleMan_Step` (`0x0048F1DD`): this swap
+    /// (`00480000.c:6451`), the refused swap's 1-2 frame wait
+    /// (`00480000.c:6461`) and the blocked arm's `delay = 100`
+    /// (`00480000.c:6585`). `BattleMan_StateDelay` (`0x00482F91`) is the reader.
+    pub delay: u8,
 }
 
 pub const CORPSE_FRAMES: u16 = 80;

@@ -293,6 +293,22 @@ impl BattleRunner {
             self.fighters[i].hold -= 1;
         }
 
+        // **State 1 stands and counts.** `BattleMan_StateDelay` (`0x00482F91`)
+        // is slot 1 of `g_manStateTable`: `Anim_Stand()`, then `delay -= 1` and
+        // at zero `state = delayState`, so a delayed man reaches neither the
+        // melee search nor the mover. Three writers put him here —
+        // `BattleMan_Step`'s swap arm ([`BattleRunner::swap_places`]), its
+        // refused-swap wait and the blocked arm's `delay = 100`
+        // ([`BattleRunner::request_path_with`]).
+        //
+        // Its `if (weaponClass != 0 && 5 < delay) BattleMan_FireMissile()` —
+        // a waiting archer still shoots — is not modelled here. `[D]`.
+        if self.fighters[i].delay > 0 {
+            self.fighters[i].delay -= 1;
+            self.fighters[i].anim = Motion::Idle;
+            return;
+        }
+
         if self.fill_moat_tick(i) {
             return;
         }
@@ -318,17 +334,26 @@ impl BattleRunner {
                 // **[D]** The original *returns* from the handler here, giving
                 // the figure a tick in which he only swings. Ours writes the
                 // pose and falls through to the arms below, so an arm that acts
-                // this tick overwrites it. Returning costs both of the gates
-                // that measure this seam: a figure dropped mid-crossing has his
-                // `walking` counter frozen while the trail is drawn from it,
-                // eight jumps of a whole cell over a 42-figure battle
-                // (`battle_picture`'s
-                // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`), and the
-                // skipped melee search turns the seam's militia from 6 of 8
-                // into 8 of 8. The order of the writes is the original's; the
-                // skipped tick is not.
+                // this tick overwrites it; returning instead turns the seam's
+                // militia from 4 of 8 into 3 of 8
+                // (`seam::the_same_position_can_be_fought_for_real…`).
+                //
+                // **The counter step stays behind with the return.** Not
+                // because a handler animates a man once — `BattleMan_StateMelee`
+                // runs `Anim_Strike` at `00480000.c:1384` and `Anim_Walk` at
+                // `00480000.c:1396` in the one tick whose opponent is in state
+                // 4 — but because this arm and the arm that acts below would
+                // each step `animPhase`: `Anim_StrikeA2` (`0x00486249`,
+                // `00480000.c:2510`) and then `Anim_WalkA2` (`00480000.c:2756`)
+                // stepped `animPhase` twice in one tick — figure 3, 21 → 23,
+                // read through `(phase + 23) % 24` by `battle_picture`'s
+                // `a_marching_man_is_drawn_at_the_phase_he_ended_the_last_tick_with`.
+                // `facing_drawn` is left written: `Anim_StandA2` does not write
+                // it, so the swing's drawn facing survives a stand.
                 let facing = self.fighters[i].facing;
+                let phase = self.fighters[i].phase;
                 self.strike(i, facing);
+                self.fighters[i].phase = phase;
             }
         }
 
