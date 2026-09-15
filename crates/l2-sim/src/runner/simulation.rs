@@ -285,6 +285,7 @@ impl BattleRunner {
                         moat_load: 0,
                         polar: 0,
                         corpse: 0,
+                        delay: 0,
                     });
                 }
                 left -= unit_men;

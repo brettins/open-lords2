@@ -368,12 +368,49 @@ impl BattleRunner {
             Some(other) => {
                 let other = other as usize;
                 if self.fighters[other].side == self.fighters[i].side {
+                    // `BattleMen_SwapPlaces` (`0x0049005F`) answers 0 for
+                    // `other.state` 2, 3 and 8 before it exchanges anything; 3
+                    // is walking, and `progress.free` is our reading of it.
+                    // `[D]` on the reading, **[V]** on the refusal. A man
+                    // already standing out a swap is not swapped again: two
+                    // swaps in one tick moved a man two cells between drawn
+                    // frames, 28 of them at 64 px in
+                    // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`. `[D]`.
+                    // **Two men with one destination are never swapped** —
+                    // `BattleMen_SwapPlaces` (`0x0049005F`) opens
+                    // `if (cur.tgX == other.tgX && cur.tgY == other.tgY)
+                    // return 0;`. Ours had that test the other way round, and
+                    // with the side-step landed it is what two men of a
+                    // marching unit do instead of shuffling: exchange cells
+                    // every other tick for ever — 294 drawn jumps of 32 px in
+                    // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`, and
+                    // the jitter `no_man_alternates_between_two_cells` names.
+                    // **[V]**, decompiled.
                     if self.fighters[other].troop == self.fighters[i].troop
-                        && self.fighters[other].target == self.fighters[i].target
+                        && self.fighters[other].target != self.fighters[i].target
+                        && self.fighters[other].progress.free
+                        && self.fighters[other].delay == 0
                     {
                         self.swap_places(i, other);
                     } else {
-                        self.request_path(i);
+                        // `BattleMan_Step`'s `local_10 == 0` arm reaches
+                        // `FUN_004904EC` only through `local_10 = 3`:
+                        //
+                        // ```c
+                        // if (other.state != 2 && unit == other.unit) {
+                        //     if (SwapPlaces() == 2) { …swap…     return 0; }
+                        //     if (SwapPlaces() == 0) { state = 1;
+                        //         delay = (other & 1) + 1;        return 0; }  /* he waits */
+                        // }
+                        // local_10 = 3;                          /* only then, the side-step */
+                        // ```
+                        //
+                        // Ours still asks for a route, C103's fix for a
+                        // deadlock the original does not have; only the
+                        // side-step is withheld.
+                        let comrade =
+                            self.unit_of(other) == self.unit_of(i) && self.is_alive(other);
+                        self.request_path_with(i, !comrade);
                     }
                 } else if self.is_alive(other) {
                     let (ua, ub) = (self.unit_of(i), self.unit_of(other));
@@ -541,12 +578,40 @@ impl BattleRunner {
         self.fighters[a].y = by;
         self.fighters[b].x = ax;
         self.fighters[b].y = ay;
-        self.fighters[a].progress = Progress::default();
-        self.fighters[b].progress = Progress::default();
+        // **The two men are drawn walking past each other**, not teleported.
+        // `BattleMen_SwapPlaces` (`0x0049005F`) exchanges `mapX`, `mapY` and
+        // `cellOffset` and touches neither `walking` nor `dirc`, so the
+        // original draws both of them a whole cell away in one frame; ours
+        // may not — `no_drawn_man_ever_jumps_half_a_cell_in_one_tick` counts
+        // 500 such jumps, worst 64 px. Each man takes the facing of the cell
+        // he was given and starts that crossing, which is the same cell at the
+        // same tick and a trail behind it. `[D]`.
+        for (m, from, to) in [(a, (ax, ay), (bx, by)), (b, (bx, by), (ax, ay))] {
+            if let Some(d) =
+                facing_from_delta(to.0 as i32 - from.0 as i32, to.1 as i32 - from.1 as i32)
+            {
+                self.fighters[m].facing = d;
+            }
+            self.fighters[m].progress.begin_crossing();
+            // **Both men are stood this frame.** `BattleMan_Step`
+            // (`0x0048F1DD`) returns 0 from the swap arm and
+            // `BattleMan_StateWalk` (`0x0048314E`) is `Anim_Walk(); if
+            // (BattleMan_Step(0) == 0) Anim_Stand();`, so neither man's walk
+            // counter is stepped by this move —
+            // `a_marching_man_is_drawn_at_the_phase_he_ended_the_last_tick_with`
+            // reads that counter. **[V]**.
+            self.stand(m);
+        }
         self.fighters[a].path.clear();
         self.fighters[b].path.clear();
         self.occupant[by as usize * DIM + bx as usize] = Some(a as u16);
         self.occupant[ay as usize * DIM + ax as usize] = Some(b as u16);
+        // `BattleMan_Step`'s swap arm (`0x0048F1DD`): `other.state = 1;
+        // other.delayState = 3; other.delay = (other & 1) + 1`. See
+        // [`Fighter::delay`].
+        self.fighters[b].delay = (b & 1) as u8 + 1;
+        self.fighters[a].barred = 0;
+        self.fighters[b].barred = 0;
     }
 
 }
