@@ -29,5 +29,6 @@ let input = ""; process.stdin.on("data", d => input += d).on("end", () => {
   }
   if (!hits.length) return;
   const shown = hits.slice(0, 4).map(([k, b]) => `  ${k}: ${b.slice(0, 110)}`).join("\n");
-  process.stdout.write(`comment-lint: ${rel}: ${hits.length} comment line(s) argue instead of stating (rule 7: the function, the address, the fact; no bold, no shouting, no "X, not Y"). Rewrite them before reporting:\n${shown}\n`);
+  const shape = "/// `Turn_End` (`0x0043AC23`) writes 999 when the person presses the button.";
+  process.stdout.write(`comment-lint: ${rel}: ${hits.length} comment line(s) to restate in the shape of docs/agents.md, The comment shape (the function, the address, the fact), like\n  ${shape}\n${shown}\n`);
 });

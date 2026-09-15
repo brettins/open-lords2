@@ -22,8 +22,8 @@ other, and neither will notice.
 `docs/plan.md`'s in-flight lists read as current long after they were not. Two "held for
 cause" verdicts were wrong by the time anybody acted on them, and a machine restart needed an
 emergency dump of state that existed only in the lead's session. The player put the fix in
-one sentence: *"your context window is not a good project management understanding — you
-should be an interface for whatever project management setup you're running."
+25: one sentence: *"your context window is not a good project management understanding — you
+26: should be an interface for whatever project management setup you're running."
 
 That setup is **`docs/work.json`**: one row per piece of live work. **The failure it exists
 to prevent is the one `plan.md` suffered — a status that looks current and is not.**
@@ -43,7 +43,7 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
    drifting copy of it.
 4. **The lead is the only writer of `docs/work.json`, on branch `pm/ledger`.** Agents report;
    they do not edit it. The file merges by `id` through the keyed driver, keeping its row
-   order (the merge queue is read top to bottom) and its one-row-per-line shape, so a merge
+   46: order (the merge queue is read top to bottom) and its one-row-per-line shape, so a merge
    between `pm/ledger` and `main` cannot misalign rows. One writer is what keeps it from
    needing to.
 
@@ -57,20 +57,20 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
   names exists; no `in-flight` or `queued-merge` row names a branch already merged into
   `main`; no unmerged `worktree-agent-*` or `wip/*` branch with commits ahead of `main` goes
 no `queued-merge` branch carries `HANDOFF.md`. A fresh clone or a CI runner
-  has no agent branches, so this half **prints `SKIP` with the reason and the number of rows
+  60: has no agent branches, so this half **prints `SKIP` with the reason and the number of rows
   it did not compare**
 
 `--status` is the derived view as text. `--html <path>` writes **the player's page**: the
 original game's features graded done / partial / missing / not assessed from
 **`docs/features.json`**, then what is in progress, what merges next, what waits on him, and
-the backlog and the numbers folded away — one line per item, a ledger row's title and
+66: the backlog and the numbers folded away — one line per item, a ledger row's title and
 nothing else. `--html-detail <path>` writes the full page for agents. Both are generated,
-**never committed**, with the time and the `main` SHA on them so their own staleness is
+68: **never committed**, with the time and the `main` SHA on them so their own staleness is
 visible. The player's first page printed every row's prose and had no feature list; he
 called it *"blabby"*.
 
 **`docs/features.json` is a claim, so `--check` holds it to evidence.** A `done` feature must
-cite a correction, a path, or an `arms:`/`audio:` inventory entry, and the full check proves
+73: cite a correction, a path, or an `arms:`/`audio:` inventory entry, and the full check proves
 each exists on `main`; every ledger row a feature names must be in the ledger — **when a row
 merges and leaves, the feature citing it goes red and must be re-graded**. A missing or
 partial feature citing no row is reported, not failed: it is work nobody has written down.
@@ -80,7 +80,7 @@ systems inventories out of whatever checkout the tool sat in while its header sa
 `main 76a0437`. Run from an agent's worktree, it quoted that worktree's differential (251 of
 279) and census (399) under main's name when main held 258 and 412. It also stamped the ledger
 with the tool's own HEAD. So every figure is read with `git show <ref>:<path>` (`--ref`,
-default `main`), and the ledger line names **the ledger file's** checkout, branch and last
+83: default `main`), and the ledger line names **the ledger file's** checkout, branch and last
 commit, or says plainly that no commit holds it. The lead caught it by reading the page, which
 is the only reason this paragraph exists; `work_ledger.rs` now holds both, in a scratch
 repository whose working tree disagrees with its `main` on every inventory.
@@ -93,7 +93,7 @@ repository whose working tree disagrees with its `main` on every inventory.
   correctly. A **fast-forward** would read as "no commits yet", and a **squash or
   cherry-pick** as unmerged. If the integrator ever merges that way, the rule changes with it.
 * **An unmerged agent branch is flagged whether it is live or long dead.** The check cannot
-tell a stopped agent from an abandoned one without a row.
+96: tell a stopped agent from an abandoned one without a row.
   Deleting a dead branch is the fix, and it costs one command.
 * **The facts are this clone's.**
   exist as far as `--status` knows.
@@ -103,7 +103,7 @@ tell a stopped agent from an abandoned one without a row.
 **Only one process may hold a Ghidra project at a time.** Concurrent agents must use
 separate project directories under `E:\dev\ghidra-projects` — e.g. `lords2` for the game
 binary and `mapl2` for the shipped map editor. Say so explicitly in the agent's brief;
-this is not obvious and the failure mode is a lock error mid-run.
+106: this is not obvious and the failure mode is a lock error mid-run.
 
 Copy `ghidra_scripts/DecompileFunc.java` into a per-agent script directory
 having several agents edit the shared one.
@@ -155,11 +155,36 @@ accepted price. `tools/review/prose.js` holds the phrase list (`--phrases`) and 
 lines that carry one, per file. `tools/review/prose-llm.js <file>` sends that listing to
 Gemini Flash (`GEMINI_API_KEY`, no thinking) with a delete-only prompt and applies the
 reply through `prose.js --apply`; `--top N` takes the N worst files. `.claude/hooks/
-trim-prose.js` runs it on every doc or Rust file an agent edits, so an agent never needs to
-think about it. Cost measured: about 2 s and 700 tokens per file by API, against 55-80k
+trim-prose.js` runs it on every doc an agent edits (Markdown only since 2026-09-14: on
+Rust it cut clauses out of cited facts). Rust comments get `.claude/hooks/comment-lint.js`,
+which hands the lines back for the agent to restate in the shape below. Cost measured: about 2 s and 700 tokens per file by API, against 55-80k
 tokens per file when an agent did the same job; never give this to an agent. After a pass
 the lead runs `corrections.js --relock`, `cargo check --workspace --tests`, counts the
 `fig:` markers per doc, and commits.
+
+### The comment shape
+
+The shape, and every line below already stands in the crates:
+
+```rust
+/// `Turn_End` (`0x0043AC23`) writes 999 when the person presses the button.
+
+/// `Ai_ManageCountyFarms` (`0x0049DD01`) copies the lord's style byte into
+/// county `+0x1FE` and dispatches on it.
+
+/// County `+0x1FD` weapon type 0..5 → the `Merchant_Trade` good id:
+/// `0 → 12, 1 → 11, 2 → 13, 3 → 9, 4 → 10, else → 14`.
+
+/// `Ration_Apply` (`0x0044DF5F`) has no store `-=` anywhere in it.
+
+// `Msg_Dismiss` (`00470000.c:2444`): a game-over letter's dismissal is
+// `Campaign_EnterConquest(); g_screenId = 0x1C`.
+```
+
+A doc block is those lines in this order: the function, its address and the decompilation
+line; what it does, with the numbers; then one line per claim that is inferred or a
+departure, `[I]` or `[D]` with the reason. A test's doc names the claim and the line whose
+deletion turns it red. The past tense belongs in `docs/decisions.md`, with a C-number.
 
 ## File size
 
@@ -205,11 +230,11 @@ git add -A                                                 # never
 
 `git commit -- <paths>` bypasses the index for those paths and commits exactly what you
 name. Check `git status --short` first and confirm every path is yours; when several agents
-are live, that check is necessary and not sufficient, and the `--` form is what closes the
+209: are live, that check is necessary and not sufficient, and the `--` form is what closes the
 gap.
 
 **One catch, and it bites on the first commit of anything new.** `git commit -- <paths>`
-only accepts paths git already knows, so a brand-new file fails with
+213: only accepts paths git already knows, so a brand-new file fails with
 `pathspec … did not match any file(s) known to git`. A new file must be `git add`-ed first,
 and *then* committed with the `--` form:
 
@@ -219,13 +244,13 @@ git commit -F msg.txt -- tools/oracle/xref.js    # add makes it known, -- keeps 
 ```
 
 The `git add` is safe here because it names one path; it is the bare `git commit` afterwards
-that would sweep the index, and the `--` prevents
+223: that would sweep the index, and the `--` prevents
 
 **And a second catch, sharper than the first: `--` is wrong for removals.**
 `git commit -- <paths>` commits the **working tree** at those paths and ignores the index.
 That is exactly what makes it safe for edits — and it silently *reverses* a deletion you
 staged with `git rm --cached`, because the file is still on disk. Untracking 1,891 build
-artefacts this way put all 1,891 straight back, and the commit looked like it had worked.
+229: artefacts this way put all 1,891 straight back, and the commit looked like it had worked.
 
 So the honest rule is not "always use `--`". It is:
 
@@ -257,7 +282,7 @@ Prefer short focused sessions with the game over keeping it open across a long
 investigation, and if a task needs it open for a long stretch, say so in the
 report so the cost is visible.
 
-## Never drive the real mouse or keyboard to test our engine
+261: ## Never drive the real mouse or keyboard to test our engine
 
 **An agent testing our engine does not touch the OS input queue.** Synthetic input moves
 the cursor and steals focus on a machine somebody is sitting at — this was found the way
@@ -284,7 +309,7 @@ deterministic, and runnable in CI — which the OS route can never be. That is t
 reasoning behind reading a struct definition
 behind a check that runs on every push, not a rule an agent is asked to remember:
 **the mechanism with fewer dependencies on the world is usually also the more accurate
-one**, and where the two pull apart it is worth noticing why.
+288: one**, and where the two pull apart it is worth noticing why.
 
 ## Concurrent agents: unique scratch paths, and count before and after
 
@@ -312,12 +337,12 @@ reach for the same number: **this happened five times in one day** — three age
 and two each on C25, C28, C30 and C31.
 
 **This is now checked mechanically.** `node tools/decisions/corrections.js --check` runs in
-CI and fails on a duplicate number, naming both headings and the next free one; it also
+316: CI and fails on a duplicate number, naming both headings and the next free one; it also
 fails on a citation of a correction that does not exist, which is the other half of the same
-problem and the one that went unnoticed for weeks. Run it before you finish and you will not
+318: problem and the one that went unnoticed for weeks. Run it before you finish and you will not
 hand the integrator a collision.
 
-It is still not worth serialising the log, and the integrator can renumber safely. What
+321: It is still not worth serialising the log, and the integrator can renumber safely. What
 makes that cheap, not archaeological, is one line:
 
 > **Say in your report which correction number you took**, and grep the tree for
@@ -353,7 +378,7 @@ fails loudly and names the line to put back.
     node tools/decisions/corrections.js --relock
 
 **Why a lockfile and not the obvious alternative, which is worth more than the mechanism.**
-The first proposal was to make citations self-describing — write `C34 (secession-tie)`, so a
+357: The first proposal was to make citations self-describing — write `C34 (secession-tie)`, so a
 dragged citation carries its old slug against its new number and fails immediately. It was
 refuted by measuring, not by arguing:
 
@@ -362,14 +387,14 @@ refuted by measuring, not by arguing:
   number carries a parenthetical, and these documents are written to be read.
 * **Half the slugs derived from headings say nothing** — `files-fail`, `names-doing`,
   `reading-five`.
-* And the detail that ended it: **two slugs embed a different correction's number.** C16's
+366: * And the detail that ended it: **two slugs embed a different correction's number.** C16's
   heading opens by referring to C14 and C20's to C12, so the mechanical slugs come out
   `c14-second` and `c12-second`. **A disambiguation scheme derived from the thing being
   disambiguated can inherit its ambiguity**, and a slug that names the wrong correction is
   worse than no slug at all.
 
 The lockfile costs 10 KB, has no migration, changes nothing about how a citation is written,
-and flagged the real historical failure with zero false positives across a merge that moved
+373: and flagged the real historical failure with zero false positives across a merge that moved
 seven citations and drifted every line number in the tree. That is the general lesson too:
 **when two mechanisms are proposed, measure them against a failure that happened**
 .
@@ -409,13 +434,13 @@ and require enough of them.
 It passed.
 
 **It also passed with the line that draws the stamp deleted.** The title page carries a
-full-screen `gateway.pl8`, so no pixel down there is background, and the test had been measuring
+413: full-screen `gateway.pl8`, so no pixel down there is background, and the test had been measuring
 the artwork the whole time. Nothing about it looked wrong. The threshold had been chosen by
 looking at what the passing case produced — which is exactly how a test comes to describe the
 status quo, not the claim, and it is a very easy thing to do while being careful.
 
 Thirty seconds of ablation found it. Nothing else would have, until the day the draw call was
-lost in a merge and the stamp quietly stopped appearing — which is the specific failure the
+419: lost in a merge and the stamp quietly stopped appearing —
 stamp exists to prevent, so the test would have failed at the moment it mattered.
 
 ### Idempotence is a stronger assertion than effect
@@ -425,8 +450,8 @@ The replacement is worth recording as a technique, because it applies well beyon
 **Where an operation is idempotent, assert idempotence, not an effect.**
 
 Draw the page. Copy it. Draw the stamp **again** onto the copy. Require the two canvases to be
-*identical*. Text is an opaque blit, so a second draw over itself changes nothing — but only if
-it was there the first time. Delete the draw call and the second draw *adds* the stamp: 1,234
+429: *identical*. Text is an opaque blit, so a second draw over itself changes nothing — but only if
+430: it was there the first time. Delete the draw call and the second draw *adds* the stamp: 1,234
 pixels differ.
 
 That is exact. No threshold to tune, no knowledge of what else is on the page, and nothing to
@@ -443,18 +468,18 @@ which is an equality.
 Some assertions have no single line to delete: a property over generated input, or a check whose
 subject is a whole file. Then the substitute is to **make the check fail deliberately once**, by
 corrupting its input, and read the message it produces. A check whose failure has never been
-read is a check whose message is untested, and the message is most of the value — this project's
+447: read is a check whose message is untested, and the message is most of the value — this project's
 own convention is *fail with the fix in the message*, which is unverifiable until somebody has
 seen one fail.
 
 ### How to ablate wrongly
 
 The practice above is cheap and it is **not automatic**. Five ways it goes wrong, all of them
-observed here, and the first is the one that limits the whole discipline.
+454: observed here, and the first is the one that limits the whole discipline.
 
 **One: compute the probe from the constant you are ablating.** A test asserted that the pasture
 cattle land at the original's `(+4, −4)` offset. It found its probe pixel by *applying that
-offset* — so deleting the constant moved the probe with it, and the test stayed green. It was
+458: offset* — so deleting the constant moved the probe with it, and the test stayed green. It was
 asserting that the code agrees with itself, which it always will.
 
 > **Ablation works, and ablating a constant while computing your probe from that same constant
@@ -470,7 +495,7 @@ passes.
 **Two: ablate something the check deliberately excuses.** The encode/decode check carries a
 `not-encoded:` marker for fields outside the codec. Testing it by renaming a field that carried
 one produced a green run, which for a minute read as *the check is broken*. It was the check
-working. An accidental **fail-to-fail** is indistinguishable from a broken instrument, and the
+474: working. An accidental **fail-to-fail** is indistinguishable from a broken instrument, and the
 defence is to ablate something the check *claims*, not the nearest thing to hand.
 
 **Three: insert a probe between a doc comment and its field.** The second attempt at that same
@@ -487,7 +512,7 @@ failing test is the finding; the count is not.
 **Five: ablate the draw and forget the viewport.** The build stamp's test has now failed three
 times in three different ways, and it is the same feature each time. First it passed with the
 draw deleted, because it counted pixels on a page with full-screen artwork behind it. Then
-idempotence fixed that — and the stamp shipped **half off the bottom of the screen**, because
+491: idempotence fixed that — and the stamp shipped **half off the bottom of the screen**, because
 identity of two canvases proves the text was *painted* and says nothing about whether the place
 it was painted is *presented*. The third version asserts every pixel the stamp writes falls
 inside the visible canvas, and is ablated by moving it ten pixels down.
@@ -509,11 +534,11 @@ switches came from `County::new()`'s defaults, and **every map toggle sat in the
 position to the one the player saw.** Eleven passing tests, and a struct field that no
 importer had ever written.
 
-That is C30 from the drawing side, not the save side, and the pair states the rule
+513: That is C30 from the drawing side, not the save side, and the pair states the rule
 better than either alone: **a field is only tested if something a test reads was written by
 something the game runs.** A test that populates the state it then asserts on is checking
 its own fixture. C30's four fields were absent from the *encoding*; these were absent from
-the *import*; in both cases the suite was green and the field was fiction.
+517: the *import*; in both cases the suite was green and the field was fiction.
 
 Two practical consequences:
 
@@ -534,12 +559,12 @@ twice — and said so, in a paragraph that reasons carefully and reaches the cor
 
 > *"That looked like a fixpoint and it is not one: reading the five estimate bodies, no ceiling
 > depends on the current assignment … What the second round is for is the `Herd_UpdateCrowding`
-> in the middle, which does move an estimate's input, **and the panel forecasts, which the
+538: > in the middle, which does move an estimate's input, **and the panel forecasts, which the
 > estimates fill from whatever the allocator last decided.**"*
 
 Twenty lines below it, `grain_labour_estimate` ports the search loop of
-`Grain_LabourEstimate` and stops. **The four things the tail writes — the sowing, growth and
-harvest forecasts and the signed change the sidebar draws — were carried by nothing**, and a
+542: `Grain_LabourEstimate` and stops. **The four things the tail writes — the sowing, growth and
+543: harvest forecasts and the signed change the sidebar draws — were carried by nothing**, and a
 player found the hole by looking at the screen: *"Sidebar doesn't show grain being planted as
 a negative number."*
 
@@ -547,7 +572,7 @@ a negative number."*
 
 It belongs beside *a comment that defers work to a caller must name the caller* and *a
 document that promises "until X" keeps promising it long after X* — three shapes of the same
-thing, and the reason they are worth grouping is that **none of them is a missing comment.**
+551: thing, and the reason they are worth grouping is that **none of them is a missing comment.**
 Every one is prose that is accurate, that a reviewer would nod at, and that describes work
 which then did not get done. The usual defence on this project — write it down, cite it,
 cross-reference it — is the thing that already happened.
@@ -561,7 +586,7 @@ cross-reference it — is the thing that already happened.
   question *"why not?"*
 * **Ask what *reads* the thing the comment says a pass is for.** The paragraph names the panel
   forecasts as the reason for the second round. Nothing in the workspace read a panel forecast,
-  and nothing anywhere said so. That is `docs/decisions.md` C30 and the `farm_style` case from
+  565: and nothing anywhere said so. That is `docs/decisions.md` C30 and the `farm_style` case from
   a third direction: **a producer that is protected and a consumer that is absent look
   identical from the producer's end** — and here even the *explanation* was written from the
   producer's end.
@@ -600,7 +625,7 @@ What happened, in order:
    the tax window too."* The instruction was to remove it.
 2. Reading `Map_Click` (`0x0043CE1A`) turned up what looked like a free-standing final arm — *a
    click on a tile whose county is not the selected one, carrying no unit, selects that county and
-   recentres* — and the conclusion drawn was that the fix asked for was too big: the original
+   604: recentres* — and the conclusion drawn was that the fix asked for was too big: the original
    selects, it just does not open anything.
 3. That reading was written up as C61, **C58 was edited in place to apologise for its claim that
    `Map_Click` has no county-selection arm**, `screens/map/mod.rs`'s module header was rewritten around
@@ -630,14 +655,14 @@ proportion to how hard it was looked for — three greps that found nothing beca
 that found something overturned it, and a fourth reading overturned that. `docs/method.md` §4.
 
 One consolation worth recording, because it is the reason to keep doing this: the corrected fix is
-*smaller* than the fix that was asked for, and the fix that was asked for was smaller than the one
+634: *smaller* than the fix that was asked for, and the fix that was asked for was smaller than the one
 the draft proposed. Every time this project has read the binary, not reasoned from
 an absence, the answer has been less work than the guess.
 
 ## C-numbers: the protocol assumes a serial writer, and we have eight
 
 Six collisions now. The first four produced the protocol — *read the file, take the highest
-number, add one* — and the fifth happened anyway. The sixth was today, three ways at once:
+641: number, add one* — and the fifth happened anyway. The sixth was today, three ways at once:
 three branches all correctly read `C60` as the highest and all correctly chose `C61`. **Not one
 agent did anything wrong.** They branched from the same head within an hour of each other, which
 is what we asked them to do.
@@ -688,19 +713,19 @@ paragraph described a tag-less `--assign` that walked every heading at once for 
 before any `--assign` existed; the integrator did the job with `git grep -l | perl -pi`. What
 exists now is described under* The tool as it is *below.)*
 
-**And the check that makes it structural, not a habit: `--check` fails if any
+692: **And the check that makes it structural, not a habit: `--check` fails if any
 placeholder, of any family, survives anywhere on `main`.** That is what stops the placeholder
 from being merged unassigned, and it is the whole enforcement. It goes red on ordinary work, in
 CI, on the commit that would have introduced the problem — which is the property *"read the
 highest number first"* never had.
 
-What it costs: an agent's own branch reads `CNEW-hover` instead of `C61` while the work is in
+698: What it costs: an agent's own branch reads `CNEW-hover` instead of `C61` while the work is in
 flight. That is a branch, and it is correct that a number which has not been allocated does not
 appear.
 
 **It covers `docs/bugs.md`'s B-numbers in the same change, because they are the same race with
 less protection.** Three branches took overlapping B-numbers tonight — two claimed `B64` and two
-claimed `B65` —. `BNEW-<slug>` and the
+704: claimed `B65` —. `BNEW-<slug>` and the
 same `--assign` pass.
 
 **The detail that makes the case is that one collision merged silently.** Two branches both added
@@ -733,7 +758,7 @@ gaps by judgement, each of which is now a rule:
 | | `S` | §4, surprising and not a bug | the same two |
 | | `D` | §5, dead code | the same two |
 
-**The D-series exists twice and the two are unrelated**, so a `D` placeholder is numbered in the
+737: **The D-series exists twice and the two are unrelated**, so a `D` placeholder is numbered in the
 log its entry is written in — by letter alone, the first dead-code placeholder would have become
 decision D12. The tool once scanned for `C` and `B` placeholders only, and a `D` one reached a
 merge with nothing reporting it. Every one of the six is duplicate-checked now, and **the first
@@ -751,12 +776,12 @@ because the next free number is computed without it. Prose that opens with a bol
 those shapes too.
 
 **`--check` reports placeholders last**, after every other rule has run, grouped by tag, with the
-entry that defines each, the command that assigns it and the number it would take — and a letter
+755: entry that defines each, the command that assigns it and the number it would take — and a letter
 no log numbers, or a tag nothing defines, is reported as such. On a branch, which carries its own
 placeholders by design, that means the placeholder list is the *only* failure when everything
 else is right; on `main` it is fatal. `--relock` works with placeholders present.
 
-**`--assign <TAG>`** refuses, changing nothing, when the tag is not in the tree, is not a
+760: **`--assign <TAG>`** refuses, changing nothing, when the tag is not in the tree, is not a
 placeholder, is defined by no entry, or when **any** entry-shaped line in either log is
 malformed — the refusal that stops it computing a number from a log it cannot fully read. It
 also refuses when the tree already holds a dragged or left-behind citation, because it relocks
@@ -769,7 +794,7 @@ middle of `<tag>-longer`.
     node tools/decisions/corrections.js --check              # lists each placeholder and its command
     node tools/decisions/corrections.js --assign CNEW-hover  # the next free C-number, tree-wide, relocked
 
-**The quirks catalogue sees placeholder rows.** `quirks_catalogue.rs` accepted digits only, so a
+773: **The quirks catalogue sees placeholder rows.** `quirks_catalogue.rs` accepted digits only, so a
 branch's new `docs/bugs.md` §2 row was invisible to it: the branch was green, and two tests went
 red at merge once the row had a number. A placeholder is an entry now, so the branch goes red
 until `DISPOSITIONS` carries the placeholder, and `--assign` renames that line in the same pass
@@ -780,14 +805,14 @@ as the document.
 Two renumbers were done by hand today. Both were clean because no file cited both colliding
 entries — the citation lockfile caught one drag on `symbols.md:307` and confirmed the rest — but
 that was luck about which documents the branches touched, not a property of the method. The next
-collision will be between two branches that both cite the same file, and the hand method's
+784: collision will be between two branches that both cite the same file, and the hand method's
 failure mode there is a citation quietly renumbered to point at the wrong correction: a wrong
 pointer into the log the project trusts most, which is the failure mode recorded above under
 *The correction log can be wrong*.
 
 ## A check that passes for an accidental reason looks exactly like one that passes
 
-Three of these in two days, and the third was found while writing this section, which is the
+791: Three of these in two days, and the third was found while writing this section,
 best evidence that it is a class, not a run of bad luck.
 
 > **A check that passes for an accidental reason is indistinguishable from one that passes for
@@ -821,12 +846,12 @@ something that happens to agree with it on the data in front of you.
   there code to mark?"* written out: reproduced, dead-reproduced, or an invention not yet
   removed. `status == "reproduced"` was a proxy that agreed with it on today's rows.
 * The stamp test now draws the page, copies it, draws the stamp **again** on the copy, and
-  requires the two to be identical. Text is an opaque blit, so a second draw over itself
+  825: requires the two to be identical. Text is an opaque blit, so a second draw over itself
   changes nothing — but only if it was there the first time. That is the claim exactly, with
   no threshold and no knowledge of what else is on the page. Deleting the draw call moves
   1,234 pixels.
 
-And the operational half, which is cheap and caught the third instance:
+830: And the operational half, which is cheap and caught the third instance:
 
 **Ablate the thing the test is about, and watch it go red.** Not the code near it — the exact
 line the assertion claims to be about. A test written against a passing tree has never been
@@ -843,7 +868,7 @@ the resolution a careful person would choose.
 
 This is written once, with all nine in front of it, because it will be harder to assemble later
 and because the individual anecdotes each look like carelessness. They are not. The pattern is
-that **positional merging is correct for data and wrong for claims, and the two are
+847: that **positional merging is correct for data and wrong for claims, and the two are
 indistinguishable by looking at the file.**
 
 ### The near-miss, which is the centrepiece
@@ -876,7 +901,7 @@ conflict. There were only two arrays in different orders.
 
 ### What saved it was `JSON.parse` failing, and that is a near-miss report
 
-The union produced invalid JSON, the parse threw, and the throw is the only reason any of this
+880: The union produced invalid JSON, the parse threw, and the throw is the only reason any of this
 was looked at. **A syntactic check caught a semantic disaster by luck.**
 
 That is worth its own rule, because the temptation is to file it as the check working:
@@ -887,7 +912,7 @@ That is worth its own rule, because the temptation is to file it as the check wo
 
 Had the two orderings happened to produce valid JSON — one entry moved, not several, or a
 conflict that closed its braces evenly — the file would have been committed, `symbols_md.js` would
-have regenerated `symbols.md` from it without complaint, both would have been green, and the
+891: have regenerated `symbols.md` from it without complaint, both would have been green, and the
 project would have carried a wrong comment on a right address until somebody read that function
 again, so `symbols.json` and
 `hypotheses.json` now merge by key through a driver, not by anyone remembering to.
@@ -907,7 +932,7 @@ again, so `symbols.json` and
 | 9 | B-numbers in `docs/bugs.md` | *this number identifies this defect* | the quirks catalogue |
 
 Three of the nine had **no defence at all** and were found by a person looking. Two were caught
-by the compiler, which is the cheap case and the argument for making mistakes unrepresentable
+911: by the compiler,
 The rest were caught by checks built for other purposes.
 
 ### The B-numbers, and an instruction that read as complete
@@ -935,7 +960,7 @@ as prose.
    Anything with a stable id and an unstable order belongs there too.
 2. **Ask what the file asserts before choosing a side.** If the answer is *"what is true right
    now"* — what is unbuilt, what was promoted, which number means which defect — then neither
-   side is safe and the resolution has to be derived, not picked.
+   939: side is safe and the resolution has to be derived, not picked.
 3. **A union is safe for a list and unsafe for anything else.** Twice tonight a union was applied
    across a scalar, in files whose surrounding lines were a list.
 4. **Compile, then test, then read.** The compiler caught two of these, tests caught two, and
@@ -943,13 +968,13 @@ as prose.
 
 ### The worked example: a counting file that would have been silently deduplicated
 
-Everything above is abstract until it costs something. This is the one that nearly did, and it
+947: Everything above is abstract until it costs something. This is the one that nearly did, and it
 is three separate failures stacked, each of which would have been enough on its own.
 
 **One: the file was not registered.** `docs/arms.json` — the file whose entire purpose is
 counting, with three agents writing it concurrently — was **not in `.gitattributes` at all**. The
 merge driver had been built, tested, falsified and wired up the day before, specifically for
-files of that shape, and the newest and most exposed file of that shape was outside it. The gap
+953: files of that shape, and the newest and most exposed file of that shape was outside it. The gap
 was not in the mechanism. It was in the **registration**, which is the half nobody checks,
 because a mechanism that works is satisfying to verify and a list of files it applies to is not.
 
@@ -1009,7 +1034,7 @@ leaving it implied.
 
 The best one is a **construction in which the failure cannot be expressed**. The case that
 produced this heading: `l2-scenario` builds a `County` from a `.sav` by assignment onto a
-default — `c.farm_style = s.farm_style;`, forty-odd lines of them — so a field nobody remembered
+1013: default — `c.farm_style = s.farm_style;`, forty-odd lines of them — so a field nobody remembered
 is left at zero and nothing anywhere says so. That is how `County::farm_style` (C62) and
 `Unit::mission` both survived. A **struct literal with no `..`** makes every one of those
 omissions a compile error: rustc refuses to build until every field is named, permanently, with
@@ -1018,7 +1043,7 @@ nothing to maintain and no scanner that can be fooled by a name.
 Compare the two honestly. The source-text check (`crates/l2-testkit/tests/encoding/main.rs`) reads
 text, resolves names, and got two resolutions wrong on its first run. The struct literal cannot
 be got wrong,. **Where that option exists we
-should take it**, and the check should be reserved for the boundaries where it does not — which
+1022: should take it**, and the check should be reserved for the boundaries where it does not —
 is most of them, because the compiler cannot read `L2.eng` or a decompilation.
 
 The general form: **ask whether the mistake can be made unrepresentable before asking what would
@@ -1030,23 +1055,23 @@ category that quietly acquires members is how a finding becomes a bucket — the
 discovery, the tenth is a fact of life nobody reads any more. The status exists so the case
 cannot hide inside a neighbouring one; the assertion exists so that using it costs a decision.
 
-### The producer is protected and the consumer is not, and everyone reviews from the producer's end
+1034: ### The producer is protected and the consumer is not, and everyone reviews from the producer's end
 
 The struct-literal fix above was aimed at an importer that had lost a field: `County::farm_style`
 was read by the rules and written by nothing on the import path for months. The obvious repair is
-to make the importer build its `County` with an exhaustive literal, so a new field stops the
+1038: to make the importer build its `County` with an exhaustive literal, so a new field stops the
 build.
 
 **Ablating it said something better than that.** Adding a field to `CountyState` now produces
 **three** compile errors, and two of them were already there: *both* constructors — the map
-reader and the save reader — had used exhaustive struct literals all along. The write side had
+1043: reader and the save reader — had used exhaustive struct literals all along. The write side had
 been protected from the beginning. The entire hole was on the **read** side, and that is exactly
 where `farm_style` fell through: something wrote it faithfully and nothing ever picked it up.
 
 > **A producer that must fill every field, and a consumer that may ignore any, is a shape that
 > looks completely safe from the producer's end.**
 
-And the producer's end is where everyone stands. A reviewer opening an importer reads the
+1050: And the producer's end is where everyone stands. A reviewer opening an importer reads the
 constructor, sees every field named, and concludes the data is carried — when what they have
 verified is that the data was *assembled*. Rust makes this asymmetry easy to fall into, because
 a struct literal is checked for completeness and a field access never is; the same asymmetry
@@ -1087,15 +1112,15 @@ Every other entry under this heading is a tool returning **wrong output**. These
 and needs its own line, because the defence is different: checking the output harder would not
 have helped either time.
 
-**The first was the county-selection arm.** `Map_Click` was read, an arm was found, and the
+1091: **The first was the county-selection arm.** `Map_Click` was read, an arm was found, and the
 conclusion drawn was that C58 had been wrong to deny it. Every step of the reading was accurate
-except the one that mattered: what was found was the *prologue of the industry branch*, and the
+1093: except the one that mattered: what was found was the *prologue of the industry branch*, and the
 question being answered — *"is there a free-standing selection arm?"* —
 the text. `docs/decisions.md` C61.
 
 **The second was worse, because it was an experiment designed on purpose.** The question was
 whether the lockstep digest covers a given field. The experiment was to remove the field from the
-encoder and count the tests that went red. Both of us — the agent running it and the coordinator
+1099: encoder and count the tests that went red. Both of us — the agent running it and the coordinator
 who asked for it — read the red tests as an answer. **They could not be one.**
 `Canonical::hash_of` *is* `value.encode(&mut c)`, so the digest is a projection *through* the
 encoder: a field absent from the encoder is absent from the digest on every peer identically, and
@@ -1109,7 +1134,7 @@ played game, reloads it, and compares the digest after each of ten further seaso
 kingdom *is* a different world — a mine with no ore behaves differently from one with
 ore — and ten seasons of that divergence never moved the number.
 
-**And a third instance, from the same hour and the same person, so this is a pattern
+1113: **And a third instance, from the same hour and the same person, so this is a pattern
 and not two accidents.** The instruction that followed was to prove the new encode/decode check
 by making it fail on `Unit::mission`. It was wrong twice over: that field does not exist on
 `main` at all — it arrives with an unmerged branch — and *neither* `mission` nor `farm_style` is
@@ -1122,13 +1147,13 @@ what, done without checking** — which is the same act the whole project exists
 subject is `Lords2.exe`, applied to our own tools instead, where it feels like knowledge rather
 than inference because we wrote them.
 
-**A fourth, and the first that travelled in a BRIEF, not in a tool's output.** An agent
+1126: **A fourth, and the first that travelled in a BRIEF, not in a tool's output.** An agent
 reported that retreat and autocalc discard casualties. True — of the solo retreat arm. It was
 repeated as *"every casualty we have fought so far is unkilled"*, which is a statement about the
 seam, and briefed onward in that form. Measured: the forty-turn run kills 1,951 men and always
 did, `Battle_WriteBackCasualties` has five call sites, we implement it, and ablating ours turns
 three tests red. **A true statement about one branch, promoted to a statement about the**
-**subsystem** — and the promotion happened in prose, between people, where none of the tool
+1132: **subsystem** — and the promotion happened in prose, between people, where none of the tool
 checks in this file can reach. `docs/decisions.md` C71.
 
 The defence is the same one and it is cheap: **name the branch.** "Retreat, in single player,
@@ -1138,7 +1163,7 @@ is in the sentence.
 **What generalises.** Before running an ablation, say which artefact you expect to fail and *why
 it is downstream of the thing you are testing*. If the answer is "the digest", check whether the
 digest is built from the thing being ablated. And read *which* tests went red, not how many — the
-count was wrong too (two, not eight), and the count being wrong was the less important error.
+1142: count was wrong too (two, not eight), and the count being wrong was the less important error.
 `docs/decisions.md` C65.
 
 ## The sixth wrong answer was the first flattering one
@@ -1151,16 +1176,16 @@ The scanner had resolved a name by its last path segment across the whole worksp
 
 **Twenty-four findings look exactly like a productive new tool**, and that is the entire lesson.
 The five failures above this heading all *understated* or *misdirected* — a symbol silently
-dropped, a count that read as success, a rename that quietly unhooked a table — and the defence
+1155: dropped, a count that read as success, a rename that quietly unhooked a table — and the defence
 against those is suspicion, which people can be asked for. This one **overstated**, and it
 overstated in the direction nobody is inclined to doubt: it told us we had a lot of bugs.
 
-It is the exact twin of the `ApplySymbols` tally that reported two failures for one, and the pair
+1159: It is the exact twin of the `ApplySymbols` tally that reported two failures for one, and the pair
 makes the point better than either alone. *A tool that overstates is one people learn to
 discount*, and a tool discounted is a tool switched off. Both directions cost the same thing in
 the end; only the flattering one buys a few days of feeling productive first.
 
-It was caught by **reading the failures instead of counting them** — opening the first row and
+1164: It was caught by **reading the failures instead of counting them** — opening the first row and
 asking which `Unit` it meant. That is the only defence that has ever worked, and it is expensive
 enough that it has to be spent deliberately: read the first three findings of every new tool's
 first run, in full, before believing the total.
@@ -1183,7 +1208,7 @@ two days apart:
                                              C parser rejects outright
     int g_goodsStall[14][5]                  a data table filed under "functions"
 
-**Each was dropped on every rebuild, and the pipeline reported success both times.** The
+1187: **Each was dropped on every rebuild, and the pipeline reported success both times.** The
 name never reached the corpus; `ApplySymbols` printed one line among a hundred; an
 integrator happened to read it.
 
@@ -1214,7 +1239,7 @@ because guidance was not enough. Five of six tool failures on this project retur
 plausible, wrong answers, and *every one* was caught by something external contradicting it, never
 by the tool noticing itself. So the question is not how to phrase rule 5. It is what goes red.
 
-### What was proposed, and the two halves of it that do not survive
+1218: ### What was proposed, and the two halves of it that do not survive
 
 The proposal was: a per-screen inventory of the original's input arms, and a census that goes red
 when a screen graduates out of the shell table without one.
@@ -1225,7 +1250,7 @@ produced the 43% at all. Nothing else this project has tried finds an arm nobody
 
 **The trigger is wrong, for a measurable reason.** "Red when a screen graduates" fires once per
 screen, at graduation. Every miss found today is on a screen that graduated weeks ago; the check
-would have caught **none of them**. Worse, it can only ever go red once — after the file exists it
+1229: would have caught **none of them**. Worse, it can only ever go red once — after the file exists it
 is green for ever, however wrong its contents become. It checks that a document was created, which
 is the same class of guarantee as checking that a rule was written down.
 
@@ -1276,20 +1301,20 @@ Then four checks, in rising order of cost and value:
    project has already had once: a rename silently unhooking `ENG_CALLS`. An arm that stops being
    reproduced because its function was renamed or deleted goes red the same day.
 3. **The two lists must agree, both ways.** Each handled gesture in a screen module carries a
-   one-line marker — `// arm: 0x004A8E0B` or `// arm: ours` — and the check is *set equality*
-   between the markers in the code and the `reproduced`/`ours` records in the file. This is the
+   1280: one-line marker — `// arm: 0x004A8E0B` or `// arm: ours` — and the check is *set equality*
+   1281: between the markers in the code and the `reproduced`/`ours` records in the file. This is the
    half that fires on ordinary work: a new handler with no marker fails, a marker with no record
    fails, a record claiming an arm nobody built fails, and a deleted handler fails. It is also the
    half that makes an invention **countable**, which is what a 1:1 goal needs — `ours`
    arms are a number that should go down.
 4. **A per-screen percentage, printed by the census.** Not a gate: a number in `status.html` and
    the README, maintained by the script, that cannot drift because nobody types it. `figures.js`
-   already does exactly this for other counts, and the precedent there is *"a number that cannot
+   1288: already does exactly this for other counts, and the precedent there is *"a number that cannot
    drift beats a number that is checked"*.
 
 The falsification condition, since a check that cannot go red is a rule: **check 3 fails if I add a
 `RightClick` handler to `divide.rs` without an entry, and fails if I delete
-`MapScreen::update_hover_path` without one.** Both are one-line experiments and both should be run
+1293: `MapScreen::update_hover_path` without one.** Both are one-line experiments and both should be run
 before this is believed.
 
 ### What it costs, honestly
@@ -1320,7 +1345,7 @@ decompiled function. It has a live-looking `Screen_FrameInput` arm and a live-lo
 field, `0x2A` drag, `0x2B` outcome — and every arm audited on `0x28` counts toward a
 denominator it should not be in.
 
-So the totals in C61 are provisional until the corrected denominator lands, and the corrected
+1324: So the totals in C61 are provisional until the corrected denominator lands, and the corrected
 one goes into `tools/figures/figures.js`, not into prose: it is about to be the headline
 of `docs/plan.md` revision 5 and quoted widely, and 34 figures have already gone stale in four
 documents by being typed. **A number that cannot drift beats a number that is checked.**
@@ -1339,10 +1364,10 @@ Two of the village's eight animation counters are stepped every frame and read b
 the entire binary**. One of them has 21 states and `villani1.pl8` happens to have 21 frames.
 That is exactly the shape of a finding: a number that matches, a plausible story available for
 free, and a decompiled function that would have looked like evidence for it. The agent recorded
-the coincidence and **declined to build the story on it**, marking the counters dead and the
+1343: the coincidence and **declined to build the story on it**, marking the counters dead and the
 match unexplained.
 
-That is rule 4 working — *a plausible story assembled from decompiler output is not a finding* —
+1346: That is rule 4 working — *a plausible story assembled from decompiler output is not a finding* —
 temptation wins.
 
 ### The rest of the pattern, recorded
@@ -1370,7 +1395,7 @@ Three statements, from three unrelated parts of the project:
 
 * **The arms denominator is a *place*.** `docs/arms.json` reports a percentage of the input arms
   we reproduce, and that percentage is over *the functions somebody chose to mark up*. It was
-  labelled as coverage of the original's input handling. The measurement was correct and the
+  1374: labelled as coverage of the original's input handling. The measurement was correct and the
   label overreached — the honest form names the place: *"of screens 0 and 0x10, we answer 20 of
   25 gestures."*
 * **A completeness check over a struct is only as complete as the struct.** The exhaustive
@@ -1383,14 +1408,14 @@ Three statements, from three unrelated parts of the project:
   had established that 5 is the bailey.
 * `corrections.js` checked that
   every `C`-number in the tree names an entry that exists. A `C61 -> C63` renumber left two files
-  still saying `C61`, which by then was a different correction entirely, and the tool reported
+  1387: still saying `C61`, which by then was a different correction entirely, and the tool reported
   *"all citations resolve"* throughout — because they did. The lockfile now remembers **which
   heading** each citation was pointing at, so the entry moving under a citation is caught as well
   as the citation moving under an entry (rules 3 and 5). The pair is worth studying: the same
   renumber can drag one citation and strand another, and until both fields existed only half of
   it was visible.
 
-The shape is one shape. **Every check we have is exhaustive over a set, and the interesting
+1394: The shape is one shape. **Every check we have is exhaustive over a set, and the interesting
 failures are outside the set.** A green check therefore licenses a statement of the form *"nothing
 inside this boundary is wrong"* — and it is read, always, as *"nothing is wrong."*
 
@@ -1414,7 +1439,7 @@ nobody can open scores 100%. The boundary there is the word *screen*.
 `crates/l2-view/src/text.rs` carried a header saying the interface draws its own letters *"until
 The font had been decoded.
 screen written after that point read the header, believed it, and reached for the 5×7 debug font
-— and the draw-call audit later found **six modules drawing nothing at all through the game's own
+1418: — and the draw-call audit later found **six modules drawing nothing at all through the game's own
 fonts or artwork**: castle, diplomacy, siege, job, menu, menubar. `menu.rs` drew the game's own
 title as "LORDS OF THE REALM II" where `L2.eng` 11/0 says *"Lords of the Realm 2"* — a string
 `tests/shell.rs` had asserted for weeks, on the first screen anybody sees. A player reported it
@@ -1423,7 +1448,7 @@ as *"the title screen is illegible."*
 `docs/audit.md` F21 had **already flagged the stale bullet that comment cited.** The flag was
 correct, it was filed, and it changed nothing, because flagging a document does not edit it.
 
-This is the fourth stale-document mechanism catalogued here, and the only one with a **tense** in
+1427: This is the fourth stale-document mechanism catalogued here, and the only one with a **tense** in
 it. The others go stale when the world changes around a statement of fact; this one is a promise
 about the future, and it expires *at a moment nobody is watching for* — the moment the promise is
 kept. Nothing about the sentence changes.
@@ -1440,7 +1465,7 @@ that retires it or carry the issue number that will.
 
 `docs/hypotheses.json` had `0x0055307C` recorded as `g_rampartCellsBreached` — *"how many
 rampart cells this siege has knocked through"* — with an honest caveat saying the mechanism was
-read and the purpose was a guess. That is right. `crates/l2-sim` called the same four bytes
+1444: read and the purpose was a guess. That is right. `crates/l2-sim` called the same four bytes
 `moat_flag`. That is wrong, and it is what the code ran on.
 
 Both files were maintained. Both were checked. Neither was checked **against the other**, and
@@ -1473,7 +1498,7 @@ Three losses, all mine, all at merge, none caught by a test:
 * A merge **lost an input arm** — the campaign minimap dropped out of an overlay table during a
   graduation — and it was found by a player, not by us.
 
-And the worst one, because it survived every check the project has: the `input-arms` merge
+1477: And the worst one, because it survived every check the project has: the `input-arms` merge
 committed **four conflict markers to `main`**, in `README.md`, `docs/plan.md` and twice in
 `docs/status.html`. Both sides of every hunk were **textually identical** — git had raised the
 conflict on surrounding context — so the resolution was a no-op and nothing read wrong.
@@ -1483,7 +1508,7 @@ checks looked at files that happened not to be hit. It was found by eye in a `gi
 an unrelated reason.
 
 `crates/l2-testkit/tests/conflict_markers.rs` closes that one. The general lesson does not close:
-**a merge conflict is a question about intent, and the resolution is an edit like any other
+1487: **a merge conflict is a question about intent, and the resolution is an edit like any other
 edit.** Resolve by reading both sides and writing what you mean. `--ours` and `--theirs` are
 answers to a question nobody asked, and a union is a guess that the two sides are additive.
 
@@ -1510,7 +1535,7 @@ different if it were wrong, and if the answer is *"nothing visible"*, that is th
 
 A siege test staged its besieger by hand: units placed, engines ordered, state set. It was a
 reasonable fixture and it was **wrong about ordering** — and because every siege test in the
-workspace staged its besieger the same way, none of them travelled the real road. One of them
+1514: workspace staged its besieger the same way, none of them travelled the real road. One of them
 wrote *"the AI never orders siege engines, so an AI besieging a level-3 castle can never assault
 at all"* into its module header.
 
@@ -1521,11 +1546,11 @@ What was true — *"no AI calls `order_engine`"* — is a statement about **one 
 `order_engine` is the siege screen's + and − buttons, which the original's AI does not press
 either.
 
-Two things to take from it.
+1525: Two things to take from it.
 
 **A fixture that constructs the state a feature is supposed to produce cannot tell you whether
 the feature produces it.** The fix is a test that walks the road: an army moved onto a castle
-tile, and the order read out of what came back. That test did not exist for any siege in the
+1529: tile, and the order read out of what came back. That test did not exist for any siege in the
 workspace, so the hole was subsystem-wide, not one test's oversight.
 
 **And name the function.** This is the same shape as C71 — a true statement about one branch,
@@ -1565,7 +1590,7 @@ against the claim it was fetched for. On this project the oracles are short: a `
 paragraph, an `L2.eng` string, a decompiled function of forty lines.
 reading a clause of one.
 
-And the sharper version, for a `Readme.txt` line especially: **the words "after", "before",
+1569: And the sharper version, for a `Readme.txt` line especially: **the words "after", "before",
 "each", "total" and "remaining" are where the mechanics live.** Those are the words a reader
 skims when they are looking for a number.
 
@@ -1604,7 +1629,7 @@ was found.
 
 **Nothing in this file would have caught it.** Ablation cannot: deleting the line the assertion
 is about makes it fail, correctly, because the assertion *is* about live code. Two artefacts
-that must agree cannot: the code and the test agreed perfectly. The only thing that finds it is
+1608: that must agree cannot: the code and the test agreed perfectly. The only thing that finds it is
 the thing that found it — implementing what the binary does and watching a test object.
 
 ### What it means for practice
@@ -1617,14 +1642,14 @@ normally evidence that the *change* is wrong.
 So, when a fix turns an old test red:
 
 1. **Read what the old test claimed, against the binary, before assuming the fix is wrong.**
-   Here the rule cited in the message (`+0x15E` is not `+0x15D`) was true and the assertion
+   1621: Here the rule cited in the message (`+0x15E` is not `+0x15D`) was true and the assertion
    built on it was not — a correct premise carried into a wrong requirement, which is the
    shape that survives review.
 2. **If the old assertion was a description, replace it with the claim it was reaching for**
    that does not depend on the bug: ask for triple rations with an empty larder and require
    `wanted == 5, achieved == 0`.
 
-### And the vacuous pass caught in the act, in the same test
+1628: ### And the vacuous pass caught in the act, in the same test
 
 That replacement failed on its first run for an unrelated reason worth recording: `two_counties()`
 builds a county with **no population**, and a county with nobody in it is fed at *Triple*
@@ -1633,13 +1658,13 @@ trivially, because the requirement is zero. The assertion `achieved == 0` read `
 Had the numbers happened to line up, it would have passed while measuring nothing — the same
 family as the sweep test three functions away whose first draft never fired its search because
 the county's herd was not being eaten. **Both were caught by running the test and reading the
-number, not the verdict**, which is the cheapest habit in this document and the one that
+1637: number, not the verdict**,
 keeps paying: a test that passes on the first attempt against a state you did not deliberately
 construct deserves thirty seconds of *why*.
 
 ## The correction that identifies a class must enumerate the class
 
-Nearly everything above is about a check that fails to fire. This one is about a *fix* that
+1643: Nearly everything above is about a check that fails to fire. This one is about a *fix* that
 fires exactly once and looks complete.
 
 > **Naming a category and fixing one member of it is the most expensive kind of half-finished
@@ -1648,8 +1673,8 @@ fires exactly once and looks complete.
 The case. A player reported the ration panel's slider as *"moves but is inoperable"*. Reading
 the binary produced a good correction and a genuine category: **a control in this game
 recomputes and repaints — `Ration_SetSplit` runs the food pass on the spot, searches,
-reallocates the county twice and calls `Panel_Ration()` — so a setter that only sets is not
-the control.** The slider was fixed, the category was written down, and the work read as done.
+1652: reallocates the county twice and calls `Panel_Ration()` — so a setter that only sets is not
+1653: the control.** The slider was fixed, the category was written down, and the work read as done.
 
 An hour later the same player reported the **tax** panel, three feet away, with two symptoms
 in one sentence. Same widget-table shape, same missing call, same panel group.
