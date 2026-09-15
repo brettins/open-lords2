@@ -154,9 +154,11 @@ impl BattleRunner {
         let cost = search.cost.get(dest.y as usize * DIM + dest.x as usize).copied().unwrap_or(0);
         let straight = chebyshev(f.x as i16, f.y as i16, dest.x as i16, dest.y as i16);
         if crate::movement::detour_too_long(human, is_siege, f.side, cost, straight) {
+            // `00480000.c:6525-6529`: `tgX = mapX; tgY = mapY; return 0` —
+            // ahead of the tail, so no `state = 1` and no `delay`; the
+            // `holdIt = 64` above is what holds him. **[V]**.
             f.target = (f.x, f.y);
             f.path.clear();
-            self.fighters[i].delay = PARK;
             return;
         }
         match search.outcome {

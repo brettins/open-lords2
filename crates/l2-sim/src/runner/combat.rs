@@ -373,15 +373,20 @@ impl BattleRunner {
             Some(other) => {
                 let other = other as usize;
                 if self.fighters[other].side == self.fighters[i].side {
-                    // `BattleMan_Step` (`0x0048F1DD`, `00480000.c:6441-6465`):
-                    // the swap arm is entered only under `local_10 == 0 &&
-                    // cur.isSiegeEngine == 0` and `other.state != 2 &&
-                    // cur.unit == other.unit`; anything else is `local_10 = 3`,
-                    // the side-step. **[V]**, decompiled. Ours swapped any two
-                    // same-type men of one side, cross-unit and AI-owned.
-                    let swap_arm = self.is_alive(other)
-                        && self.unit_of(other) == self.unit_of(i)
-                        && !self.fighters[i].troop.is_siege();
+                    // `BattleMan_Step` (`0x0048F1DD`, `00480000.c:6441`): an
+                    // engine skips the swap arm, so `local_10` stays 0 and
+                    // `00480000.c:6494` — `if ((local_10 == 1) ||
+                    // (isSiegeEngine == 0))` — skips the side-step and the
+                    // search with it. A blocked engine stands. **[V]**.
+                    if self.fighters[i].troop.is_siege() {
+                        return;
+                    }
+                    // `00480000.c:6443`: the swap arm needs `other.state != 2
+                    // && cur.unit == other.unit`; a dead or cross-unit blocker
+                    // is `local_10 = 3`, the side-step. **[V]**, decompiled.
+                    // Ours swapped any two same-type men of one side.
+                    let swap_arm =
+                        self.is_alive(other) && self.unit_of(other) == self.unit_of(i);
                     match if swap_arm { self.swap_answer(i, other) } else { 1 } {
                         2 => self.swap_places(i, other),
                         // `00480000.c:6445,6459-6463`: `cur.onRoute = 0` ahead
@@ -576,6 +581,17 @@ impl BattleRunner {
         // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`.
         if !self.fighters[other].progress.free || self.fighters[other].delay != 0 {
             return 0;
+        }
+        // `00490000.c:42-51`: `other.state` 4, 9 and 6 answer 1 — stepped
+        // around, never pulled out of the cell. 9 is `BattleMan_StateFillMoat`
+        // (`0x00483FE1`), landed here; **4, melee, is held out** — it turns the
+        // seam's militia from 4 of 8 into 1 of 8
+        // (`seam::the_same_position_can_be_fought_for_real…`, measured on this
+        // branch), so a comrade in melee is still swapped with. We carry
+        // nothing for 6. `[D]` on both.
+        let busy = self.sim.figures[self.fighters[other].sim].state;
+        if busy == State::FillingMoat {
+            return 1;
         }
         // `00490000.c:52-55`: `if (cur.tgX == other.tgX && cur.tgY ==
         // other.tgY) return 0` — two men with one destination are never

@@ -37,6 +37,26 @@ fn human(r: &mut BattleRunner, i: usize) {
     r.sim.figures[r.fighters[i].sim].owner_is_human = true;
 }
 
+/// **A comrade filling the moat is stepped around, not swapped with.**
+/// `00490000.c:46-48`: `other.state == 9` answers 1.
+///
+/// **The ablation.** Drop the `busy` arm of [`BattleRunner::swap_answer`] and
+/// the moat-filler is pulled off his cell into the walker's.
+#[test]
+fn a_comrade_filling_the_moat_is_not_swapped_off_his_cell() {
+    let (mut r, a, b) = two_of_a_unit();
+    let sim = r.fighters[b].sim;
+    r.sim.figures[sim].state = crate::figure::State::FillingMoat;
+    r.fighters[a].target = (10, 9);
+    r.fighters[b].target = (11, 5);
+
+    r.enter(a, Pos::new(10, 9));
+
+    assert_eq!((r.fighters[b].x, r.fighters[b].y), (10, 9), "he kept his cell");
+    assert_ne!((r.fighters[a].x, r.fighters[a].y), (10, 9), "and was not exchanged with");
+    assert_eq!(r.fighters[a].delay, 0, "answer 1 is no wait");
+}
+
 /// **Another unit's man is never swapped with**, whoever owns him:
 /// `00480000.c:6443` enters the arm only for `cur.unit == other.unit`.
 #[test]
