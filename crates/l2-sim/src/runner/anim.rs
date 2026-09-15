@@ -12,9 +12,10 @@
 //! | 4 `BattleMan_StateMelee` `0x004831D8` | `Anim_StrikeA2` `0x00486249`, and `Anim_WalkA2` when `BattleMan_Step(1)` reports a crossing still running | [`Motion::Attacking`] |
 //! | 6 `BattleMan_StateAttackWall` `0x00483A88` | `Anim_StrikeA2` | [`Motion::Attacking`] |
 //! | 5 `BattleMan_StateIdle` `0x004832EA` | `Anim_StandA2` `0x004872AE`, and `Anim_DrawBowA2` `0x0048804A` while a shot is being drawn | [`Motion::Idle`] / [`Motion::Shooting`] |
-//! | 2 `BattleMan_StateDead` `0x004830E9` | `Anim_CollapseA2` `0x00487CE4`, `Anim_DyingA2` `0x00487908` | [`Motion::Dying`] |
+//! | 2 `BattleMan_StateDead` `0x004830E9` | `Anim_CollapseA2` `0x00487CE4`, its only caller (`00480000.c:1337`) | [`Motion::Dying`] |
+//! | 9 `BattleMan_StateFillMoat` `0x00483FE1` | `Anim_DyingA2` `0x00487908`, its only caller (`00480000.c:1697`) | [`Motion::Shovelling`] |
 //!
-//! **Every pose in this crate is set through one of these four methods**, and
+//! **Every pose in this crate is set through one of these five methods**, and
 //! that is the point of the module. The four symptoms the player reported on
 //! 2026-09-14 were all one shape: a pose written by an arm that then returned,
 //! with no arm on the other side to take it back. A figure whose opponent died
@@ -176,6 +177,36 @@ impl BattleRunner {
                 f.phase = 0;
             }
         }
+    }
+
+    /// `Anim_DyingA2` (`0x00487908`, `00480000.c:3009`) — **the shovel.**
+    ///
+    /// `BattleMan_StateFillMoat` (`0x00483FE1`) is its only caller in the
+    /// binary, so this pose is only ever worn by a **living** man tipping earth
+    /// into a ditch; the dead run `Anim_CollapseA2` under [`Motion::Dying`].
+    /// `animPhase += 1` clamped at 0x5F, and `facingDrawn = dirc`.
+    ///
+    /// **The knight has no arm here.** `3004-3006` returns for every
+    /// `troopType` the band misses — of 0 … 6 that is 6 alone — *before* the
+    /// phase step and *before* `facingDrawn = dirc`, so a shovelling knight
+    /// holds the frame and the drawn facing he arrived with. **[V]**.
+    pub(super) fn shovel(&mut self, i: usize) {
+        let f = &mut self.fighters[i];
+        f.anim = Motion::Shovelling;
+        // `troopType < 7` again; an engine is handed to `FUN_00488793`, which
+        // counts for the oil pot alone — [`Self::siege_pose`].
+        if f.troop.index() >= 7 {
+            return self.siege_pose(i);
+        }
+        // `3004-3006`: the knight returns untouched.
+        if f.troop.index() == 6 {
+            return;
+        }
+        f.phase += 1;
+        if f.phase > 0x5F {
+            f.phase = 0;
+        }
+        f.facing_drawn = f.facing;
     }
 
     /// `Anim_DrawBowA2` (`0x0048804A`) — **draw a bow**, poses 10 … 12.

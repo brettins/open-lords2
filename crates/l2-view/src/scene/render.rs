@@ -183,7 +183,7 @@ pub fn draw_figures(
                     // `Anim_DyingA2` (`00480000.c:3009`) takes the half-facing
                     // band from `dirc` as well — `(dirc & 6) >> 1` — and only
                     // then copies it into `facingDrawn` (`3017`).
-                    Anim::Dying => f.facing,
+                    Anim::Dying | Anim::Shovelling => f.facing,
                     // **A knight stands at `dirc`.** `Anim_StandA2`'s knight
                     // arm (`00480000.c:2896-2900`) overwrites the frame the
                     // fidget just computed with the bare `dirc`, so a standing

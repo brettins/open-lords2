@@ -119,26 +119,55 @@
         }
     }
 
+    /// **The shovel**, `Anim_DyingA2` (`0x00487908`) — four half-facings of
+    /// three frames at `8N+6`, and `BattleMan_StateFillMoat` (`0x00483FE1`) is
+    /// its only caller, so it is worn by the living.
     #[test]
-    fn dying_uses_four_half_facings_of_three_frames() {
-
+    fn shovelling_uses_four_half_facings_of_three_frames() {
         let troop = Troop::Swordsmen;
         let base = FACINGS * poses_per_facing(troop) as usize + 6;
         let mut seen = std::collections::HashSet::new();
         for facing in 0..8u8 {
             for phase in 0..96u8 {
-                seen.insert(frame(troop, Anim::Dying, facing, phase));
+                seen.insert(frame(troop, Anim::Shovelling, facing, phase));
             }
         }
         assert_eq!(seen.len(), 12, "4 half-facings x 3 frames");
         assert_eq!(*seen.iter().min().unwrap(), base);
         assert_eq!(*seen.iter().max().unwrap(), base + 11);
-        // Facings that share a half-facing share their death frames.
+        // Facings that share a half-facing share their frames.
         assert_eq!(
-            frame(troop, Anim::Dying, 2, 0),
-            frame(troop, Anim::Dying, 3, 0),
+            frame(troop, Anim::Shovelling, 2, 0),
+            frame(troop, Anim::Shovelling, 3, 0),
             "2 and 3 are the same half-facing"
         );
+    }
+
+    /// **The corpse**, `Anim_CollapseA2` (`0x00487CE4`) — six frames at `8N+0`,
+    /// one every four ticks of the death timer `+0x173`, held at the sixth,
+    /// **no facing term**, and never inside the shovel's band. Ours drew the
+    /// dead from the shovel band and the living shoveller with them.
+    #[test]
+    fn a_corpse_falls_through_six_shared_frames_off_the_death_timer() {
+        let troop = Troop::Swordsmen;
+        let base = FACINGS * poses_per_facing(troop) as usize;
+        let pose = |corpse: u16| Pose { corpse, ..Pose::default() };
+        for corpse in 0..24u16 {
+            assert_eq!(
+                frame(troop, Anim::Dying, 0, pose(corpse)),
+                base + (corpse / 4) as usize,
+                "one frame per four ticks"
+            );
+        }
+        for corpse in [24u16, 40, 80, 120] {
+            assert_eq!(frame(troop, Anim::Dying, 0, pose(corpse)), base + 5, "held");
+        }
+        // Shared across facings, and clear of `8N+6`.
+        for facing in 0..8u8 {
+            let f = frame(troop, Anim::Dying, facing, pose(11));
+            assert_eq!(f, base + 2, "the six are shared by every facing");
+            assert!(f < base + 6, "a corpse is never drawn in the shovel band");
+        }
     }
 
     /// **Three knight arms, not one.** `Anim_StrikeA2` (`00480000.c:2565`) is
@@ -159,6 +188,25 @@
                 let f = frame(Troop::Knights, Anim::Attacking, facing, phase);
                 assert!(f >= 8, "facing {facing} fell through to the rider-only frames");
                 assert!(f < 56, "facing {facing} phase {phase} -> {f}, past the 56 real frames");
+            }
+        }
+    }
+
+    /// **A dead knight stands.** `Anim_CollapseA2` `00480000.c:3103-3109`
+    /// sends `troopType` 6 to `Anim_Stand()`, whose knight arm (`2896-2900`) is
+    /// the bare `dirc`; `Anim_DyingA2` `3004-3006` returns with the frame
+    /// untouched, and the frozen `facingDrawn` is what reaches us.
+    ///
+    /// **Ablation**: drawing either from `knight_base` puts a fallen knight in
+    /// the swing frames, which is what the strike table's base is.
+    #[test]
+    fn a_dead_or_shovelling_knight_wears_the_standing_frame() {
+        for facing in 0..8u8 {
+            for phase in 0..=120u8 {
+                for anim in [Anim::Dying, Anim::Shovelling] {
+                    let f = frame(Troop::Knights, anim, facing, phase);
+                    assert_eq!(f, facing as usize, "facing {facing} {anim:?} -> {f}");
+                }
             }
         }
     }
