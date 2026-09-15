@@ -170,3 +170,144 @@ fn the_arrival_itself_is_silent_and_a_talking_window_swallows_the_line() {
         "a band was announced with no raise-army screen: {heard:?}",
     );
 }
+
+/// **`App::tick` (`main.rs`)** — `Machine::update`, then `Director::listen`,
+/// once per simulation tick and never inside one.
+fn tick(
+    machine: &mut Machine,
+    game: &mut Game,
+    assets: &Assets,
+    audio: &mut Audio,
+    director: &mut audio::Director,
+) {
+    let mut ctx = Ctx { game, assets };
+    machine.update(&mut ctx);
+    drop(ctx);
+    director.listen(audio, machine, game);
+}
+
+/// What the player has in front of him: a campaign map, tips **on** as the game
+/// ships them (`world()` turns them off; `main.rs` turns nothing off), and
+/// county 1 holding `band`.
+fn a_map_with_an_offer(
+    platform: &l2_mods::Platform,
+    band: u8,
+) -> (Game, Machine, Audio, audio::Director) {
+    let mut game = world();
+    game.prefs.tip_screens = true;
+    game.selected = 1;
+    game.kingdom.counties[1].mercenary_offer = band;
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    (game, machine, Audio::headless(&platform.vfs), audio::Director::new())
+}
+
+/// `App::deliver`: `input::LeftButton::pressed` is the [`Event::Click`]
+/// (`WM_LBUTTONDOWN`, `0x201`) and `released` the [`Event::Release`] after it,
+/// and the second lands on whatever the first opened.
+fn press_the_army_button(machine: &mut Machine, game: &mut Game, assets: &Assets) {
+    let b = l2_game::screens::map::SIDEBAR_BUTTONS[0];
+    assert_eq!(b.name, "ARMY", "the first sidebar button is hotspot 1");
+    let r = b.rect();
+    let (x, y) = (r.x + r.w / 2, r.y + r.h / 2);
+    send(machine, game, assets, Event::Click { x, y });
+    send(machine, game, assets, Event::Release { x, y });
+}
+
+/// **The player's path, first half**: the opening tip's window is up, so the
+/// sidebar never sees the click; dismissed, the same click speaks.
+///
+/// `Tip_Show` (`0x00476DA9`) writes `g_screenId = 0x27` and `Screen_FrameInput`
+/// answers the map only on `g_screenId == 0`, so the button is deaf until
+/// `FUN_00476E21` puts the screen back. `[V]`; ours is `ScreenId::Tip` over
+/// `Campaign`.
+///
+/// **Ablation, run:** `game.prefs.tip_screens = false` and the first half goes
+/// red — the click opens the screen straight away.
+#[test]
+fn a_tip_window_holds_the_army_button_and_the_band_is_announced_once_it_is_gone() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no S016 clips");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+
+    for (band, want) in [(1u8, "s016_01.wav"), (12, "s016_12.wav")] {
+        let (mut game, mut machine, mut audio, mut director) = a_map_with_an_offer(&platform, band);
+        for _ in 0..40 {
+            tick(&mut machine, &mut game, &assets, &mut audio, &mut director);
+        }
+        assert!(game.messages.is_open(), "the opening tip never posted; tips are on");
+        press_the_army_button(&mut machine, &mut game, &assets);
+        tick(&mut machine, &mut game, &assets, &mut audio, &mut director);
+        assert!(
+            !machine.ids().contains(&ScreenId::RaiseArmy(1)),
+            "the sidebar answered a click the tip window was holding",
+        );
+
+        // `Msg_Dismiss` (`0x00476768`), then the same click.
+        while game.messages.is_open() {
+            message::dismiss(&mut game);
+            tick(&mut machine, &mut game, &assets, &mut audio, &mut director);
+        }
+        press_the_army_button(&mut machine, &mut game, &assets);
+        tick(&mut machine, &mut game, &assets, &mut audio, &mut director);
+        assert!(machine.ids().contains(&ScreenId::RaiseArmy(1)), "the screen did not open");
+        assert!(
+            audio.heard().iter().any(|n| *n == want),
+            "band {band} was not announced; heard {:?}",
+            audio.heard(),
+        );
+    }
+}
+
+/// **Second half, and the one the player met**: the band *is* announced, and
+/// the raise-army screen's own tip then talks over it.
+///
+/// `Tip_Update` (`0x00476AA7`) posts group 209 on `g_screenId == 0x17` — the
+/// screen the sidebar has just opened — once `DAT_004F0358` reaches zero, and
+/// `Msg_PlayVoice` (`0x004B35C1`) is `Sound_StopOneShot(); Sound_PlayFile(…)`,
+/// so `S209_01.wav` **stops** `S016_01.wav`. Measured here: 29 ticks after the
+/// screen opens, which is the twenty-frame re-arm plus the window's own voice
+/// timer, against a sentence three seconds long. The band's line is audible for
+/// a syllable, once per run, and that is the silence reported.
+///
+/// **Both addresses are `[V]` and this is the original's shape**, so nothing is
+/// changed to stop it; the test is here so that a change to either timer says
+/// so out loud.
+///
+/// **Ablation, run:** `game.prefs.tip_screens = false` and no cut ever comes.
+#[test]
+fn the_raise_army_screens_own_tip_talks_over_the_band() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no S016 clips");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+    let (mut game, mut machine, mut audio, mut director) = a_map_with_an_offer(&platform, 1);
+    for _ in 0..40 {
+        tick(&mut machine, &mut game, &assets, &mut audio, &mut director);
+    }
+    while game.messages.is_open() {
+        message::dismiss(&mut game);
+        tick(&mut machine, &mut game, &assets, &mut audio, &mut director);
+    }
+    press_the_army_button(&mut machine, &mut game, &assets);
+    tick(&mut machine, &mut game, &assets, &mut audio, &mut director);
+    assert!(audio.is_playing("s016_01.wav"), "the band was not announced at all");
+
+    let mut cut = None;
+    for i in 0..120 {
+        tick(&mut machine, &mut game, &assets, &mut audio, &mut director);
+        if !audio.is_playing("s016_01.wav") {
+            cut = Some(i);
+            break;
+        }
+    }
+    assert_eq!(cut, Some(28), "the armoury tip cut the band off at a different tick");
+    assert!(
+        audio.heard().iter().any(|n| *n == "s209_01.wav"),
+        "something other than the armoury tip took the buffer: {:?}",
+        audio.heard(),
+    );
+}
