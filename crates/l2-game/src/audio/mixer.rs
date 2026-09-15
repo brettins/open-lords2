@@ -328,8 +328,10 @@ impl Mixer {
                     None => false,
                 });
             } else {
+                // `Opt_ToggleSoundEffects` (`0x00434A29`, `00430000.c:1881`) flips the flag and
+                // stops nothing: `Sound_PlayFile` reads it at start (`00420000.c:2609`), so a
+                // one-shot already sounding plays on with effects off.
                 self.effects.clear();
-                self.one_shot = None;
             }
             // Clamp
             // past the rail, and a wrap there is a bang, not a loud noise.

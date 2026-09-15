@@ -178,7 +178,12 @@ impl Audio {
             }
         }
         if !options.music {
-            self.stop_one_shot();
+            // `Opt_ToggleMusic` (`0x004349A4`, `00430000.c:1856`) stops the one-shot only
+            // on its own flip to off; a Speech or Effects row changing with music already
+            // off flips nothing here.
+            if was_music {
+                self.stop_one_shot();
+            }
             // Forget what was playing so that switching back on re-derives.
             self.scene = None;
         } else if !was_music && self.in_battle {
