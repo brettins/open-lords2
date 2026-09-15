@@ -54,12 +54,11 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// click, which is what stops a stray click on the map from silently declining
 /// an alliance.
 ///
-/// **It calls `Msg_Dismiss`, not the two lines that clear the window**, so this
-/// is a [`dismiss`] like any other: `FUN_00476E21` runs, `g_screenId` goes back
-/// to `_DAT_004F0350` and `DAT_004F0358` is re-armed to `0x14`. Closing the
-/// ring here instead left [`crate::tip::Tips::hosting`] set, the `0x27` host
-/// seated over the map for ever and the delay at zero — and a save box pushed
-/// after it starved.
+/// `FUN_00476710` (`00470000.c:2409`) calls `Msg_Dismiss` (`2438`), so this is a
+/// [`dismiss`]: `FUN_00476E21` runs, `g_screenId` goes back to `_DAT_004F0350`
+/// and `DAT_004F0358` is re-armed to `0x14`. Until 2026-09-14 ours closed the
+/// ring only, which left [`crate::tip::Tips::hosting`] set and the `0x27` host
+/// seated over the map, and a save box pushed after it got no update.
 ///
 /// Returns what `Msg_Dismiss` asked for (`Dismissal::GameOver` carries its last
 /// three lines: `Campaign_EnterConquest(); g_screenId = 0x1C`), or `None` when
