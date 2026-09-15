@@ -183,6 +183,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/screens_info/field_panel/labels_and_views.rs", "executable", 1),
     ("crates/l2-game/tests/screens_info/tile_panel_part.rs", "england", 5),
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/fog_tests.rs", "england", 3),
+    ("crates/l2-game/tests/screens_map/fog_and_march_tests/hover_frame_tests.rs", "england", 1),
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/march_tests.rs", "england", 4),
     ("crates/l2-game/tests/screens_map/interaction_tests/chrome_tests.rs", "england", 1),
     ("crates/l2-game/tests/screens_map/interaction_tests/selection_and_click_tests.rs", "england", 4),
@@ -283,7 +284,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 623;
+pub(crate) const GATED_TOTAL: usize = 624;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),
