@@ -197,3 +197,59 @@ fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
     assert_eq!(own.files(), Vec::<String>::new(), "and nothing was written");
 }
 
+
+/// **The save the player actually makes: from the menu bar, over the campaign
+/// map.** A player: *"it says saving game please wait, then stays on that
+/// screen … the new save isn't there"*.
+///
+/// Every other test on this screen builds a `Machine` whose *only* screen is
+/// the box, so nothing is under it and [`Machine::update`] reaches the box on
+/// every frame. In the game the box is pushed over screen `0x24`, and
+/// `Machine::wind_turn` — `Battle_Frame`'s `Turn_Tick(); Units_Tick();` at
+/// `0x004B99C0` — runs the map underneath first. When that wind-on moves the
+/// stack the machine returns early and the top screen gets no tick at all, so
+/// `SaveLoad_Tick`'s `DAT_0057D3C4` never counts down and the box sits on
+/// *"Saving game. Please wait."* for ever.
+#[test]
+fn a_save_from_the_menu_bar_over_the_campaign_map_finishes_and_closes() {
+    use l2_game::screens::menubar;
+    use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};
+
+    let own = Saves::new("menubar-save");
+    let (mut game, assets) = bare();
+    game.prefs.tip_screens = false;
+    let mut m = Machine::new(ScreenId::Campaign);
+    // **The player has been sitting on the map**, so the AI realms have taken
+    // their `AI_RunTurnStep` steps and `players_turn_open` is set — the state
+    // `turn::tick_ai_frame` leaves behind and the state a real save is made in.
+    for _ in 0..400 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the map is his to save from");
+    let titles = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        menubar::titles(&ctx)
+    };
+    // File, then its third item — `MENUS[0].items[2]` is `Item::Save`.
+    let row = menubar::item_rect(&titles, 0, 2);
+    drive(
+        &mut m,
+        &mut game,
+        &assets,
+        &[Event::Click { x: titles[0].x + 2, y: 10 }, Event::Click { x: row.x + 4, y: row.y + 4 }],
+    );
+    assert_eq!(m.top_id(), Some(ScreenId::SaveLoad(Mode::Save)), "File / Save");
+    assert_eq!(m.depth(), 2, "and the map is still under it");
+
+    let mut events: Vec<Event> = "OVERMAP".chars().map(Event::Text).collect();
+    events.push(click_widget(CONFIRM));
+    events.push(release_widget(CONFIRM));
+    drive(&mut m, &mut game, &assets, &events);
+    for _ in 0..=WORK_FRAMES {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    assert_eq!(own.files(), vec![file("overmap")], "the file the player asked for");
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the box is gone");
+}
