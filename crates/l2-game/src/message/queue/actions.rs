@@ -8,27 +8,20 @@ use l2_kingdom::diplomacy::Letter;
 use l2_kingdom::victory::{self, Ending, Outcome, OutcomeStep};
 use crate::game::Game;
 
-/// **`Msg_Dismiss` (`0x00476768`).**
-///
-/// Free function because the ending arm reads
-/// [`crate::victory::Campaign`] and can enter the conquest screen, which is the
-/// whole `Game`'s business and not the ring's.
-///
-/// What is deliberately **not** here: the arm for groups `0x9E`, `0x9F`, `0xEE`
-/// and `0xEF`, which drops into screen `0x26` and sets `g_quitRequest = 3`.
-/// Those four groups are the demo's *"Congratulations"* / *"Defeat"* posters and
-/// **nothing in the binary enqueues any of them** — `docs/formats/eng.md` marks
-/// all four dead. Building it would be a `dead-reproduced` arm, which
-/// `crates/l2-game/tests/arms.rs` asserts stays empty. `docs/arms.json` records
-/// it as `dead`.
+/// `Msg_Dismiss` (`0x00476768`) reads `crate::victory::Campaign` and can enter
+/// the conquest screen, which belongs to `Game`.
+/// Groups `0x9E`, `0x9F`, `0xEE`, `0xEF` drop to screen `0x26` and set `g_quitRequest = 3`.
+/// Nothing in the binary enqueues them; `docs/formats/eng.md` marks all four dead.
+/// `crates/l2-game/tests/arms.rs` asserts the `dead-reproduced` arm stays empty;
+/// `docs/arms.json` records it as `dead`.
 pub fn dismiss(game: &mut Game) -> Dismissal {
     if !game.messages.is_open() {
         return Dismissal::Nothing;
     }
     game.messages.close();
-    // `FUN_00476E21()`, between the redraw and the timer: if this closed while
-    // `g_screenId` was the tip's `0x27`, the screen comes back and the tips wait
-    // twenty frames. It acts on *any* dismissal on `0x27`, not only a tip's.
+    // `FUN_00476E21()` between the redraw and the timer: if this closed while
+    // `g_screenId` was `0x27`, the screen comes back and the tips wait twenty
+    // frames. It runs on any dismissal on `0x27`, a tip's or not.
     game.tips.restore();
     let outcome = game.campaign.outcome;
     if outcome.is_over() {
@@ -147,18 +140,15 @@ pub fn post_event(game: &mut Game) -> bool {
     if !c.event_fired || posted {
         return false;
     }
-    // `g_counties[county].eventFired = 0` — inside the condition, *before* the
-    // owner test, so it happens whoever holds the county. Ours marks instead of
-    // clearing, in the same place, so the swallowing below is unchanged.
+    // `g_counties[county].eventFired = 0` runs inside the condition before owner test.
+    // Ours marks instead of clearing in the same place so swallowing is unchanged.
     game.event_posted[county] = true;
     let c = &game.kingdom.counties[county];
     if c.owner != player {
         return false;
     }
-    // `Msg_Enqueue(0, g_localPlayer, eventId, 0, 0x0F, county, 0, 0)` —
-    // `Msg_Enqueue(from, to, …)`, so **from nobody, to this player**. The group
-    // is the county's stored id and the painter re-reads the county's id for the
-// number line, so the two are the same number.
+    // `Msg_Enqueue(0, g_localPlayer, eventId, 0, 0x0F, county, 0, 0)` calls
+    // `Msg_Enqueue(from, to, …)` from nobody to `g_localPlayer`. Group and painter id match.
     let group = c.event_id;
     let record = Record {
         to: player,
@@ -252,8 +242,7 @@ pub fn show(game: &mut Game) -> bool {
                 }
             }
         }
-        // The diplomatic letter carries the same alliance guard for group 0xF8
-        // only — `Msg_DrawDiplomacy`'s `iVar2 == 3` arm.
+        // Group 0xF8 alliance guard in `Msg_DrawDiplomacy`'s `iVar2 == 3` arm.
         // arm: 0x00475E07/letter-alliance-lapses draw
         category::DIPLOMACY if record.group == 0xF8 => {
             let ally = game.kingdom.realms.get(game.player as usize).map_or(0, |r| r.ally);
@@ -307,8 +296,7 @@ pub fn animate(game: &mut Game) -> Option<crate::movie::Film> {
             Some(Film::Capture { take, record })
         }
         category::ENDING => {
-            // `FUN_00475B41` reads the year and the lord before `Msg_Dismiss`
-            // runs, though nothing it reads is something the dismissal writes.
+            // `FUN_00475B41` reads year and lord before `Msg_Dismiss` runs.
             let file = crate::movie::ending_film(game, record.from, record.group);
             let game_over = matches!(dismiss(game), Dismissal::GameOver(_));
             Some(Film::Ending { file, record, game_over })
@@ -317,26 +305,15 @@ pub fn animate(game: &mut Game) -> Option<crate::movie::Film> {
     }
 }
 
-/// **Show and dismiss every queued message at once**, and return the outcome.
-///
-/// This is what a *headless* turn does in place of the frame loop: it is
-/// `Msg_Pump` + [`show`] + [`dismiss`] run to exhaustion, with no window and no
-/// click. [`crate::turn::end_turn`] is the headless door — `docs/agents.md`,
-/// *name the branch* — and it cannot raise a screen
-/// still ends, and ends by the same ladder an interactive game does.
-///
-/// Every step goes through
-/// the same [`show`] and [`dismiss`] the message screen calls, which is the
-/// point: an ending settled headlessly and an ending settled by a person
-/// pressing the corner button cannot disagree, because there is one ladder.
-///
-/// It stops at the first message that ends the game, because in the original
-/// dismissing that message enters screen `0x1C` and nothing behind it in the
-/// ring is ever shown.
+/// Headless turns run `Msg_Pump` + [`show`] + [`dismiss`] to exhaustion with no window.
+/// [`crate::turn::end_turn`] is the headless door (`docs/agents.md`, *name the branch*).
+/// One ladder serves both, so a headless ending and a clicked one cannot disagree.
+/// It stops at the first message that ends the game: dismissing that one enters
+/// screen `0x1C` and nothing behind it in the ring is shown.
+/// Execution stops when a game-ending message enters screen `0x1C`.
 pub fn drain(game: &mut Game) -> Outcome {
-    // Fifty slots and one enqueue-while-draining (group 225)
-    // iterations is a hard bound that a full ring cannot reach. A `while true`
-    // here would be one ring-corruption away from hanging the turn.
+    // Fifty slots plus group 225 draining iteration bounds ring processing.
+    // Prevents `while true` hangs from ring corruption.
     for _ in 0..(RING * 2) {
         if !game.messages.is_open() && !game.messages.pull() {
             if game.messages.is_empty() {
