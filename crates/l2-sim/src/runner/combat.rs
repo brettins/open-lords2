@@ -1,5 +1,6 @@
 use super::*;
 
+/// The swap arm's guards and the two waits it hands out.
 #[cfg(test)]
 #[path = "tests_delay.rs"]
 mod tests_delay;
@@ -380,21 +381,27 @@ impl BattleRunner {
                     //
                     // That arm, `00480000.c:6560-6567`: `FUN_00491492` (return
                     // if non-zero), `local_10 = FUN_004912EC`, then `if
-                    // (field_0x169 < 3) { tgX = mapX; tgY = mapY; return 0; }`.
+                    // (field_0x169 < 3) { tgX = mapX; tgY = mapY; return 0; }`
+                    // — the destination only, `onRoute` untouched, so the
+                    // engine keeps its stored route.
                     //
-                    // `FUN_004912EC` — the engine's own side-step, three
-                    // rotations each way — is not built, so `local_10` is never
-                    // 1 here and the tail parks him (`00480000.c:6583-6586`).
-                    //
-                    // `[D]` on the missing step; [`Self::tower_step`] is the
-                    // same arm reached from [`Self::enter`] for a tower.
+                    // **Two of the three are not built.** `FUN_004912EC`, the
+                    // engine's own side-step through three rotations each way,
+                    // so `local_10` is never 1 here and the tail parks him
+                    // (`00480000.c:6583-6586`); and `FUN_00491492`
+                    // (`00480000.c:6561-6563`), which runs *before* the
+                    // distance test and can destroy the man
+                    // (`BattleMan_Destroy`, `g_siegeApproachScore`,
+                    // `g_siegeBreachScore`) — so the give-up and the park below
+                    // run in frames where the original had already returned.
+                    // `[D]`, both; [`Self::tower_step`] is the same arm reached
+                    // from [`Self::enter`] for a tower.
                     if self.fighters[i].troop.is_siege() {
                         let f = &mut self.fighters[i];
                         if chebyshev(f.x as i16, f.y as i16, f.target.0 as i16, f.target.1 as i16)
                             < 3
                         {
                             f.target = (f.x, f.y);
-                            f.path.clear();
                             return;
                         }
                         f.delay = 100;
@@ -403,6 +410,7 @@ impl BattleRunner {
                     // `00480000.c:6443`: the swap arm needs `other.state != 2
                     // && cur.unit == other.unit`; a dead or cross-unit blocker
                     // is `local_10 = 3`, the side-step. **[V]**, decompiled.
+                    // Ours swapped any two same-type men of one side.
                     let swap_arm =
                         self.is_alive(other) && self.unit_of(other) == self.unit_of(i);
                     match if swap_arm { self.swap_answer(i, other) } else { 1 } {
@@ -411,7 +419,6 @@ impl BattleRunner {
                         // of the call, then `delayState = state; state = 1;
                         // delay = (other & 1) + 1; return 0` — he stands one or
                         // two frames and asks for no route. **[V]**, decompiled.
-                        //
                         // Ours searched anyway; C103's deadlock fix is about
                         // `Path_LineIsClear` and does not cover this arm.
                         0 => {
@@ -586,7 +593,6 @@ impl BattleRunner {
         // measured on this branch), so the whole guard stays out, its two siege
         // sub-guards (`cur.side == 4`, `cur.weaponClass == 0`,
         // `00490000.c:24-29`) with it. `[D]`.
-        //
         // `00490000.c:31-33`: `cur.troopType == other.troopType &&
         // other.troopType < 7 && cur.troopType < 7`, each failure answering 0.
         let (cur, oth) = (self.fighters[i].troop, self.fighters[other].troop);
@@ -637,6 +643,7 @@ impl BattleRunner {
         self.fighters[a].y = by;
         self.fighters[b].x = ax;
         self.fighters[b].y = ay;
+        // **The two men are drawn walking past each other**, not teleported.
         // `BattleMen_SwapPlaces` (`0x0049005F`) exchanges `mapX`, `mapY` and
         // `cellOffset` and touches neither `walking` nor `dirc`, so the
         // original draws both of them a whole cell away in one frame; ours

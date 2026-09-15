@@ -1,0 +1,18 @@
+{
+  "reviewed": "a6c432abf8f3ed46439458f5153b3c74be2cfd45",
+  "date": "2026-09-14",
+  "behaviours": [
+    { "file": "crates/l2-sim/src/runner/combat.rs", "line": 390, "address": "0x0048F1DD", "verdict": "departure",
+      "note": "00480000.c:6495 sends a blocked siege engine to the else arm, not the side-step/search; FUN_004912EC (engine side-step) not built, labelled [D], so local_10 stays 0." },
+    { "file": "crates/l2-sim/src/runner/combat.rs", "line": 391, "address": "0x0048F1DD", "verdict": "mismatch",
+      "note": "00480000.c:6561-6564 tests FUN_00491492(cur) and returns 0 when non-zero before anything else; not implemented and not labelled [D]." },
+    { "file": "crates/l2-sim/src/runner/combat.rs", "line": 392, "address": "0x0048F1DD", "verdict": "mismatch",
+      "note": "threshold and field are right (field_0x169 = Dist_Chebyshev(mapX,mapY,tgX,tgY) at 00480000.c:6403-6406, < 3 at 6566), but 6567-6569 sets tgX/tgY only; our f.path.clear() adds an onRoute = 0 the arm does not do." },
+    { "file": "crates/l2-sim/src/runner/combat.rs", "line": 399, "address": "0x0048F1DD", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-sim/src/runner/combat.rs", "line": 603, "address": "0x0049005F", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-sim/src/runner/combat.rs", "line": 615, "address": "0x0049005F", "verdict": "match",
+      "note": "" }
+  ]
+}
