@@ -134,7 +134,10 @@ impl MapScreen {
     ///
     /// Two economies of the original are kept because they are behaviour, not
     /// speed: the descent runs **only when the hovered tile changed**
-    /// (`if (DAT_005691E0 != g_hoverTileOffset)`).
+    /// (`if (DAT_005691E0 != g_hoverTileOffset)`, `004a0000.c:3727`). The
+    /// marking above that guard is not one of them — `MapScreen::draw` calls
+    /// this once a frame where the original's `0x10` arm does, so a pointer
+    /// standing still still has a trail.
     ///
     // arm: 0x004A8E0B/hover-unit-target hover
     pub(super) fn update_hover_path(&mut self, x: i32, y: i32) {

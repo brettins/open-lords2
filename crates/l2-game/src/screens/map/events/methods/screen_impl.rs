@@ -558,6 +558,19 @@ impl Screen for MapScreen {
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         self.ensure(ctx);
         self.ensure_minimap(ctx);
+        // `Screen_DrawWidgets` (`0x004BA26E`)'s `0x10` arm calls
+        // `Map_HoverUnitTarget` (`0x004A8E0B`) here, in the draw pass, once a
+        // frame — not on pointer motion. [V] `004a0000.c:3726`:
+        // `Path_MarkPreviewTiles()` (`0x004A91BA`) stands *above* the
+        // `if (DAT_005691E0 != g_hoverTileOffset)` guard at 3727, so the trail
+        // is re-marked (tile bank `0x40`) every frame with the pointer still;
+        // only the descent under the guard — `Move_ExtractPath`, the six
+        // `g_hover*` classifications — waits for the tile to change.
+        // [V] `DAT_005691E0` has exactly two references in the decompilation,
+        // lines 3727 and 3728: no caller resets it,
+        // `Map_BeginMoveSelection` (`0x0043723A`) included.
+        let (px, py) = self.pointer;
+        self.update_hover_path(px, py);
         let ink = &ctx.assets.ink;
         let game = &ctx.game;
         let k = &game.kingdom;
