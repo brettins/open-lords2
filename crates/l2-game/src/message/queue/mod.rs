@@ -237,31 +237,12 @@ impl MessageQueue {
         self.timer = 0;
     }
 
-    /// **`Msg_DismissUnlessQuestion` (`0x00476710`)** — the whole function:
-    ///
-    /// ```c
-    /// if (category != 0x11 && category != 10 && category != 0x0B && category != 0x0C)
-    ///     Msg_Dismiss();
-    /// ```
-    ///
-    /// One caller, and it is the arm nobody had looked for: **`Map_Click`'s
-    /// entire body is `if (g_messageGroup == 0) { … } else { this }`**. So with
-    /// a message up, a left click on the campaign map closes it and the map does
-    /// nothing else at all — no pick, no county selection, no village. A
-    /// *question* survives the click, which is what stops a stray click on the
-    /// map from silently declining an alliance.
-    ///
-    /// Returns whether it closed. The marker for this arm is on its CALLER, in
-    /// `screens/map/mod.rs`: the gesture is a click on the campaign map and this is
-    /// only the four-line helper it reaches.
-    pub fn dismiss_unless_question(&mut self) -> bool {
-        match self.open {
-            Some(r) if !r.is_question() => {
-                self.close();
-                true
-            }
-            _ => false,
-        }
+    /// **`Msg_DismissUnlessQuestion`'s own test (`0x00476710`)**: every
+    /// category but the four questions. The dismissal itself is
+    /// [`crate::message::dismiss_unless_question`], which has to reach
+    /// `Msg_Dismiss` and so cannot live on the ring.
+    pub fn dismissed_by_map_click(&self) -> bool {
+        self.open.is_some_and(|r| !r.is_question())
     }
 }
 

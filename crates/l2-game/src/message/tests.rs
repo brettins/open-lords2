@@ -160,16 +160,16 @@ mod tests {
         let mut q = MessageQueue::new();
         q.enqueue(notice(0, 0x92), 1);
         q.pull();
-        assert!(q.dismiss_unless_question());
-        assert!(!q.is_open());
+        assert!(q.dismissed_by_map_click());
 
+        let mut q = MessageQueue::new();
         q.enqueue(
             Record { group: 180, category: category::ALLIANCE_PROMPT, ..Record::default() },
             1,
         );
         q.pull();
-        assert!(!q.dismiss_unless_question());
-        assert!(q.is_open(), "an alliance offer is not closed by a stray click");
+        assert!(!q.dismissed_by_map_click(), "an alliance offer is not closed by a stray click");
+        assert!(q.is_open());
     }
 
     /// The OK hit box is **twice** the picture, and off-centre by nothing:

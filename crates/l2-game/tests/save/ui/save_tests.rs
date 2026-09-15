@@ -197,3 +197,109 @@ fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
     assert_eq!(own.files(), Vec::<String>::new(), "and nothing was written");
 }
 
+
+/// **The save the player actually makes: from the menu bar, over the campaign
+/// map.** A player: *"it says saving game please wait, then stays on that
+/// screen … the new save isn't there"*.
+///
+/// Every other test on this screen builds a `Machine` whose *only* screen is
+/// the box, so nothing is under it and [`Machine::update`] reaches the box on
+/// every frame. In the game the box is pushed over screen `0x24`, and
+/// `Machine::wind_turn` — `Battle_Frame`'s `Turn_Tick(); Units_Tick();` at
+/// `0x004B99C0` — runs the map underneath first. When that wind-on moves the
+/// stack the machine returns early and the top screen gets no tick at all, so
+/// `SaveLoad_Tick`'s `DAT_0057D3C4` never counts down and the box sits on
+/// *"Saving game. Please wait."* for ever.
+#[test]
+fn a_save_from_the_menu_bar_over_the_campaign_map_finishes_and_closes() {
+    use l2_game::screens::menubar;
+    use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};
+
+    let own = Saves::new("menubar-save");
+    let (mut game, assets) = bare();
+    game.prefs.tip_screens = false;
+    let mut m = Machine::new(ScreenId::Campaign);
+    // **The player has been sitting on the map**, so the AI realms have taken
+    // their `AI_RunTurnStep` steps and `players_turn_open` is set — the state
+    // `turn::tick_ai_frame` leaves behind and the state a real save is made in.
+    for _ in 0..400 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the map is his to save from");
+    let titles = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        menubar::titles(&ctx)
+    };
+    // File, then its third item — `MENUS[0].items[2]` is `Item::Save`.
+    let row = menubar::item_rect(&titles, 0, 2);
+    drive(
+        &mut m,
+        &mut game,
+        &assets,
+        &[Event::Click { x: titles[0].x + 2, y: 10 }, Event::Click { x: row.x + 4, y: row.y + 4 }],
+    );
+    assert_eq!(m.top_id(), Some(ScreenId::SaveLoad(Mode::Save)), "File / Save");
+    assert_eq!(m.depth(), 2, "and the map is still under it");
+
+    let mut events: Vec<Event> = "OVERMAP".chars().map(Event::Text).collect();
+    events.push(click_widget(CONFIRM));
+    events.push(release_widget(CONFIRM));
+    drive(&mut m, &mut game, &assets, &events);
+    for _ in 0..=WORK_FRAMES {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    assert_eq!(own.files(), vec![file("overmap")], "the file the player asked for");
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the box is gone");
+}
+
+/// **The same save with the tips on — the setting the player actually has.**
+///
+/// `main.rs` turns nothing off, so `g_optTipScreens` is set and
+/// `Tip_Update` (`0x00476AA7`) runs every frame. Its last rung, the invasion
+/// tip, is the **one arm with no `g_screenId` test**, so it fires over the save
+/// box as readily as over the map; `Tip_Show` (`0x00476DA9`) then saves
+/// `g_screenId` and writes `0x27`.
+///
+/// In the original that pauses the count and nothing more: `SaveLoad_Tick`
+/// (`0x004AD9F0`) is called from `Screen_HandleInput`'s `g_screenId == '5' ||
+/// '6'` arm, so `0x27` stops it, and `FUN_00476E21` puts `0x36` back when the
+/// tip is dismissed and the count goes on. Ours seated the host **on top of the
+/// box** and never took it off, so `DAT_0057D3C4` never reached zero and the
+/// box sat on *"Saving game. Please wait."* for ever.
+#[test]
+fn a_tip_over_the_save_box_pauses_the_count_and_the_save_still_lands() {
+    use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};
+
+    let own = Saves::new("tip-over-save");
+    let (mut game, assets) = bare();
+    game.prefs.tip_screens = true;
+    let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
+    let mut events: Vec<Event> = "TIPPED".chars().map(Event::Text).collect();
+    events.push(click_widget(CONFIRM));
+    events.push(release_widget(CONFIRM));
+    drive(&mut m, &mut game, &assets, &events);
+
+    // Half the wait, then the invasion tip's flag: `Tip_Update`'s last rung.
+    for _ in 0..(WORK_FRAMES / 2) {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    let player = game.player;
+    let crossing = l2_kingdom::units_tick::Incursion { unit: 0, owner: player, county: 1 };
+    game.tips.note_incursions(&[crossing], player);
+    for _ in 0..4 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    assert!(own.files().is_empty(), "the tip pauses SaveLoad_Tick, as 0x27 does");
+
+    // The player reads it and clicks it away, and the count goes on.
+    drive(&mut m, &mut game, &assets, &[Event::Click { x: 320, y: 240 }]);
+    for _ in 0..=WORK_FRAMES {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
+    assert_eq!(own.files(), vec![file("tipped")], "{:?}", m.ids());
+}

@@ -54,6 +54,10 @@ pub struct Machine {
     /// two pumps: the request is raised in a tick and taken in the same tick's
     /// tail by the application.
     pub(crate) autosave: bool,
+    /// The screen the tip host was seated over — what `Tip_Show`
+    /// (`0x00476DA9`) saved in `_DAT_004F0350`. See
+    /// [`Machine::seat_tip_host`].
+    pub(crate) tip_seat: Option<ScreenId>,
 }
 
 

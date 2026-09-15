@@ -318,7 +318,7 @@ impl Screen for MapScreen {
                 // let the click through, and this is what the click found.
                 // arm: 0x00476710/map-click-dismiss left-release
                 if ctx.game.messages.is_open() {
-                    ctx.game.messages.dismiss_unless_question();
+                    crate::message::dismiss_unless_question(ctx.game);
                     return Transition::Stay;
                 }
                 // **`Sidebar_ButtonClicked` is guard 3 and it is OUTSIDE the

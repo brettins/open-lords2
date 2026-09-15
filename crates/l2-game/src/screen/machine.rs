@@ -18,6 +18,7 @@ impl Machine {
             tooltip_screens: Vec::new(),
             tool_tips_seen: None,
             autosave: false,
+            tip_seat: None,
         }
     }
 
@@ -610,18 +611,65 @@ impl Machine {
     /// Keep [`ScreenId::Tip`] on the stack exactly while
     /// [`crate::tip::Tips::hosting`] says `g_screenId` is `0x27`.
     // arm: 0x00476E21/tip-restores-its-screen frame
+    /// **The host is seated over the screen whose byte `Tip_Show` overwrote**,
+    /// and not over the top of the stack.
+    ///
+    /// `Tip_Show` (`0x00476DA9`) writes `_DAT_004F0350 = g_screenId; g_screenId
+    /// = 0x27` — **one** byte, the one that was current when the ladder posted.
+    /// A screen opened afterwards has its own byte, and its own arm in
+    /// `Screen_HandleInput` still runs: the save box's `g_screenId == '5' ||
+    /// '6'` arm, which is the only caller of `SaveLoad_Tick` (`0x004AD9F0`), is
+    /// how `DAT_0057D3C4` counts down. Seating the host at the top instead —
+    /// which this did — put it over the box, whose `update` then never ran and
+    /// whose countdown never reached zero: *"Saving game. Please wait."* for
+    /// ever. [`Machine::tip_seat`] is that screen, and it lives exactly as long
+    /// as the host it was written for: `Tip_Show` rewrites `_DAT_004F0350` on
+    /// every post and `FUN_00476E21` (`0x00476E21`) hands it back once. Nothing
+    /// but the unseat below takes the host off the stack — `force_close` stops
+    /// at the first screen [`crate::turn_clock::closed_by_turn_end`] rejects and
+    /// `0x27` is not in its table, so the re-seat this doc once claimed was for
+    /// a popper that does not exist.
     fn seat_tip_host(&mut self, game: &Game) {
         let seated = self.stack.iter().any(|s| s.id() == ScreenId::Tip);
         if game.tips.hosting() && !seated {
-            let at = match self.top_id() {
-                Some(ScreenId::Message) => self.stack.len() - 1,
-                _ => self.stack.len(),
+            let at = match self.tip_seat {
+                Some(id) => match self.stack.iter().rposition(|s| s.id() == id) {
+                    Some(i) => i + 1,
+                    // The original cannot reach this: `_DAT_004F0350` names a
+                    // byte, not a stack entry, and `Tip_Show` rewrites it from
+                    // the screen that is up now. The remembered screen having
+                    // closed means this is a *new* post, so it is seated by the
+                    // post's own rule below — said out loud, because a silent
+                    // seat anywhere else is the save-box bug again.
+                    None => {
+                        eprintln!("tip host: seat {id:?} has closed; seating over the screen up now");
+                        self.post_frame_seat()
+                    }
+                },
+                None => self.post_frame_seat(),
             };
+            self.tip_seat = at.checked_sub(1).map(|i| self.stack[i].id());
             self.stack.insert(at, ScreenId::Tip.build());
             self.dirty = true;
         } else if !game.tips.hosting() && seated {
             self.stack.retain(|s| s.id() != ScreenId::Tip);
+            // `FUN_00476E21` leaves `_DAT_004F0350` standing, and it may:
+            // `Tip_Show` (`0x00476DA9`) writes the byte again on **every** post,
+            // so the remembered screen can only ever apply to the host it was
+            // written for. Carrying it to the next post is not the original and
+            // is worse than dropping it — it seated the raise-army screen's own
+            // tip *under* the armoury.
+            self.tip_seat = None;
             self.dirty = true;
+        }
+    }
+
+    /// Where `Tip_Show` (`0x00476DA9`) reads `g_screenId`: the top screen is the
+    /// one whose byte the ladder read, under a scroll that is not a byte at all.
+    fn post_frame_seat(&self) -> usize {
+        match self.top_id() {
+            Some(ScreenId::Message) => self.stack.len() - 1,
+            _ => self.stack.len(),
         }
     }
 
