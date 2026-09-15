@@ -4,6 +4,8 @@ mod fog_tests;
 pub use fog_tests::*;
 mod march_tests;
 pub use march_tests::*;
+mod hover_frame_tests;
+pub use hover_frame_tests::*;
 
 use super::*;
 use super::view_tests::*;
