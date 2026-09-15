@@ -327,17 +327,23 @@ impl BattleRunner {
                 // **[D]** The original *returns* from the handler here, giving
                 // the figure a tick in which he only swings. Ours writes the
                 // pose and falls through to the arms below, so an arm that acts
-                // this tick overwrites it. Returning costs both of the gates
-                // that measure this seam: a figure dropped mid-crossing has his
-                // `walking` counter frozen while the trail is drawn from it,
-                // eight jumps of a whole cell over a 42-figure battle
-                // (`battle_picture`'s
-                // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`), and the
-                // skipped melee search turns the seam's militia from 6 of 8
-                // into 8 of 8. The order of the writes is the original's; the
-                // skipped tick is not.
+                // this tick overwrites it; returning instead turns the seam's
+                // militia from 4 of 8 into 3 of 8
+                // (`seam::the_same_position_can_be_fought_for_real…`).
+                //
+                // **The counter step stays behind with the return.** A state
+                // handler calls one `Anim_*` per man per tick, and the arm that
+                // acts below calls its own: `Anim_StrikeA2` (`0x00486249`,
+                // `00480000.c:2510`) and then `Anim_WalkA2` (`00480000.c:2756`)
+                // stepped `animPhase` twice in one tick — figure 3, 21 → 23,
+                // read through `(phase + 23) % 24` by `battle_picture`'s
+                // `a_marching_man_is_drawn_at_the_phase_he_ended_the_last_tick_with`.
+                // `facing_drawn` is left written: `Anim_StandA2` does not write
+                // it, so the swing's drawn facing survives a stand.
                 let facing = self.fighters[i].facing;
+                let phase = self.fighters[i].phase;
                 self.strike(i, facing);
+                self.fighters[i].phase = phase;
             }
         }
 
