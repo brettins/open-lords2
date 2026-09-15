@@ -169,9 +169,6 @@ mod tests {
 
     /// The 320 ms count is `DAT_0058FEB0`, a `Tick_Pulses` divider zeroed at
     /// the press (`00400000.c:7882`) and nowhere else.
-    ///
-    /// **Ablation:** zero `since_step` in [`Press::pointer`] for `Kind::Held`
-    /// too and the pulse lands twenty ticks late.
     #[test]
     fn a_kind_two_record_left_and_re_entered_rejoins_the_count() {
         let ticks = HELD_PULSE_MS / TICK_MS;

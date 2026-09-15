@@ -1,0 +1,27 @@
+{
+  "reviewed": "69bf0db3864598b31aa6a8f1c11a6aed26f88a92",
+  "date": "2026-09-14",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screens/setup/helpers.rs", "line": 67,
+      "address": "0x0040E3EE", "verdict": "match",
+      "note": "widgets.js 4dcf68 22: kind 2 on FUN_0043d9cd, 0043dd83, 0043dc1d, 0043ddf4, 0043daf3; kind 1 on 0043d929/43da9e/43d5b7/43d649." },
+    { "file": "crates/l2-game/src/screens/setup/screen.rs", "line": 88,
+      "address": "0x0040E3EE", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-game/src/screens/setup/ui/held.rs", "line": 18,
+      "address": "0x0040E3EE", "verdict": "match",
+      "note": "kind-2 records only, table order" },
+    { "file": "crates/l2-game/src/screens/setup/ui/held.rs", "line": 31,
+      "address": "0x0040E3EE", "verdict": "mismatch",
+      "note": "Hotspot_Test:7881 fires the handler on g_mouseLeftDoubleClick; press_event discards the Some(i) and setup's handle has no DoubleClick arm, so the second click of a double click does nothing." },
+    { "file": "crates/l2-game/src/screens/setup/ui/held.rs", "line": 34,
+      "address": "0x0040E3EE", "verdict": "mismatch",
+      "note": "the kind-2 arm keys on g_mouseLeftDown plus the current hit test alone (00400000.c:7878-7891); Press::pointer drops the hold for good, so a pointer that leaves and returns, or drags onto another kind-2 record, never pulses again." },
+    { "file": "crates/l2-game/src/screens/setup/ui/held.rs", "line": 43,
+      "address": "0x0040E3EE", "verdict": "match",
+      "note": "first repeat 320 ms after the press: the press branch writes DAT_0058feb0 = 0 (00400000.c:7882), resetting Tick_Pulses' 4x80 ms divider (004b0000.c:7763-7767)." },
+    { "file": "crates/l2-game/src/screens/setup/ui/screen.rs", "line": 55,
+      "address": "0x0040E3EE", "verdict": "match",
+      "note": "" }
+  ]
+}

@@ -114,7 +114,6 @@ impl Press {
     pub fn event(&mut self, table: &[Widget], event: Event) -> Option<usize> {
         match event {
             Event::Click { x, y } => {
-                // **The down bit rises wherever the pointer is.**
                 // `App_WndProc` (`0x004B29BE`) answers `0x201` with
                 // `DAT_004EABC2 |= 1` before any hit test
                 // (`004b0000.c:2115-2117`), and `Hotspot_Test`'s kind-2 arm
