@@ -381,19 +381,27 @@ impl BattleRunner {
                     //
                     // That arm, `00480000.c:6560-6567`: `FUN_00491492` (return
                     // if non-zero), `local_10 = FUN_004912EC`, then `if
-                    // (field_0x169 < 3) { tgX = mapX; tgY = mapY; return 0; }`.
-                    // `FUN_004912EC` — the engine's own side-step, three
-                    // rotations each way — is not built, so `local_10` is never
-                    // 1 here and the tail parks him (`00480000.c:6583-6586`).
-                    // `[D]` on the missing step; [`Self::tower_step`] is the
-                    // same arm reached from [`Self::enter`] for a tower.
+                    // (field_0x169 < 3) { tgX = mapX; tgY = mapY; return 0; }`
+                    // — the destination only, `onRoute` untouched, so the
+                    // engine keeps its stored route.
+                    //
+                    // **Two of the three are not built.** `FUN_004912EC`, the
+                    // engine's own side-step through three rotations each way,
+                    // so `local_10` is never 1 here and the tail parks him
+                    // (`00480000.c:6583-6586`); and `FUN_00491492`
+                    // (`00480000.c:6561-6563`), which runs *before* the
+                    // distance test and can destroy the man
+                    // (`BattleMan_Destroy`, `g_siegeApproachScore`,
+                    // `g_siegeBreachScore`) — so the give-up and the park below
+                    // run in frames where the original had already returned.
+                    // `[D]`, both; [`Self::tower_step`] is the same arm reached
+                    // from [`Self::enter`] for a tower.
                     if self.fighters[i].troop.is_siege() {
                         let f = &mut self.fighters[i];
                         if chebyshev(f.x as i16, f.y as i16, f.target.0 as i16, f.target.1 as i16)
                             < 3
                         {
                             f.target = (f.x, f.y);
-                            f.path.clear();
                             return;
                         }
                         f.delay = 100;
