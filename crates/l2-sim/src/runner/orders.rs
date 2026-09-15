@@ -293,6 +293,15 @@ impl BattleRunner {
             self.fighters[i].hold -= 1;
         }
 
+        // **State 1 stands and counts.** The original's delay is a whole slot
+        // of `g_manStateTable`, so a delayed man reaches neither the melee
+        // search nor the mover; [`Fighter::delay`] has its one writer.
+        if self.fighters[i].delay > 0 {
+            self.fighters[i].delay -= 1;
+            self.fighters[i].anim = Motion::Idle;
+            return;
+        }
+
         if self.fill_moat_tick(i) {
             return;
         }
