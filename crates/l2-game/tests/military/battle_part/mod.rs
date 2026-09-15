@@ -6,6 +6,8 @@ mod prompts_and_settling;
 pub use prompts_and_settling::*;
 mod battle_ai;
 pub use battle_ai::*;
+mod click_edges;
+pub use click_edges::*;
 mod tactical_controls;
 pub use tactical_controls::*;
 mod watched_battles;
