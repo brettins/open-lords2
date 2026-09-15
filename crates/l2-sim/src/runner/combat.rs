@@ -1,5 +1,10 @@
 use super::*;
 
+/// The swap arm's guards and the two waits it hands out.
+#[cfg(test)]
+#[path = "tests_delay.rs"]
+mod tests_delay;
+
 impl BattleRunner {
     /// **`Missile_Step` does not raise the breach score itself** — the brief
     /// said it did, and it is one level removed. The shot adds one to the cell's
@@ -368,12 +373,33 @@ impl BattleRunner {
             Some(other) => {
                 let other = other as usize;
                 if self.fighters[other].side == self.fighters[i].side {
-                    if self.fighters[other].troop == self.fighters[i].troop
-                        && self.fighters[other].target == self.fighters[i].target
-                    {
-                        self.swap_places(i, other);
-                    } else {
-                        self.request_path(i);
+                    // `BattleMan_Step` (`0x0048F1DD`, `00480000.c:6441`): an
+                    // engine skips the swap arm, so `local_10` stays 0 and
+                    // `00480000.c:6494` — `if ((local_10 == 1) ||
+                    // (isSiegeEngine == 0))` — skips the side-step and the
+                    // search with it. A blocked engine stands. **[V]**.
+                    if self.fighters[i].troop.is_siege() {
+                        return;
+                    }
+                    // `00480000.c:6443`: the swap arm needs `other.state != 2
+                    // && cur.unit == other.unit`; a dead or cross-unit blocker
+                    // is `local_10 = 3`, the side-step. **[V]**, decompiled.
+                    // Ours swapped any two same-type men of one side.
+                    let swap_arm =
+                        self.is_alive(other) && self.unit_of(other) == self.unit_of(i);
+                    match if swap_arm { self.swap_answer(i, other) } else { 1 } {
+                        2 => self.swap_places(i, other),
+                        // `00480000.c:6445,6459-6463`: `cur.onRoute = 0` ahead
+                        // of the call, then `delayState = state; state = 1;
+                        // delay = (other & 1) + 1; return 0` — he stands one or
+                        // two frames and asks for no route. **[V]**, decompiled.
+                        // Ours searched anyway; C103's deadlock fix is about
+                        // `Path_LineIsClear` and does not cover this arm.
+                        0 => {
+                            self.fighters[i].path.clear();
+                            self.fighters[i].delay = (other & 1) as u8 + 1;
+                        }
+                        _ => self.request_path(i),
                     }
                 } else if self.is_alive(other) {
                     let (ua, ub) = (self.unit_of(i), self.unit_of(other));
@@ -531,6 +557,55 @@ impl BattleRunner {
         }
     }
 
+    /// **`BattleMen_SwapPlaces` (`0x0049005F`) as its answer**: 2 exchange,
+    /// 0 stand and wait, 1 fall through to the side-step.
+    fn swap_answer(&self, i: usize, other: usize) -> u8 {
+        // **`00490000.c:21-23` is held out.** `if (other.ownerIsHuman == 0) {
+        // if (!siege) return 1; … }` — an AI-owned blocker is side-stepped and
+        // never swapped with. Landing it turns the seam's militia from 4 of 8
+        // into 3 of 8 (`seam::the_same_position_can_be_fought_for_real…`,
+        // measured on this branch), so the whole guard stays out, its two siege
+        // sub-guards (`cur.side == 4`, `cur.weaponClass == 0`,
+        // `00490000.c:24-29`) with it. `[D]`.
+        // `00490000.c:31-33`: `cur.troopType == other.troopType &&
+        // other.troopType < 7 && cur.troopType < 7`, each failure answering 0.
+        let (cur, oth) = (self.fighters[i].troop, self.fighters[other].troop);
+        if cur != oth || cur.index() >= 7 || oth.index() >= 7 {
+            return 0;
+        }
+        // `00490000.c:34-41`: `other.state` 2, 3 and 8 answer 0; 3 is walking
+        // and `progress.free` is our reading of it, `delay` of state 1. `[D]`
+        // on the reading, **[V]** on the refusal. A man already standing out a
+        // swap is not swapped again: two swaps in one tick moved a man two
+        // cells between drawn frames, 28 of them at 64 px in
+        // `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`.
+        if !self.fighters[other].progress.free || self.fighters[other].delay != 0 {
+            return 0;
+        }
+        // `00490000.c:42-51`: `other.state` 4, 9 and 6 answer 1 — stepped
+        // around, never pulled out of the cell. 9 is `BattleMan_StateFillMoat`
+        // (`0x00483FE1`), landed here; **4, melee, is held out** — it turns the
+        // seam's militia from 4 of 8 into 1 of 8
+        // (`seam::the_same_position_can_be_fought_for_real…`, measured on this
+        // branch), so a comrade in melee is still swapped with. We carry
+        // nothing for 6. `[D]` on both.
+        let busy = self.sim.figures[self.fighters[other].sim].state;
+        if busy == State::FillingMoat {
+            return 1;
+        }
+        // `00490000.c:52-55`: `if (cur.tgX == other.tgX && cur.tgY ==
+        // other.tgY) return 0` — two men with one destination are never
+        // swapped. Ours had that test the other way round, and with the
+        // side-step landed it is what two men of a marching unit do instead of
+        // shuffling: exchange cells every other tick for ever — 294 drawn jumps
+        // of 32 px in `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`, and
+        // the jitter `no_man_alternates_between_two_cells` names. **[V]**.
+        if self.fighters[i].target == self.fighters[other].target {
+            return 0;
+        }
+        2
+    }
+
     fn swap_places(&mut self, a: usize, b: usize) {
         if a == b {
             return;
@@ -541,12 +616,40 @@ impl BattleRunner {
         self.fighters[a].y = by;
         self.fighters[b].x = ax;
         self.fighters[b].y = ay;
-        self.fighters[a].progress = Progress::default();
-        self.fighters[b].progress = Progress::default();
+        // **The two men are drawn walking past each other**, not teleported.
+        // `BattleMen_SwapPlaces` (`0x0049005F`) exchanges `mapX`, `mapY` and
+        // `cellOffset` and touches neither `walking` nor `dirc`, so the
+        // original draws both of them a whole cell away in one frame; ours
+        // may not — `no_drawn_man_ever_jumps_half_a_cell_in_one_tick` counts
+        // 500 such jumps, worst 64 px. Each man takes the facing of the cell
+        // he was given and starts that crossing, which is the same cell at the
+        // same tick and a trail behind it. `[D]`.
+        for (m, from, to) in [(a, (ax, ay), (bx, by)), (b, (bx, by), (ax, ay))] {
+            if let Some(d) =
+                facing_from_delta(to.0 as i32 - from.0 as i32, to.1 as i32 - from.1 as i32)
+            {
+                self.fighters[m].facing = d;
+            }
+            self.fighters[m].progress.begin_crossing();
+            // **Both men are stood this frame.** `BattleMan_Step`
+            // (`0x0048F1DD`) returns 0 from the swap arm and
+            // `BattleMan_StateWalk` (`0x0048314E`) is `Anim_Walk(); if
+            // (BattleMan_Step(0) == 0) Anim_Stand();`, so neither man's walk
+            // counter is stepped by this move —
+            // `a_marching_man_is_drawn_at_the_phase_he_ended_the_last_tick_with`
+            // reads that counter. **[V]**.
+            self.stand(m);
+        }
         self.fighters[a].path.clear();
         self.fighters[b].path.clear();
         self.occupant[by as usize * DIM + bx as usize] = Some(a as u16);
         self.occupant[ay as usize * DIM + ax as usize] = Some(b as u16);
+        // `BattleMan_Step`'s swap arm (`0x0048F1DD`): `other.state = 1;
+        // other.delayState = 3; other.delay = (other & 1) + 1`. See
+        // [`Fighter::delay`].
+        self.fighters[b].delay = (b & 1) as u8 + 1;
+        self.fighters[a].barred = 0;
+        self.fighters[b].barred = 0;
     }
 
 }

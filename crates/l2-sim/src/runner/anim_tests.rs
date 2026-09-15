@@ -40,6 +40,7 @@ fn pair(a_troop: Troop, b_troop: Troop, gap: u8) -> BattleRunner {
             moat_load: 0,
             polar: 0,
             corpse: 0,
+            delay: 0,
         });
         r.occupant[40 * DIM + x as usize] = Some((r.fighters.len() - 1) as u16);
     }
