@@ -82,5 +82,9 @@ pub struct SetupScreen {
     /// `g_fileListTop` (`0x004EA1A0`) — the index page 13's ten rows start at.
     pub(crate) skirmish_file_top: usize,
     pub(crate) clock_redraw: bool,
+    /// The 320 ms pulse of `Hotspot_Test` (`0x0040E3EE`) kind 2, which five of
+    /// the records in the widget table at `0x004DCF68` are. `held_kind` says
+    /// which five.
+    pub(crate) press: crate::press::Press,
 }
 
