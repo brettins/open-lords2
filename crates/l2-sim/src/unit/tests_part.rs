@@ -121,6 +121,34 @@ mod tests {
         assert!(!units.get(1).in_melee, "and it is cleared, not latched");
     }
 
+    /// **A unit whose shots are not landing is not "firing".**
+    /// `BattleUnits_RebuildFromFigures` (`0x00488DFE`,
+    /// `00480000.c:3529-3532`) counts `+0x2D` down and zeroes `+0x0F` for as
+    /// long as it is set — so the retreat `UnitOrder_FieldMissile`
+    /// (`0x0048A9D2`, `:4336`) gates on `firing == 0` is open again.
+    ///
+    /// Ablation: drop `rebuild_from_figures`'s `u.firing = 0;`.
+    #[test]
+    fn a_unit_whose_shots_are_blocked_stops_counting_as_firing() {
+        let (mut units, mut figs, _) = one_unit(Troop::Archers, 4, 3);
+        units.get_mut(1).firing = FIRING;
+        units.rebuild_from_figures(&mut figs);
+        assert_eq!(units.get(1).firing, FIRING - 1, "it only ages");
+
+        units.get_mut(1).firing = FIRING;
+        units.get_mut(1).shots_wasted = SHOTS_WASTED_BLOCKED;
+        units.rebuild_from_figures(&mut figs);
+        assert_eq!(units.get(1).firing, 0, "+0x2D outranks the countdown");
+        assert_eq!(units.get(1).shots_wasted, SHOTS_WASTED_BLOCKED - 1);
+
+        for _ in 0..SHOTS_WASTED_BLOCKED {
+            units.get_mut(1).firing = FIRING;
+            units.rebuild_from_figures(&mut figs);
+        }
+        assert_eq!(units.get(1).shots_wasted, 0);
+        assert_eq!(units.get(1).firing, FIRING - 1, "and firing latches again");
+    }
+
     #[test]
     fn pct_of_answers_zero_rather_than_dividing_by_zero() {
         assert_eq!(pct_of(500, 250), 200);

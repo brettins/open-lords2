@@ -604,15 +604,21 @@ impl BattleRunner {
 
     fn loose(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
         let sim = self.fighters[shooter].sim;
-        // `BattleMan_FireMissile` (`00480000.c:1478-1479`)
+        // `BattleMan_FireMissile` (`0x00483337`, `00480000.c:1478-1479`)
         // `g_battleMen[cur].firing = 0x78; g_battleUnits[sVar2].firing = 0x78;`
         // — **before** `Missile_Spawn`, so a shot that finds no free slot still
-        // marks the unit. Read by `UnitOrder_FieldMissile` (`:4336`) and
-        // `UnitOrder_SiegeDefMissile` (`:5813`). Figure `+0x182` unported: its
-        // only reader is its own decrement, `Battle_UpdateAllMen` (`:896`).
+        // marks the unit. Read by `UnitOrder_FieldMissile` (`0x0048A9D2`,
+        // `:4336`) and `UnitOrder_SiegeDefMissile` (`0x0048E097`, `:5813`).
+        //
+        // `[D]` the `<= MAX_UNITS` bound: `:1479` indexes `sVar2` unbounded,
+        // and slot 0 is the original's unused record, which ours is too — the
+        // bound is only what keeps an out-of-range `+0x178` from panicking.
+        //
+        // `[D]` figure `+0x182` omitted: its one reader in the binary is its
+        // own decrement, `Battle_UpdateAllMen` (`0x004822ED`, `:896-897`).
         {
             let u = self.sim.figures[sim].unit as usize;
-            if (1..=MAX_UNITS).contains(&u) {
+            if u <= MAX_UNITS {
                 self.units.get_mut(u).firing = crate::unit::FIRING;
             }
         }
@@ -660,19 +666,21 @@ impl BattleRunner {
                 self.missiles.get_mut(slot).fire_arrow = 1;
             }
         }
+        // `:1516-1518` has no exit: eight `Missile_Step`s whatever a step did,
+        // then `Missile_LinkToCell(g_curMissile)` at `:1519` on the record as
+        // it stands. A step on a freed record is inert — `FUN_0046EB78` zeroed
+        // `+0x38`, so `:1260-1265`'s range test frees it again.
         for _ in 0..missile::LAUNCH_STEPS {
-            if !self.step_missile(slot) {
-                break;
-            }
+            self.step_missile(slot);
         }
         // **The bow sounds after the flight, not before.**
         // `BattleMan_FireMissile` (`00480000.c:1523-1527`) tests the record's
         // class `+0x09` *after* the eight steps (`:1516-1518`); a step that
         // removed the missile ran `FUN_0046EB78`, which zeroes all `0x4C`
         // bytes, so neither `2` nor `1` matches and the shot is silent. Same
-        // tail at `BattleMan_StateCloseToAttack` (`:2099-2104`).
-        // `BattleMan_StateEngineFire` (`:1861`) plays slot `0xE` with no such
-        // test. `[V]`
+        // tail at `BattleMan_StateCloseToAttack` (`0x00484BF9`, `:2099-2104`).
+        // `BattleMan_StateEngineFire` (`0x004843BC`, `:1861`) plays slot `0xE`
+        // with no such test. `[V]`
         if class == WeaponClass::Catapult || self.missiles.get(slot).class == class.index() {
             self.sim.cues.loose(class);
         }
@@ -796,7 +804,10 @@ impl BattleRunner {
         {
             let m = self.missiles.get_mut(slot);
             m.ticks_flown += 1;
-            if m.ticks_flown > m.range_ticks {
+            let spent = m.ticks_flown > m.range_ticks;
+            if spent {
+                // `:1264`, a shot that fell short.
+                self.shots_wasted(slot, crate::unit::SHOTS_WASTED_SHORT);
                 self.missiles.free(slot);
                 return false;
             }
@@ -813,6 +824,16 @@ impl BattleRunner {
             }
         }
         true
+    }
+
+    /// `g_battleUnits[sVar3].field_0x2d = n`, where `sVar3` is
+    /// `g_battleMen[m.+0x06].unit` (`00490000.c:1219-1220`).
+    fn shots_wasted(&mut self, slot: usize, n: u8) {
+        let shooter = self.missiles.get(slot).shooter as usize;
+        let u = self.sim.figures.get(shooter).map_or(0, |f| f.unit as usize);
+        if u <= MAX_UNITS {
+            self.units.get_mut(u).shots_wasted = n;
+        }
     }
 
     fn missile_cell_tests(&mut self, slot: usize) -> bool {
@@ -852,6 +873,8 @@ impl BattleRunner {
             if m.blocked && weapon_class {
                 m.blocked_ticks = m.blocked_ticks.saturating_add(1);
                 if m.blocked_ticks > missile::BLOCKED_LIMIT || m.launch_elevation == elevation {
+                    // `:1247` and `:1253`, a shot the ground stopped.
+                    self.shots_wasted(slot, crate::unit::SHOTS_WASTED_BLOCKED);
                     self.missiles.free(slot);
                     return false;
                 }
@@ -898,6 +921,9 @@ impl BattleRunner {
         let size_class = 0;
         let resolved =
             missile::resolve_power(weapon, power, delta, &self.sim.figures[vsim], size_class);
+        // `:1353`, the first statement of the hit arm: the shot landed, so the
+        // shooter's unit stops being held out of `firing`.
+        self.shots_wasted(slot, 0);
         {
             let f = &mut self.sim.figures[vsim];
             f.was_hit = true;

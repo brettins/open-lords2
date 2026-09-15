@@ -10,10 +10,18 @@ pub const REFORM_INTERVAL: i16 = 500;
 pub const HIT_MEMORY: u8 = 50;
 
 /// `+0x0F`, written by all three launch sites as `firing = 0x78` —
-/// `BattleMan_FireMissile` (`00480000.c:1479`),
-/// `BattleMan_StateCloseToAttack` (`:2054`),
-/// `BattleMan_StateEngineFire` (`:1838`). **[V]**
+/// `BattleMan_FireMissile` (`0x00483337`, `00480000.c:1479`),
+/// `BattleMan_StateCloseToAttack` (`0x00484BF9`, `:2054`),
+/// `BattleMan_StateEngineFire` (`0x004843BC`, `:1838`). **[V]**
 pub const FIRING: u8 = 0x78;
+
+/// `+0x2D` after a shot the ground stopped — `Missile_Step`
+/// (`0x00492C8B`, `00490000.c:1247`, `:1253`). **[V]**
+pub const SHOTS_WASTED_BLOCKED: u8 = 200;
+
+/// `+0x2D` after a shot that ran out of range — `Missile_Step` (`:1264`).
+/// One frame, not two hundred. **[V]**
+pub const SHOTS_WASTED_SHORT: u8 = 1;
 
 /// The order lock `BattleUnit_Order` sets when it re-orders a unit that is
 /// already in melee, buying it that many passes of immunity from

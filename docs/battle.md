@@ -82,7 +82,7 @@ contiguous *range* of figure indices.
 | `+0x04` | i16 | firstFigure | [V] | lowest figure index belonging to this unit. |
 | `+0x06` | i16 | lastFigure | [V] | highest. Every sweep over a unit's men is `for (i = first; i <= last; i++)` plus a check that the figure's `+0x178` points back here. |
 | `+0x08` | u8 | category | [V] | 1 missile, 2 peasants/pikemen, 3 macemen/swordsmen, 4 knights, 5 catapult, 6 tower, 7 ram, 8 oil, 9/10 siege-defender specials. Selects the order handler. Recomputed by `BattleUnit_Classify`. |
-| `+0x0F` | u8 | firing | [V] | set to 120 when a figure of this unit **looses a missile** — its only three writers are `BattleMan_FireMissile`, `BattleMan_StateCloseToAttack` and `BattleMan_StateEngineFire`, all before their `Missile_Spawn`; no melee site writes it. Counts down once per `BattleUnits_RebuildFromFigures`. |
+| `+0x0F` | u8 | firing | [V] | set to 120 when a figure of this unit **looses a missile** — its only three writers are `BattleMan_FireMissile`, `BattleMan_StateCloseToAttack` and `BattleMan_StateEngineFire`, all before their `Missile_Spawn`; no melee site writes it. Counts down once per `BattleUnits_RebuildFromFigures`, and is forced to 0 there while `+0x2D` is set. |
 | `+0x14` | i16 | reTarg | [V] | re-target countdown, decremented once per frame; at zero it is reset to 500. Initialised to 20, set to 50 when engaged. |
 | `+0x1A` | i16 | orders | [V] | order state within the category handler. |
 | `+0x1E` `+0x20` | i16 | map x, map y | [V] | the unit's own position: the centre of the bounding box of its live figures (`BattleUnit_Recentre`). |
@@ -91,7 +91,13 @@ contiguous *range* of figure indices.
 | `+0x2C` | u8 | orderedTarget | [D] | index of an enemy **figure** the player told this unit to attack. Cleared when that figure dies. |
 | `+0x30` | i32 | targetCell | [D] | destination as a battlefield cell byte offset, `(y*80 + x)*8`. |
 
-Unnamed and untraced: `+0x09`, `+0x0D`, `+0x0E`, `+0x10`, `+0x13`, `+0x2D`.
+`+0x2D` **the shots are not landing** [V]: `Missile_Step` (`0x00492C8B`) writes 200 when a shot
+is stopped by terrain (`00490000.c:1247`, `:1253`), 1 when it runs out of range (`:1264`) and 0
+when it hits a man (`:1353`). Its one reader is `BattleUnits_RebuildFromFigures`
+(`00480000.c:3529-3532`), which counts it down and, while it is set, **forces `+0x0F` to 0** — so
+a missile unit whose shots are blocked is free to step away from its attacker even while it shoots.
+
+Unnamed and untraced: `+0x09`, `+0x0D`, `+0x0E`, `+0x10`, `+0x13`.
 
 ---
 

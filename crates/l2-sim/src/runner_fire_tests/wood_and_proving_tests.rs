@@ -200,9 +200,9 @@ fn an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns() 
 }
 
 /// **A shot a launch step removed is silent.** `BattleMan_FireMissile`
-/// (`00480000.c:1523-1527`) reads the record's class `+0x09` *after* the eight
-/// steps at `:1516-1518`, and `FUN_0046EB78` zeroed the record when
-/// `Missile_Step` freed the arrow.
+/// (`0x00483337`, `00480000.c:1523-1527`) reads the record's class `+0x09`
+/// *after* the eight steps at `:1516-1518`, and `FUN_0046EB78` (`0x0046EB78`)
+/// zeroed the record when `Missile_Step` freed the arrow.
 ///
 /// Ablation: move `loose`'s `self.sim.cues.loose(class)` back above the
 /// `LAUNCH_STEPS` loop and this goes red on the frame the wood lights.
@@ -222,9 +222,9 @@ fn an_arrow_that_lights_the_cell_it_is_loosed_from_is_never_heard() {
 }
 
 /// **A unit that looses is marked firing** — `BattleMan_FireMissile`
-/// (`00480000.c:1479`) `g_battleUnits[sVar2].firing = 0x78`, read by
-/// `UnitOrder_FieldMissile` (`:4336`) and `UnitOrder_SiegeDefMissile`
-/// (`:5813`).
+/// (`0x00483337`, `00480000.c:1479`) `g_battleUnits[sVar2].firing = 0x78`, read
+/// by `UnitOrder_FieldMissile` (`0x0048A9D2`, `:4336`) and
+/// `UnitOrder_SiegeDefMissile` (`0x0048E097`, `:5813`).
 ///
 /// Ablation: drop `loose`'s write of `crate::unit::FIRING`.
 #[test]
