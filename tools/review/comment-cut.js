@@ -5,15 +5,16 @@
 // A comment block is split into sentences (a sentence ends at a line ending in . : ? ! or
 // at a code fence, which is one sentence whole). A sentence stays when it carries an
 // evidence token: an address, a +0x offset, a decompilation line (file.c:NNN), an arm or
-// sfx marker, a [V]/[I]/[D] mark, a C-number, a group/index of L2.eng, or a test's
-// "red"/"ablat" line. Everything else goes; git history keeps it. Code lines are compared
+// sfx marker, a [V]/[I]/[D] mark, a C-number, a group/index of L2.eng, a test's
+// "red"/"ablat" line, or a marker a test parses (not-encoded:, codec-via:, NOT_HASHED,
+// the save changelog's `/// * N` entries). Everything else goes; git history keeps it. Code lines are compared
 // byte for byte before a file is written. Blank comment lines collapse to one between
 // kept sentences, none at the edges.
 const fs = require("fs"), path = require("path");
 const args = process.argv.slice(2); const dry = args.includes("--dry");
 const root = path.resolve(__dirname, "..", "..");
 const targets = args.filter(a => !a.startsWith("--"));
-const EVIDENCE = /0x[0-9A-Fa-f]{4,}|\+0x[0-9A-Fa-f]+|\b[0-9a-f]{8}\.c:\d+|\bFUN_[0-9A-Fa-f]{8}\b|\bDAT_[0-9A-Fa-f]{8}\b|\/\/\s*(arm|sfx):|\[[VID]\]|\bC\d{1,3}\b|\bgroup \d+\b|\bL2\.eng\b|\b(turns|goes|is) red\b|\bablat/;
+const EVIDENCE = /not-encoded:|codec-via:|NOT_HASHED|--- the fixture: (begin|end)|^\s*\/\/\/? \* \d+ \S|0x[0-9A-Fa-f]{4,}|\+0x[0-9A-Fa-f]+|\b[0-9a-f]{8}\.c:\d+|\bFUN_[0-9A-Fa-f]{8}\b|\bDAT_[0-9A-Fa-f]{8}\b|\/\/\s*(arm|sfx):|\[[VID]\]|\bC\d{1,3}\b|\bgroup \d+\b|\bL2\.eng\b|\b(turns|goes|is) red\b|\bablat/;
 const body = l => l.replace(/^\s*\/\/[/!]?\s?/, "");
 const marker = l => (l.match(/^\s*\/\/[/!]?/) || [""])[0];
 const isC = l => /^\s*\/\/[/!]?(\s|$)/.test(l);

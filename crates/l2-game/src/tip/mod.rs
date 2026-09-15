@@ -8,6 +8,8 @@
 //! and with it went forty narration files: the first line of every tip and the
 //! twenty-seven chained takes after it. `docs/audio-triggers.md`.
 //!
+//! # Four functions and five globals
+//!
 //! ```c
 //! void Tip_Update(void) {                          /* once a frame, Battle_Frame */
 //!   if (g_optTipScreens && g_appPhase == 3) {
@@ -36,6 +38,10 @@
 //!
 //! `[V]`, all four, read out of the decompilation.
 //!
+//! # Two corrections to what was on file
+//!
+//! **The twenty frames are not "after a screen is first opened".**
+//!
 //! `docs/symbols.md` said so. `DAT_004F0358` is written in exactly two places —
 //! the reset and the restore — so the delay is a re-arm after start-up, after
 //! the toggle and **after every tip is dismissed**, and nothing else. A screen
@@ -48,6 +54,8 @@
 //! across the two places this engine replaces the whole [`crate::Game`] —
 //! `screens::setup`'s start and `screens::saveload`'s load.
 //!
+//! # Screen `0x27` is a screen, and it is [`crate::screen::ScreenId::Tip`]
+//!
 //! `Tip_Show` does not open a window; it **changes `g_screenId`** and posts a
 //! message. The window follows because `Msg_Pump` runs on `0x27`, and the
 //! screen the player was on stops answering because `Screen_FrameInput`
@@ -59,6 +67,21 @@
 //! for. [`crate::screens::tip`] is that screen: an overlay that draws nothing
 //! and consumes every event.
 //!
+//! [`Tips::hosting`] is `g_screenId == 0x27`, and
+//! [`crate::screen::Machine`] keeps a [`crate::screen::ScreenId::Tip`] on the
+//! stack exactly while it is true.
+//!
+//! # What this module does not know
+//!
+//! The ladder tests the original's screen byte, and our stack is not a byte.
+//!
+//! [`View`] is the projection, and [`View::of`] is where every mapping is
+//! written down — two of them are not one-to-one and are explained there.
+//!
+//! **The battle arms cannot fire, and that is recorded.**
+//!
+//! Tips 212, 214 and 215 are guarded by `g_screenId == 0 && g_battlePhase == 2`.
+//!
 //! Every write of `g_battlePhase = 2` found — `Battle_Start`, `FUN_00477C89`,
 //! the skirmish set-up — writes `g_screenId = 0x29` beside it, and both battle
 //! ends write `0x13` or `0x2E` before `g_battlePhase = 0`. And `Msg_Pump` opens
@@ -66,6 +89,11 @@
 //! posted during a battle would be closed the frame after it opened. No path
 //! was found on which the guard holds across a frame. `[I]` — the search was
 //! the phase writers and the two outcome functions.
+//!
+//! hundred `g_screenId = 0` writes. The arms are built as the original writes
+//! them, and in this engine they are equally unreachable.
+//!
+//! not-encoded: see [`Tips`].
 
 mod view;
 pub use view::*;
@@ -81,6 +109,7 @@ use crate::Game;
 /// The first tip group. `FUN_00476A5D` clears `g_tipShown + 200` for `0x14`
 /// bytes, which is what fixes the range.
 pub const FIRST: u16 = 200;
+/// How many groups the range holds.
 pub const COUNT: usize = 20;
 
 /// `DAT_004F0358`'s re-arm: `0x14` frames, written by `FUN_00476E21` and
@@ -98,6 +127,7 @@ pub const DELAY: u8 = 0x14;
 /// here.
 pub const CATEGORY: [u8; COUNT] = [7, 8, 9, 5, 5, 5, 5, 8, 5, 8, 7, 5, 6, 5, 7, 5, 5, 9, 7, 5];
 
+/// The group numbers the ladder names, as the original writes them.
 pub mod group {
     pub const OBJECTIVES: u16 = 200;
     pub const GETTING_STARTED: u16 = 201;
@@ -117,6 +147,9 @@ pub mod group {
 
 /// **The tip screens' state** — `g_tipShown[200..220]`, `DAT_004F0358`,
 /// `g_screenId == 0x27`, `DAT_00553210` and `DAT_0052F004`'s reset.
+///
+/// not-encoded: per-peer display state, and per *run* —
+/// see the module header. Nothing in the world reads any of it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Tips {
     /// `g_tipShown` (`0x004F0298`), from group 200.
@@ -186,6 +219,7 @@ impl Tips {
         self.hosting = false;
     }
 
+    /// Whether `g_tipShown[group]` is set.
     pub fn shown(&self, group: u16) -> bool {
         index(group).is_some_and(|i| self.shown[i])
     }
@@ -195,6 +229,7 @@ impl Tips {
         self.delay
     }
 
+    /// `g_screenId == 0x27`.
     pub fn hosting(&self) -> bool {
         self.hosting
     }
@@ -204,14 +239,23 @@ impl Tips {
         self.invaded
     }
 
+    /// How many tips `Tip_Show` has posted. See the field.
     pub fn shows(&self) -> u32 {
         self.shows
     }
 
+    /// **`Unit_EnterCounty`'s one line for the tips**, fed from the simulation's
+    /// report:
+    ///
     /// ```c
     /// if (g_counties[county].owner != unit.owner) {
     ///     if (unit.owner == g_localPlayer) DAT_00553210 = 1;
     /// ```
+    ///
+    /// The comparison is made in `l2-kingdom` at the crossing, where the owner
+    /// is the owner at that instant, and reported as
+    /// [`l2_kingdom::units_tick::Incursion`]; the *local player* test is made
+    /// here, because `g_localPlayer` is a peer's and not the world's.
     pub fn note_incursions(&mut self, incursions: &[l2_kingdom::units_tick::Incursion], player: u8) {
         if incursions.iter().any(|i| i.owner == player) {
             self.invaded = true;
@@ -228,6 +272,11 @@ fn index(group: u16) -> Option<usize> {
 mod tests {
     use super::*;
 
+    /// **Group 215 is posted and has no words.** `Tip_Update`'s siege arm shows
+    /// it right after 214, `g_tipCategory[215]` is 5 — one paragraph — and the
+    /// group holds only its label, `"Sieges2"`. So the window would draw that
+    /// label as a heading over an empty paragraph. It cannot be reached (see the
+    /// module header), which is presumably why nobody noticed.
     #[test]
     fn the_second_siege_tip_is_a_label_with_nothing_under_it() {
         assert_eq!(CATEGORY[(group::SIEGES_2 - FIRST) as usize], 5);
@@ -235,6 +284,8 @@ mod tests {
         assert_eq!(transcribed(group::SIEGES_2, 1), "");
     }
 
+    /// The table's claim, checked against our own transcription: the category
+    /// is the paragraph count plus four for every group with words.
     #[test]
     fn every_category_is_its_groups_paragraph_count_plus_four() {
         for (g, s) in TEXT {

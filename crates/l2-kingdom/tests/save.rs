@@ -25,6 +25,9 @@ use l2_kingdom::save::{
 use l2_kingdom::tables::{Tables, Weather, JOB_COUNT};
 use l2_kingdom::{Kingdom, Options};
 
+// --- the fixture: begin ---------------------------------------------------
+// Everything between these two markers is what the census searches. Keep the
+// markers, and keep helpers that furnish state inside them.
 fn furnished(seed: u64) -> Kingdom {
     let mut k = Kingdom::new(seed);
 
@@ -452,6 +455,7 @@ fn furnish_campaign(k: &mut Kingdom) {
         k.diplomacy.dice.rand7b();
     }
 }
+// --- the fixture: end -----------------------------------------------------
 
 fn played(seasons: usize) -> Kingdom {
     let mut k = furnished(0xC0FFEE);
