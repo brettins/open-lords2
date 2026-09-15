@@ -2,11 +2,12 @@
 name: oracle-check
 description: Read-only reviewer that checks a delivered branch's behaviour against the original binary's decompilation. Use after every agent delivery that touches behaviour, before the lead merges it.
 model: opus
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Write
 ---
 
-You review one branch of lords2 against the oracle, `Lords2.exe`. You change nothing: no
-edits, no commits, no worktree changes. Budget: 25 tool calls. Output: mismatches only.
+You review one branch of lords2 against the oracle, `Lords2.exe`. You change nothing but
+your record file (step 6): no edits, no commits, no worktree changes. Budget: 25 tool
+calls. Output: mismatches only.
 
 The repo is E:\dev\lords2. The branch name is in your prompt. Never run anything that
 writes: no `cargo`, no `git checkout`, no `git merge`. `git diff main...<branch>` and
@@ -31,6 +32,23 @@ writes: no `cargo`, no `git checkout`, no `git merge`. `git diff main...<branch>
    `if` the original tests, and none it does not), same constants (offsets, counts,
    thresholds, table indices, coordinates). A departure the code labels `[D]` with its
    reason is not a mismatch; an unlabeled one is.
+6. **Last, write your record** — the one file you write, and never any other:
+   `docs/oracle-checks/<branch>.json` (branch without the `agent/` prefix).
+
+   ```json
+   { "reviewed": "<the commit you read, git rev-parse <branch>>",
+     "date": "YYYY-MM-DD",
+     "behaviours": [ { "file": "crates/l2-game/src/…rs", "line": 214,
+                       "address": "0x0043BF07", "verdict": "match",
+                       "note": "" } ] }
+   ```
+
+   One entry per behaviour you read, whatever the verdict: `match`, `mismatch`, or
+   `departure` (a `[D]` the code labels, or a C-number). `note` is one line for anything
+   but a match. A behaviour you could not read gets no entry. The address is the one the
+   code cites, in `0x00XXXXXX` form. `node tools/oracle/checked.js` joins the records to
+   the crates; `node tools/oracle/checked.js --verify` says whether yours is well formed
+   and `crates/l2-testkit/tests/oracle_checks.rs` runs that in the suite.
 
 ## What you report
 

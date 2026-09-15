@@ -1283,6 +1283,16 @@ const PLAYER_CSS = `
   @media (prefers-reduced-motion: reduce) { .fold > summary::before { transition: none; } }
 `;
 
+// docs/oracle-checks, joined to the crates by tools/oracle/checked.js.
+function oracleChecked() {
+  try {
+    const t = require('../oracle/checked.js').scan().total;
+    return `<span>oracle-checked <b>${t.checked} of ${t.cited}</b> cited lines (${t.stale} stale)</span>`;
+  } catch (e) {
+    return '';
+  }
+}
+
 function html(m) {
   const inPlace = (p) => m.rows.filter((r) => placeRow(m, r) === p);
   const now = inPlace('now');
@@ -1357,7 +1367,7 @@ ${MARK_DEFS}
 <div class="wrap">
   <header class="top">
     <h1>lords2 <span>status</span></h1>
-    <p class="meta"><span>${esc(m.base.name)} <b>${esc(m.base.short)}</b></span><span>generated <b>${esc(stamp(m.generated))} UTC</b></span>${check}</p>
+    <p class="meta"><span>${esc(m.base.name)} <b>${esc(m.base.short)}</b></span><span>generated <b>${esc(stamp(m.generated))} UTC</b></span>${oracleChecked()}${check}</p>
   </header>
   <p class="lede">How close this rebuild of Lords of the Realm II is to the original game, feature by feature, and what is being worked on.</p>
   ${

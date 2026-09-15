@@ -1,0 +1,126 @@
+{
+ "reviewed": "1f58bf38ac3d00882cfff2b7f9baa31cfcff6551",
+ "date": "2026-09-14",
+ "source": "seeded from the conversation, not the report",
+ "behaviours": [
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 31,
+   "address": "0x00487CE4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 32,
+   "address": "0x00487908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 47,
+   "address": "0x004830E9",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 52,
+   "address": "0x00483FE1",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 14,
+   "address": "0x00487908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 14,
+   "address": "0x00483FE1",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 84,
+   "address": "0x00488793",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/dying_tests.rs",
+   "line": 14,
+   "address": "0x004830E9",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/dying_tests.rs",
+   "line": 15,
+   "address": "0x00487CE4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/dying_tests.rs",
+   "line": 15,
+   "address": "0x00487908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/dying_tests.rs",
+   "line": 16,
+   "address": "0x00483FE1",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders.rs",
+   "line": 280,
+   "address": "0x004830E9",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures_tests.rs",
+   "line": 102,
+   "address": "0x00487908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures_tests.rs",
+   "line": 103,
+   "address": "0x00483FE1",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures_tests.rs",
+   "line": 125,
+   "address": "0x00487CE4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 106,
+   "address": "0x00487CE4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 275,
+   "address": "0x00483FE1",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}
