@@ -418,7 +418,9 @@ impl BattleRunner {
         }
         let f = &mut self.fighters[i];
         f.anim = Motion::Dying;
-        f.phase = 95;
+        // The death timer at its bound, which is what `corpse_gone` reads: the
+        // original frees the record, so nothing may draw this slot again.
+        f.corpse = f.corpse_frames();
         f.path.clear();
     }
 

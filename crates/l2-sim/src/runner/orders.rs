@@ -311,11 +311,11 @@ impl BattleRunner {
 
     pub(super) fn step_one(&mut self, i: usize) {
         if !self.is_alive(i) {
-            // Dying plays once and then holds on its last frame.
-            let f = &mut self.fighters[i];
-            if f.phase < 95 {
-                f.phase += 1;
-            }
+            // **State 2 does not step `animPhase`.** `BattleMan_StateDead`
+            // (`0x004830E9`) is `Anim_Collapse(); if (0x50 < ++field_0x173)
+            // Destroy();`, and `Anim_CollapseA2` reads that death timer —
+            // [`Fighter::corpse`], stepped in `step` — not the phase. Ours
+            // counted the phase to 95 here and drew the corpse off it.
             return;
         }
 

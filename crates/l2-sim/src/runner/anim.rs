@@ -194,6 +194,27 @@ impl BattleRunner {
     ///
     /// The phase is **not** restarted here — `Anim_DrawBowA2` does not touch
     /// `animPhase`, and it does not read it either.
+    /// `Anim_DyingA2` (`0x00487908`, `00480000.c:3009`) — **the shovel.**
+    ///
+    /// `BattleMan_StateFillMoat` (`0x00483FE1`) is its only caller in the
+    /// binary, so this pose is only ever worn by a **living** man tipping earth
+    /// into a ditch; the dead run `Anim_CollapseA2` under [`Motion::Dying`].
+    /// `animPhase += 1` clamped at 0x5F, and `facingDrawn = dirc`.
+    pub(super) fn shovel(&mut self, i: usize) {
+        let f = &mut self.fighters[i];
+        f.anim = Motion::Shovelling;
+        // `troopType < 7` again; an engine is handed to `FUN_00488793`, which
+        // counts for the oil pot alone — [`Self::siege_pose`].
+        if f.troop.index() >= 7 {
+            return self.siege_pose(i);
+        }
+        f.phase += 1;
+        if f.phase > 0x5F {
+            f.phase = 0;
+        }
+        f.facing_drawn = f.facing;
+    }
+
     pub(super) fn shoot(&mut self, i: usize) {
         let f = &mut self.fighters[i];
         f.anim = Motion::Shooting;

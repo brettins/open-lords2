@@ -70,6 +70,8 @@
 mod anim;
 #[cfg(test)]
 mod anim_tests;
+#[cfg(test)]
+mod dying_tests;
 mod fighter;
 pub use fighter::*;
 mod muster;

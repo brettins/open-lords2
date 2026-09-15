@@ -41,13 +41,20 @@ fn the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet() {
                 "{name}: {} frames, expected 8 x {poses} + 18",
                 sheet.frame_count()
             );
-            // The dying block is the last twelve of the eighteen extras, and
-            // every dying frame must be inside the sheet.
+            // The eighteen extras are two blocks: `Anim_CollapseA2`'s six at
+            // `8N+0` for the dead and `Anim_DyingA2`'s twelve at `8N+6` for the
+            // man filling the moat. Both must be inside the sheet.
             for facing in 0..8u8 {
                 for phase in [0u8, 40, 80] {
-                    let f = figures::frame(troop, Anim::Dying, facing, phase);
-                    assert!(f >= 8 * poses + 6, "{name}: dying frame {f} below its base");
-                    assert!(f < sheet.frame_count(), "{name}: dying frame {f} off the sheet");
+                    let f = figures::frame(troop, Anim::Shovelling, facing, phase);
+                    assert!(f >= 8 * poses + 6, "{name}: shovel frame {f} below its base");
+                    assert!(f < sheet.frame_count(), "{name}: shovel frame {f} off the sheet");
+                }
+                for corpse in [0u16, 12, 80] {
+                    let p = figures::Pose { corpse, ..figures::Pose::default() };
+                    let f = figures::frame(troop, Anim::Dying, facing, p);
+                    assert!(f >= 8 * poses, "{name}: collapse frame {f} below its base");
+                    assert!(f < 8 * poses + 6, "{name}: collapse frame {f} past its six");
                 }
             }
             checked += 1;
