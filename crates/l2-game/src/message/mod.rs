@@ -86,14 +86,13 @@ use crate::game::Game;
 /// `0x31`.
 pub const RING: usize = 50;
 
-/// `g_messageTimer` when a record is pulled off the ring — and the value every
-/// *"first frame"* arm of `Msg_DrawWindow` compares against.
+/// `g_messageTimer` set when a record is pulled off the ring is the value every
+/// first frame arm of `Msg_DrawWindow` compares against.
 pub const TIMER_START: i32 = 2000;
 
-/// **What a message costs a player in a network game.** `Msg_Pump` dismisses an
-/// ordinary message once the timer falls below `0x641`, which is 399 ticks after
-/// it opened; in single player the same branch clamps the timer to 1 instead, so
-/// **a message never times out and waits for a click.**
+/// `Msg_Pump` dismisses an ordinary message once the timer falls below `0x641` (399
+/// ticks after it opened); in single player the timer clamps to 1 so it never
+/// times out and waits for a click.
 pub const MULTIPLAYER_TIMEOUT: i32 = 0x641;
 
 /// `Msg_DrawWindow`'s category-`0x04` arm clamps a timer above 999 down to this,
