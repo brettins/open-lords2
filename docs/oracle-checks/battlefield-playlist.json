@@ -1,0 +1,90 @@
+{
+  "reviewed": "a1fdeae45e174e57d4807c208032081876eeab16",
+  "date": "2026-09-14",
+  "behaviours": [
+    {
+      "file": "crates/l2-kingdom/src/field_playlist.rs",
+      "line": 89,
+      "address": "0x00497E65",
+      "verdict": "match",
+      "note": "scatter shape: zero table, src 0..0x2F, pos=(rand&0x1F)+1+src wrap -0x30, 50 probes on pos!=src && slot==0, probe wrap to 0"
+    },
+    {
+      "file": "crates/l2-kingdom/src/field_playlist.rs",
+      "line": 90,
+      "address": "0x00497E65",
+      "verdict": "departure",
+      "note": "C62 - own Pcg32 from the game seed, not the shared Rand_Advance/g_rand7B stream"
+    },
+    {
+      "file": "crates/l2-kingdom/src/field_playlist.rs",
+      "line": 116,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": "read playlist[cursor], cursor+1, wrap when 0x2E < cursor"
+    },
+    {
+      "file": "crates/l2-kingdom/src/field_playlist.rs",
+      "line": 40,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": "WALK_LEN 0x2F: the compare is 0x2e, entry 0x2F dealt and never read"
+    },
+    {
+      "file": "crates/l2-kingdom/src/field_playlist.rs",
+      "line": 135,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": "restore clamps the cursor to the walk range 0..0x2E"
+    },
+    {
+      "file": "crates/l2-kingdom/src/field_playlist.rs",
+      "line": 28,
+      "address": "0x0043F5C5",
+      "verdict": "departure",
+      "note": "Sync_Rollback's reverse step (cursor<1 -> 0x2E else -1) recorded, not implemented; no rollback path"
+    },
+    {
+      "file": "crates/l2-game/src/engagement/fight/fight_session.rs",
+      "line": 49,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": "walk on the open-field arm only; Battle_Start (0x004778A0) sends a siege to Battlefield_BuildCastle, which never reaches the read"
+    },
+    {
+      "file": "crates/l2-game/src/engagement/fight/fight_session.rs",
+      "line": 81,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": "field built from the walked frame, DAT_00553528"
+    },
+    {
+      "file": "crates/l2-game/src/batfield.rs",
+      "line": 58,
+      "address": "0x0047AAA3",
+      "verdict": "mismatch",
+      "note": "frame % sheet count; the original indexes the pl8 directory at DAT_00553528*0x10 unbounded. Inert on a 48-frame batfield.pl8, unlabeled"
+    },
+    {
+      "file": "crates/l2-game/src/batfield.rs",
+      "line": 44,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": "skirmish arm (DAT_0057A0F0 != 0) reads DAT_0056D590 and does not step the cursor"
+    },
+    {
+      "file": "crates/l2-kingdom/src/kingdom/pipeline/pipeline/pipeline.rs",
+      "line": 50,
+      "address": "0x00497CED",
+      "verdict": "match",
+      "note": "Game_NewGame calls PlayerStart_Shuffle, whose tail deals the table"
+    },
+    {
+      "file": "crates/l2-kingdom/src/save/codec_part.rs",
+      "line": 632,
+      "address": "0x0047AAA3",
+      "verdict": "departure",
+      "note": "saved as VERSION 31 (48 frames + cursor); the original saves neither global, relying on process lifetime. Departure stated in the entry"
+    }
+  ]
+}
