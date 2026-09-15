@@ -56,16 +56,44 @@ fn a_plain_click_acts_once() {
     assert_eq!(s.skirmish().top, 1, "no repeat after the release");
 }
 
-/// `Hotspot_Test` re-hit-tests the record every frame, so the pointer leaving
-/// it ends the hold.
+fn pointer(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) {
+    let mut ctx = Ctx { game, assets };
+    screen.handle(Event::Pointer { x, y }, &mut ctx);
+}
+
+/// `Hotspot_Test` re-hit-tests the record every frame and keeps no memory of
+/// where the press began (`00400000.c:7878-7891`), so off the record the pulse
+/// reaches no handler and back on it the press's own count — `DAT_0058FEB0`,
+/// zeroed at `7882` and nowhere else — carries on.
+///
+/// Ablation: zero the pulse count on re-entry and the 320th millisecond passes
+/// with the top still 1.
 #[test]
-fn the_pointer_leaving_the_record_ends_the_pulse() {
+fn the_pointer_leaving_the_record_suspends_the_pulse_and_returning_resumes_it() {
     let (mut game, assets) = world!();
     let mut s = page12();
     click(&mut s, &mut game, &assets, 610, 276);
-    let mut ctx = Ctx { game: &mut game, assets: &assets };
-    s.handle(Event::Pointer { x: 300, y: 100 }, &mut ctx);
-    ticks(&mut s, &mut game, &assets, PULSE_TICKS * 4);
+    pointer(&mut s, &mut game, &assets, 300, 100);
+    ticks(&mut s, &mut game, &assets, PULSE_TICKS - 1);
     assert_eq!(s.skirmish().top, 1, "off the record is not held");
+    pointer(&mut s, &mut game, &assets, 610, 276);
+    ticks(&mut s, &mut game, &assets, 1);
+    assert_eq!(s.skirmish().top, 2, "the count is the press's, not the re-entry's");
+}
+
+/// The kind-2 arm is reached from the loop that hit-tests the pointer, so the
+/// button held while the pointer crosses to the other arrow pulses **that**
+/// arrow — the two are one table, `0x004DCF68`.
+#[test]
+fn dragging_onto_the_other_arrow_pulses_the_other_arrow() {
+    let (mut game, assets) = world!();
+    let mut s = page12();
+    click(&mut s, &mut game, &assets, 610, 276);
+    ticks(&mut s, &mut game, &assets, PULSE_TICKS);
+    assert_eq!(s.skirmish().top, 2, "two pulses down");
+    // `FUN_0043D9CD` again, hotspot −1.
+    pointer(&mut s, &mut game, &assets, 610, 190);
+    ticks(&mut s, &mut game, &assets, PULSE_TICKS);
+    assert_eq!(s.skirmish().top, 1, "the up arrow, on the next pulse of the same divider");
 }
 

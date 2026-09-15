@@ -142,7 +142,71 @@ mod tests {
         for _ in 0..40 {
             let _ = p.tick();
         }
-        p.pointer(Some(2));
+        p.pointer(None);
+        assert_eq!((0..200).map(|_| p.tick().count()).sum::<usize>(), 0);
+    }
+
+    /// **Ablation:** drop the `Kind::Repeat` arm of [`Press::pointer`] and
+    /// widget 2 never fires. `Widget_Test` reaches its kind-4 arm only from the
+    /// loop that hit-tests the record under the pointer (`00400000.c:7513`),
+    /// and the ramp starts again because the countdown loop zeroes `+0x0E` of
+    /// every record whose `+0x0D` is `0` (`00400000.c:7486-7488`).
+    #[test]
+    fn dragging_onto_another_repeat_button_repeats_that_one() {
+        let mut p = Press::new();
+        p.press(1);
+        for _ in 0..40 {
+            let _ = p.tick();
+        }
+        p.pointer(Some((2, Kind::Repeat)));
+        let mut fired = Vec::new();
+        for t in 1..=40 {
+            fired.extend(p.tick().map(|w| (t, w)));
+        }
+        assert_eq!(fired[0], (16, 2), "step 8 of a ramp that started at the drag");
+        assert!(fired.iter().all(|&(_, w)| w == 2), "and only the record under the pointer");
+    }
+
+    /// The 320 ms count is `DAT_0058FEB0`, a `Tick_Pulses` divider zeroed at
+    /// the press (`00400000.c:7882`) and nowhere else.
+    ///
+    /// **Ablation:** zero `since_step` in [`Press::pointer`] for `Kind::Held`
+    /// too and the pulse lands twenty ticks late.
+    #[test]
+    fn a_kind_two_record_left_and_re_entered_rejoins_the_count() {
+        let ticks = HELD_PULSE_MS / TICK_MS;
+        let mut p = Press::new();
+        p.press_held(0);
+        for _ in 0..ticks / 2 {
+            assert_eq!(p.tick().next(), None);
+        }
+        p.pointer(None);
+        for _ in 0..ticks / 2 - 1 {
+            assert_eq!(p.tick().next(), None, "off the record no pulse reaches a handler");
+        }
+        p.pointer(Some((0, Kind::Held)));
+        assert_eq!(p.tick().collect::<Vec<_>>(), vec![0], "the press's own count, resumed");
+    }
+
+    /// `Hotspot_Test` tests the record under the pointer and `g_mouseLeftDown`
+    /// (`00400000.c:7878-7891`); the release clears the down bit
+    /// (`004b0000.c:2119`).
+    #[test]
+    fn dragging_onto_another_kind_two_record_pulses_that_one_until_the_release() {
+        let ticks = HELD_PULSE_MS / TICK_MS;
+        let mut p = Press::new();
+        p.press_held(0);
+        for _ in 0..5 {
+            let _ = p.tick();
+        }
+        p.pointer(Some((1, Kind::Held)));
+        let mut fired = Vec::new();
+        for t in 6..=ticks {
+            fired.extend(p.tick().map(|w| (t, w)));
+        }
+        assert_eq!(fired, vec![(ticks, 1)], "the divider's count, the pointer's record");
+        p.release();
+        p.pointer(Some((1, Kind::Held)));
         assert_eq!((0..200).map(|_| p.tick().count()).sum::<usize>(), 0);
     }
 

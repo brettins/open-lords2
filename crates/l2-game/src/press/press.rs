@@ -34,6 +34,10 @@ pub struct Press {
     /// happens to it can be read back by the thing that filled it.
     clicks: u8,
     redraw: bool,
+    /// `g_mouseLeftDown`, bit 0 of `DAT_004EABC2`: `App_WndProc`
+    /// (`0x004B29BE`) sets it on `0x201` and clears it on `0x202`, and `0x203`
+    /// sets bit 0 of `DAT_004EADA1` instead (`004b0000.c:2115-2124`).
+    down: bool,
 }
 
 impl Default for Press {
@@ -53,6 +57,7 @@ impl Press {
             delayed: 0,
             clicks: 0,
             redraw: false,
+            down: false,
         }
     }
 
@@ -169,7 +174,8 @@ impl Press {
                 (table[i].kind == Kind::Release).then_some(i)
             }
             Event::Pointer { x, y } => {
-                self.pointer(table.iter().position(|w| w.rect.contains(x, y)));
+                let over = table.iter().position(|w| w.rect.contains(x, y));
+                self.pointer(over.map(|i| (i, table[i].kind)));
                 None
             }
             Event::PointerLeft => {
@@ -187,6 +193,7 @@ impl Press {
         let w = Press::slot(widget);
         // sfx: Widget_Test#1
         self.click();
+        self.down = true;
         self.held = Some(w);
         self.held_kind = crate::arm!("0x0040DA1E/widget-auto-repeat", Repeat);
         self.step = 0;
@@ -199,6 +206,7 @@ impl Press {
 /// **No pressed frame.** `Hotspot_Test` sets the record's `+0x0D`.
     pub fn press_held(&mut self, widget: usize) -> bool {
         let w = Press::slot(widget);
+        self.down = true;
         self.held = Some(w);
         self.held_kind = Kind::Held;
         self.step = 0;
@@ -216,6 +224,7 @@ impl Press {
         let w = Press::slot(widget);
         // sfx: Widget_Test#2
         self.click();
+        self.down = true;
         self.held = None;
         self.step = 0;
         self.since_step = 0;
@@ -223,14 +232,43 @@ impl Press {
         self.delayed |= 1 << w;
     }
 
-    pub fn pointer(&mut self, over: Option<usize>) {
-        if self.held.is_some() && self.held != over {
-            self.held = None;
-            self.step = 0;
+    /// **The press has no memory of where it began.** `Hotspot_Test`'s kind-2
+    /// arm (`00400000.c:7878-7891`) and `Widget_Test`'s kind-4 arm
+    /// (`00400000.c:7513-7526`) are both reached only by the loop that
+    /// hit-tests the record under the pointer, and both then ask
+    /// `g_mouseLeftDown` alone: with the button down, leaving a record suspends
+    /// it, re-entering resumes it, and the pointer dragged onto another record
+    /// of the same kind holds **that** one.
+    pub fn pointer(&mut self, over: Option<(usize, Kind)>) {
+        if !self.down {
+            return;
+        }
+        match over {
+            Some((i, kind)) if matches!(kind, Kind::Held | Kind::Repeat) => {
+                if self.held == Some(i) {
+                    return;
+                }
+                self.held = Some(i);
+                self.held_kind = kind;
+                // `Widget_Test`'s countdown loop zeroes `+0x0E` of every record
+                // whose `+0x0D` is `0` (`00400000.c:7486-7488`), so a kind-4
+                // record entered with the button down ramps from step 0. The
+                // kind-2 divider `DAT_0058FEB0` is zeroed at the press (`7882`)
+                // and nowhere else, so kind 2 keeps its count.
+                if kind == Kind::Repeat {
+                    self.step = 0;
+                    self.since_step = 0;
+                }
+            }
+            _ => {
+                self.held = None;
+                self.step = 0;
+            }
         }
     }
 
     pub fn release(&mut self) {
+        self.down = false;
         self.held = None;
         self.step = 0;
     }
@@ -259,18 +297,24 @@ impl Press {
     }
 
     fn hold(&mut self, mut fired: Fired) -> Fired {
-        let Some(held) = self.held else { return fired };
         // `Hotspot_Test`'s kind-2 arm consults `DAT_0057D3C8` — one of
-        // `Tick_Pulses`' eight dividers, every fourth 80 ms pulse — and there is
-        // no table, no ramp and no pressed picture in it.
+        // `Tick_Pulses`' eight dividers, every fourth 80 ms pulse
+        // (`004b0000.c:7763`) — and there is no table, no ramp and no pressed
+        // picture in it. The divider is a global counted in `Tick_Pulses`, not
+        // in the record, so it runs on while the pointer is off the record and
+        // only `self.held` decides whether the pulse reaches a handler.
         if self.held_kind == Kind::Held {
+            if !self.down {
+                return fired;
+            }
             self.since_step += TICK_MS;
             if self.since_step >= HELD_PULSE_MS {
                 self.since_step = 0;
-                fired.held = Some(held);
+                fired.held = self.held;
             }
             return fired;
         }
+        let Some(held) = self.held else { return fired };
         self.timers[held] = PRESS_FRAMES;
         self.since_step += TICK_MS;
         if self.since_step < REPEAT_STEP_MS {
