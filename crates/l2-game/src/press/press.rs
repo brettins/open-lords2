@@ -114,6 +114,15 @@ impl Press {
     pub fn event(&mut self, table: &[Widget], event: Event) -> Option<usize> {
         match event {
             Event::Click { x, y } => {
+                // **The down bit rises wherever the pointer is.**
+                // `App_WndProc` (`0x004B29BE`) answers `0x201` with
+                // `DAT_004EABC2 |= 1` before any hit test
+                // (`004b0000.c:2115-2117`), and `Hotspot_Test`'s kind-2 arm
+                // (`00400000.c:7877-7879`) asks `g_mouseLeftDown` alone — so a
+                // press begun on the background and dragged onto a record
+                // holds it. Set here and not only in `press`/`press_held`,
+                // which the `?` below skips. `[V]`
+                self.down = true;
                 let i = table.iter().position(|w| w.rect.contains(x, y))?;
                 match table[i].kind {
                     Kind::Press => Some(i),
@@ -298,7 +307,7 @@ impl Press {
 
     fn hold(&mut self, mut fired: Fired) -> Fired {
         // `Hotspot_Test`'s kind-2 arm consults `DAT_0057D3C8` — one of
-        // `Tick_Pulses`' eight dividers, every fourth 80 ms pulse
+        // `Tick_Pulses`' (`0x004BBC80`) eight dividers, every fourth 80 ms pulse
         // (`004b0000.c:7763`) — and there is no table, no ramp and no pressed
         // picture in it. The divider is a global counted in `Tick_Pulses`, not
         // in the record, so it runs on while the pointer is off the record and

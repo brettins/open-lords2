@@ -83,7 +83,10 @@ impl Screen for SetupScreen {
                 | Event::Pointer { .. }
                 | Event::PointerLeft
         ) {
-            self.press_event(event);
+            match self.press_event(event, ctx) {
+                Transition::Stay => {}
+                t => return t,
+            }
         }
         match event {
             // arm: ours/setup-key-up key

@@ -81,6 +81,47 @@ fn the_pointer_leaving_the_record_suspends_the_pulse_and_returning_resumes_it() 
     assert_eq!(s.skirmish().top, 2, "the count is the press's, not the re-entry's");
 }
 
+fn double_click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) {
+    let mut ctx = Ctx { game, assets };
+    screen.handle(Event::DoubleClick { x, y }, &mut ctx);
+}
+
+/// `App_WndProc` (`0x004B29BE`) sets `g_mouseLeftDown` on `0x201` before any
+/// hit test (`004b0000.c:2115-2117`) and `Hotspot_Test` asks it alone
+/// (`00400000.c:7877-7879`), so a press begun on the background holds the
+/// record it is dragged onto.
+///
+/// Ablation: set `Press::down` only when a Click hit a record and the top
+/// stays 0.
+#[test]
+fn a_press_begun_off_the_table_and_dragged_onto_an_arrow_pulses() {
+    let (mut game, assets) = world!();
+    let mut s = page12();
+    // No hotspot of page 12 covers it.
+    click(&mut s, &mut game, &assets, 220, 440);
+    assert_eq!(s.skirmish().top, 0, "the background acts nothing");
+    pointer(&mut s, &mut game, &assets, 610, 276);
+    ticks(&mut s, &mut game, &assets, PULSE_TICKS);
+    assert_eq!(s.skirmish().top, 1, "the 320 ms pulse reaches the arrow");
+}
+
+/// `Hotspot_Test`'s kind-2 arm runs on `g_mouseLeftPressed ||
+/// g_mouseLeftDoubleClick` (`00400000.c:7880-7888`).
+///
+/// Ablation: drop the `Event::DoubleClick` arm of `SetupScreen::press_event`
+/// and the second press acts nothing.
+#[test]
+fn a_double_click_on_the_scroll_arrow_steps_twice() {
+    let (mut game, assets) = world!();
+    let mut s = page12();
+    click(&mut s, &mut game, &assets, 610, 276);
+    double_click(&mut s, &mut game, &assets, 610, 276);
+    assert_eq!(s.skirmish().top, 2, "both presses act");
+    // `0x203` sets no down bit, so the hold ends with the second press.
+    ticks(&mut s, &mut game, &assets, PULSE_TICKS * 2);
+    assert_eq!(s.skirmish().top, 2, "and it does not auto-repeat");
+}
+
 /// The kind-2 arm is reached from the loop that hit-tests the pointer, so the
 /// button held while the pointer crosses to the other arrow pulses **that**
 /// arrow — the two are one table, `0x004DCF68`.
